@@ -22,14 +22,14 @@ def sample(low: Union[float, np.ndarray] = -1.0,
            dist: str = 'uniform',
            scale: Union[float, np.ndarray] = 1.0,
            enable_log_scale: bool = False,
-           size: Optional[Sequence[int]] = None,
+           shape: Optional[Sequence[int]] = None,
            rg: Optional[np.random.RandomState] = None
            ) -> Union[float, np.ndarray]:
     """Randomly sample values from a given distribution.
 
     .. note:
         If 'low', 'high', and 'scale' are floats, then the output is float if
-        'size' is None, otherwise it has type `np.ndarray` and shape 'size'.
+        'shape' is None, otherwise it has type `np.ndarray` and shape 'shape'.
         Similarly, if any of 'low', 'high', and 'scale' are `np.ndarray`, then
         its shape follows the broadcasting rules between these variables.
 
@@ -46,9 +46,9 @@ def sample(low: Union[float, np.ndarray] = -1.0,
                   mean by this factor.
                   Optional: No scaling by default?
     :param enable_log_scale: The sampled values are power of 10.
-    :param size: Enforce of the sampling size. Only available if 'low', 'high'
-                 and 'scale' are floats. `None` to disable.
-                 Optional: Disable by default.
+    :param shape: Enforce of the sampling shape. Only available if 'low',
+                  'high' and 'scale' are floats. `None` to disable.
+                  Optional: Disable by default.
     :param rg: Custom random number generator from which to draw samples.
                Optional: Default to `np.random`.
     """
@@ -64,18 +64,18 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     # Get sample shape.
     # Better use dev than mean since it works even if only scale is array.
     if isinstance(dev, np.ndarray):
-        if size is None:
-            size = dev.shape
+        if shape is None:
+            shape = dev.shape
         else:
             raise ValueError(
-                "One cannot specify 'size' if 'low' and 'high' are vectors.")
+                "One cannot specify 'shape' if 'low' and 'high' are vectors.")
 
     # Sample from normalized distribution.
     # Note that some distributions are not normalized by default
     if rg is None:
         rg = np.random
     distrib_fn = getattr(rg, dist)
-    val = distrib_fn(size=size)
+    val = distrib_fn(size=shape)
     if dist == 'uniform':
         val = 2.0 * (val - 0.5)
 
@@ -132,7 +132,7 @@ def set_value(data: SpaceDictNested,
 
     It avoids memory allocation, so that memory pointers of 'data' remains
     unchanged. A direct consequences, it is necessary to preallocate memory
-    beforehand, and to work with fixed size buffers.
+    beforehand, and to work with fixed shape buffers.
 
     .. note::
         If 'data' is a dictionary, 'value' must be a subtree of 'data',

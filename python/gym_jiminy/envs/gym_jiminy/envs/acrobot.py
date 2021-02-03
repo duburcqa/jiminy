@@ -171,11 +171,11 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         See documentation: https://gym.openai.com/envs/Acrobot-v1/.
         """
         theta1, theta2 = sample(
-            scale=THETA_RANDOM_MAX, size=(2,), rg=self.rg)
+            scale=THETA_RANDOM_MAX, shape=(2,), rg=self.rg)
         qpos = np.array([np.cos(theta1), np.sin(theta1),
                          np.cos(theta2), np.sin(theta2)])
         qvel = sample(
-            scale=DTHETA_RANDOM_MAX, size=(2,), rg=self.rg)
+            scale=DTHETA_RANDOM_MAX, shape=(2,), rg=self.rg)
         return qpos, qvel
 
     def _get_achieved_goal(self) -> np.ndarray:
@@ -262,7 +262,7 @@ class AcrobotJiminyGoalEnv(AcrobotJiminyEnv, BaseJiminyGoalEnv):
         [HEIGHT_REL_MIN_GOAL_THRESHOLD, HEIGHT_REL_MAX_GOAL_THRESHOLD].
         """
         return self._tipPosZMax * sample(
-            *HEIGHT_REL_GOAL_THRESHOLD_RANGE, size=(1,), rg=self.rg)
+            *HEIGHT_REL_GOAL_THRESHOLD_RANGE, shape=(1,), rg=self.rg)
 
     def _get_achieved_goal(self) -> np.ndarray:
         """Compute achieved goal based on current state of the robot.

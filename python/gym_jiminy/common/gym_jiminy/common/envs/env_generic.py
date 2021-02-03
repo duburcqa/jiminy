@@ -396,10 +396,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # would requires the neural network to perform float64 computations
         # or cast the output for no really advantage since the action is
         # directly forwarded to the motors, without intermediary computations.
-        motors_velocity_idx = self.robot.motors_velocity_idx
+        action_scale = effort_limit[self.robot.motors_velocity_idx]
         self.action_space = gym.spaces.Box(
-            low=-effort_limit[motors_velocity_idx].astype(np.float32),
-            high=effort_limit[motors_velocity_idx].astype(np.float32),
+            low=-action_scale.astype(np.float32),
+            high=action_scale.astype(np.float32),
             dtype=np.float32)
 
     def reset(self,
