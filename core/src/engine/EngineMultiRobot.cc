@@ -2925,21 +2925,19 @@ namespace jiminy
         {
             // Extract info about the first system involved
             int32_t const & systemIdx1 = forceCoupling.systemIdx1;
-            systemHolder_t & system1 = systems_[systemIdx1];
+            systemHolder_t const & system1 = systems_[systemIdx1];
             vectorN_t const & q1 = qSplit[systemIdx1];
             vectorN_t const & v1 = vSplit[systemIdx1];
-            systemDataHolder_t & systemData1 = systemsDataHolder_[systemIdx1];
             int32_t const & frameIdx1 = forceCoupling.frameIdx1;
-            forceVector_t & fext1 = systemData1.state.fExternal;
+            forceVector_t & fext1 = systemsDataHolder_[systemIdx1].state.fExternal;
 
             // Extract info about the second system involved
             int32_t const & systemIdx2 = forceCoupling.systemIdx2;
-            systemHolder_t & system2 = systems_[systemIdx2];
-            systemDataHolder_t & systemData2 = systemsDataHolder_[systemIdx2];
+            systemHolder_t const & system2 = systems_[systemIdx2];
             vectorN_t const & q2 = qSplit[systemIdx2];
             vectorN_t const & v2 = vSplit[systemIdx2];
             int32_t const & frameIdx2 = forceCoupling.frameIdx2;
-            forceVector_t & fext2 = systemData2.state.fExternal;
+            forceVector_t & fext2 = systemsDataHolder_[systemIdx2].state.fExternal;
 
             // Compute the coupling force
             pinocchio::Force const force = forceCoupling.forceFct(t, q1, v1, q2, v2);
@@ -2949,9 +2947,9 @@ namespace jiminy
 
             // Move force from frame1 to frame2 to apply it to the second system
             int32_t const & parentJointIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
-            pinocchio::SE3 offset(
+            pinocchio::SE3 const offset(
                 matrix3_t::Identity(),
-                system1.robot->pncData_.oMf[frameIdx2].translation()
+                system2.robot->pncData_.oMf[frameIdx2].translation()
                     - system1.robot->pncData_.oMf[frameIdx1].translation());
             fext2[parentJointIdx2] += convertForceGlobalFrameToJoint(
                 system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, -offset.act(force));
