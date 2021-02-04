@@ -467,7 +467,8 @@ def _fix_urdf_mesh_path(urdf_path: str,
     if output_root_path is None:
         output_root_path = tempfile.mkdtemp()
     fixed_urdf_dir = os.path.join(
-        output_root_path, "fixed_urdf" + mesh_path.replace('/', '_'))
+        output_root_path, "fixed_urdf" + mesh_path.translate(
+            str.maketrans({k: '_' for k in '/:'})))
     os.makedirs(fixed_urdf_dir, exist_ok=True)
     fixed_urdf_path = os.path.join(
         fixed_urdf_dir, os.path.basename(urdf_path))

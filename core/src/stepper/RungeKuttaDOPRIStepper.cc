@@ -55,8 +55,8 @@ namespace jiminy
             if (error < 0.5)
             {
                 // Prevent numeric rounding error when close to zero.
-                float64_t const newError = std::max(error,
-                                                    std::pow(DOPRI::MAX_FACTOR, -DOPRI::STEPPER_ORDER));
+                float64_t const newError = std::max(
+                    error, std::pow(DOPRI::MAX_FACTOR / DOPRI::SAFETY, -DOPRI::STEPPER_ORDER));
                 dt *= DOPRI::SAFETY * std::pow(newError, -1.0 / DOPRI::STEPPER_ORDER);
             }
             return true;

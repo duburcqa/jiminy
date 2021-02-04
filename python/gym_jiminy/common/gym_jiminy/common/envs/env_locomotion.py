@@ -285,7 +285,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
             # Schedule some external impulse forces applied on PelvisLink
             for t_ref in np.arange(0.0, self.simu_duration_max, 2.0)[1:]:
-                f_xy_impulse = sample(dist='normal', size=(2,), rg=self.rg)
+                f_xy_impulse = sample(dist='normal', shape=(2,), rg=self.rg)
                 f_xy_impulse /= np.linalg.norm(f_xy_impulse, ord=2)
                 f_xy_impulse *= sample(
                     0.0, self.std_ratio['disturbance']*F_XY_IMPULSE_SCALE,

@@ -312,8 +312,110 @@ namespace jiminy
                                                              std::string const & systemName2,
                                                              std::string const & frameName1,
                                                              std::string const & frameName2,
-                                                             float64_t   const & stiffness,
-                                                             float64_t   const & damping)
+                                                             vectorN_t   const & stiffness,
+                                                             vectorN_t   const & damping)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        systemHolder_t * system1;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystem(systemName1, system1);
+        }
+
+        int32_t frameIdx1;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getFrameIdx(system1->robot->pncModel_, frameName1, frameIdx1);
+        }
+
+        systemHolder_t * system2;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystem(systemName2, system2);
+        }
+
+        int32_t frameIdx2;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getFrameIdx(system2->robot->pncModel_, frameName2, frameIdx2);
+        }
+
+        if (stiffness.size() != 6 || damping.size() != 6)
+        {
+            PRINT_ERROR("'stiffness' and 'damping' must have size 6.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            auto forceFct = [=] (
+                float64_t const & /*t*/,
+                vectorN_t const & /*q_1*/,
+                vectorN_t const & /*v_1*/,
+                vectorN_t const & /*q_2*/,
+                vectorN_t const & /*v_2*/) mutable -> pinocchio::Force
+            {
+                /* One must keep track of system pointers and frames indices internally
+                   and update them at reset since the systems may have changed between
+                   simulations. Note that `isSimulationRunning_` is false when called
+                   for the first time in `start` method before locking the robot, so it
+                   is the right time to update those proxies. */
+                if (!isSimulationRunning_)
+                {
+                    getSystem(systemName1, system1);
+                    getFrameIdx(system1->robot->pncModel_, frameName1, frameIdx1);
+                    getSystem(systemName2, system2);
+                    getFrameIdx(system2->robot->pncModel_, frameName2, frameIdx2);
+                }
+
+                // Get the frames positions and velocities in world
+                pinocchio::SE3 const & oMf1 = system1->robot->pncData_.oMf[frameIdx1];
+                pinocchio::SE3 const & oMf2 = system2->robot->pncData_.oMf[frameIdx2];
+                pinocchio::Motion const oVf1 = getFrameVelocity(system1->robot->pncModel_,
+                                                                system1->robot->pncData_,
+                                                                frameIdx1,
+                                                                pinocchio::WORLD);
+                pinocchio::Motion const oVf2 = getFrameVelocity(system2->robot ->pncModel_,
+                                                                system2->robot->pncData_,
+                                                                frameIdx2,
+                                                                pinocchio::WORLD);
+
+                /* Compute the force coupling them.
+                   Note that the application point is the "middle" between frames to
+                   get "symmetric" forces on both frame. */
+                pinocchio::Motion const pos12 = pinocchio::log6(oMf1.actInv(oMf2));
+                pinocchio::SE3 const oMf12 = pinocchio::exp6(0.5 * pos12);
+                pinocchio::SE3 const oRf1 = pinocchio::SE3(oMf1.rotation(), vector3_t::Zero());
+                vector6_t const vel12 = (oVf2 - oVf1).toVector();
+                return oRf1.act(oMf12.actInv(pinocchio::Force((
+                    stiffness.array() * pos12.toVector().array() +
+                    damping.array() * vel12.array()).matrix())));
+            };
+
+            returnCode = addCouplingForce(
+                systemName1, systemName2, frameName1, frameName2, forceFct);
+        }
+
+        return returnCode;
+    }
+
+    hresult_t EngineMultiRobot::addViscoElasticCouplingForce(std::string const & systemName,
+                                                             std::string const & frameName1,
+                                                             std::string const & frameName2,
+                                                             vectorN_t   const & stiffness,
+                                                             vectorN_t   const & damping)
+    {
+        return addViscoElasticCouplingForce(
+            systemName, systemName, frameName1, frameName2, stiffness, damping);
+    }
+
+    hresult_t EngineMultiRobot::addViscoElasticDirectionalCouplingForce(std::string const & systemName1,
+                                                                        std::string const & systemName2,
+                                                                        std::string const & frameName1,
+                                                                        std::string const & frameName2,
+                                                                        float64_t   const & stiffness,
+                                                                        float64_t   const & damping)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -343,28 +445,44 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            auto forceFct = [=](float64_t const & /*t*/,
-                                vectorN_t const & /*q_1*/,
-                                vectorN_t const & /*v_1*/,
-                                vectorN_t const & /*q_2*/,
-                                vectorN_t const & /*v_2*/) -> pinocchio::Force
+            auto forceFct = [=] (
+                float64_t const & /*t*/,
+                vectorN_t const & /*q_1*/,
+                vectorN_t const & /*v_1*/,
+                vectorN_t const & /*q_2*/,
+                vectorN_t const & /*v_2*/) mutable -> pinocchio::Force
             {
+                /* One must keep track of system pointers and frames indices internally
+                   and update them at reset since the systems may have changed between
+                   simulations. Note that `isSimulationRunning_` is false when called
+                   for the first time in `start` method before locking the robot, so it
+                   is the right time to update those proxies. */
+                if (!isSimulationRunning_)
+                {
+                    getSystem(systemName1, system1);
+                    getFrameIdx(system1->robot->pncModel_, frameName1, frameIdx1);
+                    getSystem(systemName2, system2);
+                    getFrameIdx(system2->robot->pncModel_, frameName2, frameIdx2);
+                }
+
+                // Get the frames positions and velocities in world
                 pinocchio::SE3 const & oMf1 = system1->robot->pncData_.oMf[frameIdx1];
                 pinocchio::SE3 const & oMf2 = system2->robot->pncData_.oMf[frameIdx2];
                 pinocchio::Motion const oVf1 = getFrameVelocity(system1->robot->pncModel_,
                                                                 system1->robot->pncData_,
                                                                 frameIdx1,
                                                                 pinocchio::WORLD);
-                pinocchio::Motion const oVf2 = getFrameVelocity(system1->robot ->pncModel_,
-                                                                system1->robot->pncData_,
+                pinocchio::Motion const oVf2 = getFrameVelocity(system2->robot ->pncModel_,
+                                                                system2->robot->pncData_,
                                                                 frameIdx2,
                                                                 pinocchio::WORLD);
 
+                // Compute the linear force coupling them
                 vector3_t const dir12 = oMf2.translation() - oMf1.translation();
-                if ((dir12.array() > EPS).any())
+                if ((dir12.array().abs() > EPS).any())
                 {
                     auto vel12 = oVf2.linear() - oVf1.linear();
-                    auto vel12Proj = vel12.dot(dir12) * dir12 / dir12.squaredNorm();
+                    auto vel12Proj = vel12.dot(dir12) / dir12.squaredNorm() * dir12;
                     return pinocchio::Force(
                         stiffness * dir12 + damping * vel12Proj, vector3_t::Zero());
                 }
@@ -378,13 +496,13 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::addViscoElasticCouplingForce(std::string const & systemName,
-                                                             std::string const & frameName1,
-                                                             std::string const & frameName2,
-                                                             float64_t   const & stiffness,
-                                                             float64_t   const & damping)
+    hresult_t EngineMultiRobot::addViscoElasticDirectionalCouplingForce(std::string const & systemName,
+                                                                        std::string const & frameName1,
+                                                                        std::string const & frameName2,
+                                                                        float64_t   const & stiffness,
+                                                                        float64_t   const & damping)
     {
-        return addViscoElasticCouplingForce(
+        return addViscoElasticDirectionalCouplingForce(
             systemName, systemName, frameName1, frameName2, stiffness, damping);
     }
 
@@ -693,7 +811,8 @@ namespace jiminy
         }
     };
 
-    void computeExtraTerms(systemHolder_t & system)
+    void computeExtraTerms(systemHolder_t           & system,
+                           systemDataHolder_t const & systemData)
     {
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
@@ -745,6 +864,7 @@ namespace jiminy
             #else
             data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
             #endif
+            data.f[i] -= systemData.state.fExternal[i];
         }
         for (int32_t i = model.njoints - 1; i > 0; --i)
         {
@@ -770,11 +890,14 @@ namespace jiminy
         }
     }
 
-    void computeAllExtraTerms(std::vector<systemHolder_t> & systems)
+    void computeAllExtraTerms(std::vector<systemHolder_t>           & systems,
+                              std::vector<systemDataHolder_t> const & systemsDataHolder)
     {
-        for (auto & system : systems)
+        auto systemIt = systems.begin();
+        auto systemDataIt = systemsDataHolder.begin();
+        for ( ; systemIt != systems.end(); ++systemIt, ++systemDataIt)
         {
-            computeExtraTerms(system);
+            computeExtraTerms(*systemIt, *systemDataIt);
         }
     }
 
@@ -1164,7 +1287,7 @@ namespace jiminy
                 a = computeAcceleration(*systemIt, q, v, u, fext);
 
                 // Compute joints accelerations and forces
-                computeExtraTerms(*systemIt);
+                computeExtraTerms(*systemIt, *systemDataIt);
                 syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
 
                 // Update the sensor data once again, with the updated effort and acceleration
@@ -1562,7 +1685,7 @@ namespace jiminy
             if (stepperUpdatePeriod_ < EPS && hasDynamicsChanged)
             {
                 computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                computeAllExtraTerms(systems_);
+                computeAllExtraTerms(systems_, systemsDataHolder_);
                 syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                 syncSystemsStateWithStepper(true);
                 hasDynamicsChanged = false;
@@ -1602,7 +1725,7 @@ namespace jiminy
                 while (tNext - t > EPS)
                 {
                     // Log every stepper state only if the user asked for
-                    if (engineOptions_->stepper.logInternalStepperSteps)
+                    if (successiveIterFailed == 0 && engineOptions_->stepper.logInternalStepperSteps)
                     {
                         updateTelemetry();
                     }
@@ -1611,7 +1734,7 @@ namespace jiminy
                     if (hasDynamicsChanged)
                     {
                         computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                        computeAllExtraTerms(systems_);
+                        computeAllExtraTerms(systems_, systemsDataHolder_);
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper(true);
                         hasDynamicsChanged = false;
@@ -1676,7 +1799,7 @@ namespace jiminy
 
                         /* Compute the actual joint acceleration and forces, based on
                            up-to-date pinocchio::Data. */
-                        computeAllExtraTerms(systems_);
+                        computeAllExtraTerms(systems_, systemsDataHolder_);
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
@@ -1768,7 +1891,7 @@ namespace jiminy
 
                         /* Compute the actual joint acceleration and forces, based on
                            up-to-date pinocchio::Data. */
-                        computeAllExtraTerms(systems_);
+                        computeAllExtraTerms(systems_, systemsDataHolder_);
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
@@ -2802,21 +2925,19 @@ namespace jiminy
         {
             // Extract info about the first system involved
             int32_t const & systemIdx1 = forceCoupling.systemIdx1;
-            systemHolder_t & system1 = systems_[systemIdx1];
+            systemHolder_t const & system1 = systems_[systemIdx1];
             vectorN_t const & q1 = qSplit[systemIdx1];
             vectorN_t const & v1 = vSplit[systemIdx1];
-            systemDataHolder_t & systemData1 = systemsDataHolder_[systemIdx1];
             int32_t const & frameIdx1 = forceCoupling.frameIdx1;
-            forceVector_t & fext1 = systemData1.state.fExternal;
+            forceVector_t & fext1 = systemsDataHolder_[systemIdx1].state.fExternal;
 
             // Extract info about the second system involved
             int32_t const & systemIdx2 = forceCoupling.systemIdx2;
-            systemHolder_t & system2 = systems_[systemIdx2];
-            systemDataHolder_t & systemData2 = systemsDataHolder_[systemIdx2];
+            systemHolder_t const & system2 = systems_[systemIdx2];
             vectorN_t const & q2 = qSplit[systemIdx2];
             vectorN_t const & v2 = vSplit[systemIdx2];
             int32_t const & frameIdx2 = forceCoupling.frameIdx2;
-            forceVector_t & fext2 = systemData2.state.fExternal;
+            forceVector_t & fext2 = systemsDataHolder_[systemIdx2].state.fExternal;
 
             // Compute the coupling force
             pinocchio::Force const force = forceCoupling.forceFct(t, q1, v1, q2, v2);
@@ -2826,9 +2947,9 @@ namespace jiminy
 
             // Move force from frame1 to frame2 to apply it to the second system
             int32_t const & parentJointIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
-            pinocchio::SE3 offset(
+            pinocchio::SE3 const offset(
                 matrix3_t::Identity(),
-                system1.robot->pncData_.oMf[frameIdx2].translation()
+                system2.robot->pncData_.oMf[frameIdx2].translation()
                     - system1.robot->pncData_.oMf[frameIdx1].translation());
             fext2[parentJointIdx2] += convertForceGlobalFrameToJoint(
                 system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, -offset.act(force));

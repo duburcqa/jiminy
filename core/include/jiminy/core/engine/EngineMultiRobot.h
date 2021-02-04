@@ -334,17 +334,28 @@ namespace jiminy
                                    std::string const & frameName1,
                                    std::string const & frameName2,
                                    forceCouplingFunctor_t forceFct);
+        hresult_t addViscoElasticDirectionalCouplingForce(std::string const & systemName1,
+                                                          std::string const & systemName2,
+                                                          std::string const & frameName1,
+                                                          std::string const & frameName2,
+                                                          float64_t   const & stiffness,
+                                                          float64_t   const & damping);
+        hresult_t addViscoElasticDirectionalCouplingForce(std::string const & systemName,
+                                                          std::string const & frameName1,
+                                                          std::string const & frameName2,
+                                                          float64_t   const & stiffness,
+                                                          float64_t   const & damping);
         hresult_t addViscoElasticCouplingForce(std::string const & systemName1,
                                                std::string const & systemName2,
                                                std::string const & frameName1,
                                                std::string const & frameName2,
-                                               float64_t   const & stiffness,
-                                               float64_t   const & damping);
+                                               vectorN_t   const & stiffness,
+                                               vectorN_t   const & damping);
         hresult_t addViscoElasticCouplingForce(std::string const & systemName,
                                                std::string const & frameName1,
                                                std::string const & frameName2,
-                                               float64_t   const & stiffness,
-                                               float64_t   const & damping);
+                                               vectorN_t   const & stiffness,
+                                               vectorN_t   const & damping);
         hresult_t removeCouplingForces(std::string const & systemName1,
                                        std::string const & systemName2);
         hresult_t removeCouplingForces(std::string const & systemName);
