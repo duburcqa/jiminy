@@ -811,7 +811,8 @@ namespace jiminy
         }
     };
 
-    void computeExtraTerms(systemHolder_t & system)
+    void computeExtraTerms(systemHolder_t           & system,
+                           systemDataHolder_t const & systemData)
     {
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
@@ -863,6 +864,7 @@ namespace jiminy
             #else
             data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
             #endif
+            data.f[i] -= systemData.state.fExternal[i];
         }
         for (int32_t i = model.njoints - 1; i > 0; --i)
         {
@@ -888,11 +890,14 @@ namespace jiminy
         }
     }
 
-    void computeAllExtraTerms(std::vector<systemHolder_t> & systems)
+    void computeAllExtraTerms(std::vector<systemHolder_t>           & systems,
+                              std::vector<systemDataHolder_t> const & systemsDataHolder)
     {
-        for (auto & system : systems)
+        auto systemIt = systems.begin();
+        auto systemDataIt = systemsDataHolder.begin();
+        for ( ; systemIt != systems.end(); ++systemIt, ++systemDataIt)
         {
-            computeExtraTerms(system);
+            computeExtraTerms(*systemIt, *systemDataIt);
         }
     }
 
@@ -1282,7 +1287,7 @@ namespace jiminy
                 a = computeAcceleration(*systemIt, q, v, u, fext);
 
                 // Compute joints accelerations and forces
-                computeExtraTerms(*systemIt);
+                computeExtraTerms(*systemIt, *systemDataIt);
                 syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
 
                 // Update the sensor data once again, with the updated effort and acceleration
@@ -1680,7 +1685,7 @@ namespace jiminy
             if (stepperUpdatePeriod_ < EPS && hasDynamicsChanged)
             {
                 computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                computeAllExtraTerms(systems_);
+                computeAllExtraTerms(systems_, systemsDataHolder_);
                 syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                 syncSystemsStateWithStepper(true);
                 hasDynamicsChanged = false;
@@ -1729,7 +1734,7 @@ namespace jiminy
                     if (hasDynamicsChanged)
                     {
                         computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                        computeAllExtraTerms(systems_);
+                        computeAllExtraTerms(systems_, systemsDataHolder_);
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper(true);
                         hasDynamicsChanged = false;
@@ -1794,7 +1799,7 @@ namespace jiminy
 
                         /* Compute the actual joint acceleration and forces, based on
                            up-to-date pinocchio::Data. */
-                        computeAllExtraTerms(systems_);
+                        computeAllExtraTerms(systems_, systemsDataHolder_);
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
@@ -1886,7 +1891,7 @@ namespace jiminy
 
                         /* Compute the actual joint acceleration and forces, based on
                            up-to-date pinocchio::Data. */
-                        computeAllExtraTerms(systems_);
+                        computeAllExtraTerms(systems_, systemsDataHolder_);
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
