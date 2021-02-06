@@ -149,6 +149,12 @@ namespace python
             {
                 auto fieldnames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
                 PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
+                int dataPyArrayNdims = PyArray_NDIM(dataPyArray);
+                if (dataPyArrayNdims != 1)
+                {
+                    PRINT_ERROR("Only one-dimensional 'np.ndarray' is supported.");
+                    return hresult_t::ERROR_BAD_INPUT;
+                }
                 if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64 && PyArray_SIZE(dataPyArray) == uint32_t(fieldnames.size()))
                 {
                     Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
@@ -178,7 +184,7 @@ namespace python
                 int dataPyArrayDtype = PyArray_TYPE(dataPyArray);
                 if (dataPyArrayDtype != NPY_FLOAT64)
                 {
-                    PRINT_ERROR("The only dtype supported for 'numpy.ndarray' is float.");
+                    PRINT_ERROR("The only dtype supported for 'numpy.ndarray' is 'np.float64'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
                 float64_t * dataPyArrayData = (float64_t *) PyArray_DATA(dataPyArray);
