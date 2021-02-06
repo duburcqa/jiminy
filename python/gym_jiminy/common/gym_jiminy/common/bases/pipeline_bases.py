@@ -314,7 +314,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
             self.observation_space = self.observer.observation_space
 
         # Initialize some internal buffers
-        self._action = zeros(self.action_space)
+        self._action = zeros(self.action_space, dtype=np.float64)
         self._observation = zeros(self.observation_space)
 
     def _setup(self) -> None:
@@ -490,8 +490,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                     self.controller.action_space
 
         # Initialize some internal buffers
-        self._action = zeros(self.action_space)
-        self._target = zeros(self.env.action_space)
+        self._action = zeros(self.action_space, dtype=np.float64)
+        self._target = zeros(self.env.action_space, dtype=np.float64)
         self._observation = zeros(self.observation_space)
 
     def _setup(self) -> None:

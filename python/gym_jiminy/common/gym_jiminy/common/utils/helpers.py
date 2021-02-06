@@ -89,17 +89,19 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     return val
 
 
-def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
+def zeros(space: gym.Space,
+          dtype: Optional[type] = None) -> Union[SpaceDictNested, int]:
     """Allocate data structure from `Gym.Space` and initialize it to zero.
 
     :param space: Space for which to allocate and initialize data.
+    :param dtype: Must be specified to overwrite original space dtype.
     """
     if isinstance(space, gym.spaces.Box):
-        return np.zeros(space.shape, dtype=space.dtype)
+        return np.zeros(space.shape, dtype=dtype or space.dtype)
     if isinstance(space, gym.spaces.Dict):
         value = OrderedDict()
         for field, subspace in dict.items(space.spaces):
-            value[field] = zeros(subspace)
+            value[field] = zeros(subspace, dtype=dtype)
         return value
     if isinstance(space, gym.spaces.Discrete):
         return np.array(0)  # Using np.array of 0 dim to be mutable
