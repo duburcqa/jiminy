@@ -133,8 +133,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         assert (isinstance(self.observation_space, gym.spaces.Space) and
                 isinstance(self.action_space, gym.spaces.Space))
 
-        # Initialize some internal buffers
-        self._action = zeros(self.action_space)
+        # Initialize some internal buffers.
+        # Note that float64 dtype must be enforced for the action, otherwise
+        # it would be impossible to register action to controller's telemetry.
+        self._action = zeros(self.action_space, dtype=np.float64)
         self._observation = zeros(self.observation_space)
 
     def __getattr__(self, name: str) -> Any:
