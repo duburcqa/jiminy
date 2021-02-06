@@ -59,7 +59,8 @@ class Simulator:
                  controller: Optional[jiminy.AbstractController] = None,
                  engine_class: Type[jiminy.Engine] = jiminy.Engine,
                  use_theoretical_model: bool = False,
-                 viewer_backend: Optional[str] = None):
+                 viewer_backend: Optional[str] = None,
+                 **kwargs: Any) -> None:
         """
         :param robot: Jiminy robot already initialized.
         :param controller: Jiminy (observer-)controller already initialized.
@@ -72,6 +73,8 @@ class Simulator:
         :param viewer_backend: Backend of the viewer, e.g. panda3d or meshcat.
                                Optional: It is setup-dependent. See `Viewer`
                                documentation for details about it.
+        :param kwargs: Used arguments to allow automatic pipeline wrapper
+                       generation.
         """
         # Backup the user arguments
         self.use_theoretical_model = use_theoretical_model
