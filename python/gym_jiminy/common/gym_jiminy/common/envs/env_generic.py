@@ -608,7 +608,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.simulator.step(self.step_dt)
 
             # Update some internal buffers
-            self.num_steps += 1
             is_step_failed = False
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
@@ -662,6 +661,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if not done and self.debug and \
                 not self.observation_space.contains(obs):
             logger.warn("The observation is out-of-bounds.")
+
+        # Update number of (successful) steps
+        self.num_steps += 1
 
         return obs, reward, done, self._info
 
