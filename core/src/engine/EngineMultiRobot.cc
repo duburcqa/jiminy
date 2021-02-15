@@ -1585,7 +1585,7 @@ namespace jiminy
         timer_.tic();
 
         // Perform the integration. Do not simulate extremely small time steps.
-        while ((tEnd - t > STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
+        while ((tEnd - t >= STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
         {
             // Initialize next breakpoint time to the one recommended by the stepper
             float64_t tNext = t;
@@ -1614,7 +1614,7 @@ namespace jiminy
                         *forcesImpulseActiveIt = true;
                         hasDynamicsChanged = true;
                     }
-                    if (t > tForceImpulse + dtForceImpulse - STEPPER_MIN_TIMESTEP)
+                    if (t >= tForceImpulse + dtForceImpulse - STEPPER_MIN_TIMESTEP)
                     {
                         *forcesImpulseActiveIt = false;
                         hasDynamicsChanged = true;
@@ -1625,7 +1625,7 @@ namespace jiminy
                 auto & tBreakNextIt = systemData.forcesImpulseBreakNextIt;
                 if (tBreakNextIt != systemData.forcesImpulseBreaks.end())
                 {
-                    if (t > *tBreakNextIt - STEPPER_MIN_TIMESTEP)
+                    if (t >= *tBreakNextIt - STEPPER_MIN_TIMESTEP)
                     {
                         // The current breakpoint is behind in time. Switching to the next one.
                         ++tBreakNextIt;
@@ -1644,8 +1644,8 @@ namespace jiminy
             {
                 float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
                 float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
-                if (dtNextControllerUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
-                || controllerUpdatePeriod - dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0)
+                if (dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                || controllerUpdatePeriod - dtNextControllerUpdatePeriod < EPS)
                 {
                     auto systemIt = systems_.begin();
                     auto systemDataIt = systemsDataHolder_.begin();
@@ -1676,8 +1676,8 @@ namespace jiminy
                 if (!mustUpdateTelemetry)
                 {
                     float64_t dtNextStepperUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
-                    mustUpdateTelemetry = (dtNextStepperUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
-                    || stepperUpdatePeriod_ - dtNextStepperUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0);
+                    mustUpdateTelemetry = (dtNextStepperUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                    || stepperUpdatePeriod_ - dtNextStepperUpdatePeriod < EPS);
                 }
                 if (mustUpdateTelemetry)
                 {
@@ -1709,7 +1709,7 @@ namespace jiminy
                        Note that in this case, the sensors have already been
                        updated in anticipation in previous loop. */
                     dtNextGlobal = min(dtNextUpdatePeriod + stepperUpdatePeriod_,
-                                        tForceImpulseNext - t);
+                                       tForceImpulseNext - t);
                 }
                 else
                 {
@@ -1941,8 +1941,8 @@ namespace jiminy
             if (!mustUpdateSensors)
             {
                 float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                mustUpdateSensors = (dtNextSensorsUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
-                || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0);
+                mustUpdateSensors = (dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < EPS);
             }
             if (mustUpdateSensors)
             {
