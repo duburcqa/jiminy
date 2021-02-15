@@ -802,10 +802,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             method, alongside `refresh_observation`, must be overwritten in
             order to define a custom observation space.
         """
-        self.observation_space = gym.spaces.Dict(OrderedDict(
-            t=self._get_time_space(),
-            state=self._get_state_space(),
-            sensors=self._get_sensors_space()))
+        observation_spaces = OrderedDict()
+        observation_spaces['t'] = self._get_time_space()
+        observation_spaces['state'] = self._get_state_space()
+        if self.sensors_data:
+            observation_spaces['sensors'] = self._get_sensors_space()
+        self.observation_space = gym.spaces.Dict(observation_spaces)
 
     def _neutral(self) -> np.ndarray:
         """Returns a neutral valid configuration for the robot.
@@ -893,7 +895,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if not self.simulator.is_simulation_running:
             (self._observation['state']['Q'],
              self._observation['state']['V']) = self.simulator.state
-            self._observation['sensors'] = self.sensors_data
+            if self.sensors_data:
+                self._observation['sensors'] = self.sensors_data
         else:
             if self.simulator.use_theoretical_model and self.robot.is_flexible:
                 position, velocity = self.simulator.state
