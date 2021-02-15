@@ -86,7 +86,7 @@ namespace jiminy
                                          Eigen::VectorBlock<vectorN_t const> const & q,
                                          float64_t const & v,
                                          float64_t const & a,
-                                         float64_t const & uCommand)
+                                         float64_t uCommand)
     {
         if (!isInitialized_)
         {
@@ -98,12 +98,10 @@ namespace jiminy
            It is the output of the motor on joint side, ie after the transmission. */
         if (motorOptions_->enableControlLimit)
         {
-            data() = clamp(uCommand, -getControlLimit(), getControlLimit());
+            uCommand = clamp(uCommand, -getControlLimit(), getControlLimit());
         }
-        else
-        {
-            data() = uCommand;
-        }
+        data() = motorOptions_->mechanicalReduction * uCommand;
+
         /* Add friction to the joints associated with the motor if enable.
            It is computed on joint side instead of the motor. */
         if (motorOptions_->enableFriction)

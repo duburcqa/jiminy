@@ -367,7 +367,8 @@ def generate_hardware_description_file(
         if armature is None:
             motor_info['armature'] = 0.0
         else:
-            motor_info['armature'] = float(armature.text)
+            motor_info['armature'] = \
+                float(armature.text) * motor_info['mechanicalReduction'] ** 2
 
         # Add dynamics property to motor info, if any
         motor_info.update(joints_options.pop(joint_name))

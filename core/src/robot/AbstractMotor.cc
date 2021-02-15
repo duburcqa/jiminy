@@ -242,7 +242,7 @@ namespace jiminy
             // Get the motor effort limits from the URDF or the user options.
             if (baseMotorOptions_->controlLimitFromUrdf)
             {
-                controlLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_] * baseMotorOptions_->mechanicalReduction;
+                controlLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_] / baseMotorOptions_->mechanicalReduction;
             }
             else
             {
@@ -252,7 +252,7 @@ namespace jiminy
             // Get the rotor inertia
             if (baseMotorOptions_->enableArmature)
             {
-                armature_ = baseMotorOptions_->armature * baseMotorOptions_->mechanicalReduction;
+                armature_ = baseMotorOptions_->armature;
             }
             else
             {

@@ -65,7 +65,7 @@ namespace jiminy
                                         Eigen::VectorBlock<vectorN_t const> const & q,
                                         float64_t const & v,
                                         float64_t const & a,
-                                        float64_t const & uCommand) final override;
+                                        float64_t uCommand) final override;
 
     private:
         std::unique_ptr<motorOptions_t const> motorOptions_;

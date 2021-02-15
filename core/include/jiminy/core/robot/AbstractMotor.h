@@ -245,7 +245,7 @@ namespace jiminy
                                         Eigen::VectorBlock<vectorN_t const> const & q,
                                         float64_t const & v,
                                         float64_t const & a,
-                                        float64_t const & uCommand) = 0;
+                                        float64_t uCommand) = 0;  /* copy on purpose */
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request every motors to update their actual effort based of the input data.
