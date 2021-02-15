@@ -844,11 +844,15 @@ namespace jiminy
             data.oYcrb[parentIdx] += data.oYcrb[i];
         }
 
-        // Now that Ycrb is available, it is possible to extract the center of mass directly
+        // Now that Ycrb is available, it is possible to infer directly the subtree center of masses
         pinocchio::getComFromCrba(model, data);
         data.Ig.mass() = data.oYcrb[0].mass();
         data.Ig.lever().setZero();
         data.Ig.inertia() = data.oYcrb[0].inertia();
+        for (int32_t i = 1; i < model.njoints; ++i)
+        {
+            data.com[i] = data.oMi[i].actInv(data.oYcrb[i].lever());
+        }
 
         /* Neither 'aba' nor 'forwardDynamics' are computed the actual joints
            acceleration and forces, so it must be done separately:
