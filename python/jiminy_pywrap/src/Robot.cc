@@ -281,8 +281,10 @@ namespace python
                 .add_property("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
                 .add_property("sensors_names", &PyRobotVisitor::getSensorsNames)
 
-                .add_property("control_limit", &Robot::getControlLimit)
-                .add_property("armatures", &Robot::getArmatures)
+                .add_property("control_limit", bp::make_function(&Robot::getControlLimit,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("armatures", bp::make_function(&Robot::getArmatures,
+                                           bp::return_value_policy<bp::copy_const_reference>()))
 
                 .add_property("logfile_command_headers", bp::make_function(&Robot::getCommandFieldnames,
                                                          bp::return_value_policy<bp::copy_const_reference>()))

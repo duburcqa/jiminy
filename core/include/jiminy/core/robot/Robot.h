@@ -161,8 +161,8 @@ namespace jiminy
         std::unordered_map<std::string, std::vector<std::string> > const & getSensorsNames(void) const;
         std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;
 
-        vectorN_t getControlLimit(void) const;
-        vectorN_t getArmatures(void) const;
+        vectorN_t const & getControlLimit(void) const;
+        vectorN_t const & getArmatures(void) const;
 
         std::vector<std::string> const & getCommandFieldnames(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API

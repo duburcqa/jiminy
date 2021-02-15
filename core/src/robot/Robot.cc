@@ -1550,9 +1550,12 @@ namespace jiminy
         }
     }
 
-    vectorN_t Robot::getControlLimit(void) const
+    vectorN_t const & Robot::getControlLimit(void) const
     {
-        vectorN_t controlLimit = vectorN_t::Constant(pncModel_.nv, qNAN);
+        static vectorN_t controlLimit;
+        controlLimit.resize(pncModel_.nv);
+
+        controlLimit.setConstant(qNAN);
         for (auto const & motor : motorsHolder_)
         {
             auto const & motorOptions = motor->baseMotorOptions_;
@@ -1571,14 +1574,18 @@ namespace jiminy
         return controlLimit;
     }
 
-    vectorN_t Robot::getArmatures(void) const
+    vectorN_t const & Robot::getArmatures(void) const
     {
-        vectorN_t armatures = vectorN_t::Zero(pncModel_.nv);
+        static vectorN_t armatures;
+        armatures.resize(pncModel_.nv);
+
+        armatures.setZero();
         for (auto const & motor : motorsHolder_)
         {
             int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
             armatures[motorsVelocityIdx] = motor->getArmature();
         }
+
         return armatures;
     }
 
