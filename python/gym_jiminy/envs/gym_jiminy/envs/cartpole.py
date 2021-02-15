@@ -112,7 +112,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # Map between discrete actions and actual motor force if necessary
         if not self.continuous:
-            self.AVAIL_FORCE = [-motor.effort_limit, motor.effort_limit]
+            self.AVAIL_CTRL = [-motor.control_limit, motor.control_limit]
 
         # Configure the learning environment
         super().__init__(simulator, step_dt=STEP_DT, debug=debug)
@@ -167,7 +167,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         'continuous'.
         """
         if not self.continuous:
-            self.action_space = spaces.Discrete(len(self.AVAIL_FORCE))
+            self.action_space = spaces.Discrete(len(self.AVAIL_CTRL))
         else:
             super()._refresh_action_space()
 
@@ -211,7 +211,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # Compute the actual torque to apply
         if not self.continuous:
-            action = self.AVAIL_FORCE[action]
+            action = self.AVAIL_CTRL[action]
 
         return action
 

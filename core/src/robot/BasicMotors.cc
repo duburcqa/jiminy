@@ -96,9 +96,9 @@ namespace jiminy
 
         /* Compute the motor effort, taking into account the limit, if any.
            It is the output of the motor on joint side, ie after the transmission. */
-        if (motorOptions_->enableEffortLimit)
+        if (motorOptions_->enableControlLimit)
         {
-            data() = clamp(uCommand, -getEffortLimit(), getEffortLimit());
+            data() = clamp(uCommand, -getControlLimit(), getControlLimit());
         }
         else
         {

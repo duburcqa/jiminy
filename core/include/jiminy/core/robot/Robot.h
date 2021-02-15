@@ -161,7 +161,7 @@ namespace jiminy
         std::unordered_map<std::string, std::vector<std::string> > const & getSensorsNames(void) const;
         std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;
 
-        vectorN_t getEffortLimit(void) const;
+        vectorN_t getControlLimit(void) const;
         vectorN_t getArmatures(void) const;
 
         std::vector<std::string> const & getCommandFieldnames(void) const;

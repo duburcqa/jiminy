@@ -77,7 +77,7 @@ TEST(EngineSanity, EnergyConservation)
     for (auto & options : motorsOptions)
     {
         configHolder_t & motorOptions = boost::get<configHolder_t>(options.second);
-        boost::get<bool_t>(motorOptions.at("enableEffortLimit")) = false;
+        boost::get<bool_t>(motorOptions.at("enableControlLimit")) = false;
     }
     robot->setMotorsOptions(motorsOptions);
 

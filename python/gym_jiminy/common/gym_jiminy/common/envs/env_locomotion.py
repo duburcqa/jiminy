@@ -193,7 +193,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self._forces_profile = []
 
         # Update some internal buffers used for computing the reward
-        motor_effort_limit = self.robot.effort_limit[
+        motor_effort_limit = self.robot.pinocchio_model.effortLimit[
             self.robot.motors_velocity_idx]
         motor_velocity_limit = self.robot.velocity_limit[
             self.robot.motors_velocity_idx]

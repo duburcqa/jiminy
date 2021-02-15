@@ -1550,25 +1550,25 @@ namespace jiminy
         }
     }
 
-    vectorN_t Robot::getEffortLimit(void) const
+    vectorN_t Robot::getControlLimit(void) const
     {
-        vectorN_t effortLimit = vectorN_t::Constant(pncModel_.nv, qNAN);  // Do NOT use robot_->pncModel_.effortLimit, since we don't care about effort limits for non-physical joints
+        vectorN_t controlLimit = vectorN_t::Constant(pncModel_.nv, qNAN);
         for (auto const & motor : motorsHolder_)
         {
             auto const & motorOptions = motor->baseMotorOptions_;
             int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            if (motorOptions->enableEffortLimit)
+            if (motorOptions->enableControlLimit)
             {
-                effortLimit[motorsVelocityIdx] = motor->getEffortLimit();
+                controlLimit[motorsVelocityIdx] = motor->getControlLimit();
             }
             else
             {
-                effortLimit[motorsVelocityIdx] = INF;
+                controlLimit[motorsVelocityIdx] = INF;
             }
 
         }
 
-        return effortLimit;
+        return controlLimit;
     }
 
     vectorN_t Robot::getArmatures(void) const

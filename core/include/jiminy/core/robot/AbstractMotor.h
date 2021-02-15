@@ -60,9 +60,9 @@ namespace jiminy
         {
             configHolder_t config;
             config["mechanicalReduction"] = 1.0;
-            config["enableEffortLimit"] = true;
-            config["effortLimitFromUrdf"] = true;
-            config["effortLimit"] = 0.0;
+            config["enableControlLimit"] = true;
+            config["controlLimitFromUrdf"] = true;
+            config["controlLimit"] = 0.0;
             config["enableArmature"] = false;
             config["armature"] = 0.0;
 
@@ -72,17 +72,17 @@ namespace jiminy
         struct abstractMotorOptions_t
         {
             float64_t const mechanicalReduction;        ///< Mechanical reduction ratio of the transmission (joint / motor, usually >= 1.0
-            bool_t    const enableEffortLimit;
-            bool_t    const effortLimitFromUrdf;
-            float64_t const effortLimit;
+            bool_t    const enableControlLimit;
+            bool_t    const controlLimitFromUrdf;
+            float64_t const controlLimit;
             bool_t    const enableArmature;
             float64_t const armature;
 
             abstractMotorOptions_t(configHolder_t const & options) :
             mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction"))),
-            enableEffortLimit(boost::get<bool_t>(options.at("enableEffortLimit"))),
-            effortLimitFromUrdf(boost::get<bool_t>(options.at("effortLimitFromUrdf"))),
-            effortLimit(boost::get<float64_t>(options.at("effortLimit"))),
+            enableControlLimit(boost::get<bool_t>(options.at("enableControlLimit"))),
+            controlLimitFromUrdf(boost::get<bool_t>(options.at("controlLimitFromUrdf"))),
+            controlLimit(boost::get<float64_t>(options.at("controlLimit"))),
             enableArmature(boost::get<bool_t>(options.at("enableArmature"))),
             armature(boost::get<float64_t>(options.at("armature")))
             {
@@ -215,11 +215,11 @@ namespace jiminy
         int32_t const & getJointVelocityIdx(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get effortLimit_.
+        /// \brief      Get controlLimit_.
         ///
         /// \details    It is the maximum effort of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & getEffortLimit(void) const;
+        float64_t const & getControlLimit(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get armature_.
@@ -306,7 +306,7 @@ namespace jiminy
         joint_t jointType_;
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
-        float64_t effortLimit_;
+        float64_t controlLimit_;
         float64_t armature_;
 
     private:
