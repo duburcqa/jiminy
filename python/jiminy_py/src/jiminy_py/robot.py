@@ -586,9 +586,9 @@ class BaseJiminyRobot(jiminy.Robot):
                     "using 'generate_hardware_description_file' method.")
             return
         hardware_info = toml.load(hardware_path)
-        self.extra_info = hardware_info.pop('Global')
-        motors_info = hardware_info.pop('Motor')
-        sensors_info = hardware_info.pop('Sensor')
+        self.extra_info = hardware_info.pop('Global', {})
+        motors_info = hardware_info.pop('Motor', {})
+        sensors_info = hardware_info.pop('Sensor', {})
 
         # Parse the URDF
         tree = ET.parse(urdf_path)
