@@ -771,14 +771,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 engine_options["telemetry"][field] = self.debug
         engine_options['telemetry']['enableConfiguration'] = True
 
-        # Enable the position and velocity bounds of the robot
-        robot_options["model"]["joints"]["enablePositionLimit"] = True
-        robot_options["model"]["joints"]["enableVelocityLimit"] = True
-
-        # Enable the friction model and effort limits of the motors
+        # Enable the friction model
         for motor_name in robot_options["motors"].keys():
             robot_options["motors"][motor_name]["enableFriction"] = True
-            robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
         # Configure the stepper
         engine_options["stepper"]["iterMax"] = -1

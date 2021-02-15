@@ -110,6 +110,11 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # Instantiate simulator
         simulator = Simulator(robot)
 
+        # OpenAI Gym implementation of Cartpole has no velocity limit
+        model_options = simulator.robot.get_model_options()
+        model_options["joints"]["enableVelocityLimit"] = False
+        simulator.robot.set_model_options(model_options)
+
         # Map between discrete actions and actual motor force if necessary
         if not self.continuous:
             self.AVAIL_CTRL = [-motor.command_limit, motor.command_limit]
@@ -133,11 +138,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         engine_options["stepper"]["tolRel"] = 1.0e-9
         engine_options["stepper"]["tolAbs"] = 1.0e-8
         self.simulator.engine.set_options(engine_options)
-
-        # OpenAI Gym implementation of Cartpole has no velocity limit
-        robot_options = self.robot.get_options()
-        robot_options["model"]["joints"]["enableVelocityLimit"] = False
-        self.robot.set_options(robot_options)
 
     def _refresh_observation_space(self) -> None:
         """Configure the observation of the environment.
