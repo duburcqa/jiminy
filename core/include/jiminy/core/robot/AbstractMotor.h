@@ -63,8 +63,8 @@ namespace jiminy
             config["enableEffortLimit"] = true;
             config["effortLimitFromUrdf"] = true;
             config["effortLimit"] = 0.0;
-            config["enableRotorInertia"] = false;
-            config["rotorInertia"] = 0.0;
+            config["enableArmature"] = false;
+            config["armature"] = 0.0;
 
             return config;
         };
@@ -75,16 +75,16 @@ namespace jiminy
             bool_t    const enableEffortLimit;
             bool_t    const effortLimitFromUrdf;
             float64_t const effortLimit;
-            bool_t    const enableRotorInertia;
-            float64_t const rotorInertia;
+            bool_t    const enableArmature;
+            float64_t const armature;
 
             abstractMotorOptions_t(configHolder_t const & options) :
             mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction"))),
             enableEffortLimit(boost::get<bool_t>(options.at("enableEffortLimit"))),
             effortLimitFromUrdf(boost::get<bool_t>(options.at("effortLimitFromUrdf"))),
             effortLimit(boost::get<float64_t>(options.at("effortLimit"))),
-            enableRotorInertia(boost::get<bool_t>(options.at("enableRotorInertia"))),
-            rotorInertia(boost::get<float64_t>(options.at("rotorInertia")))
+            enableArmature(boost::get<bool_t>(options.at("enableArmature"))),
+            armature(boost::get<float64_t>(options.at("armature")))
             {
                 // Empty.
             }
@@ -222,11 +222,11 @@ namespace jiminy
         float64_t const & getEffortLimit(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get rotorInertia_.
+        /// \brief      Get armature_.
         ///
         /// \details    It is the rotor inertia of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & getRotorInertia(void) const;
+        float64_t const & getArmature(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request the motor to update its actual effort based of the input data.
@@ -307,7 +307,7 @@ namespace jiminy
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
         float64_t effortLimit_;
-        float64_t rotorInertia_;
+        float64_t armature_;
 
     private:
         MotorSharedDataHolder_t * sharedHolder_;  ///< Shared data between every motors associated with the robot

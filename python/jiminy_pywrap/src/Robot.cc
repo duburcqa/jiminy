@@ -282,7 +282,7 @@ namespace python
                 .add_property("sensors_names", &PyRobotVisitor::getSensorsNames)
 
                 .add_property("effort_limit", &Robot::getEffortLimit)
-                .add_property("motors_inertias", &Robot::getMotorsInertias)
+                .add_property("armatures", &Robot::getArmatures)
 
                 .add_property("logfile_command_headers", bp::make_function(&Robot::getCommandFieldnames,
                                                          bp::return_value_policy<bp::copy_const_reference>()))

@@ -1567,18 +1567,19 @@ namespace jiminy
             }
 
         }
+
         return effortLimit;
     }
 
-    vectorN_t Robot::getMotorsInertias(void) const
+    vectorN_t Robot::getArmatures(void) const
     {
-        vectorN_t motorsInertias = vectorN_t::Zero(pncModel_.nv);
+        vectorN_t armatures = vectorN_t::Zero(pncModel_.nv);
         for (auto const & motor : motorsHolder_)
         {
             int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            motorsInertias[motorsVelocityIdx] = motor->getRotorInertia();
+            armatures[motorsVelocityIdx] = motor->getArmature();
         }
-        return motorsInertias;
+        return armatures;
     }
 
     std::vector<std::string> const & Robot::getCommandFieldnames(void) const

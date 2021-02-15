@@ -363,11 +363,11 @@ def generate_hardware_description_file(
             motor_info['mechanicalReduction'] = float(ratio.text)
 
         # Extract the armature (rotor) inertia
-        armature_inertia = transmission_descr.find('./motorInertia')
-        if armature_inertia is None:
-            motor_info['rotorInertia'] = 0.0
+        armature = transmission_descr.find('./motorInertia')
+        if armature is None:
+            motor_info['armature'] = 0.0
         else:
-            motor_info['rotorInertia'] = float(armature_inertia.text)
+            motor_info['armature'] = float(armature.text)
 
         # Add dynamics property to motor info, if any
         motor_info.update(joints_options.pop(joint_name))
@@ -402,7 +402,7 @@ def generate_hardware_description_file(
                 {joint_name: OrderedDict(
                     [('joint_name', joint_name),
                      ('mechanicalReduction', 1.0),
-                     ('rotorInertia', 0.0),
+                     ('armature', 0.0),
                      *joints_options.pop(joint_name).items()
                      ])})
             hardware_info['Sensor'].setdefault(effort.type, {}).update(
@@ -769,7 +769,7 @@ class BaseJiminyRobot(jiminy.Robot):
                             f"'{name}' is not a valid option for the motor "
                             f"{motor_name} of type {motor_type}.")
                     options[name] = value
-                options['enableRotorInertia'] = True
+                options['enableArmature'] = True
                 motor.set_options(options)
 
         # Add the sensors to the robot

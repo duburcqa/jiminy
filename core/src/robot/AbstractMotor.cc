@@ -20,7 +20,7 @@ namespace jiminy
     jointPositionIdx_(-1),
     jointVelocityIdx_(-1),
     effortLimit_(0.0),
-    rotorInertia_(0.0),
+    armature_(0.0),
     sharedHolder_(nullptr)
     {
         // Initialize the options
@@ -250,13 +250,13 @@ namespace jiminy
             }
 
             // Get the rotor inertia
-            if (baseMotorOptions_->enableRotorInertia)
+            if (baseMotorOptions_->enableArmature)
             {
-                rotorInertia_ = baseMotorOptions_->rotorInertia * baseMotorOptions_->mechanicalReduction;
+                armature_ = baseMotorOptions_->armature * baseMotorOptions_->mechanicalReduction;
             }
             else
             {
-                rotorInertia_ = 0.0;
+                armature_ = 0.0;
             }
         }
 
@@ -338,9 +338,9 @@ namespace jiminy
         return effortLimit_;
     }
 
-    float64_t const & AbstractMotorBase::getRotorInertia(void) const
+    float64_t const & AbstractMotorBase::getArmature(void) const
     {
-        return rotorInertia_;
+        return armature_;
     }
 
     hresult_t AbstractMotorBase::computeEffortAll(float64_t const & t,

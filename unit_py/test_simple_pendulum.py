@@ -95,15 +95,15 @@ class SimulateSimplePendulum(unittest.TestCase):
             ], axis=-1)
             return time, imu_jiminy
 
-    def test_rotor_inertia(self):
+    def test_armature(self):
         """
         @brief Verify the dynamics of the system when adding  rotor inertia.
         """
         # Configure the robot: set rotor inertia
         J = 0.1
         motor_options = self.robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableRotorInertia'] = True
-        motor_options["PendulumJoint"]['rotorInertia'] = J
+        motor_options["PendulumJoint"]['enableArmature'] = True
+        motor_options["PendulumJoint"]['armature'] = J
         self.robot.set_motors_options(motor_options)
 
         # Dynamics: simulate a spring of stiffness k
@@ -486,7 +486,7 @@ class SimulateSimplePendulum(unittest.TestCase):
          # Compare the numerical and analytical solution
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=1e-6))
 
-    def test_flexibility_rotor_inertia(self):
+    def test_flexibility_armature(self):
         """
         @brief Test the addition of a flexibility in the system.
 
@@ -512,8 +512,8 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Enable rotor inertia
         motor_options = self.robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableRotorInertia'] = True
-        motor_options["PendulumJoint"]['rotorInertia'] = J
+        motor_options["PendulumJoint"]['enableArmature'] = True
+        motor_options["PendulumJoint"]['armature'] = J
         self.robot.set_motors_options(motor_options)
 
         # Create an engine: PD controller on motor and no internal dynamics
@@ -571,7 +571,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(
             x_jiminy_extract, x_analytical, atol=1e-4))
 
-    def test_fixed_body_constraint_rotor_inertia(self):
+    def test_fixed_body_constraint_armature(self):
         """
         @brief Test fixed body constraint together with rotor inertia.
         """
@@ -582,8 +582,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Enable rotor inertia
         J = 0.1
         motor_options = robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableRotorInertia'] = True
-        motor_options["PendulumJoint"]['rotorInertia'] = J
+        motor_options["PendulumJoint"]['enableArmature'] = True
+        motor_options["PendulumJoint"]['armature'] = J
         robot.set_motors_options(motor_options)
 
         # Set fixed body constraint.
