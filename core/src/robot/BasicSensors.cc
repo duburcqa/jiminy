@@ -169,16 +169,15 @@ namespace jiminy
 
         // Compute gyroscope signal
         pinocchio::Motion const velocity = pinocchio::getFrameVelocity(
-            robot->pncModel_, robot->pncData_, frameIdx_);
+            robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
         data().segment<3>(4) = velocity.angular();
 
         // Compute accelerometer signal
         pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(
-            robot->pncModel_, robot->pncData_, frameIdx_);
+            robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
 
         // Accelerometer signal is sensor linear acceleration (not spatial acceleration !) minus gravity
-        data().tail<3>() = acceleration.linear() +
-                           velocity.angular().cross(velocity.linear()) -
+        data().tail<3>() = acceleration.linear() + velocity.angular().cross(velocity.linear()) - // 'getFrameClassicalAcceleration'
                            quat.conjugate() * robot->pncModel_.gravity.linear();
 
         return hresult_t::SUCCESS;

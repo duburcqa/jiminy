@@ -248,9 +248,9 @@ class SimulateSimpleMass(unittest.TestCase):
         engine.set_options(engine_options)
 
         # Register an impulse of force
-        t0, dt, F = 0.05, 0.8, 5.0
-        engine.register_force_impulse(
-            self.body_name, t0, dt, np.array([F, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        t0, dt, Fx = 0.05, 0.8, 5.0
+        F = np.array([Fx, 0.0, 0.0, 0.0, 0.0, 0.0])
+        engine.register_force_impulse(self.body_name, t0, dt, F)
 
         # Run simulation
         x0 = neutral_state(robot, split=False)
@@ -306,7 +306,7 @@ class SimulateSimpleMass(unittest.TestCase):
         tolerance_acc = 1e-6
 
         v_steady = v_x_jiminy[time == t0 + dt]
-        v_steady_analytical = - F / (self.visc_friction * weight)
+        v_steady_analytical = - Fx / (self.visc_friction * weight)
         a_steady = acceleration[
             (time > t0 + dt - self.dtMax) & (time < t0 + dt + self.dtMax)]
 

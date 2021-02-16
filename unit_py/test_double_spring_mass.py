@@ -388,7 +388,7 @@ class SimulateTwoMasses(unittest.TestCase):
             engine.add_system(systems_names[i], robots[i], controller)
 
         # Add coupling force
-        def coupling_force(t, q1, v1, q2, v2, f):
+        def force(t, q1, v1, q2, v2, f):
             # Putting a linear spring between both systems would actually
             # decouple them (the force applied on each system would be a
             # function of this system state only). So we use a nonlinear
@@ -398,8 +398,8 @@ class SimulateTwoMasses(unittest.TestCase):
             f[0] = - k_cross * (1 + d2) * q1[7]
             f[1] = + k_cross * (1 + d2) * q2[7]
 
-        engine.add_coupling_force(systems_names[0], systems_names[1],
-            "FirstMass", "FirstMass", coupling_force)
+        engine.add_coupling_force(
+            systems_names[0], systems_names[1], "FirstMass", "FirstMass", force)
 
         # Initialize the whole system.
         x_init = {}

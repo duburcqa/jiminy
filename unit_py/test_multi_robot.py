@@ -75,11 +75,11 @@ class SimulateMultiRobot(unittest.TestCase):
             engine.add_system(system_names[i], robots[i], controller)
 
         # Add coupling force between both systems: a spring between both masses
-        def coupling_force(t, q1, v1, q2, v2, f):
+        def force(t, q1, v1, q2, v2, f):
             f[0] = k[2] * (q2[0] - q1[0]) + nu[2] * (v2[0] - v1[0])
 
         engine.add_coupling_force(
-            system_names[0], system_names[1], "Mass", "Mass", coupling_force)
+            system_names[0], system_names[1], "Mass", "Mass", force)
 
         # Run simulation and extract some information from log data
         x0 = {'FirstSystem': np.array([0.1, 0.0]),
