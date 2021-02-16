@@ -485,6 +485,9 @@ class Viewer:
             self._client.loadViewerModel(
                 rootNodeName=robot_node_path, color=urdf_rgba)
 
+        # Initialize robot configuration
+        self.refresh(force_update_visual=True, force_update_collision=True)
+
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
         """Open a new viewer graphical interface.
