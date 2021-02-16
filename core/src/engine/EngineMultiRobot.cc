@@ -2396,8 +2396,44 @@ namespace jiminy
         // Update forward kinematics
         pinocchio::forwardKinematics(model, data, q, v, a);
 
-        // Update frame placements and collision informations
-        pinocchio::updateFramePlacements(model, data);
+        // Update frame placements (avoiding redundant computations)
+        for(int32_t i=1; i < model.nframes; ++i)
+        {
+            pinocchio::Frame const & frame = model.frames[i];
+            int32_t const & parent = frame.parent;
+            switch (frame.type)
+            {
+            case pinocchio::FrameType::JOINT:
+                /* If the frame is associated with an actual joint, no need to compute
+                   anything new, since the frame transform is supposed to be identity. */
+                data.oMf[i] = data.oMi[parent];
+                break;
+            case pinocchio::FrameType::BODY:
+                if (model.frames[frame.previousFrame].type == pinocchio::FrameType::FIXED_JOINT)
+                {
+                    /* BODYs connected via FIXED_JOINT(s) have the same transform than the
+                    joint itself, so no need to compute them twice.
+                    Here we are doing the assumption that the previous frame transfrom has
+                    already been updated since it is closer to root in kinematic tree. */
+                    data.oMf[i] = data.oMf[frame.previousFrame];
+                }
+                else
+                {
+                    /* BODYs connected via JOINT(s) have the identity transform, so copying
+                    parent joint transform should be fine. */
+                    data.oMf[i] = data.oMi[parent];
+                }
+                break;
+            case pinocchio::FrameType::FIXED_JOINT:
+            case pinocchio::FrameType::SENSOR:
+            case pinocchio::FrameType::OP_FRAME:
+            default:
+                // Nothing special, doing the actual computation
+                data.oMf[i] = data.oMi[parent] * frame.placement;
+            }
+        }
+
+        // Update collision informations
         pinocchio::updateGeometryPlacements(model, data,
                                             system.robot->pncGeometryModel_,
                                             *system.robot->pncGeometryData_);
