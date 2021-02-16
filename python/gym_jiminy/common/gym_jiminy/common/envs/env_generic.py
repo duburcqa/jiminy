@@ -17,7 +17,8 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
+from jiminy_py.dynamics import (
+    update_quantities, compute_freeflyer_state_from_fixed_body)
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep
 from jiminy_py.controller import (
@@ -74,7 +75,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                  **kwargs: Any) -> None:
         r"""
         :param simulator: Jiminy Python simulator used for physics
-                          computations.
+                          computations. It must be fully initialized.
         :param step_dt: Simulation timestep for learning. Note that it is
                         independent from the controller and observation update
                         periods. The latter are configured via
@@ -122,8 +123,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.simulator.simulation_duration_max // self.step_dt)
         self._num_steps_beyond_done: Optional[int] = None
 
-        # Initialize the seed of the environment
+        # Initialize the seed of the environment.
+        # Note that reseting the seed also reset robot internal state.
         self.seed()
+
+        # Set robot in neutral configuration for rendering
+        qpos = self._neutral()
+        update_quantities(self.robot, qpos, use_theoretical_model=False)
 
         # Refresh the observation and action spaces
         self._refresh_observation_space()
