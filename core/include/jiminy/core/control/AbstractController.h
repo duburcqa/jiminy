@@ -140,10 +140,10 @@ namespace jiminy
         /// \details    It assumes that the robot internal state (including sensors) is consistent
         ///             with other input arguments. It fetches the sensor data automatically.
         ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[out] u       Output effort vector
+        /// \param[in]  t        Current time
+        /// \param[in]  q        Current configuration vector
+        /// \param[in]  v        Current velocity vector
+        /// \param[out] command  Output effort vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -151,17 +151,17 @@ namespace jiminy
         virtual hresult_t computeCommand(float64_t const & t,
                                          vectorN_t const & q,
                                          vectorN_t const & v,
-                                         vectorN_t       & u) = 0;
+                                         vectorN_t       & command) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
         /// \brief      Emulate internal dynamics of the system at are not included in the
         ///             physics engine.
         ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  u       Output effort vector
+        /// \param[in]  t        Current time
+        /// \param[in]  q        Current configuration vector
+        /// \param[in]  v        Current velocity vector
+        /// \param[in]  uCustom  Output effort vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -169,7 +169,7 @@ namespace jiminy
         virtual hresult_t internalDynamics(float64_t const & t,
                                            vectorN_t const & q,
                                            vectorN_t const & v,
-                                           vectorN_t       & u) = 0;
+                                           vectorN_t       & uCustom) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

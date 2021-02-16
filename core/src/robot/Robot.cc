@@ -1308,11 +1308,11 @@ namespace jiminy
                                      vectorN_t const & q,
                                      vectorN_t const & v,
                                      vectorN_t const & a,
-                                     vectorN_t const & u)
+                                     vectorN_t const & command)
     {
         if (!motorsHolder_.empty())
         {
-            (*motorsHolder_.begin())->computeEffortAll(t, q, v, a, u);
+            (*motorsHolder_.begin())->computeEffortAll(t, q, v, a, command);
         }
     }
 
@@ -1349,7 +1349,7 @@ namespace jiminy
                                vectorN_t const & q,
                                vectorN_t const & v,
                                vectorN_t const & a,
-                               vectorN_t const & u)
+                               vectorN_t const & uMotor)
     {
         /* Note that it is assumed that the kinematic quantities have been
            updated previously to be consistent with (q, v, a, u). If not,
@@ -1360,7 +1360,7 @@ namespace jiminy
         {
             if (!sensorGroup.second.empty())
             {
-                (*sensorGroup.second.begin())->setAll(t, q, v, a, u);
+                (*sensorGroup.second.begin())->setAll(t, q, v, a, uMotor);
             }
         }
     }
@@ -1561,28 +1561,28 @@ namespace jiminy
         }
     }
 
-    vectorN_t const & Robot::getControlLimit(void) const
+    vectorN_t const & Robot::getCommandLimit(void) const
     {
-        static vectorN_t controlLimit;
-        controlLimit.resize(pncModel_.nv);
+        static vectorN_t commandLimit;
+        commandLimit.resize(pncModel_.nv);
 
-        controlLimit.setConstant(qNAN);
+        commandLimit.setConstant(qNAN);
         for (auto const & motor : motorsHolder_)
         {
             auto const & motorOptions = motor->baseMotorOptions_;
             int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            if (motorOptions->enableControlLimit)
+            if (motorOptions->enableCommandLimit)
             {
-                controlLimit[motorsVelocityIdx] = motor->getControlLimit();
+                commandLimit[motorsVelocityIdx] = motor->getCommandLimit();
             }
             else
             {
-                controlLimit[motorsVelocityIdx] = INF;
+                commandLimit[motorsVelocityIdx] = INF;
             }
 
         }
 
-        return controlLimit;
+        return commandLimit;
     }
 
     vectorN_t const & Robot::getArmatures(void) const

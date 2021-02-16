@@ -112,7 +112,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # Map between discrete actions and actual motor force if necessary
         if not self.continuous:
-            self.AVAIL_CTRL = [-motor.control_limit, motor.control_limit]
+            self.AVAIL_CTRL = [-motor.command_limit, motor.command_limit]
 
         # Configure the learning environment
         super().__init__(simulator, step_dt=STEP_DT, debug=debug)
@@ -186,8 +186,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # @copydoc BaseJiminyEnv::refresh_observation
         if not self.simulator.is_simulation_running:
             self.__state = (self.system_state.q, self.system_state.v)
-        np.core.umath.copyto(self.__state_view[0], self.__state[0])
-        np.core.umath.copyto(self.__state_view[1], self.__state[1])
+        self.__state_view[0][:] = self.__state[0]
+        self.__state_view[1][:] = self.__state[1]
 
     def is_done(self) -> bool:
         """ TODO: Write documentation.

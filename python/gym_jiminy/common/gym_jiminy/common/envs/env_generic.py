@@ -161,9 +161,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                            q: np.ndarray,
                            v: np.ndarray,
                            sensors_data: jiminy.sensorsData,
-                           u_command: np.ndarray) -> None:
-        np.core.umath.copyto(u_command, self.compute_command(
-            self.get_observation(), self._action))
+                           command: np.ndarray) -> None:
+        command[:] = self.compute_command(
+            self.get_observation(), self._action)
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
@@ -265,7 +265,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # Define some proxies for convenience
         sensors_data = self.robot.sensors_data
-        control_limit = self.robot.control_limit
+        command_limit = self.robot.command_limit
 
         state_space = self._get_state_space(use_theoretical_model=False)
 
@@ -273,8 +273,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         for motor_name in self.robot.motors_names:
             motor = self.robot.get_motor(motor_name)
             motor_options = motor.get_options()
-            if not motor_options["enableControlLimit"]:
-                control_limit[motor.joint_velocity_idx] = MOTOR_EFFORT_MAX
+            if not motor_options["enableCommandLimit"]:
+                command_limit[motor.joint_velocity_idx] = MOTOR_EFFORT_MAX
 
         # Initialize the bounds of the sensor space
         sensor_space_lower = OrderedDict(
@@ -323,9 +323,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 sensor_idx = sensor.idx
                 motor_idx = self.robot.motors_velocity_idx[sensor.motor_idx]
                 sensor_space_lower[effort.type][0, sensor_idx] = \
-                    -control_limit[motor_idx]
+                    -command_limit[motor_idx]
                 sensor_space_upper[effort.type][0, sensor_idx] = \
-                    +control_limit[motor_idx]
+                    +command_limit[motor_idx]
 
         # Replace inf bounds of the imu sensor space
         if imu.type in sensors_data.keys():
@@ -380,15 +380,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             robot is uniquely defined.
         """
         # Get effort limit
-        control_limit = self.robot.control_limit
+        command_limit = self.robot.command_limit
 
         # Replace inf bounds of the effort limit if requested
         if self.enforce_bounded_spaces:
             for motor_name in self.robot.motors_names:
                 motor = self.robot.get_motor(motor_name)
                 motor_options = motor.get_options()
-                if not motor_options["enableControlLimit"]:
-                    control_limit[motor.joint_velocity_idx] = \
+                if not motor_options["enableCommandLimit"]:
+                    command_limit[motor.joint_velocity_idx] = \
                         MOTOR_EFFORT_MAX
 
         # Set the action space.
@@ -396,7 +396,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # would requires the neural network to perform float64 computations
         # or cast the output for no really advantage since the action is
         # directly forwarded to the motors, without intermediary computations.
-        action_scale = control_limit[self.robot.motors_velocity_idx]
+        action_scale = command_limit[self.robot.motors_velocity_idx]
         self.action_space = gym.spaces.Box(
             low=-action_scale.astype(np.float32),
             high=action_scale.astype(np.float32),
@@ -581,7 +581,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.close()
 
     def step(self,
-             action: Optional[np.ndarray] = None
+             action: Optional[SpaceDictNested] = None
              ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
@@ -597,7 +597,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Update the action to perform if necessary
         if action is not None:
-            np.core.umath.copyto(self._action, action)
+            set_value(self._action, action)
 
         # Try to perform a single simulation step
         is_step_failed = True
@@ -887,8 +887,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         else:
             if self.simulator.use_theoretical_model and self.robot.is_flexible:
                 position, velocity = self.simulator.state
-                np.core.umath.copyto(self._observation['state']['Q'], position)
-                np.core.umath.copyto(self._observation['state']['V'], velocity)
+                self._observation['state']['Q'][:] = position
+                self._observation['state']['V'][:] = velocity
 
     def compute_command(self,
                         measure: SpaceDictNested,

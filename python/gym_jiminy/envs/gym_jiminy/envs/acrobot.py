@@ -95,7 +95,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
-            self.AVAIL_CTRL = [-motor.control_limit, 0.0, motor.control_limit]
+            self.AVAIL_CTRL = [-motor.command_limit, 0.0, motor.command_limit]
 
         # Internal parameters used for computing termination condition
         self._tipIdx = robot.pinocchio_model.getFrameId("Tip")
@@ -148,8 +148,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         """
         if not self.simulator.is_simulation_running:
             self.__state = (self.system_state.q, self.system_state.v)
-        np.core.umath.copyto(self.__state_view[0], self.__state[0])
-        np.core.umath.copyto(self.__state_view[1], self.__state[1])
+        self.__state_view[0][:] = self.__state[0]
+        self.__state_view[1][:] = self.__state[1]
 
     def _refresh_action_space(self) -> None:
         """Configure the action space of the environment.

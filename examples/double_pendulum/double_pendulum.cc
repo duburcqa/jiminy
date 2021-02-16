@@ -23,19 +23,18 @@ void computeCommand(float64_t        const & t,
                     vectorN_t        const & q,
                     vectorN_t        const & v,
                     sensorsDataMap_t const & sensorsData,
-                    vectorN_t              & u)
+                    vectorN_t              & command)
 {
-    // No controller: energy should be preserved.
-    u.setZero();
+    // No controller: energy should be preserved
 }
 
 void internalDynamics(float64_t        const & t,
                       vectorN_t        const & q,
                       vectorN_t        const & v,
                       sensorsDataMap_t const & sensorsData,
-                      vectorN_t              & u)
+                      vectorN_t              & uCustom)
 {
-    u.setZero();
+    // Empty on purpose
 }
 
 bool_t callback(float64_t const & t,

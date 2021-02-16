@@ -11,7 +11,7 @@
 ///                          vectorN_t const & q,
 ///                          vectorN_t const & v,
 ///                          matrixN_t const & sensorsData[I]...,
-///                          vectorN_t       & u)
+///                          vectorN_t       & command)
 ///                 where I is range(n), with n the number of different type of sensor.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,7 +44,7 @@ namespace jiminy
         ///                      vectorN_t        const & q,
         ///                      vectorN_t        const & v,
         ///                      sensorsDataMap_t const & sensorsData,
-        ///                      vectorN_t              & u)
+        ///                      vectorN_t              & command)
         ///             where I is range(n), with n the number of different type of sensor.
         ///
         /// \param[in]  commandFct              'Callable' computing the command
@@ -65,10 +65,10 @@ namespace jiminy
         /// \details    It assumes that the robot internal state (including sensors) is consistent
         ///             with other input arguments. It fetches the sensor data automatically.
         ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[out] u       Output effort vector
+        /// \param[in]  t        Current time
+        /// \param[in]  q        Current configuration vector
+        /// \param[in]  v        Current velocity vector
+        /// \param[out] command  Output effort vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -76,17 +76,17 @@ namespace jiminy
         hresult_t computeCommand(float64_t const & t,
                                  vectorN_t const & q,
                                  vectorN_t const & v,
-                                 vectorN_t       & u) override;
+                                 vectorN_t       & command) override;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
         /// \brief      Emulate internal dynamics of the system at are not included in the
         ///             physics engine.
         ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  u       Output effort vector
+        /// \param[in]  t        Current time
+        /// \param[in]  q        Current configuration vector
+        /// \param[in]  v        Current velocity vector
+        /// \param[in]  command  Output effort vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -94,7 +94,7 @@ namespace jiminy
         hresult_t internalDynamics(float64_t const & t,
                                    vectorN_t const & q,
                                    vectorN_t const & v,
-                                   vectorN_t       & u) override;
+                                   vectorN_t       & uCustom) override;
 
     private:
         // std::conditional_t enables to use both functors and lambdas

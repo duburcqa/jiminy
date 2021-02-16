@@ -236,7 +236,7 @@ namespace jiminy
         /// \param[in]  q       Current configuration vector of the motor.
         /// \param[in]  v       Current velocity vector of the motor.
         /// \param[in]  a       Current acceleration vector of the motor.
-        /// \param[in]  u       Current motor effort vector of the motor.
+        /// \param[in]  uMotor  Current motor effort vector of the motor.
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///

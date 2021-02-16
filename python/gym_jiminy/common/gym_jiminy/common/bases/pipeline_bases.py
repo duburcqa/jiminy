@@ -79,9 +79,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                            q: np.ndarray,
                            v: np.ndarray,
                            sensors_data: jiminy.sensorsData,
-                           u_command: np.ndarray) -> None:
-        np.core.umath.copyto(u_command, self.compute_command(
-            self.env.get_observation(), self._action))
+                           command: np.ndarray) -> None:
+        command[:] = self.compute_command(
+            self.env.get_observation(), self._action)
 
     def _get_block_index(self) -> int:
         """Get the index of the block. It corresponds the "deepness" of the
@@ -554,7 +554,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         if self.simulator.is_simulation_running:
             # Do not update command during the first iteration because the
             # action is undefined at this point
-            np.core.umath.copyto(self._command, self.env.compute_command(
+            set_value(self._command, self.env.compute_command(
                 self._observation, self._target))
 
         return self._command

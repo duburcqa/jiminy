@@ -43,11 +43,11 @@ class SimulateMultiRobot(unittest.TestCase):
                 self.k = k
                 self.nu = nu
 
-            def compute_command(self, t, q, v, sensors_data, u):
-                u.fill(0.0)
+            def compute_command(self, t, q, v, sensors_data, command):
+                pass
 
-            def internal_dynamics(self, t, q, v, sensors_data, u):
-                np.core.umath.copyto(u, - self.k * q - self.nu * v)
+            def internal_dynamics(self, t, q, v, sensors_data, u_custom):
+                u_custom[:] = - self.k * q - self.nu * v
 
         # Create two identical robots
         engine = jiminy.EngineMultiRobot()

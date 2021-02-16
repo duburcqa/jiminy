@@ -40,7 +40,7 @@ namespace python
         hresult_t computeCommand(float64_t const & t,
                                  vectorN_t const & q,
                                  vectorN_t const & v,
-                                 vectorN_t       & u)
+                                 vectorN_t       & command)
         {
             bp::override func = this->get_override("compute_command");
             if (func)
@@ -48,7 +48,7 @@ namespace python
                 func(t,
                      FctPyWrapperArgToPython(q),
                      FctPyWrapperArgToPython(v),
-                     FctPyWrapperArgToPython(u));
+                     FctPyWrapperArgToPython(command));
             }
             return hresult_t::SUCCESS;
         }
@@ -56,7 +56,7 @@ namespace python
         hresult_t internalDynamics(float64_t const & t,
                                    vectorN_t const & q,
                                    vectorN_t const & v,
-                                   vectorN_t       & u)
+                                   vectorN_t       & uCustom)
         {
             bp::override func = this->get_override("internal_dynamics");
             if (func)
@@ -64,7 +64,7 @@ namespace python
                 func(t,
                      FctPyWrapperArgToPython(q),
                      FctPyWrapperArgToPython(v),
-                     FctPyWrapperArgToPython(u));
+                     FctPyWrapperArgToPython(uCustom));
             }
             return hresult_t::SUCCESS;
         }
@@ -310,9 +310,9 @@ namespace python
                                 (bp::arg("compute_command") = bp::object(),  // bp::object() means 'None' in Python
                                  bp::arg("internal_dynamics") = bp::object())))
                 .def("compute_command", &AbstractController::computeCommand,
-                                        (bp::arg("self"), "t", "q", "v", "u"))
+                                        (bp::arg("self"), "t", "q", "v", "command"))
                 .def("internal_dynamics", &AbstractController::internalDynamics,
-                                          (bp::arg("self"), "t", "q", "v", "u"));
+                                          (bp::arg("self"), "t", "q", "v", "u_custom"));
                 ;
         }
 
@@ -330,7 +330,7 @@ namespace python
                                 vectorN_t        const & q,
                                 vectorN_t        const & v,
                                 sensorsDataMap_t const & sensorsData,
-                                vectorN_t              & uCommand) {};
+                                vectorN_t              & command) {};
             }
             ControllerFct internalDynamicsFct;
             if (!internalDynamicsPy.is_none())
@@ -343,7 +343,7 @@ namespace python
                                          vectorN_t        const & q,
                                          vectorN_t        const & v,
                                          sensorsDataMap_t const & sensorsData,
-                                         vectorN_t              & uCommand) {};
+                                         vectorN_t              & command) {};
             }
             return std::make_shared<CtrlFunctor>(std::move(commandFct),
                                                  std::move(internalDynamicsFct));

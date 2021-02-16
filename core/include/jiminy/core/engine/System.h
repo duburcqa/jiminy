@@ -108,10 +108,11 @@ namespace jiminy
         vectorN_t q;
         vectorN_t v;
         vectorN_t a;
+        vectorN_t command;
         vectorN_t u;
-        vectorN_t uCommand;
         vectorN_t uMotor;
         vectorN_t uInternal;
+        vectorN_t uCustom;
         forceVector_t fExternal;
 
     private:

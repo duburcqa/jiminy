@@ -143,7 +143,7 @@ def set_value(data: SpaceDictNested,
     """
     if isinstance(data, np.ndarray):
         try:
-            np.core.umath.copyto(data, value)
+            data.flat[:] = value
         except TypeError as e:
             raise TypeError(f"Cannot cast '{data}' to '{value}'.") from e
     elif isinstance(data, dict):

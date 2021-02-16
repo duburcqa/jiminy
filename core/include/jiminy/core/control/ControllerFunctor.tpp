@@ -29,7 +29,7 @@ namespace jiminy
     hresult_t ControllerFunctor<F1, F2>::computeCommand(float64_t const & t,
                                                         vectorN_t const & q,
                                                         vectorN_t const & v,
-                                                        vectorN_t       & u)
+                                                        vectorN_t       & command)
     {
         if (!getIsInitialized())
         {
@@ -37,7 +37,7 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        commandFct_(t, q, v, sensorsData_, u);
+        commandFct_(t, q, v, sensorsData_, command);
 
         return hresult_t::SUCCESS;
     }
@@ -46,7 +46,7 @@ namespace jiminy
     hresult_t ControllerFunctor<F1, F2>::internalDynamics(float64_t const & t,
                                                           vectorN_t const & q,
                                                           vectorN_t const & v,
-                                                          vectorN_t       & u)
+                                                          vectorN_t       & uCustom)
     {
         if (!getIsInitialized())
         {
@@ -54,7 +54,7 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        internalDynamicsFct_(t, q, v, sensorsData_, u);  // The sensor data are already up-to-date
+        internalDynamicsFct_(t, q, v, sensorsData_, uCustom);  // The sensor data are already up-to-date
 
         return hresult_t::SUCCESS;
     }

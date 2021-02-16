@@ -493,24 +493,27 @@ namespace jiminy
                             float64_t const & t,
                             vectorN_t const & q,
                             vectorN_t const & v,
-                            vectorN_t       & u);
-        void computeInternalDynamics(systemHolder_t  & system,
-                                     float64_t const & t,
-                                     vectorN_t const & q,
-                                     vectorN_t const & v,
-                                     vectorN_t       & u) const;
+                            vectorN_t       & command);
+        void computeInternalDynamics(systemHolder_t  const & system,
+                                     float64_t       const & t,
+                                     vectorN_t       const & q,
+                                     vectorN_t       const & v,
+                                     vectorN_t             & uInternal) const;
+        void computeCollisionForces(systemHolder_t     const & system,
+                                    systemDataHolder_t const & systemData,
+                                    forceVector_t            & fext) const;
         void computeExternalForces(systemHolder_t     const & system,
                                    systemDataHolder_t const & systemData,
                                    float64_t          const & t,
                                    vectorN_t          const & q,
                                    vectorN_t          const & v,
                                    forceVector_t            & fext) const;
-        void computeInternalForces(float64_t              const & t,
+        void computeCouplingForces(float64_t              const & t,
                                    std::vector<vectorN_t> const & qSplit,
                                    std::vector<vectorN_t> const & vSplit);
-        void computeAllForces(float64_t              const & t,
-                              std::vector<vectorN_t> const & qSplit,
-                              std::vector<vectorN_t> const & vSplit);
+        void computeAllTerms(float64_t              const & t,
+                             std::vector<vectorN_t> const & qSplit,
+                             std::vector<vectorN_t> const & vSplit);
 
         /// \brief Compute system acceleration from current system state.
         ///

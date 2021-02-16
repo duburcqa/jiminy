@@ -60,9 +60,9 @@ namespace jiminy
         {
             configHolder_t config;
             config["mechanicalReduction"] = 1.0;
-            config["enableControlLimit"] = true;
-            config["controlLimitFromUrdf"] = true;
-            config["controlLimit"] = 0.0;
+            config["enableCommandLimit"] = true;
+            config["commandLimitFromUrdf"] = true;
+            config["commandLimit"] = 0.0;
             config["enableArmature"] = false;
             config["armature"] = 0.0;
 
@@ -72,17 +72,17 @@ namespace jiminy
         struct abstractMotorOptions_t
         {
             float64_t const mechanicalReduction;        ///< Mechanical reduction ratio of the transmission (joint / motor, usually >= 1.0
-            bool_t    const enableControlLimit;
-            bool_t    const controlLimitFromUrdf;
-            float64_t const controlLimit;
+            bool_t    const enableCommandLimit;
+            bool_t    const commandLimitFromUrdf;
+            float64_t const commandLimit;
             bool_t    const enableArmature;
             float64_t const armature;
 
             abstractMotorOptions_t(configHolder_t const & options) :
             mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction"))),
-            enableControlLimit(boost::get<bool_t>(options.at("enableControlLimit"))),
-            controlLimitFromUrdf(boost::get<bool_t>(options.at("controlLimitFromUrdf"))),
-            controlLimit(boost::get<float64_t>(options.at("controlLimit"))),
+            enableCommandLimit(boost::get<bool_t>(options.at("enableCommandLimit"))),
+            commandLimitFromUrdf(boost::get<bool_t>(options.at("commandLimitFromUrdf"))),
+            commandLimit(boost::get<float64_t>(options.at("commandLimit"))),
             enableArmature(boost::get<bool_t>(options.at("enableArmature"))),
             armature(boost::get<float64_t>(options.at("armature")))
             {
@@ -215,11 +215,11 @@ namespace jiminy
         int32_t const & getJointVelocityIdx(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get controlLimit_.
+        /// \brief      Get commandLimit_.
         ///
         /// \details    It is the maximum effort of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & getControlLimit(void) const;
+        float64_t const & getCommandLimit(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get armature_.
@@ -234,18 +234,18 @@ namespace jiminy
         /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
         ///
-        /// \param[in]  t       Current time.
-        /// \param[in]  q       Current configuration of the motor.
-        /// \param[in]  v       Current velocity of the motor.
-        /// \param[in]  a       Current acceleration of the motor.
-        /// \param[in]  u       Current command effort of the motor.
+        /// \param[in]  t        Current time.
+        /// \param[in]  q        Current configuration of the motor.
+        /// \param[in]  v        Current velocity of the motor.
+        /// \param[in]  a        Current acceleration of the motor.
+        /// \param[in]  command  Current command effort of the motor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t computeEffort(float64_t const & t,
                                         Eigen::VectorBlock<vectorN_t const> const & q,
                                         float64_t const & v,
                                         float64_t const & a,
-                                        float64_t uCommand) = 0;  /* copy on purpose */
+                                        float64_t command) = 0;  /* copy on purpose */
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request every motors to update their actual effort based of the input data.
@@ -256,11 +256,11 @@ namespace jiminy
         /// \remark     This method is not intended to be called manually. The Robot to which the
         ///             motor is added is taking care of it while updating the state of the motors.
         ///
-        /// \param[in]  t       Current time.
-        /// \param[in]  q       Current configuration vector of the robot.
-        /// \param[in]  v       Current velocity vector of the robot.
-        /// \param[in]  a       Current acceleration vector of the robot.
-        /// \param[in]  u       Current command effort vector of the robot.
+        /// \param[in]  t        Current time.
+        /// \param[in]  q        Current configuration vector of the robot.
+        /// \param[in]  v        Current velocity vector of the robot.
+        /// \param[in]  a        Current acceleration vector of the robot.
+        /// \param[in]  command  Current command effort vector of the robot.
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -268,7 +268,7 @@ namespace jiminy
                                    vectorN_t const & q,
                                    vectorN_t const & v,
                                    vectorN_t const & a,
-                                   vectorN_t const & uCommand);
+                                   vectorN_t const & command);
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -306,7 +306,7 @@ namespace jiminy
         joint_t jointType_;
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
-        float64_t controlLimit_;
+        float64_t commandLimit_;
         float64_t armature_;
 
     private:

@@ -102,10 +102,11 @@ namespace jiminy
     q(),
     v(),
     a(),
+    command(),
     u(),
-    uCommand(),
     uMotor(),
     uInternal(),
+    uCustom(),
     fExternal(),
     isInitialized_(false)
     {
@@ -123,10 +124,11 @@ namespace jiminy
         q = pinocchio::neutral(robot.pncModel_);
         v = vectorN_t::Zero(robot.nv());
         a = vectorN_t::Zero(robot.nv());
+        command = vectorN_t::Zero(robot.getMotorsNames().size());
         u = vectorN_t::Zero(robot.nv());
-        uInternal = vectorN_t::Zero(robot.nv());
-        uCommand = vectorN_t::Zero(robot.getMotorsNames().size());
         uMotor = vectorN_t::Zero(robot.getMotorsNames().size());
+        uInternal = vectorN_t::Zero(robot.nv());
+        uCustom = vectorN_t::Zero(robot.nv());
         fExternal = forceVector_t(robot.pncModel_.joints.size(),
                                   pinocchio::Force::Zero());
         isInitialized_ = true;

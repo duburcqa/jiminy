@@ -190,8 +190,8 @@ class SimulateSimpleMass(unittest.TestCase):
         # Create the engine
         engine = jiminy.Engine()
 
-        # No control law, only check sensor data
-        def check_sensor_data(t, q, v, sensors_data, u):
+        # No control law, only check sensors data
+        def check_sensors_data(t, q, v, sensors_data, command):
             nonlocal engine, frame_pose
 
             # Verify sensor data, if the engine has been initialized
@@ -204,17 +204,14 @@ class SimulateSimpleMass(unittest.TestCase):
                 self.assertTrue(np.allclose(
                     f_joint_sensor.vector, f_jiminy.vector, atol=TOLERANCE))
 
-            # Set the command torque to zero
-            u.fill(0.0)
-
         # Internal dynamics: make the mass spin to generate nontrivial
         # rotations.
-        def spinning_force(t, q, v, sensors_data, u):
-            u[3:6] = 1.0
+        def spinning_force(t, q, v, sensors_data, u_custom):
+            u_custom[3:6] = 1.0
 
         # Initialize and configure the engine
         self._setup_controller_and_engine(engine, robot,
-            compute_command=check_sensor_data,
+            compute_command=check_sensors_data,
             internal_dynamics=spinning_force)
 
         # Run simulation

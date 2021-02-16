@@ -205,7 +205,7 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
                            q: np.ndarray,
                            v: np.ndarray,
                            sensors_data: jiminy.sensorsData,
-                           u_command: np.ndarray) -> None:
+                           command: np.ndarray) -> None:
         """This method is the main entry-point to interact with the simulator.
 
         .. note:
@@ -226,8 +226,8 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
         :param sensors_data: Current sensor data. Note that it is the raw data,
                              which means that it is not an actual dictionary
                              but it behaves similarly.
-        :param u_command: Output argument to update by reference using `[:]` or
-                          `np.core.umath.copyto` in order to apply motors
-                          torques on the robot.
+        :param command: Output argument to update by reference using `[:]` or
+                        `np.core.umath.copyto` in order to apply motors torques
+                        on the robot.
         """
         raise NotImplementedError

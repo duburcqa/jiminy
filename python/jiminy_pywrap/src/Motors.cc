@@ -41,7 +41,7 @@ namespace python
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("joint_velocity_idx", bp::make_function(&AbstractMotorBase::getJointVelocityIdx,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("control_limit", bp::make_function(&AbstractMotorBase::getControlLimit,
+                .add_property("command_limit", bp::make_function(&AbstractMotorBase::getCommandLimit,
                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("armature", bp::make_function(&AbstractMotorBase::getArmature,
                                                bp::return_value_policy<bp::copy_const_reference>()))

@@ -135,16 +135,13 @@ namespace jiminy
         }
 
         // Create and initialize a controller doing nothing
-        auto setZeroFunctor = [](float64_t        const & t,
-                                 vectorN_t        const & q,
-                                 vectorN_t        const & v,
-                                 sensorsDataMap_t const & sensorsData,
-                                 vectorN_t              & u)
-                              {
-                                  u.setZero();
-                              };
+        auto bypassFunctor = [](float64_t        const & t,
+                                vectorN_t        const & q,
+                                vectorN_t        const & v,
+                                sensorsDataMap_t const & sensorsData,
+                                vectorN_t              & out) {};
         auto controller = std::make_shared<ControllerFunctor<
-            decltype(setZeroFunctor), decltype(setZeroFunctor)> >(setZeroFunctor, setZeroFunctor);
+            decltype(bypassFunctor), decltype(bypassFunctor)> >(bypassFunctor, bypassFunctor);
         controller->initialize(robot);
 
         return addSystem(systemName, robot, controller, std::move(callbackFct));
@@ -667,7 +664,7 @@ namespace jiminy
                     {
                         returnCode = telemetrySender_.registerVariable(
                             systemDataIt->commandFieldnames,
-                            systemDataIt->state.uCommand);
+                            systemDataIt->state.command);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -747,7 +744,7 @@ namespace jiminy
             if (engineOptions_->telemetry.enableCommand)
             {
                 telemetrySender_.updateValue(systemDataIt->commandFieldnames,
-                                             systemDataIt->state.uCommand);
+                                             systemDataIt->state.command);
             }
             if (engineOptions_->telemetry.enableMotorEffort)
             {
@@ -1264,8 +1261,9 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Compute the internal and external forces applied on every systems
-            computeAllForces(t, qSplit, vSplit);
+            /* Compute the efforts, internal and external forces applied on every systems,
+               excluding user-specified internal dynamics if any. */
+            computeAllTerms(t, qSplit, vSplit);
 
             systemIt = systems_.begin();
             systemDataIt = systemsDataHolder_.begin();
@@ -1278,26 +1276,29 @@ namespace jiminy
                 vectorN_t const & v = systemDataIt->state.v;
                 vectorN_t & a = systemDataIt->state.a;
                 vectorN_t & u = systemDataIt->state.u;
-                vectorN_t & uCommand = systemDataIt->state.uCommand;
+                vectorN_t & command = systemDataIt->state.command;
                 vectorN_t & uMotor = systemDataIt->state.uMotor;
                 vectorN_t & uInternal = systemDataIt->state.uInternal;
+                vectorN_t & uCustom = systemDataIt->state.uCustom;
                 forceVector_t & fext = systemDataIt->state.fExternal;
 
                 // Initialize the sensor data
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor);
 
                 // Compute the actual motor effort
-                computeCommand(*systemIt, t, q, v, uCommand);
+                command.setZero();
+                computeCommand(*systemIt, t, q, v, command);
 
                 // Compute the actual motor effort
-                systemIt->robot->computeMotorsEfforts(t, q, v, a, uCommand);
+                systemIt->robot->computeMotorsEfforts(t, q, v, a, command);
                 uMotor = systemIt->robot->getMotorsEfforts();
 
                 // Compute the internal dynamics
-                computeInternalDynamics(*systemIt, t, q, v, uInternal);
+                uCustom.setZero();
+                systemIt->controller->internalDynamics(t, q, v, uCustom);
 
                 // Compute the total effort vector
-                u = uInternal;
+                u = uInternal + uCustom;
                 for (auto const & motor : systemIt->robot->getMotors())
                 {
                     int32_t const & motorIdx = motor->getIdx();
@@ -1671,8 +1672,9 @@ namespace jiminy
                     {
                         vectorN_t const & q = systemDataIt->state.q;
                         vectorN_t const & v = systemDataIt->state.v;
-                        vectorN_t & uCommand = systemDataIt->state.uCommand;
-                        computeCommand(*systemIt, t, q, v, uCommand);
+                        vectorN_t & command = systemDataIt->state.command;
+                        command.setZero();
+                        computeCommand(*systemIt, t, q, v, command);
                     }
                     hasDynamicsChanged = true;
                 }
@@ -2652,13 +2654,13 @@ namespace jiminy
                                           float64_t      const & t,
                                           vectorN_t      const & q,
                                           vectorN_t      const & v,
-                                          vectorN_t            & u)
+                                          vectorN_t            & command)
     {
         // Reinitialize the external forces
-        u.setZero();
+        command.setZero();
 
         // Command the command
-        system.controller->computeCommand(t, q, v, u);
+        system.controller->computeCommand(t, q, v, command);
     }
 
     template<template<typename, int, int> class JointModel, typename Scalar, int Options, int axis>
@@ -2856,17 +2858,12 @@ namespace jiminy
         }
     };
 
-    void EngineMultiRobot::computeInternalDynamics(systemHolder_t       & system,
+    void EngineMultiRobot::computeInternalDynamics(systemHolder_t const & system,
                                                    float64_t      const & t,
                                                    vectorN_t      const & q,
                                                    vectorN_t      const & v,
-                                                   vectorN_t            & u) const
+                                                   vectorN_t            & uInternal) const
     {
-        // Reinitialize the internal effort vector
-        u.setZero();
-
-        // Compute the user-defined internal dynamics
-        system.controller->internalDynamics(t, q, v, u);
 
         // Define some proxies
         jointOptions_t const & jointOptions = engineOptions_->joints;
@@ -2882,7 +2879,7 @@ namespace jiminy
             {
                 computePositionLimitsForcesAlgo::run(pncModel.joints[rigidIdx],
                     typename computePositionLimitsForcesAlgo::ArgsType(
-                        pncData, q, v, positionLimitMin, positionLimitMax, jointOptions, u));
+                        pncData, q, v, positionLimitMin, positionLimitMax, jointOptions, uInternal));
             }
         }
 
@@ -2894,7 +2891,7 @@ namespace jiminy
             {
                 computeVelocityLimitsForcesAlgo::run(pncModel.joints[rigidIdx],
                     typename computeVelocityLimitsForcesAlgo::ArgsType(
-                        pncData, v, velocityLimitMax, jointOptions, u));
+                        pncData, v, velocityLimitMax, jointOptions, uInternal));
             }
         }
 
@@ -2911,17 +2908,15 @@ namespace jiminy
             float64_t theta;
             quaternion_t const quat(q.segment<4>(positionIdx).data());  // Only way to initialize with [x,y,z,w] order
             vectorN_t const axis = pinocchio::quaternion::log3(quat, theta);
-            u.segment<3>(velocityIdx).array() += - stiffness.array() * axis.array()
+            uInternal.segment<3>(velocityIdx).array() +=
+                - stiffness.array() * axis.array()
                 - damping.array() * v.segment<3>(velocityIdx).array();
         }
     }
 
-    void EngineMultiRobot::computeExternalForces(systemHolder_t     const & system,
-                                                 systemDataHolder_t const & systemData,
-                                                 float64_t          const & t,
-                                                 vectorN_t          const & q,
-                                                 vectorN_t          const & v,
-                                                 forceVector_t            & fext) const
+    void EngineMultiRobot::computeCollisionForces(systemHolder_t     const & system,
+                                                  systemDataHolder_t const & systemData,
+                                                  forceVector_t            & fext) const
     {
         // Compute the forces at contact points
         std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
@@ -2958,7 +2953,15 @@ namespace jiminy
                 fext[parentJointIdx] += fextLocal;
             }
         }
+    }
 
+    void EngineMultiRobot::computeExternalForces(systemHolder_t     const & system,
+                                                 systemDataHolder_t const & systemData,
+                                                 float64_t          const & t,
+                                                 vectorN_t          const & q,
+                                                 vectorN_t          const & v,
+                                                 forceVector_t            & fext) const
+    {
         // Add the effect of user-defined external impulse forces
         auto forcesImpulseActiveIt = systemData.forcesImpulseActive.begin();
         auto forcesImpulseIt = systemData.forcesImpulse.begin();
@@ -2992,7 +2995,7 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeInternalForces(float64_t              const & t,
+    void EngineMultiRobot::computeCouplingForces(float64_t              const & t,
                                                  std::vector<vectorN_t> const & qSplit,
                                                  std::vector<vectorN_t> const & vSplit)
     {
@@ -3031,21 +3034,22 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeAllForces(float64_t              const & t,
-                                            std::vector<vectorN_t> const & qSplit,
-                                            std::vector<vectorN_t> const & vSplit)
+    void EngineMultiRobot::computeAllTerms(float64_t              const & t,
+                                           std::vector<vectorN_t> const & qSplit,
+                                           std::vector<vectorN_t> const & vSplit)
     {
-        // Reinitialize the external forces
+        // Reinitialize the external forces and internal efforts
         for (auto & systemData : systemsDataHolder_)
         {
             for (pinocchio::Force & fext_i : systemData.state.fExternal)
             {
                 fext_i.setZero();
             }
+            systemData.state.uInternal.setZero();
         }
 
         // Compute the internal forces
-        computeInternalForces(t, qSplit, vSplit);
+        computeCouplingForces(t, qSplit, vSplit);
 
         // Compute each individual system dynamics
         std::vector<systemHolder_t>::const_iterator systemIt = systems_.begin();
@@ -3057,6 +3061,15 @@ namespace jiminy
         {
             // Define some proxies
             forceVector_t & fext = systemDataIt->state.fExternal;
+            vectorN_t & uInternal = systemDataIt->state.uInternal;
+
+            /* Compute internal dynamics, namely the efforts in joint space associated
+               with position/velocity bounds dynamics, and flexibility dynamics. */
+            computeInternalDynamics(*systemIt, t, *qIt, *vIt, uInternal);
+
+            /* Compute the collision forces and estimated time at which the contact state
+               will changed (Take-off / Touch-down). */
+            computeCollisionForces(*systemIt, *systemDataIt, fext);
 
             // Compute the external contact forces.
             computeExternalForces(*systemIt, *systemDataIt, t, *qIt, *vIt, fext);
@@ -3094,10 +3107,11 @@ namespace jiminy
             computeForwardKinematics(*systemIt, *qIt, *vIt, aPrev);
         }
 
-        /* Compute the internal and external forces applied on every systems.
+        /* Compute internal and external forces and efforts applied on every systems,
+           excluding user-specified internal dynamics if any.
            Note that one must call this method BEFORE updating the sensors
            since the force sensor measurements rely on robot_->contactForces_. */
-        computeAllForces(t, qSplit, vSplit);
+        computeAllTerms(t, qSplit, vSplit);
 
         // Compute each individual system dynamics
         systemIt = systems_.begin();
@@ -3112,9 +3126,10 @@ namespace jiminy
         {
             // Define some proxies
             vectorN_t & u = systemDataIt->state.u;
-            vectorN_t & uCommand = systemDataIt->state.uCommand;
+            vectorN_t & command = systemDataIt->state.command;
             vectorN_t & uMotor = systemDataIt->state.uMotor;
             vectorN_t & uInternal = systemDataIt->state.uInternal;
+            vectorN_t & uCustom = systemDataIt->state.uCustom;
             forceVector_t & fext = systemDataIt->state.fExternal;
             vectorN_t const & aPrev = systemDataIt->statePrev.a;
             vectorN_t const & uMotorPrev = systemDataIt->statePrev.uMotor;
@@ -3139,21 +3154,23 @@ namespace jiminy
                Make sure that the sensor state has been updated beforehand. */
             if (engineOptions_->stepper.controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
             {
-                computeCommand(*systemIt, t, *qIt, *vIt, uCommand);
+                command.setZero();
+                computeCommand(*systemIt, t, *qIt, *vIt, command);
             }
 
             /* Compute the actual motor effort.
                Note that it is impossible to have access to the current accelerations. */
-            systemIt->robot->computeMotorsEfforts(t, *qIt, *vIt, aPrev, uCommand);
+            systemIt->robot->computeMotorsEfforts(t, *qIt, *vIt, aPrev, command);
             uMotor = systemIt->robot->getMotorsEfforts();
 
-            /* Compute the internal dynamics.
+            /* Compute the user-defined internal dynamics.
                Make sure that the sensor state has been updated beforehand since
                the user-defined internal dynamics may rely on it. */
-            computeInternalDynamics(*systemIt, t, *qIt, *vIt, uInternal);
+            uCustom.setZero();
+            systemIt->controller->internalDynamics(t, *qIt, *vIt, uCustom);
 
             // Compute the total effort vector
-            u = uInternal;
+            u = uInternal + uCustom;
             for (auto const & motor : systemIt->robot->getMotors())
             {
                 int32_t const & motorIdx = motor->getIdx();
@@ -3185,7 +3202,7 @@ namespace jiminy
             system.robot->computeConstraints(q, v);
 
             // Project external forces from cartesian space to joint space.
-            vectorN_t uTotal = u;
+            vectorN_t uAugmented = u;
             matrixN_t jointJacobian = matrixN_t::Zero(6, model.nv);
             for (int32_t i = 1; i < model.njoints; ++i)
             {
@@ -3194,7 +3211,7 @@ namespace jiminy
                                             i,
                                             pinocchio::LOCAL,
                                             jointJacobian);
-                uTotal += jointJacobian.transpose() * fext[i].toVector();
+                uAugmented += jointJacobian.transpose() * fext[i].toVector();
             }
             // Compute non-linear effects.
             pinocchio::nonLinearEffects(model, data, q, v);
@@ -3205,7 +3222,7 @@ namespace jiminy
             // Call forward dynamics.
             return pinocchio::forwardDynamics(model,
                                               data,
-                                              uTotal,
+                                              uAugmented,
                                               system.robot->getConstraintsJacobian(),
                                               system.robot->getConstraintsDrift(),
                                               CONSTRAINT_INVERSION_DAMPING);

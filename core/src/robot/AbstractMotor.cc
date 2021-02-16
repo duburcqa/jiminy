@@ -19,7 +19,7 @@ namespace jiminy
     jointType_(joint_t::NONE),
     jointPositionIdx_(-1),
     jointVelocityIdx_(-1),
-    controlLimit_(0.0),
+    commandLimit_(0.0),
     armature_(0.0),
     sharedHolder_(nullptr)
     {
@@ -146,13 +146,13 @@ namespace jiminy
         bool_t internalBuffersMustBeUpdated = false;
         if (isInitialized_)
         {
-            bool_t const & controlLimitFromUrdf = boost::get<bool_t>(motorOptions.at("controlLimitFromUrdf"));
-            if (!controlLimitFromUrdf)
+            bool_t const & commandLimitFromUrdf = boost::get<bool_t>(motorOptions.at("commandLimitFromUrdf"));
+            if (!commandLimitFromUrdf)
             {
-                float64_t const & controlLimit = boost::get<float64_t>(motorOptions.at("controlLimit"));
-                internalBuffersMustBeUpdated |= std::abs(controlLimit - baseMotorOptions_->controlLimit) > EPS;
+                float64_t const & commandLimit = boost::get<float64_t>(motorOptions.at("commandLimit"));
+                internalBuffersMustBeUpdated |= std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
-            internalBuffersMustBeUpdated |= (baseMotorOptions_->controlLimitFromUrdf != controlLimitFromUrdf);
+            internalBuffersMustBeUpdated |= (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
         }
 
         // Update the motor's options
@@ -240,13 +240,13 @@ namespace jiminy
             ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName_, jointVelocityIdx_);
 
             // Get the motor effort limits from the URDF or the user options.
-            if (baseMotorOptions_->controlLimitFromUrdf)
+            if (baseMotorOptions_->commandLimitFromUrdf)
             {
-                controlLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_] / baseMotorOptions_->mechanicalReduction;
+                commandLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_] / baseMotorOptions_->mechanicalReduction;
             }
             else
             {
-                controlLimit_ = baseMotorOptions_->controlLimit;
+                commandLimit_ = baseMotorOptions_->commandLimit;
             }
 
             // Get the rotor inertia
@@ -333,9 +333,9 @@ namespace jiminy
         return jointVelocityIdx_;
     }
 
-    float64_t const & AbstractMotorBase::getControlLimit(void) const
+    float64_t const & AbstractMotorBase::getCommandLimit(void) const
     {
-        return controlLimit_;
+        return commandLimit_;
     }
 
     float64_t const & AbstractMotorBase::getArmature(void) const
@@ -347,7 +347,7 @@ namespace jiminy
                                                   vectorN_t const & q,
                                                   vectorN_t const & v,
                                                   vectorN_t const & a,
-                                                  vectorN_t const & uCommand)
+                                                  vectorN_t const & command)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -369,7 +369,7 @@ namespace jiminy
                                                   q.segment(motor->getJointPositionIdx(), nq_motor),
                                                   v[motor->getJointVelocityIdx()],
                                                   a[motor->getJointVelocityIdx()],
-                                                  uCommand[motor->getIdx()]);
+                                                  command[motor->getIdx()]);
             }
         }
 

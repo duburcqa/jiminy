@@ -96,7 +96,7 @@ class BaseJiminyObserverController(jiminy.BaseController):
             |                    **q**: np.ndarray,
             |                    **v**: np.ndarray,
             |                    **sensors_data**: jiminy_py.core.sensorsData,
-            |                    **u_command**: np.ndarray
+            |                    **command**: np.ndarray
             |                    \) -> None
         :param unsafe: Whether or not to check if the handle is valid.
         """
@@ -105,27 +105,27 @@ class BaseJiminyObserverController(jiminy.BaseController):
                 t = 0.0
                 y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
                 sensors_data = self.robot.sensors_data
-                u_command = np.zeros(self.robot.nmotors)
-                controller_handle(t, y, dy, sensors_data, u_command)
+                command = np.zeros(self.robot.nmotors)
+                controller_handle(t, y, dy, sensors_data, command)
             self.__controller_handle = controller_handle
             self.has_controller = controller_handle is not None
         except Exception as e:
             raise RuntimeError(
                 "The controller handle has wrong signature. It is expected:"
-                "\ncontroller_handle(t, y, dy, sensorsData, u_command) -> None"
+                "\ncontroller_handle(t, y, dy, sensorsData, command) -> None"
                 ) from e
 
     def compute_command(self,
                         t: float,
                         q: np.ndarray,
                         v: np.ndarray,
-                        u: np.ndarray) -> None:
+                        command: np.ndarray) -> None:
         """Internal controller callback, should not be called directly.
         """
         if self.__must_refresh_observer and self.has_observer:
             self.__observer_handle(t, q, v, self.sensors_data)
         if self.has_controller:
-            self.__controller_handle(t, q, v, self.sensors_data, u)
+            self.__controller_handle(t, q, v, self.sensors_data, command)
         self.__must_refresh_observer = True
 
     def refresh_observation(self,
