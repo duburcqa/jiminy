@@ -8,7 +8,6 @@ from typing import Optional, Union, Sequence, Dict
 
 import numpy as np
 from tqdm import tqdm
-from scipy.interpolate import interp1d
 from typing_extensions import TypedDict
 
 from .. import core as jiminy
@@ -344,7 +343,7 @@ def play_trajectories(trajectory_data: Union[
             if len(traj['evolution_robot']):
                 time_max = max([time_max, traj['evolution_robot'][-1].t])
 
-        time_evolution = np.arange(
+        time_global = np.arange(
             0.0, time_max, speed_ratio / VIDEO_FRAMERATE)
         position_evolutions = []
         for traj in trajectory_data:
@@ -352,17 +351,14 @@ def play_trajectories(trajectory_data: Union[
                 data_orig = traj['evolution_robot']
                 t_orig = np.array([s.t for s in data_orig])
                 pos_orig = np.stack([s.q for s in data_orig], axis=0)
-                pos_interp = interp1d(
-                    t_orig, pos_orig,
-                    kind='linear', bounds_error=False,
-                    fill_value=(pos_orig[0], pos_orig[-1]), axis=0)
-                position_evolutions.append(pos_interp(time_evolution))
+                position_evolutions.append(jiminy.interpolate(
+                    t_orig, pos_orig, time_global))
             else:
                 position_evolutions.append(None)
 
         # Play trajectories without multithreading and record_video
         is_initialized = False
-        for i in tqdm(range(len(time_evolution)),
+        for i in tqdm(range(len(time_global)),
                       desc="Rendering frames",
                       disable=(not verbose)):
             for viewer, positions, offset in zip(

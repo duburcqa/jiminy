@@ -79,6 +79,16 @@ namespace python
         return isValid;
     }
 
+    matrixN_t interpolate(pinocchio::Model const & modelIn,
+                          vectorN_t        const & timesIn,
+                          matrixN_t        const & positionsIn,
+                          vectorN_t        const & timesOut)
+    {
+        matrixN_t positionOut;
+        ::jiminy::interpolate(modelIn, timesIn, positionsIn, timesOut, positionOut);
+        return positionOut;
+    }
+
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
     {
         // Initialized C API of Python, required to handle raw Python native object
@@ -134,6 +144,8 @@ namespace python
                                   (bp::arg("pinocchio_model"), "joint_idx"));
         bp::def("is_position_valid", &isPositionValid,
                                      (bp::arg("pinocchio_model"), "position"));
+        bp::def("interpolate", &interpolate,
+                               (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"));
         bp::def("aba",
                 &pinocchio_overload::aba<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t, pinocchio::Force>,

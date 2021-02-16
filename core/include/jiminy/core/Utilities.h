@@ -227,6 +227,12 @@ namespace jiminy
                                                    pinocchio::Inertia const & childBodyInertiaIn,
                                                    std::string        const & newJointNameIn);
 
+    hresult_t interpolate(pinocchio::Model const & modelIn,
+                          vectorN_t        const & timesIn,
+                          matrixN_t        const & positionsIn,
+                          vectorN_t        const & timesOut,
+                          matrixN_t              & positionsOut);
+
     /// \brief Convert a force expressed in the global frame of a specific frame to its parent joint frame.
     ///
     /// \param[in] model        Pinocchio model.
