@@ -1510,17 +1510,6 @@ namespace jiminy
 
     // ********************** Math utilities *************************
 
-    vectorN_t clamp(Eigen::Ref<vectorN_t const> const & data,
-                    float64_t                   const & minThr,
-                    float64_t                   const & maxThr)
-    {
-        return data.unaryExpr(
-        [&minThr, &maxThr](float64_t const & x) -> float64_t
-        {
-            return clamp(x, minThr, maxThr);
-        });
-    }
-
     float64_t clamp(float64_t const & data,
                     float64_t const & minThr,
                     float64_t const & maxThr)

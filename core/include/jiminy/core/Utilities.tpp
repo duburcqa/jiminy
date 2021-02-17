@@ -27,6 +27,18 @@ namespace jiminy
         }
     }
 
+    template<typename DerivedType>
+    auto clamp(Eigen::MatrixBase<DerivedType> const & data,
+               float64_t const & minThr,
+               float64_t const & maxThr)
+    {
+        return data.unaryExpr(
+        [&minThr, &maxThr](float64_t const & x) -> float64_t
+        {
+            return clamp(x, minThr, maxThr);
+        });
+    }
+
     // *************** Convertion to JSON utilities *****************
 
     template<typename T>
