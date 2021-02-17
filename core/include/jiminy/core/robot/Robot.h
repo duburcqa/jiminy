@@ -165,6 +165,8 @@ namespace jiminy
         vectorN_t const & getArmatures(void) const;
 
         std::vector<std::string> const & getCommandFieldnames(void) const;
+        std::vector<std::string> const & getMotorEffortFieldnames(void) const;
+
         // Getters without 'get' prefix for consistency with pinocchio C++ API
         int32_t const & nmotors(void) const;
 
@@ -186,7 +188,8 @@ namespace jiminy
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
         std::vector<std::string> motorsNames_;                                      ///< Name of the motors
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///< Name of the sensors
-        std::vector<std::string> commandFieldnames_;                                ///< Fieldnames of the efforts
+        std::vector<std::string> commandFieldnames_;                                ///< Fieldnames of the command
+        std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the motors effort
         int32_t nmotors_;                                                           ///< The number of motors
 
         static_map_t<std::string, std::shared_ptr<AbstractConstraint> > constraintsHolder_;

@@ -152,6 +152,7 @@ namespace jiminy
             config["enableVelocity"] = true;
             config["enableAcceleration"] = true;
             config["enableCommand"] = true;
+            config["enableMotorEffort"] = true;
             config["enableEnergy"] = true;
             config["timeUnit"] = 1.0e9;
             return config;
@@ -259,6 +260,7 @@ namespace jiminy
             bool_t const enableVelocity;
             bool_t const enableAcceleration;
             bool_t const enableCommand;
+            bool_t const enableMotorEffort;
             bool_t const enableEnergy;
             float64_t const timeUnit;
 
@@ -267,6 +269,7 @@ namespace jiminy
             enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
             enableAcceleration(boost::get<bool_t>(options.at("enableAcceleration"))),
             enableCommand(boost::get<bool_t>(options.at("enableCommand"))),
+            enableMotorEffort(boost::get<bool_t>(options.at("enableMotorEffort"))),
             enableEnergy(boost::get<bool_t>(options.at("enableEnergy"))),
             timeUnit(boost::get<float64_t>(options.at("timeUnit")))
             {

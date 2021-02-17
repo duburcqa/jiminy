@@ -288,6 +288,8 @@ namespace python
 
                 .add_property("logfile_command_headers", bp::make_function(&Robot::getCommandFieldnames,
                                                          bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("logfile_motor_effort_headers", bp::make_function(&Robot::getMotorEffortFieldnames,
+                                                              bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
 

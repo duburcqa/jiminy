@@ -50,6 +50,7 @@ engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True
 engine_options["telemetry"]["enableAcceleration"] = True
 engine_options["telemetry"]["enableCommand"] = True
+engine_options["telemetry"]["enableMotorEffort"] = True
 engine_options["telemetry"]["enableEnergy"] = True
 engine_options["world"]["gravity"][2] = -9.81
 engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]

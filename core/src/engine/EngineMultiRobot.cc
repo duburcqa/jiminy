@@ -1,6 +1,7 @@
 #include <cmath>
 #include <ctime>
 #include <algorithm>
+#include <unordered_set>
 #include <iostream>
 
 #include "pinocchio/parsers/urdf.hpp"
@@ -625,6 +626,9 @@ namespace jiminy
                 systemDataIt->commandFieldnames =
                     addCircumfix(systemIt->robot->getCommandFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                systemDataIt->motorEffortFieldnames =
+                    addCircumfix(systemIt->robot->getMotorEffortFieldnames(),
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->energyFieldname =
                     addCircumfix("energy",
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
@@ -664,6 +668,15 @@ namespace jiminy
                         returnCode = telemetrySender_.registerVariable(
                             systemDataIt->commandFieldnames,
                             systemDataIt->state.uCommand);
+                    }
+                }
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    if (engineOptions_->telemetry.enableMotorEffort)
+                    {
+                        returnCode = telemetrySender_.registerVariable(
+                            systemDataIt->motorEffortFieldnames,
+                            systemDataIt->state.uMotor);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -735,6 +748,11 @@ namespace jiminy
             {
                 telemetrySender_.updateValue(systemDataIt->commandFieldnames,
                                              systemDataIt->state.uCommand);
+            }
+            if (engineOptions_->telemetry.enableMotorEffort)
+            {
+                telemetrySender_.updateValue(systemDataIt->motorEffortFieldnames,
+                                             systemDataIt->state.uMotor);
             }
             if (engineOptions_->telemetry.enableEnergy)
             {
@@ -2172,7 +2190,7 @@ namespace jiminy
         // however since std::fmod yields values in [0, b[, this interval maps to [O, EPS] \union [b - EPS, b[.
         else if (sensorsUpdatePeriod > EPS && controllerUpdatePeriod > EPS
         && (std::min(std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod),
-                        sensorsUpdatePeriod - std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod)) > EPS
+                     sensorsUpdatePeriod - std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod)) > EPS
             && std::min(std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod),
                         controllerUpdatePeriod - std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod)) > EPS))
         {
@@ -2390,8 +2408,10 @@ namespace jiminy
                                                     vectorN_t      const & a)
     {
         // Create proxies for convenience
-        pinocchio::Model & model = system.robot->pncModel_;
+        pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
+        pinocchio::GeometryModel const & geomModel = system.robot->pncGeometryModel_;
+        pinocchio::GeometryData & geomData = *system.robot->pncGeometryData_;
 
         // Update forward kinematics
         pinocchio::forwardKinematics(model, data, q, v, a);
@@ -2433,13 +2453,28 @@ namespace jiminy
             }
         }
 
-        // Update collision informations
-        pinocchio::updateGeometryPlacements(model, data,
-                                            system.robot->pncGeometryModel_,
-                                            *system.robot->pncGeometryData_);
-        pinocchio::computeCollisions(system.robot->pncGeometryModel_,
-                                     *system.robot->pncGeometryData_,
-                                     false);
+        /* Update collision informations (selectively, only for geometries involved
+           in at least one collision pair). */
+        std::unordered_set<uint32_t> activeGeometriesIdx;
+        for (auto const & pair : geomModel.collisionPairs)
+        {
+            activeGeometriesIdx.insert(pair.first);
+            activeGeometriesIdx.insert(pair.second);
+        }
+        for (uint32_t const & i : activeGeometriesIdx)
+        {
+            int32_t const & jointIdx = geomModel.geometryObjects[i].parentJoint;
+            if (jointIdx > 0)
+            {
+                geomData.oMg[i] = data.oMi[jointIdx] * geomModel.geometryObjects[i].placement;
+            }
+            else
+            {
+                geomData.oMg[i] = geomModel.geometryObjects[i].placement;
+            }
+            geomData.collisionObjects[i].setTransform(pinocchio::toFclTransform3f(geomData.oMg[i]));
+        }
+        pinocchio::computeCollisions(geomModel, geomData, false);
     }
 
     pinocchio::Force EngineMultiRobot::computeContactDynamicsAtBody(systemHolder_t const & system,

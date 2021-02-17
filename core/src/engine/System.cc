@@ -154,6 +154,7 @@ namespace jiminy
     velocityFieldnames(),
     accelerationFieldnames(),
     commandFieldnames(),
+    motorEffortFieldnames(),
     energyFieldname(),
     state(),
     statePrev()
@@ -172,6 +173,7 @@ namespace jiminy
     velocityFieldnames(std::move(other.velocityFieldnames)),
     accelerationFieldnames(std::move(other.accelerationFieldnames)),
     commandFieldnames(std::move(other.commandFieldnames)),
+    motorEffortFieldnames(std::move(other.motorEffortFieldnames)),
     energyFieldname(std::move(other.energyFieldname)),
     state(std::move(other.state)),
     statePrev(std::move(other.statePrev))
@@ -191,6 +193,7 @@ namespace jiminy
         velocityFieldnames = std::move(other.velocityFieldnames);
         accelerationFieldnames = std::move(other.accelerationFieldnames);
         commandFieldnames = std::move(other.commandFieldnames);
+        motorEffortFieldnames = std::move(other.motorEffortFieldnames);
         energyFieldname = std::move(other.energyFieldname);
         state = std::move(other.state);
         statePrev = std::move(other.statePrev);

@@ -177,8 +177,8 @@ namespace jiminy
             robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
 
         // Accelerometer signal is sensor linear acceleration (not spatial acceleration !) minus gravity
-        data().tail<3>() = acceleration.linear() + velocity.angular().cross(velocity.linear()) - // 'getFrameClassicalAcceleration'
-                           quat.conjugate() * robot->pncModel_.gravity.linear();
+        data().tail<3>() = acceleration.linear() + velocity.angular().cross(velocity.linear())  // 'getFrameClassicalAcceleration'
+                           - quat.conjugate() * robot->pncModel_.gravity.linear();
 
         return hresult_t::SUCCESS;
     }

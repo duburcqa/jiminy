@@ -59,7 +59,8 @@ class Simulator:
                  controller: Optional[jiminy.AbstractController] = None,
                  engine_class: Type[jiminy.Engine] = jiminy.Engine,
                  use_theoretical_model: bool = False,
-                 viewer_backend: Optional[str] = None):
+                 viewer_backend: Optional[str] = None,
+                 **kwargs: Any) -> None:
         """
         :param robot: Jiminy robot already initialized.
         :param controller: Jiminy (observer-)controller already initialized.
@@ -72,6 +73,8 @@ class Simulator:
         :param viewer_backend: Backend of the viewer, e.g. panda3d or meshcat.
                                Optional: It is setup-dependent. See `Viewer`
                                documentation for details about it.
+        :param kwargs: Used arguments to allow automatic pipeline wrapper
+                       generation.
         """
         # Backup the user arguments
         self.use_theoretical_model = use_theoretical_model
@@ -211,7 +214,8 @@ class Simulator:
         simulator.engine.set_options(engine_options)
 
         # Override the default options by the one in the configuration file
-        simulator.import_options(config_path)
+        if config_path != "":
+            simulator.import_options(config_path)
 
         return simulator
 
@@ -452,11 +456,6 @@ class Simulator:
         :returns: Rendering as an RGB array (3D numpy array), if enabled, None
                   otherwise.
         """
-        # Make sure that a simulation is running
-        if not self.is_simulation_running:
-            raise RuntimeError(
-                "No simulation running. Please call `start` before `render`.")
-
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not (self._is_viewer_available and self.viewer.is_alive()):
@@ -595,13 +594,13 @@ class Simulator:
                     (field[len("current"):].replace(fields_type, ""), val)
                     for field, val in zip(fieldnames, values))
 
-        # Get command information
-        u = extract_fields(
+        # Get motors efforts information
+        motor_effort = extract_fields(
             log_data, 'HighLevelController',
-            self.robot.logfile_command_headers)
-        if u is not None:
-            data['Command'] = OrderedDict(
-                (field, val) for field, val in zip(self.robot.motors_names, u))
+            self.robot.logfile_motor_effort_headers)
+        if motor_effort is not None:
+            data['MotorEffort'] = OrderedDict(
+                zip(self.robot.motors_names, motor_effort))
 
         # Get sensors information
         for sensors_class, sensors_fields in SENSORS_FIELDS.items():
@@ -616,9 +615,7 @@ class Simulator:
                     if sensors_data[0] is not None:
                         type_name = ' '.join((sensors_type, fields_prefix))
                         data[type_name] = OrderedDict(
-                            (field, OrderedDict(
-                                (name, val) for name, val in zip(
-                                    sensors_names, values)))
+                            (field, OrderedDict(zip(sensors_names, values)))
                             for field, values in zip(fieldnames, sensors_data))
             else:
                 for field in sensors_fields:
@@ -627,8 +624,7 @@ class Simulator:
                         ['.'.join((name, field)) for name in sensors_names])
                     if sensors_data is not None:
                         data[' '.join((sensors_type, field))] = OrderedDict(
-                            (name, val)
-                            for name, val in zip(sensors_names, sensors_data))
+                            zip(sensors_names, sensors_data))
 
         # Plot the data
         fig = plt.figure()
@@ -824,6 +820,18 @@ class Simulator:
             Configuration can be exported beforehand using `export_options`
             method.
         """
+        def deep_update(source, overrides):
+            """
+            Update a nested dictionary or similar mapping.
+            Modify ``source`` in place.
+            """
+            for key, value in overrides.items():
+                if isinstance(value, dict) and value:
+                    source[key] = deep_update(source[key], value)
+                else:
+                    source[key] = overrides[key]
+            return source
+
         if config_path is None:
             if isinstance(self.robot, BaseJiminyRobot):
                 urdf_path = self.robot.urdf_path_orig
@@ -833,8 +841,5 @@ class Simulator:
                 urdf_path).with_suffix('')) + '_options.toml'
             if not os.path.exists(config_path):
                 return
-        options = toml.load(config_path)
-        # TODO: Ground profile import/export is not supported for now
-        options['engine']['world']['groundProfile'] = \
-            jiminy.HeatMapFunctor(0.0, jiminy.heatMapType_t.CONSTANT)
+        options = deep_update(self.get_options(), toml.load(config_path))
         self.set_options(options)

@@ -30,6 +30,7 @@ namespace jiminy
     motorsNames_(),
     sensorsNames_(),
     commandFieldnames_(),
+    motorEffortFieldnames_(),
     nmotors_(-1),
     constraintsHolder_(),
     constraintsJacobian_(),
@@ -653,7 +654,7 @@ namespace jiminy
                                return elem->getName();
                            });
 
-            // Generate the fieldnames associated with the motor efforts
+            // Generate the fieldnames associated with command
             commandFieldnames_.clear();
             commandFieldnames_.reserve(nmotors_);
             std::transform(motorsHolder_.begin(), motorsHolder_.end(),
@@ -661,6 +662,16 @@ namespace jiminy
                            [](auto const & elem) -> std::string
                            {
                                 return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Command");
+                           });
+
+            // Generate the fieldnames associated with motor efforts
+            motorEffortFieldnames_.clear();
+            motorEffortFieldnames_.reserve(nmotors_);
+            std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+                           std::back_inserter(motorEffortFieldnames_),
+                           [](auto const & elem) -> std::string
+                           {
+                                return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Effort");
                            });
         }
 
@@ -1592,6 +1603,11 @@ namespace jiminy
     std::vector<std::string> const & Robot::getCommandFieldnames(void) const
     {
         return commandFieldnames_;
+    }
+
+    std::vector<std::string> const & Robot::getMotorEffortFieldnames(void) const
+    {
+        return motorEffortFieldnames_;
     }
 
     int32_t const & Robot::nmotors(void) const
