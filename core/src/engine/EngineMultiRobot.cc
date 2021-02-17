@@ -1645,7 +1645,7 @@ namespace jiminy
                 float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
                 float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
                 if (dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP
-                || controllerUpdatePeriod - dtNextControllerUpdatePeriod < EPS)
+                || controllerUpdatePeriod - dtNextControllerUpdatePeriod < STEPPER_MIN_TIMESTEP)
                 {
                     auto systemIt = systems_.begin();
                     auto systemDataIt = systemsDataHolder_.begin();
@@ -1677,7 +1677,7 @@ namespace jiminy
                 {
                     float64_t dtNextStepperUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                     mustUpdateTelemetry = (dtNextStepperUpdatePeriod < SIMULATION_MIN_TIMESTEP
-                    || stepperUpdatePeriod_ - dtNextStepperUpdatePeriod < EPS);
+                    || stepperUpdatePeriod_ - dtNextStepperUpdatePeriod < STEPPER_MIN_TIMESTEP);
                 }
                 if (mustUpdateTelemetry)
                 {
@@ -1726,7 +1726,7 @@ namespace jiminy
                 tNext += dtNextGlobal;
 
                 // Compute the next step using adaptive step method
-                while (tNext - t > EPS)
+                while (tNext - t > STEPPER_MIN_TIMESTEP)
                 {
                     // Log every stepper state only if the user asked for
                     if (successiveIterFailed == 0 && engineOptions_->stepper.logInternalStepperSteps)
@@ -1938,11 +1938,11 @@ namespace jiminy
             // Update sensors data if necessary, namely if time-continuous or breakpoint
             float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
             bool mustUpdateSensors = sensorsUpdatePeriod < EPS;
+            float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
             if (!mustUpdateSensors)
             {
-                float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                mustUpdateSensors = (dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
-                || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < EPS);
+                mustUpdateSensors = dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                                 || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < STEPPER_MIN_TIMESTEP;
             }
             if (mustUpdateSensors)
             {
