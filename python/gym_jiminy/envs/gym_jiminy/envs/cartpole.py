@@ -110,9 +110,14 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # Instantiate simulator
         simulator = Simulator(robot)
 
+        # OpenAI Gym implementation of Cartpole has no velocity limit
+        model_options = simulator.robot.get_model_options()
+        model_options["joints"]["enableVelocityLimit"] = False
+        simulator.robot.set_model_options(model_options)
+
         # Map between discrete actions and actual motor force if necessary
         if not self.continuous:
-            self.AVAIL_FORCE = [-motor.effort_limit, motor.effort_limit]
+            self.AVAIL_CTRL = [-motor.command_limit, motor.command_limit]
 
         # Configure the learning environment
         super().__init__(simulator, step_dt=STEP_DT, debug=debug)
@@ -133,11 +138,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         engine_options["stepper"]["tolRel"] = 1.0e-9
         engine_options["stepper"]["tolAbs"] = 1.0e-8
         self.simulator.engine.set_options(engine_options)
-
-        # OpenAI Gym implementation of Cartpole has no velocity limit
-        robot_options = self.robot.get_options()
-        robot_options["model"]["joints"]["enableVelocityLimit"] = False
-        self.robot.set_options(robot_options)
 
     def _refresh_observation_space(self) -> None:
         """Configure the observation of the environment.
@@ -167,7 +167,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         'continuous'.
         """
         if not self.continuous:
-            self.action_space = spaces.Discrete(len(self.AVAIL_FORCE))
+            self.action_space = spaces.Discrete(len(self.AVAIL_CTRL))
         else:
             super()._refresh_action_space()
 
@@ -186,8 +186,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # @copydoc BaseJiminyEnv::refresh_observation
         if not self.simulator.is_simulation_running:
             self.__state = (self.system_state.q, self.system_state.v)
-        np.core.umath.copyto(self.__state_view[0], self.__state[0])
-        np.core.umath.copyto(self.__state_view[1], self.__state[1])
+        self.__state_view[0][:] = self.__state[0]
+        self.__state_view[1][:] = self.__state[1]
 
     def is_done(self) -> bool:
         """ TODO: Write documentation.
@@ -211,7 +211,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # Compute the actual torque to apply
         if not self.continuous:
-            action = self.AVAIL_FORCE[action]
+            action = self.AVAIL_CTRL[action]
 
         return action
 

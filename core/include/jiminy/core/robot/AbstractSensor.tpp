@@ -387,7 +387,7 @@ namespace jiminy
                                            vectorN_t const & q,
                                            vectorN_t const & v,
                                            vectorN_t const & a,
-                                           vectorN_t const & u)
+                                           vectorN_t const & uMotor)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -449,7 +449,7 @@ namespace jiminy
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                returnCode = sensor->set(t, q, v, a, u);
+                returnCode = sensor->set(t, q, v, a, uMotor);
             }
         }
 

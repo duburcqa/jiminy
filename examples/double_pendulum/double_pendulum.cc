@@ -23,19 +23,18 @@ void computeCommand(float64_t        const & t,
                     vectorN_t        const & q,
                     vectorN_t        const & v,
                     sensorsDataMap_t const & sensorsData,
-                    vectorN_t              & u)
+                    vectorN_t              & command)
 {
-    // No controller: energy should be preserved.
-    u.setZero();
+    // No controller: energy should be preserved
 }
 
 void internalDynamics(float64_t        const & t,
                       vectorN_t        const & q,
                       vectorN_t        const & v,
                       sensorsDataMap_t const & sensorsData,
-                      vectorN_t              & u)
+                      vectorN_t              & uCustom)
 {
-    u.setZero();
+    // Empty on purpose
 }
 
 bool_t callback(float64_t const & t,
@@ -95,6 +94,7 @@ int main(int argc, char_t * argv[])
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableVelocity")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableAcceleration")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableCommand")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableMotorEffort")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableEnergy")) = true;
     boost::get<vectorN_t>(boost::get<configHolder_t>(simuOptions.at("world")).at("gravity"))(2) = -9.81;
     boost::get<std::string>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("odeSolver")) = std::string("runge_kutta_dopri5");

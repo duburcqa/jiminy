@@ -1,6 +1,7 @@
 #include <cmath>
 #include <ctime>
 #include <algorithm>
+#include <unordered_set>
 #include <iostream>
 
 #include "pinocchio/parsers/urdf.hpp"
@@ -134,16 +135,13 @@ namespace jiminy
         }
 
         // Create and initialize a controller doing nothing
-        auto setZeroFunctor = [](float64_t        const & t,
-                                 vectorN_t        const & q,
-                                 vectorN_t        const & v,
-                                 sensorsDataMap_t const & sensorsData,
-                                 vectorN_t              & u)
-                              {
-                                  u.setZero();
-                              };
+        auto bypassFunctor = [](float64_t        const & t,
+                                vectorN_t        const & q,
+                                vectorN_t        const & v,
+                                sensorsDataMap_t const & sensorsData,
+                                vectorN_t              & out) {};
         auto controller = std::make_shared<ControllerFunctor<
-            decltype(setZeroFunctor), decltype(setZeroFunctor)> >(setZeroFunctor, setZeroFunctor);
+            decltype(bypassFunctor), decltype(bypassFunctor)> >(bypassFunctor, bypassFunctor);
         controller->initialize(robot);
 
         return addSystem(systemName, robot, controller, std::move(callbackFct));
@@ -625,6 +623,9 @@ namespace jiminy
                 systemDataIt->commandFieldnames =
                     addCircumfix(systemIt->robot->getCommandFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                systemDataIt->motorEffortFieldnames =
+                    addCircumfix(systemIt->robot->getMotorEffortFieldnames(),
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->energyFieldname =
                     addCircumfix("energy",
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
@@ -663,7 +664,16 @@ namespace jiminy
                     {
                         returnCode = telemetrySender_.registerVariable(
                             systemDataIt->commandFieldnames,
-                            systemDataIt->state.uCommand);
+                            systemDataIt->state.command);
+                    }
+                }
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    if (engineOptions_->telemetry.enableMotorEffort)
+                    {
+                        returnCode = telemetrySender_.registerVariable(
+                            systemDataIt->motorEffortFieldnames,
+                            systemDataIt->state.uMotor);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -734,7 +744,12 @@ namespace jiminy
             if (engineOptions_->telemetry.enableCommand)
             {
                 telemetrySender_.updateValue(systemDataIt->commandFieldnames,
-                                             systemDataIt->state.uCommand);
+                                             systemDataIt->state.command);
+            }
+            if (engineOptions_->telemetry.enableMotorEffort)
+            {
+                telemetrySender_.updateValue(systemDataIt->motorEffortFieldnames,
+                                             systemDataIt->state.uMotor);
             }
             if (engineOptions_->telemetry.enableEnergy)
             {
@@ -844,11 +859,15 @@ namespace jiminy
             data.oYcrb[parentIdx] += data.oYcrb[i];
         }
 
-        // Now that Ycrb is available, it is possible to extract the center of mass directly
+        // Now that Ycrb is available, it is possible to infer directly the subtree center of masses
         pinocchio::getComFromCrba(model, data);
         data.Ig.mass() = data.oYcrb[0].mass();
         data.Ig.lever().setZero();
         data.Ig.inertia() = data.oYcrb[0].inertia();
+        for (int32_t i = 1; i < model.njoints; ++i)
+        {
+            data.com[i] = data.oMi[i].actInv(data.oYcrb[i].lever());
+        }
 
         /* Neither 'aba' nor 'forwardDynamics' are computed the actual joints
            acceleration and forces, so it must be done separately:
@@ -1077,7 +1096,7 @@ namespace jiminy
             systemIt->robot->pncModel_.gravity = engineOptions_->world.gravity;
 
             // Propage the user-defined motor inertia at Pinocchio model level
-            systemIt->robot->pncModel_.rotorInertia = systemIt->robot->getMotorsInertias();
+            systemIt->robot->pncModel_.rotorInertia = systemIt->robot->getArmatures();
 
             /* Reinitialize the system state buffers, since the robot kinematic may have changed.
                For example, it may happens if one activates or deactivates the flexibility between
@@ -1242,8 +1261,9 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Compute the internal and external forces applied on every systems
-            computeAllForces(t, qSplit, vSplit);
+            /* Compute the efforts, internal and external forces applied on every systems,
+               excluding user-specified internal dynamics if any. */
+            computeAllTerms(t, qSplit, vSplit);
 
             systemIt = systems_.begin();
             systemDataIt = systemsDataHolder_.begin();
@@ -1256,26 +1276,29 @@ namespace jiminy
                 vectorN_t const & v = systemDataIt->state.v;
                 vectorN_t & a = systemDataIt->state.a;
                 vectorN_t & u = systemDataIt->state.u;
-                vectorN_t & uCommand = systemDataIt->state.uCommand;
+                vectorN_t & command = systemDataIt->state.command;
                 vectorN_t & uMotor = systemDataIt->state.uMotor;
                 vectorN_t & uInternal = systemDataIt->state.uInternal;
+                vectorN_t & uCustom = systemDataIt->state.uCustom;
                 forceVector_t & fext = systemDataIt->state.fExternal;
 
                 // Initialize the sensor data
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor);
 
                 // Compute the actual motor effort
-                computeCommand(*systemIt, t, q, v, uCommand);
+                command.setZero();
+                computeCommand(*systemIt, t, q, v, command);
 
                 // Compute the actual motor effort
-                systemIt->robot->computeMotorsEfforts(t, q, v, a, uCommand);
+                systemIt->robot->computeMotorsEfforts(t, q, v, a, command);
                 uMotor = systemIt->robot->getMotorsEfforts();
 
                 // Compute the internal dynamics
-                computeInternalDynamics(*systemIt, t, q, v, uInternal);
+                uCustom.setZero();
+                systemIt->controller->internalDynamics(t, q, v, uCustom);
 
                 // Compute the total effort vector
-                u = uInternal;
+                u = uInternal + uCustom;
                 for (auto const & motor : systemIt->robot->getMotors())
                 {
                     int32_t const & motorIdx = motor->getIdx();
@@ -1581,7 +1604,7 @@ namespace jiminy
         timer_.tic();
 
         // Perform the integration. Do not simulate extremely small time steps.
-        while ((tEnd - t > STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
+        while ((tEnd - t >= STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
         {
             // Initialize next breakpoint time to the one recommended by the stepper
             float64_t tNext = t;
@@ -1610,7 +1633,7 @@ namespace jiminy
                         *forcesImpulseActiveIt = true;
                         hasDynamicsChanged = true;
                     }
-                    if (t > tForceImpulse + dtForceImpulse - STEPPER_MIN_TIMESTEP)
+                    if (t >= tForceImpulse + dtForceImpulse - STEPPER_MIN_TIMESTEP)
                     {
                         *forcesImpulseActiveIt = false;
                         hasDynamicsChanged = true;
@@ -1621,7 +1644,7 @@ namespace jiminy
                 auto & tBreakNextIt = systemData.forcesImpulseBreakNextIt;
                 if (tBreakNextIt != systemData.forcesImpulseBreaks.end())
                 {
-                    if (t > *tBreakNextIt - STEPPER_MIN_TIMESTEP)
+                    if (t >= *tBreakNextIt - STEPPER_MIN_TIMESTEP)
                     {
                         // The current breakpoint is behind in time. Switching to the next one.
                         ++tBreakNextIt;
@@ -1640,8 +1663,8 @@ namespace jiminy
             {
                 float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
                 float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
-                if (dtNextControllerUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
-                || controllerUpdatePeriod - dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0)
+                if (dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                || controllerUpdatePeriod - dtNextControllerUpdatePeriod < STEPPER_MIN_TIMESTEP)
                 {
                     auto systemIt = systems_.begin();
                     auto systemDataIt = systemsDataHolder_.begin();
@@ -1649,8 +1672,9 @@ namespace jiminy
                     {
                         vectorN_t const & q = systemDataIt->state.q;
                         vectorN_t const & v = systemDataIt->state.v;
-                        vectorN_t & uCommand = systemDataIt->state.uCommand;
-                        computeCommand(*systemIt, t, q, v, uCommand);
+                        vectorN_t & command = systemDataIt->state.command;
+                        command.setZero();
+                        computeCommand(*systemIt, t, q, v, command);
                     }
                     hasDynamicsChanged = true;
                 }
@@ -1672,8 +1696,8 @@ namespace jiminy
                 if (!mustUpdateTelemetry)
                 {
                     float64_t dtNextStepperUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
-                    mustUpdateTelemetry = (dtNextStepperUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
-                    || stepperUpdatePeriod_ - dtNextStepperUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0);
+                    mustUpdateTelemetry = (dtNextStepperUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                    || stepperUpdatePeriod_ - dtNextStepperUpdatePeriod < STEPPER_MIN_TIMESTEP);
                 }
                 if (mustUpdateTelemetry)
                 {
@@ -1705,7 +1729,7 @@ namespace jiminy
                        Note that in this case, the sensors have already been
                        updated in anticipation in previous loop. */
                     dtNextGlobal = min(dtNextUpdatePeriod + stepperUpdatePeriod_,
-                                        tForceImpulseNext - t);
+                                       tForceImpulseNext - t);
                 }
                 else
                 {
@@ -1722,7 +1746,7 @@ namespace jiminy
                 tNext += dtNextGlobal;
 
                 // Compute the next step using adaptive step method
-                while (tNext - t > EPS)
+                while (tNext - t > STEPPER_MIN_TIMESTEP)
                 {
                     // Log every stepper state only if the user asked for
                     if (successiveIterFailed == 0 && engineOptions_->stepper.logInternalStepperSteps)
@@ -1934,11 +1958,11 @@ namespace jiminy
             // Update sensors data if necessary, namely if time-continuous or breakpoint
             float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
             bool mustUpdateSensors = sensorsUpdatePeriod < EPS;
+            float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
             if (!mustUpdateSensors)
             {
-                float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                mustUpdateSensors = (dtNextSensorsUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
-                || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0);
+                mustUpdateSensors = dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                                 || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < STEPPER_MIN_TIMESTEP;
             }
             if (mustUpdateSensors)
             {
@@ -2168,7 +2192,7 @@ namespace jiminy
         // however since std::fmod yields values in [0, b[, this interval maps to [O, EPS] \union [b - EPS, b[.
         else if (sensorsUpdatePeriod > EPS && controllerUpdatePeriod > EPS
         && (std::min(std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod),
-                        sensorsUpdatePeriod - std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod)) > EPS
+                     sensorsUpdatePeriod - std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod)) > EPS
             && std::min(std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod),
                         controllerUpdatePeriod - std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod)) > EPS))
         {
@@ -2386,20 +2410,73 @@ namespace jiminy
                                                     vectorN_t      const & a)
     {
         // Create proxies for convenience
-        pinocchio::Model & model = system.robot->pncModel_;
+        pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
+        pinocchio::GeometryModel const & geomModel = system.robot->pncGeometryModel_;
+        pinocchio::GeometryData & geomData = *system.robot->pncGeometryData_;
 
         // Update forward kinematics
         pinocchio::forwardKinematics(model, data, q, v, a);
 
-        // Update frame placements and collision informations
-        pinocchio::updateFramePlacements(model, data);
-        pinocchio::updateGeometryPlacements(model, data,
-                                            system.robot->pncGeometryModel_,
-                                            *system.robot->pncGeometryData_);
-        pinocchio::computeCollisions(system.robot->pncGeometryModel_,
-                                     *system.robot->pncGeometryData_,
-                                     false);
+        // Update frame placements (avoiding redundant computations)
+        for(int32_t i=1; i < model.nframes; ++i)
+        {
+            pinocchio::Frame const & frame = model.frames[i];
+            int32_t const & parent = frame.parent;
+            switch (frame.type)
+            {
+            case pinocchio::FrameType::JOINT:
+                /* If the frame is associated with an actual joint, no need to compute
+                   anything new, since the frame transform is supposed to be identity. */
+                data.oMf[i] = data.oMi[parent];
+                break;
+            case pinocchio::FrameType::BODY:
+                if (model.frames[frame.previousFrame].type == pinocchio::FrameType::FIXED_JOINT)
+                {
+                    /* BODYs connected via FIXED_JOINT(s) have the same transform than the
+                    joint itself, so no need to compute them twice.
+                    Here we are doing the assumption that the previous frame transfrom has
+                    already been updated since it is closer to root in kinematic tree. */
+                    data.oMf[i] = data.oMf[frame.previousFrame];
+                }
+                else
+                {
+                    /* BODYs connected via JOINT(s) have the identity transform, so copying
+                    parent joint transform should be fine. */
+                    data.oMf[i] = data.oMi[parent];
+                }
+                break;
+            case pinocchio::FrameType::FIXED_JOINT:
+            case pinocchio::FrameType::SENSOR:
+            case pinocchio::FrameType::OP_FRAME:
+            default:
+                // Nothing special, doing the actual computation
+                data.oMf[i] = data.oMi[parent] * frame.placement;
+            }
+        }
+
+        /* Update collision informations (selectively, only for geometries involved
+           in at least one collision pair). */
+        std::unordered_set<uint32_t> activeGeometriesIdx;
+        for (auto const & pair : geomModel.collisionPairs)
+        {
+            activeGeometriesIdx.insert(pair.first);
+            activeGeometriesIdx.insert(pair.second);
+        }
+        for (uint32_t const & i : activeGeometriesIdx)
+        {
+            int32_t const & jointIdx = geomModel.geometryObjects[i].parentJoint;
+            if (jointIdx > 0)
+            {
+                geomData.oMg[i] = data.oMi[jointIdx] * geomModel.geometryObjects[i].placement;
+            }
+            else
+            {
+                geomData.oMg[i] = geomModel.geometryObjects[i].placement;
+            }
+            geomData.collisionObjects[i].setTransform(pinocchio::toFclTransform3f(geomData.oMg[i]));
+        }
+        pinocchio::computeCollisions(geomModel, geomData, false);
     }
 
     pinocchio::Force EngineMultiRobot::computeContactDynamicsAtBody(systemHolder_t const & system,
@@ -2577,13 +2654,13 @@ namespace jiminy
                                           float64_t      const & t,
                                           vectorN_t      const & q,
                                           vectorN_t      const & v,
-                                          vectorN_t            & u)
+                                          vectorN_t            & command)
     {
         // Reinitialize the external forces
-        u.setZero();
+        command.setZero();
 
         // Command the command
-        system.controller->computeCommand(t, q, v, u);
+        system.controller->computeCommand(t, q, v, command);
     }
 
     template<template<typename, int, int> class JointModel, typename Scalar, int Options, int axis>
@@ -2781,17 +2858,12 @@ namespace jiminy
         }
     };
 
-    void EngineMultiRobot::computeInternalDynamics(systemHolder_t       & system,
+    void EngineMultiRobot::computeInternalDynamics(systemHolder_t const & system,
                                                    float64_t      const & t,
                                                    vectorN_t      const & q,
                                                    vectorN_t      const & v,
-                                                   vectorN_t            & u) const
+                                                   vectorN_t            & uInternal) const
     {
-        // Reinitialize the internal effort vector
-        u.setZero();
-
-        // Compute the user-defined internal dynamics
-        system.controller->internalDynamics(t, q, v, u);
 
         // Define some proxies
         jointOptions_t const & jointOptions = engineOptions_->joints;
@@ -2807,7 +2879,7 @@ namespace jiminy
             {
                 computePositionLimitsForcesAlgo::run(pncModel.joints[rigidIdx],
                     typename computePositionLimitsForcesAlgo::ArgsType(
-                        pncData, q, v, positionLimitMin, positionLimitMax, jointOptions, u));
+                        pncData, q, v, positionLimitMin, positionLimitMax, jointOptions, uInternal));
             }
         }
 
@@ -2819,7 +2891,7 @@ namespace jiminy
             {
                 computeVelocityLimitsForcesAlgo::run(pncModel.joints[rigidIdx],
                     typename computeVelocityLimitsForcesAlgo::ArgsType(
-                        pncData, v, velocityLimitMax, jointOptions, u));
+                        pncData, v, velocityLimitMax, jointOptions, uInternal));
             }
         }
 
@@ -2836,17 +2908,15 @@ namespace jiminy
             float64_t theta;
             quaternion_t const quat(q.segment<4>(positionIdx).data());  // Only way to initialize with [x,y,z,w] order
             vectorN_t const axis = pinocchio::quaternion::log3(quat, theta);
-            u.segment<3>(velocityIdx).array() += - stiffness.array() * axis.array()
+            uInternal.segment<3>(velocityIdx).array() +=
+                - stiffness.array() * axis.array()
                 - damping.array() * v.segment<3>(velocityIdx).array();
         }
     }
 
-    void EngineMultiRobot::computeExternalForces(systemHolder_t     const & system,
-                                                 systemDataHolder_t const & systemData,
-                                                 float64_t          const & t,
-                                                 vectorN_t          const & q,
-                                                 vectorN_t          const & v,
-                                                 forceVector_t            & fext) const
+    void EngineMultiRobot::computeCollisionForces(systemHolder_t     const & system,
+                                                  systemDataHolder_t const & systemData,
+                                                  forceVector_t            & fext) const
     {
         // Compute the forces at contact points
         std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
@@ -2883,7 +2953,15 @@ namespace jiminy
                 fext[parentJointIdx] += fextLocal;
             }
         }
+    }
 
+    void EngineMultiRobot::computeExternalForces(systemHolder_t     const & system,
+                                                 systemDataHolder_t const & systemData,
+                                                 float64_t          const & t,
+                                                 vectorN_t          const & q,
+                                                 vectorN_t          const & v,
+                                                 forceVector_t            & fext) const
+    {
         // Add the effect of user-defined external impulse forces
         auto forcesImpulseActiveIt = systemData.forcesImpulseActive.begin();
         auto forcesImpulseIt = systemData.forcesImpulse.begin();
@@ -2917,7 +2995,7 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeInternalForces(float64_t              const & t,
+    void EngineMultiRobot::computeCouplingForces(float64_t              const & t,
                                                  std::vector<vectorN_t> const & qSplit,
                                                  std::vector<vectorN_t> const & vSplit)
     {
@@ -2956,21 +3034,22 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeAllForces(float64_t              const & t,
-                                            std::vector<vectorN_t> const & qSplit,
-                                            std::vector<vectorN_t> const & vSplit)
+    void EngineMultiRobot::computeAllTerms(float64_t              const & t,
+                                           std::vector<vectorN_t> const & qSplit,
+                                           std::vector<vectorN_t> const & vSplit)
     {
-        // Reinitialize the external forces
+        // Reinitialize the external forces and internal efforts
         for (auto & systemData : systemsDataHolder_)
         {
             for (pinocchio::Force & fext_i : systemData.state.fExternal)
             {
                 fext_i.setZero();
             }
+            systemData.state.uInternal.setZero();
         }
 
         // Compute the internal forces
-        computeInternalForces(t, qSplit, vSplit);
+        computeCouplingForces(t, qSplit, vSplit);
 
         // Compute each individual system dynamics
         std::vector<systemHolder_t>::const_iterator systemIt = systems_.begin();
@@ -2982,6 +3061,15 @@ namespace jiminy
         {
             // Define some proxies
             forceVector_t & fext = systemDataIt->state.fExternal;
+            vectorN_t & uInternal = systemDataIt->state.uInternal;
+
+            /* Compute internal dynamics, namely the efforts in joint space associated
+               with position/velocity bounds dynamics, and flexibility dynamics. */
+            computeInternalDynamics(*systemIt, t, *qIt, *vIt, uInternal);
+
+            /* Compute the collision forces and estimated time at which the contact state
+               will changed (Take-off / Touch-down). */
+            computeCollisionForces(*systemIt, *systemDataIt, fext);
 
             // Compute the external contact forces.
             computeExternalForces(*systemIt, *systemDataIt, t, *qIt, *vIt, fext);
@@ -3019,10 +3107,11 @@ namespace jiminy
             computeForwardKinematics(*systemIt, *qIt, *vIt, aPrev);
         }
 
-        /* Compute the internal and external forces applied on every systems.
+        /* Compute internal and external forces and efforts applied on every systems,
+           excluding user-specified internal dynamics if any.
            Note that one must call this method BEFORE updating the sensors
            since the force sensor measurements rely on robot_->contactForces_. */
-        computeAllForces(t, qSplit, vSplit);
+        computeAllTerms(t, qSplit, vSplit);
 
         // Compute each individual system dynamics
         systemIt = systems_.begin();
@@ -3037,9 +3126,10 @@ namespace jiminy
         {
             // Define some proxies
             vectorN_t & u = systemDataIt->state.u;
-            vectorN_t & uCommand = systemDataIt->state.uCommand;
+            vectorN_t & command = systemDataIt->state.command;
             vectorN_t & uMotor = systemDataIt->state.uMotor;
             vectorN_t & uInternal = systemDataIt->state.uInternal;
+            vectorN_t & uCustom = systemDataIt->state.uCustom;
             forceVector_t & fext = systemDataIt->state.fExternal;
             vectorN_t const & aPrev = systemDataIt->statePrev.a;
             vectorN_t const & uMotorPrev = systemDataIt->statePrev.uMotor;
@@ -3064,21 +3154,23 @@ namespace jiminy
                Make sure that the sensor state has been updated beforehand. */
             if (engineOptions_->stepper.controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
             {
-                computeCommand(*systemIt, t, *qIt, *vIt, uCommand);
+                command.setZero();
+                computeCommand(*systemIt, t, *qIt, *vIt, command);
             }
 
             /* Compute the actual motor effort.
                Note that it is impossible to have access to the current accelerations. */
-            systemIt->robot->computeMotorsEfforts(t, *qIt, *vIt, aPrev, uCommand);
+            systemIt->robot->computeMotorsEfforts(t, *qIt, *vIt, aPrev, command);
             uMotor = systemIt->robot->getMotorsEfforts();
 
-            /* Compute the internal dynamics.
+            /* Compute the user-defined internal dynamics.
                Make sure that the sensor state has been updated beforehand since
                the user-defined internal dynamics may rely on it. */
-            computeInternalDynamics(*systemIt, t, *qIt, *vIt, uInternal);
+            uCustom.setZero();
+            systemIt->controller->internalDynamics(t, *qIt, *vIt, uCustom);
 
             // Compute the total effort vector
-            u = uInternal;
+            u = uInternal + uCustom;
             for (auto const & motor : systemIt->robot->getMotors())
             {
                 int32_t const & motorIdx = motor->getIdx();
@@ -3110,7 +3202,7 @@ namespace jiminy
             system.robot->computeConstraints(q, v);
 
             // Project external forces from cartesian space to joint space.
-            vectorN_t uTotal = u;
+            vectorN_t uAugmented = u;
             matrixN_t jointJacobian = matrixN_t::Zero(6, model.nv);
             for (int32_t i = 1; i < model.njoints; ++i)
             {
@@ -3119,7 +3211,7 @@ namespace jiminy
                                             i,
                                             pinocchio::LOCAL,
                                             jointJacobian);
-                uTotal += jointJacobian.transpose() * fext[i].toVector();
+                uAugmented += jointJacobian.transpose() * fext[i].toVector();
             }
             // Compute non-linear effects.
             pinocchio::nonLinearEffects(model, data, q, v);
@@ -3130,7 +3222,7 @@ namespace jiminy
             // Call forward dynamics.
             return pinocchio::forwardDynamics(model,
                                               data,
-                                              uTotal,
+                                              uAugmented,
                                               system.robot->getConstraintsJacobian(),
                                               system.robot->getConstraintsDrift(),
                                               CONSTRAINT_INVERSION_DAMPING);

@@ -190,8 +190,8 @@ class SimulateSimpleMass(unittest.TestCase):
         # Create the engine
         engine = jiminy.Engine()
 
-        # No control law, only check sensor data
-        def check_sensor_data(t, q, v, sensors_data, u):
+        # No control law, only check sensors data
+        def check_sensors_data(t, q, v, sensors_data, command):
             nonlocal engine, frame_pose
 
             # Verify sensor data, if the engine has been initialized
@@ -204,17 +204,14 @@ class SimulateSimpleMass(unittest.TestCase):
                 self.assertTrue(np.allclose(
                     f_joint_sensor.vector, f_jiminy.vector, atol=TOLERANCE))
 
-            # Set the command torque to zero
-            u.fill(0.0)
-
         # Internal dynamics: make the mass spin to generate nontrivial
         # rotations.
-        def spinning_force(t, q, v, sensors_data, u):
-            u[3:6] = 1.0
+        def spinning_force(t, q, v, sensors_data, u_custom):
+            u_custom[3:6] = 1.0
 
         # Initialize and configure the engine
         self._setup_controller_and_engine(engine, robot,
-            compute_command=check_sensor_data,
+            compute_command=check_sensors_data,
             internal_dynamics=spinning_force)
 
         # Run simulation
@@ -248,9 +245,9 @@ class SimulateSimpleMass(unittest.TestCase):
         engine.set_options(engine_options)
 
         # Register an impulse of force
-        t0, dt, F = 0.05, 0.8, 5.0
-        engine.register_force_impulse(
-            self.body_name, t0, dt, np.array([F, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        t0, dt, Fx = 0.05, 0.8, 5.0
+        F = np.array([Fx, 0.0, 0.0, 0.0, 0.0, 0.0])
+        engine.register_force_impulse(self.body_name, t0, dt, F)
 
         # Run simulation
         x0 = neutral_state(robot, split=False)
@@ -306,7 +303,7 @@ class SimulateSimpleMass(unittest.TestCase):
         tolerance_acc = 1e-6
 
         v_steady = v_x_jiminy[time == t0 + dt]
-        v_steady_analytical = - F / (self.visc_friction * weight)
+        v_steady_analytical = - Fx / (self.visc_friction * weight)
         a_steady = acceleration[
             (time > t0 + dt - self.dtMax) & (time < t0 + dt + self.dtMax)]
 

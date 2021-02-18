@@ -1490,7 +1490,54 @@ namespace jiminy
         }
 
         return hresult_t::SUCCESS;
+    }
 
+    hresult_t interpolate(pinocchio::Model const & modelIn,
+                          vectorN_t        const & timesIn,
+                          matrixN_t        const & positionsIn,
+                          vectorN_t        const & timesOut,
+                          matrixN_t              & positionsOut)
+    {
+        if (!std::is_sorted(timesIn.data(), timesIn.data() + timesIn.size())
+         || !std::is_sorted(timesOut.data(), timesOut.data() + timesOut.size()))
+        {
+            PRINT_ERROR("Input and output time sequences must be sorted.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        if (timesIn.size() != positionsIn.rows() || modelIn.nq != positionsIn.cols())
+        {
+            PRINT_ERROR("Input position sequence dimension not consistent with model and time sequence. Time expected as first dimension.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        int32_t timesInIdx = -1;
+        positionsOut.resize(timesOut.size(), positionsIn.cols());
+        for (uint32_t i = 0; i < timesOut.size() ; ++i)
+        {
+            float64_t t = timesOut[i];
+            while (timesInIdx < timesIn.size() - 1 && timesIn[timesInIdx + 1] < t)
+            {
+                ++timesInIdx;
+            }
+            if (0 <= timesInIdx && timesInIdx < timesIn.size() - 1)
+            {
+                auto qRight = positionsIn.row(timesInIdx).transpose();
+                auto qLeft = positionsIn.row(timesInIdx + 1).transpose();
+                float64_t ratio = (t - timesIn[timesInIdx]) / (timesIn[timesInIdx + 1] - timesIn[timesInIdx]);
+                pinocchio::interpolate(modelIn, qRight, qLeft, ratio, positionsOut.row(i));
+            }
+            else if (timesInIdx < 0)
+            {
+                positionsOut.row(i) = positionsIn.row(0);
+            }
+            else
+            {
+                positionsOut.row(i) = positionsIn.row(timesIn.size() - 1);
+            }
+        }
+
+        return hresult_t::SUCCESS;
     }
 
     pinocchio::Force convertForceGlobalFrameToJoint(pinocchio::Model const & model,
@@ -1509,17 +1556,6 @@ namespace jiminy
     }
 
     // ********************** Math utilities *************************
-
-    vectorN_t clamp(Eigen::Ref<vectorN_t const> const & data,
-                    float64_t                   const & minThr,
-                    float64_t                   const & maxThr)
-    {
-        return data.unaryExpr(
-        [&minThr, &maxThr](float64_t const & x) -> float64_t
-        {
-            return clamp(x, minThr, maxThr);
-        });
-    }
 
     float64_t clamp(float64_t const & data,
                     float64_t const & minThr,

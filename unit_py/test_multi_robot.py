@@ -43,11 +43,11 @@ class SimulateMultiRobot(unittest.TestCase):
                 self.k = k
                 self.nu = nu
 
-            def compute_command(self, t, q, v, sensors_data, u):
-                u.fill(0.0)
+            def compute_command(self, t, q, v, sensors_data, command):
+                pass
 
-            def internal_dynamics(self, t, q, v, sensors_data, u):
-                np.core.umath.copyto(u, - self.k * q - self.nu * v)
+            def internal_dynamics(self, t, q, v, sensors_data, u_custom):
+                u_custom[:] = - self.k * q - self.nu * v
 
         # Create two identical robots
         engine = jiminy.EngineMultiRobot()
@@ -75,11 +75,11 @@ class SimulateMultiRobot(unittest.TestCase):
             engine.add_system(system_names[i], robots[i], controller)
 
         # Add coupling force between both systems: a spring between both masses
-        def coupling_force(t, q1, v1, q2, v2, f):
+        def force(t, q1, v1, q2, v2, f):
             f[0] = k[2] * (q2[0] - q1[0]) + nu[2] * (v2[0] - v1[0])
 
         engine.add_coupling_force(
-            system_names[0], system_names[1], "Mass", "Mass", coupling_force)
+            system_names[0], system_names[1], "Mass", "Mass", force)
 
         # Run simulation and extract some information from log data
         x0 = {'FirstSystem': np.array([0.1, 0.0]),

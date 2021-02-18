@@ -86,7 +86,7 @@ namespace jiminy
                                          Eigen::VectorBlock<vectorN_t const> const & q,
                                          float64_t const & v,
                                          float64_t const & a,
-                                         float64_t const & uCommand)
+                                         float64_t command)
     {
         if (!isInitialized_)
         {
@@ -96,14 +96,12 @@ namespace jiminy
 
         /* Compute the motor effort, taking into account the limit, if any.
            It is the output of the motor on joint side, ie after the transmission. */
-        if (motorOptions_->enableEffortLimit)
+        if (motorOptions_->enableCommandLimit)
         {
-            data() = clamp(uCommand, -getEffortLimit(), getEffortLimit());
+            command = clamp(command, -getCommandLimit(), getCommandLimit());
         }
-        else
-        {
-            data() = uCommand;
-        }
+        data() = motorOptions_->mechanicalReduction * command;
+
         /* Add friction to the joints associated with the motor if enable.
            It is computed on joint side instead of the motor. */
         if (motorOptions_->enableFriction)

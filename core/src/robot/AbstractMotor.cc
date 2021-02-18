@@ -19,8 +19,8 @@ namespace jiminy
     jointType_(joint_t::NONE),
     jointPositionIdx_(-1),
     jointVelocityIdx_(-1),
-    effortLimit_(0.0),
-    rotorInertia_(0.0),
+    commandLimit_(0.0),
+    armature_(0.0),
     sharedHolder_(nullptr)
     {
         // Initialize the options
@@ -146,13 +146,13 @@ namespace jiminy
         bool_t internalBuffersMustBeUpdated = false;
         if (isInitialized_)
         {
-            bool_t const & effortLimitFromUrdf = boost::get<bool_t>(motorOptions.at("effortLimitFromUrdf"));
-            if (!effortLimitFromUrdf)
+            bool_t const & commandLimitFromUrdf = boost::get<bool_t>(motorOptions.at("commandLimitFromUrdf"));
+            if (!commandLimitFromUrdf)
             {
-                float64_t const & effortLimit = boost::get<float64_t>(motorOptions.at("effortLimit"));
-                internalBuffersMustBeUpdated |= std::abs(effortLimit - baseMotorOptions_->effortLimit) > EPS;
+                float64_t const & commandLimit = boost::get<float64_t>(motorOptions.at("commandLimit"));
+                internalBuffersMustBeUpdated |= std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
-            internalBuffersMustBeUpdated |= (baseMotorOptions_->effortLimitFromUrdf != effortLimitFromUrdf);
+            internalBuffersMustBeUpdated |= (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
         }
 
         // Update the motor's options
@@ -240,23 +240,23 @@ namespace jiminy
             ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName_, jointVelocityIdx_);
 
             // Get the motor effort limits from the URDF or the user options.
-            if (baseMotorOptions_->effortLimitFromUrdf)
+            if (baseMotorOptions_->commandLimitFromUrdf)
             {
-                effortLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_] * baseMotorOptions_->mechanicalReduction;
+                commandLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_] / baseMotorOptions_->mechanicalReduction;
             }
             else
             {
-                effortLimit_ = baseMotorOptions_->effortLimit;
+                commandLimit_ = baseMotorOptions_->commandLimit;
             }
 
             // Get the rotor inertia
-            if (baseMotorOptions_->enableRotorInertia)
+            if (baseMotorOptions_->enableArmature)
             {
-                rotorInertia_ = baseMotorOptions_->rotorInertia * baseMotorOptions_->mechanicalReduction;
+                armature_ = baseMotorOptions_->armature;
             }
             else
             {
-                rotorInertia_ = 0.0;
+                armature_ = 0.0;
             }
         }
 
@@ -333,21 +333,21 @@ namespace jiminy
         return jointVelocityIdx_;
     }
 
-    float64_t const & AbstractMotorBase::getEffortLimit(void) const
+    float64_t const & AbstractMotorBase::getCommandLimit(void) const
     {
-        return effortLimit_;
+        return commandLimit_;
     }
 
-    float64_t const & AbstractMotorBase::getRotorInertia(void) const
+    float64_t const & AbstractMotorBase::getArmature(void) const
     {
-        return rotorInertia_;
+        return armature_;
     }
 
     hresult_t AbstractMotorBase::computeEffortAll(float64_t const & t,
                                                   vectorN_t const & q,
                                                   vectorN_t const & v,
                                                   vectorN_t const & a,
-                                                  vectorN_t const & uCommand)
+                                                  vectorN_t const & command)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -369,7 +369,7 @@ namespace jiminy
                                                   q.segment(motor->getJointPositionIdx(), nq_motor),
                                                   v[motor->getJointVelocityIdx()],
                                                   a[motor->getJointVelocityIdx()],
-                                                  uCommand[motor->getIdx()]);
+                                                  command[motor->getIdx()]);
             }
         }
 

@@ -60,11 +60,11 @@ namespace jiminy
         {
             configHolder_t config;
             config["mechanicalReduction"] = 1.0;
-            config["enableEffortLimit"] = true;
-            config["effortLimitFromUrdf"] = true;
-            config["effortLimit"] = 0.0;
-            config["enableRotorInertia"] = false;
-            config["rotorInertia"] = 0.0;
+            config["enableCommandLimit"] = true;
+            config["commandLimitFromUrdf"] = true;
+            config["commandLimit"] = 0.0;
+            config["enableArmature"] = false;
+            config["armature"] = 0.0;
 
             return config;
         };
@@ -72,19 +72,19 @@ namespace jiminy
         struct abstractMotorOptions_t
         {
             float64_t const mechanicalReduction;        ///< Mechanical reduction ratio of the transmission (joint / motor, usually >= 1.0
-            bool_t    const enableEffortLimit;
-            bool_t    const effortLimitFromUrdf;
-            float64_t const effortLimit;
-            bool_t    const enableRotorInertia;
-            float64_t const rotorInertia;
+            bool_t    const enableCommandLimit;
+            bool_t    const commandLimitFromUrdf;
+            float64_t const commandLimit;
+            bool_t    const enableArmature;
+            float64_t const armature;
 
             abstractMotorOptions_t(configHolder_t const & options) :
             mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction"))),
-            enableEffortLimit(boost::get<bool_t>(options.at("enableEffortLimit"))),
-            effortLimitFromUrdf(boost::get<bool_t>(options.at("effortLimitFromUrdf"))),
-            effortLimit(boost::get<float64_t>(options.at("effortLimit"))),
-            enableRotorInertia(boost::get<bool_t>(options.at("enableRotorInertia"))),
-            rotorInertia(boost::get<float64_t>(options.at("rotorInertia")))
+            enableCommandLimit(boost::get<bool_t>(options.at("enableCommandLimit"))),
+            commandLimitFromUrdf(boost::get<bool_t>(options.at("commandLimitFromUrdf"))),
+            commandLimit(boost::get<float64_t>(options.at("commandLimit"))),
+            enableArmature(boost::get<bool_t>(options.at("enableArmature"))),
+            armature(boost::get<float64_t>(options.at("armature")))
             {
                 // Empty.
             }
@@ -215,18 +215,18 @@ namespace jiminy
         int32_t const & getJointVelocityIdx(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get effortLimit_.
+        /// \brief      Get commandLimit_.
         ///
         /// \details    It is the maximum effort of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & getEffortLimit(void) const;
+        float64_t const & getCommandLimit(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get rotorInertia_.
+        /// \brief      Get armature_.
         ///
         /// \details    It is the rotor inertia of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & getRotorInertia(void) const;
+        float64_t const & getArmature(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request the motor to update its actual effort based of the input data.
@@ -234,18 +234,18 @@ namespace jiminy
         /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
         ///
-        /// \param[in]  t       Current time.
-        /// \param[in]  q       Current configuration of the motor.
-        /// \param[in]  v       Current velocity of the motor.
-        /// \param[in]  a       Current acceleration of the motor.
-        /// \param[in]  u       Current command effort of the motor.
+        /// \param[in]  t        Current time.
+        /// \param[in]  q        Current configuration of the motor.
+        /// \param[in]  v        Current velocity of the motor.
+        /// \param[in]  a        Current acceleration of the motor.
+        /// \param[in]  command  Current command effort of the motor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t computeEffort(float64_t const & t,
                                         Eigen::VectorBlock<vectorN_t const> const & q,
                                         float64_t const & v,
                                         float64_t const & a,
-                                        float64_t const & uCommand) = 0;
+                                        float64_t command) = 0;  /* copy on purpose */
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request every motors to update their actual effort based of the input data.
@@ -256,11 +256,11 @@ namespace jiminy
         /// \remark     This method is not intended to be called manually. The Robot to which the
         ///             motor is added is taking care of it while updating the state of the motors.
         ///
-        /// \param[in]  t       Current time.
-        /// \param[in]  q       Current configuration vector of the robot.
-        /// \param[in]  v       Current velocity vector of the robot.
-        /// \param[in]  a       Current acceleration vector of the robot.
-        /// \param[in]  u       Current command effort vector of the robot.
+        /// \param[in]  t        Current time.
+        /// \param[in]  q        Current configuration vector of the robot.
+        /// \param[in]  v        Current velocity vector of the robot.
+        /// \param[in]  a        Current acceleration vector of the robot.
+        /// \param[in]  command  Current command effort vector of the robot.
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -268,7 +268,7 @@ namespace jiminy
                                    vectorN_t const & q,
                                    vectorN_t const & v,
                                    vectorN_t const & a,
-                                   vectorN_t const & uCommand);
+                                   vectorN_t const & command);
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -306,8 +306,8 @@ namespace jiminy
         joint_t jointType_;
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
-        float64_t effortLimit_;
-        float64_t rotorInertia_;
+        float64_t commandLimit_;
+        float64_t armature_;
 
     private:
         MotorSharedDataHolder_t * sharedHolder_;  ///< Shared data between every motors associated with the robot

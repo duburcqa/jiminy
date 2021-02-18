@@ -161,7 +161,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
 
         # Initialize some internal buffers
         self.__n_last_stack = 0
-        self._action = zeros(self.action_space)
+        self._action = zeros(self.action_space, dtype=np.float64)
         self._observation = zeros(self.observation_space)
 
     def _setup(self) -> None:

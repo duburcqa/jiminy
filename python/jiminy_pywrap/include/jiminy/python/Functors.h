@@ -202,7 +202,7 @@ namespace python
                                              vectorN_t        const & /* q */,
                                              vectorN_t        const & /* v */,
                                              sensorsDataMap_t const & /* sensorsData */,
-                                             vectorN_t              & /* u */)>;
+                                             vectorN_t              & /* command */)>;
 
     // ************************** HeatMapFunctorPyWrapper ******************************
 

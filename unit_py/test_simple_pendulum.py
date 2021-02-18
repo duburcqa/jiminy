@@ -95,21 +95,21 @@ class SimulateSimplePendulum(unittest.TestCase):
             ], axis=-1)
             return time, imu_jiminy
 
-    def test_rotor_inertia(self):
+    def test_armature(self):
         """
         @brief Verify the dynamics of the system when adding  rotor inertia.
         """
         # Configure the robot: set rotor inertia
         J = 0.1
         motor_options = self.robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableRotorInertia'] = True
-        motor_options["PendulumJoint"]['rotorInertia'] = J
+        motor_options["PendulumJoint"]['enableArmature'] = True
+        motor_options["PendulumJoint"]['armature'] = J
         self.robot.set_motors_options(motor_options)
 
         # Dynamics: simulate a spring of stiffness k
         k_spring = 500
-        def spring_force(t, q, v, sensors_data, u):
-            np.core.umath.copyto(u, - k_spring * q.flatten())
+        def spring_force(t, q, v, sensors_data, u_custom):
+            u_custom[:] = - k_spring * q.flatten()
 
         # Initialize the controller and setup the engine
         engine = jiminy.Engine()
@@ -486,7 +486,7 @@ class SimulateSimplePendulum(unittest.TestCase):
          # Compare the numerical and analytical solution
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=1e-6))
 
-    def test_flexibility_rotor_inertia(self):
+    def test_flexibility_armature(self):
         """
         @brief Test the addition of a flexibility in the system.
 
@@ -512,15 +512,14 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Enable rotor inertia
         motor_options = self.robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableRotorInertia'] = True
-        motor_options["PendulumJoint"]['rotorInertia'] = J
+        motor_options["PendulumJoint"]['enableArmature'] = True
+        motor_options["PendulumJoint"]['armature'] = J
         self.robot.set_motors_options(motor_options)
 
         # Create an engine: PD controller on motor and no internal dynamics
-        k_control = 100.0
-        nu_control = 1.0
-        def ControllerPD(t, q, v, sensors_data, u):
-            np.core.umath.copyto(u, - k_control * q[4] - nu_control * v[3])
+        k_control, nu_control = 100.0, 1.0
+        def ControllerPD(t, q, v, sensors_data, command):
+            command[:] = - k_control * q[4] - nu_control * v[3]
 
         engine = jiminy.Engine()
         setup_controller_and_engine(
@@ -571,7 +570,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(
             x_jiminy_extract, x_analytical, atol=1e-4))
 
-    def test_fixed_body_constraint_rotor_inertia(self):
+    def test_fixed_body_constraint_armature(self):
         """
         @brief Test fixed body constraint together with rotor inertia.
         """
@@ -582,8 +581,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Enable rotor inertia
         J = 0.1
         motor_options = robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableRotorInertia'] = True
-        motor_options["PendulumJoint"]['rotorInertia'] = J
+        motor_options["PendulumJoint"]['enableArmature'] = True
+        motor_options["PendulumJoint"]['armature'] = J
         robot.set_motors_options(motor_options)
 
         # Set fixed body constraint.
@@ -592,8 +591,8 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Create an engine: simulate a spring internal dynamics
         k_spring = 500
-        def spring_force(t, q, v, sensors_data, u):
-            np.core.umath.copyto(u, - k_spring * q[-1])
+        def spring_force(t, q, v, sensors_data, u_custom):
+            u_custom[:] = - k_spring * q[-1]
 
         engine = jiminy.Engine()
         setup_controller_and_engine(

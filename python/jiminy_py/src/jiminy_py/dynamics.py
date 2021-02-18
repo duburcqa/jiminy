@@ -41,6 +41,7 @@ def update_quantities(robot: jiminy.Robot,
                       update_com: bool = False,
                       update_energy: bool = False,
                       update_jacobian: bool = False,
+                      update_collisions: bool = True,
                       use_theoretical_model: bool = True) -> None:
     """Compute all quantities using position, velocity and acceleration
     configurations.
@@ -107,8 +108,8 @@ def update_quantities(robot: jiminy.Robot,
             pin.crba(pnc_model, pnc_data, position)
 
         if update_jacobian:
-            # if update_com:
-            #     pin.getJacobianComFromCrba(pnc_model, pnc_data)
+            if update_com:
+                pin.jacobianCenterOfMass(pnc_model, pnc_data)
             pin.computeJointJacobians(pnc_model, pnc_data)
 
         if update_com:
@@ -134,17 +135,19 @@ def update_quantities(robot: jiminy.Robot,
             pin.computePotentialEnergy(pnc_model, pnc_data)
 
     pin.updateFramePlacements(pnc_model, pnc_data)
-    pin.updateGeometryPlacements(
-        pnc_model, pnc_data, robot.collision_model, robot.collision_data)
 
-    pin.computeCollisions(
-        robot.collision_model, robot.collision_data,
-        stop_at_first_collision=False)
-    pin.computeDistances(robot.collision_model, robot.collision_data)
-    for dist_req in robot.collision_data.distanceResults:
-        if np.linalg.norm(dist_req.normal) < 1e-6:
-            pin.computeDistances(robot.collision_model, robot.collision_data)
-            break
+    if update_collisions:
+        pin.updateGeometryPlacements(
+            pnc_model, pnc_data, robot.collision_model, robot.collision_data)
+        pin.computeCollisions(
+            robot.collision_model, robot.collision_data,
+            stop_at_first_collision=False)
+        pin.computeDistances(robot.collision_model, robot.collision_data)
+        for dist_req in robot.collision_data.distanceResults:
+            if np.linalg.norm(dist_req.normal) < 1e-6:
+                pin.computeDistances(
+                    robot.collision_model, robot.collision_data)
+                break
 
 
 def get_body_index_and_fixedness(

@@ -1057,9 +1057,9 @@ namespace jiminy
         meshPackageDirs_ = meshPackageDirs;
         hasFreeflyer_ = hasFreeflyer;
 
+        // Build robot physics model
         try
         {
-            // Build robot physics model
             pncModelRigidOrig_ = pinocchio::Model();
             if (hasFreeflyer)
             {
@@ -1079,9 +1079,9 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
+        // Build robot geometry model
         try
         {
-            // Build robot geometry model
             pncGeometryModel_ = pinocchio::GeometryModel();
             pinocchio::urdf::buildGeom(pncModelRigidOrig_,
                                        urdfPath,
@@ -1095,9 +1095,9 @@ namespace jiminy
             return hresult_t::SUCCESS;
         }
 
+        // Replace the mesh geometry object by its convex representation for efficiency
         try
         {
-            // Replace the mesh geometry object by its convex representation for efficiency
             for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 auto & geometry = pncGeometryModel_.geometryObjects[i].geometry;

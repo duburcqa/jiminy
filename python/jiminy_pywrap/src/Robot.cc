@@ -281,11 +281,15 @@ namespace python
                 .add_property("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
                 .add_property("sensors_names", &PyRobotVisitor::getSensorsNames)
 
-                .add_property("effort_limit", &Robot::getEffortLimit)
-                .add_property("motors_inertias", &Robot::getMotorsInertias)
+                .add_property("command_limit", bp::make_function(&Robot::getCommandLimit,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("armatures", bp::make_function(&Robot::getArmatures,
+                                           bp::return_value_policy<bp::copy_const_reference>()))
 
                 .add_property("logfile_command_headers", bp::make_function(&Robot::getCommandFieldnames,
                                                          bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("logfile_motor_effort_headers", bp::make_function(&Robot::getMotorEffortFieldnames,
+                                                              bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
 

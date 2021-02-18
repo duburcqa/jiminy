@@ -112,10 +112,11 @@ namespace python
                 .add_property("q", &PySystemStateVisitor::getPosition)
                 .add_property("v", &PySystemStateVisitor::getVelocity)
                 .add_property("a", &PySystemStateVisitor::getAcceleration)
+                .add_property("command", &PySystemStateVisitor::getCommand)
                 .add_property("u", &PySystemStateVisitor::getTotalEffort)
                 .add_property("u_motor", &PySystemStateVisitor::getMotorEffort)
-                .add_property("u_command", &PySystemStateVisitor::getCommandEffort)
                 .add_property("u_internal", &PySystemStateVisitor::getInternalEffort)
+                .add_property("u_custom", &PySystemStateVisitor::getCustomDynamicsEffort)
                 .add_property("f_external", bp::make_getter(&systemState_t::fExternal,
                                             bp::return_internal_reference<>()))
                 .def("__repr__", &PySystemStateVisitor::repr)
@@ -140,6 +141,12 @@ namespace python
             return convertToPython<vectorN_t>(self.a, false);
         }
 
+        static bp::object getCommand(systemState_t const & self)
+        {
+            // Do not use automatic converter for efficiency
+            return convertToPython<vectorN_t>(self.command, false);
+        }
+
         static bp::object getTotalEffort(systemState_t const & self)
         {
             // Do not use automatic converter for efficiency
@@ -152,16 +159,16 @@ namespace python
             return convertToPython<vectorN_t>(self.uMotor, false);
         }
 
-        static bp::object getCommandEffort(systemState_t const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.uCommand, false);
-        }
-
         static bp::object getInternalEffort(systemState_t const & self)
         {
             // Do not use automatic converter for efficiency
             return convertToPython<vectorN_t>(self.uInternal, false);
+        }
+
+        static bp::object getCustomDynamicsEffort(systemState_t const & self)
+        {
+            // Do not use automatic converter for efficiency
+            return convertToPython<vectorN_t>(self.uCustom, false);
         }
 
         static std::string repr(systemState_t & self)
@@ -171,10 +178,11 @@ namespace python
             s << "q:\n    " << self.q.transpose().format(HeavyFmt);
             s << "v:\n    " << self.v.transpose().format(HeavyFmt);
             s << "a:\n    " << self.a.transpose().format(HeavyFmt);
+            s << "command:\n    " << self.command.transpose().format(HeavyFmt);
             s << "u:\n    " << self.u.transpose().format(HeavyFmt);
             s << "u_motor:\n    " << self.uMotor.transpose().format(HeavyFmt);
-            s << "u_command:\n    " << self.uCommand.transpose().format(HeavyFmt);
             s << "u_internal:\n    " << self.uInternal.transpose().format(HeavyFmt);
+            s << "u_custom:\n    " << self.uCustom.transpose().format(HeavyFmt);
             s << "f_external:\n";
             for (std::size_t i = 0; i < self.fExternal.size(); ++i)
             {

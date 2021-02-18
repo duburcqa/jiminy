@@ -62,15 +62,15 @@ namespace jiminy
         void computeMotorsEfforts(float64_t const & t,
                                   vectorN_t const & q,
                                   vectorN_t const & v,
-                                  vectorN_t const & a, // Do Not use Eigen::Ref for the acceleration to avoid memory allocation by the engine for a temporary
-                                  vectorN_t const & u);
+                                  vectorN_t const & a,
+                                  vectorN_t const & command);
         vectorN_t const & getMotorsEfforts(void) const;
         float64_t const & getMotorEffort(std::string const & motorName) const;
         void setSensorsData(float64_t const & t,
                             vectorN_t const & q,
                             vectorN_t const & v,
                             vectorN_t const & a,
-                            vectorN_t const & u);
+                            vectorN_t const & uMotor);
 
         /// \brief Add a kinematic constraint to the robot.
         ///
@@ -161,10 +161,12 @@ namespace jiminy
         std::unordered_map<std::string, std::vector<std::string> > const & getSensorsNames(void) const;
         std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;
 
-        vectorN_t getEffortLimit(void) const;
-        vectorN_t getMotorsInertias(void) const;
+        vectorN_t const & getCommandLimit(void) const;
+        vectorN_t const & getArmatures(void) const;
 
         std::vector<std::string> const & getCommandFieldnames(void) const;
+        std::vector<std::string> const & getMotorEffortFieldnames(void) const;
+
         // Getters without 'get' prefix for consistency with pinocchio C++ API
         int32_t const & nmotors(void) const;
 
@@ -186,7 +188,8 @@ namespace jiminy
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
         std::vector<std::string> motorsNames_;                                      ///< Name of the motors
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///< Name of the sensors
-        std::vector<std::string> commandFieldnames_;                                ///< Fieldnames of the efforts
+        std::vector<std::string> commandFieldnames_;                                ///< Fieldnames of the command
+        std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the motors effort
         int32_t nmotors_;                                                           ///< The number of motors
 
         static_map_t<std::string, std::shared_ptr<AbstractConstraint> > constraintsHolder_;

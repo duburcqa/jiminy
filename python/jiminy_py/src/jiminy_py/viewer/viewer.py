@@ -485,6 +485,9 @@ class Viewer:
             self._client.loadViewerModel(
                 rootNodeName=robot_node_path, color=urdf_rgba)
 
+        # Initialize robot configuration
+        self.refresh(force_update_visual=True, force_update_collision=True)
+
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
         """Open a new viewer graphical interface.
@@ -1351,16 +1354,19 @@ class Viewer:
         """
         t = [s.t for s in evolution_robot]
         i = 0
+        t_simu = 0.0
         init_time = time.time()
         while i < len(evolution_robot):
             try:
                 s = evolution_robot[i]
+                s_next = evolution_robot[min(i, len(evolution_robot)) - 1]
+                ratio = (t_simu - s.t) / (s_next.t - s.t)
+                q = pin.interpolate(self._client.model, s.q, s_next.q, ratio)
                 if Viewer._camera_motion is not None:
-                    Viewer._camera_xyzrpy = Viewer._camera_motion(s.t)
-                self.display(s.q, xyz_offset, wait)
+                    Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
+                self.display(q, xyz_offset, wait)
                 t_simu = (time.time() - init_time) * speed_ratio
                 i = bisect_right(t, t_simu)
-                sleep(s.t - t_simu)
                 wait = False  # Waiting for the first timestep is enough
             except Viewer._backend_exceptions:
                 break

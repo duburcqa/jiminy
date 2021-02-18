@@ -177,7 +177,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigen3/build")) {
 }
 Set-Location -Path "$RootDir/eigen3/build"
 cmake "$RootDir/eigen3" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
@@ -191,7 +191,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
 Set-Location -Path "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
@@ -208,7 +208,7 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
 Set-Location -Path "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
 )     -DTIXML_USE_STL"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
@@ -222,7 +222,7 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
 Set-Location -Path "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
@@ -234,7 +234,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
 }
 Set-Location -Path "$RootDir/urdfdom_headers/build"
 cmake "$RootDir/urdfdom_headers" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
@@ -247,7 +247,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
 Set-Location -Path "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
 )     -D_USE_MATH_DEFINES -DURDFDOM_STATIC"
@@ -262,7 +262,7 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
 Set-Location -Path "$RootDir/assimp/build"
 cmake "$RootDir/assimp" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF `
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DASSIMP_INSTALL_PDB=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
@@ -277,7 +277,7 @@ cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 #   any existing flag if any.
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
 cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus" -DCMAKE_C_FLAGS="/EHsc /bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
@@ -288,7 +288,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
 Set-Location -Path "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
@@ -307,7 +307,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
 Set-Location -Path "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `

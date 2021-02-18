@@ -40,7 +40,7 @@ namespace python
         hresult_t computeCommand(float64_t const & t,
                                  vectorN_t const & q,
                                  vectorN_t const & v,
-                                 vectorN_t       & u)
+                                 vectorN_t       & command)
         {
             bp::override func = this->get_override("compute_command");
             if (func)
@@ -48,7 +48,7 @@ namespace python
                 func(t,
                      FctPyWrapperArgToPython(q),
                      FctPyWrapperArgToPython(v),
-                     FctPyWrapperArgToPython(u));
+                     FctPyWrapperArgToPython(command));
             }
             return hresult_t::SUCCESS;
         }
@@ -56,7 +56,7 @@ namespace python
         hresult_t internalDynamics(float64_t const & t,
                                    vectorN_t const & q,
                                    vectorN_t const & v,
-                                   vectorN_t       & u)
+                                   vectorN_t       & uCustom)
         {
             bp::override func = this->get_override("internal_dynamics");
             if (func)
@@ -64,7 +64,7 @@ namespace python
                 func(t,
                      FctPyWrapperArgToPython(q),
                      FctPyWrapperArgToPython(v),
-                     FctPyWrapperArgToPython(u));
+                     FctPyWrapperArgToPython(uCustom));
             }
             return hresult_t::SUCCESS;
         }
@@ -149,6 +149,12 @@ namespace python
             {
                 auto fieldnames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
                 PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
+                int dataPyArrayNdims = PyArray_NDIM(dataPyArray);
+                if (dataPyArrayNdims != 1)
+                {
+                    PRINT_ERROR("Only one-dimensional 'np.ndarray' is supported.");
+                    return hresult_t::ERROR_BAD_INPUT;
+                }
                 if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64 && PyArray_SIZE(dataPyArray) == uint32_t(fieldnames.size()))
                 {
                     Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
@@ -178,7 +184,7 @@ namespace python
                 int dataPyArrayDtype = PyArray_TYPE(dataPyArray);
                 if (dataPyArrayDtype != NPY_FLOAT64)
                 {
-                    PRINT_ERROR("The only dtype supported for 'numpy.ndarray' is float.");
+                    PRINT_ERROR("The only dtype supported for 'numpy.ndarray' is 'np.float64'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
                 float64_t * dataPyArrayData = (float64_t *) PyArray_DATA(dataPyArray);
@@ -310,9 +316,9 @@ namespace python
                                 (bp::arg("compute_command") = bp::object(),  // bp::object() means 'None' in Python
                                  bp::arg("internal_dynamics") = bp::object())))
                 .def("compute_command", &AbstractController::computeCommand,
-                                        (bp::arg("self"), "t", "q", "v", "u"))
+                                        (bp::arg("self"), "t", "q", "v", "command"))
                 .def("internal_dynamics", &AbstractController::internalDynamics,
-                                          (bp::arg("self"), "t", "q", "v", "u"));
+                                          (bp::arg("self"), "t", "q", "v", "u_custom"));
                 ;
         }
 
@@ -330,7 +336,7 @@ namespace python
                                 vectorN_t        const & q,
                                 vectorN_t        const & v,
                                 sensorsDataMap_t const & sensorsData,
-                                vectorN_t              & uCommand) {};
+                                vectorN_t              & command) {};
             }
             ControllerFct internalDynamicsFct;
             if (!internalDynamicsPy.is_none())
@@ -343,7 +349,7 @@ namespace python
                                          vectorN_t        const & q,
                                          vectorN_t        const & v,
                                          sensorsDataMap_t const & sensorsData,
-                                         vectorN_t              & uCommand) {};
+                                         vectorN_t              & command) {};
             }
             return std::make_shared<CtrlFunctor>(std::move(commandFct),
                                                  std::move(internalDynamicsFct));

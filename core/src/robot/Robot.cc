@@ -30,6 +30,7 @@ namespace jiminy
     motorsNames_(),
     sensorsNames_(),
     commandFieldnames_(),
+    motorEffortFieldnames_(),
     nmotors_(-1),
     constraintsHolder_(),
     constraintsJacobian_(),
@@ -653,7 +654,7 @@ namespace jiminy
                                return elem->getName();
                            });
 
-            // Generate the fieldnames associated with the motor efforts
+            // Generate the fieldnames associated with command
             commandFieldnames_.clear();
             commandFieldnames_.reserve(nmotors_);
             std::transform(motorsHolder_.begin(), motorsHolder_.end(),
@@ -661,6 +662,16 @@ namespace jiminy
                            [](auto const & elem) -> std::string
                            {
                                 return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Command");
+                           });
+
+            // Generate the fieldnames associated with motor efforts
+            motorEffortFieldnames_.clear();
+            motorEffortFieldnames_.reserve(nmotors_);
+            std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+                           std::back_inserter(motorEffortFieldnames_),
+                           [](auto const & elem) -> std::string
+                           {
+                                return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Effort");
                            });
         }
 
@@ -1297,11 +1308,11 @@ namespace jiminy
                                      vectorN_t const & q,
                                      vectorN_t const & v,
                                      vectorN_t const & a,
-                                     vectorN_t const & u)
+                                     vectorN_t const & command)
     {
         if (!motorsHolder_.empty())
         {
-            (*motorsHolder_.begin())->computeEffortAll(t, q, v, a, u);
+            (*motorsHolder_.begin())->computeEffortAll(t, q, v, a, command);
         }
     }
 
@@ -1338,7 +1349,7 @@ namespace jiminy
                                vectorN_t const & q,
                                vectorN_t const & v,
                                vectorN_t const & a,
-                               vectorN_t const & u)
+                               vectorN_t const & uMotor)
     {
         /* Note that it is assumed that the kinematic quantities have been
            updated previously to be consistent with (q, v, a, u). If not,
@@ -1349,7 +1360,7 @@ namespace jiminy
         {
             if (!sensorGroup.second.empty())
             {
-                (*sensorGroup.second.begin())->setAll(t, q, v, a, u);
+                (*sensorGroup.second.begin())->setAll(t, q, v, a, uMotor);
             }
         }
     }
@@ -1550,40 +1561,53 @@ namespace jiminy
         }
     }
 
-    vectorN_t Robot::getEffortLimit(void) const
+    vectorN_t const & Robot::getCommandLimit(void) const
     {
-        vectorN_t effortLimit = vectorN_t::Constant(pncModel_.nv, qNAN);  // Do NOT use robot_->pncModel_.effortLimit, since we don't care about effort limits for non-physical joints
+        static vectorN_t commandLimit;
+        commandLimit.resize(pncModel_.nv);
+
+        commandLimit.setConstant(qNAN);
         for (auto const & motor : motorsHolder_)
         {
             auto const & motorOptions = motor->baseMotorOptions_;
             int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            if (motorOptions->enableEffortLimit)
+            if (motorOptions->enableCommandLimit)
             {
-                effortLimit[motorsVelocityIdx] = motor->getEffortLimit();
+                commandLimit[motorsVelocityIdx] = motor->getCommandLimit();
             }
             else
             {
-                effortLimit[motorsVelocityIdx] = INF;
+                commandLimit[motorsVelocityIdx] = INF;
             }
 
         }
-        return effortLimit;
+
+        return commandLimit;
     }
 
-    vectorN_t Robot::getMotorsInertias(void) const
+    vectorN_t const & Robot::getArmatures(void) const
     {
-        vectorN_t motorsInertias = vectorN_t::Zero(pncModel_.nv);
+        static vectorN_t armatures;
+        armatures.resize(pncModel_.nv);
+
+        armatures.setZero();
         for (auto const & motor : motorsHolder_)
         {
             int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            motorsInertias[motorsVelocityIdx] = motor->getRotorInertia();
+            armatures[motorsVelocityIdx] = motor->getArmature();
         }
-        return motorsInertias;
+
+        return armatures;
     }
 
     std::vector<std::string> const & Robot::getCommandFieldnames(void) const
     {
         return commandFieldnames_;
+    }
+
+    std::vector<std::string> const & Robot::getMotorEffortFieldnames(void) const
+    {
+        return motorEffortFieldnames_;
     }
 
     int32_t const & Robot::nmotors(void) const

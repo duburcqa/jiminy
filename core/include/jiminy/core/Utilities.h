@@ -227,6 +227,12 @@ namespace jiminy
                                                    pinocchio::Inertia const & childBodyInertiaIn,
                                                    std::string        const & newJointNameIn);
 
+    hresult_t interpolate(pinocchio::Model const & modelIn,
+                          vectorN_t        const & timesIn,
+                          matrixN_t        const & positionsIn,
+                          vectorN_t        const & timesOut,
+                          matrixN_t              & positionsOut);
+
     /// \brief Convert a force expressed in the global frame of a specific frame to its parent joint frame.
     ///
     /// \param[in] model        Pinocchio model.
@@ -244,9 +250,10 @@ namespace jiminy
     template<typename T0, typename T1, typename... Ts>
     typename std::common_type<T0, T1, Ts...>::type min(T0 && val1, T1 && val2, Ts &&... vs);
 
-    vectorN_t clamp(Eigen::Ref<vectorN_t const> const & data,
-                    float64_t                   const & minThr = -INF,
-                    float64_t                   const & maxThr = +INF);
+    template<typename DerivedType>
+    auto clamp(Eigen::MatrixBase<DerivedType> const & data,
+               float64_t const & minThr = -INF,
+               float64_t const & maxThr = +INF);
 
     float64_t clamp(float64_t const & data,
                     float64_t const & minThr = -INF,

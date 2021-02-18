@@ -23,9 +23,9 @@ void controllerZeroTorque(float64_t        const & t,
                           vectorN_t        const & q,
                           vectorN_t        const & v,
                           sensorsDataMap_t const & sensorData,
-                          vectorN_t              & u)
+                          vectorN_t              & command)
 {
-    u.setZero();
+    // Empty on purpose
 }
 
 // Internal dynamics of the system (friction, ...)
@@ -33,9 +33,9 @@ void internalDynamics(float64_t        const & t,
                       vectorN_t        const & q,
                       vectorN_t        const & v,
                       sensorsDataMap_t const & sensorData,
-                      vectorN_t              & u)
+                      vectorN_t              & uCustom)
 {
-    u.setZero();
+    // Empty on purpose
 }
 
 bool_t callback(float64_t const & t,
@@ -77,7 +77,7 @@ TEST(EngineSanity, EnergyConservation)
     for (auto & options : motorsOptions)
     {
         configHolder_t & motorOptions = boost::get<configHolder_t>(options.second);
-        boost::get<bool_t>(motorOptions.at("enableEffortLimit")) = false;
+        boost::get<bool_t>(motorOptions.at("enableCommandLimit")) = false;
     }
     robot->setMotorsOptions(motorsOptions);
 

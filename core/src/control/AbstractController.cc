@@ -57,19 +57,19 @@ namespace jiminy
             float64_t t = 0.0;
             vectorN_t q = pinocchio::neutral(robot->pncModel_);
             vectorN_t v = vectorN_t::Zero(robot->nv());
-            vectorN_t uCommand = vectorN_t::Zero(robot->getMotorsNames().size());
-            vectorN_t uInternal = vectorN_t::Zero(robot->nv());
-            hresult_t returnCode = computeCommand(t, q, v, uCommand);
+            vectorN_t command = vectorN_t::Zero(robot->getMotorsNames().size());
+            vectorN_t uCustom = vectorN_t::Zero(robot->nv());
+            hresult_t returnCode = computeCommand(t, q, v, command);
             if (returnCode == hresult_t::SUCCESS)
             {
-                if (uCommand.size() != (int32_t) robot->getMotorsNames().size())
+                if (command.size() != (int32_t) robot->getMotorsNames().size())
                 {
                     PRINT_ERROR("'computeCommand' returns command with wrong size.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
-                internalDynamics(t, q, v, uInternal);
-                if (uInternal.size() != robot->nv())
+                internalDynamics(t, q, v, uCustom);
+                if (uCustom.size() != robot->nv())
                 {
                     PRINT_ERROR("'internalDynamics' returns command with wrong size.");
                     return hresult_t::ERROR_BAD_INPUT;

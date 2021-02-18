@@ -26,11 +26,11 @@ for joint_name in motor_joint_names:
     motor.initialize(joint_name)
 
 # Instantiate the controller
-def computeCommand(t, q, v, sensors_data, u):
-    u[0] = 0.0
+def computeCommand(t, q, v, sensors_data, command):
+    pass
 
-def internalDynamics(t, q, v, sensors_data, u):
-    u.fill(0.0)
+def internalDynamics(t, q, v, sensors_data, u_custom):
+    pass
 
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(robot)
@@ -50,6 +50,7 @@ engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True
 engine_options["telemetry"]["enableAcceleration"] = True
 engine_options["telemetry"]["enableCommand"] = True
+engine_options["telemetry"]["enableMotorEffort"] = True
 engine_options["telemetry"]["enableEnergy"] = True
 engine_options["world"]["gravity"][2] = -9.81
 engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]

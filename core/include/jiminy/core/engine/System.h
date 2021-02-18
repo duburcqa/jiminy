@@ -108,10 +108,11 @@ namespace jiminy
         vectorN_t q;
         vectorN_t v;
         vectorN_t a;
+        vectorN_t command;
         vectorN_t u;
-        vectorN_t uCommand;
         vectorN_t uMotor;
         vectorN_t uInternal;
+        vectorN_t uCustom;
         forceVector_t fExternal;
 
     private:
@@ -139,6 +140,7 @@ namespace jiminy
         std::vector<std::string> velocityFieldnames;
         std::vector<std::string> accelerationFieldnames;
         std::vector<std::string> commandFieldnames;
+        std::vector<std::string> motorEffortFieldnames;
         std::string energyFieldname;
 
         systemState_t state;       ///< Internal buffer with the state for the integration loop
