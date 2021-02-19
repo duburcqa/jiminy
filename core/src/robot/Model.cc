@@ -9,6 +9,8 @@
 #include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/algorithm/center-of-mass.hpp"
 
+#include <Eigen/Eigenvalues>
+
 #include "urdf_parser/urdf_parser.h"
 
 #include "jiminy/core/Utilities.h"
@@ -564,29 +566,51 @@ namespace jiminy
             {
                 int32_t const jointIdx = pncModel_.getJointId(jointName);
 
-                vector3_t & comRelativePositionBody =
-                    const_cast<vector3_t &>(pncModel_.inertias[jointIdx].lever());
-                comRelativePositionBody +=
-                    randVectorNormal(3U, mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd);
+                // Add bias to com position
+                float64_t const & comBiasStd = mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
+                if (comBiasStd > EPS)
+                {
+                    vector3_t & comRelativePositionBody = pncModel_.inertias[jointIdx].lever();
+                    comRelativePositionBody += randVectorNormal(3U, comBiasStd);
+                }
 
-                // Cannot be less than 1g for numerical stability
-                float64_t & massBody =
-                    const_cast<float64_t &>(pncModel_.inertias[jointIdx].mass());
-                massBody =
-                    std::max(massBody +
-                        randNormal(0.0, mdlOptions_->dynamics.massBodiesBiasStd), 1.0e-3);
+                /* Add bias to body mass.
+                   Note that it cannot be less than min(original mass, 1g) for numerical stability. */
+                float64_t const & massBiasStd = mdlOptions_->dynamics.massBodiesBiasStd;
+                if (massBiasStd > EPS)
+                {
+                    float64_t & massBody = pncModel_.inertias[jointIdx].mass();
+                    massBody = std::max(massBody + randNormal(0.0, massBiasStd), std::min(massBody, 1.0e-3));
+                }
 
-                // Cannot be less 1g applied at 1mm of distance from the rotation center
-                vector6_t & inertiaBody =
-                    const_cast<vector6_t &>(pncModel_.inertias[jointIdx].inertia().data());
-                inertiaBody =
-                    clamp(inertiaBody +
-                        randVectorNormal(6U, mdlOptions_->dynamics.inertiaBodiesBiasStd), 1.0e-9);
+                /* Add bias to inertia matrix of body.
+                   To preserve positive semidefinite property after noise addition, the principal
+                   axes and moments are computed from the original inertia matrix, then independent
+                   gaussian distributed noise is added on each principal moments, and a random small
+                   rotation is applied to the principal axes based on a randomly generated rotation
+                   axis. Finally, the biased inertia matrix is obtained doing A @ diag(M) @ A.T.
+                   If no bias, the original inertia matrix is recovered. */
+                float64_t const & inertiaBiasStd = mdlOptions_->dynamics.inertiaBodiesBiasStd;
+                if (inertiaBiasStd > EPS)
+                {
+                    pinocchio::Symmetric3 & inertiaBody = pncModel_.inertias[jointIdx].inertia();
+                    Eigen::SelfAdjointEigenSolver<matrix3_t> solver(inertiaBody.matrix());
+                    vector3_t inertiaBodyMoments = solver.eigenvalues();
+                    matrix3_t inertiaBodyAxes = solver.eigenvectors();
+                    vector3_t const randAxis = randVectorNormal(3U, inertiaBiasStd);
+                    inertiaBodyAxes = inertiaBodyAxes * quaternion_t(pinocchio::exp3(randAxis));
+                    inertiaBodyMoments += randVectorNormal(3U, inertiaBiasStd);
+                    inertiaBody = pinocchio::Symmetric3((
+                        inertiaBodyAxes * inertiaBodyMoments.asDiagonal() * inertiaBodyAxes.transpose()).eval());
+                }
 
-                vector3_t & relativePositionBody =
-                    pncModel_.jointPlacements[jointIdx].translation();
-                relativePositionBody +=
-                    randVectorNormal(3U, mdlOptions_->dynamics.relativePositionBodiesBiasStd);
+                // Add bias to relative body position (rotation excluded !)
+                float64_t const & relativeBodyPosBiasStd = mdlOptions_->dynamics.relativePositionBodiesBiasStd;
+                if (relativeBodyPosBiasStd > EPS)
+                {
+                    vector3_t & relativePositionBody = pncModel_.jointPlacements[jointIdx].translation();
+                    relativePositionBody += randVectorNormal(3U, relativeBodyPosBiasStd);
+                }
             }
 
             // Initialize Pinocchio Data internal state
