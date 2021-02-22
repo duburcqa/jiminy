@@ -2600,12 +2600,8 @@ namespace jiminy
             float64_t const vDepth = vContactInWorld.dot(nGround);
 
             // Compute normal force
-            float64_t fextNormal = 0.0;
-            if (vDepth < 0.0)
-            {
-                fextNormal -= contactOptions_.damping * vDepth;
-            }
-            fextNormal -= contactOptions_.stiffness * depth;
+            float64_t const fextNormal = - std::min(contactOptions_.stiffness * depth +
+                                                    contactOptions_.damping * vDepth, 0.0);
             fextInWorld = fextNormal * nGround;
 
             // Compute friction forces
@@ -2725,26 +2721,19 @@ namespace jiminy
                 joint.derived(), pncData.Ycrb[jointIdx]);
 
             // Compute joint position error
-            float64_t qJointError = 0.0;
-            float64_t vJointError = 0.0;
+            float64_t accelJoint = 0.0;
             if (qJoint > qJointMax)
             {
-                qJointError = qJoint - qJointMax;
-                vJointError = std::max(vJoint, 0.0);
+                float64_t const qJointError = qJoint - qJointMax;
+                accelJoint = - std::max(jointOptions.boundStiffness * qJointError +
+                                        jointOptions.boundDamping * vJoint, 0.0);
             }
             else if (qJoint < qJointMin)
             {
-                qJointError = qJoint - qJointMin;
-                vJointError = std::min(vJoint, 0.0);
+                float const qJointError = qJoint - qJointMin;
+                accelJoint = - std::min(jointOptions.boundStiffness * qJointError +
+                                        jointOptions.boundDamping * vJoint, 0.0);
             }
-            else
-            {
-                return;
-            }
-
-            // Generate acceleration in the opposite direction if out-of-bounds
-            float64_t const accelJoint = - jointOptions.boundStiffness * qJointError
-                                         - jointOptions.boundDamping * vJointError;
 
             // Apply the resulting force
             u[velocityIdx] += Ia * accelJoint;
