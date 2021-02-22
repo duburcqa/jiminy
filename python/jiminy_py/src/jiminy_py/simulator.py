@@ -521,7 +521,7 @@ class Simulator:
         if self.__plot_data is not None:
             plt.close(self.__plot_data['fig'])
 
-    def plot(self) -> None:
+    def plot(self, disable_flexiblity_data: bool = True) -> None:
         """Display common simulation data over time.
 
         The figure features several tabs:
@@ -531,6 +531,10 @@ class Simulator:
           - Subplots with robot acceleration
           - Subplots with motors torques
           - Subplots with raw sensor data (one tab for each type of sensor)
+
+        :param disable_flexiblity_data:
+            Disable display of flexible joints in robot's configuration,
+            velocity and  acceleration subplots.
         """
         # Define some internal helper functions
         def extract_fields(log_data: Dict[str, np.ndarray],
@@ -554,6 +558,9 @@ class Simulator:
 
         # Extract log data
         log_data, log_constants = self.get_log()
+        if not log_constants:
+            return RuntimeError(
+                "No data to replay. Please run a simulation first.")
 
         # Make sure that the log file is compatible with the current model
         is_incompatible = False
@@ -575,7 +582,7 @@ class Simulator:
                     if flex["frameName"] != flex_old["frameName"]:
                         is_incompatible = True
                         break
-        if is_incompatible:
+        if is_incompatible and not disable_flexiblity_data:
             raise RuntimeError("Log data are incompatible with current model.")
 
         # Figures data structure as a dictionary
@@ -586,6 +593,12 @@ class Simulator:
         for fields_type in ["Position", "Velocity", "Acceleration"]:
             fieldnames = getattr(
                 self.robot, "logfile_" + fields_type.lower() + "_headers")
+            if disable_flexiblity_data:
+                fieldnames = list(filter(
+                    lambda field: not any(
+                        name in field
+                        for name in self.robot.flexible_joints_names),
+                    fieldnames))
             values = extract_fields(
                 log_data, 'HighLevelController', fieldnames)
             if values is not None:
@@ -678,8 +691,17 @@ class Simulator:
         for i, fig_name in enumerate(data.keys()):
             button_axcut[fig_name] = plt.axes(
                 [buttons_width * (i + 0.5), 0.01, buttons_width, 0.05])
-            buttons[fig_name] = Button(
-                button_axcut[fig_name], fig_name, color='white')
+            buttons[fig_name] = Button(button_axcut[fig_name],
+                                       fig_name.replace(' ', '\n'),
+                                       color='white')
+
+        # Define helper to adjust layout
+        def adjust_layout(event: Optional[Any] = None):
+            # TODO: It would be better to adjust whose parameters based on
+            # `event` if provided.
+            fig.subplots_adjust(
+                bottom=0.1, top=0.9, left=0.05, right=0.95, wspace=0.2,
+                hspace=0.45)
 
         def click(event: matplotlib.backend_bases.Event) -> None:
             nonlocal fig, fig_axes, fig_nav_stack, fig_nav_pos, tab_active
@@ -689,7 +711,7 @@ class Simulator:
                 if b.ax == event.inaxes:
                     b.ax.set_facecolor('green')
                     b.color = 'green'
-                    button_name = b.label.get_text()
+                    button_name = b.label.get_text().replace('\n', ' ')
                 else:
                     b.ax.set_facecolor('white')
                     b.color = 'white'
@@ -715,6 +737,9 @@ class Simulator:
             fig.canvas.toolbar._actions['back'].setEnabled(
                 fig_nav_pos[button_name] > 0)
 
+            # Adjust layout
+            adjust_layout()
+
             # Refresh figure
             fig.canvas.draw()
             fig.canvas.flush_events()
@@ -723,10 +748,10 @@ class Simulator:
         for b in buttons.values():
             b.on_clicked(click)
 
-        # Adjust layout and show figure (without blocking)
-        fig.subplots_adjust(
-            bottom=0.1, top=0.92, left=0.05, right=0.95, wspace=0.15,
-            hspace=0.35)
+        # Register 'on resize' event callback to adjust layout
+        fig.canvas.mpl_connect('resize_event', adjust_layout)
+
+        # Show figure (without blocking)
         fig_name = list(fig_axes.keys())[0]
         for ax in fig_axes[fig_name]:
             ax.set_visible(True)
