@@ -420,7 +420,6 @@ class Simulator:
             self.simulate(tf, q0, v0, None, is_state_theoretical)
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
-                self.__pbar.update(self.__pbar.total - self.__pbar.n)
                 self.__pbar.close()
                 self.__pbar = None
 
