@@ -71,7 +71,8 @@ namespace python
                            vectorN_t        const & position)
     {
         bool_t isValid;
-        hresult_t returnCode = ::jiminy::isPositionValid(model, position, isValid);
+        hresult_t returnCode = ::jiminy::isPositionValid(
+            model, position, isValid, Eigen::NumTraits<float64_t>::dummy_precision());
         if (returnCode != hresult_t::SUCCESS)
         {
             return false;

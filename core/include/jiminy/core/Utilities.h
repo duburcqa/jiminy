@@ -216,7 +216,8 @@ namespace jiminy
 
     hresult_t isPositionValid(pinocchio::Model const & model,
                               vectorN_t        const & position,
-                              bool_t                 & isValid);
+                              bool_t                 & isValid,
+                              float64_t        const & tol);
 
     hresult_t insertFlexibilityBeforeJointInModel(pinocchio::Model       & modelInOut,
                                                   std::string      const & childJointNameIn,
