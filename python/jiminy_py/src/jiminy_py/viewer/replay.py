@@ -2,9 +2,10 @@ import logging
 import pathlib
 import asyncio
 import tempfile
+from bisect import bisect_right
 from threading import Thread, Lock
 from itertools import cycle, islice
-from typing import Optional, Union, Sequence, Dict
+from typing import Optional, Union, Sequence, Tuple, Dict
 
 import numpy as np
 from tqdm import tqdm
@@ -95,6 +96,8 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
 
 def play_trajectories(trajectory_data: Union[
                           TrajectoryDataType, Sequence[TrajectoryDataType]],
+                      time_interval: Optional[Union[
+                          np.ndarray, Tuple[float, float]]] = (0.0, np.inf),
                       speed_ratio: float = 1.0,
                       record_video_path: Optional[str] = None,
                       viewers: Sequence[Viewer] = None,
@@ -126,6 +129,9 @@ def play_trajectories(trajectory_data: Union[
         available CPU power.
 
     :param trajectory_data: List of `TrajectoryDataType` dicts.
+    :param time_interval: Replay only timesteps in this interval of time.
+                          It does not have to be finite.
+                          Optional: [0, inf] by default.
     :param speed_ratio: Speed ratio of the simulation.
                         Optional: 1.0 by default.
     :param record_video_path: Fullpath location where to save generated video
@@ -218,7 +224,8 @@ def play_trajectories(trajectory_data: Union[
     # Sanitize user-specified robot offsets
     if xyz_offset is None:
         xyz_offset = len(trajectory_data) * [None]
-    assert len(xyz_offset) == len(trajectory_data)
+    elif len(xyz_offset) != len(trajectory_data):
+        xyz_offset = np.tile(xyz_offset, (len(trajectory_data), 1))
 
     # Sanitize user-specified robot colors
     if urdf_rgba is None:
@@ -318,8 +325,10 @@ def play_trajectories(trajectory_data: Union[
 
     # Load robots in gepetto viewer
     for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):
-        if len(traj['evolution_robot']):
-            viewer.display(traj['evolution_robot'][0].q, offset)
+        evolution_robot = traj['evolution_robot']
+        if len(evolution_robot):
+            i = bisect_right([s.t for s in evolution_robot], time_interval[0])
+            viewer.display(evolution_robot[i].q, offset)
 
     # Wait for the meshes to finish loading if non video recording mode
     if wait_for_client and record_video_path is None:
@@ -338,13 +347,14 @@ def play_trajectories(trajectory_data: Union[
     # Replay the trajectory
     if record_video_path is not None:
         # Extract and resample trajectory data at fixed framerate
-        time_max = 0.0
+        time_max = time_interval[0]
         for traj in trajectory_data:
             if len(traj['evolution_robot']):
                 time_max = max([time_max, traj['evolution_robot'][-1].t])
+        time_max = min(time_max, time_interval[1])
 
         time_global = np.arange(
-            0.0, time_max, speed_ratio / VIDEO_FRAMERATE)
+            time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
         position_evolutions = []
         for traj in trajectory_data:
             if len(traj['evolution_robot']):
@@ -401,6 +411,7 @@ def play_trajectories(trajectory_data: Union[
                 target=replay_thread,
                 args=(viewer,
                       traj['evolution_robot'],
+                      time_interval,
                       speed_ratio,
                       offset,
                       wait_for_client)))

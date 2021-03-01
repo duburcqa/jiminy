@@ -1337,7 +1337,9 @@ class Viewer:
 
     def replay(self,
                evolution_robot: Sequence[State],
-               speed_ratio: float,
+               time_interval: Optional[Union[
+                   np.ndarray, Tuple[float, float]]] = (0.0, np.inf),
+               speed_ratio: float = 1.0,
                xyz_offset: Optional[np.ndarray] = None,
                wait: bool = False) -> None:
         """Replay a complete robot trajectory at a given real-time ratio.
@@ -1347,14 +1349,18 @@ class Viewer:
             `use_theoretical_model` is false.
 
         :param evolution_robot: List of State object of increasing time.
+        :param time_interval: Specific time interval to replay.
+                              Optional: Complete evolution by default [0, inf].
         :param speed_ratio: Real-time factor.
+                            Optional: No time dilation by default (1.0).
         :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
+                           OPtional: None by default.
         :param wait: Whether or not to wait for rendering to finish.
         """
         t = [s.t for s in evolution_robot]
-        i = 0
-        t_simu = 0.0
+        t_simu = time_interval[0]
+        i = bisect_right(t, t_simu)
         init_time = time.time()
         while i < len(evolution_robot):
             try:
@@ -1365,8 +1371,11 @@ class Viewer:
                 if Viewer._camera_motion is not None:
                     Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
                 self.display(q, xyz_offset, wait)
-                t_simu = (time.time() - init_time) * speed_ratio
+                t_simu = time_interval[0] + speed_ratio * (
+                    time.time() - init_time)
                 i = bisect_right(t, t_simu)
                 wait = False  # Waiting for the first timestep is enough
+                if t_simu > time_interval[1]:
+                    break
             except Viewer._backend_exceptions:
                 break
