@@ -986,7 +986,7 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            vectorN_t const & q = qInitIt->second;
+            vectorN_t const & q = qInitIt->second;  // Make sure the initial state is normalized
             vectorN_t const & v = vInitIt->second;
             if (q.rows() != system.robot->nq() || v.rows() != system.robot->nv())
             {
@@ -996,7 +996,7 @@ namespace jiminy
             }
 
             bool_t isValid;
-            isPositionValid(system.robot->pncModel_, q, isValid);  // It cannot throw an exception at this point
+            isPositionValid(system.robot->pncModel_, q, isValid, std::numeric_limits<float32_t>::epsilon());  // It cannot throw an exception at this point
             if (!isValid)
             {
                 PRINT_ERROR("The initial configuration is not consistent with the types of "
@@ -1015,7 +1015,13 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            qSplit.emplace_back(q);
+            /* Make sure the configuration is normalized (as double), since normalization
+               is checked using float accuracy rather than double to circumvent float/double
+               casting than may occurs because of Python bindings. */
+            vectorN_t qNormalized = q;
+            pinocchio::normalize(system.robot->pncModel_, qNormalized);
+
+            qSplit.emplace_back(qNormalized);
             vSplit.emplace_back(v);
         }
 

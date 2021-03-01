@@ -1171,7 +1171,8 @@ namespace jiminy
 
     hresult_t isPositionValid(pinocchio::Model const & model,
                               vectorN_t        const & position,
-                              bool_t                 & isValid)
+                              bool_t                 & isValid,
+                              float64_t        const & tol)
     {
         if (model.nq != position.size())
         {
@@ -1180,7 +1181,7 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        isValid = pinocchio::isNormalized(model, position);
+        isValid = pinocchio::isNormalized(model, position, tol);
 
         return hresult_t::SUCCESS;
     }
