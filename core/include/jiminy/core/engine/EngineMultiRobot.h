@@ -40,7 +40,7 @@ namespace jiminy
     std::set<std::string> const STEPPERS {
         "runge_kutta_4",
         "runge_kutta_dopri5",
-        "explicit_euler"
+        "euler_explicit"
     };
 
     float64_t const CONSTRAINT_INVERSION_DAMPING = 1.0e-12;  ///< Damping factor used to perform matrix pseudo-inverse when computing forward dynamics with constraints.
@@ -155,7 +155,7 @@ namespace jiminy
             configHolder_t config;
             config["verbose"] = false;
             config["randomSeed"] = 0U;
-            config["odeSolver"] = std::string("runge_kutta_dopri5");  // ["runge_kutta_dopri5", "runge_kutta_4", "explicit_euler"]
+            config["odeSolver"] = std::string("runge_kutta_dopri5");  // ["runge_kutta_dopri5", "runge_kutta_4", "euler_explicit"]
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;

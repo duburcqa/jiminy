@@ -13,13 +13,13 @@
 
 namespace jiminy
 {
-    class ExplicitEulerStepper: public AbstractStepper
+    class EulerExplicitStepper: public AbstractStepper
     {
         public:
             /// \brief Constructor
             /// \param[in] f      Dynamics function, with signature a = f(t, q, v)
             /// \param[in] robots Robots whose dynamics the stepper will work on.
-            ExplicitEulerStepper(systemDynamics f, /* Copy on purpose */
+            EulerExplicitStepper(systemDynamics f, /* Copy on purpose */
                                  std::vector<Robot const *> const & robots);
 
         protected:

@@ -73,7 +73,7 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/WheelConstraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/Robot.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/AbstractStepper.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/ExplicitEulerStepper.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/EulerExplicitStepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/AbstractRungeKuttaStepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/RungeKutta4Stepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/RungeKuttaDOPRIStepper.cc"
