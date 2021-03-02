@@ -48,12 +48,16 @@ namespace jiminy
         /// \remark   This method is not intended to be called manually. The Robot to which the
         ///           constraint is added is taking care of it when its own `reset` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t reset(void) = 0;
+        virtual hresult_t reset(vectorN_t const & q,
+                                vectorN_t const & v) = 0;
 
         void enable(void);
         void disable(void);
         bool_t const & getIsEnabled(void) const;
 
+        hresult_t setBaumgarteFreq(float64_t const & freq);
+        /// \brief    Natural frequency of critically damping position/velocity error correction.
+        float64_t getBaumgarteFreq(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Compute the jacobian and drift of the constraint.
@@ -103,6 +107,8 @@ namespace jiminy
         std::weak_ptr<Model const> model_;  ///< Model on which the constraint operates.
         bool_t isAttached_;                 ///< Flag to indicate if the constraint has been attached to a model.
         bool_t isEnabled_;                  ///< Flag to indicate if the constraint is enabled. Handling of this flag is done at Robot level.
+        float64_t kp_;                      ///< Position-related baumgarte stabilization gain.
+        float64_t kd_;                      ///< Velocity-related baumgarte stabilization gain.
         matrixN_t jacobian_;                ///< Jacobian of the constraint.
         vectorN_t drift_;                   ///< Drift of the constraint.
     };

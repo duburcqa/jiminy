@@ -49,7 +49,11 @@ namespace jiminy
         std::string const & getFrameName(void) const;
         int32_t const & getFrameIdx(void) const;
 
-        virtual hresult_t reset(void) override final;
+        void setReferenceTransform(pinocchio::SE3 const & transformRef);
+        pinocchio::SE3 & getReferenceTransform(void);
+
+        virtual hresult_t reset(vectorN_t const & /* q */,
+                                vectorN_t const & /* v */) override final;
 
         virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
                                                   vectorN_t const & v) override final;
@@ -63,6 +67,7 @@ namespace jiminy
         vector3_t x3_;                 ///< Wheel axis, world frame.
         matrix3_t skewRadius_;         ///< Skew matrix of wheel axis, in world frame, scaled by radius.
         matrix3_t dskewRadius_;        ///< Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
+        pinocchio::SE3 transformRef_;  ///< Reference pose of the frame to enforce.
         matrixN_t frameJacobian_;      ///< Stores full frame jacobian in world.
     };
 }

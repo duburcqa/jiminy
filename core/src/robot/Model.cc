@@ -14,6 +14,8 @@
 #include "urdf_parser/urdf_parser.h"
 
 #include "jiminy/core/robot/AbstractConstraint.h"
+#include "jiminy/core/robot/JointConstraint.h"
+#include "jiminy/core/robot/SphereConstraint.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
@@ -890,7 +892,7 @@ namespace jiminy
 
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    returnCode = constraint->reset();
+                    returnCode = constraint->reset(q, v);
                 }
             });
 
@@ -1452,8 +1454,9 @@ namespace jiminy
 
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    // Reset the constraint
-                    returnCode = constraint->reset();
+                    // Reset constraint using neutral configuration and zero velocity
+                    returnCode = constraint->reset(
+                        pinocchio::neutral(pncModel_), vectorN_t::Zero(nv_));
                 }
 
                 if (returnCode == hresult_t::SUCCESS)

@@ -15,6 +15,28 @@ namespace jiminy
 {
     std::string const ENGINE_TELEMETRY_NAMESPACE("HighLevelController");
 
+    enum class contactModel_t : uint32_t
+    {
+        NONE = 0,
+        SPRING_DAMPER = 1,
+        IMPULSE = 2
+    };
+
+    enum class contactSolver_t : uint32_t
+    {
+        NONE = 0,
+        PGS = 1  // Projected Gauss-Seidel
+    };
+
+    std::map<std::string, contactModel_t> const CONTACT_MODELS_MAP {
+        {"spring_damper", contactModel_t::SPRING_DAMPER},
+        {"impulse", contactModel_t::IMPULSE},
+    };
+
+    std::map<std::string, contactSolver_t> const CONTACT_SOLVERS_MAP {
+        {"PGS", contactSolver_t::PGS}
+    };
+
     std::set<std::string> const STEPPERS {
         "runge_kutta_4",
         "runge_kutta_dopri5",
@@ -25,6 +47,7 @@ namespace jiminy
 
     class Robot;
     class AbstractConstraintBase;
+    class AbstractLCPSolver;
     class AbstractController;
     class AbstractStepper;
     class TelemetryData;
@@ -90,6 +113,10 @@ namespace jiminy
         configHolder_t getDefaultContactOptions()
         {
             configHolder_t config;
+            config["model"] = std::string("spring_damper");   // ["spring_damper", "impulse"]
+            config["solver"] = std::string("PGS");   // ["PGS",]
+            config["regularization"] = 0.0;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
+            config["stabilizationFreq"] = 0.0;  // [s-1]: 0.0 to disable
             config["frictionViscous"] = 0.8;
             config["frictionDry"] = 1.0;
             config["frictionStictionVel"] = 1.0e-2;
@@ -170,6 +197,10 @@ namespace jiminy
 
         struct contactOptions_t
         {
+            std::string const model;
+            std::string const solver;
+            float64_t const regularization;
+            float64_t const stabilizationFreq;
             float64_t const frictionViscous;
             float64_t const frictionDry;
             float64_t const frictionStictionVel;
@@ -179,6 +210,10 @@ namespace jiminy
             float64_t const transitionEps;
 
             contactOptions_t(configHolder_t const & options) :
+            model(boost::get<std::string>(options.at("model"))),
+            solver(boost::get<std::string>(options.at("solver"))),
+            regularization(boost::get<float64_t>(options.at("regularization"))),
+            stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq"))),
             frictionViscous(boost::get<float64_t>(options.at("frictionViscous"))),
             frictionDry(boost::get<float64_t>(options.at("frictionDry"))),
             frictionStictionVel(boost::get<float64_t>(options.at("frictionStictionVel"))),
@@ -475,6 +510,7 @@ namespace jiminy
                                           int32_t const & collisionPairIdx,
                                           vectorN_t const & q,
                                           vectorN_t const & v,
+                                          std::shared_ptr<AbstractConstraintBase> & contactConstraint,
                                           pinocchio::Force & fextLocal) const;
 
         /// \brief Compute the force resulting from ground contact on a given frame.
@@ -486,6 +522,7 @@ namespace jiminy
                                            int32_t const & frameIdx,
                                            vectorN_t const & q,
                                            vectorN_t const & v,
+                                           std::shared_ptr<AbstractConstraintBase> & collisionConstraint,
                                            pinocchio::Force & fextLocal) const;
 
         /// \brief Compute the force resulting from ground contact for a given normal direction and depth.
@@ -604,6 +641,8 @@ namespace jiminy
 
     private:
         Timer timer_;
+        contactModel_t contactModel_;
+        std::unique_ptr<AbstractLCPSolver> contactSolver_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;

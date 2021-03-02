@@ -23,6 +23,7 @@ namespace jiminy
     x3_(),
     skewRadius_(),
     dskewRadius_(),
+    transformRef_(),
     frameJacobian_()
     {
         // Empty on purpose
@@ -43,7 +44,18 @@ namespace jiminy
         return frameIdx_;
     }
 
-    hresult_t WheelConstraint::reset(void)
+    void WheelConstraint::setReferenceTransform(pinocchio::SE3 const & transformRef)
+    {
+        transformRef_ = transformRef;
+    }
+
+    pinocchio::SE3 & WheelConstraint::getReferenceTransform(void)
+    {
+        return transformRef_;
+    }
+
+    hresult_t WheelConstraint::reset(vectorN_t const & /* q */,
+                                     vectorN_t const & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -67,6 +79,9 @@ namespace jiminy
             frameJacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
             jacobian_ = matrixN_t::Zero(3, model->pncModel_.nv);
             drift_ = vectorN_t::Zero(3);
+
+            // Get the current frame position and use it as reference
+            transformRef_ = model->pncData_.oMf[frameIdx_];
         }
 
         return returnCode;

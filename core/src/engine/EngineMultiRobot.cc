@@ -16,7 +16,9 @@
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
+#include "jiminy/core/robot/LCPSolvers.h"
 #include "jiminy/core/robot/AbstractConstraint.h"
+#include "jiminy/core/robot/JointConstraint.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
@@ -41,6 +43,8 @@ namespace jiminy
     isSimulationRunning_(false),
     engineOptionsHolder_(),
     timer_(),
+    contactModel_(contactModel_t::NONE),
+    contactSolver_(nullptr),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
@@ -1222,7 +1226,13 @@ namespace jiminy
             vectorN_t const & a = systemDataIt->state.a;
             computeForwardKinematics(*systemIt, q, v, a);
 
+            /* Backup constraint register for fast lookup.
+               Internal constraints cannot be added/removed at this point. */
+            systemDataIt->constraintsHolder = systemIt->robot->getConstraints();
+
             // Initialize contacts forces in local frame
+            systemDataIt->boundJointsActiveDir = std::vector<int32_t>(
+                systemIt->robot->getRigidJointsModelIdx().size(), false);
             std::vector<int32_t> const & contactFramesIdx = systemIt->robot->getContactFramesIdx();
             systemDataIt->contactFramesForces = forceVector_t(
                 contactFramesIdx.size(), pinocchio::Force::Zero());
@@ -1236,38 +1246,58 @@ namespace jiminy
                     collisionPairsIdx[i].size(), pinocchio::Force::Zero());
             }
 
+            // Set Baumgarte stabilization natural frequency for every constraints
+            systemDataIt->constraintsHolder.foreach(
+                [&freq = engineOptions_->contacts.stabilizationFreq](
+                    std::shared_ptr<AbstractConstraintBase> const & constraint,
+                    constraintsHolderType_t const & /* holderType */)
+                {
+                    if (constraint)
+                    {
+                        constraint->setBaumgarteFreq(freq);  // It cannot fail at this point
+                    }
+                });
+
             // Initialize some addition buffers used by impulse contact solver
             systemDataIt->jointJacobian = matrixN_t::Zero(6, systemIt->robot->pncModel_.nv);
 
-            // Make sure that the contact forces are bounded.
-            // TODO: One should rather use something like 10 * m * g instead of a fix threshold
-            float64_t forceMax = 0.0;
-            for (uint32_t i=0; i < contactFramesIdx.size(); ++i)
-            {
-                pinocchio::Force & fextLocal = systemDataIt->contactFramesForces[i];
-                computeContactDynamicsAtFrame(
-                        *systemIt, contactFramesIdx[i], q, v, fextLocal);
-                forceMax = std::max(forceMax, fextLocal.linear().norm());
-            }
+            // Reset the constraints
+            returnCode = systemIt->robot->resetConstraints(q, v);
 
-            for (uint32_t i=0; i < collisionPairsIdx.size(); ++i)
+            if (contactModel_ == contactModel_t::SPRING_DAMPER)
             {
-                for (uint32_t j=0; j < collisionPairsIdx[i].size(); ++j)
+                // Make sure that the contact forces are bounded for spring-damper model.
+                // TODO: One should rather use something like 10 * m * g instead of a fix threshold
+                float64_t forceMax = 0.0;
+                for (uint32_t i=0; i < contactFramesIdx.size(); ++i)
                 {
-                    int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
-                    pinocchio::Force & fextLocal = systemDataIt->collisionBodiesForces[i][j];
-                    computeContactDynamicsAtBody(
-                        *systemIt, collisionPairIdx, q, v, fextLocal);
+                    auto & constraint = systemDataIt->constraintsHolder.contactFrames[i].second;
+                    pinocchio::Force & fextLocal = systemDataIt->contactFramesForces[i];
+                    computeContactDynamicsAtFrame(
+                        *systemIt, contactFramesIdx[i], q, v, constraint, fextLocal);
                     forceMax = std::max(forceMax, fextLocal.linear().norm());
                 }
-            }
 
-            if (forceMax > 1e5)
-            {
-                PRINT_ERROR("The initial force exceeds 1e5 for at least one contact point, "
-                            "which is forbidden for the sake of numerical stability. Please "
-                            "update the initial state.");
-                return hresult_t::ERROR_BAD_INPUT;
+                for (uint32_t i=0; i < collisionPairsIdx.size(); ++i)
+                {
+                    for (uint32_t j=0; j < collisionPairsIdx[i].size(); ++j)
+                    {
+                        int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
+                        auto & constraint = systemDataIt->constraintsHolder.collisionBodies[i][j].second;
+                        pinocchio::Force & fextLocal = systemDataIt->collisionBodiesForces[i][j];
+                        computeContactDynamicsAtBody(
+                            *systemIt, collisionPairIdx, q, v, constraint, fextLocal);
+                        forceMax = std::max(forceMax, fextLocal.linear().norm());
+                    }
+                }
+
+                if (forceMax > 1e5)
+                {
+                    PRINT_ERROR("The initial force exceeds 1e5 for at least one contact point, "
+                                "which is forbidden for the sake of numerical stability. Please "
+                                "update the initial state.");
+                    return hresult_t::ERROR_BAD_INPUT;
+                }
             }
         }
 
@@ -2226,6 +2256,19 @@ namespace jiminy
 
         // Make sure the contacts options are fine
         configHolder_t contactsOptions = boost::get<configHolder_t>(engineOptions.at("contacts"));
+        std::string const & contactModel = boost::get<std::string>(contactsOptions.at("model"));
+        auto const contactModelIt = CONTACT_MODELS_MAP.find(contactModel);
+        if (contactModelIt == CONTACT_MODELS_MAP.end())
+        {
+            PRINT_ERROR("The requested contact model is not available.");
+        }
+        std::string const & contactSolver = boost::get<std::string>(contactsOptions.at("solver"));
+        auto const contactSolverIt = CONTACT_SOLVERS_MAP.find(contactSolver);
+        if (contactSolverIt == CONTACT_SOLVERS_MAP.end())
+        {
+            PRINT_ERROR("The requested contact solver is not available.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
         float64_t const & frictionStictionVel =
             boost::get<float64_t>(contactsOptions.at("frictionStictionVel"));
         if (frictionStictionVel < 0.0)
@@ -2276,6 +2319,19 @@ namespace jiminy
 
         // Create a fast struct accessor
         engineOptions_ = std::make_unique<engineOptions_t const>(engineOptionsHolder_);
+
+        // Backup contact model as enum for fast check
+        contactModel_ = contactModelIt->second;
+
+        // Instantiate desired LCP solver
+        if (contactSolverIt->second == contactSolver_t::PGS)
+        {
+            contactSolver_ = std::make_unique<PGSSolver>(
+                PGS_MAX_ITERATIONS,
+                PGS_RANDOM_PERMUTATION_PERIOD,
+                engineOptions_->stepper.tolAbs,
+                engineOptions_->stepper.tolRel);
+        }
 
         return hresult_t::SUCCESS;
     }
@@ -2506,6 +2562,7 @@ namespace jiminy
                                                         int32_t const & collisionPairIdx,
                                                         vectorN_t const & q,
                                                         vectorN_t const & v,
+                                                        std::shared_ptr<AbstractConstraintBase> & constraint,
                                                         pinocchio::Force & fextLocal) const
     {
         // TODO: It is assumed that the ground is flat. For now ground profile is not supported
@@ -2519,8 +2576,9 @@ namespace jiminy
         // Extract collision and distance results
         hpp::fcl::CollisionResult const & collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];
 
-        fextLocal.toVector().setZero();
+        fextLocal.setZero();
 
+        bool_t isColliding = false;
         for (uint32_t i = 0; i < collisionResult.numContacts(); ++i)
         {
             /* Extract the contact information.
@@ -2539,6 +2597,7 @@ namespace jiminy
             {
                 continue;
             }
+            isColliding = true;
 
             // Make sure the normal is always pointing upward, and the penetration depth is negative
             if (nGround[2] < 0.0)
@@ -2550,25 +2609,61 @@ namespace jiminy
                 depth *= -1.0;
             }
 
-            // Compute the linear velocity of the contact point in world frame
-            pinocchio::Motion const & motionJointLocal = system.robot->pncData_.v[parentJointIdx];
-            pinocchio::SE3 const & transformJointFrameInWorld = system.robot->pncData_.oMi[parentJointIdx];
-            pinocchio::SE3 const transformJointFrameInContact = posContactInWorld.actInv(transformJointFrameInWorld);
-            vector3_t const vContactInWorld = transformJointFrameInContact.act(motionJointLocal).linear();
+            if (contactModel_ == contactModel_t::SPRING_DAMPER)
+            {
+                // Compute the linear velocity of the contact point in world frame
+                pinocchio::Motion const & motionJointLocal = system.robot->pncData_.v[parentJointIdx];
+                pinocchio::SE3 const & transformJointFrameInWorld = system.robot->pncData_.oMi[parentJointIdx];
+                pinocchio::SE3 const transformJointFrameInContact = posContactInWorld.actInv(transformJointFrameInWorld);
+                vector3_t const vContactInWorld = transformJointFrameInContact.act(motionJointLocal).linear();
 
-            // Compute the ground reaction force at contact point in world frame
-            pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(nGround, depth, vContactInWorld);
+                // Compute the ground reaction force at contact point in world frame
+                pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(
+                    nGround, depth, vContactInWorld);
 
-            // Move the force at parent frame location
-            fextLocal += transformJointFrameInContact.actInv(fextAtContactInGlobal);
+                // Move the force at parent frame location
+                fextLocal += transformJointFrameInContact.actInv(fextAtContactInGlobal);
+            }
+            else
+            {
+                // Some geometry shapes are not supported for now, if so the constraint is not initialized
+                if (constraint && !constraint->getIsEnabled())
+                {
+                    constraint->reset(q, v);
+                    constraint->enable();
+                }
+            }
         }
 
+        if (!isColliding)
+        {
+            if (constraint)
+            {
+                // There is no way to get access to the distance from the ground at this point,
+                // so it is not possible to disable the constraint only if depth > transitionEps.
+                constraint->disable();
+            }
+        }
+
+        /* One must update tangential reference position with the current one,
+           because in case of slippage the contact point has actually moved. */
+        if (constraint && constraint->getIsEnabled())
+        {
+            // auto & collisionConstraint = static_cast<SphereConstraint &>(*constraint.get());
+            auto & collisionConstraint = static_cast<FixedFrameConstraint &>(*constraint.get());
+            int32_t const & frameIdx = collisionConstraint.getFrameIdx();
+            vector3_t const & posFrame = system.robot->pncData_.oMf[frameIdx].translation();
+            vector3_t & positionRef = collisionConstraint.getReferenceTransform().translation();
+            vector3_t const nGround = (vector3_t() << 0.0, 0.0, 1.0).finished();  //TODO assuming normal ground contact for now
+            positionRef = (posFrame + (positionRef - posFrame).dot(nGround) * nGround).eval();
+        }
     }
 
     void EngineMultiRobot::computeContactDynamicsAtFrame(systemHolder_t const & system,
                                                          int32_t const & frameIdx,
                                                          vectorN_t const & q,
                                                          vectorN_t const & v,
+                                                         std::shared_ptr<AbstractConstraintBase> & constraint,
                                                          pinocchio::Force & fextLocal) const
     {
         /* Returns the external force in the contact frame.
@@ -2576,6 +2671,7 @@ namespace jiminy
            /!\ Note that the contact dynamics depends only on kinematics data. /!\ */
 
         // Define proxies for convenience
+        pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data const & data = system.robot->pncData_;
 
         // Get the pose of the frame wrt the world
@@ -2592,24 +2688,55 @@ namespace jiminy
         // Only compute the ground reaction force if the penetration depth is negative
         if (depth < 0.0)
         {
-            // Compute the linear velocity of the contact point in world frame.
-            vector3_t const motionFrameLocal = pinocchio::getFrameVelocity(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx).linear();
-            matrix3_t const & rotFrame = transformFrameInWorld.rotation();
-            vector3_t const vContactInWorld = rotFrame * motionFrameLocal;
-
-            // Compute the ground reaction force in world frame
-            pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(
-                nGround, depth, vContactInWorld);
-
             // Apply the force at the origin of the parent joint frame
-            fextLocal = convertForceGlobalFrameToJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextAtContactInGlobal);
+            if (contactModel_ == contactModel_t::SPRING_DAMPER)
+            {
+                // Compute the linear velocity of the contact point in world frame.
+                vector3_t const motionFrameLocal = pinocchio::getFrameVelocity(
+                    model, data, frameIdx).linear();
+                matrix3_t const & rotFrame = transformFrameInWorld.rotation();
+                vector3_t const vContactInWorld = rotFrame * motionFrameLocal;
 
+                // Compute the ground reaction force in world frame (local world aligned)
+                pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(
+                    nGround, depth, vContactInWorld);
+
+                // Deduce the ground reaction force in joint frame
+                fextLocal = convertForceGlobalFrameToJoint(
+                    model, data, frameIdx, fextAtContactInGlobal);
+            }
+            else
+            {
+                // Enable fixed frame constraint and reset it if it was disable
+                if (!constraint->getIsEnabled())
+                {
+                    constraint->reset(q, v);
+                    constraint->enable();
+                }
+            }
         }
         else
         {
-            fextLocal.toVector().setZero();
+            if (contactModel_ == contactModel_t::SPRING_DAMPER)
+            {
+                // Not in contact with the ground, thus no force applied
+                fextLocal.setZero();
+            }
+            else if (depth > engineOptions_->contacts.transitionEps)
+            {
+                /* Disable fixed frame constraint only if the frame move higher
+                   `transitionEps` to avoid sporadic contact detection. */
+                constraint->disable();
+            }
+        }
+
+        /* One must update tangential reference position with the current one,
+           because in case of slippage the contact point has actually moved. */
+        if (constraint->getIsEnabled())
+        {
+            auto & frameConstraint = static_cast<FixedFrameConstraint &>(*constraint.get());
+            vector3_t & positionRef = frameConstraint.getReferenceTransform().translation();
+            positionRef = (posFrame + (positionRef - posFrame).dot(nGround) * nGround).eval();
         }
     }
 
@@ -2721,7 +2848,10 @@ namespace jiminy
                                       vectorN_t const & /* v */,
                                       vectorN_t const & /* positionLimitMin */,
                                       vectorN_t const & /* positionLimitMax */,
-                                      EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+                                      std::tuple<EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+                                                 contactModel_t const & /* contactModel */>,
+                                      std::shared_ptr<AbstractConstraintBase> & /* constraint */,
+                                      int32_t & /* activeBoundDir */,
                                       vectorN_t & /* u */> ArgsType;
 
         template<typename JointModel>
@@ -2735,9 +2865,16 @@ namespace jiminy
              vectorN_t const & v,
              vectorN_t const & positionLimitMin,
              vectorN_t const & positionLimitMax,
-             EngineMultiRobot::jointOptions_t const & jointOptions,
+             std::tuple<EngineMultiRobot::jointOptions_t const &,
+                        contactModel_t const &> jointOptionsAndContactModel,
+             std::shared_ptr<AbstractConstraintBase> & constraint,
+             int32_t & activeBoundDir,
              vectorN_t & u)
         {
+            // Split input tuple
+            EngineMultiRobot::jointOptions_t const & jointOptions = std::get<0>(jointOptionsAndContactModel);
+            contactModel_t const & contactModel = std::get<1>(jointOptionsAndContactModel);
+
             // Define some proxies for convenience
             uint32_t const & jointIdx = joint.id();
             uint32_t const & positionIdx = joint.idx_q();
@@ -2749,23 +2886,49 @@ namespace jiminy
             float64_t const & Ia = getSubtreeInertiaProj(
                 joint.derived(), pncData.Ycrb[jointIdx]);
 
-            // Compute joint position error
-            float64_t accelJoint = 0.0;
-            if (qJoint > qJointMax)
+            // Check if out-of-bounds
+            if (contactModel == contactModel_t::SPRING_DAMPER)
             {
-                float64_t const qJointError = qJoint - qJointMax;
-                accelJoint = - std::max(jointOptions.boundStiffness * qJointError +
-                                        jointOptions.boundDamping * vJoint, 0.0);
-            }
-            else if (qJoint < qJointMin)
-            {
-                float const qJointError = qJoint - qJointMin;
-                accelJoint = - std::min(jointOptions.boundStiffness * qJointError +
-                                        jointOptions.boundDamping * vJoint, 0.0);
-            }
+                // Compute the acceleration to apply to move out of the bound
+                float64_t accelJoint = 0.0;
+                if (qJoint > qJointMax)
+                {
+                    float64_t const qJointError = qJoint - qJointMax;
+                    accelJoint = - std::max(jointOptions.boundStiffness * qJointError +
+                                            jointOptions.boundDamping * vJoint, 0.0);
+                }
+                else if (qJoint < qJointMin)
+                {
+                    float const qJointError = qJoint - qJointMin;
+                    accelJoint = - std::min(jointOptions.boundStiffness * qJointError +
+                                            jointOptions.boundDamping * vJoint, 0.0);
+                }
 
-            // Apply the resulting force
-            u[velocityIdx] += Ia * accelJoint;
+                // Apply the resulting force
+                u[velocityIdx] += Ia * accelJoint;
+            }
+            else
+            {
+                if (qJointMax < qJoint || qJoint < qJointMin)
+                {
+                    /* Update active bound direction.
+                       It will be used later to enforce force direction. */
+                    activeBoundDir = (qJointMax < qJoint);
+
+                    // Enable fixed joint constraint and reset it if it was disable
+                    if (!constraint->getIsEnabled())
+                    {
+                        constraint->reset(q, v);
+                        constraint->enable();
+                    }
+                }
+                else /* if (qJoint < qJointMax - engineOptions_->contacts.transitionEps */
+                     /*  || qJointMin + engineOptions_->contacts.transitionEps < qJoint) */
+                {
+                    // Disable fixed joint constraint
+                    constraint->disable();
+                }
+            }
         }
 
         template<typename JointModel>
@@ -2777,7 +2940,10 @@ namespace jiminy
              vectorN_t const & v,
              vectorN_t const & positionLimitMin,
              vectorN_t const & positionLimitMax,
-             EngineMultiRobot::jointOptions_t const & jointOptions,
+             std::tuple<EngineMultiRobot::jointOptions_t const &,
+                        contactModel_t const &> jointOptionsAndContactModel,
+             std::shared_ptr<AbstractConstraintBase> & constraint,
+             int32_t & activeBoundDir,
              vectorN_t & u)
         {
             // Empty on purpose.
@@ -2797,7 +2963,10 @@ namespace jiminy
              vectorN_t const & v,
              vectorN_t const & positionLimitMin,
              vectorN_t const & positionLimitMax,
-             EngineMultiRobot::jointOptions_t const & jointOptions,
+             std::tuple<EngineMultiRobot::jointOptions_t const &,
+                        contactModel_t const &> jointOptionsAndContactModel,
+             std::shared_ptr<AbstractConstraintBase> & constraint,
+             int32_t & activeBoundDir,
              vectorN_t & u)
         {
             PRINT_WARNING("No position bounds implemented for this type of joint.");
@@ -2811,6 +2980,7 @@ namespace jiminy
                                       vectorN_t const & /* v */,
                                       vectorN_t const & /* velocityLimitMax */,
                                       EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+                                      contactModel_t const & /* contactModel */,
                                       vectorN_t & /* u */> ArgsType;
         template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel>
@@ -2824,6 +2994,7 @@ namespace jiminy
              vectorN_t const & v,
              vectorN_t const & velocityLimitMax,
              EngineMultiRobot::jointOptions_t const & jointOptions,
+             contactModel_t const & contactModel,
              vectorN_t & u)
         {
             // Define some proxies for convenience
@@ -2835,26 +3006,30 @@ namespace jiminy
             float64_t const & Ia = getSubtreeInertiaProj(
                 joint.derived(), pncData.Ycrb[jointIdx]);
 
-            // Compute joint velocity error
-            float64_t vJointError = 0.0;
-            if (vJoint > vJointMax)
+            // Check if out-of-bounds
+            if (contactModel == contactModel_t::SPRING_DAMPER)
             {
-                vJointError = vJoint - vJointMax;
-            }
-            else if (vJoint < vJointMin)
-            {
-                vJointError = vJoint - vJointMin;
-            }
-            else
-            {
-                return;
-            }
+                // Compute joint velocity error
+                float64_t vJointError = 0.0;
+                if (vJoint > vJointMax)
+                {
+                    vJointError = vJoint - vJointMax;
+                }
+                else if (vJoint < vJointMin)
+                {
+                    vJointError = vJoint - vJointMin;
+                }
+                else
+                {
+                    return;
+                }
 
-            // Generate acceleration in the opposite direction if out-of-bounds
-            float64_t const accelJoint = - 2.0 * jointOptions.boundDamping * vJointError;
+                // Generate acceleration in the opposite direction if out-of-bounds
+                float64_t const accelJoint = - 2.0 * jointOptions.boundDamping * vJointError;
 
-            // Apply the resulting force
-            u[velocityIdx] += Ia * accelJoint;
+                // Apply the resulting force
+                u[velocityIdx] += Ia * accelJoint;
+            }
         }
 
         template<typename JointModel>
@@ -2870,6 +3045,7 @@ namespace jiminy
              vectorN_t const & v,
              vectorN_t const & velocityLimitMax,
              EngineMultiRobot::jointOptions_t const & jointOptions,
+             contactModel_t const & contactModel,
              vectorN_t & u)
         {
             PRINT_WARNING("No velocity bounds implemented for this type of joint.");
@@ -2897,9 +3073,14 @@ namespace jiminy
             std::vector<int32_t> const & rigidJointsIdx = system.robot->getRigidJointsModelIdx();
             for (uint32_t i = 0; i < rigidJointsIdx.size(); ++i)
             {
+                auto & constraint = systemData.constraintsHolder.boundJoints[i].second;
+                int32_t & activeBoundDir = systemData.boundJointsActiveDir[i];
                 computePositionLimitsForcesAlgo::run(pncModel.joints[rigidJointsIdx[i]],
                     typename computePositionLimitsForcesAlgo::ArgsType(
-                        pncData, q, v, positionLimitMin, positionLimitMax, jointOptions, uInternal));
+                        pncData, q, v, positionLimitMin, positionLimitMax,
+                        std::tuple<EngineMultiRobot::jointOptions_t const &,
+                                   contactModel_t const &>(jointOptions, contactModel_),
+                        constraint, activeBoundDir, uInternal));
             }
         }
 
@@ -2911,7 +3092,7 @@ namespace jiminy
             {
                 computeVelocityLimitsForcesAlgo::run(pncModel.joints[rigidIdx],
                     typename computeVelocityLimitsForcesAlgo::ArgsType(
-                        pncData, v, velocityLimitMax, jointOptions, uInternal));
+                        pncData, v, velocityLimitMax, jointOptions, contactModel_, uInternal));
             }
         }
 
@@ -2945,8 +3126,9 @@ namespace jiminy
         {
             // Compute force at the given contact frame.
             int32_t const & frameIdx = contactFramesIdx[i];
+            auto & constraint = systemData.constraintsHolder.contactFrames[i].second;
             pinocchio::Force & fextLocal = systemData.contactFramesForces[i];
-            computeContactDynamicsAtFrame(system, frameIdx, q, v, fextLocal);
+            computeContactDynamicsAtFrame(system, frameIdx, q, v, constraint, fextLocal);
 
             // Apply the force at the origin of the parent joint frame, in local joint frame
             int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
@@ -2969,8 +3151,9 @@ namespace jiminy
             for (uint32_t j=0; j < collisionPairsIdx[i].size(); ++j)
             {
                 int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
+                auto & constraint = systemData.constraintsHolder.collisionBodies[i][j].second;
                 pinocchio::Force & fextLocal = systemData.collisionBodiesForces[i][j];
-                computeContactDynamicsAtBody(system, collisionPairIdx, q, v, fextLocal);
+                computeContactDynamicsAtBody(system, collisionPairIdx, q, v, constraint, fextLocal);
 
                 // Apply the force at the origin of the parent joint frame, in local joint frame
                 fext[parentJointIdx] += fextLocal;

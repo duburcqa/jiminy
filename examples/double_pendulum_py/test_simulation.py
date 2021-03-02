@@ -62,6 +62,7 @@ engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
 engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
 engine_options["stepper"]["logInternalStepperSteps"] = False
 engine_options["stepper"]["randomSeed"] = 0
+engine_options['contacts']['model'] = "spring_damper"
 engine_options['contacts']['stiffness'] = 1.0e6
 engine_options['contacts']['damping'] = 2000.0
 engine_options['contacts']['frictionDry'] = 5.0
