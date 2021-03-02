@@ -845,21 +845,24 @@ namespace jiminy
            computations here instead of 'computeForwardKinematics', we are
            doing the assumption that it is varying slowly enough to consider
            it constant during one integration step. */
-        data.oYcrb[0].setZero();
-        for (int32_t i = 1; i < model.njoints; ++i)
+        if (!system.robot->hasConstraint())
         {
-            data.Ycrb[i] = model.inertias[i];
-            data.oYcrb[i] = data.oMi[i].act(model.inertias[i]);
-        }
-        for (int32_t i = model.njoints-1; i > 0; --i)
-        {
-            int32_t const & jointIdx = model.joints[i].id();
-            int32_t const & parentIdx = model.parents[jointIdx];
-            if (parentIdx > 0)
+            data.oYcrb[0].setZero();
+            for (int32_t i = 1; i < model.njoints; ++i)
             {
-                data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
+                data.Ycrb[i] = model.inertias[i];
+                data.oYcrb[i] = data.oMi[i].act(model.inertias[i]);
             }
-            data.oYcrb[parentIdx] += data.oYcrb[i];
+            for (int32_t i = model.njoints-1; i > 0; --i)
+            {
+                int32_t const & jointIdx = model.joints[i].id();
+                int32_t const & parentIdx = model.parents[jointIdx];
+                if (parentIdx > 0)
+                {
+                    data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
+                }
+                data.oYcrb[parentIdx] += data.oYcrb[i];
+            }
         }
 
         // Now that Ycrb is available, it is possible to infer directly the subtree center of masses
@@ -3406,12 +3409,72 @@ namespace jiminy
             // Define some proxies for convenience
             matrixN_t & jointJacobian = systemData.jointJacobian;
             vectorN_t & uAugmented = systemData.uAugmented;
+            vectorN_t & lo = systemData.lo;
+            vectorN_t & hi = systemData.hi;
+            std::vector<int32_t> & fIdx = systemData.fIdx;
 
             // Compute kinematic constraints
             system.robot->computeConstraints(q, v);
             auto constraintsJacobian = system.robot->getConstraintsJacobian();
             auto constraintsDrift = system.robot->getConstraintsDrift();
 
+            // Compute constraints bounds
+            lo = vectorN_t::Constant(constraintsDrift.size(),- INF);
+            hi = vectorN_t::Constant(constraintsDrift.size(), INF);
+            fIdx = std::vector<int32_t>(constraintsDrift.size(), -1);
+
+            uint32_t jointsIdx = 0U;
+            auto constraintIt = systemData.constraintsHolder.boundJoints.begin();
+            auto activeDirIt = systemData.boundJointsActiveDir.begin();
+            for ( ; constraintIt != systemData.constraintsHolder.boundJoints.end() ;
+                ++constraintIt, ++activeDirIt)
+            {
+                auto const & constraint = constraintIt->second;
+                if (!constraint->getIsEnabled())
+                {
+                    continue;
+                }
+                if (*activeDirIt)
+                {
+                    hi[jointsIdx] = 0.0;
+                    lo[jointsIdx] = -INF;
+                }
+                else
+                {
+                    lo[jointsIdx] = 0.0;
+                    hi[jointsIdx] = INF;
+                }
+                jointsIdx += constraint->getDim();
+            }
+
+            uint32_t contactsIdx = 0U;
+            std::array<constraintsHolderType_t, 2> holderTypes {{
+                constraintsHolderType_t::CONTACT_FRAMES, constraintsHolderType_t::COLLISION_BODIES}};
+            for (constraintsHolderType_t holderType : holderTypes)
+            {
+                systemData.constraintsHolder.foreach(holderType,
+                    [&lo, &hi, &fIdx, &jointsIdx, &contactsIdx, &contactOptions = std::as_const(engineOptions_->contacts)](
+                        std::shared_ptr<AbstractConstraintBase> const & constraint,
+                        constraintsHolderType_t const & /* holderType */)
+                    {
+                        if (!constraint || !constraint->getIsEnabled())
+                        {
+                            return;
+                        }
+                        // auto const & frameConstraint = static_cast<FixedFrameConstraint const &>(*constraint.get());
+                        // if (frameConstraint.getIsTranslationFixed())
+                        // {
+                            // Enforce friction pyramid
+                            uint32_t const constraintIdx = jointsIdx + contactsIdx;
+                            hi[constraintIdx] = contactOptions.frictionDry;  // Friction along x-axis
+                            fIdx[constraintIdx] = constraintIdx + 2;
+                            hi[constraintIdx + 1] = contactOptions.frictionDry;  // Friction along y-axis
+                            fIdx[constraintIdx + 1] = constraintIdx + 2;
+                            lo[constraintIdx + 2] = 0.0;
+                        // }
+                        contactsIdx += constraint->getDim();
+                    });
+            }
 
             // Project external forces from cartesian space to joint space
             uAugmented = u;
@@ -3433,12 +3496,96 @@ namespace jiminy
             pinocchio_overload::crba(model, data, q);
 
             // Call forward dynamics
-            pinocchio::forwardDynamics(model,
-                                       data,
-                                       uAugmented,
-                                       constraintsJacobian,
-                                       constraintsDrift,
-                                       CONSTRAINT_INVERSION_DAMPING);
+            contactSolver_->BoxedForwardDynamics(model,
+                                                 data,
+                                                 uAugmented,
+                                                 constraintsJacobian,
+                                                 constraintsDrift,
+                                                 engineOptions_->contacts.regularization,
+                                                 lo,
+                                                 hi,
+                                                 fIdx);
+
+            // Restore contact frame forces and bounds internal efforts
+            if (contactModel_ == contactModel_t::IMPULSE)
+            {
+                uint32_t constraintIdx = 0U;
+                systemData.constraintsHolder.foreach(
+                    constraintsHolderType_t::BOUNDS_JOINTS,
+                    [&constraintIdx,
+                     &lambda_c = std::as_const(data.lambda_c),
+                     &u = systemData.state.u,
+                     &uInternal = systemData.state.uInternal,
+                     &joints = model.joints](
+                        std::shared_ptr<AbstractConstraintBase> const & constraint,
+                        constraintsHolderType_t const & /* holderType */)
+                    {
+                        if (!constraint->getIsEnabled())
+                        {
+                            return;
+                        }
+                        auto const & jointConstraint = static_cast<JointConstraint const &>(*constraint.get());
+                        auto const & jointModel = joints[jointConstraint.getJointIdx()];
+                        auto uJoint = lambda_c.segment(constraintIdx, constraint->getDim());  // auto to avoid memory allocation
+                        jointModel.jointVelocitySelector(uInternal) += uJoint;
+                        jointModel.jointVelocitySelector(u) += uJoint;
+                        constraintIdx += constraint->getDim();
+                    });
+
+                constraintIt = systemData.constraintsHolder.contactFrames.begin();
+                auto forceIt = system.robot->contactForces_.begin();
+                for ( ; constraintIt != systemData.constraintsHolder.contactFrames.end() ;
+                    ++constraintIt, ++forceIt)
+                {
+                    auto const & constraint = *constraintIt->second.get();
+                    if (!constraint.getIsEnabled())
+                    {
+                        continue;
+                    }
+                    auto const & frameConstraint = static_cast<FixedFrameConstraint const &>(constraint);
+                    // if (frameConstraint.getIsTranslationFixed())
+                    // {
+                        // Extract force from lagrangian multipliers
+                        auto fextWorld = data.lambda_c.segment<3>(constraintIdx);  // auto to avoid memory allocation
+
+                        // Convert the force from local world aligned to local frame
+                        int32_t const & frameIdx = frameConstraint.getFrameIdx();
+                        pinocchio::SE3 const & transformContactInWorld = data.oMf[frameIdx];
+                        forceIt->linear() = transformContactInWorld.rotation().transpose() * fextWorld;
+
+                        // Convert the force from local world aligned to local parent joint
+                        int32_t const & jointIdx = model.frames[frameIdx].parent;
+                        fext[jointIdx] += convertForceGlobalFrameToJoint(
+                            model, data, frameIdx, {fextWorld, vector3_t::Zero()});
+                    // }
+                    constraintIdx += constraint.getDim();
+                }
+
+                systemData.constraintsHolder.foreach(
+                    constraintsHolderType_t::COLLISION_BODIES,
+                    [&constraintIdx, &fext, &model, &data](
+                        std::shared_ptr<AbstractConstraintBase> const & constraint,
+                        constraintsHolderType_t const & /* holderType */)
+                    {
+                        if (!constraint || !constraint->getIsEnabled())
+                        {
+                            return;
+                        }
+                        // auto const & collisionConstraint = static_cast<SphereConstraint const &>(*constraint.get());
+                        auto const & collisionConstraint = static_cast<FixedFrameConstraint const &>(*constraint.get());
+
+                        // Extract force from lagrangian multipliers
+                        auto fextWorld = data.lambda_c.segment<3>(constraintIdx);  // auto to avoid memory allocation
+
+                        // Convert the force from local world aligned to local parent joint
+                        int32_t const & frameIdx = collisionConstraint.getFrameIdx();
+                        int32_t const & jointIdx = model.frames[frameIdx].parent;
+                        fext[jointIdx] += convertForceGlobalFrameToJoint(
+                            model, data, frameIdx, {fextWorld, vector3_t::Zero()});
+
+                        constraintIdx += constraint->getDim();
+                    });
+            }
 
             return data.ddq;
         }
