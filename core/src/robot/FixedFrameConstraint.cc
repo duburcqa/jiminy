@@ -6,10 +6,17 @@
 
 namespace jiminy
 {
-    FixedFrameConstraint::FixedFrameConstraint(std::string const & frameName) :
-    AbstractConstraint(),
+    template<>
+    std::string const AbstractConstraintTpl<FixedFrameConstraint>::type_("FixedFrameConstraint");
+
+    FixedFrameConstraint::FixedFrameConstraint(std::string const & frameName,
+                                               bool_t const & isTranslationFixed,
+                                               bool_t const & isRotationFixed) :
+    AbstractConstraintTpl(),
     frameName_(frameName),
-    frameIdx_(0)
+    frameIdx_(0),
+    isTranslationFixed_(isTranslationFixed),
+    isRotationFixed_(isRotationFixed)
     {
         // Empty on purpose
     }
@@ -19,21 +26,53 @@ namespace jiminy
         // Empty on purpose
     }
 
+    std::string const & FixedFrameConstraint::getFrameName(void) const
+    {
+        return frameName_;
+    }
+
+    int32_t const & FixedFrameConstraint::getFrameIdx(void) const
+    {
+        return frameIdx_;
+    }
+
+    bool_t const & FixedFrameConstraint::getIsTranslationFixed(void) const
+    {
+        return isTranslationFixed_;
+    }
+
+    bool_t const & FixedFrameConstraint::getIsRotationFixed(void) const
+    {
+        return isRotationFixed_;
+    }
+
     hresult_t FixedFrameConstraint::reset(void)
     {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         // Make sure the model still exists
         auto model = model_.lock();
         if (!model)
         {
             PRINT_ERROR("Model pointer expired or unset.");
-            return hresult_t::ERROR_GENERIC;
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        // Set jacobian / drift to right dimension
-        jacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
-        drift_ = vectorN_t::Zero(6);
+        // Get frame index
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = ::jiminy::getFrameIdx(model->pncModel_, frameName_, frameIdx_);
+        }
 
-        return getFrameIdx(model->pncModel_, frameName_, frameIdx_);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Set jacobian / drift to right dimension
+            uint32_t dim = 3 * (uint32_t(isTranslationFixed_) + uint32_t(isRotationFixed_));
+            jacobian_ = matrixN_t::Zero(dim, model->pncModel_.nv);
+            drift_ = vectorN_t::Zero(dim);
+        }
+
+        return returnCode;
     }
 
     hresult_t FixedFrameConstraint::computeJacobianAndDrift(vectorN_t const & q,

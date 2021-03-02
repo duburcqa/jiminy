@@ -16,31 +16,31 @@
 
 #include <memory>
 
+#include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
 
 namespace jiminy
 {
-    class Robot;
     class Model;
 
-    class AbstractConstraint: public std::enable_shared_from_this<AbstractConstraint>
+    class AbstractConstraintBase: public std::enable_shared_from_this<AbstractConstraintBase>
     {
         // See AbstractSensor for comment on this.
-        friend Robot;
+        friend Model;
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Forbid the copy of the class
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractConstraint(AbstractConstraint const & abstractMotor) = delete;
-        AbstractConstraint & operator = (AbstractConstraint const & other) = delete;
+        AbstractConstraintBase(AbstractConstraintBase const & abstractMotor) = delete;
+        AbstractConstraintBase & operator = (AbstractConstraintBase const & other) = delete;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractConstraint();
-        virtual ~AbstractConstraint(void);
+        AbstractConstraintBase();
+        virtual ~AbstractConstraintBase(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the internal buffers and proxies.
@@ -49,6 +49,11 @@ namespace jiminy
         ///           constraint is added is taking care of it when its own `reset` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t reset(void) = 0;
+
+        void enable(void);
+        void disable(void);
+        bool_t const & getIsEnabled(void) const;
+
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Compute the jacobian and drift of the constraint.
@@ -62,6 +67,8 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
                                                   vectorN_t const & v) = 0;
+
+        virtual std::string const & getType(void) const = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Return the dimension of the constraint.
@@ -95,8 +102,22 @@ namespace jiminy
     protected:
         std::weak_ptr<Model const> model_;  ///< Model on which the constraint operates.
         bool_t isAttached_;                 ///< Flag to indicate if the constraint has been attached to a model.
+        bool_t isEnabled_;                  ///< Flag to indicate if the constraint is enabled. Handling of this flag is done at Robot level.
         matrixN_t jacobian_;                ///< Jacobian of the constraint.
         vectorN_t drift_;                   ///< Drift of the constraint.
+    };
+
+    template<class T>
+    class AbstractConstraintTpl : public AbstractConstraintBase
+    {
+    public:
+        auto shared_from_this() { return shared_from(this); }
+        auto shared_from_this() const { return shared_from(this); }
+
+        std::string const & getType(void) const { return type_; }
+
+    public:
+        static std::string const type_;
     };
 }
 

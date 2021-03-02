@@ -126,12 +126,6 @@ namespace jiminy
         AbstractSensorBase(std::string const & name);
         virtual ~AbstractSensorBase(void) = default;
 
-        template <typename T>
-        std::shared_ptr<T> shared_from(T * derived) {
-            assert(this == derived);
-            return std::static_pointer_cast<T>(shared_from_this());
-        }
-
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
         /// \brief    Reset the internal state of the sensors.

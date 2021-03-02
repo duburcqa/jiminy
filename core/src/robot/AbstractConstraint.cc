@@ -6,16 +6,17 @@
 
 namespace jiminy
 {
-    AbstractConstraint::AbstractConstraint(void) :
+    AbstractConstraintBase::AbstractConstraintBase(void) :
     model_(),
     isAttached_(false),
+    isEnabled_(true),
     jacobian_(),
     drift_()
     {
         // Empty on purpose
     }
 
-    AbstractConstraint::~AbstractConstraint(void)
+    AbstractConstraintBase::~AbstractConstraintBase(void)
     {
         // Detach the constraint before deleting it if necessary
         if (isAttached_)
@@ -24,7 +25,7 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractConstraint::attach(std::weak_ptr<Model const> model)
+    hresult_t AbstractConstraintBase::attach(std::weak_ptr<Model const> model)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -47,23 +48,38 @@ namespace jiminy
         return returnCode;
     }
 
-    void AbstractConstraint::detach(void)
+    void AbstractConstraintBase::detach(void)
     {
         model_.reset();
         isAttached_ = false;
     }
 
-    uint32_t AbstractConstraint::getDim(void) const
+    void AbstractConstraintBase::enable(void)
     {
-        return jacobian_.rows();
+        isEnabled_ = true;
     }
 
-    matrixN_t const & AbstractConstraint::getJacobian(void) const
+    void AbstractConstraintBase::disable(void)
+    {
+        isEnabled_ = false;
+    }
+
+    bool_t const & AbstractConstraintBase::getIsEnabled(void) const
+    {
+        return isEnabled_;
+    }
+
+    uint32_t AbstractConstraintBase::getDim(void) const
+    {
+        return drift_.size();
+    }
+
+    matrixN_t const & AbstractConstraintBase::getJacobian(void) const
     {
         return jacobian_;
     }
 
-    vectorN_t const & AbstractConstraint::getDrift(void) const
+    vectorN_t const & AbstractConstraintBase::getDrift(void) const
     {
         return drift_;
     }

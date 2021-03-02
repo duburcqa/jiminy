@@ -183,6 +183,7 @@ namespace python
         exposeModel();
         exposeRobot();
         exposeConstraint();
+        exposeConstraintsHolder();
         exposeAbstractMotor();
         exposeSimpleMotor();
         exposeAbstractSensor();

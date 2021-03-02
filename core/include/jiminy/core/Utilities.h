@@ -121,6 +121,8 @@ namespace jiminy
     vectorN_t randVectorNormal(vectorN_t const & mean,
                                vectorN_t const & std);
 
+    void shuffleIndices(std::vector<uint32_t> & vector);
+
     // ******************* Telemetry utilities **********************
 
     std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
@@ -255,6 +257,11 @@ namespace jiminy
     auto clamp(Eigen::MatrixBase<DerivedType> const & data,
                float64_t const & minThr = -INF,
                float64_t const & maxThr = +INF);
+
+    template<typename DerivedType1, typename DerivedType2, typename DerivedType3>
+    Eigen::MatrixBase<DerivedType1> clamp(Eigen::MatrixBase<DerivedType1> const & data,
+                                          Eigen::MatrixBase<DerivedType2> const & minThr,
+                                          Eigen::MatrixBase<DerivedType2> const & maxThr);
 
     float64_t clamp(float64_t const & data,
                     float64_t const & minThr = -INF,

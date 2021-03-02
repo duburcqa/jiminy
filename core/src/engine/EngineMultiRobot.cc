@@ -1,7 +1,7 @@
 #include <cmath>
 #include <ctime>
-#include <algorithm>
 #include <unordered_set>
+#include <algorithm>
 #include <iostream>
 
 #include "pinocchio/parsers/urdf.hpp"
@@ -16,6 +16,8 @@
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
+#include "jiminy/core/robot/AbstractConstraint.h"
+#include "jiminy/core/robot/FixedFrameConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/control/ControllerFunctor.h"
@@ -832,9 +834,6 @@ namespace jiminy
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
 
-        /* Update manually the subtree (apparent) inertia, since it is only computed by crba,
-           which is doing more computation than necessary. */
-
         /* Update manually the subtree (apparent) inertia, since it is only
            computed by crba, which is doing more computation than necessary.
            It will be used here for computing the centroidal kinematics, and
@@ -921,8 +920,8 @@ namespace jiminy
     }
 
     void syncAccelerationsAndForces(systemHolder_t const & system,
-                                    ForceVector & f,
-                                    MotionVector & a)
+                                    forceVector_t & f,
+                                    motionVector_t & a)
     {
         for (int32_t i = 0; i < system.robot->pncModel_.njoints; ++i)
         {
@@ -932,8 +931,8 @@ namespace jiminy
     }
 
     void syncAllAccelerationsAndForces(std::vector<systemHolder_t> const & systems,
-                                       std::vector<ForceVector> & f,
-                                       std::vector<MotionVector> & a)
+                                       std::vector<forceVector_t> & f,
+                                       std::vector<motionVector_t> & a)
     {
         std::vector<systemHolder_t>::const_iterator systemIt = systems.begin();
         auto fPrevIt = f.begin();
@@ -1202,8 +1201,8 @@ namespace jiminy
 
             // Reset the active set of impulse forces
             std::fill(systemDataIt->forcesImpulseActive.begin(),
-                        systemDataIt->forcesImpulseActive.end(),
-                        false);
+                      systemDataIt->forcesImpulseActive.end(),
+                      false);
 
             // Activate every force impulse starting at t=0
             auto forcesImpulseActiveIt = systemDataIt->forcesImpulseActive.begin();
@@ -1223,25 +1222,43 @@ namespace jiminy
             vectorN_t const & a = systemDataIt->state.a;
             computeForwardKinematics(*systemIt, q, v, a);
 
+            // Initialize contacts forces in local frame
+            std::vector<int32_t> const & contactFramesIdx = systemIt->robot->getContactFramesIdx();
+            systemDataIt->contactFramesForces = forceVector_t(
+                contactFramesIdx.size(), pinocchio::Force::Zero());
+            std::vector<std::vector<int32_t> > const & collisionPairsIdx =
+                systemIt->robot->getCollisionPairsIdx();
+            systemDataIt->collisionBodiesForces.clear();
+            systemDataIt->collisionBodiesForces.reserve(collisionPairsIdx.size());
+            for (uint32_t i=0; i < collisionPairsIdx.size(); ++i)
+            {
+                systemDataIt->collisionBodiesForces.emplace_back(
+                    collisionPairsIdx[i].size(), pinocchio::Force::Zero());
+            }
+
+            // Initialize some addition buffers used by impulse contact solver
+            systemDataIt->jointJacobian = matrixN_t::Zero(6, systemIt->robot->pncModel_.nv);
+
             // Make sure that the contact forces are bounded.
             // TODO: One should rather use something like 10 * m * g instead of a fix threshold
             float64_t forceMax = 0.0;
-            auto const & contactFramesIdx = systemIt->robot->getContactFramesIdx();
             for (uint32_t i=0; i < contactFramesIdx.size(); ++i)
             {
-                pinocchio::Force fext = computeContactDynamicsAtFrame(*systemIt, contactFramesIdx[i]);
-                forceMax = std::max(forceMax, fext.linear().norm());
+                pinocchio::Force & fextLocal = systemDataIt->contactFramesForces[i];
+                computeContactDynamicsAtFrame(
+                        *systemIt, contactFramesIdx[i], q, v, fextLocal);
+                forceMax = std::max(forceMax, fextLocal.linear().norm());
             }
 
-            std::vector<int32_t> const & collisionBodiesIdx = systemIt->robot->getCollisionBodiesIdx();
-            std::vector<std::vector<int32_t> > const & collisionPairsIdx = systemIt->robot->getCollisionPairsIdx();
-            for (uint32_t i=0; i < collisionBodiesIdx.size(); ++i)
+            for (uint32_t i=0; i < collisionPairsIdx.size(); ++i)
             {
                 for (uint32_t j=0; j < collisionPairsIdx[i].size(); ++j)
                 {
                     int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
-                    pinocchio::Force fext = computeContactDynamicsAtBody(*systemIt, collisionPairIdx);
-                    forceMax = std::max(forceMax, fext.linear().norm());
+                    pinocchio::Force & fextLocal = systemDataIt->collisionBodiesForces[i][j];
+                    computeContactDynamicsAtBody(
+                        *systemIt, collisionPairIdx, q, v, fextLocal);
+                    forceMax = std::max(forceMax, fextLocal.linear().norm());
                 }
             }
 
@@ -1313,7 +1330,7 @@ namespace jiminy
                 }
 
                 // Compute dynamics
-                a = computeAcceleration(*systemIt, q, v, u, fext);
+                a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext);
 
                 // Compute joints accelerations and forces
                 computeExtraTerms(*systemIt, *systemDataIt);
@@ -2174,7 +2191,7 @@ namespace jiminy
         std::string const & odeSolver = boost::get<std::string>(stepperOptions.at("odeSolver"));
         if (STEPPERS.find(odeSolver) == STEPPERS.end())
         {
-            PRINT_ERROR("The requested 'odeSolver' is not available.");
+            PRINT_ERROR("The requested ODE solver is not available.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -2485,8 +2502,11 @@ namespace jiminy
         pinocchio::computeCollisions(geomModel, geomData, false);
     }
 
-    pinocchio::Force EngineMultiRobot::computeContactDynamicsAtBody(systemHolder_t const & system,
-                                                                    int32_t        const & collisionPairIdx) const
+    void EngineMultiRobot::computeContactDynamicsAtBody(systemHolder_t const & system,
+                                                        int32_t const & collisionPairIdx,
+                                                        vectorN_t const & q,
+                                                        vectorN_t const & v,
+                                                        pinocchio::Force & fextLocal) const
     {
         // TODO: It is assumed that the ground is flat. For now ground profile is not supported
         // with body collision. Nevertheless it should not be to hard to generated a collision
@@ -2494,12 +2514,12 @@ namespace jiminy
 
         // Get the frame and joint indices
         uint32_t const & geometryIdx = system.robot->pncGeometryModel_.collisionPairs[collisionPairIdx].first;
-        uint32_t const & parentJointIdx =  system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentJoint;
+        uint32_t const & parentJointIdx = system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentJoint;
 
         // Extract collision and distance results
         hpp::fcl::CollisionResult const & collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];
 
-        pinocchio::Force fextAtParentJointInLocal = pinocchio::Force::Zero();
+        fextLocal.toVector().setZero();
 
         for (uint32_t i = 0; i < collisionResult.numContacts(); ++i)
         {
@@ -2513,8 +2533,8 @@ namespace jiminy
             posContactInWorld.translation() = contact.pos;                  //  Point inside the ground #TODO double check that, it may be between both interfaces
 
             /* Make sure the collision computation didn't failed. If it happends the
-               norm of the distance normal close to zero. It so, just assume there is
-               no collision at all. */
+               norm of the distance normal is not normalized (usually close to zero).
+               If so, just assume there is no collision at all. */
             if (nGround.norm() < 1.0 - EPS)
             {
                 continue;
@@ -2540,21 +2560,26 @@ namespace jiminy
             pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(nGround, depth, vContactInWorld);
 
             // Move the force at parent frame location
-            fextAtParentJointInLocal += transformJointFrameInContact.actInv(fextAtContactInGlobal);
+            fextLocal += transformJointFrameInContact.actInv(fextAtContactInGlobal);
         }
 
-        return fextAtParentJointInLocal;
     }
 
-    pinocchio::Force EngineMultiRobot::computeContactDynamicsAtFrame(systemHolder_t const & system,
-                                                                     int32_t        const & frameIdx) const
+    void EngineMultiRobot::computeContactDynamicsAtFrame(systemHolder_t const & system,
+                                                         int32_t const & frameIdx,
+                                                         vectorN_t const & q,
+                                                         vectorN_t const & v,
+                                                         pinocchio::Force & fextLocal) const
     {
         /* Returns the external force in the contact frame.
            It must then be converted into a force onto the parent joint.
            /!\ Note that the contact dynamics depends only on kinematics data. /!\ */
 
+        // Define proxies for convenience
+        pinocchio::Data const & data = system.robot->pncData_;
+
         // Get the pose of the frame wrt the world
-        pinocchio::SE3 const & transformFrameInWorld = system.robot->pncData_.oMf[frameIdx];
+        pinocchio::SE3 const & transformFrameInWorld = data.oMf[frameIdx];
 
         // Compute the ground normal and penetration depth at the contact point
         vector3_t const & posFrame = transformFrameInWorld.translation();
@@ -2562,9 +2587,9 @@ namespace jiminy
         float64_t const & zGround = std::get<float64_t>(ground);
         vector3_t & nGround = std::get<vector3_t>(ground);
         nGround.normalize();  // Make sure the ground normal is normalized
-        float64_t const depth = (posFrame(2) - zGround) * nGround(2);  // First-order projection (exact assuming flat surface)
+        float64_t const depth = (posFrame[2] - zGround) * nGround[2];  // First-order projection (exact assuming flat surface)
 
-        // Only compute the ground reaction force if the penetration depth is positive
+        // Only compute the ground reaction force if the penetration depth is negative
         if (depth < 0.0)
         {
             // Compute the linear velocity of the contact point in world frame.
@@ -2578,15 +2603,13 @@ namespace jiminy
                 nGround, depth, vContactInWorld);
 
             // Apply the force at the origin of the parent joint frame
-            pinocchio::Force const fextAtParentJointInLocal = convertForceGlobalFrameToJoint(
+            fextLocal = convertForceGlobalFrameToJoint(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx, fextAtContactInGlobal);
 
-            return fextAtParentJointInLocal;
         }
         else
         {
-            // Not in contact with the ground, thus no force applied
-            return pinocchio::Force::Zero();
+            fextLocal.toVector().setZero();
         }
     }
 
@@ -2853,11 +2876,12 @@ namespace jiminy
         }
     };
 
-    void EngineMultiRobot::computeInternalDynamics(systemHolder_t const & system,
-                                                   float64_t      const & t,
-                                                   vectorN_t      const & q,
-                                                   vectorN_t      const & v,
-                                                   vectorN_t            & uInternal) const
+    void EngineMultiRobot::computeInternalDynamics(systemHolder_t     const & system,
+                                                   systemDataHolder_t       & systemData,
+                                                   float64_t          const & t,
+                                                   vectorN_t          const & q,
+                                                   vectorN_t          const & v,
+                                                   vectorN_t                & uInternal) const
     {
 
         // Define some proxies
@@ -2870,9 +2894,10 @@ namespace jiminy
         {
             vectorN_t const & positionLimitMin = system.robot->getPositionLimitMin();
             vectorN_t const & positionLimitMax = system.robot->getPositionLimitMax();
-            for (int32_t const & rigidIdx : system.robot->getRigidJointsModelIdx())
+            std::vector<int32_t> const & rigidJointsIdx = system.robot->getRigidJointsModelIdx();
+            for (uint32_t i = 0; i < rigidJointsIdx.size(); ++i)
             {
-                computePositionLimitsForcesAlgo::run(pncModel.joints[rigidIdx],
+                computePositionLimitsForcesAlgo::run(pncModel.joints[rigidJointsIdx[i]],
                     typename computePositionLimitsForcesAlgo::ArgsType(
                         pncData, q, v, positionLimitMin, positionLimitMax, jointOptions, uInternal));
             }
@@ -2900,9 +2925,8 @@ namespace jiminy
             vectorN_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
             vectorN_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
-            float64_t theta;
             quaternion_t const quat(q.segment<4>(positionIdx).data());  // Only way to initialize with [x,y,z,w] order
-            vectorN_t const axis = pinocchio::quaternion::log3(quat, theta);
+            vectorN_t const axis = pinocchio::quaternion::log3(quat);
             uInternal.segment<3>(velocityIdx).array() +=
                 - stiffness.array() * axis.array()
                 - damping.array() * v.segment<3>(velocityIdx).array();
@@ -2910,7 +2934,9 @@ namespace jiminy
     }
 
     void EngineMultiRobot::computeCollisionForces(systemHolder_t     const & system,
-                                                  systemDataHolder_t const & systemData,
+                                                  systemDataHolder_t       & systemData,
+                                                  vectorN_t          const & q,
+                                                  vectorN_t          const & v,
                                                   forceVector_t            & fext) const
     {
         // Compute the forces at contact points
@@ -2919,7 +2945,8 @@ namespace jiminy
         {
             // Compute force at the given contact frame.
             int32_t const & frameIdx = contactFramesIdx[i];
-            pinocchio::Force const fextLocal = computeContactDynamicsAtFrame(system, frameIdx);
+            pinocchio::Force & fextLocal = systemData.contactFramesForces[i];
+            computeContactDynamicsAtFrame(system, frameIdx, q, v, fextLocal);
 
             // Apply the force at the origin of the parent joint frame, in local joint frame
             int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
@@ -2942,7 +2969,8 @@ namespace jiminy
             for (uint32_t j=0; j < collisionPairsIdx[i].size(); ++j)
             {
                 int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
-                pinocchio::Force const fextLocal = computeContactDynamicsAtBody(system, collisionPairIdx);
+                pinocchio::Force & fextLocal = systemData.collisionBodiesForces[i][j];
+                computeContactDynamicsAtBody(system, collisionPairIdx, q, v, fextLocal);
 
                 // Apply the force at the origin of the parent joint frame, in local joint frame
                 fext[parentJointIdx] += fextLocal;
@@ -3060,11 +3088,11 @@ namespace jiminy
 
             /* Compute internal dynamics, namely the efforts in joint space associated
                with position/velocity bounds dynamics, and flexibility dynamics. */
-            computeInternalDynamics(*systemIt, t, *qIt, *vIt, uInternal);
+            computeInternalDynamics(*systemIt, *systemDataIt, t, *qIt, *vIt, uInternal);
 
             /* Compute the collision forces and estimated time at which the contact state
                will changed (Take-off / Touch-down). */
-            computeCollisionForces(*systemIt, *systemDataIt, fext);
+            computeCollisionForces(*systemIt, *systemDataIt, *qIt, *vIt, fext);
 
             // Compute the external contact forces.
             computeExternalForces(*systemIt, *systemDataIt, t, *qIt, *vIt, fext);
@@ -3174,33 +3202,39 @@ namespace jiminy
             }
 
             // Compute the dynamics
-            *aIt = computeAcceleration(*systemIt, *qIt, *vIt, u, fext);
+            *aIt = computeAcceleration(*systemIt, *systemDataIt, *qIt, *vIt, u, fext);
         }
 
         return hresult_t::SUCCESS;
     }
 
-    vectorN_t const & EngineMultiRobot::computeAcceleration(systemHolder_t       & system,
-                                                            vectorN_t      const & q,
-                                                            vectorN_t      const & v,
-                                                            vectorN_t      const & u,
-                                                            forceVector_t  const & fext)
+    vectorN_t const & EngineMultiRobot::computeAcceleration(systemHolder_t & system,
+                                                            systemDataHolder_t & systemData,
+                                                            vectorN_t const & q,
+                                                            vectorN_t const & v,
+                                                            vectorN_t const & u,
+                                                            forceVector_t & fext)
     {
-        vectorN_t a;
-
-        pinocchio::Model & model = system.robot->pncModel_;
+        pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
 
         if (system.robot->hasConstraint())
         {
-            // Compute kinematic constraints.
-            system.robot->computeConstraints(q, v);
+            // Define some proxies for convenience
+            matrixN_t & jointJacobian = systemData.jointJacobian;
+            vectorN_t & uAugmented = systemData.uAugmented;
 
-            // Project external forces from cartesian space to joint space.
-            vectorN_t uAugmented = u;
-            matrixN_t jointJacobian = matrixN_t::Zero(6, model.nv);
+            // Compute kinematic constraints
+            system.robot->computeConstraints(q, v);
+            auto constraintsJacobian = system.robot->getConstraintsJacobian();
+            auto constraintsDrift = system.robot->getConstraintsDrift();
+
+
+            // Project external forces from cartesian space to joint space
+            uAugmented = u;
             for (int32_t i = 1; i < model.njoints; ++i)
             {
+                jointJacobian.setZero();
                 pinocchio::getJointJacobian(model,
                                             data,
                                             i,
@@ -3208,23 +3242,26 @@ namespace jiminy
                                             jointJacobian);
                 uAugmented += jointJacobian.transpose() * fext[i].toVector();
             }
-            // Compute non-linear effects.
+
+            // Compute non-linear effects
             pinocchio::nonLinearEffects(model, data, q, v);
 
-            // Compute inertia matrix, adding rotor inertia.
+            // Compute inertia matrix, adding rotor inertia
             pinocchio_overload::crba(model, data, q);
 
-            // Call forward dynamics.
-            return pinocchio::forwardDynamics(model,
-                                              data,
-                                              uAugmented,
-                                              system.robot->getConstraintsJacobian(),
-                                              system.robot->getConstraintsDrift(),
-                                              CONSTRAINT_INVERSION_DAMPING);
+            // Call forward dynamics
+            pinocchio::forwardDynamics(model,
+                                       data,
+                                       uAugmented,
+                                       constraintsJacobian,
+                                       constraintsDrift,
+                                       CONSTRAINT_INVERSION_DAMPING);
+
+            return data.ddq;
         }
         else
         {
-            // No kinematic constraint: run aba algorithm.
+            // No kinematic constraint: run aba algorithm
             return pinocchio_overload::aba(model, data, q, v, u, fext);
         }
     }
