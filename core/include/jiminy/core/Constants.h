@@ -35,6 +35,10 @@ namespace jiminy
     extern float64_t const SIMULATION_MIN_TIMESTEP;
     extern float64_t const SIMULATION_INITIAL_TIMESTEP;
     extern float64_t const SIMULATION_MAX_TIMESTEP;
+
+    extern uint32_t const PGS_MAX_ITERATIONS;
+    extern uint32_t const PGS_RANDOM_PERMUTATION_PERIOD;
+    extern float64_t const PGS_MIN_REGULARIZER;
 }
 
 #endif  // JIMINY_CONSTANTS_H

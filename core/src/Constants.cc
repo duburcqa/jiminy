@@ -19,4 +19,8 @@ namespace jiminy
     float64_t const SIMULATION_MIN_TIMESTEP = 1e-6;
     float64_t const SIMULATION_INITIAL_TIMESTEP = 1e-3;
     float64_t const SIMULATION_MAX_TIMESTEP = 1e-2;
+
+    uint32_t const PGS_MAX_ITERATIONS = 100U;
+    uint32_t const PGS_RANDOM_PERMUTATION_PERIOD = 7U;
+    float64_t const PGS_MIN_REGULARIZER = 1.0e-12;
 }

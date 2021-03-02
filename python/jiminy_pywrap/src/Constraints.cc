@@ -1,6 +1,8 @@
 #include "jiminy/core/robot/Model.h"
 #include "jiminy/core/robot/AbstractConstraint.h"
+#include "jiminy/core/robot/JointConstraint.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
+#include "jiminy/core/robot/SphereConstraint.h"
 #include "jiminy/core/robot/WheelConstraint.h"
 
 #include "jiminy/python/Functors.h"
@@ -27,12 +29,14 @@ namespace python
     class AbstractConstraintWrapper: public AbstractConstraintImpl, public bp::wrapper<AbstractConstraintImpl>
     {
     public:
-        hresult_t reset(void)
+        hresult_t reset(vectorN_t const & q,
+                        vectorN_t const & v)
         {
             bp::override func = this->get_override("reset");
             if (func)
             {
-                func();
+                func(FctPyWrapperArgToPython(q),
+                     FctPyWrapperArgToPython(v));
             }
             return hresult_t::SUCCESS;
         }
@@ -63,6 +67,8 @@ namespace python
                 .add_property("is_enabled", bp::make_function(&AbstractConstraintBase::getIsEnabled,
                                             bp::return_value_policy<bp::copy_const_reference>()),
                                             &PyConstraintVisitor::setIsEnable)
+                .add_property("baumgarte_freq", &AbstractConstraintBase::getBaumgarteFreq,
+                                                &AbstractConstraintBase::setBaumgarteFreq)
                 .add_property("jacobian", &PyConstraintVisitor::getJacobian)
                 .add_property("drift", &PyConstraintVisitor::getDrift)
                 ;
@@ -100,6 +106,17 @@ namespace python
             return convertToPython<vectorN_t const>(self.getDrift(), false);
         }
 
+        static bp::object getReferenceConfiguration(JointConstraint & self)
+        {
+            // Do not use automatic converter for efficiency
+            return convertToPython<vectorN_t>(self.getReferenceConfiguration(), false);
+        }
+
+        static void setReferenceConfiguration(JointConstraint & self, vectorN_t const & value)
+        {
+            self.setReferenceConfiguration(value);
+        }
+
     public:
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose.
@@ -110,7 +127,8 @@ namespace python
                        std::shared_ptr<AbstractConstraintBase>,
                        boost::noncopyable>("AbstractConstraintBase", bp::no_init)
                 .def(PyConstraintVisitor())
-                .def("reset", &AbstractConstraintBase::reset)
+                .def("reset", &AbstractConstraintBase::reset,
+                              (bp::arg("self"), "q", "v"))
                 .def("compute_jacobian_and_drift", &AbstractConstraintBase::computeJacobianAndDrift,
                                                    (bp::arg("self"), "q", "v"));
 
@@ -120,6 +138,17 @@ namespace python
                 .def_readonly("type", &AbstractConstraintWrapper::type_)
                 .def("reset", bp::pure_virtual(&AbstractConstraintBase::reset))
                 .def("compute_jacobian_and_drift", bp::pure_virtual(&AbstractConstraintBase::computeJacobianAndDrift));
+
+            bp::class_<JointConstraint, bp::bases<AbstractConstraintBase>,
+                       std::shared_ptr<JointConstraint>,
+                       boost::noncopyable>("JointConstraint", bp::init<std::string>())
+                .def_readonly("type", &JointConstraint::type_)
+                .add_property("joint_name", bp::make_function(&JointConstraint::getJointName,
+                                            bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("joint_idx", bp::make_function(&JointConstraint::getJointIdx,
+                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("reference_configuration", &PyConstraintVisitor::getReferenceConfiguration,
+                                                         &PyConstraintVisitor::setReferenceConfiguration);
 
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<FixedFrameConstraint>,
@@ -136,7 +165,22 @@ namespace python
                 .add_property("is_translation_fixed", bp::make_function(&FixedFrameConstraint::getIsTranslationFixed,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("is_rotation_fixed", bp::make_function(&FixedFrameConstraint::getIsRotationFixed,
-                                                   bp::return_value_policy<bp::copy_const_reference>()));
+                                                   bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("reference_transform", bp::make_function(&FixedFrameConstraint::getReferenceTransform,
+                                                     bp::return_internal_reference<>()),
+                                                     &FixedFrameConstraint::setReferenceTransform);
+
+            bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
+                       std::shared_ptr<SphereConstraint>,
+                       boost::noncopyable>("SphereConstraint", bp::init<std::string, float64_t>())
+                .def_readonly("type", &SphereConstraint::type_)
+                .add_property("frame_name", bp::make_function(&SphereConstraint::getFrameName,
+                                            bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("frame_idx", bp::make_function(&SphereConstraint::getFrameIdx,
+                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("reference_transform", bp::make_function(&SphereConstraint::getReferenceTransform,
+                                                     bp::return_internal_reference<>()),
+                                                     &SphereConstraint::setReferenceTransform);
 
             bp::class_<WheelConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<WheelConstraint>,
@@ -145,7 +189,10 @@ namespace python
                 .add_property("frame_name", bp::make_function(&WheelConstraint::getFrameName,
                                             bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("frame_idx", bp::make_function(&WheelConstraint::getFrameIdx,
-                                           bp::return_value_policy<bp::copy_const_reference>()));
+                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("reference_transform", bp::make_function(&WheelConstraint::getReferenceTransform,
+                                                     bp::return_internal_reference<>()),
+                                                     &WheelConstraint::setReferenceTransform);
 
         }
     };

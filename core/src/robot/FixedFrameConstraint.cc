@@ -16,7 +16,9 @@ namespace jiminy
     frameName_(frameName),
     frameIdx_(0),
     isTranslationFixed_(isTranslationFixed),
-    isRotationFixed_(isRotationFixed)
+    isRotationFixed_(isRotationFixed),
+    transformRef_(),
+    frameJacobian_()
     {
         // Empty on purpose
     }
@@ -46,7 +48,18 @@ namespace jiminy
         return isRotationFixed_;
     }
 
-    hresult_t FixedFrameConstraint::reset(void)
+    void FixedFrameConstraint::setReferenceTransform(pinocchio::SE3 const & transformRef)
+    {
+        transformRef_ = transformRef;
+    }
+
+    pinocchio::SE3 & FixedFrameConstraint::getReferenceTransform(void)
+    {
+        return transformRef_;
+    }
+
+    hresult_t FixedFrameConstraint::reset(vectorN_t const & /* q */,
+                                          vectorN_t const & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -67,9 +80,13 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Set jacobian / drift to right dimension
+            frameJacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
             uint32_t dim = 3 * (uint32_t(isTranslationFixed_) + uint32_t(isRotationFixed_));
             jacobian_ = matrixN_t::Zero(dim, model->pncModel_.nv);
             drift_ = vectorN_t::Zero(dim);
+
+            // Get the current frame position and use it as reference
+            transformRef_ = model->pncData_.oMf[frameIdx_];
         }
 
         return returnCode;

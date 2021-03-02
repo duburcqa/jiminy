@@ -10,6 +10,8 @@ namespace jiminy
     model_(),
     isAttached_(false),
     isEnabled_(true),
+    kp_(0.0),
+    kd_(0.0),
     jacobian_(),
     drift_()
     {
@@ -67,6 +69,27 @@ namespace jiminy
     bool_t const & AbstractConstraintBase::getIsEnabled(void) const
     {
         return isEnabled_;
+    }
+
+    hresult_t AbstractConstraintBase::setBaumgarteFreq(float64_t const & freq)
+    {
+        if (freq < 0.0)
+        {
+            PRINT_ERROR("The natural frequency must be positive.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        // Critically damped position/velocity gains
+        float64_t const omega = 2.0 * M_PI * freq;
+        kp_ = omega * omega;
+        kd_ = 2.0 * omega;
+
+        return hresult_t::SUCCESS;
+    }
+
+    float64_t AbstractConstraintBase::getBaumgarteFreq(void) const
+    {
+        return kd_ / (4.0 * M_PI);
     }
 
     uint32_t AbstractConstraintBase::getDim(void) const
