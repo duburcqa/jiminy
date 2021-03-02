@@ -263,6 +263,19 @@ namespace jiminy
             returnCode = generateModelBiased();
         }
 
+        /* Add joint constraints.
+           It will be used later to enforce bounds limits eventually. */
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            constraintsMap_t jointConstraintsMap;
+            jointConstraintsMap.reserve(rigidJointsNames_.size());
+            for (std::string const & jointName : rigidJointsNames_)
+            {
+                jointConstraintsMap.emplace_back(jointName, std::make_shared<JointConstraint>(jointName));
+            }
+            addConstraints(jointConstraintsMap, constraintsHolderType_t::BOUNDS_JOINTS);  // It cannot fail at this point
+        }
+
         // Unset the initialization flag in case of failure
         if (returnCode != hresult_t::SUCCESS)
         {
@@ -480,6 +493,7 @@ namespace jiminy
         for (std::string const & name : bodyNames)
         {
             // Find the geometries having the body for parent, and add a collision pair for each of them
+            constraintsMap_t collisionConstraintsMap;
             for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
@@ -493,7 +507,39 @@ namespace jiminy
                        consistently compute wrt the ground instead of the body. */
                     pinocchio::CollisionPair const collisionPair(i, groundId);
                     pncGeometryModel_.addCollisionPair(collisionPair);
+
+                    if (returnCode == hresult_t::SUCCESS)
+                    {
+                        // Add constraint associated with contact frame only if it is a sphere
+                        hpp::fcl::CollisionGeometry const & shape = *geom.geometry;
+                        if (shape.getNodeType() == hpp::fcl::GEOM_SPHERE)
+                        {
+                            /* Add dedicated frame
+                               Note that 'BODY' type is used instead of default 'OP_FRAME' to
+                               it clear it is not consider as manually added to the model, and
+                               therefore cannot be deleted by the user. */
+                            pinocchio::FrameType const frameType = pinocchio::FrameType::FIXED_JOINT;
+                            returnCode = addFrame(geom.name, frameName, geom.placement, frameType);
+
+                            // Add fixed frame constraint of bounded sphere
+                            // hpp::fcl::Sphere const & sphere = static_cast<hpp::fcl::Sphere const &>(shape);
+                            // collisionConstraintsMap.emplace_back(geom.name, std::make_shared<SphereConstraint>(
+                            //     geom.name, sphere.radius));
+                            collisionConstraintsMap.emplace_back(geom.name, std::make_shared<FixedFrameConstraint>(
+                                geom.name, true, false));
+                        }
+                        else
+                        {
+                            collisionConstraintsMap.emplace_back(geom.name, nullptr);
+                        }
+                    }
                 }
+            }
+
+            // Add constraints map, even if nullptr for geometry shape not supported
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                returnCode = addConstraints(collisionConstraintsMap, constraintsHolderType_t::COLLISION_BODIES);
             }
         }
 
@@ -551,6 +597,7 @@ namespace jiminy
         }
 
         // Get the indices of the corresponding collision pairs in the geometry model of the robot and remove them
+        std::vector<std::string> collisionConstraintsNames;
         pinocchio::GeomIndex const & groundId = pncGeometryModel_.getGeometryId("ground");
         for (std::string const & name : bodyNames)
         {
@@ -563,9 +610,19 @@ namespace jiminy
                     // Remove the collision pair with the ground
                     pinocchio::CollisionPair const collisionPair(i, groundId);
                     pncGeometryModel_.removeCollisionPair(collisionPair);
+
+                    // Append collision geometry to the list of constraints to remove
+                    if (constraintsHolder_.exist(geom.name,  constraintsHolderType_t::COLLISION_BODIES))
+                    {
+                        collisionConstraintsNames.emplace_back(geom.name);
+                    }
                 }
             }
         }
+
+        // Remove the constraints and associated frames
+        removeConstraints(collisionConstraintsNames, constraintsHolderType_t::COLLISION_BODIES);
+        removeFrames(collisionConstraintsNames);
 
         // Refresh proxies associated with the collisions only
         refreshCollisionsProxies();
@@ -575,6 +632,8 @@ namespace jiminy
 
     hresult_t Model::addContactPoints(std::vector<std::string> const & frameNames)
     {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         if (!isInitialized_)
         {
             PRINT_ERROR("Model not initialized.");
@@ -608,10 +667,23 @@ namespace jiminy
         // Add the list of frames to the set of contact frames
         contactFramesNames_.insert(contactFramesNames_.end(), frameNames.begin(), frameNames.end());
 
-        // Refresh proxies associated with the contact only
-        refreshContactsProxies();
+        // Add constraint associated with contact frame
+        constraintsMap_t frameConstraintsMap;
+        frameConstraintsMap.reserve(frameNames.size());
+        for (std::string const & frameName : frameNames)
+        {
+            frameConstraintsMap.emplace_back(frameName, std::make_shared<FixedFrameConstraint>(
+                frameName, true, false));
+        }
+        returnCode = addConstraints(frameConstraintsMap, constraintsHolderType_t::CONTACT_FRAMES);
 
-        return hresult_t::SUCCESS;
+        // Refresh proxies associated with contacts and constraints
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            refreshContactsProxies();
+        }
+
+        return returnCode;
     }
 
     hresult_t Model::removeContactPoints(std::vector<std::string> const & frameNames)
