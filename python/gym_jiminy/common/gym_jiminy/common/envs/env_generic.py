@@ -3,6 +3,7 @@
 import os
 import time
 import tempfile
+from copy import deepcopy
 from collections import OrderedDict
 from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List
 
@@ -537,7 +538,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
-        obs = self.get_observation()
+        obs = deepcopy(self.get_observation())
         try:
             is_obs_valid = self.observation_space.contains(obs)
         except AttributeError:
@@ -619,7 +620,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
 
         # Get the updated observation
-        obs = self.get_observation()
+        obs = deepcopy(self.get_observation())
 
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
@@ -644,7 +645,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Early return in case of low-level engine integration failure.
         # In such a case, it always returns reward = 0.0 and done = True.
         if is_step_failed:
-            return obs, 0.0, True, self._info
+            return obs, 0.0, True, deepcopy(self._info)
 
         # Compute reward and extra information
         reward = self.compute_reward(info=self._info)
@@ -671,7 +672,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Update number of (successful) steps
         self.num_steps += 1
 
-        return obs, reward, done, self._info
+        return obs, reward, done, deepcopy(self._info)
 
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
