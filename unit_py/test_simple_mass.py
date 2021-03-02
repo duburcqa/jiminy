@@ -35,10 +35,8 @@ class SimulateSimpleMass(unittest.TestCase):
         # Define the parameters of the contact dynamics
         self.k_contact = 1.0e6
         self.nu_contact = 2.0e3
-        self.v_stiction = 5.0e-2
-        self.r_stiction = 0.5
-        self.dry_friction = 5.5
-        self.visc_friction = 2.0
+        self.friction = 2.0
+        self.transtion_vel = 5.0e-2
         self.dtMax = 1.0e-5
 
     def _setup(self, shape):
@@ -237,10 +235,8 @@ class SimulateSimpleMass(unittest.TestCase):
         # Set some extra options of the engine
         engine_options = engine.get_options()
         engine_options['contacts']['transitionEps'] = 1.0e-6
-        engine_options['contacts']['frictionDry'] = self.dry_friction
-        engine_options['contacts']['frictionViscous'] = self.visc_friction
-        engine_options['contacts']['frictionStictionVel'] = self.v_stiction
-        engine_options['contacts']['frictionStictionRatio'] = self.r_stiction
+        engine_options['contacts']['friction'] = self.friction
+        engine_options['contacts']['transitionVelocity'] = self.transtion_vel
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dtMax
         engine.set_options(engine_options)
 
@@ -265,24 +261,22 @@ class SimulateSimpleMass(unittest.TestCase):
         jerk = np.diff(acceleration) / np.diff(time)
         snap =  np.diff(jerk) / np.diff(time[1:])
         snap_rel = np.abs(snap / np.max(snap))
-        snap_disc = time[1:-1][snap_rel > 2.0e-4]
+        snap_disc = time[1:-1][snap_rel > 1.0e-5]
+        snap_disc = snap_disc[np.concatenate((
+            [False], np.diff(snap_disc) > 2 * self.dtMax))]
 
         snap_disc_analytical_dry = time[(
-            (v_x_jiminy > (self.v_stiction - self.dtMax)) &
-            (v_x_jiminy < (self.v_stiction + self.dtMax)))]
-        snap_disc_analytical_viscous = time[(
-            (v_x_jiminy > ((1.0 + self.r_stiction) *
-                self.v_stiction - self.dtMax)) &
-            (v_x_jiminy < ((1.0 + self.r_stiction) *
-                self.v_stiction + self.dtMax)))]
+            (v_x_jiminy > (self.transtion_vel - 2.0e-5)) &
+            (v_x_jiminy < (self.transtion_vel + 2.0e-5)))]
         snap_disc_analytical = np.sort(np.concatenate(
             (snap_disc_analytical_dry,
-             snap_disc_analytical_viscous,
              np.array([t0, t0 + self.dtMax, t0 + dt, t0 + dt + self.dtMax]))))
+        snap_disc_analytical = snap_disc_analytical[np.concatenate((
+            [False], np.diff(snap_disc_analytical) > 2 * self.dtMax))]
 
         self.assertTrue(len(snap_disc) == len(snap_disc_analytical))
         self.assertTrue(np.allclose(
-            snap_disc, snap_disc_analytical, atol=TOLERANCE))
+            snap_disc, snap_disc_analytical, atol=2*self.dtMax))
 
         # Check that the energy increases only when the force is applied
         tolerance_E = 1e-9
@@ -302,8 +296,8 @@ class SimulateSimpleMass(unittest.TestCase):
         # steady state is not perfectly reached.
         tolerance_acc = 1e-6
 
-        v_steady = v_x_jiminy[time == t0 + dt]
-        v_steady_analytical = - Fx / (self.visc_friction * weight)
+        v_steady = v_x_jiminy[np.isclose(time, t0 + dt)]
+        v_steady_analytical = Fx / (self.friction * weight)
         a_steady = acceleration[
             (time > t0 + dt - self.dtMax) & (time < t0 + dt + self.dtMax)]
 

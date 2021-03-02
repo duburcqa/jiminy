@@ -2264,6 +2264,7 @@ namespace jiminy
         if (contactModelIt == CONTACT_MODELS_MAP.end())
         {
             PRINT_ERROR("The requested contact model is not available.");
+            return hresult_t::ERROR_BAD_INPUT;
         }
         std::string const & contactSolver = boost::get<std::string>(contactsOptions.at("solver"));
         auto const contactSolverIt = CONTACT_SOLVERS_MAP.find(contactSolver);
@@ -2272,18 +2273,18 @@ namespace jiminy
             PRINT_ERROR("The requested contact solver is not available.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        float64_t const & frictionStictionVel =
-            boost::get<float64_t>(contactsOptions.at("frictionStictionVel"));
-        if (frictionStictionVel < 0.0)
+        float64_t const & stabilizationFreq =
+            boost::get<float64_t>(contactsOptions.at("stabilizationFreq"));
+        if (stabilizationFreq < 0.0)
         {
-            PRINT_ERROR("The contacts option 'frictionStictionVel' must be positive.");
+            PRINT_ERROR("The contacts option 'stabilizationFreq' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        float64_t const & frictionStictionRatio =
-            boost::get<float64_t>(contactsOptions.at("frictionStictionRatio"));
-        if (frictionStictionRatio < 0.0)
+        float64_t const & regularization =
+            boost::get<float64_t>(contactsOptions.at("regularization"));
+        if (regularization < 0.0)
         {
-            PRINT_ERROR("The contacts option 'frictionStictionRatio' must be positive.");
+            PRINT_ERROR("The contacts option 'regularization' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         float64_t const & contactsTransitionEps =
@@ -2293,7 +2294,13 @@ namespace jiminy
             PRINT_ERROR("The contacts option 'transitionEps' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-
+        float64_t const & transitionVelocity =
+            boost::get<float64_t>(contactsOptions.at("transitionVelocity"));
+        if (transitionVelocity < EPS)
+        {
+            PRINT_ERROR("The contacts option 'transitionVelocity' must be strictly positive.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
         // Compute the breakpoints' period (for command or observation) during the integration loop
         if (sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         {
@@ -2765,29 +2772,9 @@ namespace jiminy
 
             // Compute friction forces
             vector3_t const vTangential = vContactInWorld - vDepth * nGround;
-            float64_t const vNorm = vTangential.norm();
-
-            float64_t frictionCoeff = 0.0;
-            if (vNorm > contactOptions_.frictionStictionVel)
-            {
-                if (vNorm < (1.0 + contactOptions_.frictionStictionRatio) * contactOptions_.frictionStictionVel)
-                {
-                    float64_t const vRatio = vNorm / contactOptions_.frictionStictionVel;
-                    frictionCoeff = (contactOptions_.frictionDry * ((1.0 + contactOptions_.frictionStictionRatio) - vRatio)
-                                  - contactOptions_.frictionViscous * (1.0 - vRatio)) / contactOptions_.frictionStictionRatio;
-                }
-                else
-                {
-                    frictionCoeff = contactOptions_.frictionViscous;
-                }
-            }
-            else
-            {
-                float64_t const vRatio = vNorm / contactOptions_.frictionStictionVel;
-                frictionCoeff = contactOptions_.frictionDry * vRatio;
-            }
-            float64_t const fextTangential = frictionCoeff * fextNormal;
-            fextInWorld += -fextTangential * vTangential;
+            float64_t const vRatio = std::min(vTangential.norm() / contactOptions_.transitionVelocity, 1.0);
+            float64_t const fextTangential = contactOptions_.friction * vRatio * fextNormal;
+            fextInWorld -= fextTangential * vTangential;
 
             // Add blending factor
             if (contactOptions_.transitionEps > EPS)
@@ -3466,9 +3453,9 @@ namespace jiminy
                         // {
                             // Enforce friction pyramid
                             uint32_t const constraintIdx = jointsIdx + contactsIdx;
-                            hi[constraintIdx] = contactOptions.frictionDry;  // Friction along x-axis
+                            hi[constraintIdx] = contactOptions.friction;  // Friction along x-axis
                             fIdx[constraintIdx] = constraintIdx + 2;
-                            hi[constraintIdx + 1] = contactOptions.frictionDry;  // Friction along y-axis
+                            hi[constraintIdx + 1] = contactOptions.friction;  // Friction along y-axis
                             fIdx[constraintIdx + 1] = constraintIdx + 2;
                             lo[constraintIdx + 2] = 0.0;
                         // }

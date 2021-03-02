@@ -238,10 +238,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         engine_options['contacts']['stiffness'] = ground_stiffness
         engine_options['contacts']['damping'] = ground_damping_critic * sample(
             *GROUND_DAMPING_RATIO_RANGE, scale=ground_std_ratio, rg=self.rg)
-        engine_options['contacts']['frictionDry'] = sample(
+        engine_options['contacts']['friction'] = sample(
             *GROUND_FRICTION_RANGE, scale=ground_std_ratio, rg=self.rg)
-        engine_options['contacts']['frictionViscous'] = \
-            engine_options['contacts']['frictionDry']
 
         # Add sensor noise, bias and delay
         if 'sensors' in self.std_ratio.keys():

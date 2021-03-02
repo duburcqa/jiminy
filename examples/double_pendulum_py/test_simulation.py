@@ -53,10 +53,10 @@ engine_options["telemetry"]["enableCommand"] = True
 engine_options["telemetry"]["enableMotorEffort"] = True
 engine_options["telemetry"]["enableEnergy"] = True
 engine_options["world"]["gravity"][2] = -9.81
-engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]
+engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "euler_explicit"]
 engine_options["stepper"]["tolRel"] = 1.0e-5
 engine_options["stepper"]["tolAbs"] = 1.0e-4
-engine_options["stepper"]["dtMax"] = 2.0e-3 # 2.0e-4 for "explicit_euler", 3.0e-3 for "runge_kutta_dopri5"
+engine_options["stepper"]["dtMax"] = 2.0e-3 # 2.0e-4 for "euler_explicit", 3.0e-3 for "runge_kutta_dopri5"
 engine_options["stepper"]["iterMax"] = 100000
 engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
 engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
@@ -65,11 +65,9 @@ engine_options["stepper"]["randomSeed"] = 0
 engine_options['contacts']['model'] = "spring_damper"
 engine_options['contacts']['stiffness'] = 1.0e6
 engine_options['contacts']['damping'] = 2000.0
-engine_options['contacts']['frictionDry'] = 5.0
-engine_options['contacts']['frictionViscous'] = 5.0
-engine_options['contacts']['frictionStictionVel'] = 0.01
-engine_options['contacts']['frictionStictionRatio'] = 0.5
 engine_options['contacts']['transitionEps'] = 0.001
+engine_options['contacts']['friction'] = 5.0
+engine_options['contacts']['transitionVelocity'] = 0.01
 
 robot.set_options(robot_options)
 engine.set_options(engine_options)
