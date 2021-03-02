@@ -104,17 +104,72 @@ namespace jiminy
         // Assuming the model still exists.
         auto model = model_.lock();
 
-        // Get jacobian and drift in local frame
-        getFrameJacobian(model->pncModel_,
-                         model->pncData_,
-                         frameIdx_,
-                         pinocchio::LOCAL,
-                         jacobian_);
+        // Get jacobian in local frame
+        if (isTranslationFixed_ && isRotationFixed_)
+        {
+            getFrameJacobian(model->pncModel_,
+                             model->pncData_,
+                             frameIdx_,
+                             pinocchio::LOCAL_WORLD_ALIGNED,
+                             jacobian_);
+        }
+        else
+        {
+            getFrameJacobian(model->pncModel_,
+                             model->pncData_,
+                             frameIdx_,
+                             pinocchio::LOCAL_WORLD_ALIGNED,
+                             frameJacobian_);
+            if (isTranslationFixed_)
+            {
+                jacobian_ = frameJacobian_.topRows<3>();
+            }
+            else
+            {
+                jacobian_ = frameJacobian_.bottomRows<3>();
+            }
+        }
 
-        drift_ = getFrameAcceleration(model->pncModel_,
-                                      model->pncData_,
-                                      frameIdx_,
-                                      pinocchio::LOCAL).toVector();
+        // Get drift in local frame
+        if (isTranslationFixed_ && isRotationFixed_)
+        {
+            drift_ = getFrameAcceleration(model->pncModel_,
+                                          model->pncData_,
+                                          frameIdx_,
+                                          pinocchio::LOCAL_WORLD_ALIGNED).toVector();
+        }
+        else
+        {
+            pinocchio::Motion const driftLocal = getFrameAcceleration(model->pncModel_,
+                                                                      model->pncData_,
+                                                                      frameIdx_,
+                                                                      pinocchio::LOCAL_WORLD_ALIGNED);
+            if (isTranslationFixed_)
+            {
+                drift_ = driftLocal.linear();
+            }
+            else
+            {
+                drift_ = driftLocal.angular();
+            }
+        }
+
+        // Add Baumgarte stabilization drift
+        pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
+                                                            model->pncData_,
+                                                            frameIdx_,
+                                                            pinocchio::LOCAL_WORLD_ALIGNED);
+        if (isTranslationFixed_)
+        {
+            auto deltaPosition = model->pncData_.oMf[frameIdx_].translation() - transformRef_.translation();
+            drift_.head<3>() += kp_ * deltaPosition + kd_ * velocity.linear();
+        }
+        if (isRotationFixed_)
+        {
+            auto deltaRotation = transformRef_.rotation().transpose() * model->pncData_.oMf[frameIdx_].rotation();
+            vectorN_t const axis = pinocchio::log3(deltaRotation);
+            drift_.tail<3>() += kp_ * axis + kd_ * velocity.angular();
+        }
 
         return hresult_t::SUCCESS;
     }
