@@ -115,13 +115,11 @@ namespace jiminy
             config["solver"] = std::string("PGS");   // ["PGS",]
             config["regularization"] = 0.0;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
             config["stabilizationFreq"] = 0.0;  // [s-1]: 0.0 to disable
-            config["frictionViscous"] = 0.8;
-            config["frictionDry"] = 1.0;
-            config["frictionStictionVel"] = 1.0e-2;
-            config["frictionStictionRatio"] = 0.5;
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
             config["transitionEps"] = 1.0e-3;  // [m]
+            config["friction"] = 1.0;
+            config["transitionVelocity"] = 1.0e-2;  // [m.s-1]
 
             return config;
         };
@@ -199,26 +197,22 @@ namespace jiminy
             std::string const solver;
             float64_t const regularization;
             float64_t const stabilizationFreq;
-            float64_t const frictionViscous;
-            float64_t const frictionDry;
-            float64_t const frictionStictionVel;
-            float64_t const frictionStictionRatio;
             float64_t const stiffness;
             float64_t const damping;
             float64_t const transitionEps;
+            float64_t const friction;
+            float64_t const transitionVelocity;
 
             contactOptions_t(configHolder_t const & options) :
             model(boost::get<std::string>(options.at("model"))),
             solver(boost::get<std::string>(options.at("solver"))),
             regularization(boost::get<float64_t>(options.at("regularization"))),
             stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq"))),
-            frictionViscous(boost::get<float64_t>(options.at("frictionViscous"))),
-            frictionDry(boost::get<float64_t>(options.at("frictionDry"))),
-            frictionStictionVel(boost::get<float64_t>(options.at("frictionStictionVel"))),
-            frictionStictionRatio(boost::get<float64_t>(options.at("frictionStictionRatio"))),
             stiffness(boost::get<float64_t>(options.at("stiffness"))),
             damping(boost::get<float64_t>(options.at("damping"))),
-            transitionEps(boost::get<float64_t>(options.at("transitionEps")))
+            transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
+            friction(boost::get<float64_t>(options.at("friction"))),
+            transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity")))
             {
                 // Empty.
             }
