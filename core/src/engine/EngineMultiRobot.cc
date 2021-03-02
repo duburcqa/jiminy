@@ -27,7 +27,7 @@
 #include "jiminy/core/Constants.h"
 
 #include "jiminy/core/stepper/AbstractStepper.h"
-#include "jiminy/core/stepper/ExplicitEulerStepper.h"
+#include "jiminy/core/stepper/EulerExplicitStepper.h"
 #include "jiminy/core/stepper/RungeKuttaDOPRIStepper.h"
 #include "jiminy/core/stepper/RungeKutta4Stepper.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
@@ -1143,10 +1143,10 @@ namespace jiminy
             stepper_ = std::unique_ptr<AbstractStepper>(
                 new RungeKutta4Stepper(systemOde, robots));
         }
-        else if (engineOptions_->stepper.odeSolver == "explicit_euler")
+        else if (engineOptions_->stepper.odeSolver == "euler_explicit")
         {
             stepper_ = std::unique_ptr<AbstractStepper>(
-                new ExplicitEulerStepper(systemOde, robots));
+                new EulerExplicitStepper(systemOde, robots));
         }
 
         // Set the initial time step

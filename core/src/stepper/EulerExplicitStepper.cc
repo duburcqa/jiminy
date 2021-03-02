@@ -1,16 +1,16 @@
 
-#include "jiminy/core/stepper/ExplicitEulerStepper.h"
+#include "jiminy/core/stepper/EulerExplicitStepper.h"
 
 namespace jiminy
 {
-    ExplicitEulerStepper::ExplicitEulerStepper(systemDynamics f, /* Copy on purpose */
+    EulerExplicitStepper::EulerExplicitStepper(systemDynamics f, /* Copy on purpose */
                                                std::vector<Robot const *> const & robots):
     AbstractStepper(f, robots)
     {
         // Empty
     }
 
-    bool_t ExplicitEulerStepper::tryStepImpl(state_t                 & state,
+    bool_t EulerExplicitStepper::tryStepImpl(state_t                 & state,
                                              stateDerivative_t       & stateDerivative,
                                              float64_t         const & t,
                                              float64_t               & dt)
