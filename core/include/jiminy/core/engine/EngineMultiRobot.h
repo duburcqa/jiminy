@@ -43,8 +43,6 @@ namespace jiminy
         "euler_explicit"
     };
 
-    float64_t const CONSTRAINT_INVERSION_DAMPING = 1.0e-12;  ///< Damping factor used to perform matrix pseudo-inverse when computing forward dynamics with constraints.
-
     class Robot;
     class AbstractConstraintBase;
     class AbstractLCPSolver;
