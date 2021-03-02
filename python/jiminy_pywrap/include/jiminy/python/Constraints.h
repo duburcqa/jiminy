@@ -9,6 +9,7 @@ namespace jiminy
 namespace python
 {
     void exposeConstraint(void);
+    void exposeConstraintsHolder(void);
 }  // End of namespace python.
 }  // End of namespace jiminy.
 

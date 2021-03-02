@@ -19,23 +19,33 @@ namespace jiminy
 {
     class Model;
 
-    class FixedFrameConstraint: public AbstractConstraint
+    class FixedFrameConstraint: public AbstractConstraintTpl<FixedFrameConstraint>
     {
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Forbid the copy of the class
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        FixedFrameConstraint(FixedFrameConstraint const & abstractMotor) = delete;
+        FixedFrameConstraint(FixedFrameConstraint const & abstractConstraint) = delete;
         FixedFrameConstraint & operator = (FixedFrameConstraint const & other) = delete;
+
+        auto shared_from_this() { return shared_from(this); }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor
         ///
         /// \param[in]  frameName   Name of the frame on which the constraint is to be applied.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        FixedFrameConstraint(std::string const & frameName);
+        FixedFrameConstraint(std::string const & frameName,
+                             bool_t const & isTranslationFixed = true,
+                             bool_t const & isRotationFixed = true);
         virtual ~FixedFrameConstraint(void);
+
+        std::string const & getFrameName(void) const;
+        int32_t const & getFrameIdx(void) const;
+
+        bool_t const & getIsTranslationFixed(void) const;
+        bool_t const & getIsRotationFixed(void) const;
 
         virtual hresult_t reset(void) override final;
 
@@ -43,8 +53,10 @@ namespace jiminy
                                                   vectorN_t const & v) override final;
 
     private:
-        std::string const frameName_;     ///< Name of the frame on which the constraint operates.
-        int32_t frameIdx_;                ///< Corresponding frame index.
+        std::string const frameName_;  ///< Name of the frame on which the constraint operates.
+        int32_t frameIdx_;             ///< Corresponding frame index.
+        bool_t isTranslationFixed_;    ///< Flag to determine if the translation must be fixed.
+        bool_t isRotationFixed_;       ///< Flag to determine if the rotation must be fixed.
     };
 }
 

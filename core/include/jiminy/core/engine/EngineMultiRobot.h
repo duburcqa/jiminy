@@ -24,6 +24,7 @@ namespace jiminy
     float64_t const CONSTRAINT_INVERSION_DAMPING = 1.0e-12;  ///< Damping factor used to perform matrix pseudo-inverse when computing forward dynamics with constraints.
 
     class Robot;
+    class AbstractConstraintBase;
     class AbstractController;
     class AbstractStepper;
     class TelemetryData;
@@ -31,9 +32,6 @@ namespace jiminy
     struct logData_t;
 
     using forceCouplingRegister_t = std::vector<forceCoupling_t>;
-
-    using ForceVector = typename PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Force);
-    using MotionVector = typename PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Motion);
 
     struct stepperState_t
     {
@@ -473,16 +471,22 @@ namespace jiminy
         /// \param[in] system              System for which to perform computation.
         /// \param[in] collisionPairIdx    Id of the collision pair associated with the body
         /// \return Contact force, at parent joint, in the local frame.
-        pinocchio::Force computeContactDynamicsAtBody(systemHolder_t const & system,
-                                                      int32_t        const & collisionPairIdx) const;
+        void computeContactDynamicsAtBody(systemHolder_t const & system,
+                                          int32_t const & collisionPairIdx,
+                                          vectorN_t const & q,
+                                          vectorN_t const & v,
+                                          pinocchio::Force & fextLocal) const;
 
         /// \brief Compute the force resulting from ground contact on a given frame.
         ///
         /// \param[in] system      System for which to perform computation.
         /// \param[in] frameIdx    Id of the frame in contact.
         /// \return Contact force, at parent joint, in the local frame.
-        pinocchio::Force computeContactDynamicsAtFrame(systemHolder_t const & system,
-                                                       int32_t        const & frameIdx) const;
+        void computeContactDynamicsAtFrame(systemHolder_t const & system,
+                                           int32_t const & frameIdx,
+                                           vectorN_t const & q,
+                                           vectorN_t const & v,
+                                           pinocchio::Force & fextLocal) const;
 
         /// \brief Compute the force resulting from ground contact for a given normal direction and depth.
         pinocchio::Force computeContactDynamics(vector3_t const & nGround,
@@ -494,13 +498,16 @@ namespace jiminy
                             vectorN_t const & q,
                             vectorN_t const & v,
                             vectorN_t       & command);
-        void computeInternalDynamics(systemHolder_t  const & system,
-                                     float64_t       const & t,
-                                     vectorN_t       const & q,
-                                     vectorN_t       const & v,
-                                     vectorN_t             & uInternal) const;
+        void computeInternalDynamics(systemHolder_t     const & system,
+                                     systemDataHolder_t       & systemData,
+                                     float64_t          const & t,
+                                     vectorN_t          const & q,
+                                     vectorN_t          const & v,
+                                     vectorN_t                & uInternal) const;
         void computeCollisionForces(systemHolder_t     const & system,
-                                    systemDataHolder_t const & systemData,
+                                    systemDataHolder_t       & systemData,
+                                    vectorN_t          const & q,
+                                    vectorN_t          const & v,
                                     forceVector_t            & fext) const;
         void computeExternalForces(systemHolder_t     const & system,
                                    systemDataHolder_t const & systemData,
@@ -527,11 +534,12 @@ namespace jiminy
         /// \param[in] u Joint effort.
         /// \param[in] fext External forces applied on the system.
         /// \return System acceleration.
-        vectorN_t const & computeAcceleration(systemHolder_t       & system,
-                                              vectorN_t      const & q,
-                                              vectorN_t      const & v,
-                                              vectorN_t      const & u,
-                                              forceVector_t  const & fext);
+        vectorN_t const & computeAcceleration(systemHolder_t & system,
+                                              systemDataHolder_t & systemData,
+                                              vectorN_t const & q,
+                                              vectorN_t const & v,
+                                              vectorN_t const & u,
+                                              forceVector_t & fext);
 
     public:
         hresult_t getLogDataRaw(logData_t & logData);
@@ -604,8 +612,8 @@ namespace jiminy
         stepperState_t stepperState_;
         std::vector<systemDataHolder_t> systemsDataHolder_;
         forceCouplingRegister_t forcesCoupling_;
-        std::vector<ForceVector> fPrev_;
-        std::vector<MotionVector> aPrev_;
+        std::vector<forceVector_t> fPrev_;
+        std::vector<motionVector_t> aPrev_;
     };
 }
 

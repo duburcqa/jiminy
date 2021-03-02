@@ -11,6 +11,112 @@
 
 namespace jiminy
 {
+    class AbstractConstraintBase;
+    class FixedFrameConstraint;
+    class JointConstraint;
+
+    template<typename DerivedConstraint>
+    using constraintsMapTpl_t = static_map_t<std::string, std::shared_ptr<DerivedConstraint> >;
+    using constraintsMap_t = constraintsMapTpl_t<AbstractConstraintBase>;
+
+    enum class constraintsHolderType_t : uint8_t
+    {
+        BOUNDS_JOINTS = 0,
+        CONTACT_FRAMES = 1,
+        COLLISION_BODIES = 2,
+        USER = 3
+    };
+
+    std::array<constraintsHolderType_t, 4> const constraintsHolderTypeRange = {{
+        constraintsHolderType_t::BOUNDS_JOINTS,
+        constraintsHolderType_t::CONTACT_FRAMES,
+        constraintsHolderType_t::COLLISION_BODIES,
+        constraintsHolderType_t::USER
+    }};
+
+    struct constraintsHolder_t
+    {
+    public:
+        // Disable the copy of the class
+        constraintsHolder_t(constraintsHolder_t const & constraintsHolder) = default;
+        constraintsHolder_t & operator = (constraintsHolder_t const & other) = default;
+
+        constraintsHolder_t(void);
+        virtual ~constraintsHolder_t(void) = default;
+
+        void clear(void);
+
+        std::tuple<constraintsMap_t *, constraintsMap_t::iterator>
+        find(std::string const & key,
+             constraintsHolderType_t const & holderType);
+
+        bool_t exist(std::string const & key) const;
+        bool_t exist(std::string const & key,
+                     constraintsHolderType_t const & holderType) const;
+
+        std::shared_ptr<AbstractConstraintBase> get(std::string const & key);
+        std::shared_ptr<AbstractConstraintBase> get(std::string const & key,
+                                                constraintsHolderType_t const & holderType);
+
+        void insert(constraintsMap_t const & constraintsMap,
+                    constraintsHolderType_t const & holderType);
+
+        constraintsMap_t::iterator erase(std::string const & key,
+                                         constraintsHolderType_t const & holderType);
+
+        template<typename Function>
+        void foreach(constraintsHolderType_t const & holderType,
+                     Function && lambda)
+        {
+            if (holderType == constraintsHolderType_t::COLLISION_BODIES)
+            {
+                for (auto & constraintsMap : collisionBodies)
+                {
+                    for (auto & constraintItem : constraintsMap)
+                    {
+                        std::forward<Function>(lambda)(constraintItem.second, holderType);
+                    }
+                }
+            }
+            else
+            {
+                constraintsMap_t * constraintsMapPtr;
+                switch (holderType)
+                {
+                case constraintsHolderType_t::BOUNDS_JOINTS:
+                    constraintsMapPtr = &boundJoints;
+                    break;
+                case constraintsHolderType_t::CONTACT_FRAMES:
+                    constraintsMapPtr = &contactFrames;
+                    break;
+                case constraintsHolderType_t::USER:
+                case constraintsHolderType_t::COLLISION_BODIES:
+                default:
+                    constraintsMapPtr = &registered;
+                }
+                for (auto & constraintItem : *constraintsMapPtr)
+                {
+                    std::forward<Function>(lambda)(constraintItem.second, holderType);
+                }
+            }
+        }
+
+        template<typename Function>
+        void foreach(Function && lambda)
+        {
+            for (constraintsHolderType_t const & holderType : constraintsHolderTypeRange)
+            {
+                foreach(holderType, std::forward<Function>(lambda));
+            }
+        }
+
+    public:
+        constraintsMap_t boundJoints;                   ///< Store internal constraints related to joint bounds
+        constraintsMap_t contactFrames;                 ///< Store internal constraints related to contact frames
+        std::vector<constraintsMap_t> collisionBodies;  ///< Store internal constraints related to collision bounds
+        constraintsMap_t registered;                    ///< Store internal constraints registered by user
+    };
+
     class Model: public std::enable_shared_from_this<Model>
     {
     public:
@@ -158,9 +264,58 @@ namespace jiminy
         hresult_t removeFrame(std::string const & frameName);
         hresult_t addCollisionBodies(std::vector<std::string> const & bodyNames,
                                      bool_t const & ignoreMeshes = false);
-        hresult_t removeCollisionBodies(std::vector<std::string> frameNames = {});  // Make a copy
+        hresult_t removeCollisionBodies(std::vector<std::string> frameNames = {});  // Copy on purpose
         hresult_t addContactPoints(std::vector<std::string> const & frameNames);
         hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});
+
+        /// \brief Add a kinematic constraint to the robot.
+        ///
+        /// \param[in] constraintName Unique name identifying the kinematic constraint.
+        /// \param[in] constraint Constraint to add.
+        hresult_t addConstraint(std::string const & constraintName,
+                                std::shared_ptr<AbstractConstraintBase> const & constraint);
+
+        /// \brief Remove a kinematic constraint form the system.
+        ///
+        /// \param[in] constraintName Unique name identifying the kinematic constraint.
+        hresult_t removeConstraint(std::string const & constraintName);
+
+        /// \brief Get a pointer to the constraint referenced by constraintName
+        ///
+        /// \param[in] constraintName Name of the constraint to get.
+        /// \return ERROR_BAD_INPUT if constraintName does not exist, SUCCESS otherwise.
+        hresult_t getConstraint(std::string const & constraintName,
+                                std::shared_ptr<AbstractConstraintBase> & constraint);
+
+        hresult_t getConstraint(std::string const & constraintName,
+                                std::weak_ptr<AbstractConstraintBase const> & constraint) const;
+
+        constraintsHolder_t getConstraints(void);  // Copy on purpose
+
+        bool_t existConstraint(std::string const & constraintName) const;
+
+        hresult_t resetConstraints(vectorN_t const & q,
+                                   vectorN_t const & v);
+
+        /// \brief Compute jacobian and drift associated to all the constraints.
+        ///
+        /// \details The results are accessible using getConstraintsJacobian and
+        ///          getConstraintsDrift.
+        /// \note  It is assumed frames forward kinematics has already been called.
+        ///
+        /// \param[in] q    Joint position.
+        /// \param[in] v    Joint velocity.
+        void computeConstraints(vectorN_t const & q,
+                                vectorN_t const & v);
+
+        /// \brief Get jacobian of the constraints.
+        constMatrixBlock_t getConstraintsJacobian(void) const;
+
+        /// \brief Get drift of the constraints.
+        constVectorBlock_t getConstraintsDrift(void) const;
+
+        /// \brief Returns true if at least one constraint is active on the robot.
+        bool_t hasConstraint(void) const;
 
         hresult_t setOptions(configHolder_t modelOptions);  // Make a copy
         configHolder_t getOptions(void) const;
@@ -212,8 +367,27 @@ namespace jiminy
                                 std::vector<std::string>         meshPackageDirs);
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
+
+        hresult_t addFrame(std::string          const & frameName,
+                           std::string          const & parentBodyName,
+                           pinocchio::SE3       const & framePlacement,
+                           pinocchio::FrameType const & frameType);
+        hresult_t removeFrames(std::vector<std::string> const & frameNames);
+
+        hresult_t addConstraints(constraintsMap_t const & constraintsMap,
+                                 constraintsHolderType_t const & holderType);
+        hresult_t addConstraint(std::string const & constraintName,
+                                std::shared_ptr<AbstractConstraintBase> const & constraint,
+                                constraintsHolderType_t const & holderType);
+        hresult_t removeConstraint(std::string const & constraintName,
+                                   constraintsHolderType_t const & holderType);
+        hresult_t removeConstraints(std::vector<std::string> const & constraintsNames,
+                                    constraintsHolderType_t const & holderType);
+
         hresult_t refreshCollisionsProxies(void);
         hresult_t refreshContactsProxies(void);
+        /// \brief Refresh the proxies of the kinematics constraints.
+        hresult_t refreshConstraintsProxies(void);
         virtual hresult_t refreshProxies(void);
 
     public:
@@ -245,6 +419,11 @@ namespace jiminy
         std::vector<std::string> flexibleJointsNames_;          ///< Name of the flexibility joints of the robot regardless of whether the flexibilities are enable
         std::vector<int32_t> flexibleJointsModelIdx_;           ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
 
+        constraintsHolder_t constraintsHolder_;                 ///< Store constraints
+        uint32_t constraintsMask_;                              ///< Mask used to filter out disable constraints from full jacobian and drift
+        matrixN_t constraintsJacobian_;                         ///< Matrix holding the jacobian of the constraints
+        vectorN_t constraintsDrift_;                            ///< Vector holding the drift of the constraints
+
         vectorN_t positionLimitMin_;                            ///< Upper position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
         vectorN_t positionLimitMax_;                            ///< Lower position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
         vectorN_t velocityLimit_;                               ///< Maximum absolute velocity of the whole velocity vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
@@ -255,6 +434,7 @@ namespace jiminy
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;
+        motionVector_t jointsAcceleration_;                     ///< Vector of joints acceleration corresponding to a copy of data.a - temporary buffer for computing constraints.
 
         int32_t nq_;
         int32_t nv_;

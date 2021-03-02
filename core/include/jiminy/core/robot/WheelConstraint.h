@@ -20,15 +20,17 @@ namespace jiminy
 {
     class Model;
 
-    class WheelConstraint: public AbstractConstraint
+    class WheelConstraint: public AbstractConstraintTpl<WheelConstraint>
     {
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Forbid the copy of the class
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        WheelConstraint(WheelConstraint const & abstractMotor) = delete;
+        WheelConstraint(WheelConstraint const & abstractConstraint) = delete;
         WheelConstraint & operator = (WheelConstraint const & other) = delete;
+
+        auto shared_from_this() { return shared_from(this); }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor
@@ -44,19 +46,24 @@ namespace jiminy
                         vector3_t   const & wheelAxis);
         virtual ~WheelConstraint(void);
 
+        std::string const & getFrameName(void) const;
+        int32_t const & getFrameIdx(void) const;
+
         virtual hresult_t reset(void) override final;
 
         virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
                                                   vectorN_t const & v) override final;
 
     private:
-        std::string frameName_;     ///< Name of the frame on which the constraint operates.
-        int32_t frameIdx_;          ///< Corresponding frame index.
-        float64_t radius_;          ///< Wheel radius.
-        vector3_t normal_;          ///< Ground normal, world frame.
-        vector3_t axis_;            ///< Wheel axis, local frame.
-        matrixN_t frameJacobian_;   ///< Stores full frame jacobian in world.
-        matrixN_t jLas_;            ///< Stores full frame jacobian in world.
+        std::string frameName_;        ///< Name of the frame on which the constraint operates.
+        int32_t frameIdx_;             ///< Corresponding frame index.
+        float64_t radius_;             ///< Wheel radius.
+        vector3_t normal_;             ///< Ground normal, world frame.
+        vector3_t axis_;               ///< Wheel axis, local frame.
+        vector3_t x3_;                 ///< Wheel axis, world frame.
+        matrix3_t skewRadius_;         ///< Skew matrix of wheel axis, in world frame, scaled by radius.
+        matrix3_t dskewRadius_;        ///< Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
+        matrixN_t frameJacobian_;      ///< Stores full frame jacobian in world.
     };
 }
 

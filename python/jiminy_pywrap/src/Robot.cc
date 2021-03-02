@@ -27,8 +27,11 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .def("add_frame", &Model::addFrame,
-                                  (bp::arg("self"), "frame_name", "parent_body_name", "frame_placement"))
+                .def("add_frame",
+                    static_cast<
+                        hresult_t (Model::*)(std::string const &, std::string const &, pinocchio::SE3 const &)
+                    >(&Model::addFrame),
+                    (bp::arg("self"), "frame_name", "parent_body_name", "frame_placement"))
                 .def("remove_frame", &Model::removeFrame,
                                      (bp::arg("self"), "frame_name"))
                 .def("add_collision_bodies", &PyModelVisitor::addCollisionBodies,
@@ -42,6 +45,24 @@ namespace python
                                             bp::arg("frame_names") = std::vector<std::string>()))
                 .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
+
+                .def("add_constraint",
+                    static_cast<
+                        hresult_t (Model::*)(std::string const &, std::shared_ptr<AbstractConstraintBase> const &)
+                    >(&Model::addConstraint),
+                    (bp::arg("self"), "name", "constraint"))
+                .def("remove_constraint",
+                    static_cast<
+                        hresult_t (Model::*)(std::string const &)
+                    >(&Model::removeConstraint),
+                    (bp::arg("self"), "name"))
+                .def("get_constraint", &PyModelVisitor::getConstraint,
+                                      (bp::arg("self"), "constraint_name"))
+                .def("exist_constraint", &Model::existConstraint,
+                                         (bp::arg("self"), "constraint_name"))
+                .add_property("constraints", PyModelVisitor::getConstraints)
+                .def("get_constraints_jacobian", &PyModelVisitor::getConstraintsJacobian)
+                .def("get_constraints_drift", &PyModelVisitor::getConstraintsDrift)
 
                 .def("get_flexible_configuration_from_rigid", &PyModelVisitor::getFlexibleConfigurationFromRigid,
                                                               (bp::arg("self"), "rigid_position"))
@@ -154,6 +175,29 @@ namespace python
             return self.removeContactPoints(frameNames);
         }
 
+        static std::shared_ptr<AbstractConstraintBase> getConstraint(Model             & self,
+                                                                     std::string const & constraintName)
+        {
+            std::shared_ptr<AbstractConstraintBase> constraint;
+            self.getConstraint(constraintName, constraint);
+            return constraint;
+        }
+
+        static std::shared_ptr<constraintsHolder_t> getConstraints(Model & self)
+        {
+            return std::make_shared<constraintsHolder_t>(self.getConstraints());
+        }
+
+        static matrixN_t getConstraintsJacobian(Model & self)
+        {
+            return self.getConstraintsJacobian();
+        }
+
+        static vectorN_t getConstraintsDrift(Model & self)
+        {
+            return self.getConstraintsDrift();
+        }
+
         static vectorN_t getFlexibleConfigurationFromRigid(Model           & self,
                                                            vectorN_t const & qRigid)
         {
@@ -245,12 +289,6 @@ namespace python
                                         bp::arg("sensor_type") = std::string()))
                 .def("get_sensor", &PyRobotVisitor::getSensor,
                                    (bp::arg("self"), "sensor_type", "sensor_name"))
-                .def("add_constraint", &Robot::addConstraint,
-                                       (bp::arg("self"), "name", "constraint"))
-                .def("get_constraint", &PyRobotVisitor::getConstraint,
-                                  (bp::arg("self"), "constraint_name"))
-                .def("remove_constraint", &Robot::removeConstraint,
-                                          (bp::arg("self"), "name"))
 
                 .add_property("sensors_data", &PyRobotVisitor::getSensorsData)
 
@@ -319,14 +357,6 @@ namespace python
             std::shared_ptr<AbstractSensorBase> sensor;
             self.getSensor(sensorType, sensorName, sensor);
             return sensor;
-        }
-
-        static std::shared_ptr<AbstractConstraint> getConstraint(Robot             & self,
-                                                                 std::string const & constraintName)
-        {
-            std::shared_ptr<AbstractConstraint> constraint;
-            self.getConstraint(constraintName, constraint);
-            return constraint;
         }
 
         static std::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)

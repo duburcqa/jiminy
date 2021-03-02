@@ -11,9 +11,11 @@
 #include <optional>
 
 #include "pinocchio/fwd.hpp"
+#include "pinocchio/math/fwd.hpp"
 #include "pinocchio/multibody/fwd.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
 #include "pinocchio/spatial/force.hpp"
+#include "pinocchio/spatial/skew.hpp"
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -49,13 +51,14 @@ namespace jiminy
     using vector6_t = Eigen::Matrix<float64_t, 6, 1>;
     using rowN_t = Eigen::Matrix<float64_t, 1, Eigen::Dynamic>;
 
-    using constBlockXpr = Eigen::Block<matrixN_t const, Eigen::Dynamic, Eigen::Dynamic>;
-    using blockXpr = Eigen::Block<matrixN_t, Eigen::Dynamic, Eigen::Dynamic>;
+    using constMatrixBlock_t = Eigen::Block<matrixN_t const, Eigen::Dynamic, Eigen::Dynamic> const;
+    using constVectorBlock_t = Eigen::VectorBlock<vectorN_t const, Eigen::Dynamic> const;
 
     using quaternion_t = Eigen::Quaternion<float64_t>;
 
     // Pinocchio types
-    using forceVector_t = pinocchio::container::aligned_vector<pinocchio::Force>;
+    using motionVector_t = typename PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Motion);
+    using forceVector_t = typename PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Force);
 
     // *************** Constant of the universe ******************
 
@@ -207,7 +210,7 @@ namespace jiminy
 
             if (sharedData_.has_value())
             {
-                /* Return shared memory directly it is up to the suer to make sure
+                /* Return shared memory directly it is up to the sure to make sure
                    that it is actually up-to-date. */
                 return sharedData_.value().get();
             }

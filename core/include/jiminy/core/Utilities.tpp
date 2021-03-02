@@ -39,6 +39,14 @@ namespace jiminy
         });
     }
 
+    template<typename DerivedType1, typename DerivedType2, typename DerivedType3>
+    Eigen::MatrixBase<DerivedType1> clamp(Eigen::MatrixBase<DerivedType1> const & data,
+                                          Eigen::MatrixBase<DerivedType2> const & minThr,
+                                          Eigen::MatrixBase<DerivedType2> const & maxThr)
+    {
+        return data.array().max(minThr).min(maxThr);
+    }
+
     // *************** Convertion to JSON utilities *****************
 
     template<typename T>

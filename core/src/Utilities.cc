@@ -515,8 +515,6 @@ namespace jiminy
         }
     }
 
-    // ************** Random number generator utilities ****************
-
 	void resetRandGenerators(uint32_t const & seed)
 	{
 		srand(seed);  // Eigen relies on srand for genering random matrix
@@ -577,6 +575,11 @@ namespace jiminy
         {
             return randNormal(0, std[i]);
         });
+    }
+
+    void shuffleIndices(std::vector<uint32_t> & vector)
+    {
+        std::shuffle(vector.begin(), vector.end(), generator_);
     }
 
     // ******************* Telemetry utilities **********************

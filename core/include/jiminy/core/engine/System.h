@@ -6,12 +6,14 @@
 
 #include <set>
 
+#include "jiminy/core/robot/Model.h"
 #include "jiminy/core/Types.h"
 
 
 namespace jiminy
 {
     class Robot;
+    class AbstractConstraintBase;
     class AbstractController;
 
     struct forceProfile_t
@@ -123,8 +125,8 @@ namespace jiminy
     {
     public:
         systemDataHolder_t(void);
-        systemDataHolder_t(systemDataHolder_t && other);
-        systemDataHolder_t & operator = (systemDataHolder_t && other);
+        systemDataHolder_t(systemDataHolder_t && other) = default;
+        systemDataHolder_t & operator = (systemDataHolder_t && other) = default;
         ~systemDataHolder_t(void) = default;
 
     public:
@@ -132,9 +134,15 @@ namespace jiminy
 
         forceProfileRegister_t forcesProfile;
         forceImpulseRegister_t forcesImpulse;
-        std::set<float64_t> forcesImpulseBreaks;    ///< Ordered list (without repetitions) of the start and end time associated with the forces
-        std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;   ///< Iterator related to the time of the next breakpoint associated with the impulse forces
-        std::vector<bool_t> forcesImpulseActive;    ///< Flag to active the forces. This is used to handle t-, t+ properly. Otherwise, it is impossible to determine at time t if the force is active or not.
+        std::set<float64_t> forcesImpulseBreaks;                          ///< Ordered list (without repetitions) of the start and end time associated with the forces
+        std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;     ///< Iterator related to the time of the next breakpoint associated with the impulse forces
+        std::vector<bool_t> forcesImpulseActive;                          ///< Flag to active the forces. This is used to handle t-, t+ properly. Otherwise, it is impossible to determine at time t if the force is active or not.
+
+        constraintsHolder_t constraintsHolder;                            ///< Store copy of constraints register for fast access.
+        forceVector_t contactFramesForces;                                ///< Contact forces for each contact frames in local frame
+        std::vector<forceVector_t> collisionBodiesForces;                 ///< Contact forces for each geometries of each collision bodies in local frame
+        matrixN_t jointJacobian;                                          ///< Buffer used for intermediary computation of `uAugmented`
+        vectorN_t uAugmented;                                             ///< Used to store the input effort plus the effect of external forces
 
         std::vector<std::string> positionFieldnames;
         std::vector<std::string> velocityFieldnames;

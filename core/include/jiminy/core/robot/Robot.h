@@ -10,7 +10,6 @@ namespace jiminy
 {
     struct MotorSharedDataHolder_t;
     class AbstractMotorBase;
-    class AbstractConstraint;
     struct SensorSharedDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
@@ -71,49 +70,6 @@ namespace jiminy
                             vectorN_t const & v,
                             vectorN_t const & a,
                             vectorN_t const & uMotor);
-
-        /// \brief Add a kinematic constraint to the robot.
-        ///
-        /// \param[in] constraintName Unique name identifying the kinematic constraint.
-        /// \param[in] constraint Constraint to add.
-        hresult_t addConstraint(std::string const & constraintName,
-                                std::shared_ptr<AbstractConstraint> constraint);
-
-        /// \brief Remove a kinematic constraint form the system.
-        ///
-        /// \param[in] constraintName Unique name identifying the kinematic constraint.
-        hresult_t removeConstraint(std::string const & constraintName);
-
-        /// \brief Get a pointer to the constraint referenced by constraintName
-        ///
-        /// \param[in] constraintName Name of the constraint to get.
-        /// \return ERROR_BAD_INPUT if constraintName does not exist, SUCCESS otherwise.
-        hresult_t getConstraint(std::string const & constraintName,
-                                std::shared_ptr<AbstractConstraint> & constraint);
-
-        hresult_t getConstraint(std::string const & constraintName,
-                                std::weak_ptr<AbstractConstraint const> & constraint) const;
-
-        /// \brief Compute jacobian and drift associated to all the constraints.
-        ///
-        /// \details The results are accessible using getConstraintsJacobian and
-        ///          getConstraintsDrift.
-        /// \note  It is assumed frames forward kinematics has already been called.
-        ///
-        /// \param[in] q    Joint position.
-        /// \param[in] v    Joint velocity.
-        /// \return ERROR_GENERIC if one constraint has the wrong jacobian / drift size.
-        void computeConstraints(vectorN_t const & q,
-                                vectorN_t const & v);
-
-        /// \brief Get jacobian of the constraints.
-        matrixN_t const & getConstraintsJacobian(void) const;
-
-        /// \brief Get drift of the constraints.
-        vectorN_t const & getConstraintsDrift(void) const;
-
-        /// \brief Returns true if at least one constraint is active on the robot.
-        bool_t hasConstraint(void) const;
 
         sensorsDataMap_t getSensorsData(void) const;
         Eigen::Ref<vectorN_t const> getSensorData(std::string const & sensorType,
@@ -176,8 +132,6 @@ namespace jiminy
     protected:
         hresult_t refreshMotorsProxies(void);
         hresult_t refreshSensorsProxies(void);
-        /// \brief Refresh the proxies of the kinematics constraints.
-        hresult_t refreshConstraintsProxies(void);
         virtual hresult_t refreshProxies(void) override;
 
     protected:
@@ -192,15 +146,10 @@ namespace jiminy
         std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the motors effort
         int32_t nmotors_;                                                           ///< The number of motors
 
-        static_map_t<std::string, std::shared_ptr<AbstractConstraint> > constraintsHolder_;
-        matrixN_t constraintsJacobian_;                                             ///< Matrix holding the jacobian of the constraints.
-        vectorN_t constraintsDrift_;                                                ///< Vector holding the drift of the constraints.
-
     private:
         MutexLocal mutexLocal_;
         std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
         sensorsSharedHolder_t sensorsSharedHolder_;
-        PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Motion) jointsAcceleration_;  ///< Vector of joints acceleration corresponding to a copy of data.a - temporary buffer for computing constraints.
     };
 }
 

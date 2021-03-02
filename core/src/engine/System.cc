@@ -2,6 +2,7 @@
 
 
 #include "jiminy/core/robot/Robot.h"
+#include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/engine/System.h"
 
@@ -152,6 +153,11 @@ namespace jiminy
     forcesImpulseBreaks(),
     forcesImpulseBreakNextIt(),
     forcesImpulseActive(),
+    constraintsHolder(),
+    contactFramesForces(),
+    collisionBodiesForces(),
+    jointJacobian(),
+    uAugmented(),
     positionFieldnames(),
     velocityFieldnames(),
     accelerationFieldnames(),
@@ -162,43 +168,5 @@ namespace jiminy
     statePrev()
     {
         // Empty on purpose
-    }
-
-    systemDataHolder_t::systemDataHolder_t(systemDataHolder_t && other):
-    robotLock(std::move(other.robotLock)),
-    forcesProfile(std::move(other.forcesProfile)),
-    forcesImpulse(std::move(other.forcesImpulse)),
-    forcesImpulseBreaks(std::move(other.forcesImpulseBreaks)),
-    forcesImpulseBreakNextIt(std::move(other.forcesImpulseBreakNextIt)),
-    forcesImpulseActive(std::move(other.forcesImpulseActive)),
-    positionFieldnames(std::move(other.positionFieldnames)),
-    velocityFieldnames(std::move(other.velocityFieldnames)),
-    accelerationFieldnames(std::move(other.accelerationFieldnames)),
-    commandFieldnames(std::move(other.commandFieldnames)),
-    motorEffortFieldnames(std::move(other.motorEffortFieldnames)),
-    energyFieldname(std::move(other.energyFieldname)),
-    state(std::move(other.state)),
-    statePrev(std::move(other.statePrev))
-    {
-        // Empty on purpose
-    }
-
-    systemDataHolder_t & systemDataHolder_t::operator=(systemDataHolder_t && other)
-    {
-        robotLock = std::move(other.robotLock);
-        forcesProfile = std::move(other.forcesProfile);
-        forcesImpulse = std::move(other.forcesImpulse);
-        forcesImpulseBreaks = std::move(other.forcesImpulseBreaks);
-        forcesImpulseBreakNextIt = std::move(other.forcesImpulseBreakNextIt);
-        forcesImpulseActive = std::move(other.forcesImpulseActive);
-        positionFieldnames = std::move(other.positionFieldnames);
-        velocityFieldnames = std::move(other.velocityFieldnames);
-        accelerationFieldnames = std::move(other.accelerationFieldnames);
-        commandFieldnames = std::move(other.commandFieldnames);
-        motorEffortFieldnames = std::move(other.motorEffortFieldnames);
-        energyFieldname = std::move(other.energyFieldname);
-        state = std::move(other.state);
-        statePrev = std::move(other.statePrev);
-        return *this;
     }
 }

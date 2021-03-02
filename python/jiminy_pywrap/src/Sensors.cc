@@ -225,11 +225,11 @@ namespace python
                 .add_property("is_initialized", bp::make_function(&AbstractSensorBase::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("name", bp::make_function(&AbstractSensorBase::getName,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
+                                      bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("idx", bp::make_function(&AbstractSensorBase::getIdx,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
+                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("type", bp::make_function(&AbstractSensorBase::getType,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
+                                      bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldnames,
                                             bp::return_value_policy<bp::return_by_value>()))
                 .add_property("data", &PyAbstractSensorVisitor::getData)

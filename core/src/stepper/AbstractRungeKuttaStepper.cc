@@ -58,7 +58,7 @@ namespace jiminy
         // Evaluate the solution's error for step adjustment
         bool_t const hasSucceeded = adjustStep(state, candidateSolution_, dt);
 
-        // Compute the  next state and state derivative if success
+        // Compute the next state and state derivative if success
         if (hasSucceeded)
         {
             state = candidateSolution_;
