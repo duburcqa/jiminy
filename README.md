@@ -30,9 +30,10 @@ Beside a strong focus on performance to answer machine learning's need for runni
 
 ### Physics
 
-- Support contact and collision with the ground, using either a fixed set of contact points or collision meshes and primitives, through spring-damper reaction forces and friction model.
+- Provide both classical phenomenological force-level spring-damper contact model and impulse-level LCP based on maximum energy dissipation principle.
+- Support contact and collision with the ground, using either a fixed set of contact points or collision meshes and primitives.
 - Able to simulate multiple articulated systems simultaneously, interacting with each other, to support use cases such as multi-agent reinforcement learning or swarm robotics.
-- Support of compliant joints with spring-damper dynamics, to model joint elasticity, a common phenomenon particularly in legged robotics.
+- Support of compliant joints with force-based spring-damper dynamics, to model joint elasticity, a common phenomenon particularly in legged robotics.
 - Simulate both continuous or discrete-time controller, with possibly different controller and sensor update frequencies.
 
 A more complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
