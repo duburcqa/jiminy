@@ -1,0 +1,34 @@
+# ============= Engine stepper =================
+
+[engine.stepper]
+verbose = false
+odeSolver = "runge_kutta_4"  # ["runge_kutta_4", "runge_kutta_dopri5"]
+tolAbs = 1.0e-6
+tolRel = 1.0e-5
+sensorsUpdatePeriod = 0.01
+controllerUpdatePeriod = 0.01
+logInternalStepperSteps = false
+randomSeed = 0
+
+# ============== Contact dynamics ===============
+
+[engine.contacts]
+model = "impulse"  # ["impulse", "spring_damper"]
+solver = "PGS"
+regularization = 1.0e-1
+stabilizationFreq = 5.0
+stiffness = 1.0e5
+damping = 1.0e3
+transitionEps = 1.0e-2
+friction = 1.0
+transitionVelocity = 1.0e-2
+
+[engine.joints]
+boundStiffness = 1.0e7
+boundDamping = 1.0e4
+
+# ======== Joints bounds configuration ========
+
+[system.robot.model.joints]
+enablePositionLimit = true
+enableVelocityLimit = false

@@ -1,0 +1,90 @@
+
+# ============== Global ===============
+
+[Global]
+collisionBodiesNames = ['torso', 'foot_1', 'foot_2', 'foot_3', 'foot_4']
+contactFramesNames = []  #['tip_1', 'tip_2', 'tip_3', 'tip_4']
+
+# ============== Motors ===============
+
+[Motor.SimpleMotor.hip_4]
+joint_name = "hip_4"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+[Motor.SimpleMotor.ankle_4]
+joint_name = "ankle_4"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+[Motor.SimpleMotor.hip_1]
+joint_name = "hip_1"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+[Motor.SimpleMotor.ankle_1]
+joint_name = "ankle_1"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+[Motor.SimpleMotor.hip_2]
+joint_name = "hip_2"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+[Motor.SimpleMotor.ankle_2]
+joint_name = "ankle_2"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+[Motor.SimpleMotor.hip_3]
+joint_name = "hip_3"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+[Motor.SimpleMotor.ankle_3]
+joint_name = "ankle_3"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+# ============= Encoder sensors ===============
+
+[Sensor.EncoderSensor.hip_1]
+joint_name = "hip_1"
+
+[Sensor.EncoderSensor.ankle_1]
+joint_name = "ankle_1"
+
+[Sensor.EncoderSensor.hip_2]
+joint_name = "hip_2"
+
+[Sensor.EncoderSensor.ankle_2]
+joint_name = "ankle_2"
+
+[Sensor.EncoderSensor.hip_3]
+joint_name = "hip_3"
+
+[Sensor.EncoderSensor.ankle_3]
+joint_name = "ankle_3"
+
+[Sensor.EncoderSensor.hip_4]
+joint_name = "hip_4"
+
+[Sensor.EncoderSensor.ankle_4]
+joint_name = "ankle_4"
