@@ -25,9 +25,10 @@ from jiminy_py.viewer import sleep
 from jiminy_py.controller import (
     ObserverHandleType, ControllerHandleType, BaseJiminyObserverController)
 
+
 from pinocchio import neutral
 
-from ..utils import zeros, fill, set_value, SpaceDictNested
+from ..utils import zeros, fill, set_value, clip, SpaceDictNested
 from ..bases import ObserverControllerInterface
 from .play import loop_interactive
 
@@ -538,7 +539,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
-        obs = deepcopy(self.get_observation())
+        obs = self.get_observation()
         try:
             is_obs_valid = self.observation_space.contains(obs)
         except AttributeError:
@@ -554,7 +555,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
-        return obs
+        return clip(self.observation_space, obs)
 
     def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
         """Specify the seed of the environment.
@@ -619,8 +620,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
 
-        # Get the updated observation
-        obs = deepcopy(self.get_observation())
+        # Get clipped observation
+        obs = clip(self.observation_space, self.get_observation())
 
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
