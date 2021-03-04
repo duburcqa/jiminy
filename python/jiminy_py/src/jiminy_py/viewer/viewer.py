@@ -47,7 +47,7 @@ from .panda3d.panda3d_visualizer import Panda3dVisualizer
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
-DEFAULT_CAMERA_XYZRPY_REL = [[3.0, -3.0, 1.0], [1.3, 0.0, 0.8]]
+DEFAULT_CAMERA_XYZRPY_REL = [[4.0, -4.0, 1.0], [1.3, 0.0, 0.8]]
 
 DEFAULT_CAPTURE_SIZE = 500
 
@@ -998,13 +998,13 @@ class Viewer:
                 body_transform = self._client.data.oMf[body_id]
             except IndexError:
                 raise ValueError("'relative' set to non-existing frame.")
-            H_orig = SE3(np.eye(3), body_transform.position)
+            H_orig = SE3(np.eye(3), body_transform.translation)
 
         # Compute the absolute transformation
         if relative is not None:
             H_abs = SE3(rotation_mat, position)
             H_abs = H_orig * H_abs
-            position = H_abs.position
+            position = H_abs.translation
             return self.set_camera_transform(position, rotation)
 
         # Perform the desired transformation

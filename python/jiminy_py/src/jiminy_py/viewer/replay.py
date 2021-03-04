@@ -361,10 +361,14 @@ def play_trajectories(trajectory_data: Union[
         for traj in trajectory_data:
             if len(traj['evolution_robot']):
                 data_orig = traj['evolution_robot']
+                if traj['use_theoretical_model']:
+                    model = traj['robot'].pinocchio_model_th
+                else:
+                    model = traj['robot'].pinocchio_model
                 t_orig = np.array([s.t for s in data_orig])
                 pos_orig = np.stack([s.q for s in data_orig], axis=0)
                 position_evolutions.append(jiminy.interpolate(
-                    t_orig, pos_orig, time_global))
+                    model, t_orig, pos_orig, time_global))
             else:
                 position_evolutions.append(None)
 
