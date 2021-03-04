@@ -1516,6 +1516,7 @@ namespace jiminy
         }
 
         int32_t timesInIdx = -1;
+        vectorN_t qInterp(positionsIn.cols());
         positionsOut.resize(timesOut.size(), positionsIn.cols());
         for (uint32_t i = 0; i < timesOut.size() ; ++i)
         {
@@ -1526,10 +1527,12 @@ namespace jiminy
             }
             if (0 <= timesInIdx && timesInIdx < timesIn.size() - 1)
             {
-                auto qRight = positionsIn.row(timesInIdx).transpose();
-                auto qLeft = positionsIn.row(timesInIdx + 1).transpose();
-                float64_t ratio = (t - timesIn[timesInIdx]) / (timesIn[timesInIdx + 1] - timesIn[timesInIdx]);
-                pinocchio::interpolate(modelIn, qRight, qLeft, ratio, positionsOut.row(i));
+                // Must use Eigen::Ref/vectorN_t buffers instead of Transpose Eigen::RowXpr, otherwise `interpolate` result will be wrong for SE3
+                Eigen::Ref<vectorN_t const> const qRight = positionsIn.row(timesInIdx).transpose();
+                Eigen::Ref<vectorN_t const> const qLeft = positionsIn.row(timesInIdx + 1).transpose();
+                float64_t const ratio = (t - timesIn[timesInIdx]) / (timesIn[timesInIdx + 1] - timesIn[timesInIdx]);
+                pinocchio::interpolate(modelIn, qRight, qLeft, ratio, qInterp);
+                positionsOut.row(i) = qInterp;
             }
             else if (timesInIdx < 0)
             {
