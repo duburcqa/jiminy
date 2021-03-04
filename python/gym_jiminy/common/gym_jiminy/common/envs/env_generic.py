@@ -718,6 +718,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
+        # Call render before replay in order to take into account custom
+        # backend viewer instantiation options, such as initial camera pose.
+        self.render(**kwargs)
         self.simulator.replay(**{'verbose': False, **kwargs})
 
     @loop_interactive()

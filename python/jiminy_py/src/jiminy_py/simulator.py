@@ -434,7 +434,8 @@ class Simulator:
                height: Optional[int] = None,
                camera_xyzrpy: Optional[Tuple[
                    Union[Tuple[float, float, float], np.ndarray],
-                   Union[Tuple[float, float, float], np.ndarray]]] = None
+                   Union[Tuple[float, float, float], np.ndarray]]] = None,
+               **kwargs : Any
                ) -> Optional[np.ndarray]:
         """Render the current state of the simulation. One can display it
                or return an RGB array instead.
@@ -451,6 +452,7 @@ class Simulator:
                               Yaw] corresponding to the absolute pose of the
                               camera. None to disable.
                               Optional:None by default.
+        :param kwargs: Used argument to allow chaining renderining methods.
 
         :returns: Rendering as an RGB array (3D numpy array), if enabled, None
                   otherwise.

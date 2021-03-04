@@ -5,7 +5,7 @@ import tempfile
 from bisect import bisect_right
 from threading import Thread, Lock
 from itertools import cycle, islice
-from typing import Optional, Union, Sequence, Tuple, Dict
+from typing import Optional, Union, Sequence, Tuple, Dict, Any
 
 import numpy as np
 from tqdm import tqdm
@@ -117,7 +117,8 @@ def play_trajectories(trajectory_data: Union[
                       delete_robot_on_close: Optional[bool] = None,
                       legend: Optional[Union[str, Sequence[str]]] = None,
                       watermark_fullpath: Optional[str] = None,
-                      verbose: bool = True) -> Sequence[Viewer]:
+                      verbose: bool = True,
+                      **kwargs: Any) -> Sequence[Viewer]:
     """Replay one or several robot trajectories in a viewer.
 
     The ratio between the replay and the simulation time is kept constant to
@@ -196,6 +197,7 @@ def play_trajectories(trajectory_data: Union[
                                Optional: No watermark by default.
     :param verbose: Add information to keep track of the process.
                     Optional: True by default.
+    :param kwargs: Used argument to allow chaining renderining methods.
 
     :returns: List of viewers used to play the trajectories.
     """
