@@ -2,10 +2,10 @@
 algorithm of Ray RLlib reinforcement learning framework.
 
 It solves it consistently in less than 100000 timesteps in average, and in
-about 40000 at best.
+about 60000 at best.
 
 .. warning::
-    This script requires pytorch>=1.4 and ray[rllib]==1.0.
+    This script requires pytorch>=1.4 and ray[rllib]==1.2.
 """
 # flake8: noqa
 
@@ -15,6 +15,7 @@ GYM_ENV_NAME = "gym_jiminy.envs:jiminy-acrobot-v0"
 GYM_ENV_KWARGS = {
     'continuous': True
 }
+DEBUG = False
 SEED = 0
 N_THREADS = 8
 N_GPU = 1
@@ -25,17 +26,24 @@ N_GPU = 1
 __import__("os").environ["CUDA_VISIBLE_DEVICES"] = \
     ",".join(map(str, range(N_GPU)))
 
+import logging
+import gym
 import ray
+from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS
 from ray.rllib.agents.trainer import COMMON_CONFIG
 from ray.rllib.agents.ppo import (PPOTrainer as Trainer,
                                   DEFAULT_CONFIG as AGENT_DEFAULT_CONFIG)
 
-from utilities import initialize, train, test
+from tools.utilities import initialize, train, test
+
+# Register learning environment
+register_env("env", lambda env_config: gym.make(GYM_ENV_NAME, **env_config))
 
 # ============= Initialize Ray and Tensorboard daemons =============
 
-logger_creator = initialize(num_cpus=N_THREADS, num_gpus=N_GPU)
+logger_creator, log_root_path = initialize(
+    num_cpus=N_THREADS, num_gpus=N_GPU, debug=DEBUG)
 
 # ======================== Configure model =========================
 
@@ -56,6 +64,7 @@ rllib_cfg = COMMON_CONFIG.copy()
 
 # Ressources settings
 rllib_cfg["framework"] = "torch"                    # Use PyTorch ("torch") instead of Tensorflow ("tf" or "tfe" (eager mode))
+rllib_cfg["log_level"] = logging.DEBUG if DEBUG else logging.ERROR
 rllib_cfg["num_gpus"] = N_GPU                       # Number of GPUs to reserve for the trainer process
 rllib_cfg["num_workers"] = int(N_THREADS//2)        # Number of rollout worker processes for parallel sampling
 rllib_cfg["num_envs_per_worker"] = 1                # Number of environments per worker processes
@@ -149,16 +158,22 @@ agent_cfg["grad_clip"] = None          # Clamp the norm of the gradient during o
 agent_cfg["lr"] = 1.0e-4
 agent_cfg["lr_schedule"] = None
 
-train_agent = Trainer(agent_cfg, GYM_ENV_NAME, logger_creator)
+train_agent = Trainer(agent_cfg, "env", logger_creator)
 checkpoint_path = train(train_agent, max_timesteps=100000)
 
 # ===================== Enjoy the trained agent ======================
 
-test_agent = Trainer(agent_cfg, GYM_ENV_NAME, logger_creator)
+test_agent = Trainer(agent_cfg, "env", logger_creator)
 test_agent.restore(checkpoint_path)
-test(test_agent, max_episodes=1)
+test(test_agent, explore=False)
 
 # =================== Terminate Ray backend ====================
+
+train_agent.stop()
+test_agent.stop()
+ray.shutdown()
+
+# =================== Terminate the Ray backend ====================
 
 train_agent.stop()
 test_agent.stop()

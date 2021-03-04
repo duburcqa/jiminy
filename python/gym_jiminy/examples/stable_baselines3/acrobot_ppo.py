@@ -32,7 +32,7 @@ from stable_baselines3.ppo import PPO
 from stable_baselines3.ppo.policies import ActorCriticPolicy
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
-from utilities import initialize, train, test
+from tools.utilities import initialize, train, test
 
 # ================== Initialize Tensorboard daemon =================
 

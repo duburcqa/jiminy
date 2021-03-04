@@ -435,7 +435,7 @@ class Simulator:
                camera_xyzrpy: Optional[Tuple[
                    Union[Tuple[float, float, float], np.ndarray],
                    Union[Tuple[float, float, float], np.ndarray]]] = None,
-               **kwargs : Any
+               **kwargs: Any
                ) -> Optional[np.ndarray]:
         """Render the current state of the simulation. One can display it
                or return an RGB array instead.

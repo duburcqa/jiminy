@@ -91,6 +91,8 @@ def sample(low: Union[float, np.ndarray] = -1.0,
 
 
 def is_bounded(space: gym.Space) -> bool:
+    """ TODO: Write documentation.
+    """
     if isinstance(space, spaces.Box):
         return space.is_bounded()
     if isinstance(space, spaces.Dict):

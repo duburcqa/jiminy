@@ -90,8 +90,8 @@ class AntEnv(BaseJiminyEnv):
 
         # Make sure it does not go through the ground
         update_quantities(self.robot, qpos, use_theoretical_model=False)
-        qpos[2] -= min(0.0, *[dist_req.min_distance
-            for dist_req in self.robot.collision_data.distanceResults])
+        dist_rlt = self.robot.collision_data.distanceResults
+        qpos[2] -= min(0.0, *[dist_req.min_distance for dist_req in dist_rlt])
 
         # Zero mean normally distributed initial velocity
         qvel = sample(
