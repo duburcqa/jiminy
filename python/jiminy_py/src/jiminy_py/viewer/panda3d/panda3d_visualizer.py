@@ -6,11 +6,12 @@ from typing import Optional, Dict, Tuple, Union, Sequence
 
 import numpy as np
 
+import pynvml
 from panda3d.core import (
     NodePath, Point3, Vec3, Mat4, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
-    OmniBoundingVolume, CompassEffect, BillboardEffect)
+    OmniBoundingVolume, CompassEffect, BillboardEffect, WindowProperties)
 import panda3d_viewer
 from panda3d_viewer import Viewer as Panda3dViewer
 from panda3d_viewer import geometry
@@ -176,8 +177,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.taskMgr.add(
             self.moveOrbitalCameraTask, "moveOrbitalCameraTask", sort=2)
 
-        # Create new offscreen buffer, linked to the onscreen one
-        self.openWindow(type='offscreen', gsg=self.win.getGsg())
+        # Create new offscreen buffer, linked to the onscreen one, if at least
+        # one nvidia gpu with nvidia driver is available.
+        try:
+            pynvml.nvmlInit()
+            if pynvml.nvmlDeviceGetCount() > 0:
+                self.openWindow(type='offscreen', gsg=self.win.getGsg())
+        except pynvml.NVMLError_Uninitialized:
+            pass
 
     def handleKey(self, key, value):
         if key in ["mouse1", "mouse2", "mouse3"]:
@@ -338,9 +345,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
     def set_window_size(self, width: int, height: int) -> None:
         if self.windowType == 'onscreen':
-            self.closeWindow(self.winList[-1], keepCamera=False)
-            self.openWindow(
-                type='offscreen', gsg=self.win.getGsg(), size=(width, height))
+            if len(self.winList) > 1:
+                self.closeWindow(self.winList[-1], keepCamera=False)
+                self.openWindow(type='offscreen',
+                                gsg=self.win.getGsg(),
+                                size=(width, height))
+            else:
+                # Since offscreen rendering is not available, trying to resize
+                # of main window instead as a fallback.
+                props = WindowProperties()
+                props.setSize(width, height)
+                self.winList[-1].requestProperties(props)
         else:
             self.camLens = None
             self.openMainWindow(size=(width, height))
