@@ -13,6 +13,8 @@ from panda3d.core import (
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
     OmniBoundingVolume, CompassEffect, BillboardEffect, WindowProperties)
 import panda3d_viewer
+import panda3d_viewer.viewer_app
+import panda3d_viewer.viewer_proxy
 from panda3d_viewer import Viewer as Panda3dViewer
 from panda3d_viewer import geometry
 
@@ -384,7 +386,19 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         array = np.asarray(image).reshape((ysize, xsize, dsize))
         return np.flipud(array)
 
-panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
+
+class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
+    def __getstate__(self):
+        return vars(self)
+
+    def __setstate__(self, state):
+        vars(self).update(state)
+
+    def run(self):
+        panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
+        super().run()
+
+panda3d_viewer.viewer_proxy.ViewerAppProxy = Panda3dProxy  # noqa
 
 
 class Panda3dVisualizer(BaseVisualizer):
