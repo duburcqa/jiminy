@@ -1,7 +1,6 @@
 import io
 import os
 import sys
-import logging
 import pathlib
 import asyncio
 import tempfile

@@ -26,7 +26,7 @@ from recommonmark.parser import CommonMarkParser
 # -- Project information -----------------------------------------------------
 
 project = u'jiminy'
-copyright = u'2020, Wandercraft - MIT licence'
+copyright = u'2020, Alexis Duburcq - MIT licence'
 author = u'Alexis Duburcq and contributors'
 
 # The short X.Y version
@@ -173,7 +173,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'jiminy.tex', u'Jiminy Documentation',
-     u'Wandercraft - Alexis Duburcq', 'manual'),
+     u'Alexis Duburcq', 'manual'),
 ]
 
 

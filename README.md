@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="#"><img width="400px" height="auto" src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_logo.svg"></a>
+  <a href="#"><img width="400px" height="auto" src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_logo.svg"></a>
 </div>
 
 ____
@@ -37,9 +37,9 @@ Beside a strong focus on performance to answer machine learning's need for runni
 - Support of compliant joints with force-based spring-damper dynamics, to model joint elasticity, a common phenomenon particularly in legged robotics.
 - Simulate both continuous or discrete-time controller, with possibly different controller and sensor update frequencies.
 
-A more complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
+A more complete list of features, development status, and changelog are available on the [wiki](https://github.com/duburcqa/jiminy/wiki).
 
-**The documentation is available on [Github.io](https://wandercraft.github.io/jiminy/), or locally in `docs/html/index.html` if built from source.**
+**The documentation is available on [Github.io](https://duburcqa.github.io/jiminy/), or locally in `docs/html/index.html` if built from source.**
 
 ## Gym Jiminy
 
@@ -52,13 +52,13 @@ Pre-configured environments for some well-known toys models and reference roboti
 
 ## Demo
 
-<a href="./examples/tutorial.ipynb"> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_plot_log.png" alt="" width="49.5%"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_viewer_open.png" alt="" width="49.5%"/>
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="100%"/>
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="30.5%"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="30.5%"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_ant.gif" alt="" width="36.7%"/> </a>
+<a href="./examples/tutorial.ipynb"> <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_plot_log.png" alt="" width="49.5%"/> <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_viewer_open.png" alt="" width="49.5%"/>
+<img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="100%"/>
+<img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="30.5%"/> <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="30.5%"/> <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_learning_ant.gif" alt="" width="36.7%"/> </a>
 
 ## Getting started
 
-Jiminy and Gym Jiminy are compatible with Linux and Windows, and supports Python3.6+. They are distributed on PyPi for Python 3.6/3.7/3.8 for both platform, so they can be installed using `pip`:
+Jiminy and Gym Jiminy are compatible with Linux and Windows, and supports Python3.6+. They are distributed on PyPi for Python 3.6/3.7/3.8/3.9 for both platform, so they can be installed using `pip`:
 
 ```bash
 # For installing Jiminy

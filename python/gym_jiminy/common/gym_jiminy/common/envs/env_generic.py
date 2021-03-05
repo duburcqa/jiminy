@@ -847,7 +847,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         qpos = neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds
-        for i in range(len(qpos)):
+        for i in range(len(qpos)):  # pylint: disable=consider-using-enumerate
             lo = self.robot.position_limit_lower[i]
             hi = self.robot.position_limit_upper[i]
             if hi < qpos[i] or qpos[i] < lo:

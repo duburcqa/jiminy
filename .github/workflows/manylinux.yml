@@ -1,4 +1,4 @@
-name: Manylinux2010 CI (PyPi deploy)
+name: Manylinux2014 CI (PyPi deploy)
 
 on:
   # Trigger the workflow on push on the master branch, or for any pull request
@@ -9,9 +9,14 @@ on:
 
 jobs:
   build-test-and-publish-pypi-manylinux:
-    name: (manylinux2010) Build and run the unit tests. Then generate and publish the wheels on PyPi.
+    name: (manylinux2014) Build and run the unit tests. Then generate and publish the wheels on PyPi.
     runs-on: ubuntu-20.04
-    container: quay.io/pypa/manylinux2010_x86_64
+    # manylinux2014 must be used instead of manylinux2010 because Python3.9 requires opencv-python-headless>=4.3,
+    # for which only manylinux2014 pre-built binaries are provided. Anyway, manylinux2010 has reached EOL in
+    # november 2010 so the switch should be safe. Updating default pip to be able to install Jiminy will be
+    # required by more or less the same distributions, since manylinux2014 requires pip>=19.3 as opposed to
+    # pip>=19.0 for manylinux2010.
+    container: quay.io/pypa/manylinux2014_x86_64
 
     defaults:
       run:
@@ -22,13 +27,13 @@ jobs:
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['3.6', '3.7', '3.8']
+        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
 
     #####################################################################################
 
     steps:
     - name: Checkout jiminy
-      uses: actions/checkout@v1  # Cannot use v2 in manylinux2010 container because it relies on node+javascript
+      uses: actions/checkout@v1  # Cannot use v2 in manylinux containers because it relies on node+javascript
 
     #####################################################################################
 
@@ -42,7 +47,7 @@ jobs:
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install twine wheel
-        "${PYTHON_EXECUTABLE}" -m pip install cmake "numpy<1.20"
+        "${PYTHON_EXECUTABLE}" -m pip install cmake numpy
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
 
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
@@ -52,7 +57,7 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_linux.sh
-        "${PYTHON_EXECUTABLE}" -m pip install numba stable_baselines3
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.17.3,<0.18.0" "numba==0.53.0rc3" "stable_baselines3>=0.10"
 
     #####################################################################################
 
@@ -88,7 +93,7 @@ jobs:
         auditwheel repair -w "$RootDir/build/wheelhouse" "$RootDir"/build/pypi/dist/jiminy_py/*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir"/build/wheelhouse/*.whl
     - name: Upload the wheel for Linux of Jiminy_py
-      if: success() && github.repository == 'Wandercraft/jiminy'
+      if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
         name: jiminy_py${{ matrix.python-version }}-wheel
@@ -108,14 +113,14 @@ jobs:
     #####################################################################################
 
     - name: Publish on PyPi the wheel for Linux of Jiminy_py
-      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: success() && github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
         packages_dir: build/wheelhouse
     - name: Publish on PyPi the wheel of Gym Jiminy (Any platform / Any python3 version)
-      if: matrix.PYTHON_VERSION == '3.6' && success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: matrix.PYTHON_VERSION == '3.6' && success() && github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__

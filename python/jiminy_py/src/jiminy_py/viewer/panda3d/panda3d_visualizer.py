@@ -399,8 +399,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Create empty figure with the legend
         color_default = np.array([0.0, 0.0, 0.0, 1.0])
-        handles = [Patch(color=c if c is not None else color_default, label=l)
-                   for l, c in items.items()]
+        handles = [Patch(color=c if c is not None else color_default, label=t)
+                   for t, c in items.items()]
         fig = plt.figure()
         legend = fig.gca().legend(handles=handles, framealpha=1, frameon=True)
 
