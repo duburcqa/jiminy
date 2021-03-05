@@ -129,7 +129,9 @@ def train(train_agent: Trainer,
     env_spec = [spec for ev in train_agent.workers.foreach_worker(
         lambda ev: ev.foreach_env(lambda env: env.spec)) for spec in ev][0]
     if env_spec is None or env_spec.reward_threshold is None:
-        env_spec.reward_threshold = math.inf
+        reward_threshold = math.inf
+    else:
+        reward_threshold = env_spec.reward_threshold
 
     try:
         while True:
@@ -146,7 +148,7 @@ def train(train_agent: Trainer,
             # Check terminal conditions
             if result["timesteps_total"] > max_timesteps:
                 break
-            if result["episode_reward_mean"] > env_spec.reward_threshold:
+            if result["episode_reward_mean"] > reward_threshold:
                 if verbose:
                     print("Problem solved successfully!")
                 break
@@ -256,8 +258,6 @@ def evaluate(env_creator: Callable[..., gym.Env],
     if enable_stats:
         print("env.num_steps:", env.num_steps)
         print("cumulative reward:", tot_reward)
-
-    print(viewer_kwargs)
 
     # Replay the result if requested
     if enable_replay:
