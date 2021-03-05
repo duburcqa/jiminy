@@ -706,7 +706,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             return_rgb_array = True
         else:
             raise ValueError(f"Rendering mode {mode} not supported.")
-        return self.simulator.render(return_rgb_array, **kwargs)
+        return self.simulator.render(**{
+            'return_rgb_array': return_rgb_array, **kwargs})
 
     def plot(self) -> None:
         """Display common simulation data over time.
@@ -724,6 +725,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
+        # Do not open graphical window automatically if recording requested
+        if kwargs.get('record_video_path', None) is not None:
+            kwargs['mode'] = 'rgb_array'
+
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose.
         self.render(**kwargs)

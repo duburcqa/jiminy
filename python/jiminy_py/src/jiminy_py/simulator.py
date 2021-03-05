@@ -435,8 +435,7 @@ class Simulator:
                camera_xyzrpy: Optional[Tuple[
                    Union[Tuple[float, float, float], np.ndarray],
                    Union[Tuple[float, float, float], np.ndarray]]] = None,
-               **kwargs: Any
-               ) -> Optional[np.ndarray]:
+               **kwargs: Any) -> Optional[np.ndarray]:
         """Render the current state of the simulation. One can display it
                or return an RGB array instead.
 
@@ -490,6 +489,10 @@ class Simulator:
         if camera_xyzrpy is not None:
             self.viewer.set_camera_transform(*camera_xyzrpy)
 
+        # Make sure the graphical window is open if required
+        if not return_rgb_array:
+            self.viewer.open_gui()
+
         # Try refreshing the viewer
         self.viewer.refresh()
 
@@ -508,10 +511,12 @@ class Simulator:
             raise RuntimeError(
                 "Nothing to replay. Please run a simulation before calling "
                 "`replay` method.")
-        self.viewer = play_logfiles(
+        self.render(**{
+            'return_rgb_array': kwargs.get(
+                'record_video_path', None) is not None, **kwargs})
+        play_logfiles(
             [self.robot], [log_data], viewers=[self.viewer],
-            **{'verbose': True, 'backend': self.viewer_backend, **kwargs})[0]
-        self._is_viewer_available = True
+            **{'verbose': True, 'backend': self.viewer_backend, **kwargs})
 
     def close(self) -> None:
         """Close the connection with the renderer.
