@@ -6,6 +6,7 @@ from typing import Optional, Union, Dict, Sequence
 import numpy as np
 import numba as nb
 import gym
+from gym import spaces
 
 import jiminy_py.core as jiminy
 
@@ -89,6 +90,22 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     return val
 
 
+def is_bounded(space: gym.Space) -> bool:
+    """ TODO: Write documentation.
+    """
+    if isinstance(space, spaces.Box):
+        return space.is_bounded()
+    if isinstance(space, spaces.Dict):
+        return any(not is_bounded(subspace) for subspace in space.values())
+    if isinstance(space, spaces.Tuple):
+        return any(not is_bounded(subspace) for subspace in space)
+    if isinstance(space, (
+            spaces.Discrete, spaces.MultiDiscrete, spaces.MultiBinary)):
+        return True
+    raise NotImplementedError(
+        f"Space of type {type(space)} is not supported.")
+
+
 def zeros(space: gym.Space,
           dtype: Optional[type] = None) -> Union[SpaceDictNested, int]:
     """Allocate data structure from `Gym.Space` and initialize it to zero.
@@ -96,14 +113,16 @@ def zeros(space: gym.Space,
     :param space: Space for which to allocate and initialize data.
     :param dtype: Must be specified to overwrite original space dtype.
     """
-    if isinstance(space, gym.spaces.Box):
+    if isinstance(space, spaces.Box):
         return np.zeros(space.shape, dtype=dtype or space.dtype)
-    if isinstance(space, gym.spaces.Dict):
+    if isinstance(space, spaces.Dict):
         value = OrderedDict()
         for field, subspace in dict.items(space.spaces):
             value[field] = zeros(subspace, dtype=dtype)
         return value
-    if isinstance(space, gym.spaces.Discrete):
+    if isinstance(space, spaces.Tuple):
+        return tuple(zeros(subspace, dtype=dtype) for subspace in space.spaces)
+    if isinstance(space, spaces.Discrete):
         return np.array(0)  # Using np.array of 0 dim to be mutable
     raise NotImplementedError(
         f"Space of type {type(space)} is not supported.")
@@ -119,8 +138,11 @@ def fill(data: SpaceDictNested,
     if isinstance(data, np.ndarray):
         data.fill(fill_value)
     elif isinstance(data, dict):
-        for sub_data in dict.values(data):
-            fill(sub_data, fill_value)
+        for subdata in dict.values(data):
+            fill(subdata, fill_value)
+    elif isinstance(data, (tuple, list)):
+        for subdata in data:
+            fill(subdata, fill_value)
     else:
         if hasattr(data, '__dict__') or hasattr(data, '__slots__'):
             raise NotImplementedError(
@@ -149,8 +171,11 @@ def set_value(data: SpaceDictNested,
         except TypeError as e:
             raise TypeError(f"Cannot cast '{data}' to '{value}'.") from e
     elif isinstance(data, dict):
-        for field, sub_val in dict.items(value):
-            set_value(data[field], sub_val)
+        for field, subval in dict.items(value):
+            set_value(data[field], subval)
+    elif isinstance(data, (tuple, list)):
+        for subdata, subval in zip(data, value):
+            fill(subdata, subval)
     else:
         raise NotImplementedError(
             f"Data of type {type(data)} is not supported.")
@@ -164,9 +189,11 @@ def copy(data: SpaceDictNested) -> SpaceDictNested:
     """
     if isinstance(data, dict):
         value = OrderedDict()
-        for field, sub_data in dict.items(data):
-            value[field] = copy(sub_data)
+        for field, subdata in dict.items(data):
+            value[field] = copy(subdata)
         return value
+    if isinstance(data, (tuple, list)):
+        return data.__class__(copy(subdata) for subdata in data)
     return data
 
 
@@ -176,14 +203,17 @@ def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     :param space: Gym.Space used to determine upper and lower bounds.
     :param value: Value to clamp.
     """
-    if isinstance(space, gym.spaces.Box):
+    if isinstance(space, spaces.Box):
         return np.core.umath.clip(value, space.low, space.high)
-    if isinstance(space, gym.spaces.Dict):
+    if isinstance(space, spaces.Dict):
         out = OrderedDict()
         for field, subspace in dict.items(space.spaces):
             out[field] = clip(subspace, value[field])
         return out
-    if isinstance(space, gym.spaces.Discrete):
+    if isinstance(space, spaces.Tuple):
+        return (clip(subspace, subvalue)
+                for subspace, subvalue in zip(space, value))
+    if isinstance(space, spaces.Discrete):
         return value  # No need to clip Discrete space.
     raise NotImplementedError(
         f"Gym.Space of type {type(space)} is not supported by this "

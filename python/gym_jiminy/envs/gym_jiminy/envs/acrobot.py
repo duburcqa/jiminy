@@ -128,13 +128,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
         """
-        # TODO: Use `gym.spaces.flatten_space` after release of gym 0.17.4
-        # which adds proper dtype handling.
-        state_subspaces = self._get_state_space().spaces.values()
-        self.observation_space = gym.spaces.Box(
-            low=np.concatenate([s.low for s in state_subspaces]),
-            high=np.concatenate([s.high for s in state_subspaces]),
-            dtype=np.result_type(*[s.dtype for s in state_subspaces]))
+        self.observation_space = gym.spaces.flatten_space(
+            self._get_state_space())
 
     def refresh_observation(self, *args: Any, **kwargs: Any) -> None:
         """Update the observation based on the current simulation state.

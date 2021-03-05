@@ -25,9 +25,10 @@ from jiminy_py.viewer import sleep
 from jiminy_py.controller import (
     ObserverHandleType, ControllerHandleType, BaseJiminyObserverController)
 
+
 from pinocchio import neutral
 
-from ..utils import zeros, fill, set_value, SpaceDictNested
+from ..utils import zeros, fill, set_value, clip, SpaceDictNested
 from ..bases import ObserverControllerInterface
 from .play import loop_interactive
 
@@ -538,7 +539,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
-        obs = deepcopy(self.get_observation())
+        obs = self.get_observation()
         try:
             is_obs_valid = self.observation_space.contains(obs)
         except AttributeError:
@@ -554,7 +555,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
-        return obs
+        return clip(self.observation_space, obs)
 
     def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
         """Specify the seed of the environment.
@@ -619,8 +620,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
 
-        # Get the updated observation
-        obs = deepcopy(self.get_observation())
+        # Get clipped observation
+        obs = clip(self.observation_space, self.get_observation())
 
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
@@ -712,12 +713,28 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         self.simulator.plot()
 
-    def replay(self, **kwargs: Any) -> None:
+    def replay(self, enable_traveling: bool = True, **kwargs: Any) -> None:
         """Replay the current episode until now.
 
+        :param enable_traveling: Whether or not enable traveling, following the
+                                 motion of the root frame of the model. This
+                                 parameter is ignored if the model has no
+                                 freeflyer.
+                                 Optional: True by default.
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
+        # Call render before replay in order to take into account custom
+        # backend viewer instantiation options, such as initial camera pose.
+        self.render(**kwargs)
+
+        if enable_traveling and self.robot.has_freeflyer:
+            # It is worth noting that the first and second frames are
+            # respectively "universe" and "root_joint", no matter if the robot
+            # has a freeflyer or not.
+            kwargs['travelling_frame'] = \
+                self.robot.pinocchio_model.frames[2].name
+
         self.simulator.replay(**{'verbose': False, **kwargs})
 
     @loop_interactive()

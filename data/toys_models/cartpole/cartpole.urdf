@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<robot name="physics">
-  <!-- Official OpenAI gym Acrobot model-->
-  <!-- https://github.com/openai/gym/blob/38a1f630dc9815a567aaf299ae5844c8f8b9a6fa/gym/envs/classic_control/cartpole.py  -->
+<!-- Official OpenAI gym Acrobot model-->
+<!-- https://github.com/openai/gym/blob/38a1f630dc9815a567aaf299ae5844c8f8b9a6fa/gym/envs/classic_control/cartpole.py  -->
+<robot name="cartpole">
   <link name="slideBar">
     <visual>
       <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>

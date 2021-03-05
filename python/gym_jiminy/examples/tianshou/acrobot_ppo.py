@@ -32,8 +32,8 @@ import torch
 from tianshou.env import SubprocVectorEnv
 from tianshou.policy import PPOPolicy
 
-from fcnet import build_actor_critic
-from utilities import initialize, train, test
+from tools.fcnet import build_actor_critic
+from tools.utilities import initialize, train, test
 
 # ================== Initialize Tensorboard daemon =================
 

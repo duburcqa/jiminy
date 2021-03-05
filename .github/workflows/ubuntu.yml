@@ -54,7 +54,7 @@ jobs:
 
     - name: PEP8 Code Style Check
       run: |
-        flake8 --count --show-source --statistics "$RootDir/python"
+        flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,W504 --count --show-source --statistics "$RootDir/python"
 
     #####################################################################################
 
@@ -94,7 +94,7 @@ jobs:
           cd "$RootDir/python/gym_jiminy/$name"
 
           pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=7 \
-                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,M,dt,rg,fd,_ \
+                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,M,dt,rg,fd,_,_A_inv \
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \
