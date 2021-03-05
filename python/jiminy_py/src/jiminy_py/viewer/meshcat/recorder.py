@@ -35,18 +35,11 @@ elif not sys.platform.startswith('win'):
     # acceleration. It speeds up rendering at least by a factor 5 using on
     # a midrange dedicated GPU.
     os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
-else:
-    if "WindowsApps" in sys.executable:
-        logging.warning(
-            "Python installed from Microsoft Store is not compatible with "
-            "pyppeteer auto-install backend chromium procedure. Please "
-            "re-install Python manually to be able to use Meshcat recorder.")
 
-
-from pyppeteer.errors import NetworkError
 
 # ==================== Monkey-patch pyppeteer ============================
 
+from pyppeteer.errors import NetworkError
 from pyppeteer.connection import (
     Connection, logger, logger_connection, logger_session)
 from pyppeteer.browser import Browser
@@ -192,6 +185,13 @@ async def stop_and_save_video_async(client: HTMLResponse,
 def meshcat_recorder(meshcat_url: str,
                      request_shm: multiprocessing.Value,
                      message_shm: multiprocessing.Value) -> None:
+    # Raise exception is Python is not installed properly
+    if sys.platform.startswith('win') and "WindowsApps" in sys.executable:
+        raise RuntimeError(
+            "Python installed from Microsoft Store is not compatible with "
+            "pyppeteer auto-install backend chromium procedure. Please "
+            "re-install Python manually to be able to use Meshcat recorder.")
+
     # Do not catch signal interrupt automatically, to avoid killing meshcat
     # server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
