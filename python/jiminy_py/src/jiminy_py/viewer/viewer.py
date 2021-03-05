@@ -214,6 +214,7 @@ class Viewer:
     _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
     _backend_robot_names = set()
+    _has_gui = False
     _camera_motion = None
     _camera_travelling = None
     _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
@@ -306,6 +307,7 @@ class Viewer:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
                 Viewer._backend_exception = None
+                Viewer._has_gui = False
         else:
             is_backend_running = False
 
@@ -493,17 +495,23 @@ class Viewer:
         """Open a new viewer graphical interface.
 
         .. note::
-            This method is only supported by Meshcat since it is the only one
-            to feature an actual server/client mechanism. For the others, the
-            lifetime is tied to the graphical interface.
+            This method does nothing when using Gepetto-gui backend because
+            its lifetime is tied to the graphical interface.
+
+        .. note::
+            Only one graphical interface can be opened locally for efficiency.
         """
         # Start backend if needed
         if not Viewer.is_alive():
             Viewer.__connect_backend(start_if_needed)
 
+        # If a graphical window is already open, do nothing
+        if Viewer._has_gui:
+            return
+
         if Viewer.backend == 'gepetto-gui':
-            raise RuntimeError(
-                "Opening new client is not available for Gepetto-gui.")
+            # No instance is considered manager of the unique window
+            pass
         elif Viewer.backend == 'panda3d':
             Viewer._backend_obj._app.open_window()
         elif Viewer.backend == 'meshcat':
@@ -566,6 +574,9 @@ class Viewer:
         # Wait to finish loading
         Viewer.wait(require_client=True)
 
+        # There is at least one graphical window at this point
+        Viewer._has_gui = True
+
     @staticmethod
     @__must_be_open
     def wait(require_client: bool = False) -> None:
@@ -623,6 +634,7 @@ class Viewer:
                     Viewer._backend_proc.kill()
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
+                Viewer._has_gui = False
             else:
                 # Disable travelling if associated with this viewer instance
                 if (Viewer._camera_travelling is not None and
