@@ -585,7 +585,7 @@ class Viewer:
         :param require_client: Wait for at least one client to be available
                                before checking for mesh loading.
         """
-        if Viewer.backend == 'Meshcat':
+        if Viewer.backend == 'meshcat':
             # Only Meshcat is asynchronous. Note that Gepetto-gui can be
             # updated asynchronously, but it is more difficult to manage for
             # no real advantage.
