@@ -47,8 +47,8 @@ jobs:
     - name: Installing requirements
       run: |
         sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
-        "${PYTHON_EXECUTABLE}" -m pip install torch==1.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install stable_baselines3>=0.10.0
+        "${PYTHON_EXECUTABLE}" -m pip install "torch==1.8.0+cpu" -f https://download.pytorch.org/whl/torch_stable.html
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.17.3,<0.18.0" "numba==0.53.0rc3" "stable_baselines3>=0.10"
 
     #####################################################################################
 
@@ -85,6 +85,7 @@ jobs:
     #####################################################################################
 
     - name: Python linter and static type checker
+      if: matrix.PYTHON_VERSION == '3.6'  # Numpy>=1.20 new type check support is raising pylint and mypy errors
       run: |
         gym_modules=(
           "common"
@@ -94,7 +95,7 @@ jobs:
           cd "$RootDir/python/gym_jiminy/$name"
 
           pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=7 \
-                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,M,dt,rg,fd,_,_A_inv \
+                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,M,dt,rg,fd,lo,hi,_,_A_inv \
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \

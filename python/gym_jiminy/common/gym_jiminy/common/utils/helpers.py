@@ -204,7 +204,7 @@ def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     :param value: Value to clamp.
     """
     if isinstance(space, spaces.Box):
-        return np.core.umath.clip(value, space.low, space.high)
+        return np.core.multiarray.clip(value, space.low, space.high)
     if isinstance(space, spaces.Dict):
         out = OrderedDict()
         for field, subspace in dict.items(space.spaces):
