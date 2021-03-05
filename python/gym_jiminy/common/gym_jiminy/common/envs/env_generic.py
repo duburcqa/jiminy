@@ -26,7 +26,7 @@ from jiminy_py.controller import (
     ObserverHandleType, ControllerHandleType, BaseJiminyObserverController)
 
 
-from pinocchio import neutral
+from pinocchio import neutral, normalize
 
 from ..utils import zeros, fill, set_value, clip, SpaceDictNested
 from ..bases import ObserverControllerInterface
@@ -847,14 +847,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         qpos = neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds
-        if np.any(self.robot.position_limit_upper < qpos) or \
-                np.any(qpos < self.robot.position_limit_lower):
-            mask = np.isfinite(self.robot.position_limit_upper)
-            qpos[mask] = 0.5 * (
-                self.robot.position_limit_upper[mask] +
-                self.robot.position_limit_lower[mask])
+        for i in range(len(qpos)):
+            lo = self.robot.position_limit_lower[i]
+            hi = self.robot.position_limit_upper[i]
+            if hi < qpos[i] or qpos[i] < lo:
+                qpos[i] = np.mean([lo, hi])
 
-        # Return the desired configuration
+        # Make sure the configuration is valid
+        qpos = normalize(self.robot.pinocchio_model, qpos)
+
+        # Return rigid/flexible configuration
         if self.simulator.use_theoretical_model:
             return qpos[self.robot.rigid_joints_position_idx]
         return qpos
