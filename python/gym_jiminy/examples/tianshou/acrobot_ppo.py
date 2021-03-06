@@ -2,7 +2,7 @@
 algorithm of Tianshou reinforcement learning framework.
 
 It solves it consistently in less than 100000 timesteps in average, and in
-about 25000 at best.
+about 50000 at best.
 
 .. warning::
     This script requires pytorch>=1.4 and tianshou==0.3.0.
