@@ -6,17 +6,18 @@ from typing import Optional, Dict, Tuple, Union, Sequence
 
 import numpy as np
 
-import pynvml
 from panda3d.core import (
     NodePath, Point3, Vec3, Mat4, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
-    OmniBoundingVolume, CompassEffect, BillboardEffect, WindowProperties)
+    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename,
+    PNMImageHeader, PGTop, Camera, PerspectiveLens, OrthographicLens)
 import panda3d_viewer
 import panda3d_viewer.viewer_app
 import panda3d_viewer.viewer_proxy
 from panda3d_viewer import Viewer as Panda3dViewer
 from panda3d_viewer import geometry
+from direct.gui.OnscreenImage import OnscreenImage
 
 import hppfcl
 import pinocchio as pin
@@ -140,14 +141,28 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             Point3(0., -10., 0.), False)
         self.background_gradient.set_effect(effect)
 
-        # # Disable 2D render completely for offscreen window (gui)
-        self.win.removeAllDisplayRegions()
-        dr = self.win.makeDisplayRegion(0, 1, 0, 1)
-        dr.setSort(0)
-        dr.setCamera(self.cam)
+        # Create shared 2D renderer to allow display selectively gui elements
+        # on offscreen window used for capturing frames.
+        self.sharedCamera2d = NodePath(Camera('sharedCam2d'))
+        lens = OrthographicLens()
+        lens.setFilmSize(2, 2)
+        lens.setNearFar(-1000, 1000)
+        self.sharedCamera2d.node().setLens(lens)
+        self.sharedRender2d = NodePath('sharedRender2d')
+        self.sharedRender2d.setDepthTest(False)
+        self.sharedRender2d.setDepthWrite(False)
+        self.sharedCamera2d.reparentTo(self.sharedRender2d)
+        self.sharedAspect2d = self.sharedRender2d.attachNewNode(PGTop(
+            'sharedAspect2d'))
+
+        # Enable the shared 2D renderer on default offscreen window
+        self._off_display_region = self.win.makeMonoDisplayRegion()
+        self._off_display_region.setSort(5)
+        self._off_display_region.setCamera(self.sharedCamera2d)
 
         # Initialize onscreen display and controls internal state
         self._help_label = None
+        self._watermark = None
         self.zoom_rate = 0.98
         self.camera_lookat = np.zeros(3)
         self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
@@ -164,9 +179,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if any(isinstance(win, GraphicsWindow) for win in self.winList):
             raise RuntimeError("Only one graphical window can be opened.")
 
-        # Replace the original offscreen window by an onscreen one
+        # Replace the original offscreen window by an onscreen one.
+        # Note that one must remove display region associated with shared 2D
+        # renderer, otherwise it will be altered when closing current window.
         self.windowType = 'onscreen'
+        self.win.removeDisplayRegion(self._off_display_region)
+        size = self.win.getSize()
         self.openMainWindow()
+        dr = self.win.makeMonoDisplayRegion()
+        dr.setSort(5)
+        dr.setCamera(self.sharedCamera2d)
 
         # Setup mouse and keyboard controls for onscreen display
         self._setup_shortcuts()
@@ -179,14 +201,36 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.taskMgr.add(
             self.moveOrbitalCameraTask, "moveOrbitalCameraTask", sort=2)
 
-        # Create new offscreen buffer, linked to the onscreen one, if at least
-        # one nvidia gpu with nvidia driver is available.
-        try:
-            pynvml.nvmlInit()
-            if pynvml.nvmlDeviceGetCount() > 0:
-                self.openWindow(type='offscreen', gsg=self.win.getGsg())
-        except pynvml.NVMLError_Uninitialized:
-            pass
+        # Create secondary offscreen buffer
+        self._openSecondaryOffscreenWindow(size)
+
+    def _openSecondaryOffscreenWindow(self,
+                                      size: Optional[Tuple[int, int]] = None
+                                      ) -> None:
+        """Create new completely independent offscreen buffer rendering the
+        same scene than the main window.
+        """
+        if size is None:
+            size = self.win.getSize()
+        if len(self.winList) > 1:
+            self.closeWindow(self.winList[-1], keepCamera=False)
+        win = self.openWindow(
+            type='offscreen', size=size, keepCamera=False, makeCamera=False)
+        self.graphicsLens = PerspectiveLens()
+        self.graphicsLens.setAspectRatio(self.getAspectRatio(win))
+        self.makeCamera(win, camName='offCam', lens=self.graphicsLens)
+        self._off_display_region = \
+            self.winList[-1].makeMonoDisplayRegion()
+        self._off_display_region.setSort(5)
+        self._off_display_region.setCamera(self.sharedCamera2d)
+
+    def getSize(self, win=None):
+        """Must be patched to return the size of the window used for capturing
+        frame by default, instead of main window.
+        """
+        if win is None and self.winList:
+            win = self.winList[-1]
+        return super().getSize(win)
 
     def handleKey(self, key, value):
         if key in ["mouse1", "mouse2", "mouse3"]:
@@ -285,13 +329,42 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 else:
                     tile_path.set_color((0.13, 0.13, 0.2, 1))
         node.set_two_sided(True)
-        # material = Material()
-        # material.set_ambient((0, 0, 0, 1))
-        # material.set_diffuse((0.3, 0.3, 0.3, 1))
-        # material.set_specular((1, 1, 1))
-        # material.set_roughness(0.8)
-        # node.set_material(material, 1)
         return node
+
+    def set_watermark(self,
+                      img_fullpath: str,
+                      width: Optional[int] = None,
+                      height: Optional[int] = None) -> None:
+        # Remove existing watermark, if any
+        if self._watermark is not None:
+            self._watermark.removeNode()
+            self._watermark = None
+
+        # Get image size if not user-specified
+        if width is None or height is None:
+            image_header = PNMImageHeader()
+            image_header.readHeader(Filename(img_fullpath))
+            width = width or float(image_header.getXSize())
+            height = height or float(image_header.getYSize())
+
+        # Compute relative image size
+        width_win = self.winList[-1].getXSize()
+        height_win = self.winList[-1].getYSize()
+        width_rel, height_rel = width / width_win, height / height_win
+
+        # Make sure it does not take too much space of window
+        if width_rel > 0.2:
+            width_rel, height_rel = 0.2, height_rel / width_rel * 0.2
+        if height_rel > 0.2:
+            width_rel, height_rel = width_rel / height_rel * 0.2, 0.2
+
+        # Put it on bottom left corner
+        margin = 0.05
+        pos_x = margin * (height_win / width_win) - (1.0 - width_rel)
+        pos_z = margin - (1.0 - height_rel)
+        self._watermark = OnscreenImage(
+            image=img_fullpath, parent=self.sharedAspect2d,
+            pos=(pos_x, 0, pos_z), scale=(width_rel, 1, height_rel))
 
     def append_mesh(self,
                     root_path: str,
@@ -346,23 +419,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._shadow_enabled = enable
 
     def set_window_size(self, width: int, height: int) -> None:
-        if self.windowType == 'onscreen':
-            if len(self.winList) > 1:
-                self.closeWindow(self.winList[-1], keepCamera=False)
-                self.openWindow(type='offscreen',
-                                gsg=self.win.getGsg(),
-                                size=(width, height))
-            else:
-                # Since offscreen rendering is not available, trying to resize
-                # of main window instead as a fallback.
-                props = WindowProperties()
-                props.setSize(width, height)
-                self.winList[-1].requestProperties(props)
-        else:
+        self.winList[-1].removeDisplayRegion(self._off_display_region)
+        if self.windowType == 'offscreen':
             self.camLens = None
             self.openMainWindow(size=(width, height))
+            self._off_display_region = self.winList[-1].makeMonoDisplayRegion()
+            self._off_display_region.setSort(5)
+            self._off_display_region.setCamera(self.sharedCamera2d)
+        else:
+            self._openSecondaryOffscreenWindow((width, height))
 
-    def save_screenshot(self, filename=None):
+    def save_screenshot(self, filename: str = None) -> bool:
         if filename is None:
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
             filename = datetime.now().strftime(template)
@@ -389,12 +456,19 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
     def __getstate__(self):
+        """Required for Windows support, which uses spawning instead of forking
+        to create subprocesses, requiring pickling of process instance.
+        """
         return vars(self)
 
     def __setstate__(self, state):
+        """Must be defined for the same reason than `__getstate__`.
+        """
         vars(self).update(state)
 
     def run(self):
+        """Must be patched to use Jiminy ViewerApp instead of the original one.
+        """
         panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
         super().run()
 

@@ -50,6 +50,7 @@ DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
 DEFAULT_CAMERA_XYZRPY_REL = [[4.0, -4.0, 1.0], [1.3, 0.0, 0.8]]
 
 DEFAULT_CAPTURE_SIZE = 500
+DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 
 # Determine set the of available backends
@@ -965,6 +966,21 @@ class Viewer:
         else:
             for node_path in nodes_path:
                 Viewer._backend_obj.gui[node_path].delete()
+
+    @staticmethod
+    @__must_be_open
+    def set_watermark(img_fullpath: str,
+                      width: Optional[int] = None,
+                      height: Optional[int] = None) -> None:
+        if Viewer.backend == 'gepetto-gui':
+            logger.warning(
+                "Adding watermark is not supported for Gepetto-gui.")
+        elif Viewer.backend == 'panda3d':
+            Viewer._backend_obj._app.set_watermark(img_fullpath, width, height)
+        else:
+            width = width or DEFAULT_WATERMARK_MAXSIZE[0]
+            height = height or DEFAULT_WATERMARK_MAXSIZE[1]
+            Viewer._backend_obj.set_watermark(img_fullpath, width, height)
 
     @__must_be_open
     def set_camera_transform(self,

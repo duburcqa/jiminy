@@ -20,7 +20,6 @@ from .meshcat.utilities import interactive_mode
 
 VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (1000, 1000)
-DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 DEFAULT_URDF_COLORS = {
     'green': (0.4, 0.7, 0.3, 1.0),
@@ -322,8 +321,7 @@ def play_trajectories(trajectory_data: Union[
 
         # Add watermark if requested
         if watermark_fullpath is not None:
-            Viewer._backend_obj.set_watermark(
-                watermark_fullpath, *DEFAULT_WATERMARK_MAXSIZE)
+            Viewer.set_watermark(watermark_fullpath)
 
     # Load robots in gepetto viewer
     for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):

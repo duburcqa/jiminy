@@ -88,10 +88,6 @@ setup(
         # geometries and jiminy_py viewer releases on it for rendering
         # collision bodies.
         "meshcat>=0.0.19",
-        # Used to detect if Nvidia GPU with official driver is available, to
-        # disable simultaneous onscreen + offscreen rendering if not, because
-        # otheriwse panda3d will not work (black screen).
-        "pynvml",
         # Standalone mesh visualizer used as Viewer's backend.
         "panda3d_viewer",
         # Used internally by Viewer to detect running Meshcat servers and avoid
