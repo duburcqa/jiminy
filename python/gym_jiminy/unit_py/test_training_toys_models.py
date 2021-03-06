@@ -97,11 +97,11 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         """Solve cartpole for both continuous and discrete action spaces.
         """
         is_success = self._ppo_training(
-            "gym_jiminy.envs:jiminy-cartpole-v0", {'continuous': True},
+            "gym_jiminy.envs:cartpole-v0", {'continuous': True},
             {'learning_rate': 1.0e-3})
         self.assertTrue(is_success)
         is_success = self._ppo_training(
-            "gym_jiminy.envs:jiminy-cartpole-v0", {'continuous': False},
+            "gym_jiminy.envs:cartpole-v0", {'continuous': False},
             {'learning_rate': 1.0e-3})
         self.assertTrue(is_success)
 
@@ -109,10 +109,10 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         """Solve acrobot for both continuous and discrete action spaces.
         """
         is_success = self._ppo_training(
-            "gym_jiminy.envs:jiminy-acrobot-v0", {'continuous': True},
+            "gym_jiminy.envs:acrobot-v0", {'continuous': True},
             {'learning_rate': 1.0e-4})
         self.assertTrue(is_success)
         is_success = self._ppo_training(
-            "gym_jiminy.envs:jiminy-acrobot-v0", {'continuous': False},
+            "gym_jiminy.envs:acrobot-v0", {'continuous': False},
             {'learning_rate': 2.0e-4})
         self.assertTrue(is_success)
