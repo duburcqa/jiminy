@@ -77,7 +77,7 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        if (auto robot = robot_.lock())
+        if (!robot_.expired())
         {
             // Remove associated col in the shared data buffers
             if (sensorIdx_ < sharedHolder_->num_ - 1)
@@ -392,7 +392,11 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         /* Make sure at least the requested delay plus the maximum time step
-           is available to handle the case where the solver goes back in time */
+           is available to handle the case where the solver goes back in time.
+           Even though it can make the buffer quite large irrelevantly since
+           the actual maximum step is given by engineOptions_->stepper.dtMax,
+           it is not a big deal in practice since `rotate`, `pop_front`, and
+           `push_back` have O(1) complexity. */
         float64_t const timeMin = t - sharedHolder_->delayMax_ - SIMULATION_MAX_TIMESTEP;
 
         // Internal buffer memory management
