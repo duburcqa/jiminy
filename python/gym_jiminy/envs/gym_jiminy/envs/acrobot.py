@@ -117,9 +117,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
 
         # Increase stepper accuracy for time-continuous control
         engine_options = self.simulator.engine.get_options()
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
-        engine_options["stepper"]["tolRel"] = 1.0e-9
-        engine_options["stepper"]["tolAbs"] = 1.0e-8
+        engine_options["stepper"]["solver"] = "runge_kutta_4"
+        engine_options["stepper"]["dtMax"] = min(STEP_DT, 0.02)
         self.simulator.engine.set_options(engine_options)
 
     def _refresh_observation_space(self) -> None:
