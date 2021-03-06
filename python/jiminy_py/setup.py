@@ -90,6 +90,10 @@ setup(
         "meshcat>=0.0.19",
         # Standalone mesh visualizer used as Viewer's backend.
         "panda3d_viewer",
+        # Used internally by Viewer to record video programmatically when
+        # Meshcat is not used as rendering backend.
+        # Python3.9 is supported since version 4.4.0.46.
+        "opencv-python-headless>=4.4.0.46",
         # Used internally by Viewer to detect running Meshcat servers and avoid
         # orphan child processes.
         "psutil",
@@ -120,13 +124,6 @@ setup(
           "aafigure",
           # Bridge between doxygen and sphinx. Used to generate C++ API docs
           "breathe"
-      ],
-      "gepetto": [
-          # Used internally by Viewer to record video programmatically while
-          # using Gepetto-viewer as backend.
-          # 4.3.0.36 is broken on Windows 64 bits because of some dependency
-          # not providing pre-compiled wheels.
-          "opencv-python-headless<=4.3.0.36"
       ]
     },
     zip_safe=False

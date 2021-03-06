@@ -1177,7 +1177,13 @@ class Viewer:
                 height = _height
             if _width != width or _height != height:
                 self._gui._app.set_window_size(width, height)
-            return self._gui.get_screenshot(requested_format='RGB')
+                self._gui._app.step()
+            # Call low-level `get_screenshot` directly to avoid calling `step`
+            # for rendering systematically, since it is already up-to-date.
+            buffer = self._gui._app.get_screenshot(
+                requested_format='RGB', raw=True)
+            array = np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
+            return np.flipud(array)
         else:
             # Send capture frame request to the background recorder process
             img_html = Viewer._backend_obj.capture_frame(width, height)

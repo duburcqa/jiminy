@@ -1,3 +1,6 @@
+import io
+import os
+import sys
 import logging
 import pathlib
 import asyncio
@@ -134,9 +137,12 @@ def play_trajectories(trajectory_data: Union[
                           Optional: [0, inf] by default.
     :param speed_ratio: Speed ratio of the simulation.
                         Optional: 1.0 by default.
-    :param record_video_path: Fullpath location where to save generated video
-                              (.mp4 extension is: mandatory). Must be specified
-                              to enable video recording. None to disable.
+    :param record_video_path: Fullpath location where to save generated video.
+                              It must be specified to enable video recording.
+                              Meshcat only support 'webm' format, while the
+                              other renderer only supports 'mp4'. 'mp4' video
+                              are very fast to record but not web-compatible
+                              because encoded using codec 'mp4v'.
                               Optional: None by default.
     :param viewers: List of already instantiated viewers, associated one by one
                     in order to each trajectory data. None to disable.
@@ -171,11 +177,10 @@ def play_trajectories(trajectory_data: Union[
                     'meshcat' is used in notebook environment and 'gepetto-gui'
                     otherwise.
                     Optional: None by default.
-    :param window_name: Name of the Gepetto-viewer's window in which to display
+    :param window_name: Name of viewer's graphical window in which to display
                         the robot.
                         Optional: Common default name if omitted.
-    :param scene_name: Name of the Gepetto-viewer's scene in which to display
-                       the robot.
+    :param scene_name: Name of viewer's scene in which to display the robot.
                        Optional: Common default name if omitted.
     :param close_backend: Close backend automatically at exit.
                           Optional: Enable by default if not (presumably)
@@ -384,11 +389,31 @@ def play_trajectories(trajectory_data: Union[
                 import cv2
                 frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
                 if not is_initialized:
-                    record_video_path = str(
-                        pathlib.Path(record_video_path).with_suffix('.mp4'))
-                    out = cv2.VideoWriter(
-                        record_video_path, cv2.VideoWriter_fourcc(*'vp09'),
-                        fps=VIDEO_FRAMERATE, frameSize=frame.shape[1::-1])
+                    # Determine the right video container and codec to use
+                    if pathlib.Path(record_video_path).suffix == ".webm":
+                        codec = cv2.VideoWriter_fourcc(*'VP80')
+                    else:  # fallback to mp4 container in any other case
+                        codec = cv2.VideoWriter_fourcc(*'mp4v')
+                        record_video_path = str(pathlib.Path(
+                            record_video_path).with_suffix('.mp4'))
+
+                    # Redirect opencv warnings
+                    original_stderr_fd = sys.stderr.fileno()
+                    saved_stderr_fd = os.dup(original_stderr_fd)
+                    with open(os.devnull, 'w') as tfile:
+                        try:
+                            sys.stderr.close()
+                            os.dup2(tfile.fileno(), original_stderr_fd)
+                            out = cv2.VideoWriter(
+                                record_video_path, codec, fps=VIDEO_FRAMERATE,
+                                frameSize=frame.shape[1::-1])
+                            os.dup2(saved_stderr_fd, original_stderr_fd)
+                            sys.stderr = io.TextIOWrapper(
+                                os.fdopen(original_stderr_fd, 'wb'))
+                        finally:
+                            os.close(saved_stderr_fd)
+
+                # Write frame
                 out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             else:
                 if not is_initialized:

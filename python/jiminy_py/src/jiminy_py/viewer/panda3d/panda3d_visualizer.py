@@ -442,7 +442,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             return False
         return True
 
-    def get_screenshot(self, requested_format='BGRA'):
+    def get_screenshot(self, requested_format='BGRA', raw=False):
+        """Must be patched to take screenshot of the last window available
+        instead of the main one, and to add raw data return mode for
+        efficient multiprocessing.
+        """
         texture = self.winList[-1].get_screenshot()
         if texture is None:
             return None
@@ -450,7 +454,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         ysize = texture.get_y_size()
         dsize = len(requested_format)
         image = texture.get_ram_image_as(requested_format)
-        array = np.asarray(image).reshape((ysize, xsize, dsize))
+        if raw:
+            return image.get_data()
+        array = np.frombuffer(image, np.uint8).reshape((ysize, xsize, dsize))
         return np.flipud(array)
 
 
