@@ -116,8 +116,11 @@ class SimulateSimplePendulum(unittest.TestCase):
         setup_controller_and_engine(
             engine, self.robot, internal_dynamics=spring_force)
 
-        # Configure the engine: turn off gravity
+        # Configure the engine
         engine_options = engine.get_options()
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine_options["world"]["gravity"] = np.zeros(6)
         engine.set_options(engine_options)
 
@@ -525,8 +528,11 @@ class SimulateSimplePendulum(unittest.TestCase):
         setup_controller_and_engine(
             engine, self.robot, compute_command=ControllerPD)
 
-        # Configure the engine: No gravity
+        # Configure the engine
         engine_options = engine.get_options()
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine_options["world"]["gravity"] = np.zeros(6)
         engine.set_options(engine_options)
 
@@ -598,8 +604,11 @@ class SimulateSimplePendulum(unittest.TestCase):
         setup_controller_and_engine(
             engine, robot, internal_dynamics=spring_force)
 
-        # Configure the engine: No gravity
+        # Configure the engine
         engine_options = engine.get_options()
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine_options["world"]["gravity"] = np.zeros(6)
         engine.set_options(engine_options)
 
