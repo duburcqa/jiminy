@@ -1,3 +1,4 @@
+import io
 import array
 import warnings
 import xml.etree.ElementTree as ET
@@ -5,13 +6,16 @@ from datetime import datetime
 from typing import Optional, Dict, Tuple, Union, Sequence
 
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 from panda3d.core import (
     NodePath, Point3, Vec3, Mat4, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
-    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename,
-    PNMImageHeader, PGTop, Camera, PerspectiveLens, OrthographicLens)
+    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, Texture,
+    TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
+    TransparencyAttrib, OrthographicLens)
 import panda3d_viewer
 import panda3d_viewer.viewer_app
 import panda3d_viewer.viewer_proxy
@@ -24,6 +28,10 @@ import pinocchio as pin
 from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
 
+
+LEGEND_DPI = 400
+LEGEND_SCALE = 0.25
+OVERLAY_MARGIN_REL = 0.05
 
 def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
     """
@@ -163,6 +171,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Initialize onscreen display and controls internal state
         self._help_label = None
         self._watermark = None
+        self._legend = None
         self.zoom_rate = 0.98
         self.camera_lookat = np.zeros(3)
         self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
@@ -332,13 +341,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return node
 
     def set_watermark(self,
-                      img_fullpath: str,
+                      img_fullpath: Optional[str] = None,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> None:
         # Remove existing watermark, if any
         if self._watermark is not None:
             self._watermark.removeNode()
             self._watermark = None
+
+        # Do nothing if img_fullpath is not specified
+        if img_fullpath is None or img_fullpath == "":
+            return
 
         # Get image size if not user-specified
         if width is None or height is None:
@@ -359,12 +372,83 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             width_rel, height_rel = width_rel / height_rel * 0.2, 0.2
 
         # Put it on bottom left corner
-        margin = 0.05
-        pos_x = margin * (height_win / width_win) - (1.0 - width_rel)
-        pos_z = margin - (1.0 - height_rel)
+        aspect_win = height_win / width_win
+        pos_x = OVERLAY_MARGIN_REL * aspect_win - (1.0 - width_rel)
+        pos_z = OVERLAY_MARGIN_REL - (1.0 - height_rel)
         self._watermark = OnscreenImage(
             image=img_fullpath, parent=self.sharedAspect2d,
             pos=(pos_x, 0, pos_z), scale=(width_rel, 1, height_rel))
+
+    def set_legend(self,
+                   items: Optional[Dict[str, Optional[Sequence[int]]]] = None
+                   ) -> None:
+        # Remove existing watermark, if any
+        if self._legend is not None:
+            self._legend.removeNode()
+            self._legend = None
+
+        # Do nothing if items is not specified
+        if items is None or not items:
+            return
+
+        # Create empty figure with the legend
+        color_default = np.array([0.0, 0.0, 0.0, 1.0])
+        handles = [Patch(color=c if c is not None else color_default, label=l)
+                   for l, c in items.items()]
+        fig = plt.figure()
+        legend = fig.gca().legend(handles=handles, framealpha=1, frameon=True)
+
+        # Render the legend
+        fig.canvas.draw()
+
+        # Export the figure, limiting the bounding box to the legend area,
+        # slighly extended to ensure the surrounding rounded corner box of
+        # is not cropped. Transparency is enabled, so it is not an issue.
+        bbox = legend.get_window_extent().padded(2)
+        bbox_inches = bbox.transformed(fig.dpi_scale_trans.inverted())
+        bbox_inches = bbox.from_extents(
+            np.round(bbox_inches.extents * LEGEND_DPI) / LEGEND_DPI)
+        io_buf = io.BytesIO()
+        fig.savefig(io_buf, format='rgba', dpi=LEGEND_DPI, transparent=True,
+                    bbox_inches=bbox_inches)
+        io_buf.seek(0)
+        img_raw = io_buf.getvalue()
+        img_size = (np.array(bbox_inches.bounds)[2:] * LEGEND_DPI).astype(int)
+
+        # Delete the legend along with its temporary figure
+        plt.close(fig)
+
+        # Create texture in which to render the image buffer
+        width, height = img_size
+        tex = Texture()
+        tex.setup2dTexture(
+            width, height, Texture.T_unsigned_byte, Texture.F_rgba8)
+        tex.setRamImage(img_raw)
+
+        # Compute relative image size
+        width_win = self.winList[-1].getXSize()
+        height_win = self.winList[-1].getYSize()
+        width_rel = LEGEND_SCALE * width / width_win
+        height_rel = LEGEND_SCALE * height / height_win
+
+        # Make sure it does not take too much space of window
+        if width_rel > 0.4:
+            width_rel, height_rel = 0.4, height_rel / width_rel * 0.4
+        if height_rel > 0.4:
+            width_rel, height_rel = width_rel / height_rel * 0.4, 0.4
+
+        # Put it on top left corner
+        aspect_win = height_win / width_win
+        pos_x = OVERLAY_MARGIN_REL * aspect_win - (1.0 - width_rel)
+        pos_z = - OVERLAY_MARGIN_REL + (1.0 - height_rel)
+        self._legend = OnscreenImage(image=tex,
+                                     parent=self.sharedAspect2d,
+                                     pos=(pos_x, 0, pos_z),
+                                     scale=(width_rel, 1, height_rel))
+
+        # Flip the vertical axis and enable transparency
+        self._legend.setTransparency(TransparencyAttrib.MAlpha)
+        self._legend.setTexScale(TextureStage.getDefault(), 1, -1)
 
     def append_mesh(self,
                     root_path: str,

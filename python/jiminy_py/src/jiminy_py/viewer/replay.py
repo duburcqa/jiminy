@@ -253,14 +253,10 @@ def play_trajectories(trajectory_data: Union[
     # Sanitize user-specified legend
     if legend is not None and not isinstance(legend, (list, tuple)):
         legend = [legend]
-    if all(color is not None for color in urdf_rgba):
-        if legend is None:
-            legend = [viewer.robot_name for viewer in viewers]
-    elif legend is not None:
-        legend = None
-        logging.warning(
-            "Impossible to display legend if at least one URDF do not "
-            "have custom color.")
+
+    # Add default legend with robots names if replaying multiple trajectories
+    if all(color is not None for color in urdf_rgba) and legend is None:
+        legend = [viewer.robot_name for viewer in viewers]
 
     # Instantiate or refresh viewers if necessary
     if viewers is None:
@@ -315,18 +311,12 @@ def play_trajectories(trajectory_data: Union[
         Viewer.register_camera_motion(camera_motion)
 
     # Handle meshcat-specific options
-    if Viewer.backend == 'meshcat':
-        if legend is not None:
-            assert len(legend) == len(trajectory_data)
-            for viewer, color, text in zip(viewers, urdf_rgba, legend):
-                rgba = [*[int(e * 255) for e in color[:3]], color[3]]
-                color = f"rgba({','.join(map(str, rgba))}"
-                Viewer._backend_obj.set_legend_item(
-                    viewer.robot_name, color, text)
+    if legend is not None:
+        Viewer.set_legend(legend)
 
-        # Add watermark if requested
-        if watermark_fullpath is not None:
-            Viewer.set_watermark(watermark_fullpath)
+    # Add watermark if requested
+    if watermark_fullpath is not None:
+        Viewer.set_watermark(watermark_fullpath)
 
     # Load robots in gepetto viewer
     for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):
@@ -456,16 +446,13 @@ def play_trajectories(trajectory_data: Union[
     if camera_motion is not None:
         Viewer.remove_camera_motion()
 
-    # Handle meshcat-specific options
-    if Viewer.backend == 'meshcat':
-        # Disable legend if it was enabled
-        if legend is not None:
-            for viewer in viewers:
-                Viewer._backend_obj.remove_legend_item(viewer.robot_name)
+    # Disable legend if it was enabled
+    if legend is not None:
+        Viewer.set_legend()
 
-        # Disable watermark if it was enabled
-        if watermark_fullpath is not None:
-            Viewer._backend_obj.remove_watermark()
+    # Disable watermark if it was enabled
+    if watermark_fullpath is not None:
+        Viewer.set_watermark()
 
     # Close backend if needed
     if close_backend:
