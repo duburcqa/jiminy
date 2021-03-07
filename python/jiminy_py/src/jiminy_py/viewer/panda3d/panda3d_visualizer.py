@@ -1,4 +1,5 @@
 import io
+import math
 import array
 import warnings
 import xml.etree.ElementTree as ET
@@ -7,14 +8,15 @@ from typing import Optional, Dict, Tuple, Union, Sequence
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from matplotlib.patches import Patch
 
 from panda3d.core import (
     NodePath, Point3, Vec3, Mat4, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
-    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, Texture,
-    TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
+    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
+    Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
     TransparencyAttrib, OrthographicLens)
 import panda3d_viewer
 import panda3d_viewer.viewer_app
@@ -22,6 +24,7 @@ import panda3d_viewer.viewer_proxy
 from panda3d_viewer import Viewer as Panda3dViewer
 from panda3d_viewer import geometry
 from direct.gui.OnscreenImage import OnscreenImage
+from direct.gui.OnscreenText import OnscreenText
 
 import hppfcl
 import pinocchio as pin
@@ -31,7 +34,9 @@ from pinocchio.visualize import BaseVisualizer
 
 LEGEND_DPI = 400
 LEGEND_SCALE = 0.25
+CLOCK_SCALE = 0.1
 OVERLAY_MARGIN_REL = 0.05
+
 
 def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
     """
@@ -172,6 +177,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._help_label = None
         self._watermark = None
         self._legend = None
+        self._clock = None
         self.zoom_rate = 0.98
         self.camera_lookat = np.zeros(3)
         self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
@@ -449,6 +455,47 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Flip the vertical axis and enable transparency
         self._legend.setTransparency(TransparencyAttrib.MAlpha)
         self._legend.setTexScale(TextureStage.getDefault(), 1, -1)
+
+    def set_clock(self, time: Optional[float] = None) -> None:
+        # Remove existing watermark, if any
+        if time is None:
+            if self._clock is not None:
+                self._clock.removeNode()
+                self._clock = None
+            return
+
+        if self._clock is None:
+            # Add text clock on bottom right corner.
+            # Note that the default matplotlib font will be used.
+            self._clock = OnscreenText(
+                text="00:00:00.000",
+                parent=self.sharedAspect2d,
+                scale=CLOCK_SCALE,
+                font=self.loader.loadFont(font_manager.findfont(None)),
+                fg=(1, 0, 0, 1),
+                bg=(1, 1, 1, 1),
+                frame=(0, 0, 0, 1),
+                mayChange=True,
+                align=TextNode.ARight)
+
+            # Fix card margins not uniform
+            self._clock.textNode.setCardAsMargin(0.2, 0.2, 0.05, 0)
+            self._clock.textNode.setFrameAsMargin(0.2, 0.2, 0.05, 0)
+
+            # Set text position based on its actual size
+            card_dims = self._clock.textNode.getCardTransformed()
+            aspect_win = self.getAspectRatio(self.winList[-1])
+            pos_x = - OVERLAY_MARGIN_REL * aspect_win + (1.0 - card_dims[1])
+            pos_z = OVERLAY_MARGIN_REL - (1.0 + card_dims[2])
+            self._clock.setPos(pos_x, pos_z)
+
+        # Update clock values
+        hours, remainder = divmod(time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        remainder, seconds = math.modf(seconds)
+        milliseconds = 1000 * remainder
+        self._clock.setText(f"{hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}"
+                            f".{milliseconds:03.0f}")
 
     def append_mesh(self,
                     root_path: str,

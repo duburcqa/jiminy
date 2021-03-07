@@ -119,6 +119,7 @@ def play_trajectories(trajectory_data: Union[
                       delete_robot_on_close: Optional[bool] = None,
                       legend: Optional[Union[str, Sequence[str]]] = None,
                       watermark_fullpath: Optional[str] = None,
+                      enable_clock: bool = False,
                       verbose: bool = True,
                       **kwargs: Any) -> Sequence[Viewer]:
     """Replay one or several robot trajectories in a viewer.
@@ -199,6 +200,9 @@ def play_trajectories(trajectory_data: Union[
                                option is only supported by meshcat backend.
                                None to disable.
                                Optional: No watermark by default.
+    :param enable_clock: Add clock on bottom right corner of the viewer.
+                         Only available with panda3d rendering backend.
+                         Optional: Disable by default.
     :param verbose: Add information to keep track of the process.
                     Optional: True by default.
     :param kwargs: Used argument to allow chaining renderining methods.
@@ -367,9 +371,8 @@ def play_trajectories(trajectory_data: Union[
 
         # Play trajectories without multithreading and record_video
         is_initialized = False
-        for i in tqdm(range(len(time_global)),
-                      desc="Rendering frames",
-                      disable=(not verbose)):
+        for i, t_cur in enumerate(tqdm(
+                time_global, desc="Rendering frames", disable=(not verbose))):
             for viewer, positions, offset in zip(
                     viewers, position_evolutions, xyz_offset):
                 if positions is not None:
@@ -403,6 +406,9 @@ def play_trajectories(trajectory_data: Union[
                         finally:
                             os.close(saved_stderr_fd)
 
+                if enable_clock and Viewer.backend == 'panda3d':
+                    Viewer.set_clock(t_cur)
+
                 # Write frame
                 out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             else:
@@ -433,6 +439,7 @@ def play_trajectories(trajectory_data: Union[
                       time_interval,
                       speed_ratio,
                       offset,
+                      enable_clock,
                       wait_for_client)))
         for thread in threads:
             thread.daemon = True
@@ -453,6 +460,9 @@ def play_trajectories(trajectory_data: Union[
     # Disable watermark if it was enabled
     if watermark_fullpath is not None:
         Viewer.set_watermark()
+
+    if enable_clock and Viewer.backend == 'panda3d':
+        Viewer.set_clock()
 
     # Close backend if needed
     if close_backend:

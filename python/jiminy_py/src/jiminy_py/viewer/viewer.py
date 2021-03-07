@@ -1051,6 +1051,22 @@ class Viewer:
                     Viewer._backend_obj.set_legend_item(
                         robot_name, color, text)
 
+    @staticmethod
+    @__must_be_open
+    def set_clock(time: Optional[float] = None) -> None:
+        """Insert clock on bottom right corner of the window.
+
+        .. note::
+            Only Panda3d rendering backend is supported by this method.
+
+        :param time: Current time is seconds. None to disable.
+                     Optional: None by default.
+        """
+        if Viewer.backend == 'panda3d':
+            Viewer._backend_obj._app.set_clock(time)
+        else:
+            logger.warning("Adding clock is only available for Panda3d.")
+
     @__must_be_open
     def set_camera_transform(self,
                              position: Optional[Tuple3FType] = None,
@@ -1444,6 +1460,7 @@ class Viewer:
                    np.ndarray, Tuple[float, float]]] = (0.0, np.inf),
                speed_ratio: float = 1.0,
                xyz_offset: Optional[np.ndarray] = None,
+               enable_clock: bool = False,
                wait: bool = False) -> None:
         """Replay a complete robot trajectory at a given real-time ratio.
 
@@ -1467,6 +1484,8 @@ class Viewer:
         init_time = time.time()
         while i < len(evolution_robot):
             try:
+                if enable_clock:
+                    Viewer.set_clock(t_simu)
                 s = evolution_robot[i]
                 s_next = evolution_robot[min(i, len(evolution_robot)) - 1]
                 ratio = (t_simu - s.t) / (s_next.t - s.t)
@@ -1482,3 +1501,6 @@ class Viewer:
                     break
             except Viewer._backend_exceptions:
                 break
+
+        # Disable clock after replay if enable
+        Viewer.set_clock()
