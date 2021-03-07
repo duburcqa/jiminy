@@ -33,7 +33,6 @@ namespace jiminy
 
     extern float64_t const STEPPER_MIN_TIMESTEP;
     extern float64_t const SIMULATION_MIN_TIMESTEP;
-    extern float64_t const SIMULATION_INITIAL_TIMESTEP;
     extern float64_t const SIMULATION_MAX_TIMESTEP;
 
     extern uint32_t const PGS_MAX_ITERATIONS;

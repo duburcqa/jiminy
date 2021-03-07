@@ -26,14 +26,14 @@ setup(
                  "systems."),
     long_description=open("@SOURCE_DIR@/README.md", encoding="utf8").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/Wandercraft/jiminy",
-    download_url=("https://github.com/Wandercraft/jiminy/archive/"
+    url="https://github.com/duburcqa/jiminy",
+    download_url=("https://github.com/duburcqa/jiminy/archive/"
                   "@PROJECT_VERSION@.tar.gz"),
     author="Alexis Duburcq",
-    author_email="alexis.duburcq@wandercraft.eu",
-    maintainer="Wandercraft",
+    author_email="alexis.duburcq@gmail.com",
+    maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.6",
+    python_requires=">=3.6,<3.10",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
@@ -42,7 +42,8 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8"
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9"
     ],
     keywords="robotics physics simulator",
     distclass=BinaryDistribution,
@@ -62,15 +63,14 @@ setup(
     ]},
     install_requires=[
         # Used internally by Viewer to read/write snapshots.
-        "pillow",
+        # >= 8.0 is required to support Python3.9.
+        "pillow>=8.0",
         # Add support of TypedDict to any Python 3 version.
         "typing_extensions",
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
-        # < 1.20 is required to work around major rework not available for
-        # Python3.6, which is still supported for now.
-        "numpy<1.20",
+        "numpy",
         # Used internally for interpolation and filtering.
         "scipy",
         # Standard library to generate figures.
@@ -90,6 +90,10 @@ setup(
         "meshcat>=0.0.19",
         # Standalone mesh visualizer used as Viewer's backend.
         "panda3d_viewer",
+        # Used internally by Viewer to record video programmatically when
+        # Meshcat is not used as rendering backend.
+        # Python3.9 is supported since version 4.4.0.46.
+        "opencv-python-headless>=4.4.0.46",
         # Used internally by Viewer to detect running Meshcat servers and avoid
         # orphan child processes.
         "psutil",
@@ -120,13 +124,6 @@ setup(
           "aafigure",
           # Bridge between doxygen and sphinx. Used to generate C++ API docs
           "breathe"
-      ],
-      "gepetto": [
-          # Used internally by Viewer to record video programmatically while
-          # using Gepetto-viewer as backend.
-          # 4.3.0.36 is broken on Windows 64 bits because of some dependency
-          # not providing pre-compiled wheels.
-          "opencv-python-headless<=4.3.0.36"
       ]
     },
     zip_safe=False

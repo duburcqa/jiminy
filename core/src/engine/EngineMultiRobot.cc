@@ -1153,7 +1153,7 @@ namespace jiminy
         }
 
         // Set the initial time step
-        float64_t const dt = SIMULATION_INITIAL_TIMESTEP;
+        float64_t dt = engineOptions_->stepper.dtMax;
 
         // Initialize the stepper state
         float64_t const t = 0.0;
@@ -1827,7 +1827,7 @@ namespace jiminy
                        in robotics, 1us can be consider an 'infinitesimal' time. This
                        arbitrary threshold many not be suited for simulating different,
                        faster dynamics, that require sub-microsecond precision. */
-                    dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
+                    dt = min(dt, tNext - t);
                     if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
                     {
                         dt = tNext - t;
@@ -1932,7 +1932,7 @@ namespace jiminy
                     }
 
                     // Initialize the next dt
-                    dt = dtLargest;
+                    dt = min(dtLargest, engineOptions_->stepper.dtMax);
                 }
             }
             else
@@ -1940,7 +1940,6 @@ namespace jiminy
                 /* Make sure it ends exactly at the tEnd, never exceeds
                    dtMax, and stop to apply impulse forces. */
                 dt = min(dt,
-                         engineOptions_->stepper.dtMax,
                          tEnd - t,
                          tForceImpulseNext - t);
 
@@ -2007,7 +2006,7 @@ namespace jiminy
                     }
 
                     // Initialize the next dt
-                    dt = dtLargest;
+                    dt = min(dtLargest, engineOptions_->stepper.dtMax);
                 }
             }
 
@@ -2064,7 +2063,6 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             t = tEnd;
-            dt = stepSize;
         }
 
         return returnCode;

@@ -56,7 +56,7 @@ class SimulateMultiRobot(unittest.TestCase):
         engine_options = engine.get_options()
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
-        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-2
         engine.set_options(engine_options)
 
         system_names = ['FirstSystem', 'SecondSystem']

@@ -26,7 +26,7 @@ from jiminy_py.controller import (
     ObserverHandleType, ControllerHandleType, BaseJiminyObserverController)
 
 
-from pinocchio import neutral
+from pinocchio import neutral, normalize
 
 from ..utils import zeros, fill, set_value, clip, SpaceDictNested
 from ..bases import ObserverControllerInterface
@@ -706,7 +706,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             return_rgb_array = True
         else:
             raise ValueError(f"Rendering mode {mode} not supported.")
-        return self.simulator.render(return_rgb_array, **kwargs)
+        return self.simulator.render(**{
+            'return_rgb_array': return_rgb_array, **kwargs})
 
     def plot(self) -> None:
         """Display common simulation data over time.
@@ -724,6 +725,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
+        # Do not open graphical window automatically if recording requested
+        if kwargs.get('record_video_path', None) is not None:
+            kwargs['mode'] = 'rgb_array'
+
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose.
         self.render(**kwargs)
@@ -842,14 +847,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         qpos = neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds
-        if np.any(self.robot.position_limit_upper < qpos) or \
-                np.any(qpos < self.robot.position_limit_lower):
-            mask = np.isfinite(self.robot.position_limit_upper)
-            qpos[mask] = 0.5 * (
-                self.robot.position_limit_upper[mask] +
-                self.robot.position_limit_lower[mask])
+        for i in range(len(qpos)):  # pylint: disable=consider-using-enumerate
+            lo = self.robot.position_limit_lower[i]
+            hi = self.robot.position_limit_upper[i]
+            if hi < qpos[i] or qpos[i] < lo:
+                qpos[i] = np.mean([lo, hi])
 
-        # Return the desired configuration
+        # Make sure the configuration is valid
+        qpos = normalize(self.robot.pinocchio_model, qpos)
+
+        # Return rigid/flexible configuration
         if self.simulator.use_theoretical_model:
             return qpos[self.robot.rigid_joints_position_idx]
         return qpos

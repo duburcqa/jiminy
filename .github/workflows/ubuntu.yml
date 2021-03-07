@@ -47,12 +47,13 @@ jobs:
     - name: Installing requirements
       run: |
         sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
-        "${PYTHON_EXECUTABLE}" -m pip install torch==1.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install stable_baselines3>=0.10.0
+        "${PYTHON_EXECUTABLE}" -m pip install "torch==1.8.0+cpu" -f https://download.pytorch.org/whl/torch_stable.html
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.17.3,<0.18.0" "numba==0.53.0rc3" "stable_baselines3>=0.10"
 
     #####################################################################################
 
     - name: PEP8 Code Style Check
+      if: matrix.os == 'ubuntu-18.04'
       run: |
         flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,W504 --count --show-source --statistics "$RootDir/python"
 
@@ -85,6 +86,10 @@ jobs:
     #####################################################################################
 
     - name: Python linter and static type checker
+      # Ubuntu18 is distributed with Python3.6, which is not supported by Numpy>=1.20.
+      # The new type check support of Numpy is raising pylint and mypy errors, so Ubuntu18
+      # is used to do type checking for now.
+      if: matrix.os == 'ubuntu-18.04'
       run: |
         gym_modules=(
           "common"
@@ -94,7 +99,7 @@ jobs:
           cd "$RootDir/python/gym_jiminy/$name"
 
           pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=7 \
-                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,M,dt,rg,fd,_,_A_inv \
+                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,c,M,dt,rg,fd,lo,hi,_ \
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \
@@ -115,7 +120,7 @@ jobs:
         cd build
         cmake . -DCOMPONENT=docs -P ./cmake_install.cmake
     - name: Deploy to GitHub Pages
-      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: success() && github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: crazy-max/ghaction-github-pages@v1
       with:
         target_branch: gh-pages

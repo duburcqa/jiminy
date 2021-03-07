@@ -50,6 +50,7 @@ DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
 DEFAULT_CAMERA_XYZRPY_REL = [[4.0, -4.0, 1.0], [1.3, 0.0, 0.8]]
 
 DEFAULT_CAPTURE_SIZE = 500
+DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 
 # Determine set the of available backends
@@ -214,6 +215,8 @@ class Viewer:
     _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
     _backend_robot_names = set()
+    _backend_robot_colors = {}
+    _has_gui = False
     _camera_motion = None
     _camera_travelling = None
     _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
@@ -306,12 +309,14 @@ class Viewer:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
                 Viewer._backend_exception = None
+                Viewer._has_gui = False
         else:
             is_backend_running = False
 
         # Reset some class attribute if backend not available
         if not is_backend_running:
-            Viewer._backend_robot_names = set()
+            Viewer._backend_robot_names.clear()
+            Viewer._backend_robot_colors.clear()
             Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
             Viewer.detach_camera()
 
@@ -362,6 +367,8 @@ class Viewer:
             # Load the robot
             self._setup(robot, self.urdf_rgba)
             Viewer._backend_robot_names.add(self.robot_name)
+            Viewer._backend_robot_colors.update({
+                self.robot_name: self.urdf_rgba})
         except Exception as e:
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
@@ -493,17 +500,23 @@ class Viewer:
         """Open a new viewer graphical interface.
 
         .. note::
-            This method is only supported by Meshcat since it is the only one
-            to feature an actual server/client mechanism. For the others, the
-            lifetime is tied to the graphical interface.
+            This method does nothing when using Gepetto-gui backend because
+            its lifetime is tied to the graphical interface.
+
+        .. note::
+            Only one graphical interface can be opened locally for efficiency.
         """
         # Start backend if needed
         if not Viewer.is_alive():
             Viewer.__connect_backend(start_if_needed)
 
+        # If a graphical window is already open, do nothing
+        if Viewer._has_gui:
+            return
+
         if Viewer.backend == 'gepetto-gui':
-            raise RuntimeError(
-                "Opening new client is not available for Gepetto-gui.")
+            # No instance is considered manager of the unique window
+            pass
         elif Viewer.backend == 'panda3d':
             Viewer._backend_obj._app.open_window()
         elif Viewer.backend == 'meshcat':
@@ -566,6 +579,9 @@ class Viewer:
         # Wait to finish loading
         Viewer.wait(require_client=True)
 
+        # There is at least one graphical window at this point
+        Viewer._has_gui = True
+
     @staticmethod
     @__must_be_open
     def wait(require_client: bool = False) -> None:
@@ -574,7 +590,7 @@ class Viewer:
         :param require_client: Wait for at least one client to be available
                                before checking for mesh loading.
         """
-        if Viewer.backend == 'Meshcat':
+        if Viewer.backend == 'meshcat':
             # Only Meshcat is asynchronous. Note that Gepetto-gui can be
             # updated asynchronously, but it is more difficult to manage for
             # no real advantage.
@@ -616,6 +632,7 @@ class Viewer:
                 # NEVER closing backend if closing instances, even for the
                 # parent. It will be closed at Python exit automatically.
                 Viewer._backend_robot_names.clear()
+                Viewer._backend_robot_colors.clear()
                 Viewer.detach_camera()
                 if Viewer.backend == 'meshcat' and Viewer.is_alive():
                     Viewer._backend_obj.close()
@@ -623,6 +640,7 @@ class Viewer:
                     Viewer._backend_proc.kill()
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
+                Viewer._has_gui = False
             else:
                 # Disable travelling if associated with this viewer instance
                 if (Viewer._camera_travelling is not None and
@@ -642,6 +660,7 @@ class Viewer:
                 # Consider that the robot name is now available, no matter
                 # whether the robot has actually been deleted or not.
                 Viewer._backend_robot_names.discard(self.robot_name)
+                Viewer._backend_robot_colors.pop(self.robot_name)
                 if self.delete_robot_on_close:
                     Viewer._delete_nodes_viewer(
                         ['/'.join((self.scene_name, self.robot_name))])
@@ -954,6 +973,100 @@ class Viewer:
             for node_path in nodes_path:
                 Viewer._backend_obj.gui[node_path].delete()
 
+    @staticmethod
+    @__must_be_open
+    def set_watermark(img_fullpath: Optional[str] = None,
+                      width: Optional[int] = None,
+                      height: Optional[int] = None) -> None:
+        """Insert desired watermark on bottom left corner of the window.
+
+        .. note::
+            The relative width and height cannot exceed 20% of the visible
+            area, othewise it will be rescaled.
+
+        .. note::
+            Gepetto-gui is not supported by this method and will never be.
+
+        :param img_fullpath: Full path of the image to use as watermark.
+                             Meshcat supports format '.png', '.jpeg' or 'svg',
+                             while Panda3d only supports '.png' and '.jpeg' for
+                             now. None or empty string to disable.
+                             Optional: None by default.
+        :param width: Desired width for the image. None to not rescale the
+                      image manually.
+                      Optional: None by default.
+        :param height: Desired height for the image. None to not rescale the
+                       image manually.
+                       Optional: None by default.
+        """
+        if Viewer.backend == 'gepetto-gui':
+            logger.warning(
+                "Adding watermark is not available for Gepetto-gui.")
+        elif Viewer.backend == 'panda3d':
+            Viewer._backend_obj._app.set_watermark(img_fullpath, width, height)
+        else:
+            width = width or DEFAULT_WATERMARK_MAXSIZE[0]
+            height = height or DEFAULT_WATERMARK_MAXSIZE[1]
+            if img_fullpath is None or img_fullpath == "":
+                Viewer._backend_obj.remove_watermark()
+
+    @staticmethod
+    @__must_be_open
+    def set_legend(labels: Optional[Sequence[str]] = None) -> None:
+        """Insert legend on top left corner of the window.
+
+        .. note::
+            Make sure to have specified different colors for each robot on the
+            scene, since it will be used as marker on the legend.
+
+        .. note::
+            Gepetto-gui is not supported by this method and will never be.
+
+        :param labels: Sequence of strings whose length must be consistent
+                       with the number of robots on the scene. None to disable.
+                       Optional: None by default.
+        """
+        # Make sure number of labels is consistent with number of robots
+        if labels is not None:
+            assert len(labels) == len(Viewer._backend_robot_colors)
+
+        if Viewer.backend == 'gepetto-gui':
+            logger.warning("Adding legend is not available for Gepetto-gui.")
+        elif Viewer.backend == 'panda3d':
+            if labels is None:
+                items = None
+            else:
+                items = dict(zip(
+                    labels, Viewer._backend_robot_colors.values()))
+            Viewer._backend_obj._app.set_legend(items)
+        else:
+            if labels is None:
+                for robot_name in Viewer._backend_robot_colors.keys():
+                    Viewer._backend_obj.remove_legend_item(robot_name)
+            else:
+                for text, (robot_name, color) in zip(
+                        labels, Viewer._backend_robot_colors):
+                    rgba = [*[int(e * 255) for e in color[:3]], color[3]]
+                    color = f"rgba({','.join(map(str, rgba))}"
+                    Viewer._backend_obj.set_legend_item(
+                        robot_name, color, text)
+
+    @staticmethod
+    @__must_be_open
+    def set_clock(time: Optional[float] = None) -> None:
+        """Insert clock on bottom right corner of the window.
+
+        .. note::
+            Only Panda3d rendering backend is supported by this method.
+
+        :param time: Current time is seconds. None to disable.
+                     Optional: None by default.
+        """
+        if Viewer.backend == 'panda3d':
+            Viewer._backend_obj._app.set_clock(time)
+        else:
+            logger.warning("Adding clock is only available for Panda3d.")
+
     @__must_be_open
     def set_camera_transform(self,
                              position: Optional[Tuple3FType] = None,
@@ -1149,7 +1262,13 @@ class Viewer:
                 height = _height
             if _width != width or _height != height:
                 self._gui._app.set_window_size(width, height)
-            return self._gui.get_screenshot(requested_format='RGB')
+                self._gui._app.step()
+            # Call low-level `get_screenshot` directly to avoid calling `step`
+            # for rendering systematically, since it is already up-to-date.
+            buffer = self._gui._app.get_screenshot(
+                requested_format='RGB', raw=True)
+            array = np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
+            return np.flipud(array)
         else:
             # Send capture frame request to the background recorder process
             img_html = Viewer._backend_obj.capture_frame(width, height)
@@ -1341,6 +1460,7 @@ class Viewer:
                    np.ndarray, Tuple[float, float]]] = (0.0, np.inf),
                speed_ratio: float = 1.0,
                xyz_offset: Optional[np.ndarray] = None,
+               enable_clock: bool = False,
                wait: bool = False) -> None:
         """Replay a complete robot trajectory at a given real-time ratio.
 
@@ -1364,6 +1484,8 @@ class Viewer:
         init_time = time.time()
         while i < len(evolution_robot):
             try:
+                if enable_clock:
+                    Viewer.set_clock(t_simu)
                 s = evolution_robot[i]
                 s_next = evolution_robot[min(i, len(evolution_robot)) - 1]
                 ratio = (t_simu - s.t) / (s_next.t - s.t)
@@ -1379,3 +1501,6 @@ class Viewer:
                     break
             except Viewer._backend_exceptions:
                 break
+
+        # Disable clock after replay if enable
+        Viewer.set_clock()

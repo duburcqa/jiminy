@@ -1,3 +1,5 @@
+import io
+import math
 import array
 import warnings
 import xml.etree.ElementTree as ET
@@ -5,20 +7,35 @@ from datetime import datetime
 from typing import Optional, Dict, Tuple, Union, Sequence
 
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
+from matplotlib.patches import Patch
 
 from panda3d.core import (
     NodePath, Point3, Vec3, Mat4, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
-    OmniBoundingVolume, CompassEffect, BillboardEffect)
+    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
+    Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
+    TransparencyAttrib, OrthographicLens)
 import panda3d_viewer
+import panda3d_viewer.viewer_app
+import panda3d_viewer.viewer_proxy
 from panda3d_viewer import Viewer as Panda3dViewer
 from panda3d_viewer import geometry
+from direct.gui.OnscreenImage import OnscreenImage
+from direct.gui.OnscreenText import OnscreenText
 
 import hppfcl
 import pinocchio as pin
 from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
+
+
+LEGEND_DPI = 400
+LEGEND_SCALE = 0.25
+CLOCK_SCALE = 0.1
+OVERLAY_MARGIN_REL = 0.05
 
 
 def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
@@ -137,14 +154,30 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             Point3(0., -10., 0.), False)
         self.background_gradient.set_effect(effect)
 
-        # # Disable 2D render completely for offscreen window (gui)
-        self.win.removeAllDisplayRegions()
-        dr = self.win.makeDisplayRegion(0, 1, 0, 1)
-        dr.setSort(0)
-        dr.setCamera(self.cam)
+        # Create shared 2D renderer to allow display selectively gui elements
+        # on offscreen window used for capturing frames.
+        self.sharedCamera2d = NodePath(Camera('sharedCam2d'))
+        lens = OrthographicLens()
+        lens.setFilmSize(2, 2)
+        lens.setNearFar(-1000, 1000)
+        self.sharedCamera2d.node().setLens(lens)
+        self.sharedRender2d = NodePath('sharedRender2d')
+        self.sharedRender2d.setDepthTest(False)
+        self.sharedRender2d.setDepthWrite(False)
+        self.sharedCamera2d.reparentTo(self.sharedRender2d)
+        self.sharedAspect2d = self.sharedRender2d.attachNewNode(PGTop(
+            'sharedAspect2d'))
+
+        # Enable the shared 2D renderer on default offscreen window
+        self._off_display_region = self.win.makeMonoDisplayRegion()
+        self._off_display_region.setSort(5)
+        self._off_display_region.setCamera(self.sharedCamera2d)
 
         # Initialize onscreen display and controls internal state
         self._help_label = None
+        self._watermark = None
+        self._legend = None
+        self._clock = None
         self.zoom_rate = 0.98
         self.camera_lookat = np.zeros(3)
         self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
@@ -161,9 +194,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if any(isinstance(win, GraphicsWindow) for win in self.winList):
             raise RuntimeError("Only one graphical window can be opened.")
 
-        # Replace the original offscreen window by an onscreen one
+        # Replace the original offscreen window by an onscreen one.
+        # Note that one must remove display region associated with shared 2D
+        # renderer, otherwise it will be altered when closing current window.
         self.windowType = 'onscreen'
+        self.win.removeDisplayRegion(self._off_display_region)
+        size = self.win.getSize()
         self.openMainWindow()
+        dr = self.win.makeMonoDisplayRegion()
+        dr.setSort(5)
+        dr.setCamera(self.sharedCamera2d)
 
         # Setup mouse and keyboard controls for onscreen display
         self._setup_shortcuts()
@@ -176,8 +216,36 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.taskMgr.add(
             self.moveOrbitalCameraTask, "moveOrbitalCameraTask", sort=2)
 
-        # Create new offscreen buffer, linked to the onscreen one
-        self.openWindow(type='offscreen', gsg=self.win.getGsg())
+        # Create secondary offscreen buffer
+        self._openSecondaryOffscreenWindow(size)
+
+    def _openSecondaryOffscreenWindow(self,
+                                      size: Optional[Tuple[int, int]] = None
+                                      ) -> None:
+        """Create new completely independent offscreen buffer rendering the
+        same scene than the main window.
+        """
+        if size is None:
+            size = self.win.getSize()
+        if len(self.winList) > 1:
+            self.closeWindow(self.winList[-1], keepCamera=False)
+        win = self.openWindow(
+            type='offscreen', size=size, keepCamera=False, makeCamera=False)
+        self.graphicsLens = PerspectiveLens()
+        self.graphicsLens.setAspectRatio(self.getAspectRatio(win))
+        self.makeCamera(win, camName='offCam', lens=self.graphicsLens)
+        self._off_display_region = \
+            self.winList[-1].makeMonoDisplayRegion()
+        self._off_display_region.setSort(5)
+        self._off_display_region.setCamera(self.sharedCamera2d)
+
+    def getSize(self, win=None):
+        """Must be patched to return the size of the window used for capturing
+        frame by default, instead of main window.
+        """
+        if win is None and self.winList:
+            win = self.winList[-1]
+        return super().getSize(win)
 
     def handleKey(self, key, value):
         if key in ["mouse1", "mouse2", "mouse3"]:
@@ -276,13 +344,158 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 else:
                     tile_path.set_color((0.13, 0.13, 0.2, 1))
         node.set_two_sided(True)
-        # material = Material()
-        # material.set_ambient((0, 0, 0, 1))
-        # material.set_diffuse((0.3, 0.3, 0.3, 1))
-        # material.set_specular((1, 1, 1))
-        # material.set_roughness(0.8)
-        # node.set_material(material, 1)
         return node
+
+    def set_watermark(self,
+                      img_fullpath: Optional[str] = None,
+                      width: Optional[int] = None,
+                      height: Optional[int] = None) -> None:
+        # Remove existing watermark, if any
+        if self._watermark is not None:
+            self._watermark.removeNode()
+            self._watermark = None
+
+        # Do nothing if img_fullpath is not specified
+        if img_fullpath is None or img_fullpath == "":
+            return
+
+        # Get image size if not user-specified
+        if width is None or height is None:
+            image_header = PNMImageHeader()
+            image_header.readHeader(Filename(img_fullpath))
+            width = width or float(image_header.getXSize())
+            height = height or float(image_header.getYSize())
+
+        # Compute relative image size
+        width_win = self.winList[-1].getXSize()
+        height_win = self.winList[-1].getYSize()
+        width_rel, height_rel = width / width_win, height / height_win
+
+        # Make sure it does not take too much space of window
+        if width_rel > 0.2:
+            width_rel, height_rel = 0.2, height_rel / width_rel * 0.2
+        if height_rel > 0.2:
+            width_rel, height_rel = width_rel / height_rel * 0.2, 0.2
+
+        # Put it on bottom left corner
+        aspect_win = height_win / width_win
+        pos_x = OVERLAY_MARGIN_REL * aspect_win - (1.0 - width_rel)
+        pos_z = OVERLAY_MARGIN_REL - (1.0 - height_rel)
+        self._watermark = OnscreenImage(
+            image=img_fullpath, parent=self.sharedAspect2d,
+            pos=(pos_x, 0, pos_z), scale=(width_rel, 1, height_rel))
+
+    def set_legend(self,
+                   items: Optional[Dict[str, Optional[Sequence[int]]]] = None
+                   ) -> None:
+        # Remove existing watermark, if any
+        if self._legend is not None:
+            self._legend.removeNode()
+            self._legend = None
+
+        # Do nothing if items is not specified
+        if items is None or not items:
+            return
+
+        # Create empty figure with the legend
+        color_default = np.array([0.0, 0.0, 0.0, 1.0])
+        handles = [Patch(color=c if c is not None else color_default, label=t)
+                   for t, c in items.items()]
+        fig = plt.figure()
+        legend = fig.gca().legend(handles=handles, framealpha=1, frameon=True)
+
+        # Render the legend
+        fig.canvas.draw()
+
+        # Export the figure, limiting the bounding box to the legend area,
+        # slighly extended to ensure the surrounding rounded corner box of
+        # is not cropped. Transparency is enabled, so it is not an issue.
+        bbox = legend.get_window_extent().padded(2)
+        bbox_inches = bbox.transformed(fig.dpi_scale_trans.inverted())
+        bbox_inches = bbox.from_extents(
+            np.round(bbox_inches.extents * LEGEND_DPI) / LEGEND_DPI)
+        io_buf = io.BytesIO()
+        fig.savefig(io_buf, format='rgba', dpi=LEGEND_DPI, transparent=True,
+                    bbox_inches=bbox_inches)
+        io_buf.seek(0)
+        img_raw = io_buf.getvalue()
+        img_size = (np.array(bbox_inches.bounds)[2:] * LEGEND_DPI).astype(int)
+
+        # Delete the legend along with its temporary figure
+        plt.close(fig)
+
+        # Create texture in which to render the image buffer
+        width, height = img_size
+        tex = Texture()
+        tex.setup2dTexture(
+            width, height, Texture.T_unsigned_byte, Texture.F_rgba8)
+        tex.setRamImage(img_raw)
+
+        # Compute relative image size
+        width_win = self.winList[-1].getXSize()
+        height_win = self.winList[-1].getYSize()
+        width_rel = LEGEND_SCALE * width / width_win
+        height_rel = LEGEND_SCALE * height / height_win
+
+        # Make sure it does not take too much space of window
+        if width_rel > 0.4:
+            width_rel, height_rel = 0.4, height_rel / width_rel * 0.4
+        if height_rel > 0.4:
+            width_rel, height_rel = width_rel / height_rel * 0.4, 0.4
+
+        # Put it on top left corner
+        aspect_win = height_win / width_win
+        pos_x = OVERLAY_MARGIN_REL * aspect_win - (1.0 - width_rel)
+        pos_z = - OVERLAY_MARGIN_REL + (1.0 - height_rel)
+        self._legend = OnscreenImage(image=tex,
+                                     parent=self.sharedAspect2d,
+                                     pos=(pos_x, 0, pos_z),
+                                     scale=(width_rel, 1, height_rel))
+
+        # Flip the vertical axis and enable transparency
+        self._legend.setTransparency(TransparencyAttrib.MAlpha)
+        self._legend.setTexScale(TextureStage.getDefault(), 1, -1)
+
+    def set_clock(self, time: Optional[float] = None) -> None:
+        # Remove existing watermark, if any
+        if time is None:
+            if self._clock is not None:
+                self._clock.removeNode()
+                self._clock = None
+            return
+
+        if self._clock is None:
+            # Add text clock on bottom right corner.
+            # Note that the default matplotlib font will be used.
+            self._clock = OnscreenText(
+                text="00:00:00.000",
+                parent=self.sharedAspect2d,
+                scale=CLOCK_SCALE,
+                font=self.loader.loadFont(font_manager.findfont(None)),
+                fg=(1, 0, 0, 1),
+                bg=(1, 1, 1, 1),
+                frame=(0, 0, 0, 1),
+                mayChange=True,
+                align=TextNode.ARight)
+
+            # Fix card margins not uniform
+            self._clock.textNode.setCardAsMargin(0.2, 0.2, 0.05, 0)
+            self._clock.textNode.setFrameAsMargin(0.2, 0.2, 0.05, 0)
+
+            # Set text position based on its actual size
+            card_dims = self._clock.textNode.getCardTransformed()
+            aspect_win = self.getAspectRatio(self.winList[-1])
+            pos_x = - OVERLAY_MARGIN_REL * aspect_win + (1.0 - card_dims[1])
+            pos_z = OVERLAY_MARGIN_REL - (1.0 + card_dims[2])
+            self._clock.setPos(pos_x, pos_z)
+
+        # Update clock values
+        hours, remainder = divmod(time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        remainder, seconds = math.modf(seconds)
+        milliseconds = 1000 * remainder
+        self._clock.setText(f"{hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}"
+                            f".{milliseconds:03.0f}")
 
     def append_mesh(self,
                     root_path: str,
@@ -337,15 +550,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._shadow_enabled = enable
 
     def set_window_size(self, width: int, height: int) -> None:
-        if self.windowType == 'onscreen':
-            self.closeWindow(self.winList[-1], keepCamera=False)
-            self.openWindow(
-                type='offscreen', gsg=self.win.getGsg(), size=(width, height))
-        else:
+        self.winList[-1].removeDisplayRegion(self._off_display_region)
+        if self.windowType == 'offscreen':
             self.camLens = None
             self.openMainWindow(size=(width, height))
+            self._off_display_region = self.winList[-1].makeMonoDisplayRegion()
+            self._off_display_region.setSort(5)
+            self._off_display_region.setCamera(self.sharedCamera2d)
+        else:
+            self._openSecondaryOffscreenWindow((width, height))
 
-    def save_screenshot(self, filename=None):
+    def save_screenshot(self, filename: str = None) -> bool:
         if filename is None:
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
             filename = datetime.now().strftime(template)
@@ -358,7 +573,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             return False
         return True
 
-    def get_screenshot(self, requested_format='BGRA'):
+    def get_screenshot(self, requested_format='BGRA', raw=False):
+        """Must be patched to take screenshot of the last window available
+        instead of the main one, and to add raw data return mode for
+        efficient multiprocessing.
+        """
         texture = self.winList[-1].get_screenshot()
         if texture is None:
             return None
@@ -366,10 +585,31 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         ysize = texture.get_y_size()
         dsize = len(requested_format)
         image = texture.get_ram_image_as(requested_format)
-        array = np.asarray(image).reshape((ysize, xsize, dsize))
+        if raw:
+            return image.get_data()
+        array = np.frombuffer(image, np.uint8).reshape((ysize, xsize, dsize))
         return np.flipud(array)
 
-panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
+
+class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
+    def __getstate__(self):
+        """Required for Windows support, which uses spawning instead of forking
+        to create subprocesses, requiring pickling of process instance.
+        """
+        return vars(self)
+
+    def __setstate__(self, state):
+        """Must be defined for the same reason than `__getstate__`.
+        """
+        vars(self).update(state)
+
+    def run(self):
+        """Must be patched to use Jiminy ViewerApp instead of the original one.
+        """
+        panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
+        super().run()
+
+panda3d_viewer.viewer_proxy.ViewerAppProxy = Panda3dProxy  # noqa
 
 
 class Panda3dVisualizer(BaseVisualizer):

@@ -117,9 +117,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
 
         # Increase stepper accuracy for time-continuous control
         engine_options = self.simulator.engine.get_options()
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
-        engine_options["stepper"]["tolRel"] = 1.0e-9
-        engine_options["stepper"]["tolAbs"] = 1.0e-8
+        engine_options["stepper"]["solver"] = "runge_kutta_4"
+        engine_options["stepper"]["dtMax"] = min(STEP_DT, 0.02)
         self.simulator.engine.set_options(engine_options)
 
     def _refresh_observation_space(self) -> None:
@@ -128,8 +127,13 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
         """
-        self.observation_space = gym.spaces.flatten_space(
-            self._get_state_space())
+        # TODO: `gym.spaces.flatten_space` does not properly handle dtype
+        # before gym>=0.18.0, which is not compatible with Python 3.9...
+        state_subspaces = self._get_state_space().spaces.values()
+        self.observation_space = gym.spaces.Box(
+            low=np.concatenate([s.low for s in state_subspaces]),
+            high=np.concatenate([s.high for s in state_subspaces]),
+            dtype=np.result_type(*[s.dtype for s in state_subspaces]))
 
     def refresh_observation(self, *args: Any, **kwargs: Any) -> None:
         """Update the observation based on the current simulation state.

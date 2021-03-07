@@ -17,8 +17,7 @@ namespace jiminy
 
     float64_t const STEPPER_MIN_TIMESTEP = 1e-10;
     float64_t const SIMULATION_MIN_TIMESTEP = 1e-6;
-    float64_t const SIMULATION_INITIAL_TIMESTEP = 1e-3;
-    float64_t const SIMULATION_MAX_TIMESTEP = 1e-2;
+    float64_t const SIMULATION_MAX_TIMESTEP = 0.02;
 
     uint32_t const PGS_MAX_ITERATIONS = 100U;
     uint32_t const PGS_RANDOM_PERMUTATION_PERIOD = 7U;
