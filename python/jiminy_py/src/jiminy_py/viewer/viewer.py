@@ -309,12 +309,12 @@ class Viewer:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
                 Viewer._backend_exception = None
-                Viewer._has_gui = False
         else:
             is_backend_running = False
 
         # Reset some class attribute if backend not available
         if not is_backend_running:
+            Viewer._has_gui = False
             Viewer._backend_robot_names.clear()
             Viewer._backend_robot_colors.clear()
             Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
