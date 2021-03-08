@@ -33,7 +33,7 @@ from pinocchio.visualize import BaseVisualizer
 
 
 LEGEND_DPI = 400
-LEGEND_SCALE = 0.25
+LEGEND_SCALE = 0.3
 CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.05
 
@@ -475,12 +475,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         height_win = self.winList[-1].getYSize()
         width_rel = LEGEND_SCALE * width / width_win
         height_rel = LEGEND_SCALE * height / height_win
-
-        # Make sure it does not take too much space of window
-        if width_rel > 0.4:
-            width_rel, height_rel = 0.4, height_rel / width_rel * 0.4
-        if height_rel > 0.4:
-            width_rel, height_rel = width_rel / height_rel * 0.4, 0.4
 
         # Create legend on main window
         self._legend = OnscreenImage(image=tex,
