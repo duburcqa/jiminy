@@ -35,7 +35,7 @@ from pinocchio.visualize import BaseVisualizer
 LEGEND_DPI = 400
 LEGEND_SCALE = 0.25
 CLOCK_SCALE = 0.1
-OVERLAY_MARGIN_REL = 0.05
+WIDGET_MARGIN_REL = 0.05
 
 
 def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
@@ -155,29 +155,41 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.background_gradient.set_effect(effect)
 
         # Create shared 2D renderer to allow display selectively gui elements
-        # on offscreen window used for capturing frames.
-        self.sharedCamera2d = NodePath(Camera('sharedCam2d'))
-        lens = OrthographicLens()
-        lens.setFilmSize(2, 2)
-        lens.setNearFar(-1000, 1000)
-        self.sharedCamera2d.node().setLens(lens)
+        # on offscreen and onscreen window used for capturing frames.
         self.sharedRender2d = NodePath('sharedRender2d')
         self.sharedRender2d.setDepthTest(False)
         self.sharedRender2d.setDepthWrite(False)
-        self.sharedCamera2d.reparentTo(self.sharedRender2d)
-        self.sharedAspect2d = self.sharedRender2d.attachNewNode(PGTop(
-            'sharedAspect2d'))
 
-        # Enable the shared 2D renderer on default offscreen window
-        self._off_display_region = self.win.makeMonoDisplayRegion()
-        self._off_display_region.setSort(5)
-        self._off_display_region.setCamera(self.sharedCamera2d)
+        # Create dedicated camera 2D for offscreen rendering
+        self.offCamera2d = NodePath(Camera(f'Camera2d_{i}'))
+        lens = OrthographicLens()
+        lens.setFilmSize(2, 2)
+        lens.setNearFar(-1000, 1000)
+        self.offCamera2d.node().setLens(lens)
+        self.offCamera2d.reparentTo(self.sharedRender2d)
+
+        # Create dedicated aspect2d for offscreen rendering
+        self.offAspect2d = self.sharedRender2d.attachNewNode(
+            PGTop("offAspect2d"))
+        self.offA2dTopLeft = self.offAspect2d.attachNewNode(
+            "offA2dTopLeft")
+        self.offA2dTopRight = self.offAspect2d.attachNewNode(
+            "offA2dTopRight")
+        self.offA2dBottomLeft = self.offAspect2d.attachNewNode(
+            "offA2dBottomLeft")
+        self.offA2dBottomRight = self.offAspect2d.attachNewNode(
+            "offA2dBottomRight")
+        self.offA2dTopLeft.setPos(self.a2dLeft, 0, self.a2dTop)
+        self.offA2dTopRight.setPos(self.a2dRight, 0, self.a2dTop)
+        self.offA2dBottomLeft.setPos(self.a2dLeft, 0, self.a2dBottom)
+        self.offA2dBottomRight.setPos(self.a2dRight, 0, self.a2dBottom)
 
         # Initialize onscreen display and controls internal state
         self._help_label = None
         self._watermark = None
         self._legend = None
         self._clock = None
+        self.offDisplayRegion = None
         self.zoom_rate = 0.98
         self.camera_lookat = np.zeros(3)
         self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
@@ -194,16 +206,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if any(isinstance(win, GraphicsWindow) for win in self.winList):
             raise RuntimeError("Only one graphical window can be opened.")
 
-        # Replace the original offscreen window by an onscreen one.
-        # Note that one must remove display region associated with shared 2D
-        # renderer, otherwise it will be altered when closing current window.
+        # Replace the original offscreen window by an onscreen one
         self.windowType = 'onscreen'
-        self.win.removeDisplayRegion(self._off_display_region)
         size = self.win.getSize()
         self.openMainWindow()
-        dr = self.win.makeMonoDisplayRegion()
-        dr.setSort(5)
-        dr.setCamera(self.sharedCamera2d)
 
         # Setup mouse and keyboard controls for onscreen display
         self._setup_shortcuts()
@@ -225,19 +231,48 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """Create new completely independent offscreen buffer rendering the
         same scene than the main window.
         """
+        # Handling of default size
         if size is None:
             size = self.win.getSize()
+
+        # Close existing offscreen display if any.
+        # Note that one must remove display region associated with shared 2D
+        # renderer, otherwise it will be altered when closing current window.
         if len(self.winList) > 1:
+            self.winList[-1].removeDisplayRegion(self.offDisplayRegion)
             self.closeWindow(self.winList[-1], keepCamera=False)
+
+        # Open new window and create 2D display region for widgets
         win = self.openWindow(
             type='offscreen', size=size, keepCamera=False, makeCamera=False)
+        aspectRatio = self.getAspectRatio(win)
         self.graphicsLens = PerspectiveLens()
-        self.graphicsLens.setAspectRatio(self.getAspectRatio(win))
+        self.graphicsLens.setAspectRatio(aspectRatio)
         self.makeCamera(win, camName='offCam', lens=self.graphicsLens)
-        self._off_display_region = \
-            self.winList[-1].makeMonoDisplayRegion()
-        self._off_display_region.setSort(5)
-        self._off_display_region.setCamera(self.sharedCamera2d)
+        self.offDisplayRegion = self.winList[-1].makeMonoDisplayRegion()
+        self.offDisplayRegion.setSort(5)
+        self.offDisplayRegion.setCamera(self.offCamera2d)
+
+        # Adjust existing anchors for offscreen 2D rendering
+        if aspectRatio < 1:
+            # If the window is TALL, lets expand the top and bottom
+            self.offAspect2d.setScale(1.0, aspectRatio, aspectRatio)
+            a2dTop = 1.0 / aspectRatio
+            a2dBottom = - 1.0 / aspectRatio
+            a2dLeft = -1
+            a2dRight = 1.0
+        else:
+            # If the window is WIDE, lets expand the left and right
+            self.offAspect2d.setScale(1.0 / aspectRatio, 1.0, 1.0)
+            a2dTop = 1.0
+            a2dBottom = -1.0
+            a2dLeft = -aspectRatio
+            a2dRight = aspectRatio
+
+        self.offA2dTopLeft.setPos(a2dLeft, 0, a2dTop)
+        self.offA2dTopRight.setPos(a2dRight, 0, a2dTop)
+        self.offA2dBottomLeft.setPos(a2dLeft, 0, a2dBottom)
+        self.offA2dBottomRight.setPos(a2dRight, 0, a2dBottom)
 
     def getSize(self, win=None):
         """Must be patched to return the size of the window used for capturing
@@ -377,13 +412,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if height_rel > 0.2:
             width_rel, height_rel = width_rel / height_rel * 0.2, 0.2
 
-        # Put it on bottom left corner
-        aspect_win = height_win / width_win
-        pos_x = OVERLAY_MARGIN_REL * aspect_win - (1.0 - width_rel)
-        pos_z = OVERLAY_MARGIN_REL - (1.0 - height_rel)
-        self._watermark = OnscreenImage(
-            image=img_fullpath, parent=self.sharedAspect2d,
-            pos=(pos_x, 0, pos_z), scale=(width_rel, 1, height_rel))
+        # Create image watermark on main window
+        self._watermark = OnscreenImage(image=img_fullpath,
+                                        parent=self.a2dBottomLeft,
+                                        scale=(width_rel, 1, height_rel))
+
+        # Add it on secondary window
+        self.offA2dBottomLeft.node().addChild(self._watermark.node())
+
+        # Move the watermark in bottom right corner
+        self._watermark.setPos(
+            WIDGET_MARGIN_REL + width_rel, 0, WIDGET_MARGIN_REL + height_rel)
 
     def set_legend(self,
                    items: Optional[Dict[str, Optional[Sequence[int]]]] = None
@@ -443,14 +482,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if height_rel > 0.4:
             width_rel, height_rel = width_rel / height_rel * 0.4, 0.4
 
-        # Put it on top left corner
-        aspect_win = height_win / width_win
-        pos_x = OVERLAY_MARGIN_REL * aspect_win - (1.0 - width_rel)
-        pos_z = - OVERLAY_MARGIN_REL + (1.0 - height_rel)
+        # Create legend on main window
         self._legend = OnscreenImage(image=tex,
-                                     parent=self.sharedAspect2d,
-                                     pos=(pos_x, 0, pos_z),
+                                     parent=self.a2dTopLeft,
                                      scale=(width_rel, 1, height_rel))
+
+        # Add it on secondary window
+        self.offA2dTopLeft.node().addChild(self._legend.node())
+
+        # Move the legend in top left corner
+        self._legend.setPos(
+            WIDGET_MARGIN_REL + width_rel, 0, - WIDGET_MARGIN_REL - height_rel)
 
         # Flip the vertical axis and enable transparency
         self._legend.setTransparency(TransparencyAttrib.MAlpha)
@@ -465,11 +507,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             return
 
         if self._clock is None:
-            # Add text clock on bottom right corner.
+            # Create clock on main window.
             # Note that the default matplotlib font will be used.
             self._clock = OnscreenText(
                 text="00:00:00.000",
-                parent=self.sharedAspect2d,
+                parent=self.a2dBottomRight,
                 scale=CLOCK_SCALE,
                 font=self.loader.loadFont(font_manager.findfont(None)),
                 fg=(1, 0, 0, 1),
@@ -478,16 +520,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 mayChange=True,
                 align=TextNode.ARight)
 
+            # Add it on secondary window
+            self.offA2dBottomRight.node().addChild(self._clock.node())
+
             # Fix card margins not uniform
             self._clock.textNode.setCardAsMargin(0.2, 0.2, 0.05, 0)
             self._clock.textNode.setFrameAsMargin(0.2, 0.2, 0.05, 0)
 
-            # Set text position based on its actual size
+            # Move the clock in bottom right corner
             card_dims = self._clock.textNode.getCardTransformed()
-            aspect_win = self.getAspectRatio(self.winList[-1])
-            pos_x = - OVERLAY_MARGIN_REL * aspect_win + (1.0 - card_dims[1])
-            pos_z = OVERLAY_MARGIN_REL - (1.0 + card_dims[2])
-            self._clock.setPos(pos_x, pos_z)
+            self._clock.setPos(- WIDGET_MARGIN_REL - card_dims[1],
+                               WIDGET_MARGIN_REL - card_dims[2])
 
         # Update clock values
         hours, remainder = divmod(time, 3600)
@@ -550,13 +593,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._shadow_enabled = enable
 
     def set_window_size(self, width: int, height: int) -> None:
-        self.winList[-1].removeDisplayRegion(self._off_display_region)
         if self.windowType == 'offscreen':
             self.camLens = None
             self.openMainWindow(size=(width, height))
-            self._off_display_region = self.winList[-1].makeMonoDisplayRegion()
-            self._off_display_region.setSort(5)
-            self._off_display_region.setCamera(self.sharedCamera2d)
+            self.adjustWindowAspectRatio(self.getAspectRatio())
         else:
             self._openSecondaryOffscreenWindow((width, height))
 
