@@ -22,13 +22,15 @@ from panda3d.core import (
     OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
     Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
     TransparencyAttrib, OrthographicLens, ClockObject)
+from direct.gui.OnscreenImage import OnscreenImage
+from direct.gui.OnscreenText import OnscreenText
+
 import panda3d_viewer
 import panda3d_viewer.viewer_app
 import panda3d_viewer.viewer_proxy
-from panda3d_viewer import Viewer as Panda3dViewer
 from panda3d_viewer import geometry
-from direct.gui.OnscreenImage import OnscreenImage
-from direct.gui.OnscreenText import OnscreenText
+from panda3d_viewer import Viewer as Panda3dViewer
+from panda3d_viewer.viewer_errors import ViewerClosedError
 
 import hppfcl
 import pinocchio as pin
@@ -659,6 +661,23 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
         """Must be defined for the same reason than `__getstate__`.
         """
         vars(self).update(state)
+
+    def __getattr__(self, name):
+        """Must be overloaded to catch closed window to avoid deadlock.
+        """
+        def _send(*args, **kwargs):
+            if self._host_conn.closed:
+                raise ViewerClosedError('User closed the main window')
+            self._host_conn.send((name, args, kwargs))
+            reply = self._host_conn.recv()
+            if isinstance(reply, Exception):
+                if isinstance(reply, ViewerClosedError):
+                    # Close pipe to make sure it does not get used in future
+                    self._host_conn.close()
+                raise reply
+            return reply
+
+        return _send
 
     def run(self):
         """Must be patched to use Jiminy ViewerApp instead of the original one.

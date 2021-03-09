@@ -1508,7 +1508,11 @@ class Viewer:
                 if t_simu > time_interval[1]:
                     break
             except Viewer._backend_exceptions:
+                # Make sure the viewer is properly closed if exception is
+                # raised during replay.
+                Viewer.close()
                 break
 
-        # Disable clock after replay if enable
-        Viewer.set_clock()
+        # Disable clock after replay if enable and alive
+        if Viewer.is_alive():
+            Viewer.set_clock()
