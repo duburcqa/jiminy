@@ -855,7 +855,8 @@ class Viewer:
                     "'panda3d' backend does not support connecting to already "
                     "running client.")
 
-            # Instantiate new client with onscreen rendering enabled
+            # Instantiate new client with onscreen rendering enabled.
+            # Note that it fallbacks to software rendering if necessary.
             config = Panda3dViewerConfig()
             config.set_window_size(DEFAULT_CAPTURE_SIZE, DEFAULT_CAPTURE_SIZE)
             config.set_window_fixed(False)
@@ -867,6 +868,13 @@ class Viewer:
             config.show_axes(True)
             config.show_grid(False)
             config.show_floor(True)
+            config.set_value('framebuffer-software', '0')
+            config.set_value('framebuffer-hardware', '0')
+            config.set_value('load-display', 'pandagl')
+            config.set_value('aux-display',
+                             'pandadx9'
+                             '\naux-display pandadx8'
+                             '\naux-display p3tinydisplay')
             client = Panda3dViewer(
                 window_type='onscreen', window_title='jiminy', config=config)
             client.gui = client  # The gui is the client itself for now

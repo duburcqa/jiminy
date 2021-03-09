@@ -442,23 +442,29 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                    for t, c in items.items()]
         fig = plt.figure()
         legend = fig.gca().legend(handles=handles, framealpha=1, frameon=True)
+        fig.gca().set_axis_off()
 
         # Render the legend
         fig.canvas.draw()
 
+        # Compute bbox size to be power of 2 for software rendering.
+        bbox = legend.get_window_extent().padded(2)
+        bbox_inches = bbox.transformed(fig.dpi_scale_trans.inverted())
+        bbox_pixels = np.array(bbox_inches.extents) * LEGEND_DPI
+        bbox_pixels = np.floor(bbox_pixels)
+        bbox_pixels[2:] = bbox_pixels[:2] + 2 ** np.ceil(np.log(
+            bbox_pixels[2:] - bbox_pixels[:2]) / np.log(2.0)) + 0.1
+        bbox_inches = bbox.from_extents(bbox_pixels / LEGEND_DPI)
+
         # Export the figure, limiting the bounding box to the legend area,
         # slighly extended to ensure the surrounding rounded corner box of
         # is not cropped. Transparency is enabled, so it is not an issue.
-        bbox = legend.get_window_extent().padded(2)
-        bbox_inches = bbox.transformed(fig.dpi_scale_trans.inverted())
-        bbox_inches = bbox.from_extents(
-            np.round(bbox_inches.extents * LEGEND_DPI) / LEGEND_DPI)
         io_buf = io.BytesIO()
         fig.savefig(io_buf, format='rgba', dpi=LEGEND_DPI, transparent=True,
                     bbox_inches=bbox_inches)
         io_buf.seek(0)
         img_raw = io_buf.getvalue()
-        img_size = (np.array(bbox_inches.bounds)[2:] * LEGEND_DPI).astype(int)
+        img_size = (bbox_pixels[2:] - bbox_pixels[:2]).astype(int)
 
         # Delete the legend along with its temporary figure
         plt.close(fig)
