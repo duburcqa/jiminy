@@ -209,7 +209,7 @@ def evaluate(env_creator: Callable[..., gym.Env],
              explore: bool = False,
              enable_stats: bool = True,
              enable_replay: bool = True,
-             viewer_kwargs: Optional[Dict[str, Any]] = None) -> None:
+             viewer_kwargs: Optional[Dict[str, Any]] = None) -> gym.Env:
     """TODO Write documentation.
     """
     # Handling of default arguments
@@ -263,6 +263,8 @@ def evaluate(env_creator: Callable[..., gym.Env],
     if enable_replay:
         env.replay(**{'speed_ratio': 1.0, **viewer_kwargs})
 
+    return env
+
 
 def test(test_agent: Trainer,
          explore: bool = True,
@@ -270,7 +272,7 @@ def test(test_agent: Trainer,
          enable_stats: bool = True,
          enable_replay: bool = True,
          viewer_kwargs: Optional[Dict[str, Any]] = None,
-         **kwargs: Any) -> None:
+         **kwargs: Any) -> gym.Env:
     """Test a model on a specific environment using a given agent. It will
     render the result in the default viewer.
 
@@ -297,14 +299,14 @@ def test(test_agent: Trainer,
     if viewer_kwargs is not None:
         kwargs.update(viewer_kwargs)
 
-    evaluate(env_creator,
-             policy,
-             dist_class,
-             obs_filter_fn,
-             n_frames_stack=n_frames_stack,
-             horizon=test_agent.config["horizon"],
-             clip_action=test_agent.config["clip_actions"],
-             explore=explore,
-             enable_stats=enable_stats,
-             enable_replay=enable_replay,
-             viewer_kwargs=kwargs)
+    return evaluate(env_creator,
+                    policy,
+                    dist_class,
+                    obs_filter_fn,
+                    n_frames_stack=n_frames_stack,
+                    horizon=test_agent.config["horizon"],
+                    clip_action=test_agent.config["clip_actions"],
+                    explore=explore,
+                    enable_stats=enable_stats,
+                    enable_replay=enable_replay,
+                    viewer_kwargs=kwargs)
