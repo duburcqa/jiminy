@@ -1,9 +1,13 @@
 import io
+import os
+import re
+import sys
 import math
 import array
 import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from pathlib import PureWindowsPath
 from typing import Optional, Dict, Tuple, Union, Sequence
 
 import numpy as np
@@ -569,6 +573,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                                       for _, prefix_namespace_pair in xml_iter)
                 return xml_iter.root, xml_namespaces
 
+            # Replace non-standard hard drive prefix on Windows
+            if sys.platform.startswith('win'):
+                mesh_path = re.sub(r'^/([A-Za-z])',
+                                   lambda m: m.group(1).upper() + ":",
+                                   mesh_path)
+
             root, ns = parse_xml(mesh_path)
             if ns:
                 field_axis = root.find(f".//{{{ns['']}}}up_axis")
@@ -746,10 +756,22 @@ class Panda3dVisualizer(BaseVisualizer):
                 warnings.warn(msg, category=UserWarning, stacklevel=2)
                 return
         else:
+            # Assimp backend used to load meshes does not support many things
+            # related to paths on Windows. First, it does not support symlinks,
+            # then the hard drive prefix must be `/x/` instead of `X:\`, and
+            # finally backslashes must be used  as delimiter instead of
+            # forwardslashes.
+            mesh_path = geometry_object.meshPath
+            if sys.platform.startswith('win'):
+                mesh_path = os.path.realpath(mesh_path)
+                mesh_path = PureWindowsPath(mesh_path).as_posix()
+                mesh_path = re.sub(r'^([A-Za-z]):',
+                                   lambda m: "/" + m.group(1).lower(),
+                                   mesh_path)
+
             # append a mesh
             scale = npToTuple(geometry_object.meshScale)
-            self.viewer.append_mesh(
-                *node_name, geometry_object.meshPath, scale)
+            self.viewer.append_mesh(*node_name, mesh_path, scale)
 
         # Set material color from URDF
         if geometry_object.overrideMaterial:
