@@ -115,7 +115,7 @@ diff --git a/bindings/python/algorithm/expose-joints.cpp b/bindings/python/algor
 index 9d72c12a..41aa429f 100644
 --- a/bindings/python/algorithm/expose-joints.cpp
 +++ b/bindings/python/algorithm/expose-joints.cpp
-@@ -24,112 +24,11 @@ namespace pinocchio
+@@ -24,91 +24,11 @@
      {
        return randomConfiguration(model);
      }
@@ -204,17 +204,13 @@ index 9d72c12a..41aa429f 100644
 -              "\tq: the joint configuration vector (size model.nq)\n"
 -              "\tv: the joint velocity vector (size model.nv)\n"
 -              "\targument_position: either pinocchio.ArgumentPosition.ARG0 or pinocchio.ArgumentPosition.ARG1, depending on the desired Jacobian value.\n");
--
--      bp::def("interpolate",
--              &interpolate<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
--              bp::args("model","q1","q2","alpha"),
--              "Interpolate between two given joint configuration vectors q1 and q2.\n\n"
--              "Parameters:\n"
--              "\tmodel: model of the kinematic tree\n"
--              "\tq1: the initial joint configuration vector (size model.nq)\n"
--              "\tq2: the terminal joint configuration vector (size model.nq)\n"
--              "\talpha: the interpolation coefficient in [0,1]\n");
--      
+
+       bp::def("interpolate",
+               &interpolate<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
+@@ -120,16 +40,6 @@
+               "\tq2: the terminal joint configuration vector (size model.nq)\n"
+               "\talpha: the interpolation coefficient in [0,1]\n");
+
 -      bp::def("difference",
 -              &difference<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
 -              bp::args("model","q1","q2"),
@@ -228,7 +224,7 @@ index 9d72c12a..41aa429f 100644
        bp::def("squaredDistance",
                &squaredDistance<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
                bp::args("model","q1","q2"),
-@@ -148,27 +47,6 @@ namespace pinocchio
+@@ -148,27 +58,6 @@
                "\tq1: the initial joint configuration vector (size model.nq)\n"
                "\tq2: the terminal joint configuration vector (size model.nq)\n");
  
