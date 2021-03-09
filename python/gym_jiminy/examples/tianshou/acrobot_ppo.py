@@ -70,9 +70,9 @@ env_creator = lambda *args, **kwargs: gym.make(GYM_ENV_NAME, **GYM_ENV_KWARGS)
 
 # Create training and testing environments
 train_envs = SubprocVectorEnv([
-    lambda: env_creator() for _ in range(int(N_THREADS//2))])
+    env_creator for _ in range(int(N_THREADS//2))])
 test_envs = SubprocVectorEnv([
-    lambda: env_creator() for _ in range(int(N_THREADS//2))])
+    env_creator for _ in range(int(N_THREADS//2))])
 
 # Set the seeds
 np.random.seed(SEED)
