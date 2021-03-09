@@ -51,15 +51,22 @@ class PipelineControlAtlas(unittest.TestCase):
 
         # Check that the final posture matches the expected one.
         robot_name = self.env.robot.pinocchio_model.name
-        img_name = '_'.join((
-            robot_name, f"standing_{self.env.viewer.backend}.png"))
-        data_dir = os.path.join(os.path.dirname(__file__), "data")
-        img_fullpath = os.path.join(data_dir, img_name)
-        # plt.imsave(img_fullpath, rgb_array)
-        rgba_array_rel_orig = plt.imread(img_fullpath)
-        rgb_array_abs_orig = (
-            rgba_array_rel_orig[..., :3] * 255).astype(np.uint8)
-        img_diff = np.mean(np.abs(rgb_array - rgb_array_abs_orig))
+        i = 0
+        img_diff = np.inf
+        while img_diff > 0.1:
+            img_name = '_'.join((
+                robot_name, f"standing_{self.env.viewer.backend}_{i}.png"))
+            data_dir = os.path.join(os.path.dirname(__file__), "data")
+            img_fullpath = os.path.join(data_dir, img_name)
+            # plt.imsave(img_fullpath, rgb_array)
+            try:
+                rgba_array_rel_orig = plt.imread(img_fullpath)
+            except FileNotFoundError:
+                break
+            rgb_array_abs_orig = (
+                rgba_array_rel_orig[..., :3] * 255).astype(np.uint8)
+            img_diff = np.mean(np.abs(rgb_array - rgb_array_abs_orig))
+            i += 1
         self.assertTrue(img_diff < 0.1)
 
         # Get the simulation log
