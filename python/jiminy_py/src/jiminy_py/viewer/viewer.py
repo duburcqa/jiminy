@@ -47,7 +47,7 @@ from .panda3d.panda3d_visualizer import Panda3dVisualizer
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
-DEFAULT_CAMERA_XYZRPY_REL = [[4.0, -4.0, 1.0], [1.3, 0.0, 0.8]]
+DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
 DEFAULT_CAPTURE_SIZE = 500
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
