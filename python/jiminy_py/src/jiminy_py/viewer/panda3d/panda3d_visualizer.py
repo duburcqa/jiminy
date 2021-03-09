@@ -21,7 +21,7 @@ from panda3d.core import (
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
     OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
     Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
-    TransparencyAttrib, OrthographicLens)
+    TransparencyAttrib, OrthographicLens, ClockObject)
 import panda3d_viewer
 import panda3d_viewer.viewer_app
 import panda3d_viewer.viewer_proxy
@@ -40,6 +40,8 @@ LEGEND_DPI = 400
 LEGEND_SCALE = 0.3
 CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.05
+
+PANDA3D_MAX_FRAMERATE = 30
 
 
 def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
@@ -127,6 +129,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Force creating offscreen display
         config.set_value('window-type', 'offscreen')
         super().__init__(config)
+
+        # Limit framerate of Panda3d to avoid consuming too much ressources
+        clock = ClockObject.getGlobalClock()
+        clock.setMode(ClockObject.MLimited)
+        clock.setFrameRate(PANDA3D_MAX_FRAMERATE)
 
         # Enable only one directional light
         for i in range(2, len(self._lights_mask)):
