@@ -3,7 +3,7 @@ import re
 import sys
 import pathlib
 from queue import deque
-from textwrap import indent, dedent
+from textwrap import indent
 from typing import Sequence
 
 

@@ -555,6 +555,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
+        # Update rendering if viewer is already running
+        if self.viewer is not None and self.viewer.is_alive():
+            self.render()
+
         return clip(self.observation_space, obs)
 
     def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:

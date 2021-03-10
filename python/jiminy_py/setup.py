@@ -1,3 +1,4 @@
+import sys
 from setuptools import setup, dist, find_packages
 from setuptools.command.install import install
 
@@ -17,6 +18,13 @@ class InstallPlatlib(install):
         install.finalize_options(self)
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
+
+
+# 3.3 is broken on Windows 64 bits and cannot be installed properly.
+if sys.platform.startswith('win'):
+    matplotlib_spec = "<3.3"
+else:
+    matplotlib_spec = ""
 
 
 setup(
@@ -64,7 +72,7 @@ setup(
     install_requires=[
         # Used internally by Viewer to read/write snapshots.
         # >= 8.0 is required to support Python3.9.
-        "pillow>=8.0",
+        "pillow",
         # Add support of TypedDict to any Python 3 version.
         "typing_extensions",
         # Display elegant and versatile process bar.
@@ -74,8 +82,7 @@ setup(
         # Used internally for interpolation and filtering.
         "scipy",
         # Standard library to generate figures.
-        # 3.3 is broken on Windows 64 bits and cannot be installed properly.
-        "matplotlib<3.3",
+        f"matplotlib{matplotlib_spec}",
         # Used internally to read HDF5 format log files.
         "h5py",
         # Used internally by Robot to replace meshes by associated minimal
@@ -93,7 +100,7 @@ setup(
         # Used internally by Viewer to record video programmatically when
         # Meshcat is not used as rendering backend.
         # Python3.9 is supported since version 4.4.0.46.
-        "opencv-python-headless>=4.4.0.46",
+        "opencv-python-headless",
         # Used internally by Viewer to detect running Meshcat servers and avoid
         # orphan child processes.
         "psutil",

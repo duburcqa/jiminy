@@ -1,6 +1,7 @@
 import os
 import re
 import io
+import sys
 import time
 import shutil
 import base64
@@ -47,7 +48,7 @@ from .panda3d.panda3d_visualizer import Panda3dVisualizer
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
-DEFAULT_CAMERA_XYZRPY_REL = [[4.0, -4.0, 1.0], [1.3, 0.0, 0.8]]
+DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
 DEFAULT_CAPTURE_SIZE = 500
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
@@ -63,11 +64,26 @@ if __import__('platform').system() == 'Linux':
         backends_available['gepetto-gui'] = GepettoVisualizer
 
 
-def _default_backend() -> str:
+def default_backend() -> str:
     """Determine the default backend viewer, depending on the running
     environment and the set of available backends.
+
+    Meshcat will always be prefered in interactive mode, i.e. in Jupyter
+    notebooks, while Panda3d otherwise, unless there is some clues that no
+    X11-server is available on Linux. In such a case, it fallbacks to Meshcat
+    for now, since Nvidia EGL support without X-server of Panda3d is
+    implemented but not provided with the official wheels distributed on Pypi
+    so far. As a result, Panda3d would work, but relying on software rendering,
+    which is know to be unefficient. On the contrary, Meshcat supports Nvidia
+    EGL through bundled Chromium web-browser, but only on Linux-based OS.
     """
-    return 'meshcat'
+    if interactive_mode():
+        return 'meshcat'
+    else:
+        if not sys.platform.startswith('linux') or os.environ.get('DISPLAY'):
+            return 'panda3d'
+        else:
+            return 'meshcat'
 
 
 def _get_backend_exceptions(
@@ -75,7 +91,7 @@ def _get_backend_exceptions(
     """Get the list of exceptions that may be raised by a given backend.
     """
     if backend is None:
-        backend = _default_backend()
+        backend = default_backend()
     if backend == 'gepetto-gui':
         import gepetto
         import omniORB
@@ -104,7 +120,7 @@ logger.addFilter(_DuplicateFilter())
 
 
 def sleep(dt: float) -> None:
-    """Function to provide cross-plateform time sleep with maximum accuracy.
+    """Function to provide cross-platform time sleep with maximum accuracy.
 
     .. warning::
         Use this method with cautious since it relies on busy looping principle
@@ -210,7 +226,7 @@ class Viewer:
         The environment variable 'JIMINY_VIEWER_INTERACTIVE_DISABLE' can be
         used to force disabling interactive display.
     """
-    backend = _default_backend()
+    backend = default_backend()
     _backend_obj = None
     _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
@@ -309,12 +325,12 @@ class Viewer:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
                 Viewer._backend_exception = None
-                Viewer._has_gui = False
         else:
             is_backend_running = False
 
         # Reset some class attribute if backend not available
         if not is_backend_running:
+            Viewer._has_gui = False
             Viewer._backend_robot_names.clear()
             Viewer._backend_robot_colors.clear()
             Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
@@ -855,7 +871,8 @@ class Viewer:
                     "'panda3d' backend does not support connecting to already "
                     "running client.")
 
-            # Instantiate new client with onscreen rendering enabled
+            # Instantiate new client with onscreen rendering enabled.
+            # Note that it fallbacks to software rendering if necessary.
             config = Panda3dViewerConfig()
             config.set_window_size(DEFAULT_CAPTURE_SIZE, DEFAULT_CAPTURE_SIZE)
             config.set_window_fixed(False)
@@ -867,6 +884,13 @@ class Viewer:
             config.show_axes(True)
             config.show_grid(False)
             config.show_floor(True)
+            config.set_value('framebuffer-software', '0')
+            config.set_value('framebuffer-hardware', '0')
+            config.set_value('load-display', 'pandagl')
+            config.set_value('aux-display',
+                             'pandadx9'
+                             '\naux-display pandadx8'
+                             '\naux-display p3tinydisplay')
             client = Panda3dViewer(
                 window_type='onscreen', window_title='jiminy', config=config)
             client.gui = client  # The gui is the client itself for now
@@ -1262,9 +1286,8 @@ class Viewer:
                 height = _height
             if _width != width or _height != height:
                 self._gui._app.set_window_size(width, height)
-                self._gui._app.step()
-            # Call low-level `get_screenshot` directly to avoid calling `step`
-            # for rendering systematically, since it is already up-to-date.
+            # Call low-level `get_screenshot` directly to get raw buffer
+            self._gui._app.step()  # Render the current scene
             buffer = self._gui._app.get_screenshot(
                 requested_format='RGB', raw=True)
             array = np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
@@ -1500,7 +1523,11 @@ class Viewer:
                 if t_simu > time_interval[1]:
                     break
             except Viewer._backend_exceptions:
+                # Make sure the viewer is properly closed if exception is
+                # raised during replay.
+                Viewer.close()
                 break
 
-        # Disable clock after replay if enable
-        Viewer.set_clock()
+        # Disable clock after replay if enable and alive
+        if Viewer.is_alive():
+            Viewer.set_clock()

@@ -446,27 +446,28 @@ def play_trajectories(trajectory_data: Union[
         for thread in threads:
             thread.join()
 
-    # Disable camera travelling and camera motion if it was enabled
-    if travelling_frame is not None:
-        Viewer.detach_camera()
-    if camera_motion is not None:
-        Viewer.remove_camera_motion()
+    if Viewer.is_alive():
+        # Disable camera travelling and camera motion if it was enabled
+        if travelling_frame is not None:
+            Viewer.detach_camera()
+        if camera_motion is not None:
+            Viewer.remove_camera_motion()
 
-    # Disable legend if it was enabled
-    if legend is not None:
-        Viewer.set_legend()
+        # Disable legend if it was enabled
+        if legend is not None:
+            Viewer.set_legend()
 
-    # Disable watermark if it was enabled
-    if watermark_fullpath is not None:
-        Viewer.set_watermark()
+        # Disable watermark if it was enabled
+        if watermark_fullpath is not None:
+            Viewer.set_watermark()
 
-    if enable_clock and Viewer.backend == 'panda3d':
-        Viewer.set_clock()
+        if enable_clock and Viewer.backend == 'panda3d':
+            Viewer.set_clock()
 
-    # Close backend if needed
-    if close_backend:
-        for viewer in viewers:
-            viewer.close()
+        # Close backend if needed
+        if close_backend:
+            for viewer in viewers:
+                viewer.close()
 
     return viewers
 

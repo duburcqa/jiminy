@@ -77,47 +77,44 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        if (!robot_.expired())
+        // Remove associated col in the shared data buffers
+        if (sensorIdx_ < sharedHolder_->num_ - 1)
         {
-            // Remove associated col in the shared data buffers
-            if (sensorIdx_ < sharedHolder_->num_ - 1)
-            {
-                int32_t sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
-                for (matrixN_t & data : sharedHolder_->data_)
-                {
-                    data.middleCols(sensorIdx_, sensorShift) =
-                        data.middleCols(sensorIdx_ + 1, sensorShift).eval();
-                }
-                sharedHolder_->dataMeasured_.middleCols(sensorIdx_, sensorShift) =
-                    sharedHolder_->dataMeasured_.middleCols(sensorIdx_ + 1, sensorShift).eval();
-            }
+            int32_t sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
             for (matrixN_t & data : sharedHolder_->data_)
             {
-                data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
+                data.middleCols(sensorIdx_, sensorShift) =
+                    data.middleCols(sensorIdx_ + 1, sensorShift).eval();
             }
-            sharedHolder_->dataMeasured_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
+            sharedHolder_->dataMeasured_.middleCols(sensorIdx_, sensorShift) =
+                sharedHolder_->dataMeasured_.middleCols(sensorIdx_ + 1, sensorShift).eval();
+        }
+        for (matrixN_t & data : sharedHolder_->data_)
+        {
+            data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
+        }
+        sharedHolder_->dataMeasured_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
 
-            // Shift the sensor indices
-            for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; ++i)
+        // Shift the sensor indices
+        for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; ++i)
+        {
+            AbstractSensorTpl<T> * sensor =
+                static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
+            --sensor->sensorIdx_;
+        }
+
+        // Remove the sensor from the shared memory
+        sharedHolder_->sensors_.erase(sharedHolder_->sensors_.begin() + sensorIdx_);
+        --sharedHolder_->num_;
+
+        // Update delayMax_ proxy
+        if (sharedHolder_->delayMax_ < baseSensorOptions_->delay + EPS)
+        {
+            sharedHolder_->delayMax_ = 0.0;
+            for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
             {
-                AbstractSensorTpl<T> * sensor =
-                    static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
-                --sensor->sensorIdx_;
-            }
-
-            // Remove the sensor from the shared memory
-            sharedHolder_->sensors_.erase(sharedHolder_->sensors_.begin() + sensorIdx_);
-            --sharedHolder_->num_;
-
-            // Update delayMax_ proxy
-            if (sharedHolder_->delayMax_ < baseSensorOptions_->delay + EPS)
-            {
-                sharedHolder_->delayMax_ = 0.0;
-                for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
-                {
-                    sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_,
-                                                        sensor->baseSensorOptions_->delay);
-                }
+                sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_,
+                                                    sensor->baseSensorOptions_->delay);
             }
         }
 

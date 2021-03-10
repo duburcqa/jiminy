@@ -151,12 +151,15 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self._height_neutral = 0.0
 
         # Configure the backend simulator
-        simulator = Simulator.build(
-            self.urdf_path, self.hardware_path, self.mesh_path,
-            has_freeflyer=True, use_theoretical_model=False,
+        simulator = Simulator.build(**{**dict(
+            urdf_path=self.urdf_path,
+            hardware_path=self.hardware_path,
+            mesh_path=self.mesh_path,
+            has_freeflyer=True,
+            use_theoretical_model=False,
             config_path=self.config_path,
             avoid_instable_collisions=self.avoid_instable_collisions,
-            debug=debug)
+            debug=debug), **kwargs})
 
         # Initialize base class
         super().__init__(

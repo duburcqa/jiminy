@@ -528,7 +528,7 @@ class Simulator:
         if self.__plot_data is not None:
             plt.close(self.__plot_data['fig'])
 
-    def plot(self, disable_flexiblity_data: bool = True) -> None:
+    def plot(self, enable_flexiblity_data: bool = False) -> None:
         """Display common simulation data over time.
 
         The figure features several tabs:
@@ -539,9 +539,10 @@ class Simulator:
           - Subplots with motors torques
           - Subplots with raw sensor data (one tab for each type of sensor)
 
-        :param disable_flexiblity_data:
-            Disable display of flexible joints in robot's configuration,
-            velocity and  acceleration subplots.
+        :param enable_flexiblity_data:
+            Enable display of flexible joints in robot's configuration,
+            velocity and acceleration subplots.
+            Optional: False by default.
         """
         # Define some internal helper functions
         def extract_fields(log_data: Dict[str, np.ndarray],
@@ -589,7 +590,7 @@ class Simulator:
                     if flex["frameName"] != flex_old["frameName"]:
                         is_incompatible = True
                         break
-        if is_incompatible and not disable_flexiblity_data:
+        if is_incompatible and enable_flexiblity_data:
             raise RuntimeError("Log data are incompatible with current model.")
 
         # Figures data structure as a dictionary
@@ -600,7 +601,8 @@ class Simulator:
         for fields_type in ["Position", "Velocity", "Acceleration"]:
             fieldnames = getattr(
                 self.robot, "logfile_" + fields_type.lower() + "_headers")
-            if disable_flexiblity_data:
+            if not enable_flexiblity_data:
+                # Filter out flexibility data
                 fieldnames = list(filter(
                     lambda field: not any(
                         name in field

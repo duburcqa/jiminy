@@ -83,27 +83,24 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        if (auto robot = robot_.lock())
+        // Remove associated col in the global data buffer
+        if (motorIdx_ < sharedHolder_->num_ - 1)
         {
-            // Remove associated col in the global data buffer
-            if (motorIdx_ < sharedHolder_->num_ - 1)
-            {
-                int32_t motorShift = sharedHolder_->num_ - motorIdx_ - 1;
-                sharedHolder_->data_.segment(motorIdx_, motorShift) =
-                    sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
-            }
-            sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
-
-            // Shift the motor ids
-            for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
-            {
-                --sharedHolder_->motors_[i]->motorIdx_;
-            }
-
-            // Remove the motor to the shared memory
-            sharedHolder_->motors_.erase(sharedHolder_->motors_.begin() + motorIdx_);
-            --sharedHolder_->num_;
+            int32_t motorShift = sharedHolder_->num_ - motorIdx_ - 1;
+            sharedHolder_->data_.segment(motorIdx_, motorShift) =
+                sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
         }
+        sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
+
+        // Shift the motor ids
+        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
+        {
+            --sharedHolder_->motors_[i]->motorIdx_;
+        }
+
+        // Remove the motor to the shared memory
+        sharedHolder_->motors_.erase(sharedHolder_->motors_.begin() + motorIdx_);
+        --sharedHolder_->num_;
 
         // Clear the references to the robot and shared data
         robot_.reset();

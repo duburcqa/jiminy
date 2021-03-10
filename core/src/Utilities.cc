@@ -1335,6 +1335,7 @@ namespace jiminy
         // Update child joint previousFrame index
         modelInOut.frames[childFrameIdx].parent = newJointIdx;
         modelInOut.frames[childFrameIdx].previousFrame = newFrameIdx;
+        modelInOut.frames[childFrameIdx].placement = SE3::Identity();
 
         // Update new joint subtree to include all the joints below it
         for (uint32_t i = 0; i < modelInOut.subtrees[childJointIdx].size(); ++i)

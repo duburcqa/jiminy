@@ -22,32 +22,33 @@ STEP_DT = 1.0e-3
 
 # PID proportional gains (one per actuated joint)
 PID_KP = np.array([
-    # Back: [Z, Y, X]
-    1000.0, 12000.0, 4000.0,
-    # Left arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
-    200.0, 100.0, 100.0, 100.0, 500.0, 10.0, 10.0,
-    # Left leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-    1000.0, 1500.0, 4000.0, 4000.0, 10000.0, 1000.0,
+    # Back: [X, Y, Z]
+    4000.0, 12000.0, 1000.0,
+    # Left arm: [ElX, ElY, ShX, ShZ, WrX, WrY, WrY2]
+    200.0, 100.0, 100.0, 500.0, 100.0, 10.0, 10.0,
+    # Left leg: [AkX, AkY, HpZ, HpX, HpY, KnY]
+    1500.0, 10000.0, 4000.0, 4000.0, 1000.0, 1000.0,
     # Neck: [Y]
     1000.0,
-    # Right arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
-    200.0, 100.0, 100.0, 100.0, 500.0, 10.0, 10.0,
-    # Right leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-    1000.0, 1500.0, 4000.0, 4000.0, 10000.0, 1000.0])
+    # Right arm: [ElX, ElY, ShX, ShZ, WrX, WrY, WrY2]
+    200.0, 100.0, 100.0, 500.0, 100.0, 10.0, 10.0,
+    # Right leg: [AkX, AkY, HpZ, HpX, HpY, KnY]
+    1500.0, 10000.0, 4000.0, 4000.0, 1000.0, 1000.0])
 # PID derivative gains (one per actuated joint)
 PID_KD = np.array([
-    # Back: [Z, Y, X]
-    0.01, 0.02, 0.08,
-    # Left arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
+    # Back: [X, Y, Z]
+    0.08, 0.02, 0.01,
+    # Left arm: [ElX, ElY, ShX, ShZ, WrX, WrY, WrY2]
     0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
-    # Left leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-    0.01, 0.002, 0.002, 0.002, 0.02, 0.01,
+    # Left leg: [AkX, AkY, HpZ, HpX, HpY, KnY]
+    0.002, 0.02, 0.002, 0.002, 0.01, 0.01,
     # Neck: [Y]
     0.01,
-    # Right arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
+    # Right arm: [ElX, ElY, ShX, ShZ, WrX, WrY, WrY2]
     0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
-    # Right leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-    0.01, 0.002, 0.002, 0.002, 0.02, 0.01])
+    # Right leg: [AkX, AkY, HpZ, HpX, HpY, KnY]
+    0.002, 0.02, 0.002, 0.002, 0.01, 0.01])
+
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
@@ -70,7 +71,7 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         data_root_dir = os.path.join(
             resource_filename('gym_jiminy.envs', 'data'),
             "bipedal_robots/atlas")
-        urdf_path = os.path.join(data_root_dir, "atlas_v5.urdf")
+        urdf_path = os.path.join(data_root_dir, "atlas_v4.urdf")
 
         # Initialize the walker environment
         super().__init__(**{**dict(
