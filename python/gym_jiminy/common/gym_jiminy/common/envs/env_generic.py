@@ -173,7 +173,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                            sensors_data: jiminy.sensorsData,
                            command: np.ndarray) -> None:
         command[:] = self.compute_command(
-            self.get_observation(), self._action)
+            self.get_observation(), self._action.copy())
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
@@ -948,8 +948,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if self.debug and not self.action_space.contains(action):
             logger.warn("The action is out-of-bounds.")
 
-        set_value(self._action, action)
-        return self._action
+        return action
 
     def is_done(self, *args: Any, **kwargs: Any) -> bool:
         """Determine whether the episode is over.
