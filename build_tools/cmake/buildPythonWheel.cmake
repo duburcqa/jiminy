@@ -30,8 +30,13 @@ function(buildPythonWheel)
                       foreach(src_file \${src_file_list})
                           get_filename_component(src_file_real \"\${src_file}\" REALPATH
                                                   BASE_DIR \"${CMAKE_SOURCE_DIR}/${TARGET_DIR}\")
-                          configure_file(\"\${src_file_real}\"
-                                          \"${CMAKE_BINARY_DIR}/pypi/\${src_file}\" @ONLY)
+                          if(src_file_real MATCHES \".*\\.(txt|py|md|in)\$\")
+                              configure_file(\"\${src_file_real}\"
+                                             \"${CMAKE_BINARY_DIR}/pypi/\${src_file}\" @ONLY)
+                          else()
+                              configure_file(\"\${src_file_real}\"
+                                             \"${CMAKE_BINARY_DIR}/pypi/\${src_file}\" COPYONLY)
+                          endif()
                       endforeach()"
             )
 
