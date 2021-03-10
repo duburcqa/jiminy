@@ -718,14 +718,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         self.simulator.plot()
 
-    def replay(self, enable_traveling: bool = True, **kwargs: Any) -> None:
+    def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
         """Replay the current episode until now.
 
-        :param enable_traveling: Whether or not enable traveling, following the
-                                 motion of the root frame of the model. This
-                                 parameter is ignored if the model has no
-                                 freeflyer.
-                                 Optional: True by default.
+        :param enable_travelling: Whether or not enable travelling, following
+                                  the motion of the root frame of the model.
+                                  This parameter is ignored if the model has no
+                                  freeflyer.
+                                  Optional: True by default.
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
@@ -741,7 +741,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # backend viewer instantiation options, such as initial camera pose.
         self.render(**kwargs)
 
-        if enable_traveling and self.robot.has_freeflyer:
+        if enable_travelling and self.robot.has_freeflyer:
             # It is worth noting that the first and second frames are
             # respectively "universe" and "root_joint", no matter if the robot
             # has a freeflyer or not.
