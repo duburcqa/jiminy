@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Callable
 
 import hppfcl
 import pinocchio as pin
-from pinocchio.rpy import rpyToMatrix, matrixToRpy
+from pinocchio.rpy import rpyToMatrix, matrixToRpy, computeRpyJacobian
 
 from . import core as jiminy
 from .viewer import TrajectoryDataType
@@ -27,6 +27,22 @@ def XYZRPYToSE3(xyzrpy):
     """Convert [X,Y,Z,Roll,Pitch,Yaw] vector to Pinocchio SE3 object.
     """
     return pin.SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3])
+
+
+def XYZRPYToXYZQuat(xyzrpy):
+    """Convert [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].
+    """
+    return pin.SE3ToXYZQUAT(pin.SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3]))
+
+
+def velocityXYZRPYToXYZQuat(xyzrpy: np.ndarray,
+                            dxyzrpy: np.ndarray) -> np.ndarray:
+    """Convert the derivative of [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].
+    """
+    rpy = xyzrpy[-3:]
+    R = rpyToMatrix(rpy)
+    J_rpy = computeRpyJacobian(rpy)
+    return np.concatenate((R.T @ dxyzrpy[:3], J_rpy @ dxyzrpy[-3:]))
 
 
 # #####################################################################
