@@ -623,6 +623,14 @@ class Simulator:
             data['MotorEffort'] = OrderedDict(
                 zip(self.robot.motors_names, motor_effort))
 
+        # Get command information
+        command = extract_fields(
+            log_data, 'HighLevelController',
+            self.robot.logfile_command_headers)
+        if command is not None:
+            data['Command'] = OrderedDict(
+                zip(self.robot.motors_names, command))
+
         # Get sensors information
         for sensors_class, sensors_fields in SENSORS_FIELDS.items():
             sensors_type = sensors_class.type
