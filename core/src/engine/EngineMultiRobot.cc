@@ -2120,6 +2120,12 @@ namespace jiminy
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
+        if (t < 0.0)
+        {
+            PRINT_ERROR("The force application time must be positive.");
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+
         int32_t systemIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
