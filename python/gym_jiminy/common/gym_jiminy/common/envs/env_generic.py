@@ -556,7 +556,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "implementation of `is_done` if overloaded.")
 
         # Update rendering if viewer is already running
-        if self.viewer is not None and self.viewer.is_alive():
+        if self.simulator.is_viewer_available:
             self.render()
 
         return clip(self.observation_space, obs)
@@ -735,7 +735,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # will take time to restart it systematically for every recordings.
         if kwargs.get('record_video_path', None) is not None:
             kwargs['mode'] = 'rgb_array'
-            kwargs['close_backend'] = not self.simulator._is_viewer_available
+            kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose.
