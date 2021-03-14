@@ -661,12 +661,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.debug:
                 self.simulator.write_log(self.log_path, format="binary")
 
-            # Extract log data from the simulation, which could be used
-            # for computing terminal reward.
-            self._log_data, _ = self.get_log()
-
-            # Compute the terminal reward, if any
+            # Compute terminal reward if any
             if self.enable_reward_terminal:
+                # Extract log data from the simulation for terminal reward
+                self._log_data, _ = self.get_log()
+
+                # Add terminal reward to current reward
                 reward += self.compute_reward_terminal(info=self._info)
 
         # Check if the observation is out-of-bounds, in debug mode only
