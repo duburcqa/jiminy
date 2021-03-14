@@ -447,7 +447,8 @@ def compute_freeflyer_state_from_fixed_body(
         acceleration: Optional[np.ndarray] = None,
         fixed_body_name: Optional[str] = None,
         ground_profile: Optional[Callable[
-            [np.ndarray], Tuple[float, np.ndarray]]] = None) -> str:
+            [np.ndarray], Tuple[float, np.ndarray]]] = None,
+        use_theoretical_model: bool = True) -> str:
     """Fill rootjoint data from articular data when a body is fixed and
     aligned with world frame.
 
@@ -480,6 +481,10 @@ def compute_freeflyer_state_from_fixed_body(
     :param fixed_body_name: Name of the body frame that is considered fixed
                             parallel to world frame.
     :param ground_profile: Ground profile callback.
+    :param use_theoretical_model: Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
 
     :returns: Name of the contact frame, if any.
     """
@@ -494,13 +499,13 @@ def compute_freeflyer_state_from_fixed_body(
         acceleration[:6].fill(0.0)
     update_quantities(
         robot, position, velocity, acceleration, update_physics=False,
-        use_theoretical_model=False)
+        use_theoretical_model=use_theoretical_model)
 
     if fixed_body_name is None:
         w_M_ff = compute_transform_contact(robot, ground_profile)
     else:
         ff_M_fixed_body = get_body_world_transform(
-            robot, fixed_body_name, use_theoretical_model=False, copy=False)
+            robot, fixed_body_name, use_theoretical_model, copy=False)
         if ground_profile is not None:
             ground_translation = np.zeros(3)
             ground_translation[2], normal = ground_profile(
@@ -516,13 +521,13 @@ def compute_freeflyer_state_from_fixed_body(
     if fixed_body_name is not None:
         if velocity is not None:
             ff_v_fixed_body = get_body_world_velocity(
-                robot, fixed_body_name, use_theoretical_model=False)
+                robot, fixed_body_name, use_theoretical_model)
             base_link_velocity = - ff_v_fixed_body
             velocity[:6] = base_link_velocity.vector
 
         if acceleration is not None:
             ff_a_fixedBody = get_body_world_acceleration(
-                robot, fixed_body_name, use_theoretical_model=False)
+                robot, fixed_body_name, use_theoretical_model)
             base_link_acceleration = - ff_a_fixedBody
             acceleration[:6] = base_link_acceleration.vector
 
