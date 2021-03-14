@@ -729,9 +729,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
-        # Do not open graphical window automatically if recording requested
+        # Do not open graphical window automatically if recording requested.
+        # Note that backend is closed automatically is there is no viewer
+        # backend available at this point, to reduce memory pressure, but it
+        # will take time to restart it systematically for every recordings.
         if kwargs.get('record_video_path', None) is not None:
             kwargs['mode'] = 'rgb_array'
+            kwargs['close_backend'] = not self.simulator._is_viewer_available
 
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose.
