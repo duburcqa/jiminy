@@ -46,7 +46,7 @@ ModelCatalog.register_custom_model("fully_connected_network", FullyConnectedNetw
 
 # ============= Initialize Ray and Tensorboard daemons =============
 
-logger_creator, log_root_path = initialize(
+logger_creator = initialize(
     num_cpus=N_THREADS, num_gpus=N_GPU, debug=DEBUG)
 
 # ======================== Configure model =========================

@@ -35,7 +35,7 @@ register_env("env", lambda env_config: gym.make(GYM_ENV_NAME, **env_config))
 # ============= Initialize Ray and Tensorboard daemons =============
 
 # Initialize Ray backend
-logger_creator, log_root_path = initialize(
+logger_creator = initialize(
     num_cpus=N_THREADS, num_gpus=N_GPU, debug=DEBUG)
 
 # ================== Configure learning algorithm ==================

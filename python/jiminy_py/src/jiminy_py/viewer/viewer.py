@@ -645,14 +645,19 @@ class Viewer:
                 self = Viewer
 
             if self is Viewer:
-                # NEVER closing backend if closing instances, even for the
-                # parent. It will be closed at Python exit automatically.
+                # NEVER closing backend automatically if closing instances,
+                # even for the parent. It will be closed at Python exit
+                # automatically. One must call `Viewer.close` to do otherwise.
                 Viewer._backend_robot_names.clear()
                 Viewer._backend_robot_colors.clear()
                 Viewer.detach_camera()
-                if Viewer.backend == 'meshcat' and Viewer.is_alive():
-                    Viewer._backend_obj.close()
-                    _ProcessWrapper(Viewer._backend_obj.recorder.proc).kill()
+                if Viewer.is_alive():
+                    if Viewer.backend == 'meshcat':
+                        Viewer._backend_obj.close()
+                        recorder_proc = Viewer._backend_obj.recorder.proc
+                        _ProcessWrapper(recorder_proc).kill()
+                    else:
+                        Viewer._backend_obj._app.destroy()
                     Viewer._backend_proc.kill()
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
@@ -1469,10 +1474,10 @@ class Viewer:
 
         # Update pinocchio and collision data
         pin.forwardKinematics(self._client.model, self._client.data, q)
+        pin.framesForwardKinematics(self._client.model, self._client.data, q)
         pin.updateGeometryPlacements(
             self._client.model, self._client.data,
             self._client.collision_model, self._client.collision_data)
-        pin.framesForwardKinematics(self._client.model, self._client.data, q)
 
         # Refresh the viewer
         self.refresh(wait)

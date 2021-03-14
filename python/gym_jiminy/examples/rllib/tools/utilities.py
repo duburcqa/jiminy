@@ -53,7 +53,7 @@ def initialize(num_cpus: int = 0,
                     Optional: True by default.
 
     :returns: lambda function to pass Ray Trainers to monitor the learning
-              progress in tensorboard, and logfile root folder path.
+              progress in tensorboard.
     """
     # Initialize Ray server, if not already running
     if not ray.is_initialized():
@@ -102,61 +102,7 @@ def initialize(num_cpus: int = 0,
     def logger_creator(config):
         return UnifiedLogger(config, log_path, loggers=None)
 
-    return logger_creator, log_root_path
-
-
-def train(train_agent: Trainer,
-          max_timesteps: int,
-          verbose: bool = True) -> str:
-    """Train a model on a specific environment using a given agent.
-
-    Note that the agent is associated with a given reinforcement learning
-    algorithm, and instanciated for a specific environment and neural network
-    model. Thus, it already wraps all the required information to actually
-    perform training.
-
-    .. note::
-        This function can be terminated early using CTRL+C.
-
-    :param train_agent: Training agent.
-    :param max_timesteps: Number of maximum training timesteps.
-    :param verbose: Whether or not to print information about what is going on.
-                    Optional: True by default.
-
-    :returns: Fullpath of agent's final state dump. Note that it also contains
-              the trained neural network model.
-    """
-    env_spec = [spec for ev in train_agent.workers.foreach_worker(
-        lambda ev: ev.foreach_env(lambda env: env.spec)) for spec in ev][0]
-    if env_spec is None or env_spec.reward_threshold is None:
-        reward_threshold = math.inf
-    else:
-        reward_threshold = env_spec.reward_threshold
-
-    try:
-        while True:
-            # Perform one iteration of training the policy
-            result = train_agent.train()
-
-            # Print current training result
-            msg_data = []
-            for field in PRINT_RESULT_FIELDS_FILTER:
-                if field in result.keys():
-                    msg_data.append(f"{field}: {result[field]:.5g}")
-            print(" - ".join(msg_data))
-
-            # Check terminal conditions
-            if result["timesteps_total"] > max_timesteps:
-                break
-            if result["episode_reward_mean"] > reward_threshold:
-                if verbose:
-                    print("Problem solved successfully!")
-                break
-    except KeyboardInterrupt:
-        if verbose:
-            print("Interrupting training...")
-
-    return train_agent.save()
+    return logger_creator
 
 
 def compute_action(policy: TFPolicy,
@@ -310,3 +256,69 @@ def test(test_agent: Trainer,
                     enable_stats=enable_stats,
                     enable_replay=enable_replay,
                     viewer_kwargs=kwargs)
+
+
+def train(train_agent: Trainer,
+          max_timesteps: int,
+          evaluation_period: int = 0,
+          verbose: bool = True) -> str:
+    """Train a model on a specific environment using a given agent.
+
+    Note that the agent is associated with a given reinforcement learning
+    algorithm, and instanciated for a specific environment and neural network
+    model. Thus, it already wraps all the required information to actually
+    perform training.
+
+    .. note::
+        This function can be terminated early using CTRL+C.
+
+    :param train_agent: Training agent.
+    :param max_timesteps: Number of maximum training timesteps.
+    :param evaluation_period: Run one simulation without exploration every
+                              given number of training steps, and save a video
+                              of the esult in log folder. 0 to disable.
+                              Optional: Disable by default.
+    :param verbose: Whether or not to print information about what is going on.
+                    Optional: True by default.
+
+    :returns: Fullpath of agent's final state dump. Note that it also contains
+              the trained neural network model.
+    """
+    env_spec = [spec for ev in train_agent.workers.foreach_worker(
+        lambda ev: ev.foreach_env(lambda env: env.spec)) for spec in ev][0]
+    if env_spec is None or env_spec.reward_threshold is None:
+        reward_threshold = math.inf
+    else:
+        reward_threshold = env_spec.reward_threshold
+
+    try:
+        while True:
+            # Perform one iteration of training the policy
+            result = train_agent.train()
+
+            # Print current training result
+            msg_data = []
+            for field in PRINT_RESULT_FIELDS_FILTER:
+                if field in result.keys():
+                    msg_data.append(f"{field}: {result[field]:.5g}")
+            print(" - ".join(msg_data))
+
+            # Record video of the result if requested
+            iter = result["training_iteration"]
+            if evaluation_period > 0 and iter % evaluation_period == 0:
+                record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
+                test(train_agent, explore=False, viewer_kwargs={
+                    "record_video_path": record_video_path})
+
+            # Check terminal conditions
+            if result["timesteps_total"] > max_timesteps:
+                break
+            if result["episode_reward_mean"] > reward_threshold:
+                if verbose:
+                    print("Problem solved successfully!")
+                break
+    except KeyboardInterrupt:
+        if verbose:
+            print("Interrupting training...")
+
+    return train_agent.save()

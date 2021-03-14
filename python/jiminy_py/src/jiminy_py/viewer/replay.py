@@ -9,6 +9,7 @@ from threading import Thread, Lock
 from itertools import cycle, islice
 from typing import Optional, Union, Sequence, Tuple, Dict, Any
 
+import cv2
 import numpy as np
 from tqdm import tqdm
 from typing_extensions import TypedDict
@@ -377,8 +378,12 @@ def play_trajectories(trajectory_data: Union[
                 if positions is not None:
                     viewer.display(
                         positions[i], xyz_offset=offset)
-            if Viewer.backend != 'meshcat':
-                import cv2
+            if Viewer.backend == 'meshcat':
+                if not is_initialized:
+                    viewers[0]._backend_obj.start_recording(
+                        VIDEO_FRAMERATE, *VIDEO_SIZE)
+                viewers[0]._backend_obj.add_frame()
+            else:
                 frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
                 if not is_initialized:
                     # Determine the right video container and codec to use
@@ -410,18 +415,13 @@ def play_trajectories(trajectory_data: Union[
 
                 # Write frame
                 out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-            else:
-                if not is_initialized:
-                    viewers[0]._backend_obj.start_recording(
-                        VIDEO_FRAMERATE, *VIDEO_SIZE)
-                viewers[0]._backend_obj.add_frame()
             is_initialized = True
-        if Viewer.backend != 'meshcat':
-            out.release()
-        else:
+        if Viewer.backend == 'meshcat':
             record_video_path = str(
                 pathlib.Path(record_video_path).with_suffix('.webm'))
             viewers[0]._backend_obj.stop_recording(record_video_path)
+        else:
+            out.release()
     else:
         def replay_thread(viewer, *args):
             loop = asyncio.new_event_loop()
@@ -464,10 +464,9 @@ def play_trajectories(trajectory_data: Union[
         if enable_clock and Viewer.backend == 'panda3d':
             Viewer.set_clock()
 
-        # Close backend if needed
-        if close_backend:
-            for viewer in viewers:
-                viewer.close()
+    # Close backend if needed
+    if close_backend:
+        Viewer.close()
 
     return viewers
 
