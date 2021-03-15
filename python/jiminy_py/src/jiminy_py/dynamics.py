@@ -32,7 +32,7 @@ def XYZRPYToSE3(xyzrpy):
 def XYZRPYToXYZQuat(xyzrpy):
     """Convert [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].
     """
-    return pin.SE3ToXYZQUAT(pin.SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3]))
+    return pin.SE3ToXYZQUAT(XYZRPYToSE3(xyzrpy))
 
 
 def velocityXYZRPYToXYZQuat(xyzrpy: np.ndarray,
