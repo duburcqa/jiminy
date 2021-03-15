@@ -16,22 +16,21 @@
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
-#include "jiminy/core/robot/LCPSolvers.h"
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/JointConstraint.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/control/ControllerFunctor.h"
-#include "jiminy/core/Utilities.h"
-#include "jiminy/core/Constants.h"
-
+#include "jiminy/core/solver/LCPSolvers.h"
 #include "jiminy/core/stepper/AbstractStepper.h"
 #include "jiminy/core/stepper/EulerExplicitStepper.h"
 #include "jiminy/core/stepper/RungeKuttaDOPRIStepper.h"
 #include "jiminy/core/stepper/RungeKutta4Stepper.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
 #include "jiminy/core/engine/PinocchioOverloadAlgorithms.h"
+#include "jiminy/core/Utilities.h"
+#include "jiminy/core/Constants.h"
 
 
 namespace jiminy
