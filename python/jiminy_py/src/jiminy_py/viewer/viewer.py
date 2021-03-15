@@ -1482,6 +1482,7 @@ class Viewer:
         # Refresh the viewer
         self.refresh(wait)
 
+    @__must_be_open
     def replay(self,
                evolution_robot: Sequence[State],
                time_interval: Optional[Union[
@@ -1531,7 +1532,7 @@ class Viewer:
                 # Make sure the viewer is properly closed if exception is
                 # raised during replay.
                 Viewer.close()
-                break
+                return
 
         # Disable clock after replay if enable and alive
         if Viewer.is_alive():
