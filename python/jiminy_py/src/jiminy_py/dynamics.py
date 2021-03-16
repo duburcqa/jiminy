@@ -448,7 +448,7 @@ def compute_freeflyer_state_from_fixed_body(
         fixed_body_name: Optional[str] = None,
         ground_profile: Optional[Callable[
             [np.ndarray], Tuple[float, np.ndarray]]] = None,
-        use_theoretical_model: bool = True) -> str:
+        use_theoretical_model: Optional[bool] = None) -> str:
     """Fill rootjoint data from articular data when a body is fixed and
     aligned with world frame.
 
@@ -480,16 +480,25 @@ def compute_freeflyer_state_from_fixed_body(
     :param acceleration: See position.
     :param fixed_body_name: Name of the body frame that is considered fixed
                             parallel to world frame.
+                            Optional: It will be infered from the set of
+                            contact points and collision bodies.
     :param ground_profile: Ground profile callback.
-    :param use_theoretical_model: Whether the state corresponds to the
-                                  theoretical model when updating and fetching
-                                  the robot's state.
-                                  Optional: True by default.
+    :param use_theoretical_model:
+        Whether the state corresponds to the theoretical model when updating
+        and fetching the robot's state. Must be False if `fixed_body_name` is
+        not speficied.
+        Optional: True by default if `fixed_body_name` is specified, False
+        otherwise.
 
     :returns: Name of the contact frame, if any.
     """
+    # Early return if no freeflyer
     if not robot.has_freeflyer:
         return None
+
+    # Handling of default arguments
+    if use_theoretical_model is None:
+        use_theoretical_model = fixed_body_name is not None
 
     position[:6].fill(0.0)
     position[6] = 1.0
@@ -502,6 +511,9 @@ def compute_freeflyer_state_from_fixed_body(
         use_theoretical_model=use_theoretical_model)
 
     if fixed_body_name is None:
+        if use_theoretical_model:
+            raise RuntimeError(
+                "Cannot infer contact transform for theoretical model.")
         w_M_ff = compute_transform_contact(robot, ground_profile)
     else:
         ff_M_fixed_body = get_body_world_transform(
