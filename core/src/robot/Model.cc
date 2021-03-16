@@ -13,6 +13,7 @@
 
 #include "urdf_parser/urdf_parser.h"
 
+#include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/JointConstraint.h"
 #include "jiminy/core/robot/SphereConstraint.h"
@@ -1087,9 +1088,9 @@ namespace jiminy
                                    vectorN_t const & v)
     {
         /* Note that it is assumed that the kinematic quantities have been
-           updated previously to be consistent with (q, v, a, u). If not,
-           one is supposed to call  `pinocchio::forwardKinematics` before
-           calling this method. */
+           updated previously to be consistent with (q, v, a, u). If not, one
+           is supposed to call  `pinocchio::forwardKinematics` before calling
+           this method. */
 
         // Early return if no constraint is enabled
         if (!hasConstraint())
@@ -1097,17 +1098,14 @@ namespace jiminy
             return;
         }
 
-        /* Compute forward kinematics without acceleration to be able to
-           compute drift alter on. Note that it is necessary to backup the
-           actual joint-space acceleration and restore it later on since it
-           will be altered by drift computation. */
-        for (int32_t i = 0 ; i < pncModel_.njoints ; ++i)
-        {
-            jointsAcceleration_[i] = pncData_.a[i];
-        }
-        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, vectorN_t::Zero(pncModel_.nv));
+        /* Computing forward kinematics without acceleration to get the drift.
+           Note that it will alter the actual joints spatial accelerations, so
+           it is necessary to do a backup first to restore it later on. */
+        jointsAcceleration_.swap(pncData_.a);
+        pinocchio_overload::forwardKinematicsAcceleration(
+            pncModel_, pncData_, vectorN_t::Zero(pncModel_.nv));
 
-        // Compute joint jacobian
+        // Compute joint jacobian manually since not done by engine for efficiency
         pinocchio::computeJointJacobians(pncModel_, pncData_, q);
 
         // Compute sequentially the jacobian and drift of each enabled constraint
@@ -1144,10 +1142,7 @@ namespace jiminy
             });
 
         // Restore true acceleration
-        for (int32_t i = 0 ; i < pncModel_.njoints ; ++i)
-        {
-            pncData_.a[i] = jointsAcceleration_[i];
-        }
+        jointsAcceleration_.swap(pncData_.a);
     }
 
     hresult_t Model::refreshProxies(void)
