@@ -112,7 +112,8 @@ namespace python
         {
             bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
                        std::shared_ptr<SimpleMotor>,
-                       boost::noncopyable>("SimpleMotor", bp::init<std::string>())
+                       boost::noncopyable>("SimpleMotor",
+                       bp::init<std::string>(bp::args("motor_name")))
                 .def(PySimpleMotorVisitor());
         }
     };
