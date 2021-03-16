@@ -842,3 +842,7 @@ class BaseJiminyRobot(jiminy.Robot):
                 os.remove(self.urdf_path)
             except (PermissionError, FileNotFoundError):
                 pass
+
+    @property
+    def name(self):
+        return self.pinocchio_model.name
