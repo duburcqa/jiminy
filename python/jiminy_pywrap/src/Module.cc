@@ -21,7 +21,7 @@
 
 #include "jiminy/core/Types.h"
 #include "jiminy/core/Utilities.h"
-#include "jiminy/core/engine/PinocchioOverloadAlgorithms.h"
+#include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
 
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>

@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// \brief      Class constraining a wheel to roll without slipping on a flat plane.
-///
-/// \details    Given a frame to represent the wheel center, this class constrains it to move
-///             like it were rolling without slipping on a flat (not necessarily level) surface.
-///
-///////////////////////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_JOINT_CONSTRAINT_H
 #define JIMINY_JOINT_CONSTRAINT_H
 

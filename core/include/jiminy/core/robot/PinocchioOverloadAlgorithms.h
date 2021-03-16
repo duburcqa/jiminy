@@ -1,9 +1,14 @@
-/// Re-implementation of several dynamics algorithms from pinocchio,
-/// adding support for rotor inertia for 1DoF (prismatic, revolute) joints.
+/// Re-implementation of dynamics algorithms from pinocchio, adding support
+/// of armature (aka rotor inertia) for 1DoF (prismatic, revolute) joints.
 ///
 /// Based on https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/aba.hxx
 ///          https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/rnea.hxx
 ///          https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/crba.hxx
+///
+/// Splitting of algorithms in smaller blocks that can be executed separately.
+///
+/// Based on https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/kinematics.hxx
+///
 /// Copyright (c) 2014-2020, CNRS
 /// Copyright (c) 2018-2020, INRIA
 
@@ -87,8 +92,8 @@ namespace pinocchio_overload
     }
 
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>
-    struct AbaBackwardStep
-    : public pinocchio::fusion::JointUnaryVisitorBase<AbaBackwardStep<Scalar,Options,JointCollectionTpl> >
+    struct AbaBackwardStep :
+    public pinocchio::fusion::JointUnaryVisitorBase<AbaBackwardStep<Scalar, Options, JointCollectionTpl> >
     {
         typedef pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> Model;
         typedef pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> Data;
@@ -298,6 +303,47 @@ namespace pinocchio_overload
         }
 
         return data.ddq;
+    }
+
+    template<typename TangentVectorType>
+    struct ForwardKinematicsAccelerationStep :
+    public pinocchio::fusion::JointUnaryVisitorBase<ForwardKinematicsAccelerationStep<TangentVectorType> >
+    {
+        typedef boost::fusion::vector<pinocchio::Model const &,
+                                      pinocchio::Data &,
+                                      Eigen::MatrixBase<TangentVectorType> const &
+                                      > ArgsType;
+
+        template<typename JointModel>
+        static void algo(pinocchio::JointModelBase<JointModel> const & jmodel,
+                         pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
+                         pinocchio::Model const & model,
+                         pinocchio::Data & data,
+                         Eigen::MatrixBase<TangentVectorType> const & a)
+        {
+            uint32_t const & i = jmodel.id();
+            uint32_t const & parent = model.parents[i];
+            data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
+            data.a[i] += data.liMi[i].actInv(data.a[parent]);
+        }
+    };
+
+    /// \brief Compute only joints spatial accelerations, assuming positions and velocities
+    /// are already up-to-date.
+    ///
+    /// Note that it does not update the internal buffer `data.ddq`. This buffer is updated
+    /// by `aba` and `forwardDynamics` algorithms only.
+    template<typename TangentVectorType>
+    inline void forwardKinematicsAcceleration(pinocchio::Model const & model,
+                                              pinocchio::Data & data,
+                                              Eigen::MatrixBase<TangentVectorType> const & a)
+    {
+        typedef ForwardKinematicsAccelerationStep<TangentVectorType> Pass1;
+        data.a[0].setZero();
+        for (int32_t i = 1; i < model.njoints; ++i)
+        {
+            Pass1::run(model.joints[i], data.joints[i], typename Pass1::ArgsType(model, data, a));
+        }
     }
 }
 }
