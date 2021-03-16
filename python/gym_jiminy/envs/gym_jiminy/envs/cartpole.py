@@ -229,7 +229,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         return reward
 
     def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
-        if not self.simulator._is_viewer_available:
+        if not self.simulator.is_viewer_available:
             kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
         return super().render(mode, **kwargs)
 

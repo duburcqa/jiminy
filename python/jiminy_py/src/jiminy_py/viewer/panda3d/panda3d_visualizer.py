@@ -841,7 +841,7 @@ class Panda3dVisualizer(BaseVisualizer):
             for obj in model.geometryObjects:
                 oMg = data.oMg[model.getGeometryId(obj.name)]
                 x, y, z, qx, qy, qz, qw = pin.SE3ToXYZQUATtuple(oMg)
-                name_pose_dict[obj.name] = (x, y, z), (qw, qx, qy, qz)
+                name_pose_dict[obj.name] = ((x, y, z), (qw, qx, qy, qz))
             self.viewer.move_nodes(group, name_pose_dict)
 
         if self.display_visuals:

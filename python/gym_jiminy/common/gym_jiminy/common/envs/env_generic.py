@@ -173,7 +173,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                            sensors_data: jiminy.sensorsData,
                            command: np.ndarray) -> None:
         command[:] = self.compute_command(
-            self.get_observation(), self._action)
+            self.get_observation(), np.copy(self._action))
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
@@ -556,7 +556,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "implementation of `is_done` if overloaded.")
 
         # Update rendering if viewer is already running
-        if self.viewer is not None and self.viewer.is_alive():
+        if self.simulator.is_viewer_available:
             self.render()
 
         return clip(self.observation_space, obs)
@@ -661,12 +661,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.debug:
                 self.simulator.write_log(self.log_path, format="binary")
 
-            # Extract log data from the simulation, which could be used
-            # for computing terminal reward.
-            self._log_data, _ = self.get_log()
-
-            # Compute the terminal reward, if any
+            # Compute terminal reward if any
             if self.enable_reward_terminal:
+                # Extract log data from the simulation for terminal reward
+                self._log_data, _ = self.get_log()
+
+                # Add terminal reward to current reward
                 reward += self.compute_reward_terminal(info=self._info)
 
         # Check if the observation is out-of-bounds, in debug mode only
@@ -718,26 +718,30 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         self.simulator.plot()
 
-    def replay(self, enable_traveling: bool = True, **kwargs: Any) -> None:
+    def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
         """Replay the current episode until now.
 
-        :param enable_traveling: Whether or not enable traveling, following the
-                                 motion of the root frame of the model. This
-                                 parameter is ignored if the model has no
-                                 freeflyer.
-                                 Optional: True by default.
+        :param enable_travelling: Whether or not enable travelling, following
+                                  the motion of the root frame of the model.
+                                  This parameter is ignored if the model has no
+                                  freeflyer.
+                                  Optional: True by default.
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
-        # Do not open graphical window automatically if recording requested
+        # Do not open graphical window automatically if recording requested.
+        # Note that backend is closed automatically is there is no viewer
+        # backend available at this point, to reduce memory pressure, but it
+        # will take time to restart it systematically for every recordings.
         if kwargs.get('record_video_path', None) is not None:
             kwargs['mode'] = 'rgb_array'
+            kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose.
         self.render(**kwargs)
 
-        if enable_traveling and self.robot.has_freeflyer:
+        if enable_travelling and self.robot.has_freeflyer:
             # It is worth noting that the first and second frames are
             # respectively "universe" and "root_joint", no matter if the robot
             # has a freeflyer or not.
@@ -944,8 +948,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if self.debug and not self.action_space.contains(action):
             logger.warn("The action is out-of-bounds.")
 
-        set_value(self._action, action)
-        return self._action
+        return action
 
     def is_done(self, *args: Any, **kwargs: Any) -> bool:
         """Determine whether the episode is over.

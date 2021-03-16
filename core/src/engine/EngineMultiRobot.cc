@@ -14,24 +14,23 @@
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
+#include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
-#include "jiminy/core/robot/LCPSolvers.h"
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/JointConstraint.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/control/ControllerFunctor.h"
-#include "jiminy/core/Utilities.h"
-#include "jiminy/core/Constants.h"
-
+#include "jiminy/core/solver/LCPSolvers.h"
 #include "jiminy/core/stepper/AbstractStepper.h"
 #include "jiminy/core/stepper/EulerExplicitStepper.h"
 #include "jiminy/core/stepper/RungeKuttaDOPRIStepper.h"
 #include "jiminy/core/stepper/RungeKutta4Stepper.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
-#include "jiminy/core/engine/PinocchioOverloadAlgorithms.h"
+#include "jiminy/core/Utilities.h"
+#include "jiminy/core/Constants.h"
 
 
 namespace jiminy
@@ -810,28 +809,6 @@ namespace jiminy
         reset(true, resetDynamicForceRegister);
     }
 
-    struct ForwardKinematicAccelerationAlgo :
-    public pinocchio::fusion::JointUnaryVisitorBase<ForwardKinematicAccelerationAlgo>
-    {
-        typedef boost::fusion::vector<pinocchio::Model const &,
-                                      pinocchio::Data &,
-                                      vectorN_t const &
-                                      > ArgsType;
-
-        template<typename JointModel>
-        static void algo(pinocchio::JointModelBase<JointModel> const & jmodel,
-                         pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
-                         pinocchio::Model const & model,
-                         pinocchio::Data & data,
-                         vectorN_t const & a)
-        {
-            uint32_t const & i = jmodel.id();
-            uint32_t const & parent = model.parents[i];
-            data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v()) ;
-            data.a[i] += data.liMi[i].actInv(data.a[parent]);
-        }
-    };
-
     void computeExtraTerms(systemHolder_t           & system,
                            systemDataHolder_t const & systemData)
     {
@@ -906,13 +883,7 @@ namespace jiminy
             }
         }
 
-        data.a[0].setZero();
-        for (int32_t i = 1; i < model.njoints; ++i)
-        {
-            ForwardKinematicAccelerationAlgo::run(
-                model.joints[i], data.joints[i],
-                typename ForwardKinematicAccelerationAlgo::ArgsType(model, data, data.ddq));
-        }
+         pinocchio_overload::forwardKinematicsAcceleration(model, data, data.ddq);
     }
 
     void computeAllExtraTerms(std::vector<systemHolder_t>           & systems,
@@ -2117,6 +2088,12 @@ namespace jiminy
         if (dt < STEPPER_MIN_TIMESTEP)
         {
             PRINT_ERROR("The force duration cannot be smaller than ", STEPPER_MIN_TIMESTEP, ".");
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+
+        if (t < 0.0)
+        {
+            PRINT_ERROR("The force application time must be positive.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -3333,15 +3310,16 @@ namespace jiminy
                and efforts since they depend on the sensor values themselves. */
             if (engineOptions_->stepper.sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
             {
-                // Restore previous forces and accelerations that has been alterated
-                for (int32_t i = 0; i < systemIt->robot->pncModel_.njoints; ++i)
-                {
-                    systemIt->robot->pncData_.f[i] = (*fPrevIt)[i];
-                    systemIt->robot->pncData_.a[i] = (*aPrevIt)[i];
-                }
+                // Roll back to forces and accelerations computed at previous iteration
+                fPrevIt->swap(systemIt->robot->pncData_.f);
+                aPrevIt->swap(systemIt->robot->pncData_.a);
 
-                // Update sensors based on previous accelerations and forces.
+                // Update sensors based on previous accelerations and forces
                 systemIt->robot->setSensorsData(t, *qIt, *vIt, aPrev, uMotorPrev);
+
+                // Restore current forces and accelerations
+                fPrevIt->swap(systemIt->robot->pncData_.f);
+                aPrevIt->swap(systemIt->robot->pncData_.a);
             }
 
             /* Update the controller command if necessary (only for infinite update frequency).

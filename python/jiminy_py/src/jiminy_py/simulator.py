@@ -105,7 +105,6 @@ class Simulator:
 
         # Viewer management
         self.viewer = None
-        self._is_viewer_available = False
 
         # Internal buffer for progress bar management
         self.__pbar: Optional[tqdm] = None
@@ -276,6 +275,10 @@ class Simulator:
         else:
             return self.robot.pinocchio_data
 
+    @property
+    def is_viewer_available(self) -> bool:
+        return self.viewer is not None and self.viewer.is_alive()
+
     def _callback(self,
                   t: float,
                   q: np.ndarray,
@@ -319,12 +322,8 @@ class Simulator:
 
         # Note that the viewer must only be reset if available, otherwise it
         # will have dangling reference to the old robot model.
-        if self._is_viewer_available:
-            try:
-                self.viewer._setup(self.robot)
-            except RuntimeError:
-                self.viewer.close()
-                self._is_viewer_available = False
+        if self.is_viewer_available:
+            self.viewer._setup(self.robot)
 
     def start(self,
               q0: np.ndarray,
@@ -458,7 +457,7 @@ class Simulator:
         """
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
-        if not (self._is_viewer_available and self.viewer.is_alive()):
+        if not self.is_viewer_available:
             # Generate a new unique identifier if necessary
             if self.viewer is None:
                 uniq_id = next(tempfile._get_candidate_names())
@@ -483,7 +482,6 @@ class Simulator:
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
             self.viewer.wait(require_client=False)  # Wait to finish loading
-            self._is_viewer_available = True
 
         # Set the camera pose if requested
         if camera_xyzrpy is not None:
@@ -523,7 +521,6 @@ class Simulator:
         """
         if self.viewer is not None:
             self.viewer.close()
-            self._is_viewer_available = False
             self.viewer = None
         if self.__plot_data is not None:
             plt.close(self.__plot_data['fig'])
@@ -622,6 +619,14 @@ class Simulator:
         if motor_effort is not None:
             data['MotorEffort'] = OrderedDict(
                 zip(self.robot.motors_names, motor_effort))
+
+        # Get command information
+        command = extract_fields(
+            log_data, 'HighLevelController',
+            self.robot.logfile_command_headers)
+        if command is not None:
+            data['Command'] = OrderedDict(
+                zip(self.robot.motors_names, command))
 
         # Get sensors information
         for sensors_class, sensors_fields in SENSORS_FIELDS.items():

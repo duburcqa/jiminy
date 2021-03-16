@@ -1,0 +1,132 @@
+[Global]
+collisionBodiesNames = ["right_toe", "left_toe"]
+contactFramesNames = []
+
+# ================== Motors ==================
+
+[Motor.SimpleMotor.hip_abduction_motor_left]
+joint_name = "hip_abduction_left"
+mechanicalReduction = 25.0
+armature = 0.038125
+
+[Motor.SimpleMotor.hip_rotation_motor_left]
+joint_name = "hip_rotation_left"
+mechanicalReduction = 25.0
+armature = 0.038125
+
+[Motor.SimpleMotor.hip_flexion_motor_left]
+joint_name = "hip_flexion_left"
+mechanicalReduction = 16.0
+armature = 0.09344
+
+[Motor.SimpleMotor.knee_joint_motor_left]
+joint_name = "knee_joint_left"
+mechanicalReduction = 16.0
+armature = 0.09344
+
+[Motor.SimpleMotor.toe_joint_motor_left]
+joint_name = "toe_joint_left"
+mechanicalReduction = 50.0
+armature = 0.01225
+
+[Motor.SimpleMotor.hip_abduction_motor_right]
+joint_name = "hip_abduction_right"
+mechanicalReduction = 25.0
+armature = 0.038125
+
+[Motor.SimpleMotor.hip_rotation_motor_right]
+joint_name = "hip_rotation_right"
+mechanicalReduction = 25.0
+armature = 0.038125
+
+[Motor.SimpleMotor.hip_flexion_motor_right]
+joint_name = "hip_flexion_right"
+mechanicalReduction = 16.0
+armature = 0.09344
+
+[Motor.SimpleMotor.knee_joint_motor_right]
+joint_name = "knee_joint_right"
+mechanicalReduction = 16.0
+armature = 0.09344
+
+[Motor.SimpleMotor.toe_joint_motor_right]
+joint_name = "toe_joint_right"
+mechanicalReduction = 50.0
+armature = 0.01225
+
+# =============== IMU sensors =================
+
+[Sensor.ImuSensor.right_pelvis_abduction]
+frame_name = "right_pelvis_abduction"
+
+# ============= Force sensors ===============
+
+[Sensor.ForceSensor.left_toe]
+frame_name = "left_toe"
+
+[Sensor.ForceSensor.right_toe]
+frame_name = "right_toe"
+
+# ============= Effort sensors ===============
+
+[Sensor.EffortSensor.hip_abduction_left]
+motor_name = "hip_abduction_motor_left"
+
+[Sensor.EffortSensor.hip_rotation_left]
+motor_name = "hip_rotation_motor_left"
+
+[Sensor.EffortSensor.hip_flexion_left]
+motor_name = "hip_flexion_motor_left"
+
+[Sensor.EffortSensor.knee_joint_left]
+motor_name = "knee_joint_motor_left"
+
+[Sensor.EffortSensor.toe_joint_left]
+motor_name = "toe_joint_motor_left"
+
+[Sensor.EffortSensor.hip_abduction_right]
+motor_name = "hip_abduction_motor_right"
+
+[Sensor.EffortSensor.hip_rotation_right]
+motor_name = "hip_rotation_motor_right"
+
+[Sensor.EffortSensor.hip_flexion_right]
+motor_name = "hip_flexion_motor_right"
+
+[Sensor.EffortSensor.knee_joint_right]
+motor_name = "knee_joint_motor_right"
+
+[Sensor.EffortSensor.toe_joint_right]
+motor_name = "toe_joint_motor_right"
+
+# ============= Encoder sensors ===============
+
+[Sensor.EncoderSensor.hip_abduction_left]
+joint_name = "hip_abduction_left"
+
+[Sensor.EncoderSensor.hip_rotation_left]
+joint_name = "hip_rotation_left"
+
+[Sensor.EncoderSensor.hip_flexion_left]
+joint_name = "hip_flexion_left"
+
+[Sensor.EncoderSensor.knee_joint_left]
+joint_name = "knee_joint_left"
+
+[Sensor.EncoderSensor.toe_joint_left]
+joint_name = "toe_joint_left"
+
+[Sensor.EncoderSensor.hip_abduction_right]
+joint_name = "hip_abduction_right"
+
+[Sensor.EncoderSensor.hip_rotation_right]
+joint_name = "hip_rotation_right"
+
+[Sensor.EncoderSensor.hip_flexion_right]
+joint_name = "hip_flexion_right"
+
+[Sensor.EncoderSensor.knee_joint_right]
+joint_name = "knee_joint_right"
+
+[Sensor.EncoderSensor.toe_joint_right]
+joint_name = "toe_joint_right"

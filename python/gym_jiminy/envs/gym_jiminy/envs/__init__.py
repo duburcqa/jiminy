@@ -6,6 +6,7 @@ from .ant import AntEnv
 from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
 from .atlas import AtlasJiminyEnv, AtlasPDControlJiminyEnv
 from .spotmicro import SpotmicroJiminyEnv
+from .cassie import CassieJiminyEnv, CassiePDControlJiminyEnv
 
 
 __all__ = [
@@ -17,7 +18,9 @@ __all__ = [
     'ANYmalPDControlJiminyEnv',
     'AtlasJiminyEnv',
     'AtlasPDControlJiminyEnv',
-    'SpotmicroJiminyEnv'
+    'SpotmicroJiminyEnv',
+    'CassieJiminyEnv',
+    'CassiePDControlJiminyEnv'
 ]
 
 register(
@@ -57,4 +60,12 @@ register(
 register(
     id='spotmicro-v0',
     entry_point='gym_jiminy.envs:SpotmicroJiminyEnv'
+)
+register(
+    id='cassie-v0',
+    entry_point='gym_jiminy.envs:CassieJiminyEnv'
+)
+register(
+    id='cassie-pid-v0',
+    entry_point='gym_jiminy.envs:CassiePDControlJiminyEnv'
 )

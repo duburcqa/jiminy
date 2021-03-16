@@ -19,7 +19,7 @@
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
 
-#include "jiminy/core/robot/LCPSolvers.h"
+#include "jiminy/core/solver/LCPSolvers.h"
 
 
 namespace jiminy

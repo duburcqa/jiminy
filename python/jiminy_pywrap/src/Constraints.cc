@@ -2,6 +2,7 @@
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/JointConstraint.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
+#include "jiminy/core/robot/DistanceConstraint.h"
 #include "jiminy/core/robot/SphereConstraint.h"
 #include "jiminy/core/robot/WheelConstraint.h"
 
@@ -141,7 +142,8 @@ namespace python
 
             bp::class_<JointConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<JointConstraint>,
-                       boost::noncopyable>("JointConstraint", bp::init<std::string>())
+                       boost::noncopyable>("JointConstraint",
+                       bp::init<std::string>(bp::args("joint_name")))
                 .def_readonly("type", &JointConstraint::type_)
                 .add_property("joint_name", bp::make_function(&JointConstraint::getJointName,
                                             bp::return_value_policy<bp::copy_const_reference>()))
@@ -170,9 +172,23 @@ namespace python
                                                      bp::return_internal_reference<>()),
                                                      &FixedFrameConstraint::setReferenceTransform);
 
+            bp::class_<DistanceConstraint, bp::bases<AbstractConstraintBase>,
+                       std::shared_ptr<DistanceConstraint>,
+                       boost::noncopyable>("DistanceConstraint",
+                       bp::init<std::string, std::string, float64_t>(
+                       bp::args("first_frame_name", "second_frame_name", "distance_reference")))
+                .def_readonly("type", &DistanceConstraint::type_)
+                .add_property("frames_names", bp::make_function(&DistanceConstraint::getFramesNames,
+                                              bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("frames_idx", bp::make_function(&DistanceConstraint::getFramesIdx,
+                                             bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("reference_distance", bp::make_function(&DistanceConstraint::getReferenceDistance,
+                                                    bp::return_value_policy<bp::copy_const_reference>()));
+
             bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<SphereConstraint>,
-                       boost::noncopyable>("SphereConstraint", bp::init<std::string, float64_t>())
+                       boost::noncopyable>("SphereConstraint",
+                       bp::init<std::string, float64_t>(bp::args("frame_name", "radius")))
                 .def_readonly("type", &SphereConstraint::type_)
                 .add_property("frame_name", bp::make_function(&SphereConstraint::getFrameName,
                                             bp::return_value_policy<bp::copy_const_reference>()))
@@ -184,7 +200,9 @@ namespace python
 
             bp::class_<WheelConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<WheelConstraint>,
-                       boost::noncopyable>("WheelConstraint", bp::init<std::string, float64_t, vector3_t, vector3_t>())
+                       boost::noncopyable>("WheelConstraint",
+                       bp::init<std::string, float64_t, vector3_t, vector3_t>(
+                       bp::args("frame_name", "radius", "ground_normal", "wheel_axis")))
                 .def_readonly("type", &WheelConstraint::type_)
                 .add_property("frame_name", bp::make_function(&WheelConstraint::getFrameName,
                                             bp::return_value_policy<bp::copy_const_reference>()))
@@ -193,7 +211,6 @@ namespace python
                 .add_property("reference_transform", bp::make_function(&WheelConstraint::getReferenceTransform,
                                                      bp::return_internal_reference<>()),
                                                      &WheelConstraint::setReferenceTransform);
-
         }
     };
 

@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Callable
 
 import hppfcl
 import pinocchio as pin
-from pinocchio.rpy import rpyToMatrix, matrixToRpy
+from pinocchio.rpy import rpyToMatrix, matrixToRpy, computeRpyJacobian
 
 from . import core as jiminy
 from .viewer import TrajectoryDataType
@@ -27,6 +27,22 @@ def XYZRPYToSE3(xyzrpy):
     """Convert [X,Y,Z,Roll,Pitch,Yaw] vector to Pinocchio SE3 object.
     """
     return pin.SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3])
+
+
+def XYZRPYToXYZQuat(xyzrpy):
+    """Convert [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].
+    """
+    return pin.SE3ToXYZQUAT(XYZRPYToSE3(xyzrpy))
+
+
+def velocityXYZRPYToXYZQuat(xyzrpy: np.ndarray,
+                            dxyzrpy: np.ndarray) -> np.ndarray:
+    """Convert the derivative of [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].
+    """
+    rpy = xyzrpy[-3:]
+    R = rpyToMatrix(rpy)
+    J_rpy = computeRpyJacobian(rpy)
+    return np.concatenate((R.T @ dxyzrpy[:3], J_rpy @ dxyzrpy[-3:]))
 
 
 # #####################################################################
@@ -431,7 +447,8 @@ def compute_freeflyer_state_from_fixed_body(
         acceleration: Optional[np.ndarray] = None,
         fixed_body_name: Optional[str] = None,
         ground_profile: Optional[Callable[
-            [np.ndarray], Tuple[float, np.ndarray]]] = None) -> str:
+            [np.ndarray], Tuple[float, np.ndarray]]] = None,
+        use_theoretical_model: Optional[bool] = None) -> str:
     """Fill rootjoint data from articular data when a body is fixed and
     aligned with world frame.
 
@@ -463,12 +480,25 @@ def compute_freeflyer_state_from_fixed_body(
     :param acceleration: See position.
     :param fixed_body_name: Name of the body frame that is considered fixed
                             parallel to world frame.
+                            Optional: It will be infered from the set of
+                            contact points and collision bodies.
     :param ground_profile: Ground profile callback.
+    :param use_theoretical_model:
+        Whether the state corresponds to the theoretical model when updating
+        and fetching the robot's state. Must be False if `fixed_body_name` is
+        not speficied.
+        Optional: True by default if `fixed_body_name` is specified, False
+        otherwise.
 
     :returns: Name of the contact frame, if any.
     """
+    # Early return if no freeflyer
     if not robot.has_freeflyer:
         return None
+
+    # Handling of default arguments
+    if use_theoretical_model is None:
+        use_theoretical_model = fixed_body_name is not None
 
     position[:6].fill(0.0)
     position[6] = 1.0
@@ -478,13 +508,16 @@ def compute_freeflyer_state_from_fixed_body(
         acceleration[:6].fill(0.0)
     update_quantities(
         robot, position, velocity, acceleration, update_physics=False,
-        use_theoretical_model=False)
+        use_theoretical_model=use_theoretical_model)
 
     if fixed_body_name is None:
+        if use_theoretical_model:
+            raise RuntimeError(
+                "Cannot infer contact transform for theoretical model.")
         w_M_ff = compute_transform_contact(robot, ground_profile)
     else:
         ff_M_fixed_body = get_body_world_transform(
-            robot, fixed_body_name, use_theoretical_model=False, copy=False)
+            robot, fixed_body_name, use_theoretical_model, copy=False)
         if ground_profile is not None:
             ground_translation = np.zeros(3)
             ground_translation[2], normal = ground_profile(
@@ -500,13 +533,13 @@ def compute_freeflyer_state_from_fixed_body(
     if fixed_body_name is not None:
         if velocity is not None:
             ff_v_fixed_body = get_body_world_velocity(
-                robot, fixed_body_name, use_theoretical_model=False)
+                robot, fixed_body_name, use_theoretical_model)
             base_link_velocity = - ff_v_fixed_body
             velocity[:6] = base_link_velocity.vector
 
         if acceleration is not None:
             ff_a_fixedBody = get_body_world_acceleration(
-                robot, fixed_body_name, use_theoretical_model=False)
+                robot, fixed_body_name, use_theoretical_model)
             base_link_acceleration = - ff_a_fixedBody
             acceleration[:6] = base_link_acceleration.vector
 

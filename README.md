@@ -48,13 +48,20 @@ easily be done on any high-level dynamics features, or restricted to mock sensor
 
 Gym is cross-platform and compatible with most Reinforcement Learning frameworks implementing standard algorithms. For instance, [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3), [RL Coach](https://github.com/NervanaSystems/coach), [Tianshou](https://github.com/thu-ml/tianshou), or [Rllib](https://github.com/ray-project/ray). RL Coach leverages the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) as backend, Stable Baselines 3 and  Tianshou use its counterpart [Pytorch](https://pytorch.org/), and Rllib supports both. A few learning examples relying on those packages are also provided.
 
-Pre-configured environments for some well-known toys models and reference robotics platforms are provided: [cartpole](https://gym.openai.com/envs/CartPole-v1/), [acrobot](https://gym.openai.com/envs/Acrobot-v1/), [pendulum](https://gym.openai.com/envs/Pendulum-v0/), [Ant](https://gym.openai.com/envs/Ant-v2/), [ANYmal](https://www.anymal-research.org/#getting-started), and [Atlas](https://www.bostondynamics.com/atlas).
+Pre-configured environments for some well-known toys models and reference robotics platforms are provided: [cartpole](https://gym.openai.com/envs/CartPole-v1/), [acrobot](https://gym.openai.com/envs/Acrobot-v1/), [pendulum](https://gym.openai.com/envs/Pendulum-v0/), [Ant](https://gym.openai.com/envs/Ant-v2/), [ANYmal](https://www.anymal-research.org/#getting-started), and [Cassie](https://www.agilityrobotics.com/robots#cassie), and [Atlas](https://www.bostondynamics.com/atlas).
 
 ## Demo
 
-<a href="./examples/tutorial.ipynb"> <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_plot_log.png" alt="" width="49.5%"/> <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_viewer_open.png" alt="" width="49.5%"/>
-<img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="100%"/>
-<img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="30.5%"/> <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="30.5%"/> <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_learning_ant.gif" alt="" width="36.7%"/> </a>
+<a href="./examples/tutorial.ipynb">
+<p align="middle">
+  <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_plot_log.png" alt="" width="49.0%"/>
+  <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_viewer_open.png" alt="" width="49.0%"/>
+  <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="98.5%"/>
+  <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_learning_ant.gif" alt="" width="32.5%"/>
+  <img src="https://raw.github.com/duburcqa/jiminy/readme/cassie.png" alt="" width="32.5%"/>
+  <img src="https://raw.github.com/duburcqa/jiminy/readme/anymal.png" alt="" width="32.5%"/>
+</p>
+</a>
 
 ## Getting started
 
