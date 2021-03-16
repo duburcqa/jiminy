@@ -2,6 +2,7 @@
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/JointConstraint.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
+#include "jiminy/core/robot/DistanceConstraint.h"
 #include "jiminy/core/robot/SphereConstraint.h"
 #include "jiminy/core/robot/WheelConstraint.h"
 
@@ -169,6 +170,19 @@ namespace python
                 .add_property("reference_transform", bp::make_function(&FixedFrameConstraint::getReferenceTransform,
                                                      bp::return_internal_reference<>()),
                                                      &FixedFrameConstraint::setReferenceTransform);
+
+            bp::class_<DistanceConstraint, bp::bases<AbstractConstraintBase>,
+                       std::shared_ptr<DistanceConstraint>,
+                       boost::noncopyable>("DistanceConstraint",
+                       bp::init<std::string, std::string, float64_t>(
+                       bp::args("first_frame_name", "second_frame_name", "distance_reference")))
+                .def_readonly("type", &DistanceConstraint::type_)
+                .add_property("frames_names", bp::make_function(&DistanceConstraint::getFramesNames,
+                                              bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("frames_idx", bp::make_function(&DistanceConstraint::getFramesIdx,
+                                             bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("reference_distance", bp::make_function(&DistanceConstraint::getReferenceDistance,
+                                                    bp::return_value_policy<bp::copy_const_reference>()));
 
             bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<SphereConstraint>,
