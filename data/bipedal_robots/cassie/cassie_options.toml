@@ -1,0 +1,51 @@
+# ============= Engine stepper =================
+
+[engine.stepper]
+verbose = false
+odeSolver = "runge_kutta_4"
+tolRel = 1.0e-9
+tolAbs = 1.0e-8
+# dtMax = 0.01
+dtRestoreThresholdRel = 0.2
+iterMax = 100000
+timeout = -1
+sensorsUpdatePeriod = 0.01
+controllerUpdatePeriod = 0.01
+randomSeed = 0
+logInternalStepperSteps = false
+successiveIterFailedMax = 1000
+
+# ================= World ======================
+
+[engine.world]
+gravity = [0.0, 0.0, -9.81, 0.0, 0.0, 0.0]
+
+# ============== Ground dynamics ===============
+
+[engine.contacts]
+model = "impulse"
+solver = "PGS"
+regularization = 2.0e-3
+stabilizationFreq = 20.0
+transitionEps = 2.0e-3
+friction = 0.5
+
+# ======== Model dynamic configuration =========
+
+[system.robot.model.dynamics]
+inertiaBodiesBiasStd = 0.0
+massBodiesBiasStd = 0.0
+centerOfMassPositionBodiesBiasStd = 0.0
+relativePositionBodiesBiasStd = 0.0
+enableFlexibleModel = false
+
+# ======== Joints bounds configuration ========
+
+[system.robot.model.joints]
+enablePositionLimit = true
+positionLimitFromUrdf = true
+positionLimitMax = []
+positionLimitMin = []
+enableVelocityLimit = true
+velocityLimitFromUrdf = true
+velocityLimit = []

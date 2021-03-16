@@ -7,20 +7,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from jiminy_py.core import EncoderSensor as encoder
+from jiminy_py.viewer import Viewer
 
 from gym_jiminy.envs import AtlasPDControlJiminyEnv
+from gym_jiminy.envs import CassiePDControlJiminyEnv
 
 
-class PipelineControlAtlas(unittest.TestCase):
+class PipelineControl(unittest.TestCase):
     """ TODO: Write documentation
     """
     def setUp(self):
         """ TODO: Write documentation
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        self.env = AtlasPDControlJiminyEnv(debug=False)
 
-    def test_pid_standing(self):
+    def _test_pid_standing(self):
         """ TODO: Write documentation
         """
         # Check that it is not possible to get simulation log at this point
@@ -42,15 +43,15 @@ class PipelineControlAtlas(unittest.TestCase):
         action_init['Q'], action_init['V'] = encoder_data[
             :, self.env.controller.motor_to_encoder]
 
-        # Run the simulation during 3s
-        for _ in range(3000):
+        # Run the simulation during 5s
+        while self.env.stepper_state.t < 5.0:
             self.env.step(action_init)
 
         # Get the final posture of the robot as an RGB array
         rgb_array = self.env.render(mode='rgb_array')
 
         # Check that the final posture matches the expected one.
-        robot_name = self.env.robot.pinocchio_model.name
+        robot_name = self.env.robot.name
         i = 0
         img_diff = np.inf
         while img_diff > 0.1:
@@ -73,14 +74,21 @@ class PipelineControlAtlas(unittest.TestCase):
         log_data, _ = self.env.get_log()
 
         # Check that the joint velocity target is zero
+        time = log_data["Global.Time"]
         velocity_target = np.stack([
             log_data['.'.join((
                 'HighLevelController', self.env.controller_name, name))]
             for name in self.env.controller.get_fieldnames()['V']], axis=-1)
-        self.assertTrue(np.all(np.abs(velocity_target[-1000:]) < 1e-9))
+        self.assertTrue(np.all(np.abs(velocity_target[time > 4.0]) < 1e-9))
 
         # Check that the whole-body robot velocity is close to zero at the end
         velocity_mes = np.stack([
             log_data['.'.join(('HighLevelController', name))]
             for name in self.env.robot.logfile_velocity_headers], axis=-1)
-        self.assertTrue(np.all(np.abs(velocity_mes[-1000:]) < 1e-3))
+        self.assertTrue(np.all(np.abs(velocity_mes[time > 4.0]) < 1e-3))
+
+    def test_pid_standing(self):
+        for Env in [AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv]:
+            self.env = Env(debug=False)
+            self._test_pid_standing()
+            Viewer.close()
