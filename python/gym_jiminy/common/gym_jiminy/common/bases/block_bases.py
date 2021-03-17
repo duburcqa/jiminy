@@ -12,7 +12,7 @@ from typing import Optional, Any, List
 
 import gym
 
-from ..utils import FieldDictNested, SpaceDictNested
+from ..utils import get_fieldnames, FieldDictNested, SpaceDictNested
 from ..envs import BaseJiminyEnv
 from .generic_bases import ControllerInterface, ObserverInterface
 
@@ -264,11 +264,14 @@ class BaseControllerBlock(ControllerInterface, BlockInterface):
         action space, the difference being numerical arrays replaced by lists
         of string.
 
+        By default, generic fieldnames using 'Action' prefix and index as
+        suffix for `np.ndarray`.
+
         .. note::
             This method is not supposed to be called before `reset`, so that
             the controller should be already initialized at this point.
         """
-        raise NotImplementedError
+        return get_fieldnames(self.action_space)
 
 
 BaseControllerBlock._setup.__doc__ = \

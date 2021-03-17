@@ -16,6 +16,8 @@ SpaceDictNested = Union[  # type: ignore
 ListStrRecursive = Sequence[Union[str, 'ListStrRecursive']]  # type: ignore
 FieldDictNested = Union[  # type: ignore
     Dict[str, 'FieldDictNested'], ListStrRecursive]  # type: ignore
+FieldnamesT = Union[  # type: ignore
+    Dict[str, Union[str, "FieldnamesT"]], Sequence[str]]
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,
@@ -122,8 +124,10 @@ def zeros(space: gym.Space,
         return value
     if isinstance(space, spaces.Tuple):
         return tuple(zeros(subspace, dtype=dtype) for subspace in space.spaces)
-    if isinstance(space, spaces.Discrete):
+    if isinstance(space, (spaces.Discrete, spaces.MultiDiscrete)):
         return np.array(0)  # Using np.array of 0 dim to be mutable
+    if isinstance(space, spaces.MultiBinary):
+        return np.zeros(space.n, dtype=np.int8)
     raise NotImplementedError(
         f"Space of type {type(space)} is not supported.")
 
@@ -213,11 +217,11 @@ def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     if isinstance(space, spaces.Tuple):
         return (clip(subspace, subvalue)
                 for subspace, subvalue in zip(space, value))
-    if isinstance(space, spaces.Discrete):
-        return value  # No need to clip Discrete space.
+    if isinstance(space, (
+            spaces.Discrete, spaces.MultiDiscrete, spaces.MultiBinary)):
+        return value  # No need to clip those spaces.
     raise NotImplementedError(
-        f"Gym.Space of type {type(space)} is not supported by this "
-        "method.")
+        f"Gym.Space of type {type(space)} is not supported.")
 
 
 @nb.jit(nopython=True, nogil=True)
@@ -238,6 +242,33 @@ def _is_breakpoint(t: float, dt: float, eps: float) -> bool:
     return False
 
 
+def get_fieldnames(space: spaces.Space) -> FieldnamesT:
+    """ Get generic fieldnames from `gym.spaces.Space`, so that it can be used
+    in conjunction with `register_variables`, to register any value from gym
+    Space to the telemetry conveniently.
+    """
+    # Fancy action space: Trying to be clever and infer meaningful
+    # telemetry names based on action space
+    if isinstance(space, (spaces.Box, spaces.Tuple, spaces.MultiBinary)):
+        # Fallback to basic numbering since we have no information
+        return [f"Action{i}" for i in range(len(space))]
+    if isinstance(space, (
+            spaces.Discrete, spaces.MultiDiscrete)):
+        # The action is already scalar. No need to add suffix.
+        return ["Action"]
+    if isinstance(space, spaces.Dict):
+        assert space.spaces, "Dict space cannot be empty."
+        out = []
+        for field, subspace in dict.items(space.spaces):
+            if isinstance(subspace, spaces.Dict):
+                out.append({field: get_fieldnames(subspace)})
+            else:
+                out.append(field)
+        return out
+    raise NotImplementedError(
+        f"Gym.Space of type {type(space)} is not supported.")
+
+
 def register_variables(controller: jiminy.AbstractController,
                        field: FieldDictNested,
                        data: SpaceDictNested,
@@ -256,7 +287,9 @@ def register_variables(controller: jiminy.AbstractController,
         "field and data are inconsistent.")
     if isinstance(field, dict):
         is_success = True
-        for subfield, value in zip(field.values(), data.values()):
+        if isinstance(data, dict):
+            data = data.values()
+        for subfield, value in zip(field.values(), data):
             hresult = register_variables(
                 controller, subfield, value, namespace)
             is_success = is_success and (hresult == jiminy.hresult_t.SUCCESS)
@@ -266,6 +299,8 @@ def register_variables(controller: jiminy.AbstractController,
         hresult = controller.register_variables(field, data)
         is_success = (hresult == jiminy.hresult_t.SUCCESS)
     elif isinstance(field[0], (list, tuple)):
+        assert isinstance(data, np.ndarray), (
+            "Only support np.ndarray data type.")
         is_success = True
         for subfield, value in zip(field, data):
             hresult = register_variables(
