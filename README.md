@@ -59,7 +59,7 @@ Pre-configured environments for some well-known toys models and reference roboti
   <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="98.5%"/>
   <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_learning_ant.gif" alt="" width="32.5%"/>
   <img src="https://raw.github.com/duburcqa/jiminy/readme/cassie.png" alt="" width="32.5%"/>
-  <img src="https://raw.github.com/duburcqa/jiminy/readme/anymal.png" alt="" width="32.5%"/>
+  <img src="https://raw.github.com/duburcqa/jiminy/readme/atlas.png" alt="" width="32.5%"/>
 </p>
 </a>
 
