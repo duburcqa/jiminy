@@ -316,14 +316,14 @@ def register_variables(controller: jiminy.AbstractController,
     # Default case: data is already a numpy array. Can be registered directly.
     if isinstance(data, np.ndarray):
         if np.issubsctype(data, np.float64):
-            for i in range(len(fields)):
+            for i, field in enumerate(fields):
                 if isinstance(fields[i], (list, tuple)):
-                    fields[i] = [".".join(filter(None, (namespace, field)))
-                                 for field in fields[i]]
+                    fields[i] = [".".join(filter(None, (namespace, subfield)))
+                                 for subfield in field]
                 else:
-                    fields[i] = ".".join(filter(None, (namespace, fields[i])))
+                    fields[i] = ".".join(filter(None, (namespace, field)))
             hresult = controller.register_variables(fields, data)
-            return (hresult == jiminy.hresult_t.SUCCESS)
+            return hresult == jiminy.hresult_t.SUCCESS
         return False
 
     # Fallback to looping over fields and data iterators

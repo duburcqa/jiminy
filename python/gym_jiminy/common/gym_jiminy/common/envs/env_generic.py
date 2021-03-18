@@ -734,13 +734,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # In such a case, keys corresponds to subplots, and values are
         # individual scalar data over time to be displayed to the same subplot.
         log_data = self.simulator.log_data
-        time = log_data["Global.Time"]
+        t = log_data["Global.Time"]
         tab_data = {}
         if self.logfile_action_headers is None:
             # It was impossible to register the action to the telemetry, likely
             # because of incompatible dtype. Early return without adding tab.
             return
-        elif isinstance(self.logfile_action_headers, dict):
+        if isinstance(self.logfile_action_headers, dict):
             for field, subfields in self.logfile_action_headers.items():
                 if not isinstance(self.logfile_action_headers, (list, tuple)):
                     logger.error("Action space not supported.")
@@ -756,7 +756,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 for field in self.logfile_action_headers})
 
         # Add action tab
-        self.figure.add_tab("Action", time, tab_data)
+        self.figure.add_tab("Action", t, tab_data)
 
     def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
         """Replay the current episode until now.
