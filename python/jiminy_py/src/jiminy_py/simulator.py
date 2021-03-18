@@ -676,7 +676,7 @@ class Simulator:
                             OrderedDict(zip(sensors_names, sensors_data))
 
         # Create figure, without closing the existing one
-        self.figure = TabbedFigure.plot(time, tabs_data)
+        self.figure = TabbedFigure.plot(time, tabs_data, plot_method="plot")
 
     def get_controller_options(self) -> dict:
         """Getter of the options of Jiminy Controller.

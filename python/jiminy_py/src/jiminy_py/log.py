@@ -5,9 +5,10 @@ import argparse
 from csv import DictReader
 from textwrap import dedent
 from itertools import cycle
+from functools import partial
 from collections import OrderedDict
 from weakref import WeakKeyDictionary
-from typing import Tuple, Dict, Optional, Any, List, Union
+from typing import Tuple, Dict, Optional, Any, List, Union, Callable
 
 import h5py
 import numpy as np
@@ -208,10 +209,23 @@ class TabbedFigure:
                 tab_name: str,
                 time: np.ndarray,
                 data: Union[np.ndarray, Dict[str, Union[
-                    Dict[str, np.ndarray], np.ndarray]]]
-                ) -> None:
+                    Dict[str, np.ndarray], np.ndarray]]],
+                plot_method: Optional[Union[Callable[[
+                    matplotlib.axes.Axes, np.ndarray, np.ndarray
+                    ], Any], str]] = None) -> None:
         """ TODO: Write documentation.
+
+        :param plot_method: Callable method taking axis object, time, and data
+                            array in argument, or string instance method of
+                            `matplotlib.axes.Axes`.
+                            Optional: `step(..., where='post')` by default.
         """
+        # Handle default arguments and converters
+        if plot_method is None:
+            plot_method = partial(matplotlib.axes.Axes.step, where='post')
+        elif isinstance(plot_method, str):
+            plot_method = getattr(matplotlib.axes.Axes, plot_method)
+
         if isinstance(data, dict):
             # Compute plot grid arrangement
             n_cols = len(data)
@@ -240,15 +254,16 @@ class TabbedFigure:
             for (plot_name, plot_data), ax in zip(data.items(), axes):
                 if isinstance(plot_data, dict):
                     for line_name, line_data in plot_data.items():
-                        ax.plot(time, line_data, label=line_name)
+                        plot_method(ax, time, line_data, label=line_name)
                     ax.legend()
                 else:
-                    ax.plot(time, plot_data)
+                    plot_method(ax, time, plot_data)
                 ax.set_title(plot_name, fontsize='medium')
                 ax.grid()
         else:
             # Draw single figure instead of subplot
-            ax = self.figure.plot(time, data)
+            ax = self.figure.add_subplot(1, 1, 1, label=tab_name)
+            plot_method(ax, time, data)
             if self.tabs_data:
                 self.figure.delaxes(ax)
             axes = [ax]
@@ -316,13 +331,15 @@ class TabbedFigure:
     def plot(cls,
              time: np.ndarray,
              tabs_data: Dict[str, Union[Dict[str, Union[
-                    Dict[str, np.ndarray], np.ndarray]]]]
-            ) -> "TabbedFigure":
+                    Dict[str, np.ndarray], np.ndarray]]]],
+             **kwargs) -> "TabbedFigure":
         """ TODO: Write documentation.
+
+        :param kwargs: Extra keyword arguments to forward to `add_tab` method.
         """
         tabbed_figure = cls()
         for name, data in tabs_data.items():
-            tabbed_figure.add_tab(name, time, data)
+            tabbed_figure.add_tab(name, time, data, **kwargs)
         return tabbed_figure
 
 
@@ -448,12 +465,12 @@ def plot_log():
     # Plot each element.
     for ax, plotted_elem in zip(axes, plotted_elements):
         for name in plotted_elem:
-            line = ax.plot(t, log_data[name], label=name)
+            line = ax.step(t, log_data[name], label=name)
             plotted_lines[main_name].append(line[0])
 
             linecycler = cycle(linestyles)
             for c in compare_data:
-                line = ax.plot(compare_data[c]['Global.Time'],
+                line = ax.step(compare_data[c]['Global.Time'],
                                compare_data[c][name],
                                next(linecycler),
                                color=line[0].get_color())
