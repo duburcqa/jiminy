@@ -90,7 +90,7 @@ namespace python
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
                                           "@copydoc AbstractController::registerVariable")
-                .def("register_variables", &PyAbstractControllerVisitor::registerVariableVector,
+                .def("register_variables", &PyAbstractControllerVisitor::registerVariableArray,
                                            (bp::arg("self"), "fieldnames", "values"))
                 .def("register_constants", &PyAbstractControllerVisitor::registerConstant,
                                            (bp::arg("self"), "fieldnames", "values"))
@@ -139,38 +139,69 @@ namespace python
             }
         }
 
-        static hresult_t registerVariableVector(AbstractController       & self,
-                                                bp::list           const & fieldNamesPy,
-                                                PyObject                 * dataPy)
+        static hresult_t registerVariableArray(AbstractController       & self,
+                                               bp::list           const & fieldNamesPy,
+                                               PyObject                 * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
-            if (PyArray_Check(dataPy))
+            // Get Eigen::Map from Numpy array
+            auto [returnCode, data] = getEigenReference(dataPy);
+
+            if (returnCode == hresult_t::SUCCESS)
             {
-                auto fieldnames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
-                PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
-                int dataPyArrayNdims = PyArray_NDIM(dataPyArray);
-                if (dataPyArrayNdims != 1)
+                // Check if fieldnames are stored in one or two dimensional list
+                if (bp::len(fieldNamesPy) > 0 && bp::extract<std::string>(fieldNamesPy[0]).check())
                 {
-                    PRINT_ERROR("Only one-dimensional 'np.ndarray' is supported.");
-                    return hresult_t::ERROR_BAD_INPUT;
-                }
-                if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64 && PyArray_SIZE(dataPyArray) == uint32_t(fieldnames.size()))
-                {
-                    Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
-                    return self.registerVariable(fieldnames, data);
+                    // Extract fieldnames
+                    auto fieldnames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
+
+                    // Check fieldnames and array have same length
+                    if (data.size() != uint32_t(fieldnames.size()))
+                    {
+                        PRINT_ERROR("'values' input array must have same length than 'fieldnames'.");
+                        returnCode = hresult_t::ERROR_BAD_INPUT;
+                    }
+
+                    // Register all variables at once
+                    if (returnCode == hresult_t::SUCCESS)
+                    {
+                        returnCode = self.registerVariable(fieldnames, data.col(0));
+                    }
                 }
                 else
                 {
-                    PRINT_ERROR("'values' input array must have dtype 'np.float64' and the same length as 'fieldnames'.");
-                    return hresult_t::ERROR_BAD_INPUT;
+                    // Extract fieldnames
+                    auto fieldnames = convertFromPython<std::vector<std::vector<std::string> > >(fieldNamesPy);
+
+                    // Check fieldnames and array have same shape
+                    bool_t are_fieldnames_valid = (data.rows() == uint32_t(fieldnames.size()));
+                    for (std::vector<std::string> const & subfieldnames : fieldnames)
+                    {
+                        if (data.cols() != uint32_t(subfieldnames.size()))
+                        {
+                            are_fieldnames_valid = false;
+                            break;
+                        }
+                    }
+                    if (!are_fieldnames_valid)
+                    {
+                        PRINT_ERROR("'fieldnames' must be nested list with same shape than 'value'.");
+                        returnCode = hresult_t::ERROR_BAD_INPUT;
+                    }
+
+                    // Register rows sequentially
+                    for (uint32_t i = 0; i < data.rows(); ++i)
+                    {
+                        if (returnCode == hresult_t::SUCCESS)
+                        {
+                            returnCode = self.registerVariable(fieldnames[i], data.row(i));
+                        }
+                    }
                 }
             }
-            else
-            {
-                PRINT_ERROR("'values' input must have type 'numpy.ndarray'.");
-                return hresult_t::ERROR_BAD_INPUT;
-            }
+
+            return returnCode;
         }
 
         static hresult_t registerConstant(AbstractController       & self,
@@ -179,36 +210,12 @@ namespace python
         {
             if (PyArray_Check(dataPy))
             {
-                PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
-
-                int dataPyArrayDtype = PyArray_TYPE(dataPyArray);
-                if (dataPyArrayDtype != NPY_FLOAT64)
+                auto [returnCode, data] = getEigenReference(dataPy);
+                if (returnCode == hresult_t::SUCCESS)
                 {
-                    PRINT_ERROR("The only dtype supported for 'numpy.ndarray' is 'np.float64'.");
-                    return hresult_t::ERROR_BAD_INPUT;
+                    returnCode = self.registerConstant(fieldName, data);
                 }
-                float64_t * dataPyArrayData = (float64_t *) PyArray_DATA(dataPyArray);
-                int dataPyArrayNdims = PyArray_NDIM(dataPyArray);
-                npy_intp * dataPyArrayShape = PyArray_SHAPE(dataPyArray);
-                if (dataPyArrayNdims == 0)
-                {
-                    return self.registerConstant(fieldName, *dataPyArrayData);
-                }
-                else if (dataPyArrayNdims == 1)
-                {
-                    Eigen::Map<vectorN_t> data(dataPyArrayData, dataPyArrayShape[0]);
-                    return self.registerConstant(fieldName, data);
-                }
-                else if (dataPyArrayNdims == 2)
-                {
-                    Eigen::Map<matrixN_t> data(dataPyArrayData, dataPyArrayShape[0], dataPyArrayShape[1]);
-                    return self.registerConstant(fieldName, data);
-                }
-                else
-                {
-                    PRINT_ERROR("The max number of dims supported for 'numpy.ndarray' is 2.");
-                    return hresult_t::ERROR_BAD_INPUT;
-                }
+                return returnCode;
             }
             else if (PyFloat_Check(dataPy))
             {

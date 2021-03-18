@@ -5,7 +5,7 @@ import time
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List, Union
+from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List
 
 import numpy as np
 import gym
@@ -525,14 +525,20 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if isinstance(self._action, np.ndarray) and (
                 self._action.size == self.robot.nmotors):
             # Default case: assuming there is one scalar action per motor
-            self.logfile_action_headers = deepcopy(self.robot.motors_names)
+            self.logfile_action_headers = [
+                ".".join(("action", e)) for e in self.robot.motors_names]
         else:
             # Fallback: Get generic fieldnames otherwise
-            self.logfile_action_headers = get_fieldnames(self.action_space)
-        register_variables(self.simulator.controller,
-                           self.logfile_action_headers,
-                           self._action,
-                           "Action")
+            self.logfile_action_headers = get_fieldnames(
+                self.action_space, "action")
+        is_success = register_variables(self.simulator.controller,
+                                        self.logfile_action_headers,
+                                        self._action)
+        if not is_success:
+            self.logfile_action_headers = None
+            logger.warn(
+                "Action must have dtype np.float64 to be registered to the "
+                "telemetry.")
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -716,6 +722,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
     def plot(self) -> None:
         """Display common simulation data and action over time.
+
+        .. Note:
+            It adds "Action" tab on top of original `Simulator.plot`.
         """
         # Call base implementation
         self.simulator.plot()
@@ -726,22 +735,24 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # individual scalar data over time to be displayed to the same subplot.
         log_data = self.simulator.log_data
         time = log_data["Global.Time"]
-
         tab_data = {}
-        if isinstance(self.logfile_action_headers, dict):
+        if self.logfile_action_headers is None:
+            # It was impossible to register the action to the telemetry, likely
+            # because of incompatible dtype. Early return without adding tab.
+            return
+        elif isinstance(self.logfile_action_headers, dict):
             for field, subfields in self.logfile_action_headers.items():
                 if not isinstance(self.logfile_action_headers, (list, tuple)):
                     logger.error("Action space not supported.")
                     return
-                else:
-                    tab_data[field] = {
-                        field: log_data[
-                            ".".join(("HighLevelController", "Action", field))]
-                        for field in subfields}
+                tab_data[field] = {
+                    field.split(".", 1)[1]: log_data[
+                        ".".join(("HighLevelController", field))]
+                    for field in subfields}
         elif isinstance(self.logfile_action_headers, (list, tuple)):
             tab_data.update({
-                field: log_data[
-                    ".".join(("HighLevelController", "Action", field))]
+                field.split(".", 1)[1]: log_data[
+                    ".".join(("HighLevelController", field))]
                 for field in self.logfile_action_headers})
 
         # Add action tab
