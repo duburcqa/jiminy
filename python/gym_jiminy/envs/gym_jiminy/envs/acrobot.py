@@ -70,9 +70,10 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         self.continuous = continuous
 
         # Get URDF path
-        data_dir = resource_filename('gym_jiminy.envs', 'data/toys_models')
+        data_dir = resource_filename(
+            "gym_jiminy.envs", "data/toys_models/acrobot")
         urdf_path = os.path.join(
-            data_dir, "acrobot/acrobot.urdf")
+            data_dir, "acrobot.urdf")
 
         # Instantiate robot
         robot = jiminy.Robot()
