@@ -20,7 +20,7 @@ from .core import (EncoderSensor as encoder,
                    ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyObserverController
-from .log import TabbedFigure
+from .plot import TabbedFigure
 from .viewer import interactive_mode, play_logfiles, Viewer
 
 if interactive_mode():
