@@ -1,7 +1,7 @@
 """ TODO: Write documentation.
 """
 from collections import OrderedDict
-from typing import Optional, Union, Dict, Sequence
+from typing import Optional, Union, Dict, Sequence, List
 
 import numpy as np
 import numba as nb
@@ -13,11 +13,9 @@ import jiminy_py.core as jiminy
 
 SpaceDictNested = Union[  # type: ignore
     Dict[str, 'SpaceDictNested'], np.ndarray]  # type: ignore
-ListStrRecursive = Sequence[Union[str, 'ListStrRecursive']]  # type: ignore
+ListStrRecursive = List[Union[str, 'ListStrRecursive']]  # type: ignore
 FieldDictNested = Union[  # type: ignore
     Dict[str, 'FieldDictNested'], ListStrRecursive]  # type: ignore
-FieldnamesT = Union[  # type: ignore
-    Dict[str, Union[str, "FieldnamesT"]], Sequence[str]]
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,
@@ -245,7 +243,7 @@ def _is_breakpoint(t: float, dt: float, eps: float) -> bool:
 
 
 def get_fieldnames(space: spaces.Space,
-                   namespace: str = "") -> FieldnamesT:
+                   namespace: str = "") -> FieldDictNested:
     """ Get generic fieldnames from `gym.spaces.Space`, so that it can be used
     in conjunction with `register_variables`, to register any value from gym
     Space to the telemetry conveniently.
@@ -267,7 +265,7 @@ def get_fieldnames(space: spaces.Space,
         return [namespace]
     if isinstance(space, spaces.Dict):
         assert space.spaces, "Dict space cannot be empty."
-        out = []
+        out: List[Union[Dict[str, FieldDictNested], str]] = []
         for field, subspace in dict.items(space.spaces):
             if isinstance(subspace, spaces.Dict):
                 out.append({field: get_fieldnames(subspace, namespace)})
@@ -317,7 +315,8 @@ def register_variables(controller: jiminy.AbstractController,
     if isinstance(data, np.ndarray):
         if np.issubsctype(data, np.float64):
             for i, field in enumerate(fields):
-                if isinstance(fields[i], (list, tuple)):
+                assert not isinstance(fields, dict)
+                if isinstance(fields[i], list):
                     fields[i] = [".".join(filter(None, (namespace, subfield)))
                                  for subfield in field]
                 else:
@@ -329,10 +328,11 @@ def register_variables(controller: jiminy.AbstractController,
     # Fallback to looping over fields and data iterators
     is_success = True
     if isinstance(fields, dict):
-        fields = fields.values()
+        fields = list(fields.values())
     if isinstance(data, dict):
-        data = data.values()
+        data = list(data.values())
     for subfields, value in zip(fields, data):
+        assert isinstance(subfields, (dict, list))
         is_success = register_variables(
             controller, subfields, value, namespace)
         if not is_success:

@@ -334,7 +334,7 @@ class Simulator:
                               Optional: Do not remove by default.
         """
         # Clear log data backup
-        self._log_data = {}
+        self._log_data, self._log_constants = {}, {}
 
         # Reset the backend engine
         self.engine.reset(remove_forces)
@@ -376,6 +376,9 @@ class Simulator:
                         duration, namely until the next breakpoint if any,
                         or 'engine_options["stepper"]["dtMax"]'.
         """
+        # Clear log data backup
+        self._log_data, self._log_constants = {}, {}
+
         # Perform a single integration step
         if not self.is_simulation_running:
             raise RuntimeError(
@@ -399,7 +402,7 @@ class Simulator:
                  a_init: Optional[np.ndarray] = None,
                  is_state_theoretical: bool = False) -> None:
         # Clear log data backup
-        self._log_data = {}
+        self._log_data, self._log_constants = {}, {}
 
         # Run simulation
         return_code = self.engine.simulate(
@@ -548,7 +551,9 @@ class Simulator:
             self.viewer = None
         plt.close(self.figure)
 
-    def plot(self, enable_flexiblity_data: bool = False) -> None:
+    def plot(self,
+             enable_flexiblity_data: bool = False,
+             **kwargs: Any) -> None:
         """Display common simulation data over time.
 
         The figure features several tabs:
@@ -563,6 +568,7 @@ class Simulator:
             Enable display of flexible joints in robot's configuration,
             velocity and acceleration subplots.
             Optional: False by default.
+        :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
         """
         # Define some internal helper functions
         def extract_fields(log_data: Dict[str, np.ndarray],
@@ -676,7 +682,8 @@ class Simulator:
                             OrderedDict(zip(sensors_names, sensors_data))
 
         # Create figure, without closing the existing one
-        self.figure = TabbedFigure.plot(time, tabs_data, plot_method="plot")
+        self.figure = TabbedFigure.plot(
+            time, tabs_data, **{"plot_method": "plot", **kwargs})
 
     def get_controller_options(self) -> dict:
         """Getter of the options of Jiminy Controller.

@@ -30,7 +30,7 @@ from pinocchio import neutral, normalize
 
 from ..utils import (
     zeros, fill, set_value, clip, get_fieldnames, register_variables,
-    SpaceDictNested, FieldnamesT)
+    FieldDictNested, SpaceDictNested)
 from ..bases import ObserverControllerInterface
 from .play import loop_interactive
 
@@ -116,7 +116,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.rg = np.random.RandomState()
         self._seed: Optional[np.uint32] = None
         self.log_path: Optional[str] = None
-        self.logfile_action_headers: Optional[FieldnamesT] = None
+        self.logfile_action_headers: Optional[FieldDictNested] = None
 
         # Information about the learning process
         self._info: Dict[str, Any] = {}
@@ -720,14 +720,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return self.simulator.render(**{
             'return_rgb_array': return_rgb_array, **kwargs})
 
-    def plot(self) -> None:
+    def plot(self, **kwargs: Any) -> None:
         """Display common simulation data and action over time.
 
         .. Note:
             It adds "Action" tab on top of original `Simulator.plot`.
+
+        :param kwargs: Extra keyword arguments to forward to `simulator.plot`.
         """
         # Call base implementation
-        self.simulator.plot()
+        self.simulator.plot(**kwargs)
 
         # Extract action.
         # If telemetry action fieldnames is a dictionary, it cannot be nested.
@@ -742,14 +744,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             return
         if isinstance(self.logfile_action_headers, dict):
             for field, subfields in self.logfile_action_headers.items():
-                if not isinstance(self.logfile_action_headers, (list, tuple)):
+                if not isinstance(subfields, list):
                     logger.error("Action space not supported.")
                     return
                 tab_data[field] = {
                     field.split(".", 1)[1]: log_data[
                         ".".join(("HighLevelController", field))]
                     for field in subfields}
-        elif isinstance(self.logfile_action_headers, (list, tuple)):
+        elif isinstance(self.logfile_action_headers, list):
             tab_data.update({
                 field.split(".", 1)[1]: log_data[
                     ".".join(("HighLevelController", field))]

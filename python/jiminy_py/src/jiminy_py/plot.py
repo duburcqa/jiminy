@@ -8,7 +8,7 @@ from matplotlib.axes import Axes
 from matplotlib.artist import Artist
 from matplotlib.legend import Legend
 from matplotlib.widgets import Button
-from matplotlib.backend_bases import Event
+from matplotlib.backend_bases import Event, LocationEvent
 from typing_extensions import TypedDict
 
 
@@ -26,12 +26,16 @@ class TabData(TypedDict, total=True):
 class TabbedFigure:
     """ TODO: Write documentation.
     """
-    def __init__(self) -> None:
+    def __init__(self, sync_tabs: bool = False, **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
+        # Backup user arguments
+        self.sync_tabs = sync_tabs
+
         # Internal state buffers
         self.figure = plt.figure()
         self.legend: Optional[Legend] = None
+        self.ref_ax: Optional[Axes] = None
         self.tabs_data = {}
         self.tab_active: Optional[TabData] = None
 
@@ -69,8 +73,10 @@ class TabbedFigure:
 
         # Backup navigation history
         cur_stack = self.figure.canvas.toolbar._nav_stack
-        self.tab_active["nav_stack"] = cur_stack._elements.copy()
-        self.tab_active["nav_pos"] = cur_stack._pos
+        for tab in self.tabs_data.values():
+            if self.sync_tabs or tab is self.tab_active:
+                tab["nav_stack"] = cur_stack._elements.copy()
+                tab["nav_pos"] = cur_stack._pos
 
         # Update axes and title
         for ax in self.tab_active["axes"]:
@@ -88,7 +94,7 @@ class TabbedFigure:
                 handles, labels, loc='upper right',
                 bbox_to_anchor=(0.99, 0.95))
 
-        # Restore selected tab navigation history and toolbar state
+        # Restore navigation history and toolbar state if necessary
         cur_stack._elements = self.tab_active["nav_stack"]
         cur_stack._pos = self.tab_active["nav_pos"]
         self.figure.canvas.toolbar._actions['forward'].setEnabled(
@@ -100,6 +106,16 @@ class TabbedFigure:
         self.__adjust_layout()
 
         # Refresh figure
+        self.refresh()
+
+    def refresh(self) -> None:
+        # Refresh button size, in case the number of tabs has changed
+        buttons_width = 1.0 / (len(self.tabs_data) + 1)
+        for i, tab in enumerate(self.tabs_data.values()):
+            tab["button_axcut"].set_position(
+                [buttons_width * (i + 0.5), 0.01, buttons_width, 0.05])
+
+        # Refresh figure on the spot
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
@@ -109,8 +125,8 @@ class TabbedFigure:
                 data: Union[np.ndarray, Dict[str, Union[
                     Dict[str, np.ndarray], np.ndarray]]],
                 plot_method: Optional[Union[Callable[[
-                    Axes, np.ndarray, np.ndarray], Any], str]] = None
-                ) -> None:
+                    Axes, np.ndarray, np.ndarray], Any], str]] = None,
+                **kwargs: Any) -> None:
         """ TODO: Write documentation.
 
         :param plot_method: Callable method taking axis object, time, and data
@@ -137,7 +153,7 @@ class TabbedFigure:
 
             # Initialize axes, and early return if none
             axes = []
-            ref_ax = None
+            ref_ax = self.ref_ax if self.sync_tabs else None
             for i, plot_name in enumerate(data.keys()):
                 uniq_label = '_'.join((tab_name, plot_name))
                 ax = self.figure.add_subplot(
@@ -149,6 +165,8 @@ class TabbedFigure:
                 else:
                     ref_ax = ax
                 axes.append(ax)
+            if self.sync_tabs:
+                self.ref_ax = ref_ax
             if axes is None:
                 return
 
@@ -172,16 +190,9 @@ class TabbedFigure:
         # Get unique legend for every subplots
         legend_data = ax.get_legend_handles_labels()
 
-        # Resize existing buttons before adding new one
-        buttons_width = 1.0 / (len(self.tabs_data) + 2)
-        for i, tab in enumerate(self.tabs_data.values()):
-            tab["button_axcut"].set_position(
-                [buttons_width * (i + 0.5), 0.01, buttons_width, 0.05])
-
         # Add buttons to show/hide information
-        button_idx = len(self.tabs_data)
-        button_axcut = plt.axes(
-            [buttons_width * (button_idx + 0.5), 0.01, buttons_width, 0.05])
+        uniq_label = '_'.join((tab_name, "button"))
+        button_axcut = plt.axes([0.0, 0.0, 0.0, 0.0], label=uniq_label)
         button = Button(button_axcut,
                         tab_name.replace(' ', '\n'),
                         color='white')
@@ -215,25 +226,52 @@ class TabbedFigure:
             button.color = 'green'
 
         # Update figure and show it without blocking
-        self.figure.canvas.draw()
-        self.figure.canvas.flush_events()
+        self.refresh()
         self.figure.show()
+
+    def set_active_tab(self, tab_name: str) -> None:
+        event = LocationEvent("click", self.figure.canvas, 0, 0)
+        event.inaxes = self.tabs_data[tab_name]["button"].ax
+        self.__click(event)
 
     def remove_tab(self, tab_name: str) -> None:
         """ TODO: Write documentation.
         """
-        # Remove desired tab
+        # Reset current tab if it is the removed one
         tab = self.tabs_data.pop(tab_name)
-        for ax in tab["axes"]:
-            ax.remove()
-        tab["buttont"].disconnect_events()
+        if tab is self.tab_active and self.tabs_data:
+            self.set_active_tab(next(iter(self.tabs_data.keys())))
+
+        # Change reference axis if to be deleted
+        if any(ax is self.ref_ax for ax in tab["axes"]):
+            if self.tabs_data:
+                self.ref_ax = self.tab_active["axes"][0]
+            else:
+                self.ref_ax = None
+
+        # Disable button
+        tab["button"].disconnect_events()
         tab["button_axcut"].remove()
+
+        # Remove axes and legend manually is not more tabs available
+        if not self.tabs_data:
+            if self.figure._suptitle is not None:
+                self.figure._suptitle.remove()
+                self._suptitle = None
+            for ax in tab["axes"]:
+                ax.remove()
+            if self.legend is not None:
+                self.legend.remove()
+                self.legend = None
+
+        # Refresh figure
+        self.refresh()
 
     def clear(self) -> None:
         """ TODO: Write documentation.
         """
         # Remove every figure axes
-        for tab_name in self.tabs_data.keys():
+        for tab_name in list(self.tabs_data.keys()):  # list to make copy
             self.remove_tab(tab_name)
 
     @classmethod
@@ -246,7 +284,7 @@ class TabbedFigure:
 
         :param kwargs: Extra keyword arguments to forward to `add_tab` method.
         """
-        tabbed_figure = cls()
+        tabbed_figure = cls(**kwargs)
         for name, data in tabs_data.items():
             tabbed_figure.add_tab(name, time, data, **kwargs)
         return tabbed_figure
