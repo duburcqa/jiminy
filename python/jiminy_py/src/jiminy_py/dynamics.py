@@ -54,8 +54,8 @@ def update_quantities(robot: jiminy.Robot,
                       velocity: Optional[np.ndarray] = None,
                       acceleration: Optional[np.ndarray] = None,
                       update_physics: bool = True,
-                      update_com: bool = False,
-                      update_energy: bool = False,
+                      update_com: bool = True,
+                      update_energy: bool = True,
                       update_jacobian: bool = False,
                       update_collisions: bool = True,
                       use_theoretical_model: bool = True) -> None:
@@ -115,18 +115,16 @@ def update_quantities(robot: jiminy.Robot,
 
     if (update_physics and update_com and
             update_energy and update_jacobian and
-            velocity is not None):
+            velocity is not None and acceleration is None):
         pin.computeAllTerms(pnc_model, pnc_data, position, velocity)
     else:
-        if update_physics:
-            if velocity is not None:
-                pin.nonLinearEffects(pnc_model, pnc_data, position, velocity)
-            pin.crba(pnc_model, pnc_data, position)
-
-        if update_jacobian:
-            if update_com:
-                pin.jacobianCenterOfMass(pnc_model, pnc_data)
-            pin.computeJointJacobians(pnc_model, pnc_data)
+        if velocity is None:
+            pin.forwardKinematics(pnc_model, pnc_data, position)
+        elif acceleration is None:
+            pin.forwardKinematics(pnc_model, pnc_data, position, velocity)
+        else:
+            pin.forwardKinematics(
+                pnc_model, pnc_data, position, velocity, acceleration)
 
         if update_com:
             if velocity is None:
@@ -136,14 +134,16 @@ def update_quantities(robot: jiminy.Robot,
             else:
                 pin.centerOfMass(
                     pnc_model, pnc_data, position, velocity, acceleration)
-        else:
-            if velocity is None:
-                pin.forwardKinematics(pnc_model, pnc_data, position)
-            elif acceleration is None:
-                pin.forwardKinematics(pnc_model, pnc_data, position, velocity)
-            else:
-                pin.forwardKinematics(
-                    pnc_model, pnc_data, position, velocity, acceleration)
+
+        if update_jacobian:
+            if update_com:
+                pin.jacobianCenterOfMass(pnc_model, pnc_data)
+            pin.computeJointJacobians(pnc_model, pnc_data)
+
+        if update_physics:
+            if velocity is not None:
+                pin.nonLinearEffects(pnc_model, pnc_data, position, velocity)
+            pin.crba(pnc_model, pnc_data, position)
 
         if update_energy:
             if velocity is not None:
