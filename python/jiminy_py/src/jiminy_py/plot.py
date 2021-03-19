@@ -1,3 +1,4 @@
+from math import ceil, sqrt, floor
 from functools import partial
 from weakref import WeakKeyDictionary
 from typing import Dict, Optional, Any, Tuple, List, Union, Callable
@@ -8,29 +9,74 @@ from matplotlib.axes import Axes
 from matplotlib.artist import Artist
 from matplotlib.legend import Legend
 from matplotlib.widgets import Button
+from matplotlib.transforms import Bbox
 from matplotlib.backend_bases import Event, LocationEvent
+from matplotlib.backends.backend_pdf import PdfPages
 from typing_extensions import TypedDict
 
 
+EXPORT_DPI = 300
+
+
 class TabData(TypedDict, total=True):
-    """ TODO: Write documentation.
+    """Internal data stored for each tab if `TabbedFigure`.
     """
+    # Matpolib `Axes` handles of every subplots
     axes: List[Axes]
+    # Matpolib Legend data as returned by `get_legend_handles_labels` method.
+    # First element of pair is a list of Artist to legend, which usually are
+    # `line2D` object, and the second element is the list of labels for each
+    # of them.
     legend_data: Tuple[List[Artist], List[str]]
+    # Matplotlib `NavigationToolbar2` navigation stack history. It is not meant
+    # to be modified manually, but only copied/restored when needed.
     nav_stack: List[WeakKeyDictionary]
+    # Matplotlib `NavigationToolbar2` navigation stack position, used
+    # internally for undo/redo history. It is not meant to be modified
+    # manually, but only copied/restored when needed.
     nav_pos: int
+    # Button associated with the tab, on which to click to switch between tabs.
     button: Button
+    # Axe of the button, used internally to define the position and size of
+    # the button.
     button_axcut: Axes
 
 
 class TabbedFigure:
-    """ TODO: Write documentation.
+    """A windows with several tabs holding matplotlib subplots. It enables
+    adding, modifying and removing tabs sequentially and conveniently.
+
+    .. note::
+        It has been designed to be cross-platform, and supported by any
+        Matplotlib backend. So it can be used on-the-spot right after fresh
+        install of Python and `jiminy_py`, without requiering elevated
+        priviledge to install Qt4/5 or Tkinter.
+
+    .. warning::
+        It only supports plotting time-dependent data, the later corresponding
+        to the horizontal axis of every subplots.
     """
-    def __init__(self, sync_tabs: bool = False, **kwargs: Any) -> None:
-        """ TODO: Write documentation.
+    def __init__(self,
+                 sync_tabs: bool = False,
+                 window_title: str = "jiminy",
+                 offscreen: bool = False,
+                 **kwargs: Any) -> None:
+        """Create empty tabbed figure.
+
+        .. note::
+            It will show-up on display automatically only adding the first tab.
+
+        :param sync_tabs: Synchronize time window on every tabs (horizontal
+                          axis), rather than independently for every tabs.
+        :param window_title: Desired indow title.
+                             Optional: "jiminy" by default.
+        :param offscreen: Whether or not to enable display on screen of figure.
+                          Optional: False by default.
+        :param kwargs: Used extra keyword arguments enabled to ease forwarding.
         """
         # Backup user arguments
         self.sync_tabs = sync_tabs
+        self.offscreen = offscreen
 
         # Internal state buffers
         self.figure = plt.figure()
@@ -38,27 +84,73 @@ class TabbedFigure:
         self.ref_ax: Optional[Axes] = None
         self.tabs_data = {}
         self.tab_active: Optional[TabData] = None
+        self.bbox_inches: Bbox = Bbox([[0.0, 0.0], [1.0, 1.0]])
+
+        # Set window title
+        self.figure.canvas.manager.set_window_title(window_title)
+
+        # Set window size for offscreen rendering
+        if self.offscreen:
+            self.figure.set_size_inches(18, 12)
 
         # Register 'on resize' event callback to adjust layout
-        self.figure.canvas.mpl_connect('resize_event', self.__adjust_layout)
+        self.figure.canvas.mpl_connect('resize_event', self.adjust_layout)
 
-    def __adjust_layout(self, event: Optional[Any] = None) -> None:
-        """ TODO: Write documentation.
+    def adjust_layout(self,
+                      event: Optional[Event] = None, *,
+                      refresh_canvas: bool = False) -> None:
+        """Optimize subplot grid and buttons width for best fit, then adjust
+        layout based on window size.
+
+        :param event: Event spent by figure `mpl_connect` 'resize_event'.
+        :param refresh_canvas: Force redrawing figure canvas.
         """
-        # TODO: It would be better to adjust whose parameters based on
-        # `event` if provided.
-        right_margin = 0.05
+        # Compute figure area for later export
+        bbox = Bbox([[0.0, 0.065], [1.0, 1.0]])
+        bbox_pixels = bbox.transformed(self.figure.transFigure)
+        self.bbox_inches = bbox_pixels.transformed(
+            self.figure.dpi_scale_trans.inverted())
+
+        # Refresh button size, in case the number of tabs has changed
+        buttons_width = 1.0 / (len(self.tabs_data) + 1)
+        for i, tab in enumerate(self.tabs_data.values()):
+            tab["button_axcut"].set_position(
+                [buttons_width * (i + 0.5), 0.01, buttons_width, 0.05])
+
+        # Re-arrange subplots in case figure aspect ratio has changed
+        axes = self.tab_active["axes"]
+        num_subplots = len(axes)
+        figure_extent = self.figure.get_window_extent()
+        figure_ratio = figure_extent.width / figure_extent.height
+        num_rows_1 = max(1, floor(sqrt(num_subplots / figure_ratio)))
+        num_cols_1 = ceil(num_subplots / num_rows_1)
+        num_cols_2 = ceil(sqrt(num_subplots * figure_ratio))
+        num_rows_2 = ceil(num_subplots / num_cols_2)
+        if num_rows_1 * num_cols_1 < num_rows_2 * num_cols_2:
+            num_rows, num_cols = map(int, (num_rows_1, num_cols_1))
+        else:
+            num_rows, num_cols = map(int, (num_rows_2, num_cols_2))
+        for i, ax in enumerate(axes, 1):
+            ax.change_geometry(num_rows, num_cols, i)
+
+        # Adjust layout: namely margins between subplots
+        right_margin = 0.03
         if self.legend is not None:
             legend_extent = self.legend.get_window_extent()
             legend_width_rel = legend_extent.transformed(
                 self.figure.transFigure.inverted()).width
             right_margin += legend_width_rel
         self.figure.subplots_adjust(
-            bottom=0.1, top=0.9, left=0.05, right=1.0-right_margin,
-            wspace=0.2, hspace=0.45)
+            bottom=0.10, top=0.92, left=0.04, right=1.0-right_margin,
+            wspace=0.40, hspace=0.30)
+
+        # Refresh figure canvas if requested
+        if refresh_canvas:
+            self.refresh()
 
     def __click(self, event: Event) -> None:
-        """ TODO: Write documentation.
+        """Event handler used internally to switch tab when a button is
+        pressed.
         """
         # Update buttons style
         for tab in self.tabs_data.values():
@@ -91,31 +183,20 @@ class TabbedFigure:
         handles, labels = self.tab_active["legend_data"]
         if labels:
             self.legend = self.figure.legend(
-                handles, labels, loc='upper right',
-                bbox_to_anchor=(0.99, 0.95))
+                handles, labels, loc='center right',
+                bbox_to_anchor=(0.99, 0.5))
 
         # Restore navigation history and toolbar state if necessary
         cur_stack._elements = self.tab_active["nav_stack"]
         cur_stack._pos = self.tab_active["nav_pos"]
-        self.figure.canvas.toolbar._actions['forward'].setEnabled(
-            cur_stack._pos < len(cur_stack) - 1)
-        self.figure.canvas.toolbar._actions['back'].setEnabled(
-            cur_stack._pos > 0)
+        self.figure.canvas.toolbar.set_history_buttons()
 
-        # Adjust layout
-        self.__adjust_layout()
-
-        # Refresh figure
-        self.refresh()
+        # Adjust layout and refresh figure
+        self.adjust_layout(refresh_canvas=True)
 
     def refresh(self) -> None:
-        # Refresh button size, in case the number of tabs has changed
-        buttons_width = 1.0 / (len(self.tabs_data) + 1)
-        for i, tab in enumerate(self.tabs_data.values()):
-            tab["button_axcut"].set_position(
-                [buttons_width * (i + 0.5), 0.01, buttons_width, 0.05])
-
-        # Refresh figure on the spot
+        """Refresh canvas drawing.
+        """
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
@@ -125,7 +206,8 @@ class TabbedFigure:
                 data: Union[np.ndarray, Dict[str, Union[
                     Dict[str, np.ndarray], np.ndarray]]],
                 plot_method: Optional[Union[Callable[[
-                    Axes, np.ndarray, np.ndarray], Any], str]] = None,
+                    Axes, np.ndarray, np.ndarray], Any], str]] = None, *,
+                refresh_canvas: bool = True,
                 **kwargs: Any) -> None:
         """ TODO: Write documentation.
 
@@ -226,15 +308,19 @@ class TabbedFigure:
             button.color = 'green'
 
         # Update figure and show it without blocking
-        self.refresh()
-        self.figure.show()
+        self.adjust_layout(refresh_canvas=refresh_canvas)
+        if not self.offscreen:
+            self.figure.show()
 
     def set_active_tab(self, tab_name: str) -> None:
-        event = LocationEvent("click", self.figure.canvas, 0, 0)
-        event.inaxes = self.tabs_data[tab_name]["button"].ax
-        self.__click(event)
+        if self.tab_active is not self.tabs_data[tab_name]:
+            event = LocationEvent("click", self.figure.canvas, 0, 0)
+            event.inaxes = self.tabs_data[tab_name]["button"].ax
+            self.__click(event)
 
-    def remove_tab(self, tab_name: str) -> None:
+    def remove_tab(self,
+                   tab_name: str, *,
+                   refresh_canvas: bool = True) -> None:
         """ TODO: Write documentation.
         """
         # Reset current tab if it is the removed one
@@ -265,14 +351,38 @@ class TabbedFigure:
                 self.legend = None
 
         # Refresh figure
-        self.refresh()
+        self.adjust_layout(refresh_canvas=refresh_canvas)
 
     def clear(self) -> None:
         """ TODO: Write documentation.
         """
         # Remove every figure axes
         for tab_name in list(self.tabs_data.keys()):  # list to make copy
-            self.remove_tab(tab_name)
+            self.remove_tab(tab_name, refresh_canvas=False)
+        self.refresh()
+
+    def save_tab(self, image_path: str) -> None:
+        """Export current tab, limiting the bounding box to the subplots.
+
+        :param image_path: Desired location for generated image. Note that
+                           only '.png' format is supported for now.
+        """
+        image_path = image_path.with_suffix('.png')
+        self.figure.savefig(
+            image_path, format='png', dpi=EXPORT_DPI, transparent=False,
+            bbox_inches=self.bbox_inches)
+
+    def save_all_tabs(self, pdf_path: str) -> List[str]:
+        """Export every tabs in a signle pdf, limiting systematically the
+        bounding box to the subplots and legend.
+
+        :param image_path: Desired location for generated pdf file.
+        """
+        pdf_path = pdf_path.with_suffix('.png')
+        with PdfPages(pdf_path) as pdf:
+            for tab_name in self.tabs_data.keys():
+                self.set_active_tab(tab_name)
+                pdf.savefig(bbox_inches=self.bbox_inches)
 
     @classmethod
     def plot(cls,
@@ -286,5 +396,7 @@ class TabbedFigure:
         """
         tabbed_figure = cls(**kwargs)
         for name, data in tabs_data.items():
-            tabbed_figure.add_tab(name, time, data, **kwargs)
+            tabbed_figure.add_tab(
+                name, time, data, **kwargs, refresh_canvas=False)
+        tabbed_figure.refresh()
         return tabbed_figure
