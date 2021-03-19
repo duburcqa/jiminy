@@ -5,6 +5,7 @@ from typing import Dict, Optional, Any, Tuple, List, Union, Callable
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import colors
 from matplotlib.axes import Axes
 from matplotlib.artist import Artist
 from matplotlib.legend import Legend
@@ -16,6 +17,18 @@ from typing_extensions import TypedDict
 
 
 EXPORT_DPI = 300
+
+
+class ButtonBlit(Button):
+    def _motion(self, event):
+        if self.ignore(event):
+            return
+        c = self.hovercolor if event.inaxes == self.ax else self.color
+        if not colors.same_color(c, self.ax.get_facecolor()):
+            self.ax.set_facecolor(c)
+            if self.drawon:
+                self.ax.draw_artist(self.ax)
+                self.ax.figure.canvas.blit(self.ax.bbox)
 
 
 class TabData(TypedDict, total=True):
@@ -36,7 +49,7 @@ class TabData(TypedDict, total=True):
     # manually, but only copied/restored when needed.
     nav_pos: int
     # Button associated with the tab, on which to click to switch between tabs.
-    button: Button
+    button: ButtonBlit
     # Axe of the button, used internally to define the position and size of
     # the button.
     button_axcut: Axes
@@ -158,10 +171,12 @@ class TabbedFigure:
             if button.ax == event.inaxes:
                 button.ax.set_facecolor('green')
                 button.color = 'green'
+                button.hovercolor = 'green'
                 button_name = button.label.get_text().replace('\n', ' ')
             else:
                 button.ax.set_facecolor('white')
                 button.color = 'white'
+                button.hovercolor = '0.95'
 
         # Backup navigation history
         cur_stack = self.figure.canvas.toolbar._nav_stack
@@ -275,9 +290,9 @@ class TabbedFigure:
         # Add buttons to show/hide information
         uniq_label = '_'.join((tab_name, "button"))
         button_axcut = plt.axes([0.0, 0.0, 0.0, 0.0], label=uniq_label)
-        button = Button(button_axcut,
-                        tab_name.replace(' ', '\n'),
-                        color='white')
+        button = ButtonBlit(button_axcut,
+                            tab_name.replace(' ', '\n'),
+                            color='white')
 
         # Register buttons events
         button.on_clicked(self.__click)
@@ -306,6 +321,7 @@ class TabbedFigure:
                 self.legend = self.figure.legend(handles, labels)
             button.ax.set_facecolor('green')
             button.color = 'green'
+            button.hovercolor = 'green'
 
         # Update figure and show it without blocking
         self.adjust_layout(refresh_canvas=refresh_canvas)
