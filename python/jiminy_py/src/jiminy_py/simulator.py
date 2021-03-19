@@ -8,9 +8,8 @@ from collections import OrderedDict
 from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
 
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Button
+from matplotlib.figure import Figure
 
 import pinocchio as pin
 from . import core as jiminy
@@ -21,6 +20,7 @@ from .core import (EncoderSensor as encoder,
                    ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyObserverController
+from .plot import TabbedFigure
 from .viewer import interactive_mode, play_logfiles, Viewer
 
 if interactive_mode():
@@ -109,8 +109,12 @@ class Simulator:
         # Internal buffer for progress bar management
         self.__pbar: Optional[tqdm] = None
 
-        # Plot data holder
-        self.__plot_data: Optional[Dict[str, Any]] = None
+        # Internal buffer to avoid reading log data multiple times
+        self._log_data: Dict[str, np.ndarray] = {}
+        self._log_constants: Dict[str, str] = {}
+
+        # Figure holder
+        self.figure: Optional[Figure] = None
 
         # Reset the low-level jiminy engine
         self.reset()
@@ -241,21 +245,6 @@ class Simulator:
         return super().__dir__() + self.engine.__dir__()
 
     @property
-    def state(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Getter of the current state of the robot.
-
-        .. warning::
-            Return a reference whenever it is possible, which is
-            computationally efficient but unsafe.
-        """
-        q = self.system_state.q
-        v = self.system_state.v
-        if self.use_theoretical_model and self.robot.is_flexible:
-            q = self.robot.get_rigid_configuration_from_flexible(q)
-            v = self.robot.get_rigid_velocity_from_flexible(v)
-        return q, v
-
-    @property
     def pinocchio_model(self) -> pin.Model:
         """Getter of the pinocchio model, depending on the value of
            'use_theoretical_model'.
@@ -274,6 +263,33 @@ class Simulator:
             return self.robot.pinocchio_data_th
         else:
             return self.robot.pinocchio_data
+
+    @property
+    def state(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Getter of the current state of the robot.
+
+        .. warning::
+            Return a reference whenever it is possible, which is
+            computationally efficient but unsafe.
+        """
+        q = self.system_state.q
+        v = self.system_state.v
+        if self.use_theoretical_model and self.robot.is_flexible:
+            q = self.robot.get_rigid_configuration_from_flexible(q)
+            v = self.robot.get_rigid_velocity_from_flexible(v)
+        return q, v
+
+    @property
+    def log_data(self) -> Dict[str, np.ndarray]:
+        if not self._log_data:
+            self._log_data, self._log_constants = self.engine.get_log()
+        return self._log_data
+
+    @property
+    def log_constants(self) -> Dict[str, str]:
+        if not self._log_data:
+            self._log_data, self._log_constants = self.engine.get_log()
+        return self._log_constants
 
     @property
     def is_viewer_available(self) -> bool:
@@ -317,6 +333,9 @@ class Simulator:
                               external forces. It can also be done separately.
                               Optional: Do not remove by default.
         """
+        # Clear log data backup
+        self._log_data = {}
+
         # Reset the backend engine
         self.engine.reset(remove_forces)
 
@@ -379,8 +398,14 @@ class Simulator:
                  v_init: np.ndarray,
                  a_init: Optional[np.ndarray] = None,
                  is_state_theoretical: bool = False) -> None:
+        # Clear log data backup
+        self._log_data = {}
+
+        # Run simulation
         return_code = self.engine.simulate(
             t_end, q_init, v_init, a_init, is_state_theoretical)
+
+        # Throw exception if not successful
         if return_code != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("The simulation failed.")
 
@@ -504,8 +529,7 @@ class Simulator:
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
-        log_data, _ = self.get_log()
-        if not log_data:
+        if not self.log_data:
             raise RuntimeError(
                 "Nothing to replay. Please run a simulation before calling "
                 "`replay` method.")
@@ -513,7 +537,7 @@ class Simulator:
             'return_rgb_array': kwargs.get(
                 'record_video_path', None) is not None, **kwargs})
         play_logfiles(
-            [self.robot], [log_data], viewers=[self.viewer],
+            [self.robot], [self.log_data], viewers=[self.viewer],
             **{'verbose': True, 'backend': self.viewer_backend, **kwargs})
 
     def close(self) -> None:
@@ -522,8 +546,7 @@ class Simulator:
         if self.viewer is not None:
             self.viewer.close()
             self.viewer = None
-        if self.__plot_data is not None:
-            plt.close(self.__plot_data['fig'])
+        plt.close(self.figure)
 
     def plot(self, enable_flexiblity_data: bool = False) -> None:
         """Display common simulation data over time.
@@ -549,7 +572,7 @@ class Simulator:
             """Extract value associated with a set of fieldnames in a specific
             namespace.
 
-            :param log_data: Log file, as returned by `get_log` method.
+            :param log_data: Log file, as returned by `log_data` property.
             :param namespace: Namespace of the fieldnames. None to disable.
             :param fieldnames: Sequence of fieldnames.
             """
@@ -562,7 +585,7 @@ class Simulator:
                 return field_values
 
         # Extract log data
-        log_data, log_constants = self.get_log()
+        log_data, log_constants = self.log_data, self.log_constants
         if not log_constants:
             return RuntimeError(
                 "No data to replay. Please run a simulation first.")
@@ -591,10 +614,10 @@ class Simulator:
             raise RuntimeError("Log data are incompatible with current model.")
 
         # Figures data structure as a dictionary
-        data = OrderedDict()
+        tabs_data = OrderedDict()
 
         # Get time and robot positions, velocities, and acceleration
-        t = log_data["Global.Time"]
+        time = log_data["Global.Time"]
         for fields_type in ["Position", "Velocity", "Acceleration"]:
             fieldnames = getattr(
                 self.robot, "logfile_" + fields_type.lower() + "_headers")
@@ -608,7 +631,7 @@ class Simulator:
             values = extract_fields(
                 log_data, 'HighLevelController', fieldnames)
             if values is not None:
-                data[' '.join(("State", fields_type))] = OrderedDict(
+                tabs_data[' '.join(("State", fields_type))] = OrderedDict(
                     (field[len("current"):].replace(fields_type, ""), val)
                     for field, val in zip(fieldnames, values))
 
@@ -617,7 +640,7 @@ class Simulator:
             log_data, 'HighLevelController',
             self.robot.logfile_motor_effort_headers)
         if motor_effort is not None:
-            data['MotorEffort'] = OrderedDict(
+            tabs_data['MotorEffort'] = OrderedDict(
                 zip(self.robot.motors_names, motor_effort))
 
         # Get command information
@@ -625,7 +648,7 @@ class Simulator:
             log_data, 'HighLevelController',
             self.robot.logfile_command_headers)
         if command is not None:
-            data['Command'] = OrderedDict(
+            tabs_data['Command'] = OrderedDict(
                 zip(self.robot.motors_names, command))
 
         # Get sensors information
@@ -640,7 +663,7 @@ class Simulator:
                         for name in sensors_names]) for field in fieldnames]
                     if sensors_data[0] is not None:
                         type_name = ' '.join((sensors_type, fields_prefix))
-                        data[type_name] = OrderedDict(
+                        tabs_data[type_name] = OrderedDict(
                             (field, OrderedDict(zip(sensors_names, values)))
                             for field, values in zip(fieldnames, sensors_data))
             else:
@@ -649,143 +672,11 @@ class Simulator:
                         log_data, namespace,
                         ['.'.join((name, field)) for name in sensors_names])
                     if sensors_data is not None:
-                        data[' '.join((sensors_type, field))] = OrderedDict(
-                            zip(sensors_names, sensors_data))
+                        tabs_data[' '.join((sensors_type, field))] = \
+                            OrderedDict(zip(sensors_names, sensors_data))
 
-        # Plot the data
-        fig = plt.figure()
-        fig_axes = {}
-        tab_active = None
-        for fig_name, fig_data in data.items():
-            # Compute plot grid arrangement
-            n_cols = len(fig_data)
-            n_rows = 1
-            while n_cols > n_rows + 2:
-                n_rows = n_rows + 1
-                n_cols = int(np.ceil(len(fig_data) / (1.0 * n_rows)))
-
-            # Initialize axes, and early return if none
-            axes = []
-            ref_ax = None
-            for i, plot_name in enumerate(fig_data.keys()):
-                uniq_label = '_'.join((fig_name, plot_name))
-                ax = fig.add_subplot(n_rows, n_cols, i+1, label=uniq_label)
-                if fig_axes:
-                    fig.delaxes(ax)
-                if ref_ax is not None:
-                    ax.get_shared_x_axes().join(ref_ax, ax)
-                else:
-                    ref_ax = ax
-                axes.append(ax)
-            if axes is None:
-                continue
-
-            # Update their content
-            for (plot_name, plot_data), ax in zip(fig_data.items(), axes):
-                if isinstance(plot_data, dict):
-                    for line_name, line_data in plot_data.items():
-                        ax.plot(t, line_data, label=line_name)
-                    ax.legend()
-                else:
-                    ax.plot(t, plot_data)
-                ax.set_title(plot_name, fontsize='medium')
-                ax.grid()
-
-            # Add them to tab register
-            fig_axes[fig_name] = axes
-            if tab_active is None:
-                tab_active = fig_name
-        fig_nav_stack = {key: [] for key in fig_axes.keys()}
-        fig_nav_pos = {key: -1 for key in fig_axes.keys()}
-
-        # Add buttons to show/hide information
-        button_axcut = {}
-        buttons = {}
-        buttons_width = 1.0 / (len(data) + 1)
-        for i, fig_name in enumerate(data.keys()):
-            button_axcut[fig_name] = plt.axes(
-                [buttons_width * (i + 0.5), 0.01, buttons_width, 0.05])
-            buttons[fig_name] = Button(button_axcut[fig_name],
-                                       fig_name.replace(' ', '\n'),
-                                       color='white')
-
-        # Define helper to adjust layout
-        def adjust_layout(event: Optional[Any] = None):
-            # TODO: It would be better to adjust whose parameters based on
-            # `event` if provided.
-            fig.subplots_adjust(
-                bottom=0.1, top=0.9, left=0.05, right=0.95, wspace=0.2,
-                hspace=0.45)
-
-        def click(event: matplotlib.backend_bases.Event) -> None:
-            nonlocal fig, fig_axes, fig_nav_stack, fig_nav_pos, tab_active
-
-            # Update buttons style
-            for b in buttons.values():
-                if b.ax == event.inaxes:
-                    b.ax.set_facecolor('green')
-                    b.color = 'green'
-                    button_name = b.label.get_text().replace('\n', ' ')
-                else:
-                    b.ax.set_facecolor('white')
-                    b.color = 'white'
-
-            # Backup navigation history
-            cur_stack = fig.canvas.toolbar._nav_stack
-            fig_nav_stack[tab_active] = cur_stack._elements.copy()
-            fig_nav_pos[tab_active] = cur_stack._pos
-
-            # Update axes and title
-            for ax in fig_axes[tab_active]:
-                fig.delaxes(ax)
-            for ax in fig_axes[button_name]:
-                fig.add_subplot(ax)
-            fig.suptitle(button_name)
-            tab_active = button_name
-
-            # Restore selected tab navigation history and toolbar state
-            cur_stack._elements = fig_nav_stack[button_name]
-            cur_stack._pos = fig_nav_pos[button_name]
-            fig.canvas.toolbar._actions['forward'].setEnabled(
-                fig_nav_pos[button_name] < len(cur_stack) - 1)
-            fig.canvas.toolbar._actions['back'].setEnabled(
-                fig_nav_pos[button_name] > 0)
-
-            # Adjust layout
-            adjust_layout()
-
-            # Refresh figure
-            fig.canvas.draw()
-            fig.canvas.flush_events()
-
-        # Register buttons events
-        for b in buttons.values():
-            b.on_clicked(click)
-
-        # Register 'on resize' event callback to adjust layout
-        fig.canvas.mpl_connect('resize_event', adjust_layout)
-
-        # Show figure (without blocking)
-        fig_name = list(fig_axes.keys())[0]
-        for ax in fig_axes[fig_name]:
-            ax.set_visible(True)
-        fig.suptitle(fig_name)
-        buttons[fig_name].ax.set_facecolor('green')
-        buttons[fig_name].color = 'green'
-
-        # Create plot data holder to avoid garbage collection of widgets,
-        # therefore making the buttons unresponsive...
-        self.__plot_data = {
-            'figure': fig,
-            'fig_axes': fig_axes,
-            'fig_nav_stack': fig_nav_stack,
-            'fig_nav_pos': fig_nav_pos,
-            'tab_active': tab_active,
-            'buttons': buttons,
-        }
-
-        fig.canvas.draw()
-        plt.show(block=False)
+        # Create figure, without closing the existing one
+        self.figure = TabbedFigure.plot(time, tabs_data, plot_method="plot")
 
     def get_controller_options(self) -> dict:
         """Getter of the options of Jiminy Controller.

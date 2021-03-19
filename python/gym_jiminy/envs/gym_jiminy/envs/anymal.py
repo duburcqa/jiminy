@@ -46,9 +46,8 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
         """ TODO: Write documentation.
         """
         # Get the urdf and mesh paths
-        data_root_dir = os.path.join(
-            resource_filename('gym_jiminy.envs', 'data'),
-            "quadrupedal_robots/anymal")
+        data_root_dir = resource_filename(
+            "gym_jiminy.envs", "data/quadrupedal_robots/anymal")
         urdf_path = os.path.join(data_root_dir, "anymal.urdf")
 
         # Initialize the walker environment

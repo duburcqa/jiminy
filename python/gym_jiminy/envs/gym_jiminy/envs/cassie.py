@@ -52,9 +52,8 @@ STD_RATIO = {
 class CassieJiminyEnv(WalkerJiminyEnv):
     def __init__(self, debug: bool = False, **kwargs):
         # Get the urdf and mesh paths
-        data_root_dir = os.path.join(
-            resource_filename('gym_jiminy.envs', 'data'),
-            "bipedal_robots/cassie")
+        data_root_dir = resource_filename(
+            "gym_jiminy.envs", "data/bipedal_robots/cassie")
         urdf_path = os.path.join(data_root_dir, "cassie.urdf")
 
         # Initialize the walker environment

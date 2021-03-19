@@ -24,9 +24,6 @@ class PipelineControl(unittest.TestCase):
     def _test_pid_standing(self):
         """ TODO: Write documentation
         """
-        # Check that it is not possible to get simulation log at this point
-        self.assertRaises(RuntimeError, self.env.get_log)
-
         # Reset the environment
         def configure_telemetry() -> None:
             nonlocal self
@@ -71,7 +68,7 @@ class PipelineControl(unittest.TestCase):
         self.assertTrue(img_diff < 0.1)
 
         # Get the simulation log
-        log_data, _ = self.env.get_log()
+        log_data = self.env.log_data
 
         # Check that the joint velocity target is zero
         time = log_data["Global.Time"]

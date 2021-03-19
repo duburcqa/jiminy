@@ -16,6 +16,8 @@ SpaceDictNested = Union[  # type: ignore
 ListStrRecursive = Sequence[Union[str, 'ListStrRecursive']]  # type: ignore
 FieldDictNested = Union[  # type: ignore
     Dict[str, 'FieldDictNested'], ListStrRecursive]  # type: ignore
+FieldnamesT = Union[  # type: ignore
+    Dict[str, Union[str, "FieldnamesT"]], Sequence[str]]
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,
@@ -91,7 +93,9 @@ def sample(low: Union[float, np.ndarray] = -1.0,
 
 
 def is_bounded(space: gym.Space) -> bool:
-    """ TODO: Write documentation.
+    """Check wether `gym.spaces.Space` has finite bounds.
+
+    :param space: Gym.Space on which to operate.
     """
     if isinstance(space, spaces.Box):
         return space.is_bounded()
@@ -108,9 +112,9 @@ def is_bounded(space: gym.Space) -> bool:
 
 def zeros(space: gym.Space,
           dtype: Optional[type] = None) -> Union[SpaceDictNested, int]:
-    """Allocate data structure from `Gym.Space` and initialize it to zero.
+    """Allocate data structure from `gym.space.Space` and initialize it to zero.
 
-    :param space: Space for which to allocate and initialize data.
+    :param space: Gym.Space on which to operate.
     :param dtype: Must be specified to overwrite original space dtype.
     """
     if isinstance(space, spaces.Box):
@@ -122,8 +126,10 @@ def zeros(space: gym.Space,
         return value
     if isinstance(space, spaces.Tuple):
         return tuple(zeros(subspace, dtype=dtype) for subspace in space.spaces)
-    if isinstance(space, spaces.Discrete):
+    if isinstance(space, (spaces.Discrete, spaces.MultiDiscrete)):
         return np.array(0)  # Using np.array of 0 dim to be mutable
+    if isinstance(space, spaces.MultiBinary):
+        return np.zeros(space.n, dtype=np.int8)
     raise NotImplementedError(
         f"Space of type {type(space)} is not supported.")
 
@@ -200,7 +206,7 @@ def copy(data: SpaceDictNested) -> SpaceDictNested:
 def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     """Clamp value from Gym.Space to make sure it is within bounds.
 
-    :param space: Gym.Space used to determine upper and lower bounds.
+    :param space: Gym.Space on which to operate.
     :param value: Value to clamp.
     """
     if isinstance(space, spaces.Box):
@@ -213,11 +219,11 @@ def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     if isinstance(space, spaces.Tuple):
         return (clip(subspace, subvalue)
                 for subspace, subvalue in zip(space, value))
-    if isinstance(space, spaces.Discrete):
-        return value  # No need to clip Discrete space.
+    if isinstance(space, (
+            spaces.Discrete, spaces.MultiDiscrete, spaces.MultiBinary)):
+        return value  # No need to clip those spaces.
     raise NotImplementedError(
-        f"Gym.Space of type {type(space)} is not supported by this "
-        "method.")
+        f"Gym.Space of type {type(space)} is not supported.")
 
 
 @nb.jit(nopython=True, nogil=True)
@@ -238,10 +244,44 @@ def _is_breakpoint(t: float, dt: float, eps: float) -> bool:
     return False
 
 
+def get_fieldnames(space: spaces.Space,
+                   namespace: str = "") -> FieldnamesT:
+    """ Get generic fieldnames from `gym.spaces.Space`, so that it can be used
+    in conjunction with `register_variables`, to register any value from gym
+    Space to the telemetry conveniently.
+
+    :param space: Gym.Space on which to operate.
+    :param namespace: Namespace used to prepend fields, using '.' delimiter.
+                      Empty string to disable.
+                      Optional: Disable by default.
+    """
+    # Fancy action space: Trying to be clever and infer meaningful
+    # telemetry names based on action space
+    if isinstance(space, (spaces.Box, spaces.Tuple, spaces.MultiBinary)):
+        # No information: fallback to basic numbering
+        return [".".join(filter(None, (namespace, str(i))))
+                for i in range(len(space))]
+    if isinstance(space, (
+            spaces.Discrete, spaces.MultiDiscrete)):
+        # The space is already scalar. Namespace alone as fieldname is enough.
+        return [namespace]
+    if isinstance(space, spaces.Dict):
+        assert space.spaces, "Dict space cannot be empty."
+        out = []
+        for field, subspace in dict.items(space.spaces):
+            if isinstance(subspace, spaces.Dict):
+                out.append({field: get_fieldnames(subspace, namespace)})
+            else:
+                out.append(field)
+        return out
+    raise NotImplementedError(
+        f"Gym.Space of type {type(space)} is not supported.")
+
+
 def register_variables(controller: jiminy.AbstractController,
-                       field: FieldDictNested,
+                       fields: FieldDictNested,
                        data: SpaceDictNested,
-                       namespace: Optional[str] = None) -> bool:
+                       namespace: str = "") -> bool:
     """Register data from `Gym.Space` to the telemetry of a controller.
 
     .. warning::
@@ -250,27 +290,51 @@ def register_variables(controller: jiminy.AbstractController,
         garbage collected, and to make sure the variables are updated
         when necessary, and only when it is.
 
+    :param controller: Robot's controller of the simulator used to register
+                       variables to the telemetry.
+    :param field: Nested variable names, as returned by `get_fieldnames`
+                  method. It can be a nested list or/and dict. The leaf are
+                  str corresponding to the name of each scalar data.
+    :param data: Data from `Gym.spaces.Space` to register. Note that the
+                 telemetry stores pointers to the underlying memory, so it
+                 only supports np.float64, and make sure to reassign data
+                 using `np.core.umath.copyto` for `[:]` operator.
+    :param namespace: Namespace used to prepend fields, using '.' delimiter.
+                      Empty string to disable.
+                      Optional: Disable by default.
+
     :returns: Whether or not the registration has been successful.
     """
-    assert field and len(field) == len(data), (
-        "field and data are inconsistent.")
-    if isinstance(field, dict):
-        is_success = True
-        for subfield, value in zip(field.values(), data.values()):
-            hresult = register_variables(
-                controller, subfield, value, namespace)
-            is_success = is_success and (hresult == jiminy.hresult_t.SUCCESS)
-    elif isinstance(field[0], str):
-        if namespace is not None:
-            field = [".".join((namespace, name)) for name in field]
-        hresult = controller.register_variables(field, data)
-        is_success = (hresult == jiminy.hresult_t.SUCCESS)
-    elif isinstance(field[0], (list, tuple)):
-        is_success = True
-        for subfield, value in zip(field, data):
-            hresult = register_variables(
-                controller, subfield, value, namespace)
-            is_success = is_success and (hresult == jiminy.hresult_t.SUCCESS)
-    else:
-        raise ValueError(f"Unsupported field type '{type(field)}'.")
+    # Make sure data is at least 1d if numpy array, to avoid undefined `len`
+    if isinstance(data, np.ndarray):
+        data = np.atleast_1d(data)  # By reference
+
+    # Make sure fields and data are consistent
+    assert fields and len(fields) == len(data), (
+        "fields and data are inconsistent.")
+
+    # Default case: data is already a numpy array. Can be registered directly.
+    if isinstance(data, np.ndarray):
+        if np.issubsctype(data, np.float64):
+            for i, field in enumerate(fields):
+                if isinstance(fields[i], (list, tuple)):
+                    fields[i] = [".".join(filter(None, (namespace, subfield)))
+                                 for subfield in field]
+                else:
+                    fields[i] = ".".join(filter(None, (namespace, field)))
+            hresult = controller.register_variables(fields, data)
+            return hresult == jiminy.hresult_t.SUCCESS
+        return False
+
+    # Fallback to looping over fields and data iterators
+    is_success = True
+    if isinstance(fields, dict):
+        fields = fields.values()
+    if isinstance(data, dict):
+        data = data.values()
+    for subfields, value in zip(fields, data):
+        is_success = register_variables(
+            controller, subfields, value, namespace)
+        if not is_success:
+            break
     return is_success

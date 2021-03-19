@@ -439,9 +439,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         It computes the terminal reward associated with each individual
         contribution according to 'reward_mixture'.
         """
-        # Assertion(s) for type checker
-        assert self._log_data is not None
-
         reward_dict = info.setdefault('reward', {})
 
         reward_mixture_keys = self.reward_mixture.keys()
@@ -450,7 +447,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Y-axis. It is equal to 0.0 if the frontal displacement is perfectly
         # symmetric wrt Y-axis over the whole trajectory.
         if 'direction' in reward_mixture_keys:
-            frontal_displacement = abs(np.mean(self._log_data[
+            frontal_displacement = abs(np.mean(self.log_data[
                 'HighLevelController.currentFreeflyerPositionTransY']))
             reward_dict['direction'] = - frontal_displacement
 

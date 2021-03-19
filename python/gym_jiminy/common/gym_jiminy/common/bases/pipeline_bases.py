@@ -515,9 +515,10 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         # Register the controller target to the telemetry.
         # It may be useful for computing the terminal reward or debugging.
-        register_variables(
-            self.simulator.controller, self.controller.get_fieldnames(),
-            self._action, self.controller_name)
+        register_variables(self.simulator.controller,
+                           self.controller.get_fieldnames(),
+                           self._action,
+                           self.controller_name)
 
     def compute_command(self,
                         measure: SpaceDictNested,

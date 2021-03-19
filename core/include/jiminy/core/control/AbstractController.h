@@ -84,13 +84,13 @@ namespace jiminy
         ///             update it manually whenever it is necessary to do so.
         ///
         /// \param[in]  fieldnames      Name of each element of the variable. It will appear in the header of the log.
-        /// \param[in]  values          Eigen vector to add to the telemetry
+        /// \param[in]  values          Eigen vector to add to the telemetry. It accepts non-contiguous temporary.
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t registerVariable(std::vector<std::string> const & fieldnames,
-                                   Eigen::Ref<vectorN_t>            values);  // Make a "copy" to support both vectorN_t and reference
+                                   Eigen::Ref<vectorN_t, 0, Eigen::InnerStride<> > values);  // Make a "copy" to support both vectorN_t and reference
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

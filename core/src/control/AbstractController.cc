@@ -167,7 +167,7 @@ namespace jiminy
     }
 
     hresult_t AbstractController::registerVariable(std::vector<std::string> const & fieldnames,
-                                                   Eigen::Ref<vectorN_t>            values)
+                                                   Eigen::Ref<vectorN_t, 0, Eigen::InnerStride<> > values)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
@@ -192,7 +192,7 @@ namespace jiminy
                 PRINT_ERROR("Variable already registered.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
-            registeredVariables_.emplace_back(*fieldIt, values.data() + i);
+            registeredVariables_.emplace_back(*fieldIt, &values[i]);
         }
 
         return hresult_t::SUCCESS;

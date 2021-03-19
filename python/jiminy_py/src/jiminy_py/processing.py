@@ -1,6 +1,24 @@
-import numpy as np
-from scipy.interpolate import UnivariateSpline
+from math import factorial
 from typing import Optional, Dict, Union, Sequence
+
+import numpy as np
+from scipy.linalg import toeplitz
+from scipy.interpolate import UnivariateSpline
+
+
+def integrate_zoh(state_prev: np.ndarray,
+                  dt: float) -> np.ndarray:
+    """N-order integration scheme assuming Zero-Order-Hold for highest
+    derivative.
+
+    :param state_prev: Previous state update, ordered from lowest to highest
+                       derivative order, which means:
+                       s[i](t) = s[i](t-1) + integ_{t-1}^{t}(s[i+1](t))
+    :param dt: Integration delta of time since previous state update.
+    """
+    integ_coeffs = [pow(dt, k) / factorial(k) for k in range(len(state_prev))]
+    integ_matrix = toeplitz(integ_coeffs, np.zeros(len(state_prev))).T
+    return integ_matrix @ state_prev
 
 
 def smoothing_filter(
