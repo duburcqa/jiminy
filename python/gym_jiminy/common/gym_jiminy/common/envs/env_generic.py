@@ -178,7 +178,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                            sensors_data: jiminy.sensorsData,
                            command: np.ndarray) -> None:
         command[:] = self.compute_command(
-            self.get_observation(), np.copy(self._action))
+            self.get_observation(), deepcopy(self._action))
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
