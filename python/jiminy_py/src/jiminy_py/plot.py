@@ -165,18 +165,16 @@ class TabbedFigure:
         """Event handler used internally to switch tab when a button is
         pressed.
         """
-        # Update buttons style
+        # Get tab name to activate
         for tab in self.tabs_data.values():
             button = tab["button"]
             if button.ax == event.inaxes:
-                button.ax.set_facecolor('green')
-                button.color = 'green'
-                button.hovercolor = 'green'
-                button_name = button.label.get_text().replace('\n', ' ')
-            else:
-                button.ax.set_facecolor('white')
-                button.color = 'white'
-                button.hovercolor = '0.95'
+                tab_name = button.label.get_text().replace('\n', ' ')
+                break
+
+        # Early return if already active
+        if self.tab_active is self.tabs_data[tab_name]:
+            return
 
         # Backup navigation history
         cur_stack = self.figure.canvas.toolbar._nav_stack
@@ -191,8 +189,8 @@ class TabbedFigure:
         if self.legend is not None:
             self.legend.remove()
             self.legend = None
-        self.tab_active = self.tabs_data[button_name]
-        self.figure.suptitle(button_name)
+        self.tab_active = self.tabs_data[tab_name]
+        self.figure.suptitle(tab_name)
         for ax in self.tab_active["axes"]:
             self.figure.add_subplot(ax)
         handles, labels = self.tab_active["legend_data"]
@@ -205,6 +203,18 @@ class TabbedFigure:
         cur_stack._elements = self.tab_active["nav_stack"]
         cur_stack._pos = self.tab_active["nav_pos"]
         self.figure.canvas.toolbar.set_history_buttons()
+
+        # Update buttons style
+        for tab in self.tabs_data.values():
+            button = tab["button"]
+            if tab is self.tab_active:
+                button.ax.set_facecolor('green')
+                button.color = 'green'
+                button.hovercolor = 'green'
+            else:
+                button.ax.set_facecolor('white')
+                button.color = 'white'
+                button.hovercolor = '0.95'
 
         # Adjust layout and refresh figure
         self.adjust_layout(refresh_canvas=True)
@@ -329,10 +339,9 @@ class TabbedFigure:
             self.figure.show()
 
     def set_active_tab(self, tab_name: str) -> None:
-        if self.tab_active is not self.tabs_data[tab_name]:
-            event = LocationEvent("click", self.figure.canvas, 0, 0)
-            event.inaxes = self.tabs_data[tab_name]["button"].ax
-            self.__click(event)
+        event = LocationEvent("click", self.figure.canvas, 0, 0)
+        event.inaxes = self.tabs_data[tab_name]["button"].ax
+        self.__click(event)
 
     def remove_tab(self,
                    tab_name: str, *,
