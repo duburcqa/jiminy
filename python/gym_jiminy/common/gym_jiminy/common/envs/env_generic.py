@@ -720,14 +720,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return self.simulator.render(**{
             'return_rgb_array': return_rgb_array, **kwargs})
 
-    def plot(self) -> None:
+    def plot(self, **kwargs: Any) -> None:
         """Display common simulation data and action over time.
 
         .. Note:
             It adds "Action" tab on top of original `Simulator.plot`.
+
+        :param kwargs: Extra keyword arguments to forward to `simulator.plot`.
         """
         # Call base implementation
-        self.simulator.plot()
+        self.simulator.plot(**kwargs)
 
         # Extract action.
         # If telemetry action fieldnames is a dictionary, it cannot be nested.

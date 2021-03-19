@@ -334,7 +334,7 @@ class Simulator:
                               Optional: Do not remove by default.
         """
         # Clear log data backup
-        self._log_data = {}
+        self._log_data, self._log_constants = {}, {}
 
         # Reset the backend engine
         self.engine.reset(remove_forces)
@@ -376,6 +376,9 @@ class Simulator:
                         duration, namely until the next breakpoint if any,
                         or 'engine_options["stepper"]["dtMax"]'.
         """
+        # Clear log data backup
+        self._log_data, self._log_constants = {}, {}
+
         # Perform a single integration step
         if not self.is_simulation_running:
             raise RuntimeError(
@@ -399,7 +402,7 @@ class Simulator:
                  a_init: Optional[np.ndarray] = None,
                  is_state_theoretical: bool = False) -> None:
         # Clear log data backup
-        self._log_data = {}
+        self._log_data, self._log_constants = {}, {}
 
         # Run simulation
         return_code = self.engine.simulate(
