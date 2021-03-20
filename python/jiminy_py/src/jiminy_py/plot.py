@@ -1,3 +1,4 @@
+import pathlib
 from math import ceil, sqrt, floor
 from functools import partial
 from weakref import WeakKeyDictionary
@@ -108,6 +109,14 @@ class TabbedFigure:
 
         # Register 'on resize' event callback to adjust layout
         self.figure.canvas.mpl_connect('resize_event', self.adjust_layout)
+
+    def close(self) -> None:
+        """Close figure.
+        """
+        plt.close(self.figure)
+
+    def __del__(self) -> None:
+        self.close()
 
     def adjust_layout(self,
                       event: Optional[Event] = None, *,
@@ -392,7 +401,7 @@ class TabbedFigure:
         :param image_path: Desired location for generated image. Note that
                            only '.png' format is supported for now.
         """
-        image_path = image_path.with_suffix('.png')
+        image_path = str(pathlib.Path(image_path).with_suffix('.png'))
         self.figure.savefig(
             image_path, format='png', dpi=EXPORT_DPI, transparent=False,
             bbox_inches=self.bbox_inches)
@@ -403,7 +412,7 @@ class TabbedFigure:
 
         :param image_path: Desired location for generated pdf file.
         """
-        pdf_path = pdf_path.with_suffix('.png')
+        pdf_path = str(pathlib.Path(pdf_path).with_suffix('.pdf'))
         with PdfPages(pdf_path) as pdf:
             for tab_name in self.tabs_data.keys():
                 self.set_active_tab(tab_name)
@@ -414,14 +423,19 @@ class TabbedFigure:
              time: np.ndarray,
              tabs_data: Dict[str, Union[Dict[str, Union[
                     Dict[str, np.ndarray], np.ndarray]]]],
+             image_path: Optional[str] = None,
              **kwargs) -> "TabbedFigure":
         """ TODO: Write documentation.
 
+        :param image_path: It specified, the figure will be exported to pdf
+                           without rendering on screen.
         :param kwargs: Extra keyword arguments to forward to `add_tab` method.
         """
-        tabbed_figure = cls(**kwargs)
+        tabbed_figure = cls(**{"offscreen": image_path is not None, **kwargs})
         for name, data in tabs_data.items():
             tabbed_figure.add_tab(
                 name, time, data, **kwargs, refresh_canvas=False)
         tabbed_figure.refresh()
+        if image_path is not None:
+            tabbed_figure.save_all_tabs(image_path)
         return tabbed_figure

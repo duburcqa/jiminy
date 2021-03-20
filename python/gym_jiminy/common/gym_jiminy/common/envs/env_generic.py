@@ -168,6 +168,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         return super().__dir__() + self.simulator.__dir__()
 
+    def __del__(self) -> None:
+        self.close()
+
     def _controller_handle(self,
                            t: float,
                            q: np.ndarray,

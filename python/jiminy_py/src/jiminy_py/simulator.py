@@ -8,7 +8,6 @@ from collections import OrderedDict
 from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
 
 import numpy as np
-import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
 import pinocchio as pin
@@ -549,7 +548,9 @@ class Simulator:
         if self.viewer is not None:
             self.viewer.close()
             self.viewer = None
-        plt.close(self.figure)
+        if self.figure is not None:
+            self.figure.close()
+            self.figure = None
 
     def plot(self,
              enable_flexiblity_data: bool = False,
