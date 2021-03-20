@@ -81,7 +81,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                            sensors_data: jiminy.sensorsData,
                            command: np.ndarray) -> None:
         command[:] = self.compute_command(
-            self.env.get_observation(), self._action)
+            self.env.get_observation(), deepcopy(self._action))
 
     def _get_block_index(self) -> int:
         """Get the index of the block. It corresponds the "deepness" of the
@@ -219,6 +219,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         :param action: Target to achieve.
         """
         set_value(self._action, action)
+        set_value(self.env._action, action)
         return self.env.compute_command(measure, action)
 
 
@@ -515,9 +516,10 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         # Register the controller target to the telemetry.
         # It may be useful for computing the terminal reward or debugging.
-        register_variables(
-            self.simulator.controller, self.controller.get_fieldnames(),
-            self._action, self.controller_name)
+        register_variables(self.simulator.controller,
+                           self.controller.get_fieldnames(),
+                           self._action,
+                           self.controller_name)
 
     def compute_command(self,
                         measure: SpaceDictNested,
@@ -534,9 +536,6 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         :param measure: Observation of the environment.
         :param action: High-level target to achieve.
         """
-        # Backup the action
-        set_value(self._action, action)
-
         # Update the target to send to the subsequent block if necessary.
         # Note that `_observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
@@ -554,8 +553,9 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         if self.simulator.is_simulation_running:
             # Do not update command during the first iteration because the
             # action is undefined at this point
+            set_value(self.env._action, self._target)
             set_value(self._command, self.env.compute_command(
-                self._observation, self._target))
+                self._observation, deepcopy(self._target)))
 
         return self._command
 

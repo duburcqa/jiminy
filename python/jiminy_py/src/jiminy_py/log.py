@@ -247,12 +247,12 @@ def plot_log():
     # Plot each element.
     for ax, plotted_elem in zip(axes, plotted_elements):
         for name in plotted_elem:
-            line = ax.plot(t, log_data[name], label=name)
+            line = ax.step(t, log_data[name], label=name)
             plotted_lines[main_name].append(line[0])
 
             linecycler = cycle(linestyles)
             for c in compare_data:
-                line = ax.plot(compare_data[c]['Global.Time'],
+                line = ax.step(compare_data[c]['Global.Time'],
                                compare_data[c][name],
                                next(linecycler),
                                color=line[0].get_color())

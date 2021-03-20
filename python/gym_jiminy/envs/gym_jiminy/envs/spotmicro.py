@@ -30,9 +30,8 @@ STD_RATIO = {
 class SpotmicroJiminyEnv(WalkerJiminyEnv):
     def __init__(self, debug: bool = False, **kwargs):
         # Get the urdf and mesh paths
-        data_root_dir = os.path.join(
-            resource_filename('gym_jiminy.envs', 'data'),
-            "quadrupedal_robots/spotmicro")
+        data_root_dir = resource_filename(
+            "gym_jiminy.envs", "data/quadrupedal_robots/spotmicro")
         urdf_path = os.path.join(data_root_dir, "spotmicro.urdf")
 
         # Initialize the walker environment

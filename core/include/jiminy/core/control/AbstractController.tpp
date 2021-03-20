@@ -15,17 +15,18 @@ namespace jiminy
 {
     using std::to_string;
 
-    inline std::string to_string(char_t const * var)
-    {
-        return {var};
-    }
-
-    inline std::string to_string(Eigen::Ref<matrixN_t const> const & var)
+    template<typename DerivedType>
+    std::string to_string(Eigen::MatrixBase<DerivedType> const & var)
     {
         Eigen::IOFormat HeavyFmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
         std::stringstream matrixStream;
         matrixStream << var.format(HeavyFmt);
         return matrixStream.str();
+    }
+
+    inline std::string to_string(char_t const * var)
+    {
+        return {var};
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////

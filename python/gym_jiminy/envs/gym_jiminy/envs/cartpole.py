@@ -85,8 +85,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         self.continuous = continuous
 
         # Get URDF path
-        data_dir = resource_filename('gym_jiminy.envs', 'data/toys_models')
-        urdf_path = os.path.join(data_dir, "cartpole/cartpole.urdf")
+        data_dir = resource_filename(
+            "gym_jiminy.envs", "data/toys_models/cartpole")
+        urdf_path = os.path.join(data_dir, "cartpole.urdf")
 
         # Instantiate robot
         robot = jiminy.Robot()

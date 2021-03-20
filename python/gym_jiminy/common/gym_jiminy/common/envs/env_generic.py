@@ -9,7 +9,7 @@ from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List
 
 import numpy as np
 import gym
-from gym import logger
+from gym import logger, spaces
 from gym.utils import seeding
 
 import jiminy_py.core as jiminy
@@ -28,7 +28,9 @@ from jiminy_py.controller import (
 
 from pinocchio import neutral, normalize
 
-from ..utils import zeros, fill, set_value, clip, SpaceDictNested
+from ..utils import (
+    zeros, fill, set_value, clip, get_fieldnames, register_variables,
+    FieldDictNested, SpaceDictNested)
 from ..bases import ObserverControllerInterface
 from .play import loop_interactive
 
@@ -66,8 +68,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         'render.modes': ['human', 'rgb_array'],
     }
 
-    observation_space: gym.spaces.Space
-    action_space: gym.spaces.Space
+    observation_space: spaces.Space
+    action_space: spaces.Space
 
     def __init__(self,
                  simulator: Simulator,
@@ -113,8 +115,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Internal buffers for physics computations
         self.rg = np.random.RandomState()
         self._seed: Optional[np.uint32] = None
-        self._log_data: Optional[Dict[str, np.ndarray]] = None
         self.log_path: Optional[str] = None
+        self.logfile_action_headers: Optional[FieldDictNested] = None
 
         # Information about the learning process
         self._info: Dict[str, Any] = {}
@@ -138,8 +140,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._refresh_action_space()
 
         # Assertion(s) for type checker
-        assert (isinstance(self.observation_space, gym.spaces.Space) and
-                isinstance(self.action_space, gym.spaces.Space))
+        assert (isinstance(self.observation_space, spaces.Space) and
+                isinstance(self.action_space, spaces.Space))
 
         # Initialize some internal buffers.
         # Note that float64 dtype must be enforced for the action, otherwise
@@ -166,6 +168,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         return super().__dir__() + self.simulator.__dir__()
 
+    def __del__(self) -> None:
+        self.close()
+
     def _controller_handle(self,
                            t: float,
                            q: np.ndarray,
@@ -173,12 +178,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                            sensors_data: jiminy.sensorsData,
                            command: np.ndarray) -> None:
         command[:] = self.compute_command(
-            self.get_observation(), np.copy(self._action))
+            self.get_observation(), deepcopy(self._action))
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
         """
-        return gym.spaces.Box(
+        return spaces.Box(
             low=0.0, high=self.simulator.simulation_duration_max, shape=(1,),
             dtype=np.float64)
 
@@ -236,13 +241,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             position_limit_upper = position_limit_upper[joints_position_idx]
             velocity_limit = velocity_limit[joints_velocity_idx]
 
-        return gym.spaces.Dict(
-            Q=gym.spaces.Box(low=position_limit_lower,
-                             high=position_limit_upper,
-                             dtype=np.float64),
-            V=gym.spaces.Box(low=-velocity_limit,
-                             high=velocity_limit,
-                             dtype=np.float64))
+        return spaces.Dict(Q=spaces.Box(low=position_limit_lower,
+                                        high=position_limit_upper,
+                                        dtype=np.float64),
+                           V=spaces.Box(low=-velocity_limit,
+                                        high=velocity_limit,
+                                        dtype=np.float64))
 
     def _get_sensors_space(self) -> gym.Space:
         """Get sensor space.
@@ -373,8 +377,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 sensor_space_upper[imu.type][accel_imu_idx, :] = \
                     SENSOR_ACCEL_MAX
 
-        return gym.spaces.Dict(OrderedDict(
-            (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
+        return spaces.Dict(OrderedDict(
+            (key, spaces.Box(low=min_val, high=max_val, dtype=np.float64))
             for (key, min_val), max_val in zip(
                 sensor_space_lower.items(), sensor_space_upper.values())))
 
@@ -407,10 +411,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # or cast the output for no really advantage since the action is
         # directly forwarded to the motors, without intermediary computations.
         action_scale = command_limit[self.robot.motors_velocity_idx]
-        self.action_space = gym.spaces.Box(
-            low=-action_scale.astype(np.float32),
-            high=action_scale.astype(np.float32),
-            dtype=np.float32)
+        self.action_space = spaces.Box(low=-action_scale.astype(np.float32),
+                                       high=action_scale.astype(np.float32),
+                                       dtype=np.float32)
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
@@ -492,7 +495,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Reset some internal buffers
         self.num_steps = 0
         self._num_steps_beyond_done = None
-        self._log_data = None
 
         # Create a new log file
         if self.debug:
@@ -521,6 +523,25 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             controller_handle = self._controller_handle
         self.simulator.controller.set_controller_handle(
             controller_handle, unsafe=True)
+
+        # Register the action to the telemetry
+        if isinstance(self._action, np.ndarray) and (
+                self._action.size == self.robot.nmotors):
+            # Default case: assuming there is one scalar action per motor
+            self.logfile_action_headers = [
+                ".".join(("action", e)) for e in self.robot.motors_names]
+        else:
+            # Fallback: Get generic fieldnames otherwise
+            self.logfile_action_headers = get_fieldnames(
+                self.action_space, "action")
+        is_success = register_variables(self.simulator.controller,
+                                        self.logfile_action_headers,
+                                        self._action)
+        if not is_success:
+            self.logfile_action_headers = None
+            logger.warn(
+                "Action must have dtype np.float64 to be registered to the "
+                "telemetry.")
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -622,7 +643,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             # Update some internal buffers
             is_step_failed = False
         except RuntimeError as e:
-            logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
+            logger.error(f"Unrecoverable Jiminy engine exception:\n{str(e)}")
 
         # Get clipped observation
         obs = clip(self.observation_space, self.get_observation())
@@ -663,9 +684,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
             # Compute terminal reward if any
             if self.enable_reward_terminal:
-                # Extract log data from the simulation for terminal reward
-                self._log_data, _ = self.get_log()
-
                 # Add terminal reward to current reward
                 reward += self.compute_reward_terminal(info=self._info)
 
@@ -678,14 +696,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.num_steps += 1
 
         return obs, reward, done, deepcopy(self._info)
-
-    def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
-        """Get log of recorded variable since the beginning of the episode.
-        """
-        if not self.simulator.is_simulation_running:
-            raise RuntimeError(
-                "No simulation running. Please start one before getting log.")
-        return self.simulator.get_log()
 
     def render(self,
                mode: str = 'human',
@@ -713,10 +723,45 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return self.simulator.render(**{
             'return_rgb_array': return_rgb_array, **kwargs})
 
-    def plot(self) -> None:
-        """Display common simulation data over time.
+    def plot(self, **kwargs: Any) -> None:
+        """Display common simulation data and action over time.
+
+        .. Note:
+            It adds "Action" tab on top of original `Simulator.plot`.
+
+        :param kwargs: Extra keyword arguments to forward to `simulator.plot`.
         """
-        self.simulator.plot()
+        # Call base implementation
+        self.simulator.plot(**kwargs)
+
+        # Extract action.
+        # If telemetry action fieldnames is a dictionary, it cannot be nested.
+        # In such a case, keys corresponds to subplots, and values are
+        # individual scalar data over time to be displayed to the same subplot.
+        log_data = self.simulator.log_data
+        t = log_data["Global.Time"]
+        tab_data = {}
+        if self.logfile_action_headers is None:
+            # It was impossible to register the action to the telemetry, likely
+            # because of incompatible dtype. Early return without adding tab.
+            return
+        if isinstance(self.logfile_action_headers, dict):
+            for field, subfields in self.logfile_action_headers.items():
+                if not isinstance(subfields, list):
+                    logger.error("Action space not supported.")
+                    return
+                tab_data[field] = {
+                    field.split(".", 1)[1]: log_data[
+                        ".".join(("HighLevelController", field))]
+                    for field in subfields}
+        elif isinstance(self.logfile_action_headers, list):
+            tab_data.update({
+                field.split(".", 1)[1]: log_data[
+                    ".".join(("HighLevelController", field))]
+                for field in self.logfile_action_headers})
+
+        # Add action tab
+        self.figure.add_tab("Action", t, tab_data)
 
     def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
         """Replay the current episode until now.
@@ -833,7 +878,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         observation_spaces['state'] = self._get_state_space()
         if self.sensors_data:
             observation_spaces['sensors'] = self._get_sensors_space()
-        self.observation_space = gym.spaces.Dict(observation_spaces)
+        self.observation_space = spaces.Dict(observation_spaces)
 
     def _neutral(self) -> np.ndarray:
         """Returns a neutral valid configuration for the robot.
@@ -1022,7 +1067,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
 
         # Append default desired and achieved goal spaces to observation space
         goal_space = self._get_goal_space()
-        self.observation_space = gym.spaces.Dict(OrderedDict(
+        self.observation_space = spaces.Dict(OrderedDict(
             observation=self.observation_space,
             desired_goal=goal_space,
             achieved_goal=goal_space))

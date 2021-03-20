@@ -68,9 +68,8 @@ STD_RATIO = {
 class AtlasJiminyEnv(WalkerJiminyEnv):
     def __init__(self, debug: bool = False, **kwargs):
         # Get the urdf and mesh paths
-        data_root_dir = os.path.join(
-            resource_filename('gym_jiminy.envs', 'data'),
-            "bipedal_robots/atlas")
+        data_root_dir = resource_filename(
+            "gym_jiminy.envs", "data/bipedal_robots/atlas")
         urdf_path = os.path.join(data_root_dir, "atlas_v4.urdf")
 
         # Initialize the walker environment

@@ -28,9 +28,8 @@ class AntEnv(BaseJiminyEnv):
         """ TODO: Write documentation.
         """
         # Get the urdf and mesh paths
-        data_root_dir = os.path.join(
-            resource_filename('gym_jiminy.envs', 'data'),
-            "toys_models/ant")
+        data_root_dir = resource_filename(
+            "gym_jiminy.envs", "data/toys_models/ant")
         urdf_path = os.path.join(data_root_dir, "ant.urdf")
         hardware_path = os.path.join(data_root_dir, "ant_hardware.toml")
         config_path = os.path.join(data_root_dir, "ant_options.toml")
