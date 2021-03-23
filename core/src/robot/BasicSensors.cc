@@ -5,7 +5,8 @@
 #include "pinocchio/algorithm/frames.hpp"
 
 #include "jiminy/core/robot/Robot.h"
-#include "jiminy/core/Macros.h"
+#include "jiminy/core/utilities/Pinocchio.h"
+#include "jiminy/core/utilities/Random.h"
 
 #include "jiminy/core/robot/BasicSensors.h"
 

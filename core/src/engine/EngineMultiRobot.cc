@@ -29,7 +29,10 @@
 #include "jiminy/core/stepper/RungeKuttaDOPRIStepper.h"
 #include "jiminy/core/stepper/RungeKutta4Stepper.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/utilities/Pinocchio.h"
+#include "jiminy/core/utilities/Random.h"
+#include "jiminy/core/utilities/Json.h"
+#include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/Constants.h"
 
 
@@ -41,7 +44,7 @@ namespace jiminy
     isTelemetryConfigured_(false),
     isSimulationRunning_(false),
     engineOptionsHolder_(),
-    timer_(),
+    timer_(std::make_unique<Timer>()),
     contactModel_(contactModel_t::NONE),
     contactSolver_(nullptr),
     telemetrySender_(),
@@ -1628,7 +1631,7 @@ namespace jiminy
         bool_t hasDynamicsChanged = false;
 
         // Start the timer used for timeout handling
-        timer_.tic();
+        timer_->tic();
 
         // Perform the integration. Do not simulate extremely small time steps.
         while ((tEnd - t >= STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
@@ -1823,9 +1826,9 @@ namespace jiminy
 
                     /* Break the loop in case of timeout.
                        Don't worry, an exception will be raised later. */
-                    timer_.toc();
+                    timer_->toc();
                     if (EPS < engineOptions_->stepper.timeout
-                        && engineOptions_->stepper.timeout < timer_.dt)
+                        && engineOptions_->stepper.timeout < timer_->dt)
                     {
                         break;
                     }
@@ -2018,9 +2021,9 @@ namespace jiminy
                 returnCode = hresult_t::ERROR_GENERIC;
             }
 
-            timer_.toc();
+            timer_->toc();
             if (EPS < engineOptions_->stepper.timeout
-                && engineOptions_->stepper.timeout < timer_.dt)
+                && engineOptions_->stepper.timeout < timer_->dt)
             {
                 PRINT_ERROR("Step computation timeout.");
                 returnCode = hresult_t::ERROR_GENERIC;

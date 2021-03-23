@@ -51,7 +51,10 @@ add_definitions("${COMPILE_FLAGS}")
 # Add sources
 set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Constants.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Utilities.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/Helpers.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/Pinocchio.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/Json.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/Random.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/AbstractIODevice.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/MemoryDevice.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/FileDevice.cc"

@@ -16,7 +16,8 @@
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/cholesky.hpp"
 
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/utilities/Random.h"
+#include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/Constants.h"
 
 #include "jiminy/core/solver/LCPSolvers.h"

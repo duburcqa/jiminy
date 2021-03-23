@@ -1,5 +1,5 @@
-#include "jiminy/core/robot/Robot.h"
-#include "jiminy/core/Macros.h"
+#include "jiminy/core/robot/Model.h"
+#include "jiminy/core/utilities/Pinocchio.h"
 
 #include "jiminy/core/robot/FixedFrameConstraint.h"
 

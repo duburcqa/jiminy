@@ -13,6 +13,8 @@
 #include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/io/FileDevice.h"
+#include "jiminy/core/utilities/Helpers.h"
+#include "jiminy/core/utilities/Json.h"
 
 #include "jiminy/core/robot/Robot.h"
 
@@ -31,7 +33,7 @@ namespace jiminy
     commandFieldnames_(),
     motorEffortFieldnames_(),
     nmotors_(-1),
-    mutexLocal_(),
+    mutexLocal_(std::make_unique<MutexLocal>()),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_()
     {
@@ -1257,22 +1259,22 @@ namespace jiminy
         }
     }
 
-    hresult_t Robot::getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock)
+    hresult_t Robot::getLock(std::unique_ptr<LockGuardLocal> & lock)
     {
-        if (mutexLocal_.isLocked())
+        if (mutexLocal_->isLocked())
         {
             PRINT_ERROR("Robot already locked. Please release the current lock first.");
             return hresult_t::ERROR_GENERIC;
         }
 
-        lock = std::move(std::make_unique<MutexLocal::LockGuardLocal>(mutexLocal_));
+        lock = std::make_unique<LockGuardLocal>(*mutexLocal_);
 
         return hresult_t::SUCCESS;
     }
 
     bool_t const & Robot::getIsLocked(void) const
     {
-        return mutexLocal_.isLocked();
+        return mutexLocal_->isLocked();
     }
 
     std::vector<std::string> const & Robot::getMotorsNames(void) const

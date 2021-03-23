@@ -4,6 +4,7 @@
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/control/AbstractController.h"
+#include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/engine/System.h"
 
 

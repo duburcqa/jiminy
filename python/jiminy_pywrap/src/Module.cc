@@ -19,9 +19,9 @@
 #include "jiminy/python/Sensors.h"
 #include "jiminy/python/Functors.h"
 
-#include "jiminy/core/Types.h"
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
+#include "jiminy/core/utilities/Pinocchio.h"
+#include "jiminy/core/Types.h"
 
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>

@@ -4,7 +4,6 @@
 #include <functional>
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 #include "jiminy/core/Constants.h"
 
@@ -43,6 +42,7 @@ namespace jiminy
         "euler_explicit"
     };
 
+    class Timer;
     class Robot;
     class AbstractConstraintBase;
     class AbstractLCPSolver;
@@ -632,7 +632,7 @@ namespace jiminy
         configHolder_t engineOptionsHolder_;
 
     private:
-        Timer timer_;
+        std::unique_ptr<Timer> timer_;
         contactModel_t contactModel_;
         std::unique_ptr<AbstractLCPSolver> contactSolver_;
         TelemetrySender telemetrySender_;
