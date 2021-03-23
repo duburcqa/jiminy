@@ -8,8 +8,9 @@ Jiminy Python API
    robot
    controller
    simulator
-   viewer
    dynamics
+   plot
+   viewer
    processing
    state
    log

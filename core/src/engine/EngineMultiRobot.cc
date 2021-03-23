@@ -796,7 +796,7 @@ namespace jiminy
         // Reset the random number generators
         if (resetRandomNumbers)
         {
-            resetRandGenerators(engineOptions_->stepper.randomSeed);
+            resetRandomGenerators(engineOptions_->stepper.randomSeed);
         }
 
         // Reset the internal state of the robot and controller

@@ -4,6 +4,10 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
+/* If defined the python type of __init__ method "self" parameters is properly generated,
+   Undefined by default because it increases binary size by about 14%. */
+#define BOOST_PYTHON_PY_SIGNATURES_PROPER_INIT_SELF_TYPE
+
 // Manually import the Python C API to avoid relying on eigenpy and boost::numpy to do so.
 #define PY_ARRAY_UNIQUE_SYMBOL JIMINY_ARRAY_API
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -11,16 +15,16 @@
 #define NO_IMPORT_ARRAY
 
 #include "jiminy/python/Utilities.h"
+#include "jiminy/python/Helpers.h"
+#include "jiminy/python/Functors.h"
 #include "jiminy/python/Engine.h"
 #include "jiminy/python/Constraints.h"
 #include "jiminy/python/Controllers.h"
 #include "jiminy/python/Robot.h"
 #include "jiminy/python/Motors.h"
 #include "jiminy/python/Sensors.h"
-#include "jiminy/python/Functors.h"
 
-#include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
-#include "jiminy/core/utilities/Pinocchio.h"
+#include "jiminy/core/utilities/Random.h"
 #include "jiminy/core/Types.h"
 
 #include <boost/python.hpp>
@@ -59,39 +63,11 @@ namespace python
         }
     };
 
-    joint_t getJointTypeFromIdx(pinocchio::Model const & model,
-                                int32_t          const & idIn)
-    {
-        joint_t jointType = joint_t::NONE;
-        ::jiminy::getJointTypeFromIdx(model, idIn, jointType);
-        return jointType;
-    }
-
-    bool_t isPositionValid(pinocchio::Model const & model,
-                           vectorN_t        const & position)
-    {
-        bool_t isValid;
-        hresult_t returnCode = ::jiminy::isPositionValid(
-            model, position, isValid, Eigen::NumTraits<float64_t>::dummy_precision());
-        if (returnCode != hresult_t::SUCCESS)
-        {
-            return false;
-        }
-        return isValid;
-    }
-
-    matrixN_t interpolate(pinocchio::Model const & modelIn,
-                          vectorN_t        const & timesIn,
-                          matrixN_t        const & positionsIn,
-                          vectorN_t        const & timesOut)
-    {
-        matrixN_t positionOut;
-        ::jiminy::interpolate(modelIn, timesIn, positionsIn, timesOut, positionOut);
-        return positionOut;
-    }
-
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
     {
+        // Initialize Jiminy random number generator
+        resetRandomGenerators(0);
+
         // Initialized C API of Python, required to handle raw Python native object
         Py_Initialize();
         // Initialized C API of Numpy, required to handle raw numpy::ndarray object
@@ -140,43 +116,13 @@ namespace python
         bp::docstring_options doc_options;
         doc_options.disable_cpp_signatures();
 
-        // Expose generic utilities
-        bp::def("get_joint_type", &getJointTypeFromIdx,
-                                  (bp::arg("pinocchio_model"), "joint_idx"));
-        bp::def("is_position_valid", &isPositionValid,
-                                     (bp::arg("pinocchio_model"), "position"));
-        bp::def("interpolate", &interpolate,
-                               (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"));
-        bp::def("aba",
-                &pinocchio_overload::aba<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t, pinocchio::Force>,
-                bp::args("pinocchio_model", "pinocchio_data", "q", "v", "u", "fext"),
-                "Compute ABA with external forces, store the result in Data::ddq and return it.",
-                bp::return_value_policy<bp::return_by_value>());
-        bp::def("rnea",
-                &pinocchio_overload::aba<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t, pinocchio::Force>,
-                bp::args("pinocchio_model", "pinocchio_data", "q", "v", "a", "fext"),
-                "Compute the RNEA with external forces, store the result in Data and return it.",
-                bp::return_value_policy<bp::return_by_value>());
-        bp::def("crba",
-                &pinocchio_overload::crba<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t>,
-                bp::args("pinocchio_model", "pinocchio_data", "q"),
-                "Computes CRBA, store the result in Data and return it.",
-                bp::return_value_policy<bp::return_by_value>());
-        bp::def("computeKineticEnergy",
-                &pinocchio_overload::kineticEnergy<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t>,
-                bp::args("pinocchio_model", "pinocchio_data", "q", "v", "update_kinematics"),
-                "Computes the forward kinematics and the kinematic energy of the model for the "
-                "given joint configuration and velocity given as input. "
-                "The result is accessible through data.kinetic_energy.");
-
         // Expose functors
         TIME_STATE_FCT_EXPOSE(bool_t)
         TIME_STATE_FCT_EXPOSE(pinocchio::Force)
         exposeHeatMapFunctor();
+
+        // Expose helpers
+        exposeHelpers();
 
         // Expose structs and classes
         exposeSensorsDataMap();

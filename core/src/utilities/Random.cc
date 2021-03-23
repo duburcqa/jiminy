@@ -3,11 +3,13 @@
 
 namespace jiminy
 {
-    static float64_t const PERLIN_NOISE_PERSISTENCE = 1.30;
-    static float64_t const PERLIN_NOISE_LACUNARITY = 1.30;
+    static float64_t const PERLIN_NOISE_PERSISTENCE = 1.50;
+    static float64_t const PERLIN_NOISE_LACUNARITY = 1.15;
 
     // ***************** Random number generator_ *****************
-    // Based on Ziggurat generator_ by Marsaglia and Tsang (JSS, 2000)
+
+    // Based on Ziggurat generator by Marsaglia and Tsang (JSS, 2000):
+    // https://people.sc.fsu.edu/~jburkardt/cpp_src/ziggurat/ziggurat.html
 
     std::mt19937 generator_;
     std::uniform_real_distribution<float32_t> distUniform_(0.0, 1.0);
@@ -108,7 +110,7 @@ namespace jiminy
         }
     }
 
-	void resetRandGenerators(uint32_t const & seed)
+	void resetRandomGenerators(uint32_t const & seed)
 	{
 		srand(seed);  // Eigen relies on srand for genering random matrix
         generator_.seed(seed);
@@ -412,7 +414,7 @@ namespace jiminy
     period_(period),
     dt_(0.02 * wavelength_),
     numTimes_(std::ceil(period_ / dt_)),
-    numHarmonics_(std::floor(period_ / wavelength_)),
+    numHarmonics_(std::ceil(period_ / wavelength_)),
     isInitialized_(false),
     values_(numTimes_),
     cosMat_(numTimes_, numHarmonics_),
@@ -528,13 +530,14 @@ namespace jiminy
         int32_t const phaseIdxRight = phaseIdxLeft + 1;
 
         // Compute smoothed ratio of current phase wrt to the closest knots
-        float64_t const dt = phase - phaseIdxLeft;
-        float64_t const ratio = fade(dt);
+        float64_t const dtLeft = phase - phaseIdxLeft;
+        float64_t const dtRight = dtLeft - 1.0;
+        float64_t const ratio = fade(dtLeft);
 
         /* Compute gradients at knots, and perform linear interpolation
-        between them to get value at current phase. */
-        float64_t const yLeft = grad(phaseIdxLeft);
-        float64_t const yRight = grad(phaseIdxRight);
+           between them to get value at current phase.*/
+        float64_t const yLeft = grad(phaseIdxLeft, dtLeft);
+        float64_t const yRight = grad(phaseIdxRight, dtRight);
         return scale_ * lerp(ratio, yLeft, yRight);
     }
 
@@ -548,9 +551,12 @@ namespace jiminy
         return scale_;
     }
 
-    float64_t AbstractPerlinNoiseOctave::fade(float64_t const & dt) const
+    float64_t AbstractPerlinNoiseOctave::fade(float64_t const & delta) const
     {
-        return std::pow(dt, 3) * (dt * (dt * 6.0 - 15.0) + 10.0);
+        /* Improved Smoothstep function by Ken Perlin (aka Smootherstep).
+           It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0:
+           https://en.wikipedia.org/wiki/Smoothstep#Variations */
+        return std::pow(delta, 3) * (delta * (delta * 6.0 - 15.0) + 10.0);
     }
 
     float64_t AbstractPerlinNoiseOctave::lerp(float64_t const & ratio,
@@ -577,7 +583,8 @@ namespace jiminy
         seed_ = generator_();
     }
 
-    float64_t RandomPerlinNoiseOctave::grad(int32_t knot) const
+    float64_t RandomPerlinNoiseOctave::grad(int32_t knot,
+                                            float64_t const & delta) const
     {
         // Get hash of knot
         uint32_t const hash = MurmurHash3(&knot, sizeof(int32_t), seed_);
@@ -586,8 +593,11 @@ namespace jiminy
         float64_t const s = static_cast<float64_t>(hash) /
             static_cast<float64_t>(std::numeric_limits<uint32_t>::max());
 
-        // Return rescaled gradient between [-1.0, 1.0)
-        return 2.0 * s - 1.0;
+        // Compute rescaled gradient between [-1.0, 1.0)
+        float64_t const grad = 2.0 * s - 1.0;
+
+        // Return scalar product between distance and gradient
+        return 2.0 * grad * delta;
     }
 
     PeriodicPerlinNoiseOctave::PeriodicPerlinNoiseOctave(float64_t const & wavelength,
@@ -613,7 +623,8 @@ namespace jiminy
         std::shuffle(perm_.begin(), perm_.end(), generator_);
     }
 
-    float64_t PeriodicPerlinNoiseOctave::grad(int32_t knot) const
+    float64_t PeriodicPerlinNoiseOctave::grad(int32_t knot,
+                                              float64_t const & delta) const
     {
         // Wrap knot is period interval
         knot %= static_cast<uint32_t>(period_ / wavelength_);
@@ -621,8 +632,11 @@ namespace jiminy
         // Convert to double in [0.0, 1.0)
         float64_t const s = perm_[knot] / 256.0;
 
-        // Pick value from periodic gradient
-        return 2.0 * s - 1.0;
+        // Compute rescaled gradient between [-1.0, 1.0)
+        float64_t const grad = 2.0 * s - 1.0;
+
+        // Return scalar product between distance and gradient
+        return 2.0 * grad * delta;
     }
 
     AbstractPerlinProcess::AbstractPerlinProcess(float64_t const & wavelength,
@@ -713,7 +727,7 @@ namespace jiminy
         isInitialized_ = true;
     }
 
-    PeriodicPerlinProces::PeriodicPerlinProces(float64_t const & wavelength,
+    PeriodicPerlinProcess::PeriodicPerlinProcess(float64_t const & wavelength,
                                                float64_t const & period,
                                                uint32_t const & numOctaves) :
     AbstractPerlinProcess(wavelength, numOctaves),
@@ -723,7 +737,7 @@ namespace jiminy
         assert (period_ >= wavelength);
     }
 
-    void PeriodicPerlinProces::initialize(void)
+    void PeriodicPerlinProcess::initialize(void)
     {
         // Add desired perlin noise octaves
         octaves_.reserve(numOctaves_);
@@ -752,7 +766,7 @@ namespace jiminy
         isInitialized_ = true;
     }
 
-    float64_t const & PeriodicPerlinProces::getPeriod(void) const
+    float64_t const & PeriodicPerlinProcess::getPeriod(void) const
     {
         return period_;
     }

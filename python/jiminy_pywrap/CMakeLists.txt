@@ -17,6 +17,7 @@ endif()
 # Add cpp sources (in binary dir, since the sources are pre-processed to substitute docstring)
 set(SRC
     "${CMAKE_CURRENT_BINARY_DIR}/src/Functors.cc"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Helpers.cc"
     "${CMAKE_CURRENT_BINARY_DIR}/src/Robot.cc"
     "${CMAKE_CURRENT_BINARY_DIR}/src/Sensors.cc"
     "${CMAKE_CURRENT_BINARY_DIR}/src/Motors.cc"

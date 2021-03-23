@@ -9,7 +9,7 @@ namespace jiminy
 {
     // ************ Random number generator utilities ***************
 
-    void resetRandGenerators(uint32_t const & seed);
+    void resetRandomGenerators(uint32_t const & seed);
 
     float64_t randUniform(float64_t const & lo = 0.0,
                           float64_t const & hi = 1.0);
@@ -78,7 +78,7 @@ namespace jiminy
 
     public:
         PeriodicFourierProcess(float64_t const & wavelength,
-                            float64_t const & period);
+                               float64_t const & period);
 
         ~PeriodicFourierProcess(void) = default;
 
@@ -111,7 +111,7 @@ namespace jiminy
     {
     public:
         AbstractPerlinNoiseOctave(float64_t const & wavelength,
-                                float64_t const & scale);
+                                  float64_t const & scale);
 
         virtual ~AbstractPerlinNoiseOctave(void) = default;
 
@@ -123,13 +123,14 @@ namespace jiminy
         float64_t const & getScale(void) const;
 
     protected:
-        virtual float64_t grad(int32_t knot) const = 0;  // Copy on purpose
+        virtual float64_t grad(int32_t knot,
+                               float64_t const & delta) const = 0;  // Copy on purpose
 
-        float64_t fade(float64_t const & dt) const;
+        float64_t fade(float64_t const & delta) const;
 
         float64_t lerp(float64_t const & ratio,
-                        float64_t const & yLeft,
-                        float64_t const & yRight) const;
+                       float64_t const & yLeft,
+                       float64_t const & yRight) const;
 
     protected:
         float64_t const wavelength_;
@@ -149,7 +150,8 @@ namespace jiminy
         virtual void reset(void) override final;
 
     protected:
-        virtual float64_t grad(int32_t knot) const override final;
+        virtual float64_t grad(int32_t knot,
+                               float64_t const & delta) const override final;
 
     private:
         uint32_t seed_;
@@ -159,15 +161,16 @@ namespace jiminy
     {
     public:
         PeriodicPerlinNoiseOctave(float64_t const & wavelength,
-                                float64_t const & period,
-                                float64_t const & scale);
+                                  float64_t const & period,
+                                  float64_t const & scale);
 
         virtual ~PeriodicPerlinNoiseOctave(void) = default;
 
         virtual void reset(void) override final;
 
     protected:
-        virtual float64_t grad(int32_t knot) const override final;
+        virtual float64_t grad(int32_t knot,
+                               float64_t const & delta) const override final;
 
     private:
         float64_t const period_;
@@ -205,7 +208,7 @@ namespace jiminy
 
     public:
         AbstractPerlinProcess(float64_t const & wavelength,
-                            uint32_t const & numOctaves = 8U);
+                              uint32_t  const & numOctaves = 8U);
 
         virtual ~AbstractPerlinProcess(void) = default;
 
@@ -232,7 +235,7 @@ namespace jiminy
     {
     public:
         RandomPerlinProcess(float64_t const & wavelength,
-                            uint32_t const & numOctaves = 8U);
+                            uint32_t  const & numOctaves = 6U);
 
         virtual ~RandomPerlinProcess(void) = default;
 
@@ -240,19 +243,19 @@ namespace jiminy
         virtual void initialize(void) override final;
     };
 
-    class PeriodicPerlinProces : public AbstractPerlinProcess
+    class PeriodicPerlinProcess : public AbstractPerlinProcess
     {
     public:
-        PeriodicPerlinProces(float64_t const & wavelength,
-                            float64_t const & period,
-                            uint32_t const & numOctaves = 8U);
+        PeriodicPerlinProcess(float64_t const & wavelength,
+                              float64_t const & period,
+                              uint32_t  const & numOctaves = 6U);
 
-        virtual ~PeriodicPerlinProces(void) = default;
+        virtual ~PeriodicPerlinProcess(void) = default;
+
+        float64_t const & getPeriod(void) const;
 
     protected:
         virtual void initialize(void) override final;
-
-        float64_t const & getPeriod(void) const;
 
     private:
         float64_t const period_;
