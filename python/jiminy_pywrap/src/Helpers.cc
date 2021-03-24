@@ -91,7 +91,7 @@ namespace python
                    std::shared_ptr<RandomPerlinProcess>,
                    boost::noncopyable>("RandomPerlinProcess",
                    bp::init<float64_t, uint32_t>(
-                   bp::args("self", "wavelength", "num_octaves")))
+                   (bp::arg("self"), "wavelength", bp::arg("num_octaves") = 6U)))
             .def("__call__", &RandomPerlinProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &RandomPerlinProcess::reset)
@@ -104,7 +104,7 @@ namespace python
                    std::shared_ptr<PeriodicPerlinProcess>,
                    boost::noncopyable>("PeriodicPerlinProcess",
                    bp::init<float64_t, float64_t, uint32_t>(
-                   bp::args("self", "wavelength", "period", "num_octaves")))
+                   (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
             .def("__call__", &PeriodicPerlinProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &PeriodicPerlinProcess::reset)

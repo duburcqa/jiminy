@@ -227,8 +227,9 @@ namespace python
     }
 
     template<>
-    inline bp::object convertToPython<flexibleJointData_t>(flexibleJointData_t const & flexibleJointData,
-                                                           bool const & copy)
+    inline bp::object convertToPython<flexibleJointData_t>(
+        flexibleJointData_t const & flexibleJointData,
+        bool const & copy)
     {
         bp::dict flexibilityJointDataPy;
         flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
@@ -295,9 +296,9 @@ namespace python
         }
 
         template <typename T>
-        bp::object operator()(T const & value) const
+        auto operator()(T const & value) const
         {
-            return convertToPython<T>(value, copy_);
+            return convertToPython(value, copy_);
         }
 
     public:
@@ -305,14 +306,15 @@ namespace python
     };
 
     template<>
-    inline bp::object convertToPython(configHolder_t const & config, bool const & copy)
+    inline bp::object convertToPython<configHolder_t>(
+        configHolder_t const & config,
+        bool const & copy)
     {
         bp::dict configPyDict;
         AppendBoostVariantToPython visitor(copy);
-        for (auto const & configField : config)
+        for (auto const & [key, value] : config)
         {
-            std::string const & name = configField.first;
-            configPyDict[name] = boost::apply_visitor(visitor, configField.second);
+            configPyDict[key] = boost::apply_visitor(visitor, value);
         }
         return configPyDict;
     }
@@ -327,7 +329,7 @@ namespace python
         vectorN_t x(len(listPy));
         for (int32_t i = 0; i < len(listPy); ++i)
         {
-            x(i) = bp::extract<float64_t>(listPy[i]);
+            x[i] = bp::extract<float64_t>(listPy[i]);
         }
 
         return x;
@@ -345,9 +347,9 @@ namespace python
         matrixN_t M(nRows, nCols);
         for (int32_t i = 0; i < nRows; ++i)
         {
-            bp::list const row = bp::extract<bp::list>(listPy[i]);
+            bp::list row = bp::extract<bp::list>(listPy[i]);  // Beware it is not an actual copy
             assert(len(row) == nCols && "wrong number of columns");
-            M.row(i) = listPyToEigenVector(row).transpose();
+            M.row(i) = listPyToEigenVector(row);
         }
 
         return M;

@@ -46,11 +46,13 @@ namespace python
     namespace bp = boost::python;
 
     template<typename T>
-    using TimeStateFct = typename std::function<T (float64_t const&, vectorN_t const&, vectorN_t const&)>;
+    using TimeStateFct = typename std::function<T (float64_t const &, vectorN_t const &, vectorN_t const &)>;
 
-    #define TIME_STATE_FCT_EXPOSE(T) \
-    bp::class_<TimeStateFct<T>, boost::noncopyable>("TimeStateFunctor_"#T, bp::no_init) \
-        .def("__call__", &TimeStateFct<T>::operator(), \
+
+
+    #define TIME_STATE_FCT_EXPOSE(Type, Name) \
+    bp::class_<TimeStateFct<Type>, boost::noncopyable>("TimeStateFunctor"#Name, bp::no_init) \
+        .def("__call__", &TimeStateFct<Type>::operator(), \
                          bp::return_value_policy<bp::return_by_value>(), \
                          (bp::arg("self"), bp::arg("t"), bp::arg("q"), bp::arg("v")));
 
@@ -60,6 +62,22 @@ namespace python
         static PyObject * convert(T const & data)
         {
             return bp::incref(convertToPython<T>(data).ptr());
+        }
+
+        static PyTypeObject const * get_pytype()
+        {
+            std::type_info const * typeId(&typeid(bp::object));
+            if constexpr (is_vector<T>::value)
+            {
+                typeId = &typeid(bp::list);
+            }
+            else if constexpr (std::is_same<T, configHolder_t>::value
+                            || std::is_same<T, flexibleJointData_t>::value)
+            {
+                typeId = &typeid(bp::dict);
+            }
+            bp::converter::registration const * r = bp::converter::registry::query(*typeId);
+            return r ? r->to_python_target_type(): 0;
         }
     };
 
@@ -105,20 +123,20 @@ namespace python
         .value("GENERIC", heatMapType_t::GENERIC);
 
         // Enable some automatic C++ to Python converters
-        bp::to_python_converter<std::vector<std::string>, converterToPython<std::vector<std::string> > >();
-        bp::to_python_converter<std::vector<std::vector<int32_t> >, converterToPython<std::vector<std::vector<int32_t> > > >();
-        bp::to_python_converter<std::vector<int32_t>, converterToPython<std::vector<int32_t> > >();
-        bp::to_python_converter<std::vector<vectorN_t>, converterToPython<std::vector<vectorN_t> > >();
-        bp::to_python_converter<std::vector<matrixN_t>, converterToPython<std::vector<matrixN_t> > >();
-        bp::to_python_converter<configHolder_t, converterToPython<configHolder_t> >();
+        bp::to_python_converter<std::vector<std::string>, converterToPython<std::vector<std::string> >, true>();
+        bp::to_python_converter<std::vector<std::vector<int32_t> >, converterToPython<std::vector<std::vector<int32_t> > >, true>();
+        bp::to_python_converter<std::vector<int32_t>, converterToPython<std::vector<int32_t> >, true>();
+        bp::to_python_converter<std::vector<vectorN_t>, converterToPython<std::vector<vectorN_t> >, true>();
+        bp::to_python_converter<std::vector<matrixN_t>, converterToPython<std::vector<matrixN_t> >, true>();
+        bp::to_python_converter<configHolder_t, converterToPython<configHolder_t>, true>();
 
         // Disable CPP docstring
         bp::docstring_options doc_options;
         doc_options.disable_cpp_signatures();
 
         // Expose functors
-        TIME_STATE_FCT_EXPOSE(bool_t)
-        TIME_STATE_FCT_EXPOSE(pinocchio::Force)
+        TIME_STATE_FCT_EXPOSE(bool_t, Bool)
+        TIME_STATE_FCT_EXPOSE(pinocchio::Force, PinocchioForce)
         exposeHeatMapFunctor();
 
         // Expose helpers
