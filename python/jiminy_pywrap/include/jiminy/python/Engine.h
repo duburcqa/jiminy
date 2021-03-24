@@ -6,6 +6,7 @@ namespace jiminy
 {
 namespace python
 {
+    void exposeForces(void);
     void exposeStepperState(void);
     void exposeSystemState(void);
     void exposeSystem(void);

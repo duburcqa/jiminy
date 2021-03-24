@@ -10,8 +10,10 @@
 #include "jiminy/core/Types.h"
 #include "jiminy/core/Macros.h"
 
+#include <boost/mpl/vector.hpp>
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
+#include <boost/python/object/function_doc_signature.hpp>
 
 
 namespace jiminy
@@ -29,6 +31,51 @@ namespace python
     void expose ## class (void) \
     { \
         Py ## class ## Visitor::expose(); \
+    }
+
+    template<typename R, typename ...Args>
+    boost::mpl::vector<R, Args...> functionToMLP(std::function<R(Args...)> func)
+    {
+        return {};
+    }
+
+    namespace detail {
+        static char constexpr py_signature_tag[] = "PY signature :";
+        static char constexpr cpp_signature_tag[] = "C++ signature :";
+    }
+
+    template<typename WrappedClassT>
+    void setFunctionWrapperModule(bp::object & func)
+    {
+        /* Register it to the class to fix Ipython attribute lookup, which is looking
+           for '__module__' attribute, and enable Python/C++ signatures in docstring.
+
+           The intended way to do so is to call `add_to_namespace` function. However,
+           the previous registration must be deleted first to avoid being detected as
+           an overload and accumulating docstrings. To avoid such hassle, a hack is
+           used instead by overwritting the internal attribute of the function directly.
+           Beware it relies on `const_cast` to getter returning by reference, which may
+           break in the future. Moreover, a hack is used to get the docstring, which
+           consists in adding the expected tags as function doc. It works for now but
+           it is not really reliable and may break in the future too. */
+        bp::converter::registration const * r = bp::converter::registry::query(typeid(WrappedClassT));
+        assert(r && ("Class " + typeid(WrappedClassT).name() + " not registered to Boost Python."));
+        PyTypeObject * nsPtr = r->get_class_object();
+        bp::object nsName(bp::handle<>(PyObject_GetAttrString((PyObject *) nsPtr, "__name__")));
+        bp::objects::function * funcPtr = bp::downcast<bp::objects::function>(func.ptr());
+        bp::object & nsFunc = const_cast<bp::object &>(funcPtr->get_namespace());
+        nsFunc = bp::object(nsName);
+        bp::object & nameFunc = const_cast<bp::object &>(funcPtr->name());
+        nameFunc = bp::str("function");
+        funcPtr->doc(bp::str(detail::py_signature_tag) + bp::str(detail::cpp_signature_tag)); // Add actual doc after thos tags, if any
+        // auto dict = bp::handle<>(bp::borrowed(nsPtr->tp_dict));
+        // bp::str funcName("force_func");
+        // if (PyObject_GetItem(dict.get(), funcName.ptr()))
+        // {
+        //     PyObject_DelItem(dict.get(), funcName.ptr());
+        // }
+        // bp::object ns(bp::handle<>(bp::borrowed(nsPtr)));
+        // bp::objects::add_to_namespace(ns, "force_func", func);
     }
 
     // ****************************************************************************

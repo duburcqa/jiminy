@@ -154,6 +154,7 @@ namespace python
         exposeBasicSensors();
         exposeAbstractController();
         exposeControllerFunctor();
+        exposeForces();
         exposeStepperState();
         exposeSystemState();
         exposeSystem();

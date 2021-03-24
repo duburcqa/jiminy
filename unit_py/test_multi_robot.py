@@ -78,7 +78,7 @@ class SimulateMultiRobot(unittest.TestCase):
         def force(t, q1, v1, q2, v2, f):
             f[0] = k[2] * (q2[0] - q1[0]) + nu[2] * (v2[0] - v1[0])
 
-        engine.add_coupling_force(
+        engine.register_force_coupling(
             system_names[0], system_names[1], "Mass", "Mass", force)
 
         # Run simulation and extract some information from log data

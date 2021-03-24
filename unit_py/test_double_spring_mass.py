@@ -396,7 +396,7 @@ class SimulateTwoMasses(unittest.TestCase):
             f[0] = - k_cross * (1 + d2) * q1[7]
             f[1] = + k_cross * (1 + d2) * q2[7]
 
-        engine.add_coupling_force(
+        engine.register_force_coupling(
             systems_names[0], systems_names[1], "FirstMass", "FirstMass", force)
 
         # Initialize the whole system.
