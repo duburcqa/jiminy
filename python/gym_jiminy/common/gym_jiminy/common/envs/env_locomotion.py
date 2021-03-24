@@ -3,19 +3,19 @@
 from typing import Optional, Dict, Union, Callable, Sequence, Any
 
 import numpy as np
-import numba as nb
 import gym
 
 from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
                             ForceSensor as force,
-                            ImuSensor as imu)
+                            ImuSensor as imu,
+                            PeriodicGaussianProcess)
 from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
 
-from ..utils import sample, PeriodicGaussianProcess
+from ..utils import sample
 from .env_generic import BaseJiminyEnv
 
 
@@ -23,9 +23,13 @@ GROUND_STIFFNESS_LOG_RANGE = (5.5, 7.0)
 GROUND_DAMPING_RATIO_RANGE = (0.2, 1.0)
 GROUND_FRICTION_RANGE = (0.8, 8.0)
 
-F_XY_IMPULSE_SCALE = 1000.0
-F_XY_PROFILE_SCALE = 50.0
-F_XY_PROFILE_PERIOD = 1.0
+F_IMPULSE_DT = 10.0e-3
+F_IMPULSE_PERIOD = 2.0
+F_IMPULSE_DELTA = 0.25
+F_IMPULSE_SCALE = 1000.0
+F_PROFILE_SCALE = 50.0
+F_PROFILE_WAVELENGTH = 0.2
+F_PROFILE_PERIOD = 1.0
 FLEX_STIFFNESS_SCALE = 1000
 FLEX_DAMPING_SCALE = 10
 
@@ -143,10 +147,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self.avoid_instable_collisions = avoid_instable_collisions
 
         # Robot and engine internal buffers
-        self._forces_impulse: Sequence[ForceImpulseType] = []
-        self._forces_profile: Sequence[ForceProfileType] = []
-        self._f_xy_profile_spline: Optional[
-            nb.core.dispatcher.Dispatcher] = None
+        self._f_xy_profile = [
+            PeriodicGaussianProcess(F_PROFILE_WAVELENGTH, F_PROFILE_PERIOD),
+            PeriodicGaussianProcess(F_PROFILE_PERIOD, F_PROFILE_PERIOD)]
         self._power_consumption_max = 0.0
         self._height_neutral = 0.0
 
@@ -187,10 +190,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         if not self.robot.has_freeflyer:
             raise RuntimeError(
                 "`WalkerJiminyEnv` only supports robots with freeflyer.")
-
-        # Remove already register forces
-        self._forces_impulse = []
-        self._forces_profile = []
 
         # Update some internal buffers used for computing the reward
         motor_effort_limit = self.robot.pinocchio_model.effortLimit[
@@ -282,52 +281,22 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     "determine the root joint.")
 
             # Schedule some external impulse forces applied on PelvisLink
-            for t_ref in np.arange(0.0, self.simu_duration_max, 2.0)[1:]:
-                f_xy_impulse = sample(dist='normal', shape=(2,), rg=self.rg)
-                f_xy_impulse /= np.linalg.norm(f_xy_impulse, ord=2)
-                f_xy_impulse *= sample(
-                    0.0, self.std_ratio['disturbance']*F_XY_IMPULSE_SCALE,
+            for t_ref in np.arange(
+                    0.0, self.simu_duration_max, F_IMPULSE_PERIOD)[1:]:
+                t = t_ref + sample(scale=F_IMPULSE_DELTA, rg=self.rg)
+                F_xy = sample(dist='normal', shape=(2,), rg=self.rg)
+                F_xy /= np.linalg.norm(F_xy, ord=2)
+                F_xy *= sample(
+                    0.0, self.std_ratio['disturbance']*F_IMPULSE_SCALE,
                     rg=self.rg)
-                wrench = np.concatenate((f_xy_impulse, np.zeros(4)))
-                t = t_ref + sample(scale=250e-3, rg=self.rg)
-                force_impulse = {
-                    'frame_name': frame_name,
-                    't': t, 'dt': 10e-3, 'F': wrench
-                }
-                self.simulator.register_force_impulse(**force_impulse)
-                self._forces_impulse.append(force_impulse)
+                self.simulator.register_force_impulse(
+                    frame_name, t, F_IMPULSE_DT, np.pad(F_xy, (0, 4)))
 
-            # Schedule a single force profile applied on PelvisLink.
-            # Internally, it relies on a linear interpolation instead
-            # of a spline for the sake of efficiency, since accuracy
-            # is not a big deal, and the derivative is not needed.
-            n_timesteps = 50
-            t_profile = np.linspace(0.0, 1.0, n_timesteps + 1)
-            f_xy_profile = PeriodicGaussianProcess(
-                mean=np.zeros((2, n_timesteps + 1)),
-                scale=(self.std_ratio['disturbance'] *
-                       F_XY_PROFILE_SCALE * np.ones(2)),
-                wavelength=np.tensor([1.0, 1.0]),
-                period=np.tensor([1.0]),
-                dt=np.tensor([1 / n_timesteps])
-            ).sample().T
-
-            @nb.jit(nopython=True, nogil=True)
-            def f_xy_profile_interp1d(t: float) -> float:
-                t_rel = t % 1.0
-                t_ind = np.searchsorted(t_profile, t_rel, 'right') - 1
-                ratio = (t_rel - t_profile[t_ind]) * n_timesteps
-                return (1 - ratio) * f_xy_profile[t_ind] + \
-                    ratio * f_xy_profile[t_ind + 1]
-
-            f_xy_profile_interp1d(0)  # Pre-compilation
-            self._f_xy_profile_spline = f_xy_profile_interp1d
-            force_profile = {
-                'frame_name': frame_name,
-                'force_function': self._force_external_profile
-            }
-            self.simulator.register_force_profile(**force_profile)
-            self._forces_profile.append(force_profile)
+            # Schedule a single periodic force profile applied on PelvisLink
+            for func in self._f_xy_profile:
+                func.reset()
+            self.simulator.register_force_profile(
+                frame_name, self._force_external_profile)
 
         # Set the options, finally
         self.robot.set_options(robot_options)
@@ -367,9 +336,11 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # pylint: disable=unused-argument
 
         # Assertion(s) for type checker
-        assert self._f_xy_profile_spline is not None
+        assert self._f_xy_profile is not None
 
-        wrench[:2] = self._f_xy_profile_spline(t / F_XY_PROFILE_PERIOD)
+        wrench[0] = F_PROFILE_SCALE * self._f_xy_profile[0](t)
+        wrench[1] = F_PROFILE_SCALE * self._f_xy_profile[1](t)
+        wrench[:2] *= self.std_ratio['disturbance']
 
     def is_done(self) -> bool:  # type: ignore[override]
         """Determine whether the episode is over.
