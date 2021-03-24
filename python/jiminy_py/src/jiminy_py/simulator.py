@@ -314,10 +314,15 @@ class Simulator:
         """
         assert isinstance(seed, np.uint32), "'seed' must have type np.uint32."
 
+        # Set the seed through the engine instead of using
+        # `jiminy.reset_random_generator` to keep track of the seed in options,
+        # and thereby to log it in the telemetry as constant.
         engine_options = self.engine.get_options()
         engine_options["stepper"]["randomSeed"] = \
             np.array(seed, dtype=np.dtype('uint32'))
         self.engine.set_options(engine_options)
+
+        # It is expected by OpenAI Gym API to reset env after setting the seed
         self.reset()
 
     def reset(self, remove_forces: bool = False):

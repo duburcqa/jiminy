@@ -184,9 +184,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Call the base implementation
         super()._setup()
 
-        # Check that a valid engine is available, and if not, create one
-        self.simulator.remove_forces()
-
         if not self.robot.has_freeflyer:
             raise RuntimeError(
                 "`WalkerJiminyEnv` only supports robots with freeflyer.")
