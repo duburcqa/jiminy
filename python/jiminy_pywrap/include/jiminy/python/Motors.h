@@ -1,8 +1,6 @@
 #ifndef MOTORS_PYTHON_H
 #define MOTORS_PYTHON_H
 
-#include "jiminy/python/Utilities.h"
-
 
 namespace jiminy
 {

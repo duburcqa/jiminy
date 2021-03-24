@@ -1,5 +1,6 @@
 #include "jiminy/core/robot/BasicMotors.h"
 
+#include "jiminy/python/Utilities.h"
 #include "jiminy/python/Motors.h"
 
 #include <boost/python.hpp>
@@ -113,7 +114,8 @@ namespace python
             bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
                        std::shared_ptr<SimpleMotor>,
                        boost::noncopyable>("SimpleMotor",
-                       bp::init<std::string>(bp::args("motor_name")))
+                       bp::init<std::string const &>(
+                       bp::args("self", "motor_name")))
                 .def(PySimpleMotorVisitor());
         }
     };

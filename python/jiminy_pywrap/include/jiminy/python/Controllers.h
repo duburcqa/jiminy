@@ -1,8 +1,6 @@
 #ifndef CONTROLLERS_PYTHON_H
 #define CONTROLLERS_PYTHON_H
 
-#include "jiminy/python/Utilities.h"
-
 
 namespace jiminy
 {

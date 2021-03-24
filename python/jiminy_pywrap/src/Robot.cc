@@ -3,6 +3,7 @@
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 
+#include "jiminy/python/Utilities.h"
 #include "jiminy/python/Robot.h"
 
 #include <boost/python.hpp>

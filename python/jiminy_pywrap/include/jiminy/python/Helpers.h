@@ -1,8 +1,6 @@
 #ifndef HELPERS_PYTHON_H
 #define HELPERS_PYTHON_H
 
-#include "jiminy/python/Utilities.h"
-
 
 namespace jiminy
 {

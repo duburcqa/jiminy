@@ -91,7 +91,7 @@ namespace python
                    std::shared_ptr<RandomPerlinProcess>,
                    boost::noncopyable>("RandomPerlinProcess",
                    bp::init<float64_t, uint32_t>(
-                   bp::args("wavelength", "num_octaves")))
+                   bp::args("self", "wavelength", "num_octaves")))
             .def("__call__", &RandomPerlinProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &RandomPerlinProcess::reset)
@@ -104,7 +104,7 @@ namespace python
                    std::shared_ptr<PeriodicPerlinProcess>,
                    boost::noncopyable>("PeriodicPerlinProcess",
                    bp::init<float64_t, float64_t, uint32_t>(
-                   bp::args("wavelength", "period", "num_octaves")))
+                   bp::args("self", "wavelength", "period", "num_octaves")))
             .def("__call__", &PeriodicPerlinProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &PeriodicPerlinProcess::reset)
@@ -119,7 +119,7 @@ namespace python
                    std::shared_ptr<PeriodicGaussianProcess>,
                    boost::noncopyable>("PeriodicGaussianProcess",
                    bp::init<float64_t, float64_t>(
-                   bp::args("wavelength", "period")))
+                   bp::args("self", "wavelength", "period")))
             .def("__call__", &PeriodicGaussianProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &PeriodicGaussianProcess::reset)
@@ -134,7 +134,7 @@ namespace python
                    std::shared_ptr<PeriodicFourierProcess>,
                    boost::noncopyable>("PeriodicFourierProcess",
                    bp::init<float64_t, float64_t>(
-                   bp::args("wavelength", "period")))
+                   bp::args("self", "wavelength", "period")))
             .def("__call__", &PeriodicFourierProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &PeriodicFourierProcess::reset)

@@ -2,6 +2,7 @@
 #include "jiminy/core/robot/BasicSensors.h"
 #include "jiminy/core/Types.h"
 
+#include "jiminy/python/Utilities.h"
 #include "jiminy/python/Sensors.h"
 
 #include <boost/python.hpp>
@@ -400,31 +401,36 @@ namespace python
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ImuSensor>,
                        boost::noncopyable>("ImuSensor",
-                       bp::init<std::string>(bp::args("frame_name")))
+                       bp::init<std::string>(
+                       bp::args("self", "frame_name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<ContactSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ContactSensor>,
                        boost::noncopyable>("ContactSensor",
-                       bp::init<std::string>(bp::args("frame_name")))
+                       bp::init<std::string>(
+                       bp::args("self", "frame_name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ForceSensor>,
                        boost::noncopyable>("ForceSensor",
-                       bp::init<std::string>(bp::args("frame_name")))
+                       bp::init<std::string>(
+                       bp::args("self", "frame_name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EncoderSensor>,
                        boost::noncopyable>("EncoderSensor",
-                       bp::init<std::string>(bp::args("joint_name")))
+                       bp::init<std::string>(
+                       bp::args("self", "joint_name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<EffortSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EffortSensor>,
                        boost::noncopyable>("EffortSensor",
-                       bp::init<std::string>(bp::args("joint_name")))
+                       bp::init<std::string>(
+                       bp::args("self", "joint_name")))
                 .def(PyBasicSensorsVisitor());
         }
     };

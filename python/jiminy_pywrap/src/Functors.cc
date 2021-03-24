@@ -2,8 +2,6 @@
 
 #include "jiminy/python/Functors.h"
 
-#include <boost/python.hpp>
-
 
 namespace jiminy
 {

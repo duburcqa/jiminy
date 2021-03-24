@@ -1,8 +1,6 @@
 #ifndef SIMULATOR_PYTHON_H
 #define SIMULATOR_PYTHON_H
 
-#include "jiminy/python/Utilities.h"
-
 
 namespace jiminy
 {

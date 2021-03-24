@@ -1,8 +1,6 @@
 #ifndef CONSTRAINTS_PYTHON_H
 #define CONSTRAINTS_PYTHON_H
 
-#include "jiminy/python/Utilities.h"
-
 
 namespace jiminy
 {
