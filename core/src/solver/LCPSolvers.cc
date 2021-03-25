@@ -1,18 +1,3 @@
-#include <math.h>
-#include <climits>
-#include <numeric>     /* iota */
-#include <stdlib.h>     /* srand, rand */
-#include <random>
-
-#ifndef _WIN32
-#include <pwd.h>
-#include <unistd.h>
-#include <getopt.h>
-#else
-#include <stdlib.h>
-#include <stdio.h>
-#endif
-
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/cholesky.hpp"
 

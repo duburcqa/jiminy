@@ -1,3 +1,5 @@
+#include <numeric>
+
 #include "jiminy/core/utilities/Random.h"
 
 
