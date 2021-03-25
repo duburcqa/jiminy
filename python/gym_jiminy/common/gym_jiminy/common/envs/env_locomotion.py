@@ -1,6 +1,6 @@
 """ TODO: Write documentation.
 """
-from typing import Optional, Dict, Union, Callable, Sequence, Any
+from typing import Optional, Dict, Union, Callable, Any
 
 import numpy as np
 import gym
@@ -284,13 +284,13 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             for t_ref in np.arange(
                     0.0, self.simu_duration_max, F_IMPULSE_PERIOD)[1:]:
                 t = t_ref + sample(scale=F_IMPULSE_DELTA, rg=self.rg)
-                F_xy = sample(dist='normal', shape=(2,), rg=self.rg)
-                F_xy /= np.linalg.norm(F_xy, ord=2)
-                F_xy *= sample(
+                f_xy = sample(dist='normal', shape=(2,), rg=self.rg)
+                f_xy /= np.linalg.norm(f_xy, ord=2)
+                f_xy *= sample(
                     0.0, self.std_ratio['disturbance']*F_IMPULSE_SCALE,
                     rg=self.rg)
                 self.simulator.register_force_impulse(
-                    frame_name, t, F_IMPULSE_DT, np.pad(F_xy, (0, 4)))
+                    frame_name, t, F_IMPULSE_DT, np.pad(f_xy, (0, 4)))
 
             # Schedule a single periodic force profile applied on PelvisLink
             for func in self._f_xy_profile:

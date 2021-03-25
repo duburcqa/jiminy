@@ -169,7 +169,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return super().__dir__() + self.simulator.__dir__()
 
     def __del__(self) -> None:
-        self.close()
+        try:
+            self.close()
+        except Exception:   # pylint: disable=broad-except
+            # This method must not fail under any circumstances
+            pass
 
     def _controller_handle(self,
                            t: float,
@@ -615,11 +619,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def close(self) -> None:
         """Terminate the Python Jiminy engine.
         """
-        try:
-            self.simulator.close()
-        except Exception:
-            # This method must not fail under any circumstances
-            pass
+        self.simulator.close()
 
     def step(self,
              action: Optional[SpaceDictNested] = None
