@@ -6,9 +6,11 @@
 #include "jiminy/core/utilities/Pinocchio.h"
 #include "jiminy/core/utilities/Random.h"
 
-#include "jiminy/python/Robot.h"
+#include "jiminy/python/Utilities.h"
+#include "jiminy/python/Helpers.h"
 
 #include <boost/python.hpp>
+#include <eigenpy/eigenpy.hpp>  // Required to have access to eigenpy from python converters
 
 
 namespace jiminy
@@ -90,7 +92,7 @@ namespace python
         bp::class_<RandomPerlinProcess,
                    std::shared_ptr<RandomPerlinProcess>,
                    boost::noncopyable>("RandomPerlinProcess",
-                   bp::init<float64_t, uint32_t>(
+                   bp::init<float64_t const &, uint32_t const &>(
                    (bp::arg("self"), "wavelength", bp::arg("num_octaves") = 6U)))
             .def("__call__", &RandomPerlinProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
@@ -103,7 +105,7 @@ namespace python
         bp::class_<PeriodicPerlinProcess,
                    std::shared_ptr<PeriodicPerlinProcess>,
                    boost::noncopyable>("PeriodicPerlinProcess",
-                   bp::init<float64_t, float64_t, uint32_t>(
+                   bp::init<float64_t const &, float64_t const &, uint32_t const &>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
             .def("__call__", &PeriodicPerlinProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
@@ -118,7 +120,7 @@ namespace python
         bp::class_<PeriodicGaussianProcess,
                    std::shared_ptr<PeriodicGaussianProcess>,
                    boost::noncopyable>("PeriodicGaussianProcess",
-                   bp::init<float64_t, float64_t>(
+                   bp::init<float64_t const &, float64_t const &>(
                    bp::args("self", "wavelength", "period")))
             .def("__call__", &PeriodicGaussianProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
@@ -133,7 +135,7 @@ namespace python
         bp::class_<PeriodicFourierProcess,
                    std::shared_ptr<PeriodicFourierProcess>,
                    boost::noncopyable>("PeriodicFourierProcess",
-                   bp::init<float64_t, float64_t>(
+                   bp::init<float64_t const &, float64_t const &>(
                    bp::args("self", "wavelength", "period")))
             .def("__call__", &PeriodicFourierProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))

@@ -48,8 +48,6 @@ namespace python
     template<typename T>
     using TimeStateFct = typename std::function<T (float64_t const &, vectorN_t const &, vectorN_t const &)>;
 
-
-
     #define TIME_STATE_FCT_EXPOSE(Type, Name) \
     bp::class_<TimeStateFct<Type>, boost::noncopyable>("TimeStateFunctor"#Name, bp::no_init) \
         .def("__call__", &TimeStateFct<Type>::operator(), \

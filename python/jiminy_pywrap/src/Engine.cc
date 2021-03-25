@@ -8,8 +8,8 @@
 #include "jiminy/python/Functors.h"
 #include "jiminy/python/Engine.h"
 
-
 #include <boost/python.hpp>
+
 
 namespace jiminy
 {
