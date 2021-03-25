@@ -6,6 +6,7 @@
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 
 #include "jiminy/python/Functors.h"
+#include "jiminy/python/Utilities.h"
 #include "jiminy/python/Engine.h"
 
 #include <boost/python.hpp>
@@ -50,18 +51,11 @@ namespace python
                                        bp::return_value_policy<bp::return_by_value>()))
             .add_property("force_func", forceProfileWrapper);
 
-        bp::class_<forceProfileRegister_t,
-                   boost::noncopyable>("ForceProfileVector", bp::no_init)
-            .def("__len__", bp::make_function(&forceProfileRegister_t::size,
-                            bp::return_value_policy<bp::return_by_value>()))
-            .def("__iter__", bp::iterator<std::vector<systemHolder_t>,
-                             bp::return_internal_reference<> >())
-            .def("__getitem__", bp::make_function(
-                                static_cast<
-                                    forceProfileRegister_t::reference (forceProfileRegister_t::*)(forceProfileRegister_t::size_type)
-                                >(&forceProfileRegister_t::at),
-                                bp::return_internal_reference<>(),
-                                (bp::arg("self"), "idx")));
+        /* Note that it will be impossible to slice the vector if `boost::noncopyable` is set
+           for the stl container, or if the value type contained itself. In such a case, it
+           raises a runtime error rather than a compile-time error. */
+        bp::class_<forceProfileRegister_t>("ForceProfileVector", bp::no_init)
+            .def(vector_indexing_suite_no_contains<forceProfileRegister_t>());
 
         bp::class_<forceImpulse_t,
                    std::shared_ptr<forceImpulse_t>,
@@ -79,17 +73,7 @@ namespace python
 
         bp::class_<forceImpulseRegister_t,
                    boost::noncopyable>("ForceImpulseVector", bp::no_init)
-            .def("__len__", bp::make_function(&forceImpulseRegister_t::size,
-                            bp::return_value_policy<bp::return_by_value>()))
-            .def("__iter__", bp::iterator<std::vector<systemHolder_t>,
-                             bp::return_internal_reference<> >())
-            .def("__getitem__", bp::make_function(
-                                static_cast<
-                                    forceImpulseRegister_t::reference (forceImpulseRegister_t::*)(
-                                        forceImpulseRegister_t::size_type)
-                                >(&forceImpulseRegister_t::at),
-                                bp::return_internal_reference<>(),
-                                (bp::arg("self"), "idx")));
+            .def(vector_indexing_suite_no_contains<forceImpulseRegister_t>());
 
         bp::class_<forceCoupling_t,
                    std::shared_ptr<forceCoupling_t>,
@@ -106,17 +90,7 @@ namespace python
 
         bp::class_<forceCouplingRegister_t,
                    boost::noncopyable>("ForceCouplingVector", bp::no_init)
-            .def("__len__", bp::make_function(&forceCouplingRegister_t::size,
-                            bp::return_value_policy<bp::return_by_value>()))
-            .def("__iter__", bp::iterator<std::vector<systemHolder_t>,
-                             bp::return_internal_reference<> >())
-            .def("__getitem__", bp::make_function(
-                                static_cast<
-                                    forceCouplingRegister_t::reference (forceCouplingRegister_t::*)(
-                                        forceCouplingRegister_t::size_type)
-                                >(&forceCouplingRegister_t::at),
-                                bp::return_internal_reference<>(),
-                                (bp::arg("self"), "idx")));
+            .def(vector_indexing_suite_no_contains<forceCouplingRegister_t>());
     }
 
     // ***************************** PyStepperStateVisitor ***********************************
@@ -335,23 +309,11 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<systemHolder_t,
-                       boost::noncopyable>("system", bp::no_init)
+            bp::class_<systemHolder_t>("system", bp::no_init)
                 .def(PySystemVisitor());
 
-            bp::class_<std::vector<systemHolder_t>,
-                       boost::noncopyable>("systemVector", bp::no_init)
-                .def("__len__", bp::make_function(&std::vector<systemHolder_t>::size,
-                                bp::return_value_policy<bp::return_by_value>()))
-                .def("__iter__", bp::iterator<std::vector<systemHolder_t>,
-                                 bp::return_internal_reference<> >())
-                .def("__getitem__", bp::make_function(
-                                    static_cast<
-                                        std::vector<systemHolder_t>::reference (std::vector<systemHolder_t>::*)(
-                                            std::vector<systemHolder_t>::size_type)
-                                    >(&std::vector<systemHolder_t>::at),
-                                    bp::return_internal_reference<>(),
-                                    (bp::arg("self"), "idx")));
+            bp::class_<std::vector<systemHolder_t> >("systemVector", bp::no_init)
+                .def(vector_indexing_suite_no_contains<std::vector<systemHolder_t> >());
         }
     };
 

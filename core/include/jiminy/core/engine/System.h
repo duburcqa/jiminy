@@ -89,6 +89,10 @@ namespace jiminy
                        std::shared_ptr<Robot> robotIn,
                        std::shared_ptr<AbstractController> controllerIn,
                        callbackFunctor_t callbackFctIn);
+        systemHolder_t(systemHolder_t const & other) = default;
+        systemHolder_t(systemHolder_t && other) = default;
+        systemHolder_t & operator = (systemHolder_t const & other) = default;
+        systemHolder_t & operator = (systemHolder_t && other) = default;
         ~systemHolder_t(void) = default;
 
     public:

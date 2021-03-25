@@ -14,6 +14,7 @@
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
 #include <boost/python/object/function_doc_signature.hpp>
+#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 
 namespace jiminy
@@ -77,6 +78,31 @@ namespace python
         // bp::object ns(bp::handle<>(bp::borrowed(nsPtr)));
         // bp::objects::add_to_namespace(ns, "force_func", func);
     }
+
+    // Forward declaration
+    template <class Container, bool NoProxy, class DerivedPolicies>
+    class vector_indexing_suite_no_contains;
+
+    namespace detail
+    {
+        template <class Container, bool NoProxy>
+        class final_vector_derived_policies
+            : public vector_indexing_suite_no_contains<Container,
+                NoProxy, bp::detail::final_vector_derived_policies<Container, NoProxy> > {};
+    }
+
+    template <class Container,
+              bool NoProxy = false,
+              class DerivedPolicies = detail::final_vector_derived_policies<Container, NoProxy> >
+    class vector_indexing_suite_no_contains : public bp::vector_indexing_suite<Container, NoProxy, DerivedPolicies>
+    {
+    public:
+        static bool contains(Container & container, typename Container::value_type const & key)
+        {
+            throw std::runtime_error("Contains method not supported.");
+            return false;
+        }
+    };
 
     // ****************************************************************************
     // **************************** C++ TO PYTHON *********************************
