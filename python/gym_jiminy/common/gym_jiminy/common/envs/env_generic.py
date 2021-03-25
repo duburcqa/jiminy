@@ -610,10 +610,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return [self._seed]
 
     def close(self) -> None:
-        """Terminate the Python Jiminy engine. Mostly defined for
-           compatibility with Gym OpenAI.
+        """Terminate the Python Jiminy engine.
         """
-        self.simulator.close()
+        try:
+            self.simulator.close()
+        except Exception:
+            # This method must not fail under any circumstances
+            pass
 
     def step(self,
              action: Optional[SpaceDictNested] = None
