@@ -42,13 +42,13 @@ namespace jiminy
            it is irrelevant for a single robot engine. */
         if (controller)
         {
-            returnCode = addSystem("", std::move(robot),
-                                   std::move(controller),
-                                   std::move(callbackFct));
+            returnCode = EngineMultiRobot::addSystem(
+                "", std::move(robot), std::move(controller), std::move(callbackFct));
         }
         else
         {
-            returnCode = addSystem("", std::move(robot), std::move(callbackFct));
+            returnCode = EngineMultiRobot::addSystem(
+                "", std::move(robot), std::move(callbackFct));
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -79,7 +79,25 @@ namespace jiminy
 
     hresult_t Engine::setController(std::shared_ptr<AbstractController> controller)
     {
-        return setController("", controller);
+        return EngineMultiRobot::setController("", controller);
+    }
+
+    hresult_t Engine::addSystem(std::string const & systemName,
+                                std::shared_ptr<Robot> robot,
+                                std::shared_ptr<AbstractController> controller)
+    {
+        PRINT_ERROR("This method is not supported by this class. Please call "
+                    "`initialize` instead to set the model, or use `EngineMultiRobot` "
+                    "class directly to simulate multiple robots simultaneously.");
+        return hresult_t::ERROR_GENERIC;
+    }
+
+    hresult_t Engine::removeSystem(std::string const & systemName)
+    {
+        PRINT_ERROR("This method is not supported by this class. Please call "
+                    "`initialize` instead to set the model, or use `EngineMultiRobot` "
+                    "class directly to simulate multiple robots simultaneously.");
+        return hresult_t::ERROR_GENERIC;
     }
 
     hresult_t singleToMultipleSystemsInitialData(Robot const & robot,
@@ -137,7 +155,6 @@ namespace jiminy
 
         return returnCode;
     }
-
 
     hresult_t Engine::start(vectorN_t const & qInit,
                             vectorN_t const & vInit,
