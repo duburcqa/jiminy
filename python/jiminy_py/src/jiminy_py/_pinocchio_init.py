@@ -14,5 +14,6 @@ def loadPrimitive(self, meshName, geometry_object):  # noqa
         return False
     else:
         return loadPrimitive_orig(self, meshName, geometry_object)
+
 pin.visualize.gepetto_visualizer.GepettoVisualizer.loadPrimitive = \
     loadPrimitive  # noqa
