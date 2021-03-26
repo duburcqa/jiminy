@@ -50,10 +50,19 @@ namespace python
         return positionOut;
     }
 
+    void resetRandomGenerators(bp::object const & seedPy)
+    {
+        std::optional<uint32_t> seed = std::nullopt;
+        if (!seedPy.is_none())
+        {
+            seed = bp::extract<uint32_t>(seedPy);
+        }
+        ::jiminy::resetRandomGenerators(seed);
+    }
 
     void exposeHelpers(void)
     {
-        bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed")));
+        bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed") = bp::object()));
 
         bp::def("get_joint_type", &getJointTypeFromIdx,
                                   (bp::arg("pinocchio_model"), "joint_idx"));

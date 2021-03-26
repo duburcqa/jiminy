@@ -417,9 +417,11 @@ namespace python
 
                 .def("reset",
                     static_cast<
-                        void (EngineMultiRobot::*)(bool_t const &)
+                        void (EngineMultiRobot::*)(bool_t const &, bool_t const &)
                     >(&EngineMultiRobot::reset),
-                    (bp::arg("self"), bp::arg("remove_all_forces") = false))
+                    (bp::arg("self"),
+                     bp::arg("remove_all_forces") = false,
+                     bp::arg("remove_all_forces") = false))
                 .def("start", &PyEngineMultiRobotVisitor::start,
                               (bp::arg("self"), "q_init_list", "v_init_list",
                                bp::arg("a_init_list") = bp::object(),  // bp::object() means 'None' in Python

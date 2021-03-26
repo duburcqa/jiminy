@@ -9,7 +9,9 @@ namespace jiminy
 {
     // ************ Random number generator utilities ***************
 
-    void resetRandomGenerators(uint32_t const & seed);
+    void resetRandomGenerators(std::optional<uint32_t> const & seed = std::nullopt);
+
+    hresult_t getRandomSeed(uint32_t & seed);
 
     float64_t randUniform(float64_t const & lo = 0.0,
                           float64_t const & hi = 1.0);

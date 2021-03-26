@@ -398,11 +398,12 @@ namespace jiminy
         /// \details This function resets the engine, the robot and the controller.
         ///          This method is made to be called in between simulations, to allow
         ///          registering of new variables to log, and reset the random number
-        ///          generator.
+        ///          generators.
         ///
-        /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
-        ///                                      during the simulation.
-        void reset(bool_t const & resetDynamicForceRegister = false);
+        /// \param[in] resetRandomNumbers Whether or not to reset the random number generators.
+        /// \param[in] removeAllForce Whether or not to remove registered external forces.
+        void reset(bool_t const & resetRandomNumbers = false,
+                   bool_t const & removeAllForce = false);
 
         /// \brief Reset the engine and compute initial state.
         ///
@@ -412,14 +413,13 @@ namespace jiminy
         /// \param[in] qInit Initial configuration of every system.
         /// \param[in] vInit Initial velocity of every system.
         /// \param[in] aInit Initial acceleration of every system. Optional: Zero by default.
-        /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
-        /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
-        ///                                      during the simulation.
+        /// \param[in] resetRandomNumbers Whether or not to reset the random number generators.
+        /// \param[in] removeAllForce Whether or not to remove registered external forces.
         hresult_t start(std::map<std::string, vectorN_t> const & qInit,
                         std::map<std::string, vectorN_t> const & vInit,
                         std::optional<std::map<std::string, vectorN_t> > const & aInit = std::nullopt,
                         bool_t const & resetRandomNumbers = false,
-                        bool_t const & resetDynamicForceRegister = false);
+                        bool_t const & removeAllForce = false);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -503,8 +503,6 @@ namespace jiminy
         void syncStepperStateWithSystems(void);
         void syncSystemsStateWithStepper(bool_t const & sync_acceleration_only = false);
 
-        void reset(bool_t const & resetRandomNumbers,
-                   bool_t const & resetDynamicForceRegister);
 
         /// \brief Compute the force resulting from ground contact on a given body.
         ///

@@ -42,14 +42,14 @@ namespace jiminy
         /// \param[in] aInit Initial acceleration. Optional: Zero by default.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
-        /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
+        /// \param[in] removeAllForce Whether or not to register the external force profiles applied
         ///                                      during the simulation.
         hresult_t start(vectorN_t const & qInit,
                         vectorN_t const & vInit,
                         std::optional<vectorN_t> const & aInit = std::nullopt,
                         bool_t    const & isStateTheoretical = false,
                         bool_t    const & resetRandomNumbers = false,
-                        bool_t    const & resetDynamicForceRegister = false);
+                        bool_t    const & removeAllForce = false);
 
         /// \brief Run a simulation of duration tEnd, starting at xInit.
         ///
