@@ -461,7 +461,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.stop()
 
         # Remove external forces, if any
-        self.simulator.remove_forces()
+        self.simulator.remove_all_forces()
 
         # Make sure the environment is properly setup
         self._setup()

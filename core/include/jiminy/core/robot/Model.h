@@ -394,7 +394,7 @@ namespace jiminy
         pinocchio::Model pncModel_;
         mutable pinocchio::Data pncData_;
         pinocchio::GeometryModel pncGeometryModel_;
-        mutable std::unique_ptr<pinocchio::GeometryData> pncGeometryData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes segfault for Pinocchio < 2.4.0.
+        mutable std::unique_ptr<pinocchio::GeometryData> pncGeometryData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes Pinocchio segfault at least up to v2.5.6
         pinocchio::Model pncModelRigidOrig_;
         pinocchio::Data pncDataRigidOrig_;
         std::unique_ptr<modelOptions_t const> mdlOptions_;
