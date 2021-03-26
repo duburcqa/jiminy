@@ -391,6 +391,8 @@ namespace jiminy
 
         forceCouplingRegister_t const & getForcesCoupling(void) const;
 
+        hresult_t removeAllForces(void);
+
         /// \brief Reset engine.
         ///
         /// \details This function resets the engine, the robot and the controller.
@@ -460,6 +462,11 @@ namespace jiminy
         hresult_t registerForceProfile(std::string const & systemName,
                                        std::string const & frameName,
                                        forceProfileFunctor_t forceFct);
+
+        hresult_t removeForcesImpulse(std::string const & systemName);
+        hresult_t removeForcesProfile(std::string const & systemName);
+        hresult_t removeForcesImpulse(void);
+        hresult_t removeForcesProfile(void);
 
         hresult_t getForcesImpulse(std::string const & systemName,
                                    forceImpulseRegister_t const * & forcesImpulsePtr) const;

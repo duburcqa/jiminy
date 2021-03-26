@@ -64,6 +64,10 @@ namespace jiminy
         hresult_t registerForceProfile(std::string           const & frameName,
                                        forceProfileFunctor_t         forceFct);
 
+        // Redefined to take advantage of C++ name hiding of overloaded methods of base class in dervied class
+        hresult_t removeForcesImpulse(void);
+        hresult_t removeForcesProfile(void);
+
         forceImpulseRegister_t const & getForcesImpulse(void) const;
         forceProfileRegister_t const & getForcesProfile(void) const;
 
@@ -78,6 +82,8 @@ namespace jiminy
                                                                std::string const & frameName2,
                                                                float64_t   const & stiffness,
                                                                float64_t   const & damping);
+
+        hresult_t removeAllForces(void);
 
         bool_t const & getIsInitialized(void) const;
         hresult_t getSystem(systemHolder_t * & system);

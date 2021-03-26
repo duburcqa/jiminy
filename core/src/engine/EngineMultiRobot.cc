@@ -606,6 +606,21 @@ namespace jiminy
         return forcesCoupling_;
     }
 
+    hresult_t EngineMultiRobot::removeAllForces(void)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+        returnCode = removeForcesCoupling();
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = removeForcesImpulse();
+        }
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = removeForcesProfile();
+        }
+        return returnCode;
+    }
+
     hresult_t EngineMultiRobot::configureTelemetry(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -2161,6 +2176,92 @@ namespace jiminy
         }
 
         return returnCode;
+    }
+
+    hresult_t EngineMultiRobot::removeForcesImpulse(std::string const & systemName)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
+        int32_t systemIdx;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystemIdx(systemName, systemIdx);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            systemDataHolder_t & systemData = systemsDataHolder_[systemIdx];
+            systemData.forcesImpulse.clear();
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t EngineMultiRobot::removeForcesImpulse(void)
+    {
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        for (auto & systemData : systemsDataHolder_)
+        {
+            systemData.forcesImpulse.clear();
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t EngineMultiRobot::removeForcesProfile(std::string const & systemName)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        int32_t systemIdx;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystemIdx(systemName, systemIdx);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            systemDataHolder_t & systemData = systemsDataHolder_[systemIdx];
+            systemData.forcesProfile.clear();
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t EngineMultiRobot::removeForcesProfile(void)
+    {
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        for (auto & systemData : systemsDataHolder_)
+        {
+            systemData.forcesProfile.clear();
+        }
+
+        return hresult_t::SUCCESS;
     }
 
     hresult_t EngineMultiRobot::getForcesImpulse(std::string const & systemName,

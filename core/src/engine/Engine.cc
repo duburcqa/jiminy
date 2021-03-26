@@ -217,6 +217,16 @@ namespace jiminy
         return EngineMultiRobot::registerForceProfile("", frameName, forceFct);
     }
 
+    hresult_t Engine::removeForcesImpulse(void)
+    {
+        return EngineMultiRobot::removeForcesImpulse("");
+    }
+
+    hresult_t Engine::removeForcesProfile(void)
+    {
+        return EngineMultiRobot::removeForcesProfile("");
+    }
+
     forceImpulseRegister_t const & Engine::getForcesImpulse(void) const
     {
         forceImpulseRegister_t const * forcesImpulse;
@@ -263,6 +273,11 @@ namespace jiminy
     {
         return EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping);
+    }
+
+    hresult_t Engine::removeForcesCoupling(void)
+    {
+        return EngineMultiRobot::removeForcesCoupling("");
     }
 
     bool_t const & Engine::getIsInitialized(void) const
