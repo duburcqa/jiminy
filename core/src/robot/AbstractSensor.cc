@@ -1,5 +1,6 @@
 #include "jiminy/core/robot/Robot.h"
 
+#include "jiminy/core/utilities/Random.h"
 #include "jiminy/core/robot/AbstractSensor.h"
 
 

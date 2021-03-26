@@ -29,7 +29,7 @@ Conversion from/to JSON
 Random number generation
 ------------------------
 
-.. doxygenfunction:: jiminy::resetRandGenerators
+.. doxygenfunction:: jiminy::resetRandomGenerators
    :project: jiminy
 
 .. doxygenfunction:: jiminy::randUniform

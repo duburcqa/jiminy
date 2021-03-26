@@ -6,6 +6,7 @@
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 
 #include "jiminy/python/Functors.h"
+#include "jiminy/python/Utilities.h"
 #include "jiminy/python/Engine.h"
 
 #include <boost/python.hpp>
@@ -16,6 +17,81 @@ namespace jiminy
 namespace python
 {
     namespace bp = boost::python;
+
+    // ************* Expose impulse, profile, and coupling force registers **************
+
+    static bp::object forceProfileWrapper(forceProfile_t const & self)
+    {
+        bp::object func = bp::make_function(self.forceFct,
+                                            bp::return_value_policy<bp::return_by_value>(),
+                                            (bp::args("t", "q", "v")),
+                                            functionToMLP(self.forceFct));
+        setFunctionWrapperModule<forceProfile_t>(func);
+        return func;
+    }
+
+    static bp::object forceCouplingWrapper(forceCoupling_t const & self)
+    {
+        bp::object func = bp::make_function(self.forceFct,
+                                            bp::return_value_policy<bp::return_by_value>(),
+                                            (bp::args("t", "q_1", "v_1", "q_2", "v_2")),
+                                            functionToMLP(self.forceFct));
+        setFunctionWrapperModule<forceCoupling_t>(func);
+        return func;
+    }
+
+    void exposeForces(void)
+    {
+        bp::class_<forceProfile_t,
+                   std::shared_ptr<forceProfile_t>,
+                   boost::noncopyable>("ForceProfile", bp::no_init)
+            .add_property("frame_name", bp::make_getter(&forceProfile_t::frameName,
+                                        bp::return_value_policy<bp::return_by_value>()))
+            .add_property("frame_idx", bp::make_getter(&forceProfile_t::frameIdx,
+                                       bp::return_value_policy<bp::return_by_value>()))
+            .add_property("force_func", forceProfileWrapper);
+
+        /* Note that it will be impossible to slice the vector if `boost::noncopyable` is set
+           for the stl container, or if the value type contained itself. In such a case, it
+           raises a runtime error rather than a compile-time error. */
+        bp::class_<forceProfileRegister_t>("ForceProfileVector", bp::no_init)
+            .def(vector_indexing_suite_no_contains<forceProfileRegister_t>());
+
+        bp::class_<forceImpulse_t,
+                   std::shared_ptr<forceImpulse_t>,
+                   boost::noncopyable>("ForceImpulse", bp::no_init)
+            .add_property("frame_name", bp::make_getter(&forceImpulse_t::frameName,
+                                        bp::return_value_policy<bp::return_by_value>()))
+            .add_property("frame_idx", bp::make_getter(&forceImpulse_t::frameIdx,
+                                       bp::return_value_policy<bp::return_by_value>()))
+            .add_property("t", bp::make_getter(&forceImpulse_t::t,
+                               bp::return_value_policy<bp::return_by_value>()))
+            .add_property("dt", bp::make_getter(&forceImpulse_t::dt,
+                                bp::return_value_policy<bp::return_by_value>()))
+            .add_property("F", bp::make_getter(&forceImpulse_t::F,
+                               bp::return_internal_reference<>()));
+
+        bp::class_<forceImpulseRegister_t,
+                   boost::noncopyable>("ForceImpulseVector", bp::no_init)
+            .def(vector_indexing_suite_no_contains<forceImpulseRegister_t>());
+
+        bp::class_<forceCoupling_t,
+                   std::shared_ptr<forceCoupling_t>,
+                   boost::noncopyable>("ForceProfile", bp::no_init)
+            .add_property("system_name_1", bp::make_getter(&forceCoupling_t::systemName1,
+                                           bp::return_value_policy<bp::return_by_value>()))
+            .add_property("system_idx_2", bp::make_getter(&forceCoupling_t::systemIdx1,
+                                          bp::return_value_policy<bp::return_by_value>()))
+            .add_property("system_name_2", bp::make_getter(&forceCoupling_t::systemName2,
+                                           bp::return_value_policy<bp::return_by_value>()))
+            .add_property("system_idx_2", bp::make_getter(&forceCoupling_t::systemIdx2,
+                                          bp::return_value_policy<bp::return_by_value>()))
+            .add_property("force_func", forceCouplingWrapper);
+
+        bp::class_<forceCouplingRegister_t,
+                   boost::noncopyable>("ForceCouplingVector", bp::no_init)
+            .def(vector_indexing_suite_no_contains<forceCouplingRegister_t>());
+    }
 
     // ***************************** PyStepperStateVisitor ***********************************
 
@@ -228,35 +304,16 @@ namespace python
                 ;
         }
 
-        static uint32_t getLength(std::vector<systemHolder_t> & self)
-        {
-            return self.size();
-        }
-
-        static systemHolder_t & getItem(std::vector<systemHolder_t>       & self,
-                                            int32_t                         const & idx)
-        {
-            return self[idx];
-        }
-
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose.
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<systemHolder_t,
-                       boost::noncopyable>("system", bp::no_init)
+            bp::class_<systemHolder_t>("system", bp::no_init)
                 .def(PySystemVisitor());
 
-            bp::class_<std::vector<systemHolder_t>,
-                       boost::noncopyable>("systemVector", bp::no_init)
-                .def("__len__", bp::make_function(&PySystemVisitor::getLength,
-                                bp::return_value_policy<bp::return_by_value>()))
-                .def("__iter__", bp::iterator<std::vector<systemHolder_t>,
-                                 bp::return_internal_reference<> >())
-                .def("__getitem__", bp::make_function(&PySystemVisitor::getItem,
-                                    bp::return_internal_reference<>(),
-                                    (bp::arg("self"), "idx")));
+            bp::class_<std::vector<systemHolder_t> >("systemVector", bp::no_init)
+                .def(vector_indexing_suite_no_contains<std::vector<systemHolder_t> >());
         }
     };
 
@@ -288,12 +345,12 @@ namespace python
                 .def("set_controller", &EngineMultiRobot::setController,
                                       (bp::arg("self"), "system_name", "controller"))
 
-                .def("add_coupling_force", &PyEngineMultiRobotVisitor::addCouplingForce,
-                                           (bp::arg("self"),
-                                            "system_name_1", "system_name_2",
-                                            "frame_name_1", "frame_name_2",
-                                            "force_function"))
-                .def("add_viscoelastic_coupling_force",
+                .def("register_force_coupling", &PyEngineMultiRobotVisitor::registerForceCoupling,
+                                                (bp::arg("self"),
+                                                 "system_name_1", "system_name_2",
+                                                 "frame_name_1", "frame_name_2",
+                                                 "force_function"))
+                .def("register_viscoelastic_force_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
                             std::string const &,
@@ -302,10 +359,10 @@ namespace python
                             std::string const &,
                             vectorN_t   const &,
                             vectorN_t   const &)
-                    >(&EngineMultiRobot::addViscoElasticCouplingForce),
+                    >(&EngineMultiRobot::registerViscoElasticForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2",
                      "frame_name_1", "frame_name_2", "stiffness", "damping"))
-                .def("add_viscoelastic_coupling_force",
+                .def("register_viscoelastic_force_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
                             std::string const &,
@@ -313,10 +370,10 @@ namespace python
                             std::string const &,
                             vectorN_t   const &,
                             vectorN_t   const &)
-                    >(&EngineMultiRobot::addViscoElasticCouplingForce),
+                    >(&EngineMultiRobot::registerViscoElasticForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
                      "stiffness", "damping"))
-                .def("add_viscoelastic_directional_coupling_force",
+                .def("register_viscoelastic_directional_force_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
                             std::string const &,
@@ -325,10 +382,10 @@ namespace python
                             std::string const &,
                             float64_t   const &,
                             float64_t   const &)
-                    >(&EngineMultiRobot::addViscoElasticDirectionalCouplingForce),
+                    >(&EngineMultiRobot::registerViscoElasticDirectionalForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2",
                      "frame_name_1", "frame_name_2", "stiffness", "damping"))
-                .def("add_viscoelastic_directional_coupling_force",
+                .def("register_viscoelastic_directional_force_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
                             std::string const &,
@@ -336,24 +393,26 @@ namespace python
                             std::string const &,
                             float64_t   const &,
                             float64_t   const &)
-                    >(&EngineMultiRobot::addViscoElasticDirectionalCouplingForce),
+                    >(&EngineMultiRobot::registerViscoElasticDirectionalForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
                      "stiffness", "damping"))
-                .def("remove_coupling_forces",
+                .def("remove_forces_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(std::string const &, std::string const &)
-                    >(&EngineMultiRobot::removeCouplingForces),
+                    >(&EngineMultiRobot::removeForcesCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2"))
-                .def("remove_coupling_forces",
+                .def("remove_forces_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(std::string const &)
-                    >(&EngineMultiRobot::removeCouplingForces),
+                    >(&EngineMultiRobot::removeForcesCoupling),
                     (bp::arg("self"), "system_name"))
-                .def("remove_coupling_forces",
+                .def("remove_forces_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(void)
-                    >(&EngineMultiRobot::removeCouplingForces),
+                    >(&EngineMultiRobot::removeForcesCoupling),
                     (bp::arg("self")))
+                .add_property("forces_coupling", bp::make_function(&EngineMultiRobot::getForcesCoupling,
+                                                 bp::return_internal_reference<>()))
 
                 .def("reset",
                     static_cast<
@@ -391,6 +450,11 @@ namespace python
                                                (bp::arg("self"), "system_name",
                                                 "frame_name", "force_function"))
                 .def("remove_forces", &PyEngineMultiRobotVisitor::removeForces)
+
+                .add_property("forces_impulse", bp::make_function(&PyEngineMultiRobotVisitor::getForcesImpulse,
+                                                bp::return_internal_reference<>()))
+                .add_property("forces_profile", bp::make_function(&PyEngineMultiRobotVisitor::getForcesProfile,
+                                                bp::return_internal_reference<>()))
 
                 .def("get_options", &EngineMultiRobot::getOptions)
                 .def("set_options", &PyEngineMultiRobotVisitor::setOptions)
@@ -458,6 +522,22 @@ namespace python
             return *system;
         }
 
+        static forceImpulseRegister_t const & getForcesImpulse(EngineMultiRobot  & self,
+                                                               std::string const & systemName)
+        {
+            forceImpulseRegister_t const * forcesImpulse;
+            self.getForcesImpulse(systemName, forcesImpulse);
+            return *forcesImpulse;
+        }
+
+        static forceProfileRegister_t const & getForcesProfile(EngineMultiRobot  & self,
+                                                               std::string const & systemName)
+        {
+            forceProfileRegister_t const * forcesProfile;
+            self.getForcesProfile(systemName, forcesProfile);
+            return *forcesProfile;
+        }
+
         static systemState_t const & getSystemState(EngineMultiRobot  & self,
                                                     std::string const & systemName)
         {
@@ -466,15 +546,15 @@ namespace python
             return *systemState;
         }
 
-        static hresult_t addCouplingForce(EngineMultiRobot       & self,
-                                          std::string      const & systemName1,
-                                          std::string      const & systemName2,
-                                          std::string      const & frameName1,
-                                          std::string      const & frameName2,
-                                          bp::object       const & forcePy)
+        static hresult_t registerForceCoupling(EngineMultiRobot       & self,
+                                               std::string      const & systemName1,
+                                               std::string      const & systemName2,
+                                               std::string      const & frameName1,
+                                               std::string      const & frameName2,
+                                               bp::object       const & forcePy)
         {
             TimeBistateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            return self.addCouplingForce(
+            return self.registerForceCoupling(
                 systemName1, systemName2, frameName1, frameName2, std::move(forceFct));
         }
 
@@ -745,20 +825,31 @@ namespace python
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
                 .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
                                                (bp::arg("self"), "frame_name", "force_function"))
-                .def("add_coupling_force", &PyEngineVisitor::addCouplingForce,
-                                           (bp::arg("self"), "frame_name_1", "frame_name_2", "force_function"))
-                .def("add_viscoelastic_coupling_force",
+                .def("register_force_coupling", &PyEngineVisitor::registerForceCoupling,
+                                                (bp::arg("self"), "frame_name_1", "frame_name_2", "force_function"))
+                .def("register_viscoelastic_force_coupling",
                     static_cast<
                         hresult_t (Engine::*)(
                             std::string const &, std::string const &, vectorN_t const &, vectorN_t const &)
-                    >(&Engine::addViscoElasticCouplingForce),
+                    >(&Engine::registerViscoElasticForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping"))
-                .def("add_viscoelastic_directional_coupling_force",
+                .def("register_viscoelastic_directional_force_coupling",
                     static_cast<
                         hresult_t (Engine::*)(
                             std::string const &, std::string const &, float64_t const &, float64_t const &)
-                    >(&Engine::addViscoElasticDirectionalCouplingForce),
+                    >(&Engine::registerViscoElasticDirectionalForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping"))
+
+                .add_property("forces_impulse", bp::make_function(
+                                                static_cast<
+                                                    forceImpulseRegister_t const & (Engine::*)(void) const
+                                                >(&Engine::getForcesImpulse),
+                                                bp::return_internal_reference<>()))
+                .add_property("forces_profile", bp::make_function(
+                                                static_cast<
+                                                    forceProfileRegister_t const & (Engine::*)(void) const
+                                                >(&Engine::getForcesProfile),
+                                                bp::return_internal_reference<>()))
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
@@ -820,13 +911,13 @@ namespace python
             self.registerForceProfile(frameName, std::move(forceFct));
         }
 
-        static hresult_t addCouplingForce(Engine            & self,
-                                          std::string const & frameName1,
-                                          std::string const & frameName2,
-                                          bp::object  const & forcePy)
+        static hresult_t registerForceCoupling(Engine            & self,
+                                               std::string const & frameName1,
+                                               std::string const & frameName2,
+                                               bp::object  const & forcePy)
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            return self.addCouplingForce(frameName1, frameName2, std::move(forceFct));
+            return self.registerForceCoupling(frameName1, frameName2, std::move(forceFct));
         }
 
         static systemHolder_t & getSystem(Engine & self)

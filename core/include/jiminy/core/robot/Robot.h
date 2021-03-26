@@ -2,7 +2,6 @@
 #define JIMINY_ROBOT_H
 
 #include "jiminy/core/robot/Model.h"
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
 
@@ -13,6 +12,8 @@ namespace jiminy
     struct SensorSharedDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
+    class MutexLocal;
+    class LockGuardLocal;
 
     class Robot : public Model
     {
@@ -126,7 +127,7 @@ namespace jiminy
         // Getters without 'get' prefix for consistency with pinocchio C++ API
         int32_t const & nmotors(void) const;
 
-        hresult_t getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock);
+        hresult_t getLock(std::unique_ptr<LockGuardLocal> & lock);
         bool_t const & getIsLocked(void) const;
 
     protected:
@@ -147,7 +148,7 @@ namespace jiminy
         int32_t nmotors_;                                                           ///< The number of motors
 
     private:
-        MutexLocal mutexLocal_;
+        std::unique_ptr<MutexLocal> mutexLocal_;
         std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
         sensorsSharedHolder_t sensorsSharedHolder_;
     };

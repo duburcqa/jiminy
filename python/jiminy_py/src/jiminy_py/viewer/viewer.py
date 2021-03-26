@@ -893,7 +893,8 @@ class Viewer:
             config.set_value('framebuffer-hardware', '0')
             config.set_value('load-display', 'pandagl')
             config.set_value('aux-display',
-                             'pandadx9'
+                             'p3headlessgl'
+                             '\naux-display pandadx9'
                              '\naux-display pandadx8'
                              '\naux-display p3tinydisplay')
             client = Panda3dViewer(

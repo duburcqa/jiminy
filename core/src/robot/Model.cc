@@ -18,7 +18,9 @@
 #include "jiminy/core/robot/JointConstraint.h"
 #include "jiminy/core/robot/SphereConstraint.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/utilities/Pinocchio.h"
+#include "jiminy/core/utilities/Random.h"
+#include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/Constants.h"
 
 #include "jiminy/core/robot/Model.h"

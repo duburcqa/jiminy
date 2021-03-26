@@ -2,8 +2,7 @@
 
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
-
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/utilities/Helpers.h"
 
 #include "jiminy/core/robot/BasicMotors.h"
 

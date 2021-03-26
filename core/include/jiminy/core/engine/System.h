@@ -15,6 +15,7 @@ namespace jiminy
     class Robot;
     class AbstractConstraintBase;
     class AbstractController;
+    class LockGuardLocal;
 
     struct forceProfile_t
     {
@@ -88,6 +89,10 @@ namespace jiminy
                        std::shared_ptr<Robot> robotIn,
                        std::shared_ptr<AbstractController> controllerIn,
                        callbackFunctor_t callbackFctIn);
+        systemHolder_t(systemHolder_t const & other) = default;
+        systemHolder_t(systemHolder_t && other) = default;
+        systemHolder_t & operator = (systemHolder_t const & other) = default;
+        systemHolder_t & operator = (systemHolder_t && other) = default;
         ~systemHolder_t(void) = default;
 
     public:
@@ -130,7 +135,7 @@ namespace jiminy
         ~systemDataHolder_t(void) = default;
 
     public:
-        std::unique_ptr<MutexLocal::LockGuardLocal> robotLock;
+        std::unique_ptr<LockGuardLocal> robotLock;
 
         forceProfileRegister_t forcesProfile;
         forceImpulseRegister_t forcesImpulse;

@@ -3,6 +3,7 @@
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 
+#include "jiminy/python/Utilities.h"
 #include "jiminy/python/Robot.h"
 
 #include <boost/python.hpp>
@@ -16,8 +17,7 @@ namespace python
 
     // ***************************** PyModelVisitor ***********************************
 
-    struct PyModelVisitor
-        : public bp::def_visitor<PyModelVisitor>
+    struct PyModelVisitor : public bp::def_visitor<PyModelVisitor>
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -256,8 +256,7 @@ namespace python
 
     // ***************************** PyRobotVisitor ***********************************
 
-    struct PyRobotVisitor
-        : public bp::def_visitor<PyRobotVisitor>
+    struct PyRobotVisitor : public bp::def_visitor<PyRobotVisitor>
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////

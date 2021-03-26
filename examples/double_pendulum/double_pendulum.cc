@@ -11,7 +11,7 @@
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/io/FileDevice.h"
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/Types.h"
 
 #include <boost/filesystem.hpp>

@@ -4,7 +4,6 @@
 #include <functional>
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 #include "jiminy/core/Constants.h"
 
@@ -43,6 +42,7 @@ namespace jiminy
         "euler_explicit"
     };
 
+    class Timer;
     class Robot;
     class AbstractConstraintBase;
     class AbstractLCPSolver;
@@ -357,37 +357,39 @@ namespace jiminy
         ///                       (the opposite of) the force is applied.
         /// \param[in] forceFct Callback function returning the force that systemName2
         ///                     applies on systemName1, in the global frame of frameName1.
-        hresult_t addCouplingForce(std::string const & systemName1,
+        hresult_t registerForceCoupling(std::string const & systemName1,
                                    std::string const & systemName2,
                                    std::string const & frameName1,
                                    std::string const & frameName2,
                                    forceCouplingFunctor_t forceFct);
-        hresult_t addViscoElasticDirectionalCouplingForce(std::string const & systemName1,
-                                                          std::string const & systemName2,
-                                                          std::string const & frameName1,
-                                                          std::string const & frameName2,
-                                                          float64_t   const & stiffness,
-                                                          float64_t   const & damping);
-        hresult_t addViscoElasticDirectionalCouplingForce(std::string const & systemName,
-                                                          std::string const & frameName1,
-                                                          std::string const & frameName2,
-                                                          float64_t   const & stiffness,
-                                                          float64_t   const & damping);
-        hresult_t addViscoElasticCouplingForce(std::string const & systemName1,
-                                               std::string const & systemName2,
-                                               std::string const & frameName1,
-                                               std::string const & frameName2,
-                                               vectorN_t   const & stiffness,
-                                               vectorN_t   const & damping);
-        hresult_t addViscoElasticCouplingForce(std::string const & systemName,
-                                               std::string const & frameName1,
-                                               std::string const & frameName2,
-                                               vectorN_t   const & stiffness,
-                                               vectorN_t   const & damping);
-        hresult_t removeCouplingForces(std::string const & systemName1,
+        hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & systemName1,
+                                                               std::string const & systemName2,
+                                                               std::string const & frameName1,
+                                                               std::string const & frameName2,
+                                                               float64_t   const & stiffness,
+                                                               float64_t   const & damping);
+        hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & systemName,
+                                                               std::string const & frameName1,
+                                                               std::string const & frameName2,
+                                                               float64_t   const & stiffness,
+                                                               float64_t   const & damping);
+        hresult_t registerViscoElasticForceCoupling(std::string const & systemName1,
+                                                    std::string const & systemName2,
+                                                    std::string const & frameName1,
+                                                    std::string const & frameName2,
+                                                    vectorN_t   const & stiffness,
+                                                    vectorN_t   const & damping);
+        hresult_t registerViscoElasticForceCoupling(std::string const & systemName,
+                                                    std::string const & frameName1,
+                                                    std::string const & frameName2,
+                                                    vectorN_t   const & stiffness,
+                                                    vectorN_t   const & damping);
+        hresult_t removeForcesCoupling(std::string const & systemName1,
                                        std::string const & systemName2);
-        hresult_t removeCouplingForces(std::string const & systemName);
-        hresult_t removeCouplingForces(void);
+        hresult_t removeForcesCoupling(std::string const & systemName);
+        hresult_t removeForcesCoupling(void);
+
+        forceCouplingRegister_t const & getForcesCoupling(void) const;
 
         /// \brief Reset engine.
         ///
@@ -453,12 +455,16 @@ namespace jiminy
                                        float64_t        const & t,
                                        float64_t        const & dt,
                                        pinocchio::Force const & F);
-
         /// \brief Apply an time-continuous external force on a frame.
         ///        The force can be time and state dependent, and must be given in the world frame.
         hresult_t registerForceProfile(std::string const & systemName,
                                        std::string const & frameName,
                                        forceProfileFunctor_t forceFct);
+
+        hresult_t getForcesImpulse(std::string const & systemName,
+                                   forceImpulseRegister_t const * & forcesImpulsePtr) const;
+        hresult_t getForcesProfile(std::string const & systemName,
+                                   forceProfileRegister_t const * & forcesProfilePtr) const;
 
         configHolder_t getOptions(void) const;
         hresult_t setOptions(configHolder_t const & engineOptions);
@@ -544,7 +550,7 @@ namespace jiminy
                                    vectorN_t          const & q,
                                    vectorN_t          const & v,
                                    forceVector_t            & fext) const;
-        void computeCouplingForces(float64_t              const & t,
+        void computeForcesCoupling(float64_t              const & t,
                                    std::vector<vectorN_t> const & qSplit,
                                    std::vector<vectorN_t> const & vSplit);
         void computeAllTerms(float64_t              const & t,
@@ -632,7 +638,7 @@ namespace jiminy
         configHolder_t engineOptionsHolder_;
 
     private:
-        Timer timer_;
+        std::unique_ptr<Timer> timer_;
         contactModel_t contactModel_;
         std::unique_ptr<AbstractLCPSolver> contactSolver_;
         TelemetrySender telemetrySender_;

@@ -29,7 +29,10 @@
 #include "jiminy/core/stepper/RungeKuttaDOPRIStepper.h"
 #include "jiminy/core/stepper/RungeKutta4Stepper.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/utilities/Pinocchio.h"
+#include "jiminy/core/utilities/Random.h"
+#include "jiminy/core/utilities/Json.h"
+#include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/Constants.h"
 
 
@@ -41,7 +44,7 @@ namespace jiminy
     isTelemetryConfigured_(false),
     isSimulationRunning_(false),
     engineOptionsHolder_(),
-    timer_(),
+    timer_(std::make_unique<Timer>()),
     contactModel_(contactModel_t::NONE),
     contactSolver_(nullptr),
     telemetrySender_(),
@@ -167,7 +170,7 @@ namespace jiminy
         {
             /* Remove every coupling forces involving the system.
                Note that it is already checking that the system exists. */
-            returnCode = removeCouplingForces(systemName);
+            returnCode = removeForcesCoupling(systemName);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -254,11 +257,11 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::addCouplingForce(std::string            const & systemName1,
-                                                 std::string            const & systemName2,
-                                                 std::string            const & frameName1,
-                                                 std::string            const & frameName2,
-                                                 forceCouplingFunctor_t         forceFct)
+    hresult_t EngineMultiRobot::registerForceCoupling(std::string            const & systemName1,
+                                                      std::string            const & systemName2,
+                                                      std::string            const & frameName1,
+                                                      std::string            const & frameName2,
+                                                      forceCouplingFunctor_t         forceFct)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -311,12 +314,12 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::addViscoElasticCouplingForce(std::string const & systemName1,
-                                                             std::string const & systemName2,
-                                                             std::string const & frameName1,
-                                                             std::string const & frameName2,
-                                                             vectorN_t   const & stiffness,
-                                                             vectorN_t   const & damping)
+    hresult_t EngineMultiRobot::registerViscoElasticForceCoupling(std::string const & systemName1,
+                                                                  std::string const & systemName2,
+                                                                  std::string const & frameName1,
+                                                                  std::string const & frameName2,
+                                                                  vectorN_t   const & stiffness,
+                                                                  vectorN_t   const & damping)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -396,29 +399,29 @@ namespace jiminy
                     damping.array() * vel12.array()).matrix())));
             };
 
-            returnCode = addCouplingForce(
+            returnCode = registerForceCoupling(
                 systemName1, systemName2, frameName1, frameName2, forceFct);
         }
 
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::addViscoElasticCouplingForce(std::string const & systemName,
-                                                             std::string const & frameName1,
-                                                             std::string const & frameName2,
-                                                             vectorN_t   const & stiffness,
-                                                             vectorN_t   const & damping)
+    hresult_t EngineMultiRobot::registerViscoElasticForceCoupling(std::string const & systemName,
+                                                                  std::string const & frameName1,
+                                                                  std::string const & frameName2,
+                                                                  vectorN_t   const & stiffness,
+                                                                  vectorN_t   const & damping)
     {
-        return addViscoElasticCouplingForce(
+        return registerViscoElasticForceCoupling(
             systemName, systemName, frameName1, frameName2, stiffness, damping);
     }
 
-    hresult_t EngineMultiRobot::addViscoElasticDirectionalCouplingForce(std::string const & systemName1,
-                                                                        std::string const & systemName2,
-                                                                        std::string const & frameName1,
-                                                                        std::string const & frameName2,
-                                                                        float64_t   const & stiffness,
-                                                                        float64_t   const & damping)
+    hresult_t EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(std::string const & systemName1,
+                                                                             std::string const & systemName2,
+                                                                             std::string const & frameName1,
+                                                                             std::string const & frameName2,
+                                                                             float64_t   const & stiffness,
+                                                                             float64_t   const & damping)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -492,24 +495,24 @@ namespace jiminy
                 return pinocchio::Force::Zero();
             };
 
-            returnCode = addCouplingForce(
+            returnCode = registerForceCoupling(
                 systemName1, systemName2, frameName1, frameName2, forceFct);
         }
 
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::addViscoElasticDirectionalCouplingForce(std::string const & systemName,
-                                                                        std::string const & frameName1,
-                                                                        std::string const & frameName2,
-                                                                        float64_t   const & stiffness,
-                                                                        float64_t   const & damping)
+    hresult_t EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(std::string const & systemName,
+                                                                             std::string const & frameName1,
+                                                                             std::string const & frameName2,
+                                                                             float64_t   const & stiffness,
+                                                                             float64_t   const & damping)
     {
-        return addViscoElasticDirectionalCouplingForce(
+        return registerViscoElasticDirectionalForceCoupling(
             systemName, systemName, frameName1, frameName2, stiffness, damping);
     }
 
-    hresult_t EngineMultiRobot::removeCouplingForces(std::string const & systemName1,
+    hresult_t EngineMultiRobot::removeForcesCoupling(std::string const & systemName1,
                                                      std::string const & systemName2)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -549,7 +552,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::removeCouplingForces(std::string const & systemName)
+    hresult_t EngineMultiRobot::removeForcesCoupling(std::string const & systemName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -582,7 +585,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::removeCouplingForces(void)
+    hresult_t EngineMultiRobot::removeForcesCoupling(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -598,6 +601,10 @@ namespace jiminy
         return returnCode;
     }
 
+    forceCouplingRegister_t const & EngineMultiRobot::getForcesCoupling(void) const
+    {
+        return forcesCoupling_;
+    }
 
     hresult_t EngineMultiRobot::configureTelemetry(void)
     {
@@ -793,7 +800,7 @@ namespace jiminy
         // Reset the random number generators
         if (resetRandomNumbers)
         {
-            resetRandGenerators(engineOptions_->stepper.randomSeed);
+            resetRandomGenerators(engineOptions_->stepper.randomSeed);
         }
 
         // Reset the internal state of the robot and controller
@@ -1628,7 +1635,7 @@ namespace jiminy
         bool_t hasDynamicsChanged = false;
 
         // Start the timer used for timeout handling
-        timer_.tic();
+        timer_->tic();
 
         // Perform the integration. Do not simulate extremely small time steps.
         while ((tEnd - t >= STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
@@ -1823,9 +1830,9 @@ namespace jiminy
 
                     /* Break the loop in case of timeout.
                        Don't worry, an exception will be raised later. */
-                    timer_.toc();
+                    timer_->toc();
                     if (EPS < engineOptions_->stepper.timeout
-                        && engineOptions_->stepper.timeout < timer_.dt)
+                        && engineOptions_->stepper.timeout < timer_->dt)
                     {
                         break;
                     }
@@ -2018,9 +2025,9 @@ namespace jiminy
                 returnCode = hresult_t::ERROR_GENERIC;
             }
 
-            timer_.toc();
+            timer_->toc();
             if (EPS < engineOptions_->stepper.timeout
-                && engineOptions_->stepper.timeout < timer_.dt)
+                && engineOptions_->stepper.timeout < timer_->dt)
             {
                 PRINT_ERROR("Step computation timeout.");
                 returnCode = hresult_t::ERROR_GENERIC;
@@ -2151,6 +2158,48 @@ namespace jiminy
         {
             systemDataHolder_t & systemData = systemsDataHolder_[systemIdx];
             systemData.forcesProfile.emplace_back(frameName, frameIdx, std::move(forceFct));
+        }
+
+        return returnCode;
+    }
+
+    hresult_t EngineMultiRobot::getForcesImpulse(std::string const & systemName,
+                                                 forceImpulseRegister_t const * & forcesImpulsePtr) const
+    {
+        static forceImpulseRegister_t forcesImpuseDummy;
+
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        forcesImpulsePtr = &forcesImpuseDummy;
+
+        int32_t systemIdx;
+        returnCode = getSystemIdx(systemName, systemIdx);
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            systemDataHolder_t const & systemData = systemsDataHolder_[systemIdx];
+            forcesImpulsePtr = &systemData.forcesImpulse;
+        }
+
+        return returnCode;
+    }
+
+    hresult_t EngineMultiRobot::getForcesProfile(std::string const & systemName,
+                                                 forceProfileRegister_t const * & forcesProfilePtr) const
+    {
+        static forceProfileRegister_t forcesRegisterDummy;
+
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        forcesProfilePtr = &forcesRegisterDummy;
+
+        int32_t systemIdx;
+        returnCode = getSystemIdx(systemName, systemIdx);
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            systemDataHolder_t const & systemData = systemsDataHolder_[systemIdx];
+            forcesProfilePtr = &systemData.forcesProfile;
         }
 
         return returnCode;
@@ -3166,7 +3215,7 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeCouplingForces(float64_t              const & t,
+    void EngineMultiRobot::computeForcesCoupling(float64_t              const & t,
                                                  std::vector<vectorN_t> const & qSplit,
                                                  std::vector<vectorN_t> const & vSplit)
     {
@@ -3220,7 +3269,7 @@ namespace jiminy
         }
 
         // Compute the internal forces
-        computeCouplingForces(t, qSplit, vSplit);
+        computeForcesCoupling(t, qSplit, vSplit);
 
         // Compute each individual system dynamics
         std::vector<systemHolder_t>::const_iterator systemIt = systems_.begin();

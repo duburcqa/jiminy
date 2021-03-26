@@ -169,7 +169,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return super().__dir__() + self.simulator.__dir__()
 
     def __del__(self) -> None:
-        self.close()
+        try:
+            self.close()
+        except Exception:   # pylint: disable=broad-except
+            # This method must not fail under any circumstances
+            pass
 
     def _controller_handle(self,
                            t: float,
@@ -456,6 +460,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Stop the simulator
         self.simulator.stop()
 
+        # Remove external forces, if any
+        self.simulator.remove_forces()
+
         # Make sure the environment is properly setup
         self._setup()
 
@@ -610,8 +617,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return [self._seed]
 
     def close(self) -> None:
-        """Terminate the Python Jiminy engine. Mostly defined for
-           compatibility with Gym OpenAI.
+        """Terminate the Python Jiminy engine.
         """
         self.simulator.close()
 

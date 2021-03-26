@@ -143,7 +143,7 @@ namespace python
             bp::class_<JointConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<JointConstraint>,
                        boost::noncopyable>("JointConstraint",
-                       bp::init<std::string>(bp::args("joint_name")))
+                       bp::init<std::string const &>(bp::args("self", "joint_name")))
                 .def_readonly("type", &JointConstraint::type_)
                 .add_property("joint_name", bp::make_function(&JointConstraint::getJointName,
                                             bp::return_value_policy<bp::copy_const_reference>()))
@@ -175,8 +175,8 @@ namespace python
             bp::class_<DistanceConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<DistanceConstraint>,
                        boost::noncopyable>("DistanceConstraint",
-                       bp::init<std::string, std::string, float64_t>(
-                       bp::args("first_frame_name", "second_frame_name", "distance_reference")))
+                       bp::init<std::string const &, std::string const &, float64_t const &>(
+                       bp::args("self", "first_frame_name", "second_frame_name", "distance_reference")))
                 .def_readonly("type", &DistanceConstraint::type_)
                 .add_property("frames_names", bp::make_function(&DistanceConstraint::getFramesNames,
                                               bp::return_value_policy<bp::copy_const_reference>()))
@@ -188,7 +188,8 @@ namespace python
             bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<SphereConstraint>,
                        boost::noncopyable>("SphereConstraint",
-                       bp::init<std::string, float64_t>(bp::args("frame_name", "radius")))
+                       bp::init<std::string const &, float64_t const &>(
+                       bp::args("self", "frame_name", "radius")))
                 .def_readonly("type", &SphereConstraint::type_)
                 .add_property("frame_name", bp::make_function(&SphereConstraint::getFrameName,
                                             bp::return_value_policy<bp::copy_const_reference>()))
@@ -201,8 +202,8 @@ namespace python
             bp::class_<WheelConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<WheelConstraint>,
                        boost::noncopyable>("WheelConstraint",
-                       bp::init<std::string, float64_t, vector3_t, vector3_t>(
-                       bp::args("frame_name", "radius", "ground_normal", "wheel_axis")))
+                       bp::init<std::string const &, float64_t const &, vector3_t const &, vector3_t const &>(
+                       bp::args("self", "frame_name", "radius", "ground_normal", "wheel_axis")))
                 .def_readonly("type", &WheelConstraint::type_)
                 .add_property("frame_name", bp::make_function(&WheelConstraint::getFrameName,
                                             bp::return_value_policy<bp::copy_const_reference>()))

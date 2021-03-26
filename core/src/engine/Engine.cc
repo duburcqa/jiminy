@@ -217,9 +217,23 @@ namespace jiminy
         return EngineMultiRobot::registerForceProfile("", frameName, forceFct);
     }
 
-    hresult_t Engine::addCouplingForce(std::string const & frameName1,
-                                       std::string const & frameName2,
-                                       forceProfileFunctor_t forceFct)
+    forceImpulseRegister_t const & Engine::getForcesImpulse(void) const
+    {
+        forceImpulseRegister_t const * forcesImpulse;
+        EngineMultiRobot::getForcesImpulse("", forcesImpulse);
+        return *forcesImpulse;
+    }
+
+    forceProfileRegister_t const & Engine::getForcesProfile(void) const
+    {
+        forceProfileRegister_t const * forcesProfile;
+        EngineMultiRobot::getForcesProfile("", forcesProfile);
+        return *forcesProfile;
+    }
+
+    hresult_t Engine::registerForceCoupling(std::string const & frameName1,
+                                            std::string const & frameName2,
+                                            forceProfileFunctor_t forceFct)
     {
         auto forceCouplingFct = [forceFct](float64_t const & t,
                                            vectorN_t const & q1,
@@ -229,25 +243,25 @@ namespace jiminy
                                 {
                                     return forceFct(t, q1, v1);
                                 };
-        return EngineMultiRobot::addCouplingForce(
+        return EngineMultiRobot::registerForceCoupling(
             "", "", frameName1, frameName2, forceCouplingFct);
     }
 
-    hresult_t Engine::addViscoElasticCouplingForce(std::string const & frameName1,
-                                                   std::string const & frameName2,
-                                                   vectorN_t   const & stiffness,
-                                                   vectorN_t   const & damping)
+    hresult_t Engine::registerViscoElasticForceCoupling(std::string const & frameName1,
+                                                        std::string const & frameName2,
+                                                        vectorN_t   const & stiffness,
+                                                        vectorN_t   const & damping)
     {
-        return EngineMultiRobot::addViscoElasticCouplingForce(
+        return EngineMultiRobot::registerViscoElasticForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping);
     }
 
-    hresult_t Engine::addViscoElasticDirectionalCouplingForce(std::string const & frameName1,
-                                                              std::string const & frameName2,
-                                                              float64_t   const & stiffness,
-                                                              float64_t   const & damping)
+    hresult_t Engine::registerViscoElasticDirectionalForceCoupling(std::string const & frameName1,
+                                                                   std::string const & frameName2,
+                                                                   float64_t   const & stiffness,
+                                                                   float64_t   const & damping)
     {
-        return EngineMultiRobot::addViscoElasticDirectionalCouplingForce(
+        return EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping);
     }
 

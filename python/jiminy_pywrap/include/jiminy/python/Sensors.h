@@ -1,8 +1,6 @@
 #ifndef SENSORS_PYTHON_H
 #define SENSORS_PYTHON_H
 
-#include "jiminy/python/Utilities.h"
-
 
 namespace jiminy
 {

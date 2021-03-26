@@ -45,6 +45,7 @@ namespace jiminy
 
     // Eigen types
     using matrixN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic>;
+    using matrix2_t = Eigen::Matrix<float64_t, 2, 2>;
     using matrix3_t = Eigen::Matrix<float64_t, 3, 3>;
     using vectorN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, 1>;
     using vector3_t = Eigen::Matrix<float64_t, 3, 1>;

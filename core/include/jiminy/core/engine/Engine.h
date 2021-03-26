@@ -63,17 +63,21 @@ namespace jiminy
                                        pinocchio::Force const & F);
         hresult_t registerForceProfile(std::string           const & frameName,
                                        forceProfileFunctor_t         forceFct);
-        hresult_t addCouplingForce(std::string const & frameName1,
-                                   std::string const & frameName2,
-                                   forceProfileFunctor_t forceFct);
-        hresult_t addViscoElasticCouplingForce(std::string const & frameName1,
-                                               std::string const & frameName2,
-                                               vectorN_t   const & stiffness,
-                                               vectorN_t   const & damping);
-        hresult_t addViscoElasticDirectionalCouplingForce(std::string const & frameName1,
-                                                          std::string const & frameName2,
-                                                          float64_t   const & stiffness,
-                                                          float64_t   const & damping);
+
+        forceImpulseRegister_t const & getForcesImpulse(void) const;
+        forceProfileRegister_t const & getForcesProfile(void) const;
+
+        hresult_t registerForceCoupling(std::string const & frameName1,
+                                        std::string const & frameName2,
+                                        forceProfileFunctor_t forceFct);
+        hresult_t registerViscoElasticForceCoupling(std::string const & frameName1,
+                                                    std::string const & frameName2,
+                                                    vectorN_t   const & stiffness,
+                                                    vectorN_t   const & damping);
+        hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & frameName1,
+                                                               std::string const & frameName2,
+                                                               float64_t   const & stiffness,
+                                                               float64_t   const & damping);
 
         bool_t const & getIsInitialized(void) const;
         hresult_t getSystem(systemHolder_t * & system);
@@ -90,12 +94,15 @@ namespace jiminy
         using EngineMultiRobot::addSystem;
         using EngineMultiRobot::removeSystem;
         using EngineMultiRobot::setController;
-        using EngineMultiRobot::addCouplingForce;
-        using EngineMultiRobot::addViscoElasticCouplingForce;
+        using EngineMultiRobot::registerForceCoupling;
+        using EngineMultiRobot::registerViscoElasticForceCoupling;
+        using EngineMultiRobot::registerViscoElasticDirectionalForceCoupling;
         using EngineMultiRobot::start;
         using EngineMultiRobot::simulate;
         using EngineMultiRobot::registerForceImpulse;
         using EngineMultiRobot::registerForceProfile;
+        using EngineMultiRobot::getForcesImpulse;
+        using EngineMultiRobot::getForcesProfile;
         using EngineMultiRobot::getSystem;
         using EngineMultiRobot::getSystemState;
 

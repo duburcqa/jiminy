@@ -10,8 +10,11 @@
 #include "jiminy/core/Types.h"
 #include "jiminy/core/Macros.h"
 
+#include <boost/mpl/vector.hpp>
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
+#include <boost/python/object/function_doc_signature.hpp>
+#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 
 namespace jiminy
@@ -30,6 +33,76 @@ namespace python
     { \
         Py ## class ## Visitor::expose(); \
     }
+
+    template<typename R, typename ...Args>
+    boost::mpl::vector<R, Args...> functionToMLP(std::function<R(Args...)> func)
+    {
+        return {};
+    }
+
+    namespace detail {
+        static char constexpr py_signature_tag[] = "PY signature :";
+        static char constexpr cpp_signature_tag[] = "C++ signature :";
+    }
+
+    template<typename WrappedClassT>
+    void setFunctionWrapperModule(bp::object & func)
+    {
+        /* Register it to the class to fix Ipython attribute lookup, which is looking
+           for '__module__' attribute, and enable Python/C++ signatures in docstring.
+
+           The intended way to do so is to call `add_to_namespace` function. However,
+           the previous registration must be deleted first to avoid being detected as
+           an overload and accumulating docstrings. To avoid such hassle, a hack is
+           used instead by overwritting the internal attribute of the function directly.
+           Beware it relies on `const_cast` to getter returning by reference, which may
+           break in the future. Moreover, a hack is used to get the docstring, which
+           consists in adding the expected tags as function doc. It works for now but
+           it is not really reliable and may break in the future too. */
+        bp::converter::registration const * r = bp::converter::registry::query(typeid(WrappedClassT));
+        assert(r && ("Class " + typeid(WrappedClassT).name() + " not registered to Boost Python."));
+        PyTypeObject * nsPtr = r->get_class_object();
+        bp::object nsName(bp::handle<>(PyObject_GetAttrString((PyObject *) nsPtr, "__name__")));
+        bp::objects::function * funcPtr = bp::downcast<bp::objects::function>(func.ptr());
+        bp::object & nsFunc = const_cast<bp::object &>(funcPtr->get_namespace());
+        nsFunc = bp::object(nsName);
+        bp::object & nameFunc = const_cast<bp::object &>(funcPtr->name());
+        nameFunc = bp::str("function");
+        funcPtr->doc(bp::str(detail::py_signature_tag) + bp::str(detail::cpp_signature_tag)); // Add actual doc after thos tags, if any
+        // auto dict = bp::handle<>(bp::borrowed(nsPtr->tp_dict));
+        // bp::str funcName("force_func");
+        // if (PyObject_GetItem(dict.get(), funcName.ptr()))
+        // {
+        //     PyObject_DelItem(dict.get(), funcName.ptr());
+        // }
+        // bp::object ns(bp::handle<>(bp::borrowed(nsPtr)));
+        // bp::objects::add_to_namespace(ns, "force_func", func);
+    }
+
+    // Forward declaration
+    template <class Container, bool NoProxy, class DerivedPolicies>
+    class vector_indexing_suite_no_contains;
+
+    namespace detail
+    {
+        template <class Container, bool NoProxy>
+        class final_vector_derived_policies
+            : public vector_indexing_suite_no_contains<Container,
+                NoProxy, bp::detail::final_vector_derived_policies<Container, NoProxy> > {};
+    }
+
+    template <class Container,
+              bool NoProxy = false,
+              class DerivedPolicies = detail::final_vector_derived_policies<Container, NoProxy> >
+    class vector_indexing_suite_no_contains : public bp::vector_indexing_suite<Container, NoProxy, DerivedPolicies>
+    {
+    public:
+        static bool contains(Container & container, typename Container::value_type const & key)
+        {
+            throw std::runtime_error("Contains method not supported.");
+            return false;
+        }
+    };
 
     // ****************************************************************************
     // **************************** C++ TO PYTHON *********************************
@@ -227,8 +300,9 @@ namespace python
     }
 
     template<>
-    inline bp::object convertToPython<flexibleJointData_t>(flexibleJointData_t const & flexibleJointData,
-                                                           bool const & copy)
+    inline bp::object convertToPython<flexibleJointData_t>(
+        flexibleJointData_t const & flexibleJointData,
+        bool const & copy)
     {
         bp::dict flexibilityJointDataPy;
         flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
@@ -295,9 +369,9 @@ namespace python
         }
 
         template <typename T>
-        bp::object operator()(T const & value) const
+        auto operator()(T const & value) const
         {
-            return convertToPython<T>(value, copy_);
+            return convertToPython(value, copy_);
         }
 
     public:
@@ -305,14 +379,15 @@ namespace python
     };
 
     template<>
-    inline bp::object convertToPython(configHolder_t const & config, bool const & copy)
+    inline bp::object convertToPython<configHolder_t>(
+        configHolder_t const & config,
+        bool const & copy)
     {
         bp::dict configPyDict;
         AppendBoostVariantToPython visitor(copy);
-        for (auto const & configField : config)
+        for (auto const & [key, value] : config)
         {
-            std::string const & name = configField.first;
-            configPyDict[name] = boost::apply_visitor(visitor, configField.second);
+            configPyDict[key] = boost::apply_visitor(visitor, value);
         }
         return configPyDict;
     }
@@ -327,7 +402,7 @@ namespace python
         vectorN_t x(len(listPy));
         for (int32_t i = 0; i < len(listPy); ++i)
         {
-            x(i) = bp::extract<float64_t>(listPy[i]);
+            x[i] = bp::extract<float64_t>(listPy[i]);
         }
 
         return x;
@@ -345,9 +420,9 @@ namespace python
         matrixN_t M(nRows, nCols);
         for (int32_t i = 0; i < nRows; ++i)
         {
-            bp::list const row = bp::extract<bp::list>(listPy[i]);
+            bp::list row = bp::extract<bp::list>(listPy[i]);  // Beware it is not an actual copy
             assert(len(row) == nCols && "wrong number of columns");
-            M.row(i) = listPyToEigenVector(row).transpose();
+            M.row(i) = listPyToEigenVector(row);
         }
 
         return M;
