@@ -86,7 +86,7 @@ class TabbedFigure:
                              Optional: "jiminy" by default.
         :param offscreen: Whether or not to enable display on screen of figure.
                           Optional: False by default.
-        :param kwargs: Used extra keyword arguments enabled to ease forwarding.
+        :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
         # Backup user arguments
         self.sync_tabs = sync_tabs
