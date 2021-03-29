@@ -1367,8 +1367,18 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // A new geometry data object must be instantiate after changing the collision pairs
-            pncGeometryData_ = std::make_unique<pinocchio::GeometryData>(pncGeometryModel_);
+            // Update geometry data object after changing the collision pairs
+            if (pncGeometryData_.get())
+            {
+                // No object stored at this point, so created a new one
+                *pncGeometryData_ = pinocchio::GeometryData(pncGeometryModel_);
+            }
+            else
+            {
+                /* Use copy assignment to avoid changing memory pointers, to
+                   avoid dangling reference at Python-side. */
+                pncGeometryData_ = std::make_unique<pinocchio::GeometryData>(pncGeometryModel_);
+            }
             pinocchio::updateGeometryPlacements(pncModel_,
                                                 pncData_,
                                                 pncGeometryModel_,

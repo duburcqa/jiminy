@@ -25,6 +25,13 @@ namespace jiminy
 
         hresult_t setController(std::shared_ptr<AbstractController> controller);
 
+        /* Forbid direct usage of these methods since it does not make sense for single
+           robot engine (every overloads are affected at once). */
+        hresult_t addSystem(std::string const & systemName,
+                            std::shared_ptr<Robot> robot,
+                            std::shared_ptr<AbstractController> controller);
+        hresult_t removeSystem(std::string const & systemName);
+
         /// \brief Reset the engine and compute initial state.
         ///
         /// \details This function reset the engine, the robot and the controller, and update internal data
@@ -35,14 +42,14 @@ namespace jiminy
         /// \param[in] aInit Initial acceleration. Optional: Zero by default.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
-        /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
+        /// \param[in] removeAllForce Whether or not to register the external force profiles applied
         ///                                      during the simulation.
         hresult_t start(vectorN_t const & qInit,
                         vectorN_t const & vInit,
                         std::optional<vectorN_t> const & aInit = std::nullopt,
                         bool_t    const & isStateTheoretical = false,
                         bool_t    const & resetRandomNumbers = false,
-                        bool_t    const & resetDynamicForceRegister = false);
+                        bool_t    const & removeAllForce = false);
 
         /// \brief Run a simulation of duration tEnd, starting at xInit.
         ///
@@ -64,6 +71,10 @@ namespace jiminy
         hresult_t registerForceProfile(std::string           const & frameName,
                                        forceProfileFunctor_t         forceFct);
 
+        // Redefined to take advantage of C++ name hiding of overloaded methods of base class in dervied class
+        hresult_t removeForcesImpulse(void);
+        hresult_t removeForcesProfile(void);
+
         forceImpulseRegister_t const & getForcesImpulse(void) const;
         forceProfileRegister_t const & getForcesProfile(void) const;
 
@@ -79,6 +90,10 @@ namespace jiminy
                                                                float64_t   const & stiffness,
                                                                float64_t   const & damping);
 
+        hresult_t removeForcesCoupling(void);
+
+        hresult_t removeAllForces(void);
+
         bool_t const & getIsInitialized(void) const;
         hresult_t getSystem(systemHolder_t * & system);
         hresult_t getRobot(std::shared_ptr<Robot> & robot);
@@ -89,22 +104,6 @@ namespace jiminy
         hresult_t initializeImpl(std::shared_ptr<Robot>              robot,
                                  std::shared_ptr<AbstractController> controller,
                                  callbackFunctor_t                   callbackFct);
-
-        // Make private some methods to deter their use
-        using EngineMultiRobot::addSystem;
-        using EngineMultiRobot::removeSystem;
-        using EngineMultiRobot::setController;
-        using EngineMultiRobot::registerForceCoupling;
-        using EngineMultiRobot::registerViscoElasticForceCoupling;
-        using EngineMultiRobot::registerViscoElasticDirectionalForceCoupling;
-        using EngineMultiRobot::start;
-        using EngineMultiRobot::simulate;
-        using EngineMultiRobot::registerForceImpulse;
-        using EngineMultiRobot::registerForceProfile;
-        using EngineMultiRobot::getForcesImpulse;
-        using EngineMultiRobot::getForcesProfile;
-        using EngineMultiRobot::getSystem;
-        using EngineMultiRobot::getSystemState;
 
     protected:
         bool_t isInitialized_;

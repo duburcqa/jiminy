@@ -606,6 +606,21 @@ namespace jiminy
         return forcesCoupling_;
     }
 
+    hresult_t EngineMultiRobot::removeAllForces(void)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+        returnCode = removeForcesCoupling();
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = removeForcesImpulse();
+        }
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = removeForcesProfile();
+        }
+        return returnCode;
+    }
+
     hresult_t EngineMultiRobot::configureTelemetry(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -777,7 +792,7 @@ namespace jiminy
     }
 
     void EngineMultiRobot::reset(bool_t const & resetRandomNumbers,
-                                 bool_t const & resetDynamicForceRegister)
+                                 bool_t const & removeAllForce)
     {
         // Make sure the simulation is properly stopped
         if (isSimulationRunning_)
@@ -786,7 +801,7 @@ namespace jiminy
         }
 
         // Reset the dynamic force register if requested
-        if (resetDynamicForceRegister)
+        if (removeAllForce)
         {
             for (auto & systemData : systemsDataHolder_)
             {
@@ -809,11 +824,6 @@ namespace jiminy
             system.robot->reset();
             system.controller->reset();
         }
-    }
-
-    void EngineMultiRobot::reset(bool_t const & resetDynamicForceRegister)
-    {
-        reset(true, resetDynamicForceRegister);
     }
 
     void computeExtraTerms(systemHolder_t           & system,
@@ -932,7 +942,7 @@ namespace jiminy
                                       std::map<std::string, vectorN_t> const & vInit,
                                       std::optional<std::map<std::string, vectorN_t> > const & aInit,
                                       bool_t const & resetRandomNumbers,
-                                      bool_t const & resetDynamicForceRegister)
+                                      bool_t const & removeAllForce)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1076,7 +1086,7 @@ namespace jiminy
         }
 
         // Reset the robot, controller, engine, and registered impulse forces if requested
-        reset(resetRandomNumbers, resetDynamicForceRegister);
+        reset(resetRandomNumbers, removeAllForce);
 
         auto systemIt = systems_.begin();
         auto systemDataIt = systemsDataHolder_.begin();
@@ -2163,6 +2173,92 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t EngineMultiRobot::removeForcesImpulse(std::string const & systemName)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
+        int32_t systemIdx;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystemIdx(systemName, systemIdx);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            systemDataHolder_t & systemData = systemsDataHolder_[systemIdx];
+            systemData.forcesImpulse.clear();
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t EngineMultiRobot::removeForcesImpulse(void)
+    {
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        for (auto & systemData : systemsDataHolder_)
+        {
+            systemData.forcesImpulse.clear();
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t EngineMultiRobot::removeForcesProfile(std::string const & systemName)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        int32_t systemIdx;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystemIdx(systemName, systemIdx);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            systemDataHolder_t & systemData = systemsDataHolder_[systemIdx];
+            systemData.forcesProfile.clear();
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t EngineMultiRobot::removeForcesProfile(void)
+    {
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        for (auto & systemData : systemsDataHolder_)
+        {
+            systemData.forcesProfile.clear();
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
     hresult_t EngineMultiRobot::getForcesImpulse(std::string const & systemName,
                                                  forceImpulseRegister_t const * & forcesImpulsePtr) const
     {
@@ -2346,6 +2442,14 @@ namespace jiminy
         {
             PRINT_ERROR("The size of the gravity force vector must be 6.");
             return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        /* Reset random number generators if setOptions is called for the first time,
+           or if the desired random seed has changed. */
+        uint32_t randomSeed = boost::get<uint32_t>(stepperOptions.at("randomSeed"));
+        if (!engineOptions_ || randomSeed != engineOptions_->stepper.randomSeed)
+        {
+            resetRandomGenerators(randomSeed);
         }
 
         // Update the internal options

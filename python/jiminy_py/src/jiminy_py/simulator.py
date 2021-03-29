@@ -325,7 +325,7 @@ class Simulator:
         # It is expected by OpenAI Gym API to reset env after setting the seed
         self.reset()
 
-    def reset(self, remove_forces: bool = False):
+    def reset(self, remove_all_forces: bool = False):
         """Reset the simulator.
 
         It resets the simulation time to zero, and generate a new random model
@@ -333,15 +333,17 @@ class Simulator:
         either set the randomness of the model and sensors to zero, or set the
         seed once again to reinitialize the random number generator.
 
-        :param remove_forces: Whether or not to remove already registered
-                              external forces. It can also be done separately.
-                              Optional: Do not remove by default.
+        :param remove_all_forces:
+            Whether or not to remove already registered external forces. Note
+            that it can also be done separately by calling `remove_all_forces`
+            method.
+            Optional: Do not remove by default.
         """
         # Clear log data backup
         self._log_data, self._log_constants = {}, {}
 
         # Reset the backend engine
-        self.engine.reset(remove_forces)
+        self.engine.reset(False, remove_all_forces)
 
         # Note that the viewer must only be reset if available, otherwise it
         # will have dangling reference to the old robot model.

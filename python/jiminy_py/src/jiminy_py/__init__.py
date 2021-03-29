@@ -1,5 +1,6 @@
 import os as _os
 import sys as _sys
+import inspect as _inspect
 import importlib as _importlib
 from contextlib import redirect_stderr as _redirect_stderr
 
@@ -31,18 +32,19 @@ else:
 
 # Register pinocchio_pywrap to avoid importing bindings twise, which messes
 # up with boost python converters.
-_sys.modules["pinocchio.pinocchio_pywrap"] = _pinocchio.pinocchio_pywrap
-_sys.modules["pinocchio.pinocchio_pywrap.rpy"] = \
-    _pinocchio.pinocchio_pywrap.rpy
-_sys.modules["pinocchio.pinocchio_pywrap.cholesky"] = \
-    _pinocchio.pinocchio_pywrap.cholesky
+submodules = _inspect.getmembers(
+    _pinocchio.pinocchio_pywrap, _inspect.ismodule)
+for module_name, module_obj in submodules:
+    module_path = ".".join(('pinocchio', 'pinocchio_pywrap', module_name))
+    _sys.modules[module_path] = module_obj
 
+# Import core submodule once every dependencies have been preloaded
 with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
-    # Import core submodule once every dependency has been preloaded
     from . import core
     from .core import __version__, __raw_version__
 
-# Patch Pinocchio to fix support of numpy.ndarray as Eigen conversion.
+# Patch Pinocchio to avoid loading ground geometry in viewer, and
+# force numpy.ndarray type for from/to Python matrix converters.
 from . import _pinocchio_init as _patch  # noqa
 
 
