@@ -248,7 +248,8 @@ class Viewer:
                  delete_robot_on_close: bool = False,
                  robot_name: Optional[str] = None,
                  window_name: str = 'jiminy',
-                 scene_name: str = 'world'):
+                 scene_name: str = 'world',
+                 **kwargs):
         """
         :param robot: Jiminy.Robot to display.
         :param use_theoretical_model: Whether to use the theoretical (rigid)
@@ -276,6 +277,7 @@ class Viewer:
                             as backend. Note that it is not allowed to be equal
                             to the window name.
         :param scene_name: Scene name, used only with gepetto-gui backend.
+        :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
         # Handling of default arguments
         if robot_name is None:

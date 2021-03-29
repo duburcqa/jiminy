@@ -513,7 +513,8 @@ class Simulator:
                                  delete_robot_on_close=True,
                                  robot_name=robot_name,
                                  scene_name=scene_name,
-                                 window_name=window_name)
+                                 window_name=window_name,
+                                 **kwargs)
             self.viewer_backend = Viewer.backend
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
