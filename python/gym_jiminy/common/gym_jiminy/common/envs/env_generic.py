@@ -567,16 +567,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
-        obs = self.get_observation()
         try:
-            is_obs_valid = self.observation_space.contains(obs)
-        except AttributeError:
-            is_obs_valid = False
-        if not is_obs_valid:
+            obs = clip(self.observation_space, self.get_observation())
+        except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
-                "`_refresh_observation_space` at initialization.")
+                "`_refresh_observation_space` at initialization.") from e
 
         if self.is_done():
             raise RuntimeError(
@@ -587,7 +584,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if self.simulator.is_viewer_available:
             self.render()
 
-        return clip(self.observation_space, obs)
+        return obs
 
     def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
         """Specify the seed of the environment.
