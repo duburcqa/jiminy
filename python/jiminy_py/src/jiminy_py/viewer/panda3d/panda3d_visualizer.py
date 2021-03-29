@@ -800,12 +800,12 @@ class Panda3dVisualizer(BaseVisualizer):
             self.viewer.append_mesh(*node_name, mesh_path, scale)
 
         # Set material color from URDF
-        if geometry_object.overrideMaterial:
+        if color is not None:
+            self.viewer.set_material(*node_name, color)
+        elif geometry_object.overrideMaterial:
             rgba = npToTuple(geometry_object.meshColor)
             path = geometry_object.meshTexturePath
             self.viewer.set_material(*node_name, rgba, path)
-        elif color is not None:
-            self.viewer.set_material(*node_name, color)
 
     def loadViewerModel(self,
                         rootNodeName: str,
