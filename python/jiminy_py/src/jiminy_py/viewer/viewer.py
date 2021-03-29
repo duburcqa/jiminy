@@ -1075,7 +1075,7 @@ class Viewer:
                     Viewer._backend_obj.remove_legend_item(robot_name)
             else:
                 for text, (robot_name, color) in zip(
-                        labels, Viewer._backend_robot_colors):
+                        labels, Viewer._backend_robot_colors.items()):
                     rgba = [*[int(e * 255) for e in color[:3]], color[3]]
                     color = f"rgba({','.join(map(str, rgba))}"
                     Viewer._backend_obj.set_legend_item(
