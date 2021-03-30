@@ -422,6 +422,7 @@ class Simulator:
             tf: float,
             q0: np.ndarray,
             v0: np.ndarray,
+            a0: Optional[np.ndarray] = None,
             is_state_theoretical: bool = True,
             log_path: Optional[str] = None,
             show_progress_bar: bool = True) -> None:
@@ -433,6 +434,7 @@ class Simulator:
         :param tf: Simulation end time.
         :param q0: Initial configuration.
         :param v0: Initial velocity.
+        :param a0: Initial acceleration.
         :param is_state_theoretical: Whether or not the initial state is
                                      associated with the actual or theoretical
                                      model of the robot.
@@ -450,7 +452,7 @@ class Simulator:
                 "{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} "
                 "[{elapsed}<{remaining}]"))
         try:
-            self.simulate(tf, q0, v0, None, is_state_theoretical)
+            self.simulate(tf, q0, v0, a0, is_state_theoretical)
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
                 self.__pbar.close()
@@ -511,7 +513,8 @@ class Simulator:
                                  delete_robot_on_close=True,
                                  robot_name=robot_name,
                                  scene_name=scene_name,
-                                 window_name=window_name)
+                                 window_name=window_name,
+                                 **kwargs)
             self.viewer_backend = Viewer.backend
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
