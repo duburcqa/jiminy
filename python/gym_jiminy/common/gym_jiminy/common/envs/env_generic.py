@@ -483,8 +483,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # based on different URDF files. As a result, it is necessary to
         # instantiate a new low-level controller.
         # Note that `BaseJiminyObserverController` is used in place of
-        # `jiminy.ControllerFunctor`. Although it is less efficient because it
-        # adds an extra layer of indirection, it makes it possible to update
+        # `jiminy.BaseControllerFunctor`. Although it is less efficient because
+        # it adds an extra layer of indirection, it makes it possible to update
         # the controller handle without instantiating a new controller, which
         # is necessary to allow registering telemetry variables before knowing
         # the controller handle in advance.

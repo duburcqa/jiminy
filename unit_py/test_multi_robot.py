@@ -67,7 +67,7 @@ class SimulateMultiRobot(unittest.TestCase):
             # Create controller
             controller = Controllers(k[i], nu[i])
 
-            controller = jiminy.ControllerFunctor(
+            controller = jiminy.BaseControllerFunctor(
                 controller.compute_command, controller.internal_dynamics)
             controller.initialize(robots[i])
 
