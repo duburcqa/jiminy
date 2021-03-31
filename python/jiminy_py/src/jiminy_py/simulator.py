@@ -18,7 +18,6 @@ from .core import (EncoderSensor as encoder,
                    ForceSensor as force,
                    ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
-from .controller import BaseJiminyObserverController
 from .plot import TabbedFigure
 from .viewer import interactive_mode, play_logfiles, Viewer
 
@@ -222,6 +221,8 @@ class Simulator:
         return simulator
 
     def __del__(self) -> None:
+        """Custom deleter to make sure the close is properly closed at exit.
+        """
         self.close()
 
     def __getattr__(self, name: str) -> Any:
@@ -280,18 +281,25 @@ class Simulator:
 
     @property
     def log_data(self) -> Dict[str, np.ndarray]:
+        """Getter of the telemetry variables.
+        """
         if not self._log_data:
             self._log_data, self._log_constants = self.engine.get_log()
         return self._log_data
 
     @property
     def log_constants(self) -> Dict[str, str]:
+        """Getter of the telemetry constants.
+        """
         if not self._log_data:
             self._log_data, self._log_constants = self.engine.get_log()
         return self._log_constants
 
     @property
     def is_viewer_available(self) -> bool:
+        """Returns whether or not a viewer instance associated with the robot
+        is available.
+        """
         return self.viewer is not None and self.viewer.is_alive()
 
     def _callback(self,
@@ -351,29 +359,26 @@ class Simulator:
             self.viewer._setup(self.robot)
 
     def start(self,
-              q0: np.ndarray,
-              v0: np.ndarray,
+              q_init: np.ndarray,
+              v_init: np.ndarray,
+              a_init: Optional[np.ndarray] = None,
               is_state_theoretical: bool = False) -> None:
-        """Initialize a simulation, starting from x0=(q0,v0) at t=0.
+        """Initialize a simulation, starting from (q_init, v_init) at t=0.
 
-        :param q0: Initial configuration.
-        :param v0: Initial velocity.
+        :param q_init: Initial configuration.
+        :param v_init: Initial velocity.
+        :param a_init: Initial acceleration. It is only used by acceleration
+                       dependent sensors and controllers, such as IMU and force
+                       sensors.
         :param is_state_theoretical: Whether or not the initial state is
                                      associated with the actual or theoretical
                                      model of the robot.
         """
         # Call base implementation
-        hresult = self.engine.start(q0, v0, None, is_state_theoretical)
+        hresult = self.engine.start(
+            q_init, v_init, a_init, is_state_theoretical)
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Failed to start the simulation.")
-
-        # Update the observer at the end, if suitable
-        if isinstance(self.engine.controller, BaseJiminyObserverController):
-            self.engine.controller.refresh_observation(
-                self.stepper_state.t,
-                self.system_state.q,
-                self.system_state.v,
-                self.sensors_data)
 
     def step(self, step_dt: float = -1) -> None:
         """Integrate system dynamics from current state for a given duration.
@@ -393,48 +398,23 @@ class Simulator:
         if return_code != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Failed to perform the simulation step.")
 
-        # Update the observer at the end, if suitable
-        if isinstance(self.engine.controller, BaseJiminyObserverController):
-            self.engine.controller.refresh_observation(
-                self.stepper_state.t,
-                self.system_state.q,
-                self.system_state.v,
-                self.sensors_data)
-
     def simulate(self,
                  t_end: float,
                  q_init: np.ndarray,
                  v_init: np.ndarray,
                  a_init: Optional[np.ndarray] = None,
-                 is_state_theoretical: bool = False) -> None:
-        # Clear log data backup
-        self._log_data, self._log_constants = {}, {}
-
-        # Run simulation
-        return_code = self.engine.simulate(
-            t_end, q_init, v_init, a_init, is_state_theoretical)
-
-        # Throw exception if not successful
-        if return_code != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError("The simulation failed.")
-
-    def run(self,
-            tf: float,
-            q0: np.ndarray,
-            v0: np.ndarray,
-            a0: Optional[np.ndarray] = None,
-            is_state_theoretical: bool = True,
-            log_path: Optional[str] = None,
-            show_progress_bar: bool = True) -> None:
+                 is_state_theoretical: bool = True,
+                 log_path: Optional[str] = None,
+                 show_progress_bar: bool = True) -> None:
         """Run a simulation, starting from x0=(q0,v0) at t=0 up to tf.
 
         .. note::
             Optionally, log the result of the simulation.
 
-        :param tf: Simulation end time.
-        :param q0: Initial configuration.
-        :param v0: Initial velocity.
-        :param a0: Initial acceleration.
+        :param t_end: Simulation end time.
+        :param q_init: Initial configuration.
+        :param v_init: Initial velocity.
+        :param a_init: Initial acceleration.
         :param is_state_theoretical: Whether or not the initial state is
                                      associated with the actual or theoretical
                                      model of the robot.
@@ -446,17 +426,27 @@ class Simulator:
                                   if available.
                                   Optional: None by default.
         """
-        # Run the simulation
+        # Clear log data backup
+        self._log_data, self._log_constants = {}, {}
+
+        # Show progress bar if requested
         if show_progress_bar:
             self.__pbar = tqdm(total=tf, bar_format=(
                 "{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} "
                 "[{elapsed}<{remaining}]"))
+
+        # Run the simulation
         try:
-            self.simulate(tf, q0, v0, a0, is_state_theoretical)
+            return_code = self.simulate(
+                t_end, q_init, v_init, a_init, is_state_theoretical)
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
                 self.__pbar.close()
                 self.__pbar = None
+
+        # Throw exception if not successful
+        if return_code != jiminy.hresult_t.SUCCESS:
+            raise RuntimeError("The simulation failed.")
 
         # Write log
         if log_path is not None:
