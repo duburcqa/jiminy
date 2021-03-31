@@ -32,7 +32,7 @@ def computeCommand(t, q, v, sensors_data, command):
 def internalDynamics(t, q, v, sensors_data, u_custom):
     pass
 
-controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
+controller = jiminy.BaseControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(robot)
 
 # Instantiate the engine

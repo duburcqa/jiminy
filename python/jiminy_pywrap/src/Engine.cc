@@ -802,7 +802,16 @@ namespace python
                 // Update log data backup
                 logDataOld = logData;
             }
-            return *logDataPy;
+
+            // Avoid potential null pointer dereference, although should never happen in practice
+            if (logDataPy)
+            {
+                return *logDataPy;
+            }
+            else
+            {
+                return bp::make_tuple(bp::dict(), bp::dict());
+            }
         }
 
         static bp::tuple parseLogBinary(std::string const & filename)

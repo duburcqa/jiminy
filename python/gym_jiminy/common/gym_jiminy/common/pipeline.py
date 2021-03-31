@@ -3,7 +3,7 @@
 import json
 import pathlib
 from pydoc import locate
-from typing import Optional, Union, Dict, Any, Type, Sequence, Tuple, List
+from typing import Optional, Union, Dict, Any, Type, Sequence, List
 
 import gym
 import toml

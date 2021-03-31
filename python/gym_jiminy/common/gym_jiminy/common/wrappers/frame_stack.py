@@ -179,11 +179,6 @@ class StackedJiminyEnv(BasePipelineWrapper):
         self.control_dt = self.env.control_dt
         self.observe_dt = self.env.observe_dt
 
-        # Make sure observe update is discrete-time
-        if self.observe_dt <= 0.0:
-            raise ValueError(
-                "`StackedJiminyEnv` does not support time-continuous update.")
-
     def refresh_observation(self) -> None:  # type: ignore[override]
         # Get environment observation
         self.env.refresh_observation()

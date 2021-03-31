@@ -121,6 +121,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Internal buffers for physics computations
         self.rg = np.random.RandomState()
         self._seed: Optional[np.uint32] = None
+        self.n_steps_internal = 0
         self.log_path: Optional[str] = None
         self.logfile_action_headers: Optional[FieldDictNested] = None
 
@@ -519,8 +520,18 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # and raw sensors data. Similarly, there is no actual controller by
         # default, apart from forwarding the command torque to the motors.
         engine_options = self.simulator.engine.get_options()
-        self.control_dt = self.observe_dt = \
-            float(engine_options['stepper']['controllerUpdatePeriod'])
+        self.control_dt = self.observe_dt = float(
+            engine_options['stepper']['controllerUpdatePeriod'])
+
+        # Make sure observe update is discrete-time
+        if self.control_dt <= 0.0:
+            self.control_dt = self.observe_dt = self.step_dt
+            logger.warn(
+                "Time-continuous low-level controller update is not supported."
+                "Simulation timestep `step_dt` will be used instead.")
+
+        # Compute the number of internal steps to perform
+        self.n_steps_internal = int(np.round(self.step_dt / self.observe_dt))
 
         # Run controller hook and set the observer and controller handles
         observer_handle, controller_handle = None, None
@@ -566,7 +577,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "model.")
 
         # Start the engine
-        self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
+        self.simulator.start(
+            qpos, qvel, None, self.simulator.use_theoretical_model)
 
         # Initialize the observation
         self.refresh_observation()
@@ -652,18 +664,22 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if action is not None:
             set_value(self._action, action)
 
-        # Try to perform a single simulation step
+        # Trying to perform a single simulation step.
+        # Note that, in practice, it corresponds to several internal steps, in
+        # order to update the observer at the right period.
         is_step_failed = True
         try:
-            # Perform a single integration step
-            self.simulator.step(self.step_dt)
+            # Do several internal integration steps successively
+            for _ in range(self.n_steps_internal):
+                # Perform a single integration step
+                self.simulator.step(self.observe_dt)
 
-            # Update the observer
-            self.engine.controller.refresh_observation(
-                self.stepper_state.t,
-                self.system_state.q,
-                self.system_state.v,
-                self.sensors_data)
+                # Update the observer
+                self.engine.controller.refresh_observation(
+                    self.stepper_state.t,
+                    self.system_state.q,
+                    self.system_state.v,
+                    self.sensors_data)
 
             # Update some internal buffers
             is_step_failed = False
