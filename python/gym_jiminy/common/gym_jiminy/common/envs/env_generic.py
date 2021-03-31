@@ -18,21 +18,27 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.dynamics import (
-    update_quantities, compute_freeflyer_state_from_fixed_body)
+from jiminy_py.dynamics import (update_quantities,
+                                compute_freeflyer_state_from_fixed_body)
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep
-from jiminy_py.controller import (
-    ObserverHandleType, ControllerHandleType, BaseJiminyObserverController)
-
 
 from pinocchio import neutral, normalize
 
-from ..utils import (
-    zeros, fill, set_value, clip, get_fieldnames, register_variables,
-    FieldDictNested, SpaceDictNested)
+from ..utils import (zeros,
+                     fill,
+                     set_value,
+                     clip,
+                     get_fieldnames,
+                     register_variables,
+                     FieldDictNested,
+                     SpaceDictNested)
 from ..bases import ObserverControllerInterface
-from .play import loop_interactive
+
+from .internal import (ObserverHandleType,
+                       ControllerHandleType,
+                       BaseJiminyObserverController,
+                       loop_interactive)
 
 
 # Define universal bounds for the observation space
@@ -473,12 +479,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The memory address of the low-level has changed.")
 
         # Enforce the low-level controller.
-        # The backend robot may have changed, for example if it is randomly
-        # generated based on different URDF files. As a result, it is necessary
-        # to instantiate a new low-level controller.
-        # Note that `BaseJiminyObserverController` is used by default in place
-        # of `jiminy.ControllerFunctor`. Although it is less efficient because
-        # it adds an extra layer of indirection, it makes it possible to update
+        # The robot may have changed, for example if it is randomly generated
+        # based on different URDF files. As a result, it is necessary to
+        # instantiate a new low-level controller.
+        # Note that `BaseJiminyObserverController` is used in place of
+        # `jiminy.ControllerFunctor`. Although it is less efficient because it
+        # adds an extra layer of indirection, it makes it possible to update
         # the controller handle without instantiating a new controller, which
         # is necessary to allow registering telemetry variables before knowing
         # the controller handle in advance.
@@ -562,8 +568,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Start the engine
         self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
 
-        # Initialize the observation.
+        # Initialize the observation
         self.refresh_observation()
+
+        # Initialize the observer
+        self.engine.controller.refresh_observation(
+            self.stepper_state.t,
+            self.system_state.q,
+            self.system_state.v,
+            self.sensors_data)
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
@@ -642,6 +655,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         try:
             # Perform a single integration step
             self.simulator.step(self.step_dt)
+
+            # Update the observer
+            self.engine.controller.refresh_observation(
+                self.stepper_state.t,
+                self.system_state.q,
+                self.system_state.v,
+                self.sensors_data)
 
             # Update some internal buffers
             is_step_failed = False
