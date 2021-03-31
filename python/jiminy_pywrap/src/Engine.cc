@@ -668,8 +668,7 @@ namespace python
 
         static bp::tuple formatLogData(logData_t const & logData)
         {
-            bp::dict variables;
-            bp::dict constants;
+            bp::dict variables, constants;
 
             // Early return if empty
             if (logData.header.empty())
@@ -692,7 +691,8 @@ namespace python
             {
                 vectorN_t timeBuffer = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
                     logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
-                timePy = convertToPython(timeBuffer);
+                timePy = convertToPython(timeBuffer, true);
+                PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(timePy.ptr()), NPY_ARRAY_WRITEABLE);
             }
             else
             {
@@ -714,7 +714,9 @@ namespace python
                     {
                         intVector[j] = logData.intData[j][i];
                     }
-                    variables[header_i] = convertToPython(intVector);
+                    bp::object array = convertToPython(intVector, true);
+                    PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array.ptr()), NPY_ARRAY_WRITEABLE);
+                    variables[header_i] = array;
                 }
             }
             else
@@ -742,7 +744,9 @@ namespace python
                     {
                         floatVector[j] = logData.floatData[j][i];
                     }
-                    variables[header_i] = convertToPython(floatVector);
+                    bp::object array = convertToPython(floatVector, true);
+                    PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array.ptr()), NPY_ARRAY_WRITEABLE);
+                    variables[header_i] = array;
                 }
             }
             else
@@ -762,25 +766,43 @@ namespace python
 
         static bp::tuple getLog(EngineMultiRobot & self)
         {
-            static bp::tuple logDataPy;
+            /* It is impossible to use static boost::python variables. Indeed,
+               the global/static destructor is called after finalization of
+               Python runtime, the later being required to call the destructor
+               of Python objects. The easiest way to circumvent this limitation
+               the easiest solution is to avoid them. Alternatively, increasing
+               the reference counter to avoid calling the destructor at exit is
+               another way to fix the issue. Here some reference for more details
+               and more robust solutions:
+               - https://stackoverflow.com/a/24156996/4820605
+               - https://stackoverflow.com/a/31444751/4820605 */
+
+            static std::unique_ptr<bp::tuple> logDataPy(nullptr);
             static std::shared_ptr<logData_t const> logDataOld;
             std::shared_ptr<logData_t const> logData;
             self.getLogDataRaw(logData);
             if (logData.use_count() == 2)
             {
-                /* The shared pointer is new, because otherwise the use count should larger than 2.
-                   Indeed, both the engine and this method holds a single reference at this point.
-                   If it was old, this method would holds at least 2 references, one for the old
-                   reference and one for the new. */
-                logDataPy = formatLogData(*logData);
+                // Decrement the reference counter of old Python log data
+                if (logDataPy)
+                {
+                    bp::decref(logDataPy->ptr());
+                }
+
+                /* The shared pointer is new, because otherwise the use count should larger
+                   than 2. Indeed, both the engine and this method holds a single reference
+                   at this point. If it was old, this method would holds at least 2
+                   references, one for the old reference and one for the new. */
+                logDataPy = std::make_unique<bp::tuple>(formatLogData(*logData));
+
+                /* Reference counter must be incremented to avoid calling deleter by Boost
+                   Python after runtime finialization. */
+                bp::incref(logDataPy->ptr());
+
+                // Update log data backup
                 logDataOld = logData;
             }
-            else if (logData.use_count() < 2)
-            {
-                // Fallback just in case there is an unexpected issue.
-                logDataPy = bp::make_tuple(bp::dict(), bp::dict());
-            }
-            return logDataPy;
+            return *logDataPy;
         }
 
         static bp::tuple parseLogBinary(std::string const & filename)

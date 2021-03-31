@@ -409,13 +409,13 @@ class Simulator:
         """
         # Show progress bar if requested
         if show_progress_bar:
-            self.__pbar = tqdm(total=tf, bar_format=(
+            self.__pbar = tqdm(total=t_end, bar_format=(
                 "{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} "
                 "[{elapsed}<{remaining}]"))
 
         # Run the simulation
         try:
-            return_code = self.simulate(
+            return_code = self.engine.simulate(
                 t_end, q_init, v_init, a_init, is_state_theoretical)
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
