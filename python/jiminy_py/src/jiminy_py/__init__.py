@@ -2,6 +2,7 @@ import os as _os
 import sys as _sys
 import inspect as _inspect
 import importlib as _importlib
+from pkg_resources import parse_version as _version
 from contextlib import redirect_stderr as _redirect_stderr
 
 
@@ -31,12 +32,16 @@ else:
     _sys.modules["pinocchio"] = _pinocchio
 
 # Register pinocchio_pywrap to avoid importing bindings twise, which messes
-# up with boost python converters.
+# up with boost python converters. In addition, submodules search path needs
+# to be fixed for releases older than 2.5.6.
 submodules = _inspect.getmembers(
     _pinocchio.pinocchio_pywrap, _inspect.ismodule)
 for module_name, module_obj in submodules:
     module_path = ".".join(('pinocchio', 'pinocchio_pywrap', module_name))
     _sys.modules[module_path] = module_obj
+    if _version(_pinocchio.printVersion()) <= _version("2.5.6"):
+        module_path = ".".join(('pinocchio', module_name))
+        _sys.modules[module_path] = module_obj
 
 # Import core submodule once every dependencies have been preloaded
 with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
