@@ -146,7 +146,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                 handles = controller_hook()
                 if handles is not None:
                     observer_handle, controller_handle = handles
-            if controller_handle is None:
+            if observer_handle is None:
                 observer_handle = self._observer_handle
             if controller_handle is None:
                 controller_handle = self._controller_handle

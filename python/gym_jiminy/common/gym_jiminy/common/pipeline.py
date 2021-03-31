@@ -220,7 +220,8 @@ def build_pipeline(env_config: EnvConfig,
         if issubclass(wrapper_class_obj, gym.Wrapper):
             # Override __dir__ method if the wrapper inherits from
             # `gym.Wrapper`, to be consistent with the custom attribute lookup.
-            def __dir__(self: wrapped_env_class) -> List[str]:
+            def __dir__(self: wrapped_env_class  # type: ignore[valid-type]
+                        ) -> List[str]:
                 """Attribute lookup.
 
                 It is mainly used by autocomplete feature of Ipython. It is
@@ -228,7 +229,8 @@ def build_pipeline(env_config: EnvConfig,
                 """
                 wrapper_names = super(  # type: ignore[arg-type]
                     wrapped_env_class, self).__dir__()
-                env_names = [name for name in self.env.__dir__()
+                env_names = [name for name in
+                             self.env.__dir__()  # type: ignore[attr-defined]
                              if not name.startswith('_')]
                 return wrapper_names + env_names
 
