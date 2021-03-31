@@ -1,7 +1,7 @@
-PID Controller
-==============
+PD Controller
+=============
 
-.. automodule:: gym_jiminy.common.controllers.pid_controller
+.. automodule:: gym_jiminy.common.controllers.proportional_derivative
    :members:
    :undoc-members:
    :private-members:

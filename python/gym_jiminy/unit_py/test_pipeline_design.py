@@ -5,6 +5,7 @@ import unittest
 
 import numpy as np
 
+from jiminy_py.robot import _gcd
 from gym_jiminy.common.pipeline import build_pipeline, load_pipeline
 
 
@@ -159,12 +160,13 @@ class PipelineDesign(unittest.TestCase):
         self.assertTrue(np.all(state_ref['Q'] == state_obs['Q']))
         self.assertTrue(np.all(state_ref['V'] == state_obs['V']))
 
-        # Step manually to reach the next stacking breakpoint
-        env.simulator.step(stack_dt - env.step_dt % stack_dt)
-        obs = env.get_observation()
-        self.assertTrue(obs['t'][-3] == 0.0)
-        self.assertTrue(obs['t'][-2] == stack_dt)
-        self.assertTrue(obs['t'][-1] == 2 * stack_dt)
+        # Step until to reach the next stacking breakpoint
+        n_steps_breakpoint = int(stack_dt // _gcd(env.step_dt, stack_dt))
+        for _ in range(1, n_steps_breakpoint):
+            obs, _, _, _ = env.step(action)
+        for i, t in enumerate(np.flip(obs['t'])):
+            self.assertTrue(np.isclose(
+                t, n_steps_breakpoint * env.step_dt - i * stack_dt, 1.0e-6))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['sensors']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))

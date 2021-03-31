@@ -9,7 +9,7 @@ import numpy as np
 
 import gym
 
-from ..utils import _is_breakpoint, zeros, SpaceDictNested
+from ..utils import SpaceDictNested, is_breakpoint, zeros
 from ..bases import BasePipelineWrapper
 
 
@@ -179,11 +179,6 @@ class StackedJiminyEnv(BasePipelineWrapper):
         self.control_dt = self.env.control_dt
         self.observe_dt = self.env.observe_dt
 
-        # Make sure observe update is discrete-time
-        if self.observe_dt <= 0.0:
-            raise ValueError(
-                "`StackedJiminyEnv` does not support time-continuous update.")
-
     def refresh_observation(self) -> None:  # type: ignore[override]
         # Get environment observation
         self.env.refresh_observation()
@@ -191,7 +186,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
         # Update observed features if necessary
         t = self.stepper_state.t
         if self.simulator.is_simulation_running and \
-                _is_breakpoint(t, self.observe_dt, self._dt_eps):
+                is_breakpoint(t, self.observe_dt, self._dt_eps):
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1

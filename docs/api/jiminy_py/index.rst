@@ -6,7 +6,6 @@ Jiminy Python API
 
    core/index
    robot
-   controller
    simulator
    dynamics
    plot

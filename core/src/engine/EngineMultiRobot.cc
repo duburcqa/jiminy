@@ -56,7 +56,8 @@ namespace jiminy
     systemsDataHolder_(),
     forcesCoupling_(),
     fPrev_(),
-    aPrev_()
+    aPrev_(),
+    logData_(nullptr)
     {
         // Initialize the configuration options to the default.
         setOptions(getDefaultEngineOptions());
@@ -800,6 +801,9 @@ namespace jiminy
             stop();
         }
 
+        // Clear log data buffer
+        logData_ = nullptr;
+
         // Reset the dynamic force register if requested
         if (removeAllForce)
         {
@@ -1540,6 +1544,9 @@ namespace jiminy
             PRINT_ERROR("No simulation running. Please start it before using step method.");
             return hresult_t::ERROR_GENERIC;
         }
+
+        // Clear log data buffer
+        logData_ = nullptr;
 
         // Check if there is something wrong with the integration
         auto qIt = stepperState_.qSplit.begin();
@@ -3735,22 +3742,34 @@ namespace jiminy
         }
     }
 
-    hresult_t EngineMultiRobot::getLogDataRaw(logData_t & logData)
+    hresult_t EngineMultiRobot::getLogDataRaw(std::shared_ptr<logData_t const> & logData)
     {
-        return telemetryRecorder_->getData(logData);
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Update internal log data buffer if uninitialized
+        if (!logData_)
+        {
+            logData_ = std::make_shared<logData_t>();
+            returnCode = telemetryRecorder_->getData(*logData_);
+        }
+
+        // Return shared pointer to internal log data buffer
+        logData = std::const_pointer_cast<logData_t const>(logData_);
+
+        return returnCode;
     }
 
     hresult_t EngineMultiRobot::getLogData(std::vector<std::string> & header,
                                            matrixN_t                & logMatrix)
     {
-        logData_t logData;
+        std::shared_ptr<logData_t const> logData;
         hresult_t returnCode = getLogDataRaw(logData);
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!logData.timestamps.empty())
+            if (!logData->timestamps.empty())
             {
-                logDataToEigenMatrix(logData, logMatrix);
-                std::swap(header, logData.header);
+                logDataToEigenMatrix(*logData, logMatrix);
+                header = logData->header;  // copy instead of move, to not alter the buffer
             }
         }
 
@@ -3809,11 +3828,11 @@ namespace jiminy
     hresult_t EngineMultiRobot::writeLogHdf5(std::string const & filename)
     {
         // Extract raw log data
-        logData_t logData;
+        std::shared_ptr<logData_t const> logData;
         hresult_t returnCode = getLogDataRaw(logData);
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (logData.intData.empty())
+            if (logData->intData.empty())
             {
                 PRINT_ERROR("No data available. Please start a simulation before writing log.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -3836,7 +3855,7 @@ namespace jiminy
             H5::DataSpace versionSpace = H5::DataSpace(H5S_SCALAR);
             H5::Attribute versionAttrib = file->createAttribute(
                 "VERSION", H5::PredType::NATIVE_INT, versionSpace);
-            versionAttrib.write(H5::PredType::NATIVE_INT, &logData.version);
+            versionAttrib.write(H5::PredType::NATIVE_INT, &logData->version);
 
             // Add "START_TIME" attribute
             int64_t time = std::time(nullptr);
@@ -3846,25 +3865,25 @@ namespace jiminy
             startTimeAttrib.write(H5::PredType::NATIVE_LONG, &time);
 
             // Add GLOBAL_TIME vector
-            hsize_t vectorDims[1] = {hsize_t(logData.timestamps.size())};
+            hsize_t vectorDims[1] = {hsize_t(logData->timestamps.size())};
             H5::DataSpace globalTimeSpace = H5::DataSpace(1, vectorDims);
             H5::DataSet globalTimeDataSet = file->createDataSet(
                 GLOBAL_TIME, H5::PredType::NATIVE_LONG, globalTimeSpace);
-            globalTimeDataSet.write(logData.timestamps.data(), H5::PredType::NATIVE_LONG);
+            globalTimeDataSet.write(logData->timestamps.data(), H5::PredType::NATIVE_LONG);
 
             // Add "unit" attribute to GLOBAL_TIME vector
             H5::DataSpace unitSpace = H5::DataSpace(H5S_SCALAR);
             H5::Attribute unitAttrib = globalTimeDataSet.createAttribute(
                 "unit", H5::PredType::NATIVE_DOUBLE, unitSpace);
-            unitAttrib.write(H5::PredType::NATIVE_DOUBLE, &logData.timeUnit);
+            unitAttrib.write(H5::PredType::NATIVE_DOUBLE, &logData->timeUnit);
 
             // Add group "constants"
             H5::Group constantsGroup(file->createGroup("constants"));
             int32_t const lastConstantIdx = std::distance(
-                logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
+                logData->header.begin(), std::find(logData->header.begin(), logData->header.end(), START_COLUMNS));
             for (int32_t i = 1; i < lastConstantIdx; ++i)
             {
-                std::string const & constantDescr = logData.header[i];
+                std::string const & constantDescr = logData->header[i];
                 int32_t const delimiterIdx = constantDescr.find(TELEMETRY_CONSTANT_DELIMITER);
                 std::string const key = constantDescr.substr(0, delimiterIdx);
                 char_t const * value = constantDescr.c_str() + (delimiterIdx + 1);
@@ -3881,14 +3900,14 @@ namespace jiminy
                of every variable at each timestamp. */
             Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
             Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
-            intVector.resize(logData.timestamps.size());
-            floatVector.resize(logData.timestamps.size());
+            intVector.resize(logData->timestamps.size());
+            floatVector.resize(logData->timestamps.size());
 
             // Add group "variables"
             H5::Group variablesGroup(file->createGroup("variables"));
-            for (uint32_t i=0; i < logData.numInt; ++i)
+            for (uint32_t i=0; i < logData->numInt; ++i)
             {
-                std::string const & key = logData.header[i + (lastConstantIdx + 1) + 1];
+                std::string const & key = logData->header[i + (lastConstantIdx + 1) + 1];
 
                 // Create group for field
                 H5::Group fieldGroup(variablesGroup.createGroup(key));
@@ -3896,7 +3915,7 @@ namespace jiminy
                 // Enable compression and shuffling
                 H5::DSetCreatPropList plist;
                 hsize_t chunkSize[1];
-                chunkSize[0] = logData.timestamps.size();  // Read the whole vector at once.
+                chunkSize[0] = logData->timestamps.size();  // Read the whole vector at once.
                 plist.setChunk(1, chunkSize);
                 plist.setShuffle();
                 plist.setDeflate(4);
@@ -3910,15 +3929,15 @@ namespace jiminy
                     "value", H5::PredType::NATIVE_LONG, valueSpace, plist);
 
                 // Write values in one-shot for efficiency
-                for (uint32_t j=0; j < logData.intData.size(); ++j)
+                for (uint32_t j=0; j < logData->intData.size(); ++j)
                 {
-                    intVector[j] = logData.intData[j][i];
+                    intVector[j] = logData->intData[j][i];
                 }
                 valueDataset.write(intVector.data(), H5::PredType::NATIVE_LONG);
             }
-            for (uint32_t i=0; i < logData.numFloat; ++i)
+            for (uint32_t i=0; i < logData->numFloat; ++i)
             {
-                std::string const & key = logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
+                std::string const & key = logData->header[i + (lastConstantIdx + 1) + 1 + logData->numInt];
 
                 // Create group for field
                 H5::Group fieldGroup(variablesGroup.createGroup(key));
@@ -3926,7 +3945,7 @@ namespace jiminy
                 // Enable compression and shuffling
                 H5::DSetCreatPropList plist;
                 hsize_t chunkSize[1];
-                chunkSize[0] = logData.timestamps.size();  // Read the whole vector at once.
+                chunkSize[0] = logData->timestamps.size();  // Read the whole vector at once.
                 plist.setChunk(1, chunkSize);
                 plist.setShuffle();
                 plist.setDeflate(4);
@@ -3940,9 +3959,9 @@ namespace jiminy
                     "value", H5::PredType::NATIVE_DOUBLE, valueSpace, plist);
 
                 // Write values
-                for (uint32_t j=0; j < logData.floatData.size(); ++j)
+                for (uint32_t j=0; j < logData->floatData.size(); ++j)
                 {
-                    floatVector[j] = logData.floatData[j][i];
+                    floatVector[j] = logData->floatData[j][i];
                 }
                 valueDataset.write(floatVector.data(), H5::PredType::NATIVE_DOUBLE);
             }

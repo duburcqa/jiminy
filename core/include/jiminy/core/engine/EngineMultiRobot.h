@@ -582,7 +582,7 @@ namespace jiminy
                                               forceVector_t & fext);
 
     public:
-        hresult_t getLogDataRaw(logData_t & logData);
+        hresult_t getLogDataRaw(std::shared_ptr<logData_t const> & logData);
 
         /// \brief Get the full logged content.
         ///
@@ -656,6 +656,7 @@ namespace jiminy
         forceCouplingRegister_t forcesCoupling_;
         std::vector<forceVector_t> fPrev_;
         std::vector<motionVector_t> aPrev_;
+        std::shared_ptr<logData_t> logData_;
     };
 }
 

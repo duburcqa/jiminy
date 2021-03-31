@@ -397,7 +397,7 @@ class Viewer:
 
         # Refresh the viewer since the positions of the meshes and their
         # visibility mode are not properly set at this point.
-        self.refresh()
+        self.refresh(force_update_visual=True, force_update_collision=True)
 
     def __del__(self) -> None:
         """Destructor.
@@ -509,9 +509,6 @@ class Viewer:
             robot_node_path = '/'.join((self.scene_name, self.robot_name))
             self._client.loadViewerModel(
                 rootNodeName=robot_node_path, color=urdf_rgba)
-
-        # Initialize robot configuration
-        self.refresh(force_update_visual=True, force_update_collision=True)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:

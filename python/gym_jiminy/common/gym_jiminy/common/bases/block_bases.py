@@ -12,8 +12,9 @@ from typing import Optional, Any, List
 
 import gym
 
-from ..utils import get_fieldnames, FieldDictNested, SpaceDictNested
+from ..utils import FieldDictNested, SpaceDictNested, get_fieldnames
 from ..envs import BaseJiminyEnv
+
 from .generic_bases import ControllerInterface, ObserverInterface
 
 

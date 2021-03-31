@@ -318,10 +318,6 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
-                                 bp::default_call_policies(),
-                                (bp::arg("compute_command") = bp::object(),  // bp::object() means 'None' in Python
-                                 bp::arg("internal_dynamics") = bp::object())))
                 .def("compute_command", &AbstractController::computeCommand,
                                         (bp::arg("self"), "t", "q", "v", "command"))
                 .def("internal_dynamics", &AbstractController::internalDynamics,
@@ -369,13 +365,16 @@ namespace python
         {
             bp::class_<CtrlFunctor, bp::bases<AbstractController>,
                        std::shared_ptr<CtrlFunctor>,
-                       boost::noncopyable>("ControllerFunctor", bp::no_init)
+                       boost::noncopyable>("_ControllerFunctor", bp::no_init)
                 .def(PyControllerFunctorVisitor());
 
             bp::class_<CtrlFunctorWrapper, bp::bases<CtrlFunctor>,
                        std::shared_ptr<CtrlFunctorWrapper>,
                        boost::noncopyable>("BaseControllerFunctor", bp::no_init)
-                .def(PyControllerFunctorVisitor())  // It seems that '__init__' is not inherited automatically
+                .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
+                                 bp::default_call_policies(),
+                                (bp::arg("compute_command") = bp::object(),
+                                 bp::arg("internal_dynamics") = bp::object())))
                 .def("reset", &CtrlFunctor::reset, &CtrlFunctorWrapper::default_reset,
                               (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false));
         }
