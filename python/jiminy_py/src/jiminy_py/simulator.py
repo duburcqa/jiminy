@@ -107,10 +107,6 @@ class Simulator:
         # Internal buffer for progress bar management
         self.__pbar: Optional[tqdm] = None
 
-        # Internal buffer to avoid reading log data multiple times
-        self._log_data: Dict[str, np.ndarray] = {}
-        self._log_constants: Dict[str, str] = {}
-
         # Figure holder
         self.figure: Optional[Figure] = None
 
@@ -283,17 +279,13 @@ class Simulator:
     def log_data(self) -> Dict[str, np.ndarray]:
         """Getter of the telemetry variables.
         """
-        if not self._log_data:
-            self._log_data, self._log_constants = self.engine.get_log()
-        return self._log_data
+        return self.engine.get_log()[0]
 
     @property
     def log_constants(self) -> Dict[str, str]:
         """Getter of the telemetry constants.
         """
-        if not self._log_data:
-            self._log_data, self._log_constants = self.engine.get_log()
-        return self._log_constants
+        return self.engine.get_log()[1]
 
     @property
     def is_viewer_available(self) -> bool:
@@ -347,16 +339,8 @@ class Simulator:
             method.
             Optional: Do not remove by default.
         """
-        # Clear log data backup
-        self._log_data, self._log_constants = {}, {}
-
         # Reset the backend engine
         self.engine.reset(False, remove_all_forces)
-
-        # Note that the viewer must only be reset if available, otherwise it
-        # will have dangling reference to the old robot model.
-        if self.is_viewer_available:
-            self.viewer._setup(self.robot)
 
     def start(self,
               q_init: np.ndarray,
@@ -387,9 +371,6 @@ class Simulator:
                         duration, namely until the next breakpoint if any,
                         or 'engine_options["stepper"]["dtMax"]'.
         """
-        # Clear log data backup
-        self._log_data, self._log_constants = {}, {}
-
         # Perform a single integration step
         if not self.is_simulation_running:
             raise RuntimeError(
@@ -426,9 +407,6 @@ class Simulator:
                                   if available.
                                   Optional: None by default.
         """
-        # Clear log data backup
-        self._log_data, self._log_constants = {}, {}
-
         # Show progress bar if requested
         if show_progress_bar:
             self.__pbar = tqdm(total=tf, bar_format=(

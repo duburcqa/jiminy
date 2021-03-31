@@ -666,7 +666,7 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static bp::tuple formatLogData(logData_t & logData)
+        static bp::tuple formatLogData(logData_t const & logData)
         {
             bp::dict variables;
             bp::dict constants;
@@ -762,9 +762,25 @@ namespace python
 
         static bp::tuple getLog(EngineMultiRobot & self)
         {
-            logData_t logData;
+            static bp::tuple logDataPy;
+            static std::shared_ptr<logData_t const> logDataOld;
+            std::shared_ptr<logData_t const> logData;
             self.getLogDataRaw(logData);
-            return formatLogData(logData);
+            if (logData.use_count() == 2)
+            {
+                /* The shared pointer is new, because otherwise the use count should larger than 2.
+                   Indeed, both the engine and this method holds a single reference at this point.
+                   If it was old, this method would holds at least 2 references, one for the old
+                   reference and one for the new. */
+                logDataPy = formatLogData(*logData);
+                logDataOld = logData;
+            }
+            else if (logData.use_count() < 2)
+            {
+                // Fallback just in case there is an unexpected issue.
+                logDataPy = bp::make_tuple(bp::dict(), bp::dict());
+            }
+            return logDataPy;
         }
 
         static bp::tuple parseLogBinary(std::string const & filename)

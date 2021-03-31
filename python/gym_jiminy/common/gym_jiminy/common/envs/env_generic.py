@@ -593,8 +593,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
-        # Update rendering if viewer is already running
+        # Note that the viewer must be reset if available, otherwise it would
+        # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
+            self.simulator.viewer._setup(self.robot)
             self.render()
 
         return obs
