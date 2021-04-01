@@ -225,7 +225,7 @@ def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
 
 
 @nb.jit(nopython=True, nogil=True)
-def _is_breakpoint(t: float, dt: float, eps: float) -> bool:
+def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """Check if 't' is multiple of 'dt' at a given precision 'eps'.
 
     :param t: Current time.

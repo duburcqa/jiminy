@@ -10,6 +10,7 @@
 #include "jiminy/python/Engine.h"
 
 #include <boost/python.hpp>
+#include <boost/python/raw_function.hpp>
 
 
 namespace jiminy
@@ -416,14 +417,16 @@ namespace python
 
                 .def("reset",
                     static_cast<
-                        void (EngineMultiRobot::*)(bool_t const &)
+                        void (EngineMultiRobot::*)(bool_t const &, bool_t const &)
                     >(&EngineMultiRobot::reset),
-                    (bp::arg("self"), bp::arg("remove_forces") = false))
+                    (bp::arg("self"),
+                     bp::arg("remove_all_forces") = false,
+                     bp::arg("remove_all_forces") = false))
                 .def("start", &PyEngineMultiRobotVisitor::start,
                               (bp::arg("self"), "q_init_list", "v_init_list",
                                bp::arg("a_init_list") = bp::object(),  // bp::object() means 'None' in Python
                                bp::arg("reset_random_generator") = false,
-                               bp::arg("remove_forces") = false))
+                               bp::arg("remove_all_forces") = false))
                 .def("step", &PyEngineMultiRobotVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired") = -1))
                 .def("stop", &EngineMultiRobot::stop, (bp::arg("self")))
@@ -446,15 +449,39 @@ namespace python
                 .def("register_force_impulse", &PyEngineMultiRobotVisitor::registerForceImpulse,
                                                (bp::arg("self"), "system_name",
                                                 "frame_name", "t", "dt", "F"))
+                .def("remove_forces_impulse",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(std::string const &)
+                    >(&EngineMultiRobot::removeForcesImpulse),
+                    (bp::arg("self"), "system_name"))
+                .def("remove_forces_impulse",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(void)
+                    >(&EngineMultiRobot::removeForcesImpulse),
+                    (bp::arg("self")))
                 .def("register_force_profile", &PyEngineMultiRobotVisitor::registerForceProfile,
                                                (bp::arg("self"), "system_name",
                                                 "frame_name", "force_function"))
-                .def("remove_forces", &PyEngineMultiRobotVisitor::removeForces)
+                .def("remove_forces_profile",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(std::string const &)
+                    >(&EngineMultiRobot::removeForcesProfile),
+                    (bp::arg("self"), "system_name"))
+                .def("remove_forces_profile",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(void)
+                    >(&EngineMultiRobot::removeForcesProfile),
+                    (bp::arg("self")))
+
+                .add_property("forces_coupling", bp::make_function(&EngineMultiRobot::getForcesCoupling,
+                                                 bp::return_internal_reference<>()))
 
                 .add_property("forces_impulse", bp::make_function(&PyEngineMultiRobotVisitor::getForcesImpulse,
                                                 bp::return_internal_reference<>()))
                 .add_property("forces_profile", bp::make_function(&PyEngineMultiRobotVisitor::getForcesProfile,
                                                 bp::return_internal_reference<>()))
+
+                .def("remove_all_forces", &EngineMultiRobot::removeAllForces)
 
                 .def("get_options", &EngineMultiRobot::getOptions)
                 .def("set_options", &PyEngineMultiRobotVisitor::setOptions)
@@ -635,19 +662,13 @@ namespace python
             self.registerForceProfile(systemName, frameName, std::move(forceFct));
         }
 
-        static void removeForces(Engine & self)
-        {
-            self.reset(true);
-        }
-
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static bp::tuple formatLogData(logData_t & logData)
+        static bp::tuple formatLogData(logData_t const & logData)
         {
-            bp::dict variables;
-            bp::dict constants;
+            bp::dict variables, constants;
 
             // Early return if empty
             if (logData.header.empty())
@@ -670,7 +691,8 @@ namespace python
             {
                 vectorN_t timeBuffer = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
                     logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
-                timePy = convertToPython(timeBuffer);
+                timePy = convertToPython(timeBuffer, true);
+                PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(timePy.ptr()), NPY_ARRAY_WRITEABLE);
             }
             else
             {
@@ -692,7 +714,9 @@ namespace python
                     {
                         intVector[j] = logData.intData[j][i];
                     }
-                    variables[header_i] = convertToPython(intVector);
+                    bp::object array = convertToPython(intVector, true);
+                    PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array.ptr()), NPY_ARRAY_WRITEABLE);
+                    variables[header_i] = array;
                 }
             }
             else
@@ -720,7 +744,9 @@ namespace python
                     {
                         floatVector[j] = logData.floatData[j][i];
                     }
-                    variables[header_i] = convertToPython(floatVector);
+                    bp::object array = convertToPython(floatVector, true);
+                    PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array.ptr()), NPY_ARRAY_WRITEABLE);
+                    variables[header_i] = array;
                 }
             }
             else
@@ -740,9 +766,52 @@ namespace python
 
         static bp::tuple getLog(EngineMultiRobot & self)
         {
-            logData_t logData;
+            /* It is impossible to use static boost::python variables. Indeed,
+               the global/static destructor is called after finalization of
+               Python runtime, the later being required to call the destructor
+               of Python objects. The easiest way to circumvent this limitation
+               the easiest solution is to avoid them. Alternatively, increasing
+               the reference counter to avoid calling the destructor at exit is
+               another way to fix the issue. Here some reference for more details
+               and more robust solutions:
+               - https://stackoverflow.com/a/24156996/4820605
+               - https://stackoverflow.com/a/31444751/4820605 */
+
+            static std::unique_ptr<bp::tuple> logDataPy(nullptr);
+            static std::shared_ptr<logData_t const> logDataOld;
+            std::shared_ptr<logData_t const> logData;
             self.getLogDataRaw(logData);
-            return formatLogData(logData);
+            if (logData.use_count() == 2)
+            {
+                // Decrement the reference counter of old Python log data
+                if (logDataPy)
+                {
+                    bp::decref(logDataPy->ptr());
+                }
+
+                /* The shared pointer is new, because otherwise the use count should larger
+                   than 2. Indeed, both the engine and this method holds a single reference
+                   at this point. If it was old, this method would holds at least 2
+                   references, one for the old reference and one for the new. */
+                logDataPy = std::make_unique<bp::tuple>(formatLogData(*logData));
+
+                /* Reference counter must be incremented to avoid calling deleter by Boost
+                   Python after runtime finialization. */
+                bp::incref(logDataPy->ptr());
+
+                // Update log data backup
+                logDataOld = logData;
+            }
+
+            // Avoid potential null pointer dereference, although should never happen in practice
+            if (logDataPy)
+            {
+                return *logDataPy;
+            }
+            else
+            {
+                return bp::make_tuple(bp::dict(), bp::dict());
+            }
         }
 
         static bp::tuple parseLogBinary(std::string const & filename)
@@ -799,6 +868,10 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
+                .def("add_system", raw_function(&PyEngineVisitor::addSystem, 1))
+                .def("remove_system", &Engine::removeSystem,
+                                      (bp::arg("self"), "system_name"))
+
                 .def("initialize", &PyEngineVisitor::initialize,
                                    (bp::arg("self"), "robot",
                                     bp::arg("controller") = std::shared_ptr<AbstractController>(),
@@ -814,7 +887,7 @@ namespace python
                      bp::arg("a_init") = bp::object(),
                      bp::arg("is_state_theoretical") = false,
                      bp::arg("reset_random_generator") = false,
-                     bp::arg("remove_forces") = false))
+                     bp::arg("remove_all_forces") = false))
                 .def("simulate",
                     &PyEngineVisitor::simulate,
                     (bp::arg("self"), "t_end", "q_init", "v_init",
@@ -862,6 +935,12 @@ namespace python
                 .add_property("system_state", bp::make_function(&PyEngineVisitor::getSystemState,
                                                                 bp::return_internal_reference<>()))
                 ;
+        }
+
+        static hresult_t addSystem(bp::tuple args, bp::dict kwargs)
+        {
+            // Hide all EngineMultiRobot `addSystem` overloads at once
+            return Engine().addSystem("", std::shared_ptr<Robot>(), std::shared_ptr<AbstractController>());
         }
 
         static hresult_t initialize(Engine                                    & self,

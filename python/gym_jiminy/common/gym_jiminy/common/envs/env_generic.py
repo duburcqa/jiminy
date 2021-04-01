@@ -18,21 +18,27 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.dynamics import (
-    update_quantities, compute_freeflyer_state_from_fixed_body)
+from jiminy_py.dynamics import (update_quantities,
+                                compute_freeflyer_state_from_fixed_body)
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep
-from jiminy_py.controller import (
-    ObserverHandleType, ControllerHandleType, BaseJiminyObserverController)
-
 
 from pinocchio import neutral, normalize
 
-from ..utils import (
-    zeros, fill, set_value, clip, get_fieldnames, register_variables,
-    FieldDictNested, SpaceDictNested)
+from ..utils import (zeros,
+                     fill,
+                     set_value,
+                     clip,
+                     get_fieldnames,
+                     register_variables,
+                     FieldDictNested,
+                     SpaceDictNested)
 from ..bases import ObserverControllerInterface
-from .play import loop_interactive
+
+from .internal import (ObserverHandleType,
+                       ControllerHandleType,
+                       BaseJiminyObserverController,
+                       loop_interactive)
 
 
 # Define universal bounds for the observation space
@@ -461,7 +467,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.stop()
 
         # Remove external forces, if any
-        self.simulator.remove_forces()
+        self.simulator.remove_all_forces()
 
         # Make sure the environment is properly setup
         self._setup()
@@ -473,11 +479,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The memory address of the low-level has changed.")
 
         # Enforce the low-level controller.
-        # The backend robot may have changed, for example if it is randomly
-        # generated based on different URDF files. As a result, it is necessary
-        # to instantiate a new low-level controller.
-        # Note that `BaseJiminyObserverController` is used by default in place
-        # of `jiminy.ControllerFunctor`. Although it is less efficient because
+        # The robot may have changed, for example if it is randomly generated
+        # based on different URDF files. As a result, it is necessary to
+        # instantiate a new low-level controller.
+        # Note that `BaseJiminyObserverController` is used in place of
+        # `jiminy.BaseControllerFunctor`. Although it is less efficient because
         # it adds an extra layer of indirection, it makes it possible to update
         # the controller handle without instantiating a new controller, which
         # is necessary to allow registering telemetry variables before knowing
@@ -513,8 +519,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # and raw sensors data. Similarly, there is no actual controller by
         # default, apart from forwarding the command torque to the motors.
         engine_options = self.simulator.engine.get_options()
-        self.control_dt = self.observe_dt = \
-            float(engine_options['stepper']['controllerUpdatePeriod'])
+        self.control_dt = self.observe_dt = float(
+            engine_options['stepper']['controllerUpdatePeriod'])
 
         # Run controller hook and set the observer and controller handles
         observer_handle, controller_handle = None, None
@@ -560,34 +566,40 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "model.")
 
         # Start the engine
-        self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
+        self.simulator.start(
+            qpos, qvel, None, self.simulator.use_theoretical_model)
 
-        # Initialize the observation.
-        self.refresh_observation()
+        # Initialize the observer.
+        # Note that it is responsible of refreshing the environment's
+        # observation before anything else, so no need to do it twice.
+        self.engine.controller.refresh_observation(
+            self.stepper_state.t,
+            self.system_state.q,
+            self.system_state.v,
+            self.sensors_data)
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
-        obs = self.get_observation()
         try:
-            is_obs_valid = self.observation_space.contains(obs)
-        except AttributeError:
-            is_obs_valid = False
-        if not is_obs_valid:
+            obs = clip(self.observation_space, self.get_observation())
+        except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
-                "`_refresh_observation_space` at initialization.")
+                "`_refresh_observation_space` at initialization.") from e
 
         if self.is_done():
             raise RuntimeError(
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
-        # Update rendering if viewer is already running
+        # Note that the viewer must be reset if available, otherwise it would
+        # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
+            self.simulator.viewer._setup(self.robot)
             self.render()
 
-        return clip(self.observation_space, obs)
+        return obs
 
     def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
         """Specify the seed of the environment.
@@ -640,11 +652,20 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if action is not None:
             set_value(self._action, action)
 
-        # Try to perform a single simulation step
+        # Trying to perform a single simulation step
         is_step_failed = True
         try:
-            # Perform a single integration step
+            # Do a single step
             self.simulator.step(self.step_dt)
+
+            # Update the observer at the end of the step. Indeed, internally,
+            # it is called at the beginning of the every integration steps,
+            # during the controller update.
+            self.engine.controller.refresh_observation(
+                self.stepper_state.t,
+                self.system_state.q,
+                self.system_state.v,
+                self.sensors_data)
 
             # Update some internal buffers
             is_step_failed = False

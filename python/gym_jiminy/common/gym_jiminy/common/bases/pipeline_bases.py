@@ -20,12 +20,16 @@ import gym
 
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
-from jiminy_py.controller import ObserverHandleType, ControllerHandleType
 
-from ..utils import (
-    _is_breakpoint, zeros, fill, set_value, register_variables,
-    SpaceDictNested)
+from ..utils import (SpaceDictNested,
+                     is_breakpoint,
+                     zeros,
+                     fill,
+                     set_value,
+                     register_variables)
 from ..envs import BaseJiminyEnv
+from ..envs.internal import ObserverHandleType, ControllerHandleType
+
 from .block_bases import BaseControllerBlock, BaseObserverBlock
 from .generic_bases import ObserverControllerInterface
 
@@ -142,7 +146,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                 handles = controller_hook()
                 if handles is not None:
                     observer_handle, controller_handle = handles
-            if controller_handle is None:
+            if observer_handle is None:
                 observer_handle = self._observer_handle
             if controller_handle is None:
                 controller_handle = self._controller_handle
@@ -355,7 +359,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
 
         # Update observed features if necessary
         t = self.stepper_state.t
-        if _is_breakpoint(t, self.observe_dt, self._dt_eps):
+        if is_breakpoint(t, self.observe_dt, self._dt_eps):
             obs = self.env.get_observation()
             self.observer.refresh_observation(obs)
             if not self.simulator.is_simulation_running:
@@ -541,7 +545,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # calling this method by `_controller_handle`, so it can be used as
         # measure argument without issue.
         t = self.stepper_state.t
-        if _is_breakpoint(t, self.control_dt, self._dt_eps):
+        if is_breakpoint(t, self.control_dt, self._dt_eps):
             target = self.controller.compute_command(self._observation, action)
             set_value(self._target, target)
 

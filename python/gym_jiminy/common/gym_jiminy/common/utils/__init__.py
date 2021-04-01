@@ -3,7 +3,7 @@
 from .helpers import (
     SpaceDictNested, FieldDictNested,
     sample, zeros, fill, set_value, copy, clip,
-    _is_breakpoint, get_fieldnames, register_variables)
+    is_breakpoint, get_fieldnames, register_variables)
 
 
 __all__ = [
@@ -15,7 +15,7 @@ __all__ = [
     'set_value',
     'copy',
     'clip',
-    '_is_breakpoint',
+    'is_breakpoint',
     'get_fieldnames',
     'register_variables'
 ]

@@ -79,10 +79,17 @@ namespace python
         }
     };
 
+    uint32_t getRandomSeed(void)
+    {
+        uint32_t seed;
+        ::jiminy::getRandomSeed(seed);  // Cannot fail since random number generators are initialized when imported
+        return seed;
+    }
+
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
     {
         // Initialize Jiminy random number generator
-        resetRandomGenerators(0);
+        resetRandomGenerators(0U);
 
         // Initialized C API of Python, required to handle raw Python native object
         Py_Initialize();
@@ -96,6 +103,9 @@ namespace python
         // Expose the version
         bp::scope().attr("__version__") = bp::str(JIMINY_VERSION);
         bp::scope().attr("__raw_version__") = bp::str(JIMINY_VERSION);
+
+        bp::def("get_random_seed", bp::make_function(&getRandomSeed,
+                                   bp::return_value_policy<bp::return_by_value>()));
 
         // Interfaces for hresult_t enum
         bp::enum_<hresult_t>("hresult_t")

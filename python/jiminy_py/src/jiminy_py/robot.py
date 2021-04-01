@@ -42,8 +42,8 @@ logger.addFilter(_DuplicateFilter())
 
 def _gcd(a: float,
          b: float,
-         rtol: float = 1e-05,
-         atol: float = 1e-08) -> float:
+         rtol: float = 1.0e-05,
+         atol: float = 1.0e-08) -> float:
     """Compute the greatest common divisor of two float numbers.
     """
     t = min(abs(a), abs(b))

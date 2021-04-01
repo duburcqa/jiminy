@@ -15,6 +15,8 @@ namespace jiminy
 
     std::mt19937 generator_;
     std::uniform_real_distribution<float32_t> distUniform_(0.0, 1.0);
+    bool_t isInitialized_ = false;
+    uint32_t seed_ = 0U;
 
     uint32_t kn[128];
     float32_t fn[128];
@@ -25,9 +27,9 @@ namespace jiminy
         float64_t const m1 = 2147483648.0;
         float64_t const vn = 9.91256303526217e-03;
         float64_t dn = 3.442619855899;
-        float64_t tn = 3.442619855899;
+        float64_t tn = dn;
 
-        float64_t q = vn / exp (-0.5 * dn * dn);
+        float64_t q = vn / exp(-0.5 * dn * dn);
 
         kn[0] = static_cast<uint32_t>((dn / q) * m1);
         kn[1] = 0;
@@ -40,7 +42,7 @@ namespace jiminy
 
         for (uint8_t i=126; 1 <= i; i--)
         {
-            dn = sqrt (-2.0 * log(vn / dn + exp(-0.5 * dn * dn)));
+            dn = sqrt(-2.0 * log(vn / dn + exp(-0.5 * dn * dn)));
             kn[i+1] = static_cast<uint32_t>((dn / tn) * m1);
             tn = dn;
             fn[i] = static_cast<float32_t>(exp(-0.5 * dn * dn));
@@ -112,22 +114,42 @@ namespace jiminy
         }
     }
 
-	void resetRandomGenerators(uint32_t const & seed)
+	void resetRandomGenerators(std::optional<uint32_t> const & seed)
 	{
-		srand(seed);  // Eigen relies on srand for genering random matrix
-        generator_.seed(seed);
+        uint32_t newSeed = seed.value_or(seed_);
+		srand(newSeed);  // Eigen relies on srand for genering random numbers
+        generator_.seed(newSeed);
         r4_nor_setup();
+        seed_ = newSeed;
+        isInitialized_ = true;
 	}
+
+    hresult_t getRandomSeed(uint32_t & seed)
+    {
+        if (!isInitialized_)
+        {
+            PRINT_ERROR("Random number generator not initialized.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        seed = seed_;
+
+        return hresult_t::SUCCESS;
+    }
 
 	float64_t randUniform(float64_t const & lo,
 	                      float64_t const & hi)
     {
+        assert(isInitialized_ && "Random number genetors not initialized. "
+                                 "Please call `resetRandomGenerators` at least once.");
         return lo + r4_uni() * (hi - lo);
     }
 
 	float64_t randNormal(float64_t const & mean,
 	                     float64_t const & std)
     {
+        assert(isInitialized_ && "Random number genetors not initialized. "
+                                 "Please call `resetRandomGenerators` at least once.");
         return mean + r4_nor() * std;
     }
 
@@ -730,13 +752,13 @@ namespace jiminy
     }
 
     PeriodicPerlinProcess::PeriodicPerlinProcess(float64_t const & wavelength,
-                                               float64_t const & period,
-                                               uint32_t const & numOctaves) :
+                                                 float64_t const & period,
+                                                 uint32_t const & numOctaves) :
     AbstractPerlinProcess(wavelength, numOctaves),
     period_(period)
     {
         // Make sure the period is larger than the wavelength
-        assert (period_ >= wavelength);
+        assert(period_ >= wavelength && "Period must be larger than wavelength.");
     }
 
     void PeriodicPerlinProcess::initialize(void)

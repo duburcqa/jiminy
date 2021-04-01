@@ -42,13 +42,13 @@ namespace jiminy
            it is irrelevant for a single robot engine. */
         if (controller)
         {
-            returnCode = addSystem("", std::move(robot),
-                                   std::move(controller),
-                                   std::move(callbackFct));
+            returnCode = EngineMultiRobot::addSystem(
+                "", std::move(robot), std::move(controller), std::move(callbackFct));
         }
         else
         {
-            returnCode = addSystem("", std::move(robot), std::move(callbackFct));
+            returnCode = EngineMultiRobot::addSystem(
+                "", std::move(robot), std::move(callbackFct));
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -79,7 +79,25 @@ namespace jiminy
 
     hresult_t Engine::setController(std::shared_ptr<AbstractController> controller)
     {
-        return setController("", controller);
+        return EngineMultiRobot::setController("", controller);
+    }
+
+    hresult_t Engine::addSystem(std::string const & systemName,
+                                std::shared_ptr<Robot> robot,
+                                std::shared_ptr<AbstractController> controller)
+    {
+        PRINT_ERROR("This method is not supported by this class. Please call "
+                    "`initialize` instead to set the model, or use `EngineMultiRobot` "
+                    "class directly to simulate multiple robots simultaneously.");
+        return hresult_t::ERROR_GENERIC;
+    }
+
+    hresult_t Engine::removeSystem(std::string const & systemName)
+    {
+        PRINT_ERROR("This method is not supported by this class. Please call "
+                    "`initialize` instead to set the model, or use `EngineMultiRobot` "
+                    "class directly to simulate multiple robots simultaneously.");
+        return hresult_t::ERROR_GENERIC;
     }
 
     hresult_t singleToMultipleSystemsInitialData(Robot const & robot,
@@ -138,13 +156,12 @@ namespace jiminy
         return returnCode;
     }
 
-
     hresult_t Engine::start(vectorN_t const & qInit,
                             vectorN_t const & vInit,
                             std::optional<vectorN_t> const & aInit,
                             bool_t    const & isStateTheoretical,
                             bool_t    const & resetRandomNumbers,
-                            bool_t    const & resetDynamicForceRegister)
+                            bool_t    const & removeAllForce)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -166,7 +183,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = EngineMultiRobot::start(
-                qInitList, vInitList, aInitList, resetRandomNumbers, resetDynamicForceRegister);
+                qInitList, vInitList, aInitList, resetRandomNumbers, removeAllForce);
         }
 
         return returnCode;
@@ -217,6 +234,16 @@ namespace jiminy
         return EngineMultiRobot::registerForceProfile("", frameName, forceFct);
     }
 
+    hresult_t Engine::removeForcesImpulse(void)
+    {
+        return EngineMultiRobot::removeForcesImpulse("");
+    }
+
+    hresult_t Engine::removeForcesProfile(void)
+    {
+        return EngineMultiRobot::removeForcesProfile("");
+    }
+
     forceImpulseRegister_t const & Engine::getForcesImpulse(void) const
     {
         forceImpulseRegister_t const * forcesImpulse;
@@ -263,6 +290,11 @@ namespace jiminy
     {
         return EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping);
+    }
+
+    hresult_t Engine::removeForcesCoupling(void)
+    {
+        return EngineMultiRobot::removeForcesCoupling("");
     }
 
     bool_t const & Engine::getIsInitialized(void) const

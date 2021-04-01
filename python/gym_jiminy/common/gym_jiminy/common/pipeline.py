@@ -3,7 +3,7 @@
 import json
 import pathlib
 from pydoc import locate
-from typing import Optional, Union, Dict, Any, Type, Sequence, Tuple, List
+from typing import Optional, Union, Dict, Any, Type, Sequence, List
 
 import gym
 import toml
@@ -91,6 +91,7 @@ def build_pipeline(env_config: EnvConfig,
     """
     # pylint: disable-all
 
+    # Define helper to wrap a single block
     def _build_wrapper(env_class: Union[
                            Type[gym.Wrapper], Type[BaseJiminyEnv]],
                        env_kwargs: Optional[Dict[str, Any]] = None,
@@ -142,10 +143,11 @@ def build_pipeline(env_config: EnvConfig,
         if isinstance(wrapper_class, str):
             obj = locate(wrapper_class)
             assert (isinstance(obj, type) and
-                    issubclass(obj, BasePipelineWrapper))
+                    issubclass(obj, (gym.Wrapper, BasePipelineWrapper)))
             wrapper_class_obj = obj
         elif wrapper_class is not None:
-            assert issubclass(wrapper_class, BasePipelineWrapper)
+            assert issubclass(
+                wrapper_class, (gym.Wrapper, BasePipelineWrapper))
             wrapper_class_obj = wrapper_class
 
         # Handling of default wrapper class type
@@ -215,8 +217,28 @@ def build_pipeline(env_config: EnvConfig,
 
         wrapped_env_class.__init__ = __init__  # type: ignore[misc]
 
+        if issubclass(wrapper_class_obj, gym.Wrapper):
+            # Override __dir__ method if the wrapper inherits from
+            # `gym.Wrapper`, to be consistent with the custom attribute lookup.
+            def __dir__(self: wrapped_env_class  # type: ignore[valid-type]
+                        ) -> List[str]:
+                """Attribute lookup.
+
+                It is mainly used by autocomplete feature of Ipython. It is
+                overloaded to get consistent autocompletion wrt `getattr`.
+                """
+                wrapper_names = super(  # type: ignore[arg-type]
+                    wrapped_env_class, self).__dir__()
+                env_names = [name for name in
+                             self.env.__dir__()  # type: ignore[attr-defined]
+                             if not name.startswith('_')]
+                return wrapper_names + env_names
+
+            wrapped_env_class.__dir__ = __dir__  # type: ignore[assignment]
+
         return wrapped_env_class
 
+    # Generate pipeline sequentially
     pipeline_class = env_config['env_class']
     if isinstance(pipeline_class, str):
         obj = locate(pipeline_class)
@@ -241,62 +263,3 @@ def load_pipeline(fullpath: str) -> Type[BasePipelineWrapper]:
         elif file_ext == '.toml':
             return build_pipeline(**toml.load(f))
     raise ValueError("Only json and toml formats are supported.")
-
-
-def build_outer_wrapper(env_config: Tuple[
-                            Type[gym.Env],
-                            Dict[str, Any]],
-                        wrapper_config: Tuple[
-                            Type[gym.Wrapper],
-                            Dict[str, Any]]) -> Type[gym.Env]:
-    """Generate a class inheriting from `gym.Wrapper` wrapping a given type of
-    environment.
-
-    .. warning::
-        The generated class takes no input argument. Therefore it will not be
-        possible to set the arguments of the constructor of the environment and
-        wrapper after generation.
-
-    :param env_config:
-        Configuration of the environment, as a tuple:
-
-          - [0] Environment class type.
-          - [1] Keyword arguments to forward to the constructor of the wrapped
-                environment.
-
-    :param wrapper_config:
-        Configuration of the wrapper, as a tuple:
-
-          - [0] Wrapper class type to apply on the environment.
-          - [1] Keyword arguments to forward to the constructor of the wrapper,
-                'env' itself excluded.
-    """
-    # pylint: disable-all
-
-    # Extract user arguments
-    env_class, env_kwargs = env_config
-    wrapper_class, wrapper_kwargs = wrapper_config
-
-    wrapped_env_class = type(
-        f"{wrapper_class.__name__}Env",
-        (wrapper_class,),
-        {})
-
-    def __init__(self: gym.Wrapper) -> None:
-        env = env_class(**env_kwargs)
-        super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
-            env, **wrapper_kwargs)
-
-    def __dir__(self: gym.Wrapper) -> List[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return super(  # type: ignore[arg-type]
-            wrapped_env_class, self).__dir__() + self.env.__dir__()
-
-    wrapped_env_class.__init__ = __init__  # type: ignore[misc]
-    wrapped_env_class.__dir__ = __dir__  # type: ignore[assignment]
-
-    return wrapped_env_class

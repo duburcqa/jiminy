@@ -8,7 +8,7 @@ import gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..utils import copy, SpaceDictNested
+from ..utils import SpaceDictNested, copy
 
 
 class ObserverInterface:
