@@ -43,10 +43,10 @@ function(buildPythonWheel)
             )
 
         # TODO: Use add_custom_command instead of install to enable auto-cleanup of copied files
-    #     add_custom_command(
-    #         OUTPUT  ${CMAKE_BINARY_DIR}/pypi
-    #         COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_SOURCE_DIR}/${TARGET_PATH}\" \"${CMAKE_BINARY_DIR}/pypi\"
-    #     )
+        # add_custom_command(
+        #     OUTPUT  ${CMAKE_BINARY_DIR}/pypi
+        #     COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_SOURCE_DIR}/${TARGET_PATH}\" \"${CMAKE_BINARY_DIR}/pypi\"
+        # )
 
         install(FILES ${CMAKE_SOURCE_DIR}/README.md
                 DESTINATION "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}"

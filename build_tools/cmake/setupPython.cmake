@@ -125,9 +125,7 @@ message(STATUS "Boost Python Libs: ${BOOST_PYTHON_LIB}")
 function(deployPythonPackage)
     # The input arguments are [TARGET_NAME...]
     foreach(TARGET_NAME IN LISTS ARGN)
-        install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} .
-                                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})
-                      execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} --upgrade --no-deps --force-reinstall .
+        install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} --upgrade .
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
     endforeach()
 endfunction()
