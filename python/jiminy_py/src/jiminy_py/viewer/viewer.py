@@ -50,7 +50,7 @@ CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
 DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
-DEFAULT_WINDOW_SIZE = (600, 600)
+DEFAULT_WINDOW_SIZE = (500, 500)
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 
@@ -602,13 +602,14 @@ class Viewer:
     def wait(require_client: bool = False) -> None:
         """Wait for all the meshes to finish loading in every clients.
 
+        .. note::
+            It is a non-op for every backend except `meshcat` since synchronous
+            mode is enabled for the other ones.
+
         :param require_client: Wait for at least one client to be available
                                before checking for mesh loading.
         """
         if Viewer.backend == 'meshcat':
-            # Only Meshcat is asynchronous. Note that Gepetto-gui can be
-            # updated asynchronously, but it is more difficult to manage for
-            # no real advantage.
             Viewer._backend_obj.wait(require_client)
 
     @staticmethod
@@ -1390,7 +1391,7 @@ class Viewer:
         :param wait: Whether or not to wait for rendering to finish.
         """
         with self._lock:
-            # Render both visual and collision geometries
+            # Extract pinocchio model and data pairs to update
             model_list, data_list, model_type_list = [], [], []
             if self._client.display_collisions or force_update_collision:
                 model_list.append(self._client.collision_model)
@@ -1401,10 +1402,12 @@ class Viewer:
                 data_list.append(self._client.visual_data)
                 model_type_list.append(pin.GeometryType.VISUAL)
 
+            # Update geometries placements
             for model, data, in zip(model_list, data_list):
                 pin.updateGeometryPlacements(
                     self._client.model, self._client.data, model, data)
 
+            # Render new geometries placements
             if Viewer.backend == 'gepetto-gui':
                 for model, data, model_type in zip(
                         model_list, data_list, model_type_list):
@@ -1478,12 +1481,9 @@ class Viewer:
             q = q.copy()  # Make a copy to avoid altering the original data
             q[:3] += xyz_offset
 
-        # Update pinocchio and collision data
+        # Update pinocchio data
         pin.forwardKinematics(self._client.model, self._client.data, q)
         pin.framesForwardKinematics(self._client.model, self._client.data, q)
-        pin.updateGeometryPlacements(
-            self._client.model, self._client.data,
-            self._client.collision_model, self._client.collision_data)
 
         # Refresh the viewer
         self.refresh(wait)
