@@ -29,9 +29,9 @@ if(NOT LEGACY_MODE)
         find_package(hpp-fcl 1.5.4 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # hpp-fcl >= 1.5.4 adds support of collision of primitives with halfspace
     endif()
 else()
-    message("Impossible to find cmake configuration files for some packages.
-             Falling back to legacy mode. Please make sure that you are
-             building against Pinocchio >= 2.5.2, and Hpp-Fcl >= 1.5.4.")
+    message("-- Impossible to find cmake configuration files for some packages:\n"
+            "--   Falling back to legacy mode. Please make sure that you are "
+            "building against Pinocchio >= 2.5.2, and Hpp-Fcl >= 1.5.4.")
 endif()
 
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eigen

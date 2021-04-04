@@ -11,7 +11,7 @@ add_subdirectory(${LIBRARY_NAME}_pywrap)
 install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
                    LIST_DIRECTORIES false
                    \"${CMAKE_CURRENT_BINARY_DIR}/${LIBRARY_NAME}_pywrap/*core*\")
-              list(FILTER src_file_list INCLUDE REGEX \".*\.(so|dll|pyd)\")
+              list(FILTER src_file_list INCLUDE REGEX \".*\.(so|dll|pyd)$\")
               foreach(src_file \${src_file_list})
                   get_filename_component(src_file_real \"\${src_file}\" REALPATH)
                   get_filename_component(src_file_name \"\${src_file}\" NAME)

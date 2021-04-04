@@ -4,7 +4,10 @@ from typing import Optional, Tuple, Callable
 
 import hppfcl
 import pinocchio as pin
-from pinocchio.rpy import rpyToMatrix, matrixToRpy, computeRpyJacobian
+from pinocchio.rpy import (rpyToMatrix,
+                           matrixToRpy,
+                           computeRpyJacobian,
+                           computeRpyJacobianInverse)
 
 from . import core as jiminy
 from .viewer import TrajectoryDataType
@@ -35,14 +38,40 @@ def XYZRPYToXYZQuat(xyzrpy):
     return pin.SE3ToXYZQUAT(XYZRPYToSE3(xyzrpy))
 
 
+def XYZQuatToXYZRPY(xyzquat):
+    """Convert [X,Y,Z,Qx,Qy,Qz,Qw] to [X,Y,Z,Roll,Pitch,Yaw].
+    """
+    return np.concatenate((
+        xyzquat[:3], matrixToRpy(pin.Quaternion(xyzquat[3:]).matrix())))
+
+
 def velocityXYZRPYToXYZQuat(xyzrpy: np.ndarray,
                             dxyzrpy: np.ndarray) -> np.ndarray:
     """Convert the derivative of [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].
+
+    .. warning::
+        Linear velocity in XYZRPY must be local-world-aligned frame, while
+        returned linear velocity in XYZQuat is in local frame.
     """
-    rpy = xyzrpy[-3:]
+    rpy = xyzrpy[3:]
     R = rpyToMatrix(rpy)
     J_rpy = computeRpyJacobian(rpy)
-    return np.concatenate((R.T @ dxyzrpy[:3], J_rpy @ dxyzrpy[-3:]))
+    return np.concatenate((R.T @ dxyzrpy[:3], J_rpy @ dxyzrpy[3:]))
+
+
+def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
+                            v: np.ndarray) -> np.ndarray:
+    """Convert the derivative of [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].
+
+    .. warning::
+        Linear velocity in XYZRPY must be local-world-aligned frame, while
+        returned linear velocity in XYZQuat is in local frame.
+    """
+    quat = xyzquat[3:]
+    R = pin.Quaternion(quat).matrix()
+    rpy = matrixToRpy(R)
+    J_rpy_inv = computeRpyJacobianInverse(rpy)
+    return np.concatenate((R @ v[:3], J_rpy_inv @ v[3:]))
 
 
 # #####################################################################

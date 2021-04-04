@@ -132,10 +132,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('window-type', 'offscreen')
         super().__init__(config)
 
-        # Limit framerate of Panda3d to avoid consuming too much ressources
-        clock = ClockObject.getGlobalClock()
-        clock.setMode(ClockObject.MLimited)
-        clock.setFrameRate(PANDA3D_MAX_FRAMERATE)
+        # Define clock. It will be used later to limit framerate.
+        self.clock = ClockObject.getGlobalClock()
+        self.framerate = None
 
         # Enable only one directional light
         for i in range(2, len(self._lights_mask)):
@@ -237,6 +236,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Create secondary offscreen buffer
         self._openSecondaryOffscreenWindow(size)
+
+        # Limit framerate to reduce computation cost
+        self.set_framerate(PANDA3D_MAX_FRAMERATE)
 
     def _openSecondaryOffscreenWindow(self,
                                       size: Optional[Tuple[int, int]] = None
@@ -619,7 +621,26 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         else:
             self._openSecondaryOffscreenWindow((width, height))
 
-    def save_screenshot(self, filename: str = None) -> bool:
+    def set_framerate(self,
+                      framerate: Optional[float] = None) -> None:
+        """Limit framerate of Panda3d to avoid consuming too much ressources.
+
+        :param framerate: Desired framerate limit. None to disable.
+                          Optional: Disable framerate limit by default.
+        """
+        if framerate is not None:
+            self.clock.setMode(ClockObject.MLimited)
+            self.clock.setFrameRate(PANDA3D_MAX_FRAMERATE)
+        else:
+            self.clock.setMode(ClockObject.MNormal)
+        self.framerate = framerate
+
+    def get_framerate(self) -> Optional[float]:
+        """Get current framerate limit.
+        """
+        return self.framerate
+
+    def save_screenshot(self, filename: Optional[str] = None) -> bool:
         if filename is None:
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
             filename = datetime.now().strftime(template)
@@ -632,20 +653,33 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             return False
         return True
 
-    def get_screenshot(self, requested_format='BGRA', raw=False):
+    def get_screenshot(self,
+                       requested_format: str = 'RGBA',
+                       raw: bool = False) -> np.ndarray:
         """Must be patched to take screenshot of the last window available
-        instead of the main one, and to add raw data return mode for
-        efficient multiprocessing.
+        instead of the main one, and to add raw data return mode for efficient
+        multiprocessing.
+
+        .. warning::
+            Note that the speed of this method is limited by the global
+            framerate, as any other method relaying on low-level panda3d task
+            scheduler. The framerate limit must be disable manually to avoid
+            such limitation.
         """
+        # Capture frame as raw texture
         texture = self.winList[-1].get_screenshot()
-        if texture is None:
-            return None
+
+        # Extract raw array buffer from texture
+        image = texture.get_ram_image_as(requested_format)
+
+        # Return raw texture if requested
+        if raw:
+            return image.get_data()
+
+        # Convert raw texture to numpy array if requested
         xsize = texture.get_x_size()
         ysize = texture.get_y_size()
         dsize = len(requested_format)
-        image = texture.get_ram_image_as(requested_format)
-        if raw:
-            return image.get_data()
         array = np.frombuffer(image, np.uint8).reshape((ysize, xsize, dsize))
         return np.flipud(array)
 

@@ -99,8 +99,8 @@ setup(
         "panda3d_viewer",
         # Used internally by Viewer to record video programmatically when
         # Meshcat is not used as rendering backend.
-        # Python3.9 is supported since version 4.4.0.46.
-        "opencv-python-headless",
+        # Cross-platform precompiled binary wheels are provided since 8.0.0.
+        "av",
         # Used internally by Viewer to detect running Meshcat servers and avoid
         # orphan child processes.
         "psutil",

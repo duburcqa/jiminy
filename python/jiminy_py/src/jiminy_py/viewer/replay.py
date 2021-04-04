@@ -1,6 +1,3 @@
-import io
-import os
-import sys
 import pathlib
 import asyncio
 import tempfile
@@ -9,7 +6,7 @@ from threading import Thread, Lock
 from itertools import cycle, islice
 from typing import Optional, Union, Sequence, Tuple, Dict, Any
 
-import cv2
+import av
 import numpy as np
 from tqdm import tqdm
 from typing_extensions import TypedDict
@@ -22,7 +19,8 @@ from .meshcat.utilities import interactive_mode
 
 
 VIDEO_FRAMERATE = 30
-VIDEO_SIZE = (1000, 1000)
+VIDEO_SIZE = (800, 800)
+VIDEO_QUALITY = 0.5  # [Mbytes/s]
 
 DEFAULT_URDF_COLORS = {
     'green': (0.4, 0.7, 0.3, 1.0),
@@ -141,9 +139,8 @@ def play_trajectories(trajectory_data: Union[
     :param record_video_path: Fullpath location where to save generated video.
                               It must be specified to enable video recording.
                               Meshcat only support 'webm' format, while the
-                              other renderer only supports 'mp4'. 'mp4' video
-                              are very fast to record but not web-compatible
-                              because encoded using codec 'mp4v'.
+                              other renderer only supports 'mp4' format encoded
+                              with web-compatible 'h264' codec.
                               Optional: None by default.
     :param viewers: List of already instantiated viewers, associated one by one
                     in order to each trajectory data. None to disable.
@@ -369,8 +366,33 @@ def play_trajectories(trajectory_data: Union[
             else:
                 position_evolutions.append(None)
 
-        # Play trajectories without multithreading and record_video
-        is_initialized = False
+        # Disable framerate limit of Panda3d for efficiency
+        if Viewer.backend == 'panda3d':
+            framerate = viewers[0]._backend_obj._app.get_framerate()
+            viewers[0]._backend_obj._app.set_framerate(None)
+
+        # Initialize video recording
+        if Viewer.backend == 'meshcat':
+            # Sanitize the recording path to enforce '.webm' extension
+            record_video_path = str(
+                pathlib.Path(record_video_path).with_suffix('.webm'))
+
+            # Start backend recording thread
+            viewers[0]._backend_obj.start_recording(
+                VIDEO_FRAMERATE, *VIDEO_SIZE)
+        else:
+            # Sanitize the recording path to enforce '.mp4' extension
+            record_video_path = str(
+                pathlib.Path(record_video_path).with_suffix('.mp4'))
+
+            # Create ffmpeg video writer
+            out = av.open(record_video_path, mode='w')
+            stream = out.add_stream('libx264', rate=VIDEO_FRAMERATE)
+            stream.width, stream.height = VIDEO_SIZE
+            stream.pix_fmt = 'yuv420p'
+            stream.bit_rate = VIDEO_QUALITY * (8 * 1024 ** 2)
+
+        # Add frames to video sequentially
         for i, t_cur in enumerate(tqdm(
                 time_global, desc="Rendering frames", disable=(not verbose))):
             for viewer, positions, offset in zip(
@@ -379,49 +401,33 @@ def play_trajectories(trajectory_data: Union[
                     viewer.display(
                         positions[i], xyz_offset=offset)
             if Viewer.backend == 'meshcat':
-                if not is_initialized:
-                    viewers[0]._backend_obj.start_recording(
-                        VIDEO_FRAMERATE, *VIDEO_SIZE)
                 viewers[0]._backend_obj.add_frame()
             else:
-                frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
-                if not is_initialized:
-                    # Determine the right video container and codec to use
-                    if pathlib.Path(record_video_path).suffix == ".webm":
-                        codec = cv2.VideoWriter_fourcc(*'VP80')
-                    else:  # fallback to mp4 container in any other case
-                        codec = cv2.VideoWriter_fourcc(*'mp4v')
-                        record_video_path = str(pathlib.Path(
-                            record_video_path).with_suffix('.mp4'))
-
-                    # Redirect opencv warnings
-                    original_stderr_fd = sys.stderr.fileno()
-                    saved_stderr_fd = os.dup(original_stderr_fd)
-                    with open(os.devnull, 'w') as tfile:
-                        try:
-                            sys.stderr.close()
-                            os.dup2(tfile.fileno(), original_stderr_fd)
-                            out = cv2.VideoWriter(
-                                record_video_path, codec, fps=VIDEO_FRAMERATE,
-                                frameSize=frame.shape[1::-1])
-                            os.dup2(saved_stderr_fd, original_stderr_fd)
-                            sys.stderr = io.TextIOWrapper(
-                                os.fdopen(original_stderr_fd, 'wb'))
-                        finally:
-                            os.close(saved_stderr_fd)
-
+                # Update video clock if enabled
                 if enable_clock and Viewer.backend == 'panda3d':
                     Viewer.set_clock(t_cur)
 
+                # Capture frame
+                frame = viewers[0].capture_frame(*VIDEO_SIZE)
+
                 # Write frame
-                out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-            is_initialized = True
+                frame = av.VideoFrame.from_ndarray(frame, format='rgb24')
+                for packet in stream.encode(frame):
+                    out.mux(packet)
+
+        # Finalize video recording
         if Viewer.backend == 'meshcat':
-            record_video_path = str(
-                pathlib.Path(record_video_path).with_suffix('.webm'))
+            # Stop backend recording thread
             viewers[0]._backend_obj.stop_recording(record_video_path)
         else:
-            out.release()
+            # Flush and close recording file
+            for packet in stream.encode(None):
+                out.mux(packet)
+            out.close()
+
+        # Restore framerate limit of Panda3d
+        if Viewer.backend == 'panda3d':
+            viewers[0]._backend_obj._app.set_framerate(framerate)
     else:
         def replay_thread(viewer, *args):
             loop = asyncio.new_event_loop()

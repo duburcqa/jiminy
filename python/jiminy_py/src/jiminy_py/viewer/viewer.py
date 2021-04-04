@@ -50,7 +50,7 @@ CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
 DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
-DEFAULT_CAPTURE_SIZE = 500
+DEFAULT_WINDOW_SIZE = (600, 600)
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 
@@ -878,7 +878,7 @@ class Viewer:
             # Instantiate new client with onscreen rendering enabled.
             # Note that it fallbacks to software rendering if necessary.
             config = Panda3dViewerConfig()
-            config.set_window_size(DEFAULT_CAPTURE_SIZE, DEFAULT_CAPTURE_SIZE)
+            config.set_window_size(*DEFAULT_WINDOW_SIZE)
             config.set_window_fixed(False)
             config.enable_antialiasing(True, multisamples=4)
             config.enable_shadow(True)
@@ -1256,12 +1256,18 @@ class Viewer:
                       raw_data: bool = False) -> Union[np.ndarray, str]:
         """Take a snapshot and return associated data.
 
+        .. warning::
+            By default, panda3d framerate of onscreen window is limited to
+            reduce computational burden, thereby limiting the speed of this
+            method. One is responsible to disable it manually by calling
+            `Viewer._backend_obj._app.set_frame(None)`.
+
         :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
-                      Optional: DEFAULT_CAPTURE_SIZE by default.
+                      Optional: Kept unchanged by default.
         :param height: Height for the image in pixels (not available with
                        Gepetto-gui for now). None to keep unchanged.
-                       Optional: DEFAULT_CAPTURE_SIZE by default.
+                       Optional: Kept unchanged by default.
         :param raw_data: Whether to return a 2D numpy array, or the raw output
                          from the backend (the actual type may vary).
         """
@@ -1322,10 +1328,10 @@ class Viewer:
         :param image_path: Fullpath of the image (.png extension is mandatory)
         :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
-                      Optional: DEFAULT_CAPTURE_SIZE by default.
+                      Optional: Kept unchanged by default.
         :param height: Height for the image in pixels (not available with
                        Gepetto-gui for now). None to keep unchanged.
-                       Optional: DEFAULT_CAPTURE_SIZE by default.
+                       Optional: Kept unchanged by default.
         """
         image_path = str(pathlib.Path(image_path).with_suffix('.png'))
         if Viewer.backend == 'gepetto-gui':

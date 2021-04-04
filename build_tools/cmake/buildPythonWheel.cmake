@@ -27,10 +27,12 @@ function(buildPythonWheel)
                       )
                       list(FILTER src_file_list EXCLUDE REGEX \".*\.egg-info\")
                       list(FILTER src_file_list EXCLUDE REGEX \"unit\")
+                      list(FILTER src_file_list EXCLUDE REGEX \"__pycache__\")
+                      list(FILTER src_file_list EXCLUDE REGEX \"mypy_cache\")
                       foreach(src_file \${src_file_list})
                           get_filename_component(src_file_real \"\${src_file}\" REALPATH
                                                   BASE_DIR \"${CMAKE_SOURCE_DIR}/${TARGET_DIR}\")
-                          if(src_file_real MATCHES \".*\\.(txt|py|md|in)\$\")
+                          if(src_file_real MATCHES \".*\\.(txt|py|md|in|js|html|toml|json|urdf|xacro)\$\")
                               configure_file(\"\${src_file_real}\"
                                              \"${CMAKE_BINARY_DIR}/pypi/\${src_file}\" @ONLY)
                           else()
@@ -41,10 +43,10 @@ function(buildPythonWheel)
             )
 
         # TODO: Use add_custom_command instead of install to enable auto-cleanup of copied files
-    #     add_custom_command(
-    #         OUTPUT  ${CMAKE_BINARY_DIR}/pypi
-    #         COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_SOURCE_DIR}/${TARGET_PATH}\" \"${CMAKE_BINARY_DIR}/pypi\"
-    #     )
+        # add_custom_command(
+        #     OUTPUT  ${CMAKE_BINARY_DIR}/pypi
+        #     COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_SOURCE_DIR}/${TARGET_PATH}\" \"${CMAKE_BINARY_DIR}/pypi\"
+        # )
 
         install(FILES ${CMAKE_SOURCE_DIR}/README.md
                 DESTINATION "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}"
