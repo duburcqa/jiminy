@@ -1032,7 +1032,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             This method is called right after calling `refresh_observation`, so
             that the internal buffer '_observation' is up-to-date. It can be
             overloaded to implement a custom termination condition for the
-            simulation.
+            simulation. Moreover, as it is called before `compute_reward`, it
+            can be used to update some share intermediary computations to avoid
+            redundant calculus and thus improve efficiency.
 
         :param args: Extra arguments that may be useful for derived
                      environments, for example `Gym.GoalEnv`.
