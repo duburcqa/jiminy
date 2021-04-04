@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import asyncio
 import tempfile
@@ -31,6 +32,9 @@ DEFAULT_URDF_COLORS = {
     'yellow': (1.0, 0.7, 0.0, 1.0),
     'blue': (0.25, 0.25, 1.0, 1.0)
 }
+
+
+logger = logging.getLogger(__name__)
 
 
 class TrajectoryDataType(TypedDict, total=False):
@@ -297,15 +301,25 @@ def play_trajectories(trajectory_data: Union[
                 viewer._setup(traj['robot'], color)
     assert len(viewers) == len(trajectory_data)
 
-    # # Early return if nothing to replay
+    # Use first viewers as main viewer to call static methods conveniently
+    viewer = viewers[0]
+
+    # Make sure clock is only enabled for panda3d backend
+    if enable_clock:
+        if Viewer.backend != 'panda3d':
+            logger.warn(
+                "`enable_clock` is only available with 'panda3d' backend.")
+            enable_clock = False
+
+    # Early return if nothing to replay
     if all(not len(traj['evolution_robot']) for traj in trajectory_data):
         return viewers
 
     # Set camera pose or activate camera travelling if requested
     if travelling_frame is not None:
-        viewers[0].attach_camera(travelling_frame, camera_xyzrpy)
+        viewer.attach_camera(travelling_frame, camera_xyzrpy)
     elif camera_xyzrpy is not None:
-        viewers[0].set_camera_transform(*camera_xyzrpy)
+        viewer.set_camera_transform(*camera_xyzrpy)
 
     # Enable camera motion if requested
     if camera_motion is not None:
@@ -319,16 +333,16 @@ def play_trajectories(trajectory_data: Union[
     if watermark_fullpath is not None:
         Viewer.set_watermark(watermark_fullpath)
 
-    # Load robots in gepetto viewer
-    for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):
+    # Initialize robot configuration is viewer before any further processing
+    for viewer_i, traj, offset in zip(viewers, trajectory_data, xyz_offset):
         evolution_robot = traj['evolution_robot']
         if len(evolution_robot):
             i = bisect_right([s.t for s in evolution_robot], time_interval[0])
-            viewer.display(evolution_robot[i].q, offset)
+            viewer_i.display(evolution_robot[i].q, offset)
 
-    # Wait for the meshes to finish loading if non video recording mode
+    # Wait for the meshes to finish loading if video recording is disable
     if wait_for_client and record_video_path is None:
-        if Viewer.backend.startswith('meshcat'):
+        if Viewer.backend == 'meshcat':
             if verbose and not interactive_mode():
                 print("Waiting for meshcat client in browser to connect: "
                       f"{Viewer._backend_obj.gui.url()}")
@@ -368,8 +382,8 @@ def play_trajectories(trajectory_data: Union[
 
         # Disable framerate limit of Panda3d for efficiency
         if Viewer.backend == 'panda3d':
-            framerate = viewers[0]._backend_obj._app.get_framerate()
-            viewers[0]._backend_obj._app.set_framerate(None)
+            framerate = viewer._backend_obj._app.get_framerate()
+            viewer._backend_obj._app.set_framerate(None)
 
         # Initialize video recording
         if Viewer.backend == 'meshcat':
@@ -378,7 +392,7 @@ def play_trajectories(trajectory_data: Union[
                 pathlib.Path(record_video_path).with_suffix('.webm'))
 
             # Start backend recording thread
-            viewers[0]._backend_obj.start_recording(
+            viewer._backend_obj.start_recording(
                 VIDEO_FRAMERATE, *VIDEO_SIZE)
         else:
             # Sanitize the recording path to enforce '.mp4' extension
@@ -387,6 +401,7 @@ def play_trajectories(trajectory_data: Union[
 
             # Create ffmpeg video writer
             out = av.open(record_video_path, mode='w')
+            out.metadata['title'] = window_name
             stream = out.add_stream('libx264', rate=VIDEO_FRAMERATE)
             stream.width, stream.height = VIDEO_SIZE
             stream.pix_fmt = 'yuv420p'
@@ -395,20 +410,22 @@ def play_trajectories(trajectory_data: Union[
         # Add frames to video sequentially
         for i, t_cur in enumerate(tqdm(
                 time_global, desc="Rendering frames", disable=(not verbose))):
+            # Update the configurations of the robots
             for viewer, positions, offset in zip(
                     viewers, position_evolutions, xyz_offset):
                 if positions is not None:
-                    viewer.display(
-                        positions[i], xyz_offset=offset)
-            if Viewer.backend == 'meshcat':
-                viewers[0]._backend_obj.add_frame()
-            else:
-                # Update video clock if enabled
-                if enable_clock and Viewer.backend == 'panda3d':
-                    Viewer.set_clock(t_cur)
+                    viewer.display(positions[i], xyz_offset=offset)
 
+            # Update clock if enabled
+            if enable_clock:
+                Viewer.set_clock(t_cur)
+
+            # Add frame to video
+            if Viewer.backend == 'meshcat':
+                viewer._backend_obj.add_frame()
+            else:
                 # Capture frame
-                frame = viewers[0].capture_frame(*VIDEO_SIZE)
+                frame = viewer.capture_frame(*VIDEO_SIZE)
 
                 # Write frame
                 frame = av.VideoFrame.from_ndarray(frame, format='rgb24')
@@ -418,7 +435,7 @@ def play_trajectories(trajectory_data: Union[
         # Finalize video recording
         if Viewer.backend == 'meshcat':
             # Stop backend recording thread
-            viewers[0]._backend_obj.stop_recording(record_video_path)
+            viewer._backend_obj.stop_recording(record_video_path)
         else:
             # Flush and close recording file
             for packet in stream.encode(None):
@@ -427,7 +444,7 @@ def play_trajectories(trajectory_data: Union[
 
         # Restore framerate limit of Panda3d
         if Viewer.backend == 'panda3d':
-            viewers[0]._backend_obj._app.set_framerate(framerate)
+            viewer._backend_obj._app.set_framerate(framerate)
     else:
         def replay_thread(viewer, *args):
             loop = asyncio.new_event_loop()
@@ -467,7 +484,7 @@ def play_trajectories(trajectory_data: Union[
         if watermark_fullpath is not None:
             Viewer.set_watermark()
 
-        if enable_clock and Viewer.backend == 'panda3d':
+        if enable_clock:
             Viewer.set_clock()
 
     # Close backend if needed
