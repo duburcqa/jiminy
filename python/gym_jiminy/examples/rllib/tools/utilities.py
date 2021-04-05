@@ -308,7 +308,8 @@ def train(train_agent: Trainer,
             if evaluation_period > 0 and iter % evaluation_period == 0:
                 record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
                 test(train_agent, explore=False, viewer_kwargs={
-                    "record_video_path": record_video_path})
+                    "record_video_path": record_video_path,
+                    "scene_name": f"iter_{iter}"})
 
             # Check terminal conditions
             if result["timesteps_total"] > max_timesteps:

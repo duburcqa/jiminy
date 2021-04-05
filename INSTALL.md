@@ -211,7 +211,7 @@ python -m pip install wheel "numpy<1.20"
 Now you can simply run the powershell script already available.
 
 ```
-$Env:BUILD_TYPE = "Release"
+$env:BUILD_TYPE = "Release"
 & './build_tools/build_install_deps_windows.ps1'
 ```
 
@@ -222,12 +222,12 @@ You are finally ready to build Jiminy itself.
 ```
 $RootDir = ".... The location of jiminy repository ...."
 
-$Env:BUILD_TYPE = "Release"
+$env:BUILD_TYPE = "Release"
 $RootDir = $RootDir -replace '\\', '/'
 $InstallDir = "$RootDir/install"
 
-if (Test-Path Env:/Boost_ROOT) {
-  Remove-Item Env:/Boost_ROOT
+if (Test-Path env:Boost_ROOT) {
+  Remove-Item env:Boost_ROOT
 }
 
 if (-not (Test-Path -PathType Container $RootDir/build)) {
@@ -241,7 +241,7 @@ cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM
       -DBoost_USE_STATIC_LIBS=OFF `
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
-cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target all --config "${env:BUILD_TYPE}" --parallel 8
 
 if (-not (Test-Path -PathType Container "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core"
@@ -253,5 +253,5 @@ Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
 Copy-Item -Path "$InstallDir/lib/site-packages/*" `
           -Destination "$RootDir/build/PyPi/jiminy_py/src/jiminy_py" -Recurse
 
-cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}"
 ```

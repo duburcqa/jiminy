@@ -5,8 +5,8 @@ $ErrorActionPreference = "Continue"
 Set-PSDebug -Trace 1
 
 ### Set the build type to "Release" if undefined
-if (-not (Test-Path Env:BUILD_TYPE)) {
-  $Env:BUILD_TYPE = "Release"
+if (-not (Test-Path env:BUILD_TYPE)) {
+  $env:BUILD_TYPE = "Release"
 }
 
 ### Get the fullpath of Jiminy project
@@ -24,8 +24,8 @@ if (-not (Test-Path -PathType Container "$InstallDir")) {
 $PYTHON_EXECUTABLE = ( python -c "import sys; sys.stdout.write(sys.executable)" )
 
 ### Remove the preinstalled boost library from search path
-if (Test-Path Env:/Boost_ROOT) {
-  Remove-Item Env:/Boost_ROOT
+if (Test-Path env:Boost_ROOT) {
+  Remove-Item env:Boost_ROOT
 }
 
 ################################## Checkout the dependencies ###########################################
@@ -54,7 +54,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 }
 Set-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git checkout --force "v2.6.0"
+git checkout --force "v2.6.2"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
@@ -110,7 +110,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 }
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
-git checkout --force "v1.6.0"
+git checkout --force "v1.7.1"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
@@ -154,7 +154,7 @@ Set-Location -Path "$RootDir/boost"
 #   C++ runtime  library Windows (aka (U)CRT) ships as part of Windows 10.
 #   Note that static linkage is still possible on windows but Jamroot must be edited
 #   to remove line "<conditional>@handle-static-runtime".
-$BuildTypeB2 = ${Env:BUILD_TYPE}.ToLower()
+$BuildTypeB2 = ${env:BUILD_TYPE}.ToLower()
 if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
 }
@@ -180,7 +180,7 @@ cmake "$RootDir/eigen3" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GE
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2
 
 ################################### Build and install eigenpy ##########################################
 
@@ -198,7 +198,7 @@ cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_G
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
 )     -DBOOST_ALL_NO_LIB -DEIGENPY_STATIC"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2
 
 ################################## Build and install tinyxml ###########################################
 
@@ -211,7 +211,7 @@ cmake "$RootDir/tinyxml" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_G
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
 )     -DTIXML_USE_STL"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2
 
 ############################## Build and install console_bridge ########################################
 
@@ -224,7 +224,7 @@ cmake "$RootDir/console_bridge" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -D
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2
 
 ############################### Build and install urdfdom_headers ######################################
 
@@ -236,7 +236,7 @@ Set-Location -Path "$RootDir/urdfdom_headers/build"
 cmake "$RootDir/urdfdom_headers" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2
 
 ################################## Build and install urdfdom ###########################################
 
@@ -251,7 +251,7 @@ cmake "$RootDir/urdfdom" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_G
       -DBUILD_TESTING=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
 )     -D_USE_MATH_DEFINES -DURDFDOM_STATIC"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2
 
 ###################################### Build and install assimp ########################################
 
@@ -267,7 +267,7 @@ cmake "$RootDir/assimp" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GE
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DASSIMP_INSTALL_PDB=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
 )     -D_USE_MATH_DEFINES"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2
 
 ############################# Build and install qhull and hpp-fcl ######################################
 
@@ -279,7 +279,7 @@ Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
 cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus" -DCMAKE_C_FLAGS="/EHsc /bigobj"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2
 
 ### Build hpp-fcl
 if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
@@ -296,7 +296,7 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_G
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /wd4068 /wd4267 /permissive- /Zc:__cplusplus $(
 )     -DBOOST_ALL_NO_LIB -D_USE_MATH_DEFINES -DEIGENPY_STATIC -DHPP_FCL_STATIC"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2
 
 ################################ Build and install Pinocchio ##########################################
 
@@ -315,4 +315,4 @@ cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /wd4068 /wd4715 /wd4834 /permissive- /Zc:__cplusplus $(
 )     -DBOOST_ALL_NO_LIB -D_USE_MATH_DEFINES -DNOMINMAX -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
-cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
+cmake --build . --target install --config "${env:BUILD_TYPE}" --parallel 2

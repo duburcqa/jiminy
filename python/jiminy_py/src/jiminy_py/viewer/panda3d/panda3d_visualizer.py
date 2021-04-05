@@ -43,7 +43,7 @@ LEGEND_SCALE = 0.3
 CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.05
 
-PANDA3D_MAX_FRAMERATE = 30
+PANDA3D_FRAMERATE_MAX = 30
 
 
 def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
@@ -238,7 +238,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._openSecondaryOffscreenWindow(size)
 
         # Limit framerate to reduce computation cost
-        self.set_framerate(PANDA3D_MAX_FRAMERATE)
+        self.set_framerate(PANDA3D_FRAMERATE_MAX)
 
     def _openSecondaryOffscreenWindow(self,
                                       size: Optional[Tuple[int, int]] = None
@@ -630,7 +630,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """
         if framerate is not None:
             self.clock.setMode(ClockObject.MLimited)
-            self.clock.setFrameRate(PANDA3D_MAX_FRAMERATE)
+            self.clock.setFrameRate(PANDA3D_FRAMERATE_MAX)
         else:
             self.clock.setMode(ClockObject.MNormal)
         self.framerate = framerate
