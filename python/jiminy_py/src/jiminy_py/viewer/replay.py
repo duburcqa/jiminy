@@ -113,7 +113,6 @@ def play_trajectories(trajectory_data: Union[
                       watermark_fullpath: Optional[str] = None,
                       legend: Optional[Union[str, Sequence[str]]] = None,
                       enable_clock: bool = False,
-                      window_name: str = 'jiminy',
                       scene_name: str = 'world',
                       record_video_path: Optional[str] = None,
                       start_paused: bool = False,
@@ -172,9 +171,6 @@ def play_trajectories(trajectory_data: Union[
     :param enable_clock: Add clock on bottom right corner of the viewer.
                          Only available with panda3d rendering backend.
                          Optional: Disable by default.
-    :param window_name: Name of viewer's graphical window in which to display
-                        the robot.
-                        Optional: Common default name if omitted.
     :param scene_name: Name of viewer's scene in which to display the robot.
                        Optional: Common default name if omitted.
     :param record_video_path: Fullpath location where to save generated video.
@@ -288,7 +284,6 @@ def play_trajectories(trajectory_data: Union[
                 robot_name=robot_name,
                 lock=lock,
                 backend=backend,
-                window_name=window_name,
                 scene_name=scene_name,
                 delete_robot_on_close=delete_robot_on_close,
                 open_gui_if_parent=(record_video_path is None))
@@ -405,7 +400,7 @@ def play_trajectories(trajectory_data: Union[
 
             # Create ffmpeg video writer
             out = av.open(record_video_path, mode='w')
-            out.metadata['title'] = "_".join(window_name, scene_name)
+            out.metadata['title'] = scene_name
             stream = out.add_stream('libx264', rate=VIDEO_FRAMERATE)
             stream.width, stream.height = VIDEO_SIZE
             stream.pix_fmt = 'yuv420p'

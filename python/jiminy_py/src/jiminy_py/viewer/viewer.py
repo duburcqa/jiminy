@@ -227,12 +227,13 @@ class Viewer:
         used to force disabling interactive display.
     """
     backend = default_backend()
+    window_name = 'jiminy'
+    _has_gui = False
     _backend_obj = None
     _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
     _backend_robot_names = set()
     _backend_robot_colors = {}
-    _has_gui = False
     _camera_motion = None
     _camera_travelling = None
     _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
@@ -247,7 +248,6 @@ class Viewer:
                  open_gui_if_parent: Optional[bool] = None,
                  delete_robot_on_close: bool = False,
                  robot_name: Optional[str] = None,
-                 window_name: str = 'jiminy',
                  scene_name: str = 'world',
                  **kwargs):
         """
@@ -286,10 +286,8 @@ class Viewer:
                                       Optional: False by default.
         :param robot_name: Unique robot name, to identify each robot.
                            Optional: Randomly generated identifier by default.
-        :param window_name: Window name, not used by 'meshcat' backend. It must
-                            differ from the scene name.
-                            Optional: 'jiminy' by default.
-        :param scene_name: Scene name, used only with 'gepetto-gui' backend.
+        :param scene_name: Scene name, used only with 'gepetto-gui' backend. It
+                           must differ from the scene name.
                            Optional: 'world' by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
@@ -302,7 +300,6 @@ class Viewer:
         self.robot_color = robot_color
         self.robot_name = robot_name
         self.scene_name = scene_name
-        self.window_name = window_name
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
@@ -353,7 +350,7 @@ class Viewer:
             Viewer.detach_camera()
 
         # Make sure that the windows, scene and robot names are valid
-        if scene_name == window_name:
+        if scene_name == Viewer.window_name:
             raise ValueError(
                 "The name of the scene and window must be different.")
 
@@ -364,7 +361,7 @@ class Viewer:
 
         # Create a unique temporary directory, specific to this viewer instance
         self._tempdir = tempfile.mkdtemp(
-            prefix="_".join((window_name, scene_name, robot_name, "")))
+            prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
 
         # Access the current backend or create one if none is available
         self.__is_open = False
@@ -499,9 +496,10 @@ class Viewer:
         # Create the scene and load robot
         if Viewer.backend == 'gepetto-gui':
             # Initialize the viewer
-            self._client.initViewer(
-                viewer=Viewer._backend_obj, windowName=self.window_name,
-                sceneName=self.scene_name, loadModel=False)
+            self._client.initViewer(viewer=Viewer._backend_obj,
+                                    windowName=Viewer.window_name,
+                                    sceneName=self.scene_name,
+                                    loadModel=False)
 
             # Add missing scene elements
             self._gui.addFloor('/'.join((self.scene_name, "floor")))
@@ -914,8 +912,9 @@ class Viewer:
                              '\naux-display pandadx9'
                              '\naux-display pandadx8'
                              '\naux-display p3tinydisplay')
-            client = Panda3dViewer(
-                window_type='onscreen', window_title='jiminy', config=config)
+            client = Panda3dViewer(window_type='onscreen',
+                                   window_title=Viewer.window_name,
+                                   config=config)
             client.gui = client  # The gui is the client itself for now
 
             proc = _ProcessWrapper(client._app, close_at_exit)
