@@ -54,7 +54,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 }
 Set-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git checkout --force "v2.6.0"
+git checkout --force "v2.6.2"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
@@ -110,7 +110,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 }
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
-git checkout --force "v1.6.0"
+git checkout --force "v1.7.1"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
