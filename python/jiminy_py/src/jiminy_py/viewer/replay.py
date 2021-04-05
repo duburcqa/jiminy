@@ -21,7 +21,7 @@ from .meshcat.utilities import interactive_mode
 
 VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (800, 800)
-VIDEO_QUALITY = 0.5  # [Mbytes/s]
+VIDEO_QUALITY = 0.3  # [Mbytes/s]
 
 DEFAULT_URDF_COLORS = {
     'green': (0.4, 0.7, 0.3, 1.0),
@@ -252,7 +252,14 @@ def play_trajectories(trajectory_data: Union[
         urdf_rgba = list(urdf_rgba)
     for i, color in enumerate(urdf_rgba):
         if isinstance(color, str):
-            urdf_rgba[i] = DEFAULT_URDF_COLORS[color]
+            if color in DEFAULT_URDF_COLORS.keys():
+                urdf_rgba[i] = DEFAULT_URDF_COLORS[color]
+            else:
+                colors_str = ', '.join(
+                    f"'{e}'" for e in DEFAULT_URDF_COLORS.keys())
+                raise ValueError(
+                    f"Color '{color}' not available. Use custom (R,G,B,A) "
+                    f"codes, or predefined color names: {colors_str}.")
     assert len(urdf_rgba) == len(trajectory_data)
 
     # Sanitize user-specified legend
