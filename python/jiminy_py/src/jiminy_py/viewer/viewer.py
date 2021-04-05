@@ -241,7 +241,7 @@ class Viewer:
     def __init__(self,
                  robot: jiminy.Robot,
                  use_theoretical_model: bool = False,
-                 urdf_rgba: Optional[Tuple4FType] = None,
+                 robot_color: Optional[Tuple4FType] = None,
                  lock: Optional[Lock] = None,
                  backend: Optional[str] = None,
                  open_gui_if_parent: Optional[bool] = None,
@@ -254,29 +254,43 @@ class Viewer:
         :param robot: Jiminy.Robot to display.
         :param use_theoretical_model: Whether to use the theoretical (rigid)
                                       model or the actual (flexible) model of
-                                      this robot.
-        :param urdf_rgba: RGBA color to use to display this robot, as a list
-                          of 4 floating-point values between 0.0 and 1.0.
-                          Optional: It will override the original color of the
-                          meshes if specified.
+                                      this robot. Note that using the actual
+                                      model is more efficient since update of
+                                      the frames placements can be skipped.
+                                      Optional: Actual model by default.
+        :param robot_color: RGBA color to use to display this robot, as a list
+                            of 4 floating-point values between 0.0 and 1.0. It
+                            will override the original color of the meshes if
+                            specified. `None` to disable.
+                            Optional: Disable by default.
         :param lock: Custom threading.Lock. Required for parallel rendering.
                      It is required since some backends does not support
                      multiple simultaneous connections (e.g. corbasever).
-                     Optional: Unique lock of the current thread by default.
-        :param backend: The name of the desired backend to use for rendering.
-                        It can be either 'gepetto-gui' or 'meshcat'.
-                        Optional: 'gepetto-gui' by default if available and not
-                        running from a notebook, 'meshcat' otherwise.
+                     `None` to use the unique lock of the current thread.
+                     Optional: `None` by default.
+        :param backend: Name of the rendering backend to use. It can be either
+                        'panda3d', 'meshcat' or 'gepetto-gui'. None to keep
+                        using to one already running if any, or the default one
+                        otherwise. Note that the default is hardware and
+                        environment dependent. See `viewer.default_backend`
+                        method for details.
+                        Optional: `None` by default.
         :param open_gui_if_parent: Open GUI if new viewer's backend server is
-                                   started.
+                                   started. `None` to fallback to default.
+                                   Optional: Do not open gui for 'meshcat'
+                                   backend in interactive mode with already one
+                                   display cell already opened, open gui in
+                                   any other case by default.
         :param delete_robot_on_close: Enable automatic deletion of the robot
                                       when closing.
+                                      Optional: False by default.
         :param robot_name: Unique robot name, to identify each robot.
                            Optional: Randomly generated identifier by default.
-        :param window_name: Window name, used only when gepetto-gui is used
-                            as backend. Note that it is not allowed to be equal
-                            to the window name.
-        :param scene_name: Scene name, used only with gepetto-gui backend.
+        :param window_name: Window name, not used by 'meshcat' backend. It must
+                            differ from the scene name.
+                            Optional: 'jiminy' by default.
+        :param scene_name: Scene name, used only with 'gepetto-gui' backend.
+                           Optional: 'world' by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
         # Handling of default arguments
@@ -285,7 +299,7 @@ class Viewer:
             robot_name = "_".join(("robot", uniq_id))
 
         # Backup some user arguments
-        self.urdf_rgba = urdf_rgba
+        self.robot_color = robot_color
         self.robot_name = robot_name
         self.scene_name = scene_name
         self.window_name = window_name
@@ -359,18 +373,20 @@ class Viewer:
             # Connect viewer backend
             if not Viewer.is_alive():
                 # Handling of default argument(s)
-                open_gui = open_gui_if_parent
-                if open_gui is None:
-                    # Opening a new display cell automatically if there is no
-                    # other display cell already opened. The user is probably
-                    # expecting a display cell to open in such cases, but there
-                    # is no fixed rule.
-                    open_gui = interactive_mode() and \
-                        not Viewer._backend_obj.comm_manager.n_comm
+                if open_gui_if_parent is None:
+                    if Viewer.backend == 'meshcat':
+                        # Opening a new display cell automatically if there is
+                        # no other display cell already opened. The user is
+                        # probably expecting a display cell to open in such
+                        # cases, but there is no fixed rule.
+                        open_gui_if_parent = interactive_mode() and \
+                            not Viewer._backend_obj.comm_manager.n_comm
+                    else:
+                        open_gui_if_parent = True
 
                 # Start viewer backend
                 Viewer.__connect_backend(
-                    start_if_needed=True, open_gui=open_gui)
+                    start_if_needed=True, open_gui=open_gui_if_parent)
 
                 # Update some flags
                 self.is_backend_parent = True
@@ -383,10 +399,10 @@ class Viewer:
             self._backend_proc = Viewer._backend_proc
 
             # Load the robot
-            self._setup(robot, self.urdf_rgba)
+            self._setup(robot, self.robot_color)
             Viewer._backend_robot_names.add(self.robot_name)
             Viewer._backend_robot_colors.update({
-                self.robot_name: self.urdf_rgba})
+                self.robot_name: self.robot_color})
         except Exception as e:
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
@@ -424,7 +440,7 @@ class Viewer:
     @__must_be_open
     def _setup(self,
                robot: jiminy.Robot,
-               urdf_rgba: Optional[Tuple4FType] = None) -> None:
+               robot_color: Optional[Tuple4FType] = None) -> None:
         """Load (or reload) robot in viewer.
 
         .. note::
@@ -436,23 +452,24 @@ class Viewer:
             `simulator.Simulator` instead of `jiminy_py.core.Engine` directly.
 
         :param robot: Jiminy.Robot to display.
-        :param urdf_rgba: RGBA color to use to display this robot, as a list
-                          of 4 floating-point values between 0.0 and 1.0.
-                          Optional: It will override the original color of the
-                          meshes if specified.
+        :param robot_color: RGBA color to use to display this robot, as a list
+                            of 4 floating-point values between 0.0 and 1.0.
+                            It will override the original color of the meshes
+                            if specified. None to disable.
+                            Optional: Disable by default.
         """
         # Backup desired color
-        self.urdf_rgba = urdf_rgba
+        self.robot_color = robot_color
 
         # Generate colorized URDF file if using gepetto-gui backend, since it
         # is not supported by default, because of memory optimizations.
         self.urdf_path = os.path.realpath(robot.urdf_path)
         if Viewer.backend == 'gepetto-gui':
-            if self.urdf_rgba is not None:
-                assert len(self.urdf_rgba) == 4
-                alpha = self.urdf_rgba[3]
+            if self.robot_color is not None:
+                assert len(self.robot_color) == 4
+                alpha = self.robot_color[3]
                 self.urdf_path = Viewer._get_colorized_urdf(
-                    robot, self.urdf_rgba[:3], self._tempdir)
+                    robot, self.robot_color[:3], self._tempdir)
             else:
                 alpha = 1.0
 
@@ -508,7 +525,7 @@ class Viewer:
             # Load the robot
             robot_node_path = '/'.join((self.scene_name, self.robot_name))
             self._client.loadViewerModel(
-                rootNodeName=robot_node_path, color=urdf_rgba)
+                rootNodeName=robot_node_path, color=robot_color)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
