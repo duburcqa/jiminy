@@ -67,11 +67,10 @@ def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
         Linear velocity in XYZRPY must be local-world-aligned frame, while
         returned linear velocity in XYZQuat is in local frame.
     """
-    quat = xyzquat[3:]
-    R = pin.Quaternion(quat).matrix()
-    rpy = matrixToRpy(R)
+    quat = pin.Quaternion(xyzquat[3:])
+    rpy = matrixToRpy(quat.matrix())
     J_rpy_inv = computeRpyJacobianInverse(rpy)
-    return np.concatenate((R @ v[:3], J_rpy_inv @ v[3:]))
+    return np.concatenate((quat * v[:3], J_rpy_inv @ v[3:]))
 
 
 # #####################################################################
