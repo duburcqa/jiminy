@@ -8,7 +8,7 @@ import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import PureWindowsPath
-from typing import Optional, Dict, Tuple, Union, Sequence
+from typing import Optional, Dict, Tuple, Union, Sequence, Any
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,7 +21,8 @@ from panda3d.core import (
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
     OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
     Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
-    TransparencyAttrib, OrthographicLens, ClockObject)
+    TransparencyAttrib, OrthographicLens, ClockObject, GraphicsPipe,
+    WindowProperties, FrameBufferProperties)
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
 
@@ -29,7 +30,8 @@ import panda3d_viewer
 import panda3d_viewer.viewer_app
 import panda3d_viewer.viewer_proxy
 from panda3d_viewer import geometry
-from panda3d_viewer import Viewer as Panda3dViewer
+from panda3d_viewer import (Viewer as Panda3dViewer,
+                            ViewerConfig as Panda3dViewerConfig)
 from panda3d_viewer.viewer_errors import ViewerClosedError
 
 import hppfcl
@@ -37,6 +39,8 @@ import pinocchio as pin
 from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
 
+
+DEFAULT_WINDOW_SIZE = (500, 500)
 
 LEGEND_DPI = 400
 LEGEND_SCALE = 0.3
@@ -127,9 +131,34 @@ def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
 
 
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
-    def __init__(self, config) -> None:
-        # Force creating offscreen display
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        # Enforce viewer configuration
+        config = Panda3dViewerConfig()
+        config.set_window_size(*DEFAULT_WINDOW_SIZE)
+        config.set_window_fixed(False)
+        config.enable_antialiasing(True, multisamples=4)
+        config.enable_shadow(True)
+        config.enable_lights(True)
+        config.enable_hdr(False)
+        config.enable_fog(False)
+        config.show_axes(True)
+        config.show_grid(False)
+        config.show_floor(True)
+        config.set_value('framebuffer-software', '0')
+        config.set_value('framebuffer-hardware', '0')
+        config.set_value('load-display', 'pandagl')
+        config.set_value('aux-display',
+                         'p3headlessgl'
+                         '\naux-display pandadx9'
+                         '\naux-display pandadx8'
+                         '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
+        config.set_value('model-cache-textures', True)
+
+        # Define offscreen 3D buffer
+        self.buff = None
+
+        # Call base implementation
         super().__init__(config)
 
         # Define clock. It will be used later to limit framerate.
@@ -202,11 +231,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._legend = None
         self._clock = None
         self.offDisplayRegion = None
-        self.zoom_rate = 0.98
+        self.zoom_rate = 1.03
         self.camera_lookat = np.zeros(3)
         self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
         self.longitudeDeg = 0.0
         self.latitudeDeg = 0.0
+
+        # Create actual offscreen buffer
+        self._openSecondaryOffscreenWindow()
 
     def set_camera_transform(self, pos, quat):
         self.camera.set_pos(Vec3(*pos))
@@ -243,7 +275,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def _openSecondaryOffscreenWindow(self,
                                       size: Optional[Tuple[int, int]] = None
                                       ) -> None:
-        """Create new completely independent offscreen buffer rendering the
+        """Create new completely independent offscreen buffer, rendering the
         same scene than the main window.
         """
         # Handling of default size
@@ -253,20 +285,39 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Close existing offscreen display if any.
         # Note that one must remove display region associated with shared 2D
         # renderer, otherwise it will be altered when closing current window.
-        if len(self.winList) > 1:
-            self.winList[-1].removeDisplayRegion(self.offDisplayRegion)
-            self.closeWindow(self.winList[-1], keepCamera=False)
+        if self.buff is not None:
+            self.buff.removeDisplayRegion(self.offDisplayRegion)
+            self.closeWindow(self.buff, keepCamera=False)
 
-        # Open new window and create 2D display region for widgets
-        win = self.openWindow(
-            type='offscreen', size=size, keepCamera=False, makeCamera=False)
-        aspectRatio = self.getAspectRatio(win)
+        # Create new offscreen buffer
+        fprops = FrameBufferProperties(self.win.getFbProperties())
+        fprops.set_accum_bits(0)
+        fprops.set_back_buffers(0)
+        winprops = WindowProperties()
+        winprops.set_size(*size)
+        flags = GraphicsPipe.BFRefuseWindow | GraphicsPipe.BFRefuseParasite
+        flags |= GraphicsPipe.BFResizeable
+        self.buff = self.graphicsEngine.make_output(
+            self.pipe, "off_buffer", 0, fprops,
+            winprops, flags, self.win.get_gsg(), self.win)
+        self.winList.append(self.buff)
+
+        # Create 2D display region for widgets
         self.graphicsLens = PerspectiveLens()
-        self.graphicsLens.setAspectRatio(aspectRatio)
-        self.makeCamera(win, camName='offCam', lens=self.graphicsLens)
-        self.offDisplayRegion = self.winList[-1].makeMonoDisplayRegion()
+        self.makeCamera(self.buff, camName='off_cam', lens=self.graphicsLens)
+        self.offDisplayRegion = self.buff.makeMonoDisplayRegion()
         self.offDisplayRegion.setSort(5)
         self.offDisplayRegion.setCamera(self.offCamera2d)
+
+        # # Adjust aspect ratio
+        self.adjustSecondaryOffscreenWindowAspectRatio()
+
+    def adjustSecondaryOffscreenWindowAspectRatio(self):
+        # Get aspect ratio
+        aspectRatio = self.getAspectRatio(self.buff)
+
+        # Adjust 3D rendering aspect ratio
+        self.graphicsLens.setAspectRatio(aspectRatio)
 
         # Adjust existing anchors for offscreen 2D rendering
         if aspectRatio < 1:
@@ -293,29 +344,29 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """Must be patched to return the size of the window used for capturing
         frame by default, instead of main window.
         """
-        if win is None and self.winList:
-            win = self.winList[-1]
+        if win is None and self.windowType == 'offscreen':
+            win = self.buff
         return super().getSize(win)
+
+    def getMousePos(self) -> Tuple[int, int]:
+        md = self.win.getPointer(0)
+        return md.getX(), md.getY()
 
     def handleKey(self, key, value):
         if key in ["mouse1", "mouse2", "mouse3"]:
-            md = self.win.getPointer(0)
-            self.lastMouseX = md.getX()
-            self.lastMouseY = md.getY()
+            self.lastMouseX, self.lastMouseY = self.getMousePos()
             self.key_map[key] = value
         elif key in ["wheelup", "wheeldown"]:
             cam_dir = self.camera_lookat - np.asarray(self.camera.getPos())
             if key == "wheelup":
-                cam_pos = self.camera_lookat - cam_dir * self.zoom_rate
-            else:
                 cam_pos = self.camera_lookat - cam_dir / self.zoom_rate
+            else:
+                cam_pos = self.camera_lookat - cam_dir * self.zoom_rate
             self.camera.set_pos(Vec3(*cam_pos.tolist()))
 
     def moveOrbitalCameraTask(self, task):
-        # Get mouse
-        md = self.win.getPointer(0)
-        x = md.getX()
-        y = md.getY()
+        # Get mouse position
+        x, y = self.getMousePos()
 
         # Ensure consistent camera pose and lookat
         self.longitudeDeg, self.latitudeDeg, _ = self.camera.getHpr()
@@ -417,8 +468,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             height = height or float(image_header.getYSize())
 
         # Compute relative image size
-        width_win = self.winList[-1].getXSize()
-        height_win = self.winList[-1].getYSize()
+        width_win, height_win = self.getSize()
         width_rel, height_rel = width / width_win, height / height_win
 
         # Make sure it does not take too much space of window
@@ -492,8 +542,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         tex.setRamImage(img_raw)
 
         # Compute relative image size
-        width_win = self.winList[-1].getXSize()
-        height_win = self.winList[-1].getYSize()
+        width_win, height_win = self.getSize()
         width_rel = LEGEND_SCALE * width / width_win
         height_rel = LEGEND_SCALE * height / height_win
 
@@ -614,12 +663,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._shadow_enabled = enable
 
     def set_window_size(self, width: int, height: int) -> None:
-        if self.windowType == 'offscreen':
-            self.camLens = None
-            self.openMainWindow(size=(width, height))
-            self.adjustWindowAspectRatio(self.getAspectRatio())
-        else:
-            self._openSecondaryOffscreenWindow((width, height))
+        self.buff.setSize(width, height)
+        self.adjustSecondaryOffscreenWindowAspectRatio()
 
     def set_framerate(self,
                       framerate: Optional[float] = None) -> None:
@@ -645,7 +690,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
             filename = datetime.now().strftime(template)
         image = PNMImage()
-        if not self.winList[-1].get_screenshot(image):
+        if not self.buff.get_screenshot(image):
             return False
         if filename.lower().endswith('.png'):
             image.remove_alpha()
@@ -667,7 +712,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             such limitation.
         """
         # Capture frame as raw texture
-        texture = self.winList[-1].get_screenshot()
+        texture = self.buff.get_screenshot()
 
         # Extract raw array buffer from texture
         image = texture.get_ram_image_as(requested_format)

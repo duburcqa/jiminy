@@ -27,9 +27,6 @@ from typing_extensions import TypedDict
 
 import zmq
 import meshcat.transformations as mtf
-from panda3d_viewer import (
-    Viewer as Panda3dViewer, ViewerConfig as Panda3dViewerConfig)
-from panda3d_viewer.viewer_app import ViewerApp as Panda3dApp
 from panda3d_viewer.viewer_errors import ViewerClosedError
 
 import pinocchio as pin
@@ -42,7 +39,10 @@ from ..state import State
 from .meshcat.utilities import interactive_mode
 from .meshcat.wrapper import MeshcatWrapper
 from .meshcat.meshcat_visualizer import MeshcatVisualizer
-from .panda3d.panda3d_visualizer import Panda3dVisualizer
+from .panda3d.panda3d_visualizer import (Panda3dViewer,
+                                         Panda3dApp,
+                                         Panda3dVisualizer)
+from .panda3d.panda3d_widget import Panda3dQWidget
 
 
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
@@ -50,13 +50,13 @@ CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
 DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
-DEFAULT_WINDOW_SIZE = (500, 500)
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 
 # Determine set the of available backends
-backends_available = {
-    'meshcat': MeshcatVisualizer, 'panda3d': Panda3dVisualizer}
+backends_available = {'meshcat': MeshcatVisualizer,
+                      'panda3d': Panda3dVisualizer,
+                      'panda3d-qt': Panda3dVisualizer}
 if __import__('platform').system() == 'Linux':
     import importlib
     if (importlib.util.find_spec("gepetto") is not None and
@@ -98,7 +98,7 @@ def _get_backend_exceptions(
         return (omniORB.CORBA.COMM_FAILURE,
                 omniORB.CORBA.TRANSIENT,
                 gepetto.corbaserver.gepetto.Error)
-    elif backend == 'panda3d':
+    elif backend.startswith('panda3d'):
         return (ViewerClosedError,)
     else:
         return (zmq.error.Again, zmq.error.ZMQError)
@@ -269,11 +269,11 @@ class Viewer:
                      `None` to use the unique lock of the current thread.
                      Optional: `None` by default.
         :param backend: Name of the rendering backend to use. It can be either
-                        'panda3d', 'meshcat' or 'gepetto-gui'. None to keep
-                        using to one already running if any, or the default one
-                        otherwise. Note that the default is hardware and
-                        environment dependent. See `viewer.default_backend`
-                        method for details.
+                        'panda3d', 'panda3d-qt', 'meshcat' or 'gepetto-gui'.
+                        None to keep using to one already running if any, or
+                        the default one otherwise. Note that the default is
+                        hardware and environment dependent.
+                        See `viewer.default_backend` method for details.
                         Optional: `None` by default.
         :param open_gui_if_parent: Open GUI if new viewer's backend server is
                                    started. `None` to fallback to default.
@@ -544,7 +544,7 @@ class Viewer:
         if Viewer._has_gui:
             return
 
-        if Viewer.backend == 'gepetto-gui':
+        if Viewer.backend in ['gepetto-gui', 'panda3d-qt']:
             # No instance is considered manager of the unique window
             pass
         elif Viewer.backend == 'panda3d':
@@ -880,7 +880,7 @@ class Viewer:
                         raise RuntimeError(
                             "No backend server to connect to but "
                             "'start_if_needed' is set to False")
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             # handle default argument(s)
             if open_gui is None:
                 open_gui = True
@@ -891,30 +891,13 @@ class Viewer:
                     "'panda3d' backend does not support connecting to already "
                     "running client.")
 
-            # Instantiate new client with onscreen rendering enabled.
+            # Instantiate client with onscreen rendering capability enabled.
             # Note that it fallbacks to software rendering if necessary.
-            config = Panda3dViewerConfig()
-            config.set_window_size(*DEFAULT_WINDOW_SIZE)
-            config.set_window_fixed(False)
-            config.enable_antialiasing(True, multisamples=4)
-            config.enable_shadow(True)
-            config.enable_lights(True)
-            config.enable_hdr(False)
-            config.enable_fog(False)
-            config.show_axes(True)
-            config.show_grid(False)
-            config.show_floor(True)
-            config.set_value('framebuffer-software', '0')
-            config.set_value('framebuffer-hardware', '0')
-            config.set_value('load-display', 'pandagl')
-            config.set_value('aux-display',
-                             'p3headlessgl'
-                             '\naux-display pandadx9'
-                             '\naux-display pandadx8'
-                             '\naux-display p3tinydisplay')
-            client = Panda3dViewer(window_type='onscreen',
-                                   window_title=Viewer.window_name,
-                                   config=config)
+            if Viewer.backend == 'panda3d-qt':
+                client = Panda3dQWidget()
+            else:
+                client = Panda3dViewer(window_type='onscreen',
+                                       window_title=Viewer.window_name)
             client.gui = client  # The gui is the client itself for now
 
             proc = _ProcessWrapper(client._app, close_at_exit)
@@ -1009,7 +992,7 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             for node_path in nodes_path:
                 Viewer._backend_obj.gui.deleteNode(node_path, True)
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             for node_path in nodes_path:
                 try:
                     Viewer._backend_obj.gui.remove_group(node_path)
@@ -1048,7 +1031,7 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             logger.warning(
                 "Adding watermark is not available for Gepetto-gui.")
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             Viewer._backend_obj._app.set_watermark(img_fullpath, width, height)
         else:
             width = width or DEFAULT_WATERMARK_MAXSIZE[0]
@@ -1078,7 +1061,7 @@ class Viewer:
 
         if Viewer.backend == 'gepetto-gui':
             logger.warning("Adding legend is not available for Gepetto-gui.")
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             if labels is None:
                 items = None
             else:
@@ -1108,7 +1091,7 @@ class Viewer:
         :param time: Current time is seconds. None to disable.
                      Optional: None by default.
         """
-        if Viewer.backend == 'panda3d':
+        if Viewer.backend.startswith('panda3d'):
             Viewer._backend_obj._app.set_clock(time)
         else:
             logger.warning("Adding clock is only available for Panda3d.")
@@ -1171,7 +1154,7 @@ class Viewer:
             H_abs = SE3(rotation_mat, position)
             self._gui.setCameraTransform(
                 self._client.windowID, SE3ToXYZQUAT(H_abs).tolist())
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             rotation_panda3d = pin.Quaternion(
                 rotation_mat @ CAMERA_INV_TRANSFORM_PANDA3D).coeffs()
             self._gui._app.set_camera_transform(position, rotation_panda3d)
@@ -1306,7 +1289,7 @@ class Viewer:
                 self.save_frame(f.name)
                 img_obj = Image.open(f.name)
                 rgba_array = np.array(img_obj)
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             _width, _height = self._gui._app.getSize()
             if width is None:
                 width = _width
@@ -1353,7 +1336,7 @@ class Viewer:
         image_path = str(pathlib.Path(image_path).with_suffix('.png'))
         if Viewer.backend == 'gepetto-gui':
             self._gui.captureFrame(self._client.windowID, image_path)
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             _width, _height = self._gui._app.getSize()
             if width is None:
                 width = _width
@@ -1432,7 +1415,7 @@ class Viewer:
                          for geom in model.geometryObjects],
                         [tuple(SE3ToXYZQUAT(data.oMg[i]))
                          for i, geom in enumerate(model.geometryObjects)])
-            elif Viewer.backend == 'panda3d':
+            elif Viewer.backend.startswith('panda3d'):
                 for model, data, model_type in zip(
                         model_list, data_list, model_type_list):
                     name_pose_dict = {}

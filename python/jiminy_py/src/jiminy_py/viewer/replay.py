@@ -380,7 +380,7 @@ def play_trajectories(trajectory_data: Union[
                 position_evolutions.append(None)
 
         # Disable framerate limit of Panda3d for efficiency
-        if Viewer.backend == 'panda3d':
+        if Viewer.backend.startswith('panda3d'):
             framerate = viewer._backend_obj._app.get_framerate()
             viewer._backend_obj._app.set_framerate(None)
 
@@ -442,7 +442,7 @@ def play_trajectories(trajectory_data: Union[
             out.close()
 
         # Restore framerate limit of Panda3d
-        if Viewer.backend == 'panda3d':
+        if Viewer.backend.startswith('panda3d'):
             viewer._backend_obj._app.set_framerate(framerate)
     else:
         def replay_thread(viewer, *args):

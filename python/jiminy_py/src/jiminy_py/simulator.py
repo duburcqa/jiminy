@@ -474,11 +474,11 @@ class Simulator:
             # Create a new viewer client
             self.viewer = Viewer(self.robot,
                                  use_theoretical_model=False,
-                                 backend=self.viewer_backend,
                                  open_gui_if_parent=(not return_rgb_array),
-                                 delete_robot_on_close=True,
                                  **{'scene_name': scene_name,
                                     'robot_name': robot_name,
+                                    'backend': self.viewer_backend,
+                                    'delete_robot_on_close': True,
                                     **kwargs})
             self.viewer_backend = Viewer.backend  # Just in case it was `None`
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
