@@ -13,7 +13,7 @@ else()
     set(BUILD_OFFLINE 0)
 endif()
 if(${BUILD_OFFLINE})
-    message(STATUS "No internet connection. Not building external projects.")
+    message(WARNING "No internet connection. Not building external projects.")
 endif()
 
 # Set default warning flags
@@ -70,7 +70,9 @@ if(LEGACY_MODE)
     if(WIN32)
         message(FATAL_ERROR "Boost >= 1.71.0 required.")
     else()
-        message(STATUS "Old boost version detected. Fallback to Ubuntu 18 legacy mode. Make sure depedencies have been installed using apt-get.")
+        message(WARNING "Boost version < 1.71.0 detected. Falling back to Ubuntu 18 legacy mode. "
+                        "Make sure depedencies have been installed via `apt-get`, and building "
+                        "against Pinocchio >= 2.5.2, and Hpp-Fcl >= 1.5.4.")
     endif()
 endif()
 

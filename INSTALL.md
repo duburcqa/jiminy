@@ -70,9 +70,9 @@ Installing the Python packages `ray==1.0.0` are required to run some of the prov
 python -m pip install gym-jiminy
 ```
 
-## Build Jiminy from source on Ubuntu 18 (excluding dependencies)
+## Build Jiminy from source on Ubuntu 18/20 (excluding dependencies)
 
-First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available.
+First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18/20. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available.
 
 ```bash
 sudo ./build_tools/easy_install_deps_ubuntu18.sh
