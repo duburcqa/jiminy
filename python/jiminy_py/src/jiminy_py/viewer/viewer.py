@@ -629,6 +629,8 @@ class Viewer:
         """
         if Viewer.backend == 'meshcat':
             Viewer._backend_obj.wait(require_client)
+        elif Viewer.backend.startswith('panda3d'):
+            Viewer._backend_obj.gui._app.step()
 
     @staticmethod
     def is_alive() -> bool:
@@ -1321,7 +1323,6 @@ class Viewer:
                 height = _height
             if _width != width or _height != height:
                 self._gui._app.set_window_size(width, height)
-                self._gui._app.step()  # Update frame on-the-spot
 
             # Call low-level `get_screenshot` directly to get raw buffer
             buffer = self._gui._app.get_screenshot(
@@ -1475,6 +1476,8 @@ class Viewer:
             # Refreshing viewer backend manually is necessary for gepetto-gui
             if Viewer.backend == 'gepetto-gui':
                 self._gui.refresh()
+            elif Viewer.backend.startswith('panda3d'):
+                self._gui._app.step()
 
             # Wait for the backend viewer to finish rendering if requested
             if wait:

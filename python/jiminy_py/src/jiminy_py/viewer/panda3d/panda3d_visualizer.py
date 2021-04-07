@@ -286,6 +286,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.camera.set_pos(Vec3(*pos))
         self.camera.setQuat(LQuaternion(quat[-1], *quat[:-1]))
         self.camera_lookat = np.zeros(3)
+        self.step()  # Update frame on-the-spot
 
     def open_window(self) -> None:
         # Make sure a graphical window is not already open
@@ -543,6 +544,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._watermark.setPos(
             WIDGET_MARGIN_REL + width_rel, 0, WIDGET_MARGIN_REL + height_rel)
 
+        # Refresh frame
+        self.step()
+
     def set_legend(self,
                    items: Optional[Dict[str, Optional[Sequence[int]]]] = None
                    ) -> None:
@@ -616,6 +620,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._legend.setTransparency(TransparencyAttrib.MAlpha)
         self._legend.setTexScale(TextureStage.getDefault(), 1, -1)
 
+        # Refresh frame
+        self.step()
+
     def set_clock(self, time: Optional[float] = None) -> None:
         # Remove existing watermark, if any
         if time is None:
@@ -657,6 +664,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         milliseconds = 1000 * remainder
         self._clock.setText(f"{hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}"
                             f".{milliseconds:03.0f}")
+
+        # Refresh frame
+        self.step()
 
     def append_mesh(self,
                     root_path: str,
@@ -719,6 +729,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def set_window_size(self, width: int, height: int) -> None:
         self.buff.setSize(width, height)
         self._adjustOffscreenWindowAspectRatio()
+        self.step()  # Update frame on-the-spot
 
     def set_framerate(self,
                       framerate: Optional[float] = None) -> None:
