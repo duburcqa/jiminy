@@ -1,8 +1,11 @@
 # Minimum version required
 cmake_minimum_required (VERSION 3.10)
 
-# Check if network is available for compiling gtest
-if(NOT WIN32)
+# Check if network is available before compiling external projects
+if(WIN32)
+    find_program(HAS_PING "ping")
+endif()
+if(HAS_PING)
     unset(BUILD_OFFLINE)
     unset(BUILD_OFFLINE CACHE)
     execute_process(COMMAND bash -c
