@@ -8,7 +8,7 @@ import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import PureWindowsPath
-from typing import Optional, Dict, Tuple, Union, Sequence
+from typing import Optional, Dict, Tuple, Union, Sequence, Any
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,12 +16,14 @@ from matplotlib import font_manager
 from matplotlib.patches import Patch
 
 from panda3d.core import (
-    NodePath, Point3, Vec3, Mat4, LQuaternion, Geom, GeomEnums, GeomNode,
+    NodePath, Point3, Vec3, Vec4, Mat4, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
     OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
     Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
-    TransparencyAttrib, OrthographicLens, ClockObject)
+    TransparencyAttrib, OrthographicLens, ClockObject, GraphicsPipe,
+    WindowProperties, FrameBufferProperties, loadPrcFileData, AntialiasAttrib)
+from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
 
@@ -29,7 +31,8 @@ import panda3d_viewer
 import panda3d_viewer.viewer_app
 import panda3d_viewer.viewer_proxy
 from panda3d_viewer import geometry
-from panda3d_viewer import Viewer as Panda3dViewer
+from panda3d_viewer import (Viewer as Panda3dViewer,
+                            ViewerConfig as Panda3dViewerConfig)
 from panda3d_viewer.viewer_errors import ViewerClosedError
 
 import hppfcl
@@ -37,6 +40,9 @@ import pinocchio as pin
 from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
 
+
+WINDOW_SIZE_DEFAULT = (500, 500)
+CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
 LEGEND_DPI = 400
 LEGEND_SCALE = 0.3
@@ -127,28 +133,70 @@ def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
 
 
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
-    def __init__(self, config) -> None:
-        # Force creating offscreen display
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        # Enforce viewer configuration
+        config = Panda3dViewerConfig()
+        config.set_window_size(*WINDOW_SIZE_DEFAULT)
+        config.set_window_fixed(False)
+        config.enable_antialiasing(True, multisamples=4)
+        config.set_value('framebuffer-software', '0')
+        config.set_value('framebuffer-hardware', '0')
+        config.set_value('load-display', 'pandagl')
+        config.set_value('aux-display',
+                         'p3headlessgl'
+                         '\naux-display pandadx9'
+                         '\naux-display pandadx8'
+                         '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
-        super().__init__(config)
+        config.set_value('model-cache-textures', True)
+        loadPrcFileData('', str(config))
+
+        # Define offscreen buffer
+        self.buff = None
+
+        # Initialize base implementation.
+        # Note that the original constructor is by-passed on purpose.
+        ShowBase.__init__(self)
+
+        # Configure rendering
+        self.render.set_shader_auto()
+        self.render.set_antialias(AntialiasAttrib.MAuto)
+
+        # Define default camera pos
+        self._camera_defaults = CAMERA_POS_DEFAULT
+        self.reset_camera(*self._camera_defaults)
 
         # Define clock. It will be used later to limit framerate.
         self.clock = ClockObject.getGlobalClock()
         self.framerate = None
 
-        # Enable only one directional light
-        for i in range(2, len(self._lights_mask)):
-            self._lights_mask[i] = False
-        self._lights[0].getNode(0).set_color((0.5, 0.5, 0.5, 1))
-        self._lights[1].getNode(0).set_color((0.5, 0.5, 0.5, 1))
-        self.enable_lights(self._lights_enabled)
+        # Configure lighting and shadows
+        self._spotlight = self.config.GetBool('enable-spotlight', False)
+        self._shadow_size = self.config.GetInt('shadow-buffer-size', 1024)
+        self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
+                        self._make_light_direct(
+                            1, (0.5, 0.5, 0.5), pos=(8.0, 8.0, 10.0))]
+        self._lights_mask = [True, True]
+        self.enable_lights(True)
 
-        # Set background color
+        # Create default scene objects
+        self._fog = self._make_fog()
+        self._axes = self._make_axes()
+        self._grid = self._make_grid()
+        self._floor = self._make_floor()
+
+        # Create scene tree
+        self._scene_root = self.render.attach_new_node('scene_root')
+        self._scene_scale = self.config.GetFloat('scene-scale', 1.0)
+        self._scene_root.set_scale(self._scene_scale)
+        self._groups = {}
+
+        # Create background sky
         # define the colors at the top ("sky"), bottom ("ground") and center
         # ("horizon") of the background gradient
         sky_color = (0.53, 0.8, 0.98, 1.0)
         ground_color = (0.1, 0.1, 0.43, 1.0)
-        self.background_gradient = create_gradient(
+        self.background_sky = create_gradient(
             sky_color, ground_color, 0.7)
         # looks like the background needs to be parented to an intermediary
         # node to which a compass effect is applied to keep it at the same
@@ -156,7 +204,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         pivot = self.render.attach_new_node("pivot")
         effect = CompassEffect.make(self.camera, CompassEffect.P_pos)
         pivot.set_effect(effect)
-        self.background_gradient.reparent_to(pivot)
+        self.background_sky.reparent_to(pivot)
         # now the background model just needs to keep facing the camera (only
         # its heading should correspond to that of the camera; its pitch and
         # roll need to remain unaffected)
@@ -164,7 +212,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             Vec3.up(), False, True, 0., NodePath(),
             # make the background model face a point behind the camera
             Point3(0., -10., 0.), False)
-        self.background_gradient.set_effect(effect)
+        self.background_sky.set_effect(effect)
 
         # Create shared 2D renderer to allow display selectively gui elements
         # on offscreen and onscreen window used for capturing frames.
@@ -173,7 +221,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.sharedRender2d.setDepthWrite(False)
 
         # Create dedicated camera 2D for offscreen rendering
-        self.offCamera2d = NodePath(Camera(f'Camera2d_{i}'))
+        self.offCamera2d = NodePath(Camera('off_camera2d'))
         lens = OrthographicLens()
         lens.setFilmSize(2, 2)
         lens.setNearFar(-1000, 1000)
@@ -202,16 +250,43 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._legend = None
         self._clock = None
         self.offDisplayRegion = None
-        self.zoom_rate = 0.98
+        self.zoom_rate = 1.03
         self.camera_lookat = np.zeros(3)
         self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
         self.longitudeDeg = 0.0
         self.latitudeDeg = 0.0
 
+        # Create resizeable offscreen buffer
+        self._openOffscreenWindow(WINDOW_SIZE_DEFAULT)
+
+        # Set default options
+        self.enable_lights(True)
+        self.enable_shadow(True)
+        self.enable_hdr(False)
+        self.enable_fog(False)
+        self.show_axes(True)
+        self.show_grid(False)
+        self.show_floor(True)
+
+    def _make_light_ambient(self, color):
+        """Must be patched to fix wrong color alpha.
+        """
+        node = super()._make_light_ambient(color)
+        node.getNode(0).set_color(Vec4(*color, 1))
+        return node
+
+    def _make_light_direct(self, index, color, pos, target=(0, 0, 0)):
+        """Must be patched to fix wrong color alpha.
+        """
+        node = super()._make_light_direct(index, color, pos, target)
+        node.getNode(0).set_color(Vec4(*color, 1))
+        return node
+
     def set_camera_transform(self, pos, quat):
         self.camera.set_pos(Vec3(*pos))
         self.camera.setQuat(LQuaternion(quat[-1], *quat[:-1]))
         self.camera_lookat = np.zeros(3)
+        self.step()  # Update frame on-the-spot
 
     def open_window(self) -> None:
         # Make sure a graphical window is not already open
@@ -234,16 +309,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.taskMgr.add(
             self.moveOrbitalCameraTask, "moveOrbitalCameraTask", sort=2)
 
-        # Create secondary offscreen buffer
-        self._openSecondaryOffscreenWindow(size)
+        # Create resizeable offscreen buffer
+        self._openOffscreenWindow(size)
 
         # Limit framerate to reduce computation cost
         self.set_framerate(PANDA3D_FRAMERATE_MAX)
 
-    def _openSecondaryOffscreenWindow(self,
-                                      size: Optional[Tuple[int, int]] = None
-                                      ) -> None:
-        """Create new completely independent offscreen buffer rendering the
+    def _openOffscreenWindow(self,
+                             size: Optional[Tuple[int, int]] = None
+                             ) -> None:
+        """Create new completely independent offscreen buffer, rendering the
         same scene than the main window.
         """
         # Handling of default size
@@ -253,20 +328,51 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Close existing offscreen display if any.
         # Note that one must remove display region associated with shared 2D
         # renderer, otherwise it will be altered when closing current window.
-        if len(self.winList) > 1:
-            self.winList[-1].removeDisplayRegion(self.offDisplayRegion)
-            self.closeWindow(self.winList[-1], keepCamera=False)
+        if self.buff is not None:
+            self.buff.removeDisplayRegion(self.offDisplayRegion)
+            self.closeWindow(self.buff, keepCamera=False)
 
-        # Open new window and create 2D display region for widgets
-        win = self.openWindow(
-            type='offscreen', size=size, keepCamera=False, makeCamera=False)
-        aspectRatio = self.getAspectRatio(win)
+        # Set offscreen buffer frame properties
+        # Note that accumalator bits and back buffers is not supported by
+        # resizeable buffers.
+        fprops = FrameBufferProperties(self.win.getFbProperties())
+        fprops.set_accum_bits(0)
+        fprops.set_back_buffers(0)
+
+        # Set offscreen buffer windows properties
+        winprops = WindowProperties()
+        winprops.set_size(*size)
+
+        # Set offscreen buffer flags to enforce resizeable `GaphicsBuffer`
+        flags = GraphicsPipe.BFRefuseWindow | GraphicsPipe.BFRefuseParasite
+        flags |= GraphicsPipe.BFResizeable
+
+        # Create new offscreen buffer.
+        # Note that it is impossible to create resizeable buffer without an
+        # already existing host for some reason...
+        self.buff = self.graphicsEngine.make_output(
+            self.pipe, "off_buffer", 0, fprops, winprops, flags,
+            self.win.get_gsg(), self.win)
+
+        # Append buffer to the list of windows managed by the ShowBase
+        self.winList.append(self.buff)
+
+        # Create 2D display region for widgets
         self.graphicsLens = PerspectiveLens()
-        self.graphicsLens.setAspectRatio(aspectRatio)
-        self.makeCamera(win, camName='offCam', lens=self.graphicsLens)
-        self.offDisplayRegion = self.winList[-1].makeMonoDisplayRegion()
+        self.makeCamera(self.buff, camName='off_cam', lens=self.graphicsLens)
+        self.offDisplayRegion = self.buff.makeMonoDisplayRegion()
         self.offDisplayRegion.setSort(5)
         self.offDisplayRegion.setCamera(self.offCamera2d)
+
+        # # Adjust aspect ratio
+        self._adjustOffscreenWindowAspectRatio()
+
+    def _adjustOffscreenWindowAspectRatio(self):
+        # Get aspect ratio
+        aspectRatio = self.getAspectRatio(self.buff)
+
+        # Adjust 3D rendering aspect ratio
+        self.graphicsLens.setAspectRatio(aspectRatio)
 
         # Adjust existing anchors for offscreen 2D rendering
         if aspectRatio < 1:
@@ -293,29 +399,29 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """Must be patched to return the size of the window used for capturing
         frame by default, instead of main window.
         """
-        if win is None and self.winList:
-            win = self.winList[-1]
+        if win is None:
+            win = self.buff
         return super().getSize(win)
+
+    def getMousePos(self) -> Tuple[int, int]:
+        md = self.win.getPointer(0)
+        return md.getX(), md.getY()
 
     def handleKey(self, key, value):
         if key in ["mouse1", "mouse2", "mouse3"]:
-            md = self.win.getPointer(0)
-            self.lastMouseX = md.getX()
-            self.lastMouseY = md.getY()
+            self.lastMouseX, self.lastMouseY = self.getMousePos()
             self.key_map[key] = value
         elif key in ["wheelup", "wheeldown"]:
             cam_dir = self.camera_lookat - np.asarray(self.camera.getPos())
             if key == "wheelup":
-                cam_pos = self.camera_lookat - cam_dir * self.zoom_rate
-            else:
                 cam_pos = self.camera_lookat - cam_dir / self.zoom_rate
+            else:
+                cam_pos = self.camera_lookat - cam_dir * self.zoom_rate
             self.camera.set_pos(Vec3(*cam_pos.tolist()))
 
     def moveOrbitalCameraTask(self, task):
-        # Get mouse
-        md = self.win.getPointer(0)
-        x = md.getX()
-        y = md.getY()
+        # Get mouse position
+        x, y = self.getMousePos()
 
         # Ensure consistent camera pose and lookat
         self.longitudeDeg, self.latitudeDeg, _ = self.camera.getHpr()
@@ -417,8 +523,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             height = height or float(image_header.getYSize())
 
         # Compute relative image size
-        width_win = self.winList[-1].getXSize()
-        height_win = self.winList[-1].getYSize()
+        width_win, height_win = self.getSize()
         width_rel, height_rel = width / width_win, height / height_win
 
         # Make sure it does not take too much space of window
@@ -438,6 +543,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Move the watermark in bottom right corner
         self._watermark.setPos(
             WIDGET_MARGIN_REL + width_rel, 0, WIDGET_MARGIN_REL + height_rel)
+
+        # Refresh frame
+        self.step()
 
     def set_legend(self,
                    items: Optional[Dict[str, Optional[Sequence[int]]]] = None
@@ -492,8 +600,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         tex.setRamImage(img_raw)
 
         # Compute relative image size
-        width_win = self.winList[-1].getXSize()
-        height_win = self.winList[-1].getYSize()
+        width_win, height_win = self.getSize()
         width_rel = LEGEND_SCALE * width / width_win
         height_rel = LEGEND_SCALE * height / height_win
 
@@ -512,6 +619,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Flip the vertical axis and enable transparency
         self._legend.setTransparency(TransparencyAttrib.MAlpha)
         self._legend.setTexScale(TextureStage.getDefault(), 1, -1)
+
+        # Refresh frame
+        self.step()
 
     def set_clock(self, time: Optional[float] = None) -> None:
         # Remove existing watermark, if any
@@ -554,6 +664,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         milliseconds = 1000 * remainder
         self._clock.setText(f"{hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}"
                             f".{milliseconds:03.0f}")
+
+        # Refresh frame
+        self.step()
 
     def append_mesh(self,
                     root_path: str,
@@ -614,12 +727,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._shadow_enabled = enable
 
     def set_window_size(self, width: int, height: int) -> None:
-        if self.windowType == 'offscreen':
-            self.camLens = None
-            self.openMainWindow(size=(width, height))
-            self.adjustWindowAspectRatio(self.getAspectRatio())
-        else:
-            self._openSecondaryOffscreenWindow((width, height))
+        self.buff.setSize(width, height)
+        self._adjustOffscreenWindowAspectRatio()
+        self.step()  # Update frame on-the-spot
 
     def set_framerate(self,
                       framerate: Optional[float] = None) -> None:
@@ -645,9 +755,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
             filename = datetime.now().strftime(template)
         image = PNMImage()
-        if not self.winList[-1].get_screenshot(image):
+        if not self.buff.get_screenshot(image):
             return False
-        if filename.lower().endswith('.png'):
+        if not filename.lower().endswith('.png'):
             image.remove_alpha()
         if not image.write(filename):
             return False
@@ -667,7 +777,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             such limitation.
         """
         # Capture frame as raw texture
-        texture = self.winList[-1].get_screenshot()
+        texture = self.buff.get_screenshot()
 
         # Extract raw array buffer from texture
         image = texture.get_ram_image_as(requested_format)
