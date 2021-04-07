@@ -381,6 +381,8 @@ class Viewer:
                         # cases, but there is no fixed rule.
                         open_gui_if_parent = interactive_mode() and \
                             not Viewer._backend_obj.comm_manager.n_comm
+                    elif Viewer.backend.startswith('panda3d'):
+                        open_gui_if_parent = not interactive_mode()
                     else:
                         open_gui_if_parent = True
 
@@ -1316,6 +1318,7 @@ class Viewer:
                 img_obj = Image.open(f.name)
                 rgba_array = np.array(img_obj)
         elif Viewer.backend.startswith('panda3d'):
+            # Resize window if size has changed
             _width, _height = self._gui._app.getSize()
             if width is None:
                 width = _width
@@ -1327,8 +1330,14 @@ class Viewer:
             # Call low-level `get_screenshot` directly to get raw buffer
             buffer = self._gui._app.get_screenshot(
                 requested_format='RGB', raw=True)
-            array = np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
-            return np.flipud(array)
+
+            # Return raw data if requested
+            if raw_data:
+                return buffer
+
+            # Return numpy array RGB
+            rgb_array = np.frombuffer(buffer, np.uint8)
+            return np.flipud(rgb_array.reshape((height, width, 3)))
         else:
             # Send capture frame request to the background recorder process
             img_html = Viewer._backend_obj.capture_frame(width, height)
@@ -1336,12 +1345,15 @@ class Viewer:
             # Parse the output to remove the html header, and convert it into
             # the desired output format.
             img_data = str.encode(img_html.split(",", 1)[-1])
-            img_raw = base64.decodebytes(img_data)
+            buffer = base64.decodebytes(img_data)
+
+            # Return raw data if requested
             if raw_data:
-                return img_raw
-            else:
-                img_obj = Image.open(io.BytesIO(img_raw))
-                rgba_array = np.array(img_obj)
+                return buffer
+
+            # Return numpy array RGB
+            img_obj = Image.open(io.BytesIO(buffer))
+            rgba_array = np.array(img_obj)
             return rgba_array[:, :, :-1]
 
     @__must_be_open
