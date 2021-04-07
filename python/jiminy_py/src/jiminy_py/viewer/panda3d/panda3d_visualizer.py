@@ -746,7 +746,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         image = PNMImage()
         if not self.buff.get_screenshot(image):
             return False
-        if filename.lower().endswith('.png'):
+        if not filename.lower().endswith('.png'):
             image.remove_alpha()
         if not image.write(filename):
             return False

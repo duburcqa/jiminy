@@ -1,4 +1,3 @@
-
 """ TODO: Write documentation.
 """
 from typing import Optional, List, Tuple, Any
