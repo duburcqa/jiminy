@@ -1253,6 +1253,27 @@ class Viewer:
         Viewer._camera_travelling = None
 
     @__must_be_open
+    def set_color(self, robot_color: Tuple4FType) -> None:
+        """Override the color of the robot on-the-fly.
+
+        .. note::
+            Only Panda3d is not supported by this method for now.
+
+        :param robot_color: RGBA color to use to display this robot, as a list
+                            of 4 floating-point values between 0.0 and 1.0. It
+                            will override the original color of the meshes if
+                            specified. `None` to disable.
+                            Optional: Disable by default.
+        """
+        if Viewer.backend.startswith('panda3d'):
+            for visual in self._client.visual_model.geometryObjects:
+                node_name = self._client.getViewerNodeName(
+                    visual, pin.GeometryType.VISUAL)
+                self._client.viewer.set_material(*node_name, robot_color)
+        else:
+            logger.warning("This method is aonly supported by Panda3d.")
+
+    @__must_be_open
     def capture_frame(self,
                       width: int = None,
                       height: int = None,
@@ -1281,8 +1302,8 @@ class Viewer:
                 "Specifying window size is not available for Gepetto-gui.")
 
             if raw_data:
-                raise ValueError(
-                    "Raw data mode is only available for Meshcat.")
+                raise NotImplementedError(
+                    "Raw data mode is not available for Gepetto-gui.")
 
         if Viewer.backend == 'gepetto-gui':
             # It is not possible to capture frame directly using gepetto-gui,
