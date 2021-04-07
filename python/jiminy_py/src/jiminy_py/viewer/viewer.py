@@ -42,7 +42,6 @@ from .meshcat.meshcat_visualizer import MeshcatVisualizer
 from .panda3d.panda3d_visualizer import (Panda3dViewer,
                                          Panda3dApp,
                                          Panda3dVisualizer)
-from .panda3d.panda3d_widget import Panda3dQWidget
 
 
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
@@ -55,13 +54,17 @@ DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 # Determine set the of available backends
 backends_available = {'meshcat': MeshcatVisualizer,
-                      'panda3d': Panda3dVisualizer,
-                      'panda3d-qt': Panda3dVisualizer}
+                      'panda3d': Panda3dVisualizer}
 if __import__('platform').system() == 'Linux':
     import importlib
     if (importlib.util.find_spec("gepetto") is not None and
             importlib.util.find_spec("omniORB") is not None):
         backends_available['gepetto-gui'] = GepettoVisualizer
+try:
+    from .panda3d.panda3d_widget import Panda3dQWidget
+    backends_available['panda3d-qt'] = Panda3dVisualizer
+except ImportError:
+    pass
 
 
 def default_backend() -> str:
@@ -1297,8 +1300,9 @@ class Viewer:
                 height = _height
             if _width != width or _height != height:
                 self._gui._app.set_window_size(width, height)
+                self._gui._app.step()  # Update frame on-the-spot
+
             # Call low-level `get_screenshot` directly to get raw buffer
-            self._gui._app.step()  # Render the current scene
             buffer = self._gui._app.get_screenshot(
                 requested_format='RGB', raw=True)
             array = np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
