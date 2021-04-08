@@ -46,7 +46,7 @@ jobs:
 
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install twine wheel
+        "${PYTHON_EXECUTABLE}" -m pip install twine wheel auditwheel
         "${PYTHON_EXECUTABLE}" -m pip install cmake numpy
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
 
@@ -90,7 +90,10 @@ jobs:
         cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
-        auditwheel repair -w "$RootDir/build/wheelhouse" "$RootDir"/build/pypi/dist/jiminy_py/*.whl
+        # Note that `--strip` option is not used but rather done manually because the
+        # built-in option corrupts the shared library for some reason...
+        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_repair_linux.py" repair \
+            -w "$RootDir/build/wheelhouse" "$RootDir"/build/pypi/dist/jiminy_py/*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir"/build/wheelhouse/*.whl
     - name: Upload the wheel for Linux of Jiminy_py
       if: success() && github.repository == 'duburcqa/jiminy'
@@ -103,8 +106,6 @@ jobs:
 
     - name: Run unit tests
       run: |
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$InstallDir/lib:/usr/local/lib"
-
         ./build/unit/unit
 
         cd "$RootDir/unit_py"
