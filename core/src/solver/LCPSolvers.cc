@@ -162,7 +162,11 @@ namespace jiminy
         // Compute A
         A.noalias() = data.sDUiJt.transpose() * data.sDUiJt;
 
-        // Add regularization term in case A is not inversible
+        /* Add regularization term in case A is not inversible.
+           Note that Mujoco defines an impedance function that depends on
+           the distance instead of a constant value to model soft contacts.
+           See: - http://mujoco.org/book/modeling.html#CSolver
+                - http://mujoco.org/book/computation.html#soParameters  */
         A.diagonal() += clamp(
             A.diagonal() * inv_damping,
             PGS_MIN_REGULARIZER,

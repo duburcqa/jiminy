@@ -467,23 +467,20 @@ class Simulator:
                 uniq_id = next(tempfile._get_candidate_names())
                 robot_name = f"{uniq_id}_robot"
                 scene_name = f"{uniq_id}_scene"
-                window_name = f"{uniq_id}_window"
             else:
                 robot_name = self.viewer.robot_name
                 scene_name = self.viewer.scene_name
-                window_name = self.viewer.window_name
 
             # Create a new viewer client
             self.viewer = Viewer(self.robot,
                                  use_theoretical_model=False,
-                                 backend=self.viewer_backend,
                                  open_gui_if_parent=(not return_rgb_array),
-                                 delete_robot_on_close=True,
-                                 robot_name=robot_name,
-                                 scene_name=scene_name,
-                                 window_name=window_name,
-                                 **kwargs)
-            self.viewer_backend = Viewer.backend
+                                 **{'scene_name': scene_name,
+                                    'robot_name': robot_name,
+                                    'backend': self.viewer_backend,
+                                    'delete_robot_on_close': True,
+                                    **kwargs})
+            self.viewer_backend = Viewer.backend  # Just in case it was `None`
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
             self.viewer.wait(require_client=False)  # Wait to finish loading

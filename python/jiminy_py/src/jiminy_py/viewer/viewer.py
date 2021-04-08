@@ -27,9 +27,6 @@ from typing_extensions import TypedDict
 
 import zmq
 import meshcat.transformations as mtf
-from panda3d_viewer import (
-    Viewer as Panda3dViewer, ViewerConfig as Panda3dViewerConfig)
-from panda3d_viewer.viewer_app import ViewerApp as Panda3dApp
 from panda3d_viewer.viewer_errors import ViewerClosedError
 
 import pinocchio as pin
@@ -42,7 +39,9 @@ from ..state import State
 from .meshcat.utilities import interactive_mode
 from .meshcat.wrapper import MeshcatWrapper
 from .meshcat.meshcat_visualizer import MeshcatVisualizer
-from .panda3d.panda3d_visualizer import Panda3dVisualizer
+from .panda3d.panda3d_visualizer import (Panda3dViewer,
+                                         Panda3dApp,
+                                         Panda3dVisualizer)
 
 
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
@@ -50,18 +49,22 @@ CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
 DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
-DEFAULT_CAPTURE_SIZE = 500
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 
 # Determine set the of available backends
-backends_available = {
-    'meshcat': MeshcatVisualizer, 'panda3d': Panda3dVisualizer}
+backends_available = {'meshcat': MeshcatVisualizer,
+                      'panda3d': Panda3dVisualizer}
 if __import__('platform').system() == 'Linux':
     import importlib
     if (importlib.util.find_spec("gepetto") is not None and
             importlib.util.find_spec("omniORB") is not None):
         backends_available['gepetto-gui'] = GepettoVisualizer
+try:
+    from .panda3d.panda3d_widget import Panda3dQWidget
+    backends_available['panda3d-qt'] = Panda3dVisualizer
+except ImportError:
+    pass
 
 
 def default_backend() -> str:
@@ -98,7 +101,7 @@ def _get_backend_exceptions(
         return (omniORB.CORBA.COMM_FAILURE,
                 omniORB.CORBA.TRANSIENT,
                 gepetto.corbaserver.gepetto.Error)
-    elif backend == 'panda3d':
+    elif backend.startswith('panda3d'):
         return (ViewerClosedError,)
     else:
         return (zmq.error.Again, zmq.error.ZMQError)
@@ -227,12 +230,13 @@ class Viewer:
         used to force disabling interactive display.
     """
     backend = default_backend()
+    window_name = 'jiminy'
+    _has_gui = False
     _backend_obj = None
     _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
     _backend_robot_names = set()
     _backend_robot_colors = {}
-    _has_gui = False
     _camera_motion = None
     _camera_travelling = None
     _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
@@ -241,42 +245,53 @@ class Viewer:
     def __init__(self,
                  robot: jiminy.Robot,
                  use_theoretical_model: bool = False,
-                 urdf_rgba: Optional[Tuple4FType] = None,
+                 robot_color: Optional[Tuple4FType] = None,
                  lock: Optional[Lock] = None,
                  backend: Optional[str] = None,
                  open_gui_if_parent: Optional[bool] = None,
                  delete_robot_on_close: bool = False,
                  robot_name: Optional[str] = None,
-                 window_name: str = 'jiminy',
                  scene_name: str = 'world',
                  **kwargs):
         """
         :param robot: Jiminy.Robot to display.
         :param use_theoretical_model: Whether to use the theoretical (rigid)
                                       model or the actual (flexible) model of
-                                      this robot.
-        :param urdf_rgba: RGBA color to use to display this robot, as a list
-                          of 4 floating-point values between 0.0 and 1.0.
-                          Optional: It will override the original color of the
-                          meshes if specified.
+                                      this robot. Note that using the actual
+                                      model is more efficient since update of
+                                      the frames placements can be skipped.
+                                      Optional: Actual model by default.
+        :param robot_color: RGBA color to use to display this robot, as a list
+                            of 4 floating-point values between 0.0 and 1.0. It
+                            will override the original color of the meshes if
+                            specified. `None` to disable.
+                            Optional: Disable by default.
         :param lock: Custom threading.Lock. Required for parallel rendering.
                      It is required since some backends does not support
                      multiple simultaneous connections (e.g. corbasever).
-                     Optional: Unique lock of the current thread by default.
-        :param backend: The name of the desired backend to use for rendering.
-                        It can be either 'gepetto-gui' or 'meshcat'.
-                        Optional: 'gepetto-gui' by default if available and not
-                        running from a notebook, 'meshcat' otherwise.
+                     `None` to use the unique lock of the current thread.
+                     Optional: `None` by default.
+        :param backend: Name of the rendering backend to use. It can be either
+                        'panda3d', 'panda3d-qt', 'meshcat' or 'gepetto-gui'.
+                        None to keep using to one already running if any, or
+                        the default one otherwise. Note that the default is
+                        hardware and environment dependent.
+                        See `viewer.default_backend` method for details.
+                        Optional: `None` by default.
         :param open_gui_if_parent: Open GUI if new viewer's backend server is
-                                   started.
+                                   started. `None` to fallback to default.
+                                   Optional: Do not open gui for 'meshcat'
+                                   backend in interactive mode with already one
+                                   display cell already opened, open gui in
+                                   any other case by default.
         :param delete_robot_on_close: Enable automatic deletion of the robot
                                       when closing.
+                                      Optional: False by default.
         :param robot_name: Unique robot name, to identify each robot.
                            Optional: Randomly generated identifier by default.
-        :param window_name: Window name, used only when gepetto-gui is used
-                            as backend. Note that it is not allowed to be equal
-                            to the window name.
-        :param scene_name: Scene name, used only with gepetto-gui backend.
+        :param scene_name: Scene name, used only with 'gepetto-gui' backend. It
+                           must differ from the scene name.
+                           Optional: 'world' by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
         # Handling of default arguments
@@ -285,10 +300,9 @@ class Viewer:
             robot_name = "_".join(("robot", uniq_id))
 
         # Backup some user arguments
-        self.urdf_rgba = urdf_rgba
+        self.robot_color = robot_color
         self.robot_name = robot_name
         self.scene_name = scene_name
-        self.window_name = window_name
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
@@ -339,7 +353,7 @@ class Viewer:
             Viewer.detach_camera()
 
         # Make sure that the windows, scene and robot names are valid
-        if scene_name == window_name:
+        if scene_name == Viewer.window_name:
             raise ValueError(
                 "The name of the scene and window must be different.")
 
@@ -350,7 +364,7 @@ class Viewer:
 
         # Create a unique temporary directory, specific to this viewer instance
         self._tempdir = tempfile.mkdtemp(
-            prefix="_".join((window_name, scene_name, robot_name, "")))
+            prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
 
         # Access the current backend or create one if none is available
         self.__is_open = False
@@ -359,18 +373,22 @@ class Viewer:
             # Connect viewer backend
             if not Viewer.is_alive():
                 # Handling of default argument(s)
-                open_gui = open_gui_if_parent
-                if open_gui is None:
-                    # Opening a new display cell automatically if there is no
-                    # other display cell already opened. The user is probably
-                    # expecting a display cell to open in such cases, but there
-                    # is no fixed rule.
-                    open_gui = interactive_mode() and \
-                        not Viewer._backend_obj.comm_manager.n_comm
+                if open_gui_if_parent is None:
+                    if Viewer.backend == 'meshcat':
+                        # Opening a new display cell automatically if there is
+                        # no other display cell already opened. The user is
+                        # probably expecting a display cell to open in such
+                        # cases, but there is no fixed rule.
+                        open_gui_if_parent = interactive_mode() and \
+                            not Viewer._backend_obj.comm_manager.n_comm
+                    elif Viewer.backend.startswith('panda3d'):
+                        open_gui_if_parent = not interactive_mode()
+                    else:
+                        open_gui_if_parent = True
 
                 # Start viewer backend
                 Viewer.__connect_backend(
-                    start_if_needed=True, open_gui=open_gui)
+                    start_if_needed=True, open_gui=open_gui_if_parent)
 
                 # Update some flags
                 self.is_backend_parent = True
@@ -383,10 +401,10 @@ class Viewer:
             self._backend_proc = Viewer._backend_proc
 
             # Load the robot
-            self._setup(robot, self.urdf_rgba)
+            self._setup(robot, self.robot_color)
             Viewer._backend_robot_names.add(self.robot_name)
             Viewer._backend_robot_colors.update({
-                self.robot_name: self.urdf_rgba})
+                self.robot_name: self.robot_color})
         except Exception as e:
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
@@ -424,7 +442,7 @@ class Viewer:
     @__must_be_open
     def _setup(self,
                robot: jiminy.Robot,
-               urdf_rgba: Optional[Tuple4FType] = None) -> None:
+               robot_color: Optional[Tuple4FType] = None) -> None:
         """Load (or reload) robot in viewer.
 
         .. note::
@@ -436,23 +454,24 @@ class Viewer:
             `simulator.Simulator` instead of `jiminy_py.core.Engine` directly.
 
         :param robot: Jiminy.Robot to display.
-        :param urdf_rgba: RGBA color to use to display this robot, as a list
-                          of 4 floating-point values between 0.0 and 1.0.
-                          Optional: It will override the original color of the
-                          meshes if specified.
+        :param robot_color: RGBA color to use to display this robot, as a list
+                            of 4 floating-point values between 0.0 and 1.0.
+                            It will override the original color of the meshes
+                            if specified. None to disable.
+                            Optional: Disable by default.
         """
         # Backup desired color
-        self.urdf_rgba = urdf_rgba
+        self.robot_color = robot_color
 
         # Generate colorized URDF file if using gepetto-gui backend, since it
         # is not supported by default, because of memory optimizations.
         self.urdf_path = os.path.realpath(robot.urdf_path)
         if Viewer.backend == 'gepetto-gui':
-            if self.urdf_rgba is not None:
-                assert len(self.urdf_rgba) == 4
-                alpha = self.urdf_rgba[3]
+            if self.robot_color is not None:
+                assert len(self.robot_color) == 4
+                alpha = self.robot_color[3]
                 self.urdf_path = Viewer._get_colorized_urdf(
-                    robot, self.urdf_rgba[:3], self._tempdir)
+                    robot, self.robot_color[:3], self._tempdir)
             else:
                 alpha = 1.0
 
@@ -482,9 +501,10 @@ class Viewer:
         # Create the scene and load robot
         if Viewer.backend == 'gepetto-gui':
             # Initialize the viewer
-            self._client.initViewer(
-                viewer=Viewer._backend_obj, windowName=self.window_name,
-                sceneName=self.scene_name, loadModel=False)
+            self._client.initViewer(viewer=Viewer._backend_obj,
+                                    windowName=Viewer.window_name,
+                                    sceneName=self.scene_name,
+                                    loadModel=False)
 
             # Add missing scene elements
             self._gui.addFloor('/'.join((self.scene_name, "floor")))
@@ -508,7 +528,7 @@ class Viewer:
             # Load the robot
             robot_node_path = '/'.join((self.scene_name, self.robot_name))
             self._client.loadViewerModel(
-                rootNodeName=robot_node_path, color=urdf_rgba)
+                rootNodeName=robot_node_path, color=robot_color)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
@@ -529,7 +549,7 @@ class Viewer:
         if Viewer._has_gui:
             return
 
-        if Viewer.backend == 'gepetto-gui':
+        if Viewer.backend in ['gepetto-gui', 'panda3d-qt']:
             # No instance is considered manager of the unique window
             pass
         elif Viewer.backend == 'panda3d':
@@ -602,14 +622,17 @@ class Viewer:
     def wait(require_client: bool = False) -> None:
         """Wait for all the meshes to finish loading in every clients.
 
+        .. note::
+            It is a non-op for every backend except `meshcat` since synchronous
+            mode is enabled for the other ones.
+
         :param require_client: Wait for at least one client to be available
                                before checking for mesh loading.
         """
         if Viewer.backend == 'meshcat':
-            # Only Meshcat is asynchronous. Note that Gepetto-gui can be
-            # updated asynchronously, but it is more difficult to manage for
-            # no real advantage.
             Viewer._backend_obj.wait(require_client)
+        elif Viewer.backend.startswith('panda3d'):
+            Viewer._backend_obj.gui._app.step()
 
     @staticmethod
     def is_alive() -> bool:
@@ -864,7 +887,7 @@ class Viewer:
                         raise RuntimeError(
                             "No backend server to connect to but "
                             "'start_if_needed' is set to False")
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             # handle default argument(s)
             if open_gui is None:
                 open_gui = True
@@ -875,29 +898,13 @@ class Viewer:
                     "'panda3d' backend does not support connecting to already "
                     "running client.")
 
-            # Instantiate new client with onscreen rendering enabled.
+            # Instantiate client with onscreen rendering capability enabled.
             # Note that it fallbacks to software rendering if necessary.
-            config = Panda3dViewerConfig()
-            config.set_window_size(DEFAULT_CAPTURE_SIZE, DEFAULT_CAPTURE_SIZE)
-            config.set_window_fixed(False)
-            config.enable_antialiasing(True, multisamples=4)
-            config.enable_shadow(True)
-            config.enable_lights(True)
-            config.enable_hdr(False)
-            config.enable_fog(False)
-            config.show_axes(True)
-            config.show_grid(False)
-            config.show_floor(True)
-            config.set_value('framebuffer-software', '0')
-            config.set_value('framebuffer-hardware', '0')
-            config.set_value('load-display', 'pandagl')
-            config.set_value('aux-display',
-                             'p3headlessgl'
-                             '\naux-display pandadx9'
-                             '\naux-display pandadx8'
-                             '\naux-display p3tinydisplay')
-            client = Panda3dViewer(
-                window_type='onscreen', window_title='jiminy', config=config)
+            if Viewer.backend == 'panda3d-qt':
+                client = Panda3dQWidget()
+            else:
+                client = Panda3dViewer(window_type='onscreen',
+                                       window_title=Viewer.window_name)
             client.gui = client  # The gui is the client itself for now
 
             proc = _ProcessWrapper(client._app, close_at_exit)
@@ -992,7 +999,7 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             for node_path in nodes_path:
                 Viewer._backend_obj.gui.deleteNode(node_path, True)
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             for node_path in nodes_path:
                 try:
                     Viewer._backend_obj.gui.remove_group(node_path)
@@ -1031,7 +1038,7 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             logger.warning(
                 "Adding watermark is not available for Gepetto-gui.")
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             Viewer._backend_obj._app.set_watermark(img_fullpath, width, height)
         else:
             width = width or DEFAULT_WATERMARK_MAXSIZE[0]
@@ -1061,7 +1068,7 @@ class Viewer:
 
         if Viewer.backend == 'gepetto-gui':
             logger.warning("Adding legend is not available for Gepetto-gui.")
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             if labels is None:
                 items = None
             else:
@@ -1091,7 +1098,7 @@ class Viewer:
         :param time: Current time is seconds. None to disable.
                      Optional: None by default.
         """
-        if Viewer.backend == 'panda3d':
+        if Viewer.backend.startswith('panda3d'):
             Viewer._backend_obj._app.set_clock(time)
         else:
             logger.warning("Adding clock is only available for Panda3d.")
@@ -1154,7 +1161,7 @@ class Viewer:
             H_abs = SE3(rotation_mat, position)
             self._gui.setCameraTransform(
                 self._client.windowID, SE3ToXYZQUAT(H_abs).tolist())
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             rotation_panda3d = pin.Quaternion(
                 rotation_mat @ CAMERA_INV_TRANSFORM_PANDA3D).coeffs()
             self._gui._app.set_camera_transform(position, rotation_panda3d)
@@ -1250,18 +1257,45 @@ class Viewer:
         Viewer._camera_travelling = None
 
     @__must_be_open
+    def set_color(self, robot_color: Tuple4FType) -> None:
+        """Override the color of the robot on-the-fly.
+
+        .. note::
+            Only Panda3d is not supported by this method for now.
+
+        :param robot_color: RGBA color to use to display this robot, as a list
+                            of 4 floating-point values between 0.0 and 1.0. It
+                            will override the original color of the meshes if
+                            specified. `None` to disable.
+                            Optional: Disable by default.
+        """
+        if Viewer.backend.startswith('panda3d'):
+            for visual in self._client.visual_model.geometryObjects:
+                node_name = self._client.getViewerNodeName(
+                    visual, pin.GeometryType.VISUAL)
+                self._client.viewer.set_material(*node_name, robot_color)
+        else:
+            logger.warning("This method is aonly supported by Panda3d.")
+
+    @__must_be_open
     def capture_frame(self,
                       width: int = None,
                       height: int = None,
                       raw_data: bool = False) -> Union[np.ndarray, str]:
         """Take a snapshot and return associated data.
 
+        .. warning::
+            By default, panda3d framerate of onscreen window is limited to
+            reduce computational burden, thereby limiting the speed of this
+            method. One is responsible to disable it manually by calling
+            `Viewer._backend_obj._app.set_frame(None)`.
+
         :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
-                      Optional: DEFAULT_CAPTURE_SIZE by default.
+                      Optional: Kept unchanged by default.
         :param height: Height for the image in pixels (not available with
                        Gepetto-gui for now). None to keep unchanged.
-                       Optional: DEFAULT_CAPTURE_SIZE by default.
+                       Optional: Kept unchanged by default.
         :param raw_data: Whether to return a 2D numpy array, or the raw output
                          from the backend (the actual type may vary).
         """
@@ -1272,8 +1306,8 @@ class Viewer:
                 "Specifying window size is not available for Gepetto-gui.")
 
             if raw_data:
-                raise ValueError(
-                    "Raw data mode is only available for Meshcat.")
+                raise NotImplementedError(
+                    "Raw data mode is not available for Gepetto-gui.")
 
         if Viewer.backend == 'gepetto-gui':
             # It is not possible to capture frame directly using gepetto-gui,
@@ -1283,7 +1317,8 @@ class Viewer:
                 self.save_frame(f.name)
                 img_obj = Image.open(f.name)
                 rgba_array = np.array(img_obj)
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
+            # Resize window if size has changed
             _width, _height = self._gui._app.getSize()
             if width is None:
                 width = _width
@@ -1291,12 +1326,18 @@ class Viewer:
                 height = _height
             if _width != width or _height != height:
                 self._gui._app.set_window_size(width, height)
+
             # Call low-level `get_screenshot` directly to get raw buffer
-            self._gui._app.step()  # Render the current scene
             buffer = self._gui._app.get_screenshot(
                 requested_format='RGB', raw=True)
-            array = np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
-            return np.flipud(array)
+
+            # Return raw data if requested
+            if raw_data:
+                return buffer
+
+            # Return numpy array RGB
+            rgb_array = np.frombuffer(buffer, np.uint8)
+            return np.flipud(rgb_array.reshape((height, width, 3)))
         else:
             # Send capture frame request to the background recorder process
             img_html = Viewer._backend_obj.capture_frame(width, height)
@@ -1304,12 +1345,15 @@ class Viewer:
             # Parse the output to remove the html header, and convert it into
             # the desired output format.
             img_data = str.encode(img_html.split(",", 1)[-1])
-            img_raw = base64.decodebytes(img_data)
+            buffer = base64.decodebytes(img_data)
+
+            # Return raw data if requested
             if raw_data:
-                return img_raw
-            else:
-                img_obj = Image.open(io.BytesIO(img_raw))
-                rgba_array = np.array(img_obj)
+                return buffer
+
+            # Return numpy array RGB
+            img_obj = Image.open(io.BytesIO(buffer))
+            rgba_array = np.array(img_obj)
             return rgba_array[:, :, :-1]
 
     @__must_be_open
@@ -1322,15 +1366,15 @@ class Viewer:
         :param image_path: Fullpath of the image (.png extension is mandatory)
         :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
-                      Optional: DEFAULT_CAPTURE_SIZE by default.
+                      Optional: Kept unchanged by default.
         :param height: Height for the image in pixels (not available with
                        Gepetto-gui for now). None to keep unchanged.
-                       Optional: DEFAULT_CAPTURE_SIZE by default.
+                       Optional: Kept unchanged by default.
         """
         image_path = str(pathlib.Path(image_path).with_suffix('.png'))
         if Viewer.backend == 'gepetto-gui':
             self._gui.captureFrame(self._client.windowID, image_path)
-        elif Viewer.backend == 'panda3d':
+        elif Viewer.backend.startswith('panda3d'):
             _width, _height = self._gui._app.getSize()
             if width is None:
                 width = _width
@@ -1384,7 +1428,7 @@ class Viewer:
         :param wait: Whether or not to wait for rendering to finish.
         """
         with self._lock:
-            # Render both visual and collision geometries
+            # Extract pinocchio model and data pairs to update
             model_list, data_list, model_type_list = [], [], []
             if self._client.display_collisions or force_update_collision:
                 model_list.append(self._client.collision_model)
@@ -1395,10 +1439,12 @@ class Viewer:
                 data_list.append(self._client.visual_data)
                 model_type_list.append(pin.GeometryType.VISUAL)
 
+            # Update geometries placements
             for model, data, in zip(model_list, data_list):
                 pin.updateGeometryPlacements(
                     self._client.model, self._client.data, model, data)
 
+            # Render new geometries placements
             if Viewer.backend == 'gepetto-gui':
                 for model, data, model_type in zip(
                         model_list, data_list, model_type_list):
@@ -1407,7 +1453,7 @@ class Viewer:
                          for geom in model.geometryObjects],
                         [tuple(SE3ToXYZQUAT(data.oMg[i]))
                          for i, geom in enumerate(model.geometryObjects)])
-            elif Viewer.backend == 'panda3d':
+            elif Viewer.backend.startswith('panda3d'):
                 for model, data, model_type in zip(
                         model_list, data_list, model_type_list):
                     name_pose_dict = {}
@@ -1442,6 +1488,8 @@ class Viewer:
             # Refreshing viewer backend manually is necessary for gepetto-gui
             if Viewer.backend == 'gepetto-gui':
                 self._gui.refresh()
+            elif Viewer.backend.startswith('panda3d'):
+                self._gui._app.step()
 
             # Wait for the backend viewer to finish rendering if requested
             if wait:
@@ -1472,12 +1520,9 @@ class Viewer:
             q = q.copy()  # Make a copy to avoid altering the original data
             q[:3] += xyz_offset
 
-        # Update pinocchio and collision data
+        # Update pinocchio data
         pin.forwardKinematics(self._client.model, self._client.data, q)
         pin.framesForwardKinematics(self._client.model, self._client.data, q)
-        pin.updateGeometryPlacements(
-            self._client.model, self._client.data,
-            self._client.collision_model, self._client.collision_data)
 
         # Refresh the viewer
         self.refresh(wait)
