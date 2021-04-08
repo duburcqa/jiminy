@@ -148,6 +148,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                          '\naux-display pandadx8'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
+        config.set_value('model-cache-models', True)
         config.set_value('model-cache-textures', True)
         loadPrcFileData('', str(config))
 
@@ -719,6 +720,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 mesh.set_attrib(CullFaceAttrib.make_reverse())
         self.append_node(root_path, name, mesh, frame)
 
+    def set_material(self,
+                     root_path: str,
+                     name: str,
+                     color = None,
+                     texture_path: str = '') -> None:
+        """Must be patched to avoid raising an exception if node does not
+        exist.
+        """
+        node = self._groups[root_path].find(name)
+        if node:
+            super().set_material(root_path, name, color, texture_path)
+
     def enable_shadow(self, enable: bool) -> None:
         for light in self._lights:
             if not light.node().is_ambient_light():
@@ -872,11 +885,40 @@ class Panda3dVisualizer(BaseVisualizer):
                                  color: Optional[np.ndarray] = None) -> None:
         """Load a single geometry object
         """
+        # Skip ground plane
+        if geometry_object.name == "ground":
+            return
+
+        # Get node name
         node_name = self.getViewerNodeName(geometry_object, geometry_type)
 
         # Create panda3d object based on the geometry and add it to the scene
         geom = geometry_object.geometry
-        if isinstance(geom, hppfcl.ShapeBase):
+
+        # Try to load mesh from path first, to take advantage of very effective
+        # Panda3d mmodel caching procedure.
+        is_success = True
+        mesh_path = geometry_object.meshPath
+        if '\\' in mesh_path or '/' in mesh_path:
+            # Assuming it is an actual path if it has a least on slash. It is
+            # way faster than actually checking if the path actually exists.
+
+            # Assimp backend used to load meshes does not support many things
+            # related to paths on Windows. First, it does not support symlinks,
+            # then the hard drive prefix must be `/x/` instead of `X:\`, and
+            # finally backslashes must be used as delimiter instead of
+            # forwardslashes.
+            mesh_path = geometry_object.meshPath
+            if sys.platform.startswith('win'):
+                mesh_path = os.path.realpath(mesh_path)
+                mesh_path = PureWindowsPath(mesh_path).as_posix()
+                mesh_path = re.sub(r'^([A-Za-z]):',
+                                   lambda m: "/" + m.group(1).lower(),
+                                   mesh_path)
+            # append a mesh
+            scale = npToTuple(geometry_object.meshScale)
+            self.viewer.append_mesh(*node_name, mesh_path, scale)
+        elif isinstance(geom, hppfcl.ShapeBase):
             # append a primitive geometry
             if isinstance(geom, hppfcl.Capsule):
                 self.viewer.append_capsule(
@@ -921,27 +963,16 @@ class Panda3dVisualizer(BaseVisualizer):
                 node = NodePath(geom_node)
                 self.viewer._app.append_node(*node_name, node)
             else:
-                msg = "Unsupported geometry type for %s (%s)" % (
-                    geometry_object.name, type(geom))
-                warnings.warn(msg, category=UserWarning, stacklevel=2)
-                return
+                is_success = False
         else:
-            # Assimp backend used to load meshes does not support many things
-            # related to paths on Windows. First, it does not support symlinks,
-            # then the hard drive prefix must be `/x/` instead of `X:\`, and
-            # finally backslashes must be used  as delimiter instead of
-            # forwardslashes.
-            mesh_path = geometry_object.meshPath
-            if sys.platform.startswith('win'):
-                mesh_path = os.path.realpath(mesh_path)
-                mesh_path = PureWindowsPath(mesh_path).as_posix()
-                mesh_path = re.sub(r'^([A-Za-z]):',
-                                   lambda m: "/" + m.group(1).lower(),
-                                   mesh_path)
+            is_success = False
 
-            # append a mesh
-            scale = npToTuple(geometry_object.meshScale)
-            self.viewer.append_mesh(*node_name, mesh_path, scale)
+        # Early return if impossible to load the geometry for some reason
+        if not is_success:
+            warnings.warn(
+                f"Unsupported geometry type for {geometry_object.name} "
+                f"({type(geom)})", category=UserWarning, stacklevel=2)
+            return
 
         # Set material color from URDF
         if color is not None:

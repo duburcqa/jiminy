@@ -60,9 +60,24 @@ namespace python
         ::jiminy::resetRandomGenerators(seed);
     }
 
+    pinocchio::GeometryModel buildGeomFromUrdf(pinocchio::Model const & model,
+                                               std::string const & filename,
+                                               pinocchio::GeometryType const & type,
+                                               std::vector<std::string> const & packageDirs,
+                                               bool_t loadMeshes)
+    {
+        pinocchio::GeometryModel geometryModel;
+        buildGeom(model, filename, type, geometryModel, packageDirs, loadMeshes);
+        return geometryModel;
+    }
+
     void exposeHelpers(void)
     {
         bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed") = bp::object()));
+
+        bp::def("buildGeomFromUrdf", &buildGeomFromUrdf,
+                                     (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
+                                      bp::arg("package_dirs") = bp::list(), bp::arg("load_meshes") = true));
 
         bp::def("get_joint_type", &getJointTypeFromIdx,
                                   (bp::arg("pinocchio_model"), "joint_idx"));
