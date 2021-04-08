@@ -148,8 +148,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                          '\naux-display pandadx8'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
-        config.set_value('model-cache-models', True)
-        config.set_value('model-cache-textures', True)
+        config.set_value('default-near', 0.1)
+        config.set_value('assimp-optimize-graph', True)
         loadPrcFileData('', str(config))
 
         # Define offscreen buffer
@@ -250,6 +250,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._watermark = None
         self._legend = None
         self._clock = None
+        self.offGraphicsLens = None
         self.offDisplayRegion = None
         self.zoom_rate = 1.03
         self.camera_lookat = np.zeros(3)
@@ -351,17 +352,22 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Create new offscreen buffer.
         # Note that it is impossible to create resizeable buffer without an
         # already existing host for some reason...
-        self.buff = self.graphicsEngine.make_output(
+        win = self.graphicsEngine.make_output(
             self.pipe, "off_buffer", 0, fprops, winprops, flags,
             self.win.get_gsg(), self.win)
 
         # Append buffer to the list of windows managed by the ShowBase
-        self.winList.append(self.buff)
+        self.buff = win
+        self.winList.append(win)
+
+        # Create 3D camera region for the scene.
+        # Set near distance of camera lens to allow seeing model from close.
+        self.offGraphicsLens = PerspectiveLens()
+        self.offGraphicsLens.set_near(0.1)
+        self.makeCamera(win, camName='off_camera', lens=self.offGraphicsLens)
 
         # Create 2D display region for widgets
-        self.graphicsLens = PerspectiveLens()
-        self.makeCamera(self.buff, camName='off_cam', lens=self.graphicsLens)
-        self.offDisplayRegion = self.buff.makeMonoDisplayRegion()
+        self.offDisplayRegion = win.makeMonoDisplayRegion()
         self.offDisplayRegion.setSort(5)
         self.offDisplayRegion.setCamera(self.offCamera2d)
 
@@ -373,7 +379,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         aspectRatio = self.getAspectRatio(self.buff)
 
         # Adjust 3D rendering aspect ratio
-        self.graphicsLens.setAspectRatio(aspectRatio)
+        self.offGraphicsLens.setAspectRatio(aspectRatio)
 
         # Adjust existing anchors for offscreen 2D rendering
         if aspectRatio < 1:
