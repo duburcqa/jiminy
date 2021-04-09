@@ -55,7 +55,7 @@ DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 # Determine set the of available backends
 backends_available = {'meshcat': MeshcatVisualizer,
                       'panda3d': Panda3dVisualizer}
-if __import__('platform').system() == 'Linux':
+if sys.platform.startswith('linux'):
     import importlib
     if (importlib.util.find_spec("gepetto") is not None and
             importlib.util.find_spec("omniORB") is not None):

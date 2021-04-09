@@ -8,7 +8,7 @@ import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import PureWindowsPath
-from typing import Optional, Dict, Tuple, Union, Sequence, Any
+from typing import Callable, Optional, Dict, Tuple, Union, Sequence, Any
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -52,7 +52,14 @@ WIDGET_MARGIN_REL = 0.05
 PANDA3D_FRAMERATE_MAX = 30
 
 
-def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
+Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
+Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
+
+
+def create_gradient(sky_color: Tuple3FType,
+                    ground_color: Tuple3FType,
+                    offset: float = 0.0,
+                    subdiv: int = 2):
     """
     https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
     """
@@ -270,21 +277,28 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_grid(False)
         self.show_floor(True)
 
-    def _make_light_ambient(self, color):
+    def _make_light_ambient(self, color: Tuple3FType) -> NodePath:
         """Must be patched to fix wrong color alpha.
         """
         node = super()._make_light_ambient(color)
-        node.getNode(0).set_color(Vec4(*color, 1))
+        node.getNode(0).set_color(Vec4(*color, 1.0))
         return node
 
-    def _make_light_direct(self, index, color, pos, target=(0, 0, 0)):
+    def _make_light_direct(self,
+                           index: int,
+                           color: Tuple3FType,
+                           pos: Tuple3FType,
+                           target: Tuple3FType = (0.0, 0.0, 0.0)
+                           ) -> NodePath:
         """Must be patched to fix wrong color alpha.
         """
         node = super()._make_light_direct(index, color, pos, target)
-        node.getNode(0).set_color(Vec4(*color, 1))
+        node.getNode(0).set_color(Vec4(*color, 1.0))
         return node
 
-    def set_camera_transform(self, pos, quat):
+    def set_camera_transform(self,
+                             pos: Tuple3FType,
+                             quat: np.ndarray) -> None:
         self.camera.set_pos(Vec3(*pos))
         self.camera.setQuat(LQuaternion(quat[-1], *quat[:-1]))
         self.camera_lookat = np.zeros(3)
@@ -318,8 +332,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.set_framerate(PANDA3D_FRAMERATE_MAX)
 
     def _openOffscreenWindow(self,
-                             size: Optional[Tuple[int, int]] = None
-                             ) -> None:
+                             size: Optional[Tuple[int, int]] = None) -> None:
         """Create new completely independent offscreen buffer, rendering the
         same scene than the main window.
         """
@@ -402,7 +415,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.offA2dBottomLeft.setPos(a2dLeft, 0, a2dBottom)
         self.offA2dBottomRight.setPos(a2dRight, 0, a2dBottom)
 
-    def getSize(self, win=None):
+    def getSize(self, win: Optional[Any] = None) -> Tuple[int, int]:
         """Must be patched to return the size of the window used for capturing
         frame by default, instead of main window.
         """
@@ -414,7 +427,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         md = self.win.getPointer(0)
         return md.getX(), md.getY()
 
-    def handleKey(self, key, value):
+    def handleKey(self, key: str, value: bool) -> None:
         if key in ["mouse1", "mouse2", "mouse3"]:
             self.lastMouseX, self.lastMouseY = self.getMousePos()
             self.key_map[key] = value
@@ -426,7 +439,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 cam_pos = self.camera_lookat - cam_dir * self.zoom_rate
             self.camera.set_pos(Vec3(*cam_pos.tolist()))
 
-    def moveOrbitalCameraTask(self, task):
+    def moveOrbitalCameraTask(self, task: Any) -> None:
         # Get mouse position
         x, y = self.getMousePos()
 
@@ -488,12 +501,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # End task
         return task.cont
 
-    def _make_axes(self):
+    def _make_axes(self) -> NodePath:
         node = super()._make_axes()
         node.set_scale(0.33)
         return node
 
-    def _make_floor(self):
+    def _make_floor(self) -> NodePath:
         model = GeomNode('floor')
         node = self.render.attach_new_node(model)
         for xi in range(-10, 11):
@@ -679,7 +692,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     root_path: str,
                     name: str,
                     mesh_path: str,
-                    scale: Optional[Tuple[float, float, float]] = None,
+                    scale: Optional[Tuple3FType] = None,
                     frame: Union[np.ndarray, Tuple[
                         Union[np.ndarray, Sequence[float]],
                         Union[np.ndarray, Sequence[float]]]] = None,
@@ -729,7 +742,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def set_material(self,
                      root_path: str,
                      name: str,
-                     color = None,
+                     color: Optional[Tuple4FType] = None,
                      texture_path: str = '') -> None:
         """Must be patched to avoid raising an exception if node does not
         exist.
@@ -750,8 +763,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._adjustOffscreenWindowAspectRatio()
         self.step()  # Update frame on-the-spot
 
-    def set_framerate(self,
-                      framerate: Optional[float] = None) -> None:
+    def set_framerate(self, framerate: Optional[float] = None) -> None:
         """Limit framerate of Panda3d to avoid consuming too much ressources.
 
         :param framerate: Desired framerate limit. None to disable.
@@ -814,18 +826,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
 
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
-    def __getstate__(self):
+    def __getstate__(self) -> dict:
         """Required for Windows support, which uses spawning instead of forking
         to create subprocesses, requiring pickling of process instance.
         """
         return vars(self)
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: dict) -> None:
         """Must be defined for the same reason than `__getstate__`.
         """
         vars(self).update(state)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Callable:
         """Must be overloaded to catch closed window to avoid deadlock.
         """
         def _send(*args, **kwargs):
@@ -842,11 +854,11 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
 
         return _send
 
-    def run(self):
+    def run(self) -> None:
         """Must be patched to use Jiminy ViewerApp instead of the original one.
         """
         panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
-        super().run()
+        return super().run()
 
 panda3d_viewer.viewer_proxy.ViewerAppProxy = Panda3dProxy  # noqa
 
@@ -860,7 +872,7 @@ class Panda3dVisualizer(BaseVisualizer):
     """  # noqa: E501
     def initViewer(self,
                    viewer: Optional[Panda3dViewer] = None,
-                   loadModel: bool = False):
+                   loadModel: bool = False) -> None:
         """Init the viewer by attaching to / creating a GUI viewer.
         """
         self.visual_group = None

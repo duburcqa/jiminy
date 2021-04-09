@@ -77,7 +77,8 @@ namespace python
 
         bp::def("buildGeomFromUrdf", &buildGeomFromUrdf,
                                      (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
-                                      bp::arg("package_dirs") = bp::list(), bp::arg("load_meshes") = true));
+                                      bp::arg("package_dirs") = std::vector<std::string>(),
+                                      bp::arg("load_meshes") = true));
 
         bp::def("get_joint_type", &getJointTypeFromIdx,
                                   (bp::arg("pinocchio_model"), "joint_idx"));
