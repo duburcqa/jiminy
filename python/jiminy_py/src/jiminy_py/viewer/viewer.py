@@ -55,7 +55,7 @@ DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 # Determine set the of available backends
 backends_available = {'meshcat': MeshcatVisualizer,
                       'panda3d': Panda3dVisualizer}
-if __import__('platform').system() == 'Linux':
+if sys.platform.startswith('linux'):
     import importlib
     if (importlib.util.find_spec("gepetto") is not None and
             importlib.util.find_spec("omniORB") is not None):
@@ -483,10 +483,12 @@ class Viewer:
             pinocchio_model = robot.pinocchio_model
             pinocchio_data = robot.pinocchio_data
 
-        # Create robot visual model
-        visual_model = pin.buildGeomFromUrdf(
+        # Create robot visual model.
+        # Note that it does not actually loads the meshes if possible, since
+        # the rendering backend will reload them anyway.
+        visual_model = jiminy.buildGeomFromUrdf(
             pinocchio_model, self.urdf_path, pin.GeometryType.VISUAL,
-            robot.mesh_package_dirs)
+            robot.mesh_package_dirs, load_meshes=False)
 
         # Create backend wrapper to get (almost) backend-independent API
         self._client = backends_available[Viewer.backend](
@@ -1258,10 +1260,11 @@ class Viewer:
 
     @__must_be_open
     def set_color(self, robot_color: Tuple4FType) -> None:
-        """Override the color of the robot on-the-fly.
+        """Override the color of the visual and collision geometries of the
+        robot on-the-fly.
 
         .. note::
-            Only Panda3d is not supported by this method for now.
+            This method is only supported by Panda3d for now.
 
         :param robot_color: RGBA color to use to display this robot, as a list
                             of 4 floating-point values between 0.0 and 1.0. It
@@ -1270,12 +1273,14 @@ class Viewer:
                             Optional: Disable by default.
         """
         if Viewer.backend.startswith('panda3d'):
-            for visual in self._client.visual_model.geometryObjects:
-                node_name = self._client.getViewerNodeName(
-                    visual, pin.GeometryType.VISUAL)
-                self._client.viewer.set_material(*node_name, robot_color)
+            for model, geom_type in zip(
+                    [self._client.visual_model, self._client.collision_model],
+                    pin.GeometryType.names.values()):
+                for geom in model.geometryObjects:
+                    node_name = self._client.getViewerNodeName(geom, geom_type)
+                    self._client.viewer.set_material(*node_name, robot_color)
         else:
-            logger.warning("This method is aonly supported by Panda3d.")
+            logger.warning("This method is only supported by Panda3d.")
 
     @__must_be_open
     def capture_frame(self,

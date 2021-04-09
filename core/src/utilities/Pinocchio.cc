@@ -1,8 +1,12 @@
 #include <numeric>
 
+#include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/algorithm/joint-configuration.hpp"
+
+#include "hpp/fcl/mesh_loader/loader.h"
+#include "hpp/fcl/BVH/BVH_model.h"
 
 #include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/utilities/Pinocchio.h"
@@ -897,5 +901,43 @@ namespace jiminy
             model.frames[frameIdx].placement.translation());
 
         return joint_M_global.act(fextInGlobal);
+    }
+
+    class DummyMeshLoader : public hpp::fcl::MeshLoader
+    {
+    public:
+        virtual ~DummyMeshLoader() {}
+
+        DummyMeshLoader(void) :
+        MeshLoader(hpp::fcl::BV_OBBRSS)
+        {
+            // Empty on purpose.
+        }
+
+        virtual hpp::fcl::BVHModelPtr_t load(std::string const & filename,
+                                             hpp::fcl::Vec3f const & scale) override final
+        {
+            return boost::shared_ptr<hpp::fcl::BVHModel<hpp::fcl::OBBRSS> >(
+                new hpp::fcl::BVHModel<hpp::fcl::OBBRSS>);
+        }
+    };
+
+    void buildGeom(pinocchio::Model const & model,
+                   std::string const & filename,
+                   pinocchio::GeometryType const & type,
+                   pinocchio::GeometryModel & geomModel,
+                   std::vector<std::string> const & package_dirs,
+                   bool_t const & loadMeshes)
+    {
+        if (loadMeshes)
+        {
+            pinocchio::urdf::buildGeom(model, filename, type, geomModel, package_dirs);
+        }
+        else
+        {
+            hpp::fcl::MeshLoaderPtr MeshLoaderPtr(new DummyMeshLoader);
+            pinocchio::urdf::buildGeom(model, filename, type, geomModel, package_dirs, MeshLoaderPtr);
+
+        }
     }
 }

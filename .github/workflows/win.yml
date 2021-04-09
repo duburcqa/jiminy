@@ -42,7 +42,8 @@ jobs:
       run: |
         git config --global advice.detachedHead false
         python -m pip install --upgrade pip
-        python -m pip install wheel numpy
+        python -m pip install wheel pefile machomachomangler
+        python -m pip install numpy
         python -m pip uninstall -y pipx  # Uninstall unecessary packages causing conflicts with the new resolver
     - name: Build project dependencies
       run: |
@@ -101,12 +102,11 @@ jobs:
         Set-Location -Path "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
-        python -m pip install pefile machomachomangler
         Remove-Item -Recurse -Path "$RootDir/build/pypi" -Include *.tar.gz
         Get-ChildItem -Recurse -Path "$RootDir/build/pypi/dist/jiminy_py" -Filter *.whl |
         Foreach-Object {
             $wheel_path = ($_.FullName)
-            python "$RootDir/build_tools/wheel_repair.py" "$wheel_path" -d "$InstallDir/lib" -w "$RootDir/build/wheelhouse"
+            python "$RootDir/build_tools/wheel_repair_win.py" "$wheel_path" -d "$InstallDir/lib" -w "$RootDir/build/wheelhouse"
         }
         Get-ChildItem -Path "$RootDir/build/wheelhouse" -Filter *.whl |
         Foreach-Object {
