@@ -384,6 +384,26 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.camera_lookat = np.zeros(3)
         self.step()  # Update frame on-the-spot
 
+    def move_node(self,
+                  root_path: str,
+                  name: str,
+                  frame: FrameType) -> None:
+        """Set pose of a single node.
+        """
+        node = self._groups[root_path].find(name).children[0]
+        if isinstance(frame, np.ndarray):
+            node.set_mat(Mat4(*frame.T.flat))
+        else:
+            pos, quat = frame
+            node.set_pos_quat(Vec3(*pos), Quat(*quat))
+
+    def set_scale(self,
+                  root_path: str,
+                  name: str,
+                  scale: Optional[Tuple3FType] = None) -> None:
+        node = self._groups[root_path].find(name).children[0]
+        node.set_scale(*scale)
+
     def open_window(self) -> None:
         # Make sure a graphical window is not already open
         if any(isinstance(win, GraphicsWindow) for win in self.winList):
