@@ -222,7 +222,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Configure lighting and shadows
         self._spotlight = self.config.GetBool('enable-spotlight', False)
-        self._shadow_size = self.config.GetInt('shadow-buffer-size', 1024)
+        self._shadow_size = self.config.GetInt('shadow-buffer-size', 8192)
         self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
                         self._make_light_direct(
                             1, (0.5, 0.5, 0.5), pos=(8.0, 8.0, 10.0))]
@@ -857,7 +857,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         for light in self._lights:
             if not light.node().is_ambient_light():
                 light.node().set_shadow_caster(enable)
-        self.render.set_depth_offset(-4 if enable else 0)
+        self.render.set_depth_offset(-1 if enable else 0)
         self._shadow_enabled = enable
 
     def set_window_size(self, width: int, height: int) -> None:
