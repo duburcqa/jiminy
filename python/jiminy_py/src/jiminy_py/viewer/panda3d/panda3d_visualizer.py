@@ -56,6 +56,7 @@ Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
 Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
 FrameType = Union[Tuple[Tuple3FType, Tuple4FType], np.ndarray]
 
+
 def make_gradient_skybox(sky_color: Tuple3FType,
                          ground_color: Tuple3FType,
                          offset: float = 0.0,
@@ -143,17 +144,23 @@ def make_gradient_skybox(sky_color: Tuple3FType,
     return prism
 
 
-def make_cone(num_segments: int = 16) -> Geom:
+def make_cone(num_sides: int = 16) -> Geom:
+    """Create a close shaped cone, approximate by a pyramid with regular
+    convex n-sided polygon base.
+
+    For reference about refular polygon:
+    https://en.wikipedia.org/wiki/Regular_polygon
+    """
     # Define vertex format
     vformat = GeomVertexFormat.get_v3n3t2()
-    vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
-    vdata.uncleanSetNumRows(num_segments + 2)
+    vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
+    vdata.uncleanSetNumRows(num_sides + 2)
     vertex = GeomVertexWriter(vdata, 'vertex')
     normal = GeomVertexWriter(vdata, 'normal')
     tcoord = GeomVertexWriter(vdata, 'texcoord')
 
     # Add radial points
-    for u in np.linspace(0.0, 2 * np.pi, num_segments):
+    for u in np.linspace(0.0, 2 * np.pi, num_sides):
         x, y = math.cos(u), math.sin(u)
         vertex.addData3(x, y, 0.0)
         normal.addData3(x, y, 0.0)
@@ -171,10 +178,10 @@ def make_cone(num_segments: int = 16) -> Geom:
     # face, that is defined based on the "winding" order of the vertices making
     # the triangles. For reference, see:
     # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2
-    prim = GeomTriangles(Geom.UHStatic)
-    for i in range(num_segments - 1):
-        prim.addVertices(i, i + 1, num_segments)
-        prim.addVertices(i + 1, i, num_segments + 1)
+    prim = GeomTriangles(Geom.UH_static)
+    for i in range(num_sides - 1):
+        prim.addVertices(i, i + 1, num_sides)
+        prim.addVertices(i + 1, i, num_sides + 1)
 
     geom = Geom(vdata)
     geom.addPrimitive(prim)
@@ -341,11 +348,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     name: str,
                     radius: float,
                     length: float,
+                    num_sides: int = 16,
                     frame: Optional[FrameType] = None) -> None:
         """Append a cone primitive node to the group.
         """
         geom_node = GeomNode("cone")
-        geom_node.add_geom(make_cone())
+        geom_node.add_geom(make_cone(num_sides))
         node = NodePath(geom_node)
         node.set_scale(radius, radius, length)
         self.append_node(root_path, name, node, frame)
@@ -357,6 +365,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      length: float,
                      frame: Optional[FrameType] = None) -> None:
         """Append an arrow primitive node to the group.
+
+        ..note::
+            The arrow is aligned with z-axis in world frame, and the tip is at
+            position (0.0, 0.0, 0.0) in world frame.
         """
         arrow_geom = GeomNode("arrow")
         arrow_node = NodePath(arrow_geom)
@@ -365,14 +377,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         head_geom.addGeom(head)
         head_node = NodePath(head_geom)
         head_node.reparent_to(arrow_node.attach_new_node("head"))
-        head_node.set_scale(1.75, 1.75, 3.5 * radius)
+        head_node.set_scale(1.75, 1.75, 3.5*radius)
+        head_node.set_pos(0.0, 0.0, -3.5*radius)
         body = geometry.make_cylinder()
         body_geom = GeomNode("body")
         body_geom.addGeom(body)
         body_node = NodePath(body_geom)
         body_node.reparent_to(arrow_node.attach_new_node("body"))
         body_node.set_scale(1.0, 1.0, length)
-        body_node.set_pos(0.0, 0.0, -length/2)
+        body_node.set_pos(0.0, 0.0, -length/2-3.5*radius)
         arrow_node.set_scale(radius, radius, 1.0)
         self.append_node(root_path, name, arrow_node, frame)
 
@@ -847,11 +860,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      color: Optional[Tuple4FType] = None,
                      texture_path: str = '') -> None:
         """Must be patched to avoid raising an exception if node does not
-        exist.
+        exist, to disable texture if custom color is specified, and restore
+        original colors otherwise.
         """
         node = self._groups[root_path].find(name)
         if node:
             super().set_material(root_path, name, color, texture_path)
+            if color is not None:
+                node.set_texture_off(1)
+            else:
+                node.clear_texture()
+                node.clear_material()
+                node.clear_color()
 
     def enable_shadow(self, enable: bool) -> None:
         for light in self._lights:

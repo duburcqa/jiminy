@@ -17,7 +17,7 @@ from copy import deepcopy
 from functools import wraps
 from bisect import bisect_right
 from threading import Lock
-from typing import Optional, Union, Sequence, Tuple, Callable
+from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
 
 import psutil
 import numpy as np
@@ -39,7 +39,9 @@ from ..state import State
 from .meshcat.utilities import interactive_mode
 from .meshcat.wrapper import MeshcatWrapper
 from .meshcat.meshcat_visualizer import MeshcatVisualizer
-from .panda3d.panda3d_visualizer import (Panda3dViewer,
+from .panda3d.panda3d_visualizer import (Tuple3FType,
+                                         Tuple4FType,
+                                         Panda3dViewer,
                                          Panda3dApp,
                                          Panda3dVisualizer)
 
@@ -50,6 +52,33 @@ DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
 DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
+
+
+COLORS = {'green': (0.4, 0.7, 0.3, 1.0),
+          'purple': (0.6, 0.2, 0.9, 1.0),
+          'orange': (1.0, 0.45, 0.0, 1.0),
+          'grey': (0.55, 0.55, 0.55, 1.0),
+          'cyan': (0.2, 0.7, 1.0, 1.0),
+          'white': (0.95, 0.95, 0.95, 1.0),
+          'red': (0.9, 0.15, 0.15, 1.0),
+          'yellow': (1.0, 0.7, 0.0, 1.0),
+          'blue': (0.3, 0.3, 1.0, 1.0),
+          'black': (0.2, 0.2, 0.25, 1.0)}
+
+
+# Create logger
+class _DuplicateFilter:
+    def __init__(self):
+        self.msgs = set()
+
+    def filter(self, record):
+        rv = record.msg not in self.msgs
+        self.msgs.add(record.msg)
+        return rv
+
+
+logger = logging.getLogger(__name__)
+logger.addFilter(_DuplicateFilter())
 
 
 # Determine set the of available backends
@@ -103,21 +132,6 @@ def _get_backend_exceptions(
         return (zmq.error.Again, zmq.error.ZMQError)
 
 
-# Create logger
-class _DuplicateFilter:
-    def __init__(self):
-        self.msgs = set()
-
-    def filter(self, record):
-        rv = record.msg not in self.msgs
-        self.msgs.add(record.msg)
-        return rv
-
-
-logger = logging.getLogger(__name__)
-logger.addFilter(_DuplicateFilter())
-
-
 def sleep(dt: float) -> None:
     """Function to provide cross-platform time sleep with maximum accuracy.
 
@@ -129,9 +143,22 @@ def sleep(dt: float) -> None:
 
     :param dt: Sleep duration in seconds.
     """
-    _ = time.perf_counter() + dt
-    while time.perf_counter() < _:
+    t_end = time.perf_counter() + dt
+    while time.perf_counter() < t_end:
         pass
+
+
+
+def get_color_code(color: Optional[Union[str, Tuple4FType]]) -> Tuple4FType:
+    if isinstance(color, str):
+        try:
+            return COLORS[color]
+        except KeyError as e:
+            colors_str = ', '.join(f"'{e}'" for e in COLORS.keys())
+            raise ValueError(
+                f"Color '{color}' not available. Use a custom (R,G,B,A) "
+                f"code, or a predefined named color ({colors_str}).") from e
+    return color
 
 
 class _ProcessWrapper:
@@ -200,8 +227,6 @@ class _ProcessWrapper:
                 multiprocessing.active_children()
 
 
-Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
-Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
 CameraPoseType = Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]
 
 
@@ -241,14 +266,14 @@ class Viewer:
     def __init__(self,
                  robot: jiminy.Robot,
                  use_theoretical_model: bool = False,
-                 robot_color: Optional[Tuple4FType] = None,
+                 robot_color: Optional[Union[str, Tuple4FType]] = None,
                  lock: Optional[Lock] = None,
                  backend: Optional[str] = None,
                  open_gui_if_parent: Optional[bool] = None,
                  delete_robot_on_close: bool = False,
                  robot_name: Optional[str] = None,
                  scene_name: str = 'world',
-                 **kwargs):
+                 **kwargs: Any):
         """
         :param robot: Jiminy.Robot to display.
         :param use_theoretical_model: Whether to use the theoretical (rigid)
@@ -257,10 +282,10 @@ class Viewer:
                                       model is more efficient since update of
                                       the frames placements can be skipped.
                                       Optional: Actual model by default.
-        :param robot_color: RGBA color to use to display this robot, as a list
-                            of 4 floating-point values between 0.0 and 1.0. It
-                            will override the original color of the meshes if
-                            specified. `None` to disable.
+        :param robot_color: Color of the robot. It will override the original
+                            color of the meshes if not `None`. It supports both
+                            RGBA codes as a list of 4 floating-point values
+                            ranging from 0.0 and 1.0, and a few named colors.
                             Optional: Disable by default.
         :param lock: Custom threading.Lock. Required for parallel rendering.
                      It is required since some backends does not support
@@ -296,7 +321,7 @@ class Viewer:
             robot_name = "_".join(("robot", uniq_id))
 
         # Backup some user arguments
-        self.robot_color = robot_color
+        self.robot_color = get_color_code(robot_color)
         self.robot_name = robot_name
         self.scene_name = scene_name
         self.use_theoretical_model = use_theoretical_model
@@ -423,7 +448,7 @@ class Viewer:
 
     def __must_be_open(fct: Callable) -> Callable:
         @wraps(fct)
-        def fct_safe(*args, **kwargs):
+        def fct_safe(*args: Any, **kwargs: Any) -> Any:
             self = None
             if args and isinstance(args[0], Viewer):
                 self = args[0]
@@ -438,7 +463,7 @@ class Viewer:
     @__must_be_open
     def _setup(self,
                robot: jiminy.Robot,
-               robot_color: Optional[Tuple4FType] = None) -> None:
+               robot_color: Optional[Union[str, Tuple4FType]] = None) -> None:
         """Load (or reload) robot in viewer.
 
         .. note::
@@ -450,14 +475,14 @@ class Viewer:
             `simulator.Simulator` instead of `jiminy_py.core.Engine` directly.
 
         :param robot: Jiminy.Robot to display.
-        :param robot_color: RGBA color to use to display this robot, as a list
-                            of 4 floating-point values between 0.0 and 1.0.
-                            It will override the original color of the meshes
-                            if specified. None to disable.
+        :param robot_color: Color of the robot. It will override the original
+                            color of the meshes if not `None`. It supports both
+                            RGBA codes as a list of 4 floating-point values
+                            ranging from 0.0 and 1.0, and a few named colors.
                             Optional: Disable by default.
         """
         # Backup desired color
-        self.robot_color = robot_color
+        self.robot_color = get_color_code(robot_color)
 
         # Generate colorized URDF file if using gepetto-gui backend, since it
         # is not supported by default, because of memory optimizations.
@@ -526,7 +551,7 @@ class Viewer:
             # Load the robot
             robot_node_path = '/'.join((self.scene_name, self.robot_name))
             self._client.loadViewerModel(
-                rootNodeName=robot_node_path, color=robot_color)
+                rootNodeName=robot_node_path, color=self.robot_color)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
@@ -1255,19 +1280,25 @@ class Viewer:
         Viewer._camera_travelling = None
 
     @__must_be_open
-    def set_color(self, robot_color: Tuple4FType) -> None:
+    def set_color(self,
+                  robot_color: Optional[Union[str, Tuple4FType]] = None
+                  ) -> None:
         """Override the color of the visual and collision geometries of the
         robot on-the-fly.
 
         .. note::
             This method is only supported by Panda3d for now.
 
-        :param robot_color: RGBA color to use to display this robot, as a list
-                            of 4 floating-point values between 0.0 and 1.0. It
-                            will override the original color of the meshes if
-                            specified. `None` to disable.
+        :param robot_color: Color of the robot. It will override the original
+                            color of the meshes if not `None`, and restore them
+                            otherwise. It supports both RGBA codes as a list of
+                            4 floating-point values ranging from 0.0 and 1.0,
+                            and a few named colors.
                             Optional: Disable by default.
         """
+        # Sanitize user-specified color code
+        robot_color = get_color_code(robot_color)
+
         if Viewer.backend.startswith('panda3d'):
             for model, geom_type in zip(
                     [self._client.visual_model, self._client.collision_model],

@@ -11,6 +11,7 @@ FRAMERATE = 30
 
 Qt = QtCore.Qt
 
+
 class Panda3dQWidget(QtWidgets.QWidget):
     """An interactive panda3D QWidget.
     """
