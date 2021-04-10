@@ -59,7 +59,7 @@ COLORS = {'green': (0.4, 0.7, 0.3, 1.0),
           'orange': (1.0, 0.45, 0.0, 1.0),
           'grey': (0.55, 0.55, 0.55, 1.0),
           'cyan': (0.2, 0.7, 1.0, 1.0),
-          'white': (0.95, 0.95, 0.95, 1.0),
+          'white': (1.0, 1.0, 1.0, 1.0),
           'red': (0.9, 0.15, 0.15, 1.0),
           'yellow': (1.0, 0.7, 0.0, 1.0),
           'blue': (0.3, 0.3, 1.0, 1.0),
@@ -146,7 +146,6 @@ def sleep(dt: float) -> None:
     t_end = time.perf_counter() + dt
     while time.perf_counter() < t_end:
         pass
-
 
 
 def get_color_code(color: Optional[Union[str, Tuple4FType]]) -> Tuple4FType:
@@ -243,6 +242,21 @@ class CameraMotionBreakpointType(TypedDict, total=True):
 CameraMotionType = Sequence[CameraMotionBreakpointType]
 
 
+class MarkerDataType(TypedDict, total=True):
+    """Pose of the marker, as a single vector (position [X, Y, Z] + rotation
+    [Quat X, Quat Y, Quat Z, Quat W]).
+    """
+    pose: np.ndarray
+    """Size of the marker. Each axis (aligned with geometry shape) are scaled
+    separately.
+    """
+    scale: np.ndarray
+    """Color of the marker, as a list of 4 floating-point values ranging from
+    0.0 to 1.0.
+    """
+    color: np.ndarray
+
+
 class Viewer:
     """ TODO: Write documentation.
 
@@ -327,6 +341,11 @@ class Viewer:
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
+
+        # Initialize marker register.
+        self._markers: Dict[str, MarkerDataType] = {}
+        self._markers_group = '/'.join((
+            self.scene_name, self.robot_name, "markers"))
 
         # Select the desired backend
         if backend is None:
@@ -549,9 +568,12 @@ class Viewer:
             self._client.initViewer(viewer=self._gui, loadModel=False)
 
             # Load the robot
-            robot_node_path = '/'.join((self.scene_name, self.robot_name))
             self._client.loadViewerModel(
                 rootNodeName=robot_node_path, color=self.robot_color)
+
+        # Add 'markers' group
+        if Viewer.backend.startswith('panda3d'):
+            self._gui.append_group(self._markers_group)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
@@ -1281,7 +1303,7 @@ class Viewer:
 
     @__must_be_open
     def set_color(self,
-                  robot_color: Optional[Union[str, Tuple4FType]] = None
+                  color: Optional[Union[str, Tuple4FType]] = None
                   ) -> None:
         """Override the color of the visual and collision geometries of the
         robot on-the-fly.
@@ -1289,15 +1311,14 @@ class Viewer:
         .. note::
             This method is only supported by Panda3d for now.
 
-        :param robot_color: Color of the robot. It will override the original
-                            color of the meshes if not `None`, and restore them
-                            otherwise. It supports both RGBA codes as a list of
-                            4 floating-point values ranging from 0.0 and 1.0,
-                            and a few named colors.
-                            Optional: Disable by default.
+        :param color: Color of the robot. It will override the original color
+                      of the meshes if not `None`, and restore them otherwise.
+                      It supports both RGBA codes as a list of 4 floating-point
+                      values ranging from 0.0 and 1.0, and a few named colors.
+                      Optional: Disable by default.
         """
         # Sanitize user-specified color code
-        robot_color = get_color_code(robot_color)
+        color_ = get_color_code(color)
 
         if Viewer.backend.startswith('panda3d'):
             for model, geom_type in zip(
@@ -1305,7 +1326,11 @@ class Viewer:
                     pin.GeometryType.names.values()):
                 for geom in model.geometryObjects:
                     node_name = self._client.getViewerNodeName(geom, geom_type)
-                    self._client.viewer.set_material(*node_name, robot_color)
+                    color = color_
+                    if color is None and geom.overrideMaterial:
+                        color = geom.meshColor
+                    self._gui.set_material(
+                        *node_name, color, disable_material=color_ is not None)
         else:
             logger.warning("This method is only supported by Panda3d.")
 
@@ -1441,6 +1466,57 @@ class Viewer:
         self.refresh()
 
     @__must_be_open
+    def add_marker(self,
+                   name: str,
+                   shape: str,
+                   pose: Optional[np.ndarray] = None,
+                   scale: Union[float, Tuple3FType] = 1.0,
+                   color: Optional[Union[str, Tuple4FType]] = 'red',
+                   **shape_kwargs: Any) -> MarkerDataType:
+        """Add marker on the scene.
+
+        .. note::
+            This method is only supported by Panda3d for now.
+
+        :param color: Color of the marker. It supports both RGBA codes as a
+                      list of 4 floating-point values ranging from 0.0 and 1.0,
+                      and a few named colors.
+                      Optional: 'red' by default.
+        """
+        # Handling of user arguments
+        if pose is None:
+            pose = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+        color = np.asarray(get_color_code(color))
+        if isinstance(scale, float):
+            scale = np.full((3,), fill_value=scale)
+
+        # Make sure no marker with this name already exists
+        if name in self._markers.keys():
+            raise ValueError(f"marker's name '{name}' already exists.")
+
+        if Viewer.backend.startswith('panda3d'):
+            create_shape = getattr(self._gui, f"append_{shape}")
+            create_shape(
+                self._markers_group, name, frame=(pose[:3], pose[3:]),
+                **shape_kwargs)
+            self._gui.set_material(self._markers_group, name, color)
+            self._gui.set_scale(self._markers_group, name, scale)
+            marker_data = {"pose": pose, "scale": scale, "color": color}
+            self._markers[name] = marker_data
+            return marker_data
+        else:
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
+    @__must_be_open
+    def remove_marker(self, name: str) -> None:
+        try:
+            self._markers.pop(name)
+        except KeyError as e:
+            raise ValueError(f"marker's name '{name}' does not exists.") from e
+        self._gui.remove_node(self._markers_group, name)
+
+    @__must_be_open
     def refresh(self,
                 force_update_visual: bool = False,
                 force_update_collision: bool = False,
@@ -1478,35 +1554,34 @@ class Viewer:
 
             # Render new geometries placements
             if Viewer.backend == 'gepetto-gui':
-                for model, data, model_type in zip(
+                for geom_model, geom_data, model_type in zip(
                         model_list, data_list, model_type_list):
                     self._gui.applyConfigurations(
                         [self._client.getViewerNodeName(geom, model_type)
-                         for geom in model.geometryObjects],
-                        [tuple(SE3ToXYZQUAT(data.oMg[i]))
-                         for i, geom in enumerate(model.geometryObjects)])
+                         for geom in geom_model.geometryObjects],
+                        [tuple(SE3ToXYZQUAT(geom_data.oMg[i]))
+                         for i in range(len(geom_model.geometryObjects))])
             elif Viewer.backend.startswith('panda3d'):
-                for model, data, model_type in zip(
+                for geom_model, geom_data, model_type in zip(
                         model_list, data_list, model_type_list):
-                    name_pose_dict = {}
-                    for i, geom in enumerate(model.geometryObjects):
-                        oMg = data.oMg[i]
+                    pose_dict = {}
+                    for i, geom in enumerate(geom_model.geometryObjects):
+                        oMg = geom_data.oMg[i]
                         x, y, z, qx, qy, qz, qw = SE3ToXYZQUAT(oMg)
                         group, nodeName = self._client.getViewerNodeName(
                             geom, model_type)
-                        name_pose_dict[nodeName] = (x, y, z), (qw, qx, qy, qz)
-                    self._client.viewer.move_nodes(group, name_pose_dict)
+                        pose_dict[nodeName] = (x, y, z), (qw, qx, qy, qz)
+                    self._gui.move_nodes(group, pose_dict)
             else:
-                for model, data, model_type in zip(
+                for geom_model, geom_data, model_type in zip(
                         model_list, data_list, model_type_list):
-                    for i, geom in enumerate(model.geometryObjects):
-                        M = data.oMg[i]
-                        S = np.diag(np.concatenate((
-                            geom.meshScale, np.array([1.0]))).flat)
-                        T = M.homogeneous.dot(S)
+                    for i, geom in enumerate(geom_model.geometryObjects):
+                        oMg = geom_data.oMg[i]
+                        S = np.diag((*geom.meshScale, 1.0))
+                        T = oMg.homogeneous.dot(S)
                         nodeName = self._client.getViewerNodeName(
                             geom, model_type)
-                        self._client.viewer[nodeName].set_transform(T)
+                        self._gui[nodeName].set_transform(T)
 
             # Update the camera placement if necessary
             if Viewer._camera_travelling is not None:
@@ -1516,6 +1591,20 @@ class Viewer:
                         relative=Viewer._camera_travelling['frame'])
             elif Viewer._camera_motion is not None:
                 self.set_camera_transform()
+
+            # Update markers placements.
+            if Viewer.backend.startswith('panda3d'):
+                pose_dict = {}
+                material_dict = {}
+                scale_dict = {}
+                for marker_name, marker_data in self._markers.items():
+                    x, y, z, qx, qy, qz, qw = marker_data["pose"]
+                    pose_dict[marker_name] = (x, y, z), (qw, qx, qy, qz)
+                    material_dict[marker_name] = marker_data["color"]
+                    scale_dict[marker_name] = marker_data["scale"]
+                self._gui.move_nodes(self._markers_group, pose_dict)
+                self._gui.set_materials(self._markers_group, material_dict)
+                self._gui.set_scales(self._markers_group, scale_dict)
 
             # Refreshing viewer backend manually is necessary for gepetto-gui
             if Viewer.backend == 'gepetto-gui':

@@ -230,7 +230,7 @@ class Simulator:
         .. note::
             This method is not meant to be called manually.
         """
-        return getattr(super().__getattribute__('engine'), name)
+        return getattr(self.__getattribute__('engine'), name)
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.

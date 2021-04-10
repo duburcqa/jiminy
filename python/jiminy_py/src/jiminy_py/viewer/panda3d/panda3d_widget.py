@@ -30,8 +30,8 @@ class Panda3dQWidget(QtWidgets.QWidget):
         # Enable mouse control
         self.setMouseTracking(True)
         self._app.getMousePos = self.getMousePos
-        self._app.taskMgr.add(self._app.moveOrbitalCameraTask,
-                              "moveOrbitalCameraTask",
+        self._app.taskMgr.add(self._app.move_orbital_camera_task,
+                              "move_orbital_camera_task",
                               sort=2)
 
         # Create painter to render "screenshot" from panda3d
@@ -52,7 +52,7 @@ class Panda3dQWidget(QtWidgets.QWidget):
         .. note::
             This method is not meant to be called manually.
         """
-        return getattr(super().__getattribute__('_app'), name)
+        return getattr(self.__getattribute__('_app'), name)
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.
