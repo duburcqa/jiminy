@@ -251,7 +251,7 @@ class MarkerDataType(TypedDict, total=True):
     [Quat X, Quat Y, Quat Z, Quat W]).
     """
     pose: np.ndarray
-    """Size of the marker. Each axis (aligned with geometry shape) are scaled
+    """Size of the marker. Each principal axis of the geometry are scaled
     separately.
     """
     scale: np.ndarray
@@ -347,7 +347,7 @@ class Viewer:
         self.delete_robot_on_close = delete_robot_on_close
 
         # Initialize marker register.
-        self._markers: Dict[str, MarkerDataType] = {}
+        self.markers: Dict[str, MarkerDataType] = {}
         self._markers_group = '/'.join((
             self.scene_name, self.robot_name, "markers"))
 
@@ -751,8 +751,10 @@ class Viewer:
                 Viewer._backend_robot_names.discard(self.robot_name)
                 Viewer._backend_robot_colors.pop(self.robot_name)
                 if self.delete_robot_on_close:
-                    Viewer._delete_nodes_viewer(
-                        ['/'.join((self.scene_name, self.robot_name))])
+                    Viewer._delete_nodes_viewer([
+                        self._client.visual_group,
+                        self._client.collision_group,
+                        self._markers_group])
 
                 if Viewer.backend == 'meshcat':
                     Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
@@ -1479,10 +1481,26 @@ class Viewer:
         .. note::
             This method is only supported by Panda3d for now.
 
+        :param name: Unique identifier name.
+        :param shape: Desired shape, as a string, i.e. 'cone', 'box', 'sphere',
+                      'capsule', 'cylinder', or 'arrow'.
+        :param pose: Pose of the geometry on the scene, as a single vector
+                     (position [X, Y, Z] + quaternion [X,  Y, Z, W]). `None`
+                     corresponds to world frame.
+                     Optional: World frame by default.
+        :param scale: Size of the marker. Each principal axis of the geometry
+                      are scaled separately.
         :param color: Color of the marker. It supports both RGBA codes as a
                       list of 4 floating-point values ranging from 0.0 and 1.0,
                       and a few named colors.
                       Optional: 'red' by default.
+        :param shape_kwargs: Any additional keyword arguments to forward for
+                             shape instantiation.
+
+        :returns: Dict of type `MarkerDataType`, storing references to the
+                  current pose, scale, and color of the marker, and itself a
+                  reference to `viewer.markers[name]`. Any modification of it
+                  will take effect at next `refresh` call.
         """
         # Handling of user arguments
         if pose is None:
@@ -1492,7 +1510,7 @@ class Viewer:
             scale = np.full((3,), fill_value=scale)
 
         # Make sure no marker with this name already exists
-        if name in self._markers.keys():
+        if name in self.markers.keys():
             raise ValueError(f"marker's name '{name}' already exists.")
 
         if Viewer.backend.startswith('panda3d'):
@@ -1503,7 +1521,7 @@ class Viewer:
             self._gui.set_material(self._markers_group, name, color)
             self._gui.set_scale(self._markers_group, name, scale)
             marker_data = {"pose": pose, "scale": scale, "color": color}
-            self._markers[name] = marker_data
+            self.markers[name] = marker_data
             return marker_data
         else:
             raise NotImplementedError(
@@ -1512,7 +1530,7 @@ class Viewer:
     @__must_be_open
     def remove_marker(self, name: str) -> None:
         try:
-            self._markers.pop(name)
+            self.markers.pop(name)
         except KeyError as e:
             raise ValueError(f"marker's name '{name}' does not exists.") from e
         self._gui.remove_node(self._markers_group, name)
@@ -1598,7 +1616,7 @@ class Viewer:
                 pose_dict = {}
                 material_dict = {}
                 scale_dict = {}
-                for marker_name, marker_data in self._markers.items():
+                for marker_name, marker_data in self.markers.items():
                     x, y, z, qx, qy, qz, qw = marker_data["pose"]
                     pose_dict[marker_name] = (x, y, z), (qw, qx, qy, qz)
                     material_dict[marker_name] = marker_data["color"]
