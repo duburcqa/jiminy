@@ -41,8 +41,8 @@ from .meshcat.wrapper import MeshcatWrapper
 from .meshcat.meshcat_visualizer import MeshcatVisualizer
 from .panda3d.panda3d_visualizer import (Tuple3FType,
                                          Tuple4FType,
-                                         Panda3dViewer,
                                          Panda3dApp,
+                                         Panda3dViewer,
                                          Panda3dVisualizer)
 
 
@@ -183,30 +183,34 @@ class _ProcessWrapper:
     def is_alive(self) -> bool:
         if isinstance(self._proc, subprocess.Popen):
             return self._proc.poll() is None
+        elif isinstance(self._proc, subprocess.Popen):
+            return self._proc.is_alive()
         elif isinstance(self._proc, multiprocessing.Process):
             return self._proc.is_alive()
-        elif isinstance(self._proc, Panda3dApp):
-            return True  # TODO
         elif isinstance(self._proc, psutil.Process):
             try:
                 return self._proc.status() in [
                     psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
             except psutil.NoSuchProcess:
                 return False
+        elif isinstance(self._proc, Panda3dApp):
+            return hasattr(self._proc, 'win')
+        return False  # Assuming it is not running by default
 
     def wait(self, timeout: Optional[float] = None) -> bool:
         if isinstance(self._proc, multiprocessing.Process):
             return self._proc.join(timeout)
-        elif isinstance(self._proc, Panda3dApp):
-            return None  # TODO
         elif isinstance(self._proc, (
                 subprocess.Popen, psutil.Process)):
             return self._proc.wait(timeout)
+        elif isinstance(self._proc, Panda3dApp):
+            self._proc.step()
+            return True
 
     def kill(self) -> None:
         if self.is_parent() and self.is_alive():
             if isinstance(self._proc, Panda3dApp):
-                pass  # TODO
+                self._proc.destroy()
             else:
                 # Try to terminate cleanly
                 self._proc.terminate()
@@ -386,11 +390,7 @@ class Viewer:
 
         # Reset some class attribute if backend not available
         if not is_backend_running:
-            Viewer._has_gui = False
-            Viewer._backend_robot_names.clear()
-            Viewer._backend_robot_colors.clear()
-            Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
-            Viewer.detach_camera()
+            Viewer.close()
 
         # Make sure that the windows, scene and robot names are valid
         if scene_name == Viewer.window_name:
@@ -717,14 +717,15 @@ class Viewer:
                 # automatically. One must call `Viewer.close` to do otherwise.
                 Viewer._backend_robot_names.clear()
                 Viewer._backend_robot_colors.clear()
+                Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
                 Viewer.detach_camera()
+                Viewer.remove_camera_motion()
                 if Viewer.is_alive():
-                    if Viewer.backend == 'meshcat':
+                    if Viewer.backend in ('meshcat', 'panda3d-qt'):
                         Viewer._backend_obj.close()
+                    if Viewer.backend == 'meshcat':
                         recorder_proc = Viewer._backend_obj.recorder.proc
                         _ProcessWrapper(recorder_proc).kill()
-                    else:
-                        Viewer._backend_obj._app.destroy()
                     Viewer._backend_proc.kill()
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None

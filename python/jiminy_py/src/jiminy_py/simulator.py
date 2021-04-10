@@ -292,7 +292,7 @@ class Simulator:
         """Returns whether or not a viewer instance associated with the robot
         is available.
         """
-        return self.viewer is not None and self.viewer.is_alive()
+        return self.viewer is not None and self.viewer.is_open()
 
     def _callback(self,
                   t: float,

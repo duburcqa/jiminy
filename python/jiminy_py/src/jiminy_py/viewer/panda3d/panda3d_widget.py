@@ -62,6 +62,10 @@ class Panda3dQWidget(QtWidgets.QWidget):
         """
         return super().__dir__() + self._app.__dir__()
 
+    def close(self) -> bool:
+        self._app.destroy()
+        return super().close()
+
     def paintEvent(self, event: Any) -> None:
         """Pull the contents of the panda texture to the widget.
         """
