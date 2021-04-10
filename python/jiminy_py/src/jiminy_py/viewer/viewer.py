@@ -68,25 +68,21 @@ except ImportError:
 
 
 def default_backend() -> str:
-    """Determine the default backend viewer, depending on the running
-    environment and the set of available backends.
+    """Determine the default backend viewer, depending eventually on the
+    running environment, hardware, and set of available backends.
 
     Meshcat will always be prefered in interactive mode, i.e. in Jupyter
-    notebooks, while Panda3d otherwise, unless there is some clues that no
-    X11-server is available on Linux. In such a case, it fallbacks to Meshcat
-    for now, since Nvidia EGL support without X-server of Panda3d is
-    implemented but not provided with the official wheels distributed on Pypi
-    so far. As a result, Panda3d would work, but relying on software rendering,
-    which is know to be unefficient. On the contrary, Meshcat supports Nvidia
-    EGL through bundled Chromium web-browser, but only on Linux-based OS.
+    notebooks, Panda3d otherwise.
+
+    .. note::
+        Both Meshcat and Panda3d supports Nvidia EGL rendering without
+        X11-server. Besides, both can fallback to software rendering if
+        necessary, but Panda3d offers only very limited support of it.
     """
     if interactive_mode():
         return 'meshcat'
     else:
-        if not sys.platform.startswith('linux') or os.environ.get('DISPLAY'):
-            return 'panda3d'
-        else:
-            return 'meshcat'
+        return 'panda3d'
 
 
 def _get_backend_exceptions(

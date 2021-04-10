@@ -85,7 +85,8 @@ class PipelineControl(unittest.TestCase):
         self.assertTrue(np.all(np.abs(velocity_mes[time > 4.0]) < 1e-3))
 
     def test_pid_standing(self):
-        for Env in [AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv]:
-            self.env = Env(debug=False)
-            self._test_pid_standing()
-            Viewer.close()
+        for backend in ['meshcat', 'panda3d']:
+            for Env in [AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv]:
+                self.env = Env(debug=False, viewer_backend=backend)
+                self._test_pid_standing()
+                Viewer.close()
