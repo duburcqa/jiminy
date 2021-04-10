@@ -3,12 +3,13 @@
 from typing import Optional, List, Tuple, Any
 
 from matplotlib.backends.qt_compat import QtCore, QtWidgets, QtGui
-
 from .panda3d_visualizer import Panda3dApp
 
 
 FRAMERATE = 30
 
+
+Qt = QtCore.Qt
 
 class Panda3dQWidget(QtWidgets.QWidget):
     """An interactive panda3D QWidget.
@@ -20,7 +21,7 @@ class Panda3dQWidget(QtWidgets.QWidget):
         super().__init__(parent)
 
         # Only accept focus by clicking on widget
-        self.setFocusPolicy(QtCore.Qt.ClickFocus)
+        self.setFocusPolicy(Qt.ClickFocus)
 
         # Instantiate Panda3D app
         self._app = Panda3dApp(window_type='offscreen')
@@ -94,22 +95,22 @@ class Panda3dQWidget(QtWidgets.QWidget):
     def mousePressEvent(self, event: Any) -> None:
         """ TODO: Write documentation.
         """
-        self._app.handleKey("mouse1", event.buttons() & QtCore.Qt.LeftButton)
-        self._app.handleKey("mouse2", event.buttons() & QtCore.Qt.MiddleButton)
-        self._app.handleKey("mouse3", event.buttons() & QtCore.Qt.RightButton)
+        self._app.handle_key("mouse1", event.buttons() & Qt.LeftButton)
+        self._app.handle_key("mouse2", event.buttons() & Qt.MiddleButton)
+        self._app.handle_key("mouse3", event.buttons() & Qt.RightButton)
 
     def mouseReleaseEvent(self, event: Any) -> None:
         """ TODO: Write documentation.
         """
-        self._app.handleKey("mouse1", event.buttons() & QtCore.Qt.LeftButton)
-        self._app.handleKey("mouse2", event.buttons() & QtCore.Qt.MiddleButton)
-        self._app.handleKey("mouse3", event.buttons() & QtCore.Qt.RightButton)
+        self._app.handle_key("mouse1", event.buttons() & Qt.LeftButton)
+        self._app.handle_key("mouse2", event.buttons() & Qt.MiddleButton)
+        self._app.handle_key("mouse3", event.buttons() & Qt.RightButton)
 
     def wheelEvent(self, event: Any) -> None:
         """ TODO: Write documentation.
         """
         delta = event.angleDelta().y()
         if delta > 0.0:
-            self._app.handleKey("wheelup", True)
+            self._app.handle_key("wheelup", True)
         else:
-            self._app.handleKey("wheeldown", True)
+            self._app.handle_key("wheeldown", True)

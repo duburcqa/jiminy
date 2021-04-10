@@ -16,7 +16,7 @@ from matplotlib import font_manager
 from matplotlib.patches import Patch
 
 from panda3d.core import (
-    NodePath, Point3, Vec3, Vec4, Mat4, LQuaternion, Geom, GeomEnums, GeomNode,
+    NodePath, Point3, Vec3, Mat4, Quat, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
     OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
@@ -54,36 +54,40 @@ PANDA3D_FRAMERATE_MAX = 30
 
 Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
 Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
+FrameType = Union[Tuple[Tuple3FType, Tuple4FType], np.ndarray]
 
+def make_gradient_skybox(sky_color: Tuple3FType,
+                         ground_color: Tuple3FType,
+                         offset: float = 0.0,
+                         subdiv: int = 2):
+    """Simple gradient to be used as skybox.
 
-def create_gradient(sky_color: Tuple3FType,
-                    ground_color: Tuple3FType,
-                    offset: float = 0.0,
-                    subdiv: int = 2):
+    For reference, see:
+    - https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
     """
-    https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
-    """
-    subdiv = max(2, subdiv)
-    offset = max(0., min(1., offset))  # top and bottom offset
+    # Check validity of arguments
+    assert subdiv >= 2, "Number of sub-division must be larger than 2."
+    assert 0.0 <= offset and offset <= 1.0, "Offset must be in [0.0, 1.0]."
 
-    vertex_format = GeomVertexFormat()
-    array_format = GeomVertexArrayFormat()
-    array_format.add_column(
+    # Define vertex format
+    vformat = GeomVertexFormat()
+    aformat = GeomVertexArrayFormat()
+    aformat.add_column(
         InternalName.get_vertex(), 3, Geom.NT_float32, Geom.C_point)
-    vertex_format.add_array(array_format)
-    array_format = GeomVertexArrayFormat()
-    array_format.add_column(
+    vformat.add_array(aformat)
+    aformat = GeomVertexArrayFormat()
+    aformat.add_column(
         InternalName.make("color"), 4, Geom.NT_uint8, Geom.C_color)
-    vertex_format.add_array(array_format)
-    vertex_format = GeomVertexFormat.register_format(vertex_format)
+    vformat.add_array(aformat)
+    vformat = GeomVertexFormat.register_format(vformat)
 
-    # create a simple, horizontal prism;
-    # make it very wide to avoid ever seeing its left and right sides;
-    # one edge is at the "horizon", while the two other edges are above
+    # Create a simple, horizontal prism.
+    # Make it very wide to avoid ever seeing its left and right sides.
+    # One edge is at the "horizon", while the two other edges are above
     # and a bit behind the camera so they are only visible when looking
-    # straight up
+    # straight up.
     vertex_data = GeomVertexData(
-        "prism_data", vertex_format, GeomEnums.UH_static)
+        "prism_data", vformat, GeomEnums.UH_static)
     vertex_data.unclean_set_num_rows(4 + subdiv * 2)
     values = array.array("f", (-1000., -50., 86.6, 1000., -50., 86.6))
     offset_angle = np.pi / 1.5 * offset
@@ -98,7 +102,7 @@ def create_gradient(sky_color: Tuple3FType,
     memview = memoryview(pos_array).cast("B").cast("f")
     memview[:] = values
 
-    # interpolate the colors
+    # Interpolate the colors
     color1 = tuple(int(c * 255) for c in sky_color)
     color2 = tuple(int(c * 255) for c in ground_color)
     values = array.array("B", color1 * 2)
@@ -123,8 +127,8 @@ def create_gradient(sky_color: Tuple3FType,
     memview = memoryview(tris_array).cast("B").cast("H")
     memview[:] = indices
 
-    # the compass effect can make the node leave its bounds, so make them
-    # infinitely large
+    # The compass effect can make the node leave its bounds, so make them
+    # infinitely large.
     geom = Geom(vertex_data)
     geom.add_primitive(tris_prim)
     node = GeomNode("prism")
@@ -137,6 +141,44 @@ def create_gradient(sky_color: Tuple3FType,
     prism.set_depth_test(False)
 
     return prism
+
+
+def make_cone(num_segments: int = 16) -> Geom:
+    # Define vertex format
+    vformat = GeomVertexFormat.get_v3n3t2()
+    vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
+    vdata.uncleanSetNumRows(num_segments + 2)
+    vertex = GeomVertexWriter(vdata, 'vertex')
+    normal = GeomVertexWriter(vdata, 'normal')
+    tcoord = GeomVertexWriter(vdata, 'texcoord')
+
+    # Add radial points
+    for u in np.linspace(0.0, 2 * np.pi, num_segments):
+        x, y = math.cos(u), math.sin(u)
+        vertex.addData3(x, y, 0.0)
+        normal.addData3(x, y, 0.0)
+        tcoord.addData2(x, y)
+
+    # Add top and bottom points
+    vertex.addData3(0.0, 0.0, 1.0)
+    normal.addData3(0.0, 0.0, 1.0)
+    tcoord.addData2(0.0, 0.0)
+    vertex.addData3(0.0, 0.0, 0.0)
+    normal.addData3(0.0, 0.0, -1.0)
+    tcoord.addData2(0.0, 0.0)
+
+    # Note that by default, rendering is one-sided. It only renders the outside
+    # face, that is defined based on the "winding" order of the vertices making
+    # the triangles. For reference, see:
+    # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2
+    prim = GeomTriangles(Geom.UHStatic)
+    for i in range(num_segments - 1):
+        prim.addVertices(i, i + 1, num_segments)
+        prim.addVertices(i + 1, i, num_segments + 1)
+
+    geom = Geom(vdata)
+    geom.addPrimitive(prim)
+    return geom
 
 
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
@@ -199,28 +241,26 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._scene_root.set_scale(self._scene_scale)
         self._groups = {}
 
-        # Create background sky
-        # define the colors at the top ("sky"), bottom ("ground") and center
-        # ("horizon") of the background gradient
+        # Create gradient for skybox
         sky_color = (0.53, 0.8, 0.98, 1.0)
         ground_color = (0.1, 0.1, 0.43, 1.0)
-        self.background_sky = create_gradient(
-            sky_color, ground_color, 0.7)
-        # looks like the background needs to be parented to an intermediary
-        # node to which a compass effect is applied to keep it at the same
-        # position as the camera, while being parented to render
+        self.skybox = make_gradient_skybox(sky_color, ground_color, 0.7)
+
+        # The background needs to be parented to an intermediary node to which
+        # a compass effect is applied to keep it at the same position as the
+        # camera, while being parented to render.
         pivot = self.render.attach_new_node("pivot")
         effect = CompassEffect.make(self.camera, CompassEffect.P_pos)
         pivot.set_effect(effect)
-        self.background_sky.reparent_to(pivot)
-        # now the background model just needs to keep facing the camera (only
-        # its heading should correspond to that of the camera; its pitch and
-        # roll need to remain unaffected)
+        self.skybox.reparent_to(pivot)
+
+        # The background needs to keep facing the camera a point behind the
+        # camera. Note that only its heading should correspond to that of the
+        # camera, while the pitch and roll remain unaffected.
         effect = BillboardEffect.make(
-            Vec3.up(), False, True, 0., NodePath(),
-            # make the background model face a point behind the camera
-            Point3(0., -10., 0.), False)
-        self.background_sky.set_effect(effect)
+            Vec3.up(), False, True, 0.0, NodePath(),
+            Point3(0.0, -10.0, 0.0), False)
+        self.skybox.set_effect(effect)
 
         # Create shared 2D renderer to allow display selectively gui elements
         # on offscreen and onscreen window used for capturing frames.
@@ -281,7 +321,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """Must be patched to fix wrong color alpha.
         """
         node = super()._make_light_ambient(color)
-        node.getNode(0).set_color(Vec4(*color, 1.0))
+        node.getNode(0).set_color((*color, 1.0))
         return node
 
     def _make_light_direct(self,
@@ -293,13 +333,53 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """Must be patched to fix wrong color alpha.
         """
         node = super()._make_light_direct(index, color, pos, target)
-        node.getNode(0).set_color(Vec4(*color, 1.0))
+        node.getNode(0).set_color((*color, 1.0))
         return node
+
+    def append_cone(self,
+                    root_path: str,
+                    name: str,
+                    radius: float,
+                    length: float,
+                    frame: Optional[FrameType] = None) -> None:
+        """Append a cone primitive node to the group.
+        """
+        geom_node = GeomNode("cone")
+        geom_node.add_geom(make_cone())
+        node = NodePath(geom_node)
+        node.set_scale(radius, radius, length)
+        self.append_node(root_path, name, node, frame)
+
+    def append_arrow(self,
+                     root_path: str,
+                     name: str,
+                     radius: float,
+                     length: float,
+                     frame: Optional[FrameType] = None) -> None:
+        """Append an arrow primitive node to the group.
+        """
+        arrow_geom = GeomNode("arrow")
+        arrow_node = NodePath(arrow_geom)
+        head = make_cone()
+        head_geom = GeomNode("head")
+        head_geom.addGeom(head)
+        head_node = NodePath(head_geom)
+        head_node.reparent_to(arrow_node.attach_new_node("head"))
+        head_node.set_scale(1.75, 1.75, 3.5 * radius)
+        body = geometry.make_cylinder()
+        body_geom = GeomNode("body")
+        body_geom.addGeom(body)
+        body_node = NodePath(body_geom)
+        body_node.reparent_to(arrow_node.attach_new_node("body"))
+        body_node.set_scale(1.0, 1.0, length)
+        body_node.set_pos(0.0, 0.0, -length/2)
+        arrow_node.set_scale(radius, radius, 1.0)
+        self.append_node(root_path, name, arrow_node, frame)
 
     def set_camera_transform(self,
                              pos: Tuple3FType,
                              quat: np.ndarray) -> None:
-        self.camera.set_pos(Vec3(*pos))
+        self.camera.set_pos(*pos)
         self.camera.setQuat(LQuaternion(quat[-1], *quat[:-1]))
         self.camera_lookat = np.zeros(3)
         self.step()  # Update frame on-the-spot
@@ -317,11 +397,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Setup mouse and keyboard controls for onscreen display
         self._setup_shortcuts()
         self.disableMouse()
-        self.accept("wheel_up", self.handleKey, ["wheelup", 1])
-        self.accept("wheel_down", self.handleKey, ["wheeldown", 1])
+        self.accept("wheel_up", self.handle_key, ["wheelup", 1])
+        self.accept("wheel_down", self.handle_key, ["wheeldown", 1])
         for i in range(1, 4):
-            self.accept(f"mouse{i}", self.handleKey, [f"mouse{i}", 1])
-            self.accept(f"mouse{i}-up", self.handleKey, [f"mouse{i}", 0])
+            self.accept(f"mouse{i}", self.handle_key, [f"mouse{i}", 1])
+            self.accept(f"mouse{i}-up", self.handle_key, [f"mouse{i}", 0])
         self.taskMgr.add(
             self.moveOrbitalCameraTask, "moveOrbitalCameraTask", sort=2)
 
@@ -427,7 +507,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         md = self.win.getPointer(0)
         return md.getX(), md.getY()
 
-    def handleKey(self, key: str, value: bool) -> None:
+    def handle_key(self, key: str, value: bool) -> None:
         if key in ["mouse1", "mouse2", "mouse3"]:
             self.lastMouseX, self.lastMouseY = self.getMousePos()
             self.key_map[key] = value
@@ -437,7 +517,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 cam_pos = self.camera_lookat - cam_dir / self.zoom_rate
             else:
                 cam_pos = self.camera_lookat - cam_dir * self.zoom_rate
-            self.camera.set_pos(Vec3(*cam_pos.tolist()))
+            self.camera.set_pos(*cam_pos)
 
     def moveOrbitalCameraTask(self, task: Any) -> None:
         # Get mouse position
@@ -476,11 +556,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                                   np.cos(longitudeRad) * np.cos(latitudeRad),
                                   np.sin(latitudeRad)])
             cam_pos = self.camera_lookat - cam_dist * cam_dir_n
-            self.camera.set_pos(Vec3(*cam_pos.tolist()))
+            self.camera.set_pos(*cam_pos)
             self.camera.setHpr(self.longitudeDeg, self.latitudeDeg, 0)
         if self.key_map["mouse2"]:
-            cam_pos = cam_pos - cam_dir * (y - self.lastMouseY) * 0.02
-            self.camera.set_pos(Vec3(*cam_pos.tolist()))
+            cam_delta = (y - self.lastMouseY) * 0.02 * cam_dir_n
+            self.camera_lookat -= cam_delta
+            cam_pos -= cam_delta
+            self.camera.set_pos(*cam_pos)
         elif self.key_map["mouse3"]:
             cam_n1 = np.array([np.cos(longitudeRad),
                                np.sin(longitudeRad),
@@ -492,7 +574,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                          (y - self.lastMouseY) * cam_n2) * 0.01
             cam_pos -= pos_shift
             self.camera_lookat -= pos_shift
-            self.camera.set_pos(Vec3(*cam_pos.tolist()))
+            self.camera.set_pos(*cam_pos)
 
         # Store latest mouse position for the next frame
         self.lastMouseX = x
@@ -914,7 +996,7 @@ class Panda3dVisualizer(BaseVisualizer):
         geom = geometry_object.geometry
 
         # Try to load mesh from path first, to take advantage of very effective
-        # Panda3d mmodel caching procedure.
+        # Panda3d model caching procedure.
         is_success = True
         mesh_path = geometry_object.meshPath
         if '\\' in mesh_path or '/' in mesh_path:
@@ -943,6 +1025,9 @@ class Panda3dVisualizer(BaseVisualizer):
                     *node_name, geom.radius, 2 * geom.halfLength)
             elif isinstance(geom, hppfcl.Cylinder):
                 self.viewer.append_cylinder(
+                    *node_name, geom.radius, 2 * geom.halfLength)
+            elif isinstance(geom, hppfcl.Cone):
+                self.viewer.append_cone(
                     *node_name, geom.radius, 2 * geom.halfLength)
             elif isinstance(geom, hppfcl.Box):
                 size = npToTuple(2. * geom.halfSide)
