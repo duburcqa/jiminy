@@ -181,12 +181,10 @@ class _ProcessWrapper:
         return not isinstance(self._proc, psutil.Process)
 
     def is_alive(self) -> bool:
-        if isinstance(self._proc, subprocess.Popen):
-            return self._proc.poll() is None
+        if isinstance(self._proc, multiprocessing.Process):
+            return self._proc.is_alive()
         elif isinstance(self._proc, subprocess.Popen):
-            return self._proc.is_alive()
-        elif isinstance(self._proc, multiprocessing.Process):
-            return self._proc.is_alive()
+            return self._proc.poll() is None
         elif isinstance(self._proc, psutil.Process):
             try:
                 return self._proc.status() in [
@@ -1613,9 +1611,7 @@ class Viewer:
 
             # Update markers placements.
             if Viewer.backend.startswith('panda3d'):
-                pose_dict = {}
-                material_dict = {}
-                scale_dict = {}
+                pose_dict, material_dict, scale_dict = {}, {}, {}
                 for marker_name, marker_data in self.markers.items():
                     x, y, z, qx, qy, qz, qw = marker_data["pose"]
                     pose_dict[marker_name] = (x, y, z), (qw, qx, qy, qz)

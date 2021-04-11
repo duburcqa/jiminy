@@ -201,12 +201,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('load-display', 'pandagl')
         config.set_value('aux-display',
                          'p3headlessgl'
-                         '\naux-display pandadx9'
-                         '\naux-display pandadx8'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
         config.set_value('default-near', 0.1)
         config.set_value('assimp-optimize-graph', True)
+        config.set_value('notify-level', 'error')
+        config.set_value('notify-level-x11display', 'fatal')
+        config.set_value('default-directnotify-level', 'error')
         loadPrcFileData('', str(config))
 
         # Define offscreen buffer
@@ -1006,11 +1007,11 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
 panda3d_viewer.viewer_proxy.ViewerAppProxy = Panda3dProxy  # noqa
 
 
-def __getattr__(self, name: str) -> Any:
+def delegate(self, name: str) -> Any:
     return getattr(self.__getattribute__('_app'), name)
 
 
-Panda3dViewer.__getattr__ = __getattr__
+Panda3dViewer.__getattr__ = delegate
 delattr(Panda3dViewer, 'set_material')
 
 
