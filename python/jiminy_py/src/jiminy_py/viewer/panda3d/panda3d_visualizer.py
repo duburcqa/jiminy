@@ -174,6 +174,7 @@ def make_cone(num_sides: int = 16) -> Geom:
     normal.addData3(0.0, 0.0, -1.0)
     tcoord.addData2(0.0, 0.0)
 
+    # Make triangles.
     # Note that by default, rendering is one-sided. It only renders the outside
     # face, that is defined based on the "winding" order of the vertices making
     # the triangles. For reference, see:
@@ -194,7 +195,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config = Panda3dViewerConfig()
         config.set_window_size(*WINDOW_SIZE_DEFAULT)
         config.set_window_fixed(False)
-        config.enable_antialiasing(True, multisamples=4)
+        config.enable_antialiasing(True, multisamples=2)
         config.set_value('framebuffer-software', '0')
         config.set_value('framebuffer-hardware', '0')
         config.set_value('load-display', 'pandagl')
@@ -228,8 +229,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.framerate = None
 
         # Configure lighting and shadows
+        # Note that shadow resolution larger than 1024 significatly affects
+        # the frame rate on Intel GPU chipsets: going from 1024 to 2048 makes
+        # it drop from 60FPS to 30FPS.
         self._spotlight = self.config.GetBool('enable-spotlight', False)
-        self._shadow_size = self.config.GetInt('shadow-buffer-size', 8192)
+        self._shadow_size = self.config.GetInt('shadow-buffer-size', 1024)
         self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
                         self._make_light_direct(
                             1, (0.5, 0.5, 0.5), pos=(8.0, 8.0, 10.0))]
@@ -324,116 +328,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_grid(False)
         self.show_floor(True)
 
-    def _make_light_ambient(self, color: Tuple3FType) -> NodePath:
-        """Must be patched to fix wrong color alpha.
-        """
-        node = super()._make_light_ambient(color)
-        node.get_node(0).set_color((*color, 1.0))
-        return node
-
-    def _make_light_direct(self,
-                           index: int,
-                           color: Tuple3FType,
-                           pos: Tuple3FType,
-                           target: Tuple3FType = (0.0, 0.0, 0.0)
-                           ) -> NodePath:
-        """Must be patched to fix wrong color alpha.
-        """
-        node = super()._make_light_direct(index, color, pos, target)
-        node.get_node(0).set_color((*color, 1.0))
-        return node
-
-    def append_cone(self,
-                    root_path: str,
-                    name: str,
-                    radius: float,
-                    length: float,
-                    num_sides: int = 16,
-                    frame: Optional[FrameType] = None) -> None:
-        """Append a cone primitive node to the group.
-        """
-        geom_node = GeomNode("cone")
-        geom_node.add_geom(make_cone(num_sides))
-        node = NodePath(geom_node)
-        node.set_scale(radius, radius, length)
-        self.append_node(root_path, name, node, frame)
-
-    def append_arrow(self,
-                     root_path: str,
-                     name: str,
-                     radius: float,
-                     length: float,
-                     frame: Optional[FrameType] = None) -> None:
-        """Append an arrow primitive node to the group.
-
-        ..note::
-            The arrow is aligned with z-axis in world frame, and the tip is at
-            position (0.0, 0.0, 0.0) in world frame.
-        """
-        arrow_geom = GeomNode("arrow")
-        arrow_node = NodePath(arrow_geom)
-        head = make_cone()
-        head_geom = GeomNode("head")
-        head_geom.addGeom(head)
-        head_node = NodePath(head_geom)
-        head_node.reparent_to(arrow_node.attach_new_node("head"))
-        head_node.set_scale(1.75, 1.75, 3.5*radius)
-        head_node.set_pos(0.0, 0.0, -3.5*radius)
-        body = geometry.make_cylinder()
-        body_geom = GeomNode("body")
-        body_geom.addGeom(body)
-        body_node = NodePath(body_geom)
-        body_node.reparent_to(arrow_node.attach_new_node("body"))
-        body_node.set_scale(1.0, 1.0, length)
-        body_node.set_pos(0.0, 0.0, -length/2-3.5*radius)
-        arrow_node.set_scale(radius, radius, 1.0)
-        self.append_node(root_path, name, arrow_node, frame)
-
-    def set_camera_transform(self,
-                             pos: Tuple3FType,
-                             quat: np.ndarray) -> None:
-        self.camera.set_pos(*pos)
-        self.camera.set_quat(LQuaternion(quat[-1], *quat[:-1]))
-        self.camera_lookat = np.zeros(3)
-        self.step()  # Update frame on-the-spot
-
-    def move_node(self,
-                  root_path: str,
-                  name: str,
-                  frame: FrameType) -> None:
-        """Set pose of a single node.
-        """
-        node = self._groups[root_path].find(name).children[0]
-        if isinstance(frame, np.ndarray):
-            node.set_mat(Mat4(*frame.T.flat))
-        else:
-            pos, quat = frame
-            node.set_pos_quat(Vec3(*pos), Quat(*quat))
-
-    def set_scale(self,
-                  root_path: str,
-                  name: str,
-                  scale: Optional[Tuple3FType] = None) -> None:
-        """Override scale of node of a node.
-        """
-        node = self._groups[root_path].find(name).children[0]
-        node.set_scale(*scale)
-
-    def set_scales(self, root_path, name_scales_dict):
-        """Override scale of nodes within a group.
-        """
-        for name, scale in name_scales_dict.items():
-            self.set_scale(root_path, name, scale)
-
     def open_window(self) -> None:
         # Make sure a graphical window is not already open
         if any(isinstance(win, GraphicsWindow) for win in self.winList):
             raise RuntimeError("Only one graphical window can be opened.")
 
-        # Replace the original offscreen window by an onscreen one
+        # Replace the original offscreen window by an onscreen one.
         self.windowType = 'onscreen'
         size = self.win.get_size()
-        self.open_main_window()
+        self.open_main_window(size=size)
 
         # Setup mouse and keyboard controls for onscreen display
         self._setup_shortcuts()
@@ -471,9 +374,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Set offscreen buffer frame properties
         # Note that accumalator bits and back buffers is not supported by
         # resizeable buffers.
-        fprops = FrameBufferProperties(self.win.getFbProperties())
-        fprops.set_accum_bits(0)
-        fprops.set_back_buffers(0)
+        fbprops = FrameBufferProperties(self.win.getFbProperties())
+        fbprops.set_accum_bits(0)
+        fbprops.set_back_buffers(0)
 
         # Set offscreen buffer windows properties
         winprops = WindowProperties()
@@ -487,7 +390,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Note that it is impossible to create resizeable buffer without an
         # already existing host for some reason...
         win = self.graphicsEngine.make_output(
-            self.pipe, "off_buffer", 0, fprops, winprops, flags,
+            self.pipe, "off_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
 
         # Append buffer to the list of windows managed by the ShowBase
@@ -624,6 +527,25 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # End task
         return task.cont
 
+    def _make_light_ambient(self, color: Tuple3FType) -> NodePath:
+        """Must be patched to fix wrong color alpha.
+        """
+        node = super()._make_light_ambient(color)
+        node.get_node(0).set_color((*color, 1.0))
+        return node
+
+    def _make_light_direct(self,
+                           index: int,
+                           color: Tuple3FType,
+                           pos: Tuple3FType,
+                           target: Tuple3FType = (0.0, 0.0, 0.0)
+                           ) -> NodePath:
+        """Must be patched to fix wrong color alpha.
+        """
+        node = super()._make_light_direct(index, color, pos, target)
+        node.get_node(0).set_color((*color, 1.0))
+        return node
+
     def _make_axes(self) -> NodePath:
         node = super()._make_axes()
         node.set_scale(0.33)
@@ -644,6 +566,103 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     tile_path.set_color((0.13, 0.13, 0.2, 1))
         node.set_two_sided(True)
         return node
+
+    def append_cone(self,
+                    root_path: str,
+                    name: str,
+                    radius: float,
+                    length: float,
+                    num_sides: int = 16,
+                    frame: Optional[FrameType] = None) -> None:
+        """Append a cone primitive node to the group.
+        """
+        geom_node = GeomNode("cone")
+        geom_node.add_geom(make_cone(num_sides))
+        node = NodePath(geom_node)
+        node.set_scale(radius, radius, length)
+        self.append_node(root_path, name, node, frame)
+
+    def append_arrow(self,
+                     root_path: str,
+                     name: str,
+                     radius: float,
+                     length: float,
+                     frame: Optional[FrameType] = None) -> None:
+        """Append an arrow primitive node to the group.
+
+        ..note::
+            The arrow is aligned with z-axis in world frame, and the tip is at
+            position (0.0, 0.0, 0.0) in world frame.
+        """
+        arrow_geom = GeomNode("arrow")
+        arrow_node = NodePath(arrow_geom)
+        head = make_cone()
+        head_geom = GeomNode("head")
+        head_geom.addGeom(head)
+        head_node = NodePath(head_geom)
+        head_node.reparent_to(arrow_node.attach_new_node("head"))
+        head_node.set_scale(1.75, 1.75, 3.5*radius)
+        head_node.set_pos(0.0, 0.0, -3.5*radius)
+        body = geometry.make_cylinder()
+        body_geom = GeomNode("body")
+        body_geom.addGeom(body)
+        body_node = NodePath(body_geom)
+        body_node.reparent_to(arrow_node.attach_new_node("body"))
+        body_node.set_scale(1.0, 1.0, length)
+        body_node.set_pos(0.0, 0.0, -length/2-3.5*radius)
+        arrow_node.set_scale(radius, radius, 1.0)
+        self.append_node(root_path, name, arrow_node, frame)
+
+    def append_mesh(self,
+                    root_path: str,
+                    name: str,
+                    mesh_path: str,
+                    scale: Optional[Tuple3FType] = None,
+                    frame: Union[np.ndarray, Tuple[
+                        Union[np.ndarray, Sequence[float]],
+                        Union[np.ndarray, Sequence[float]]]] = None,
+                    no_cache: Optional[bool] = None) -> None:
+        """Append a mesh node to the group.
+
+        :param root_path: Path to the group's root node
+        :param name: Node name within a group
+        :param mesh_path: Path to the mesh file on disk
+        :param scale: Mesh scale.
+                    Optional: No rescaling by default.
+        :param frame: Local frame position and quaternion.
+                      Optional: ((0., 0., 0.), (0., 0., 0., 0.)) by default.
+        :param no_cache: Use cache to load a model.
+                        Optional: may depend on the mesh file.
+        """
+        mesh = self.loader.loadModel(mesh_path, noCache=no_cache)
+        if mesh_path.lower().endswith('.dae'):
+            def parse_xml(xml_path: str) -> Tuple[ET.Element, Dict[str, str]]:
+                xml_iter = ET.iterparse(xml_path, events=["start-ns"])
+                xml_namespaces = dict(prefix_namespace_pair
+                                      for _, prefix_namespace_pair in xml_iter)
+                return xml_iter.root, xml_namespaces
+
+            # Replace non-standard hard drive prefix on Windows
+            if sys.platform.startswith('win'):
+                mesh_path = re.sub(r'^/([A-Za-z])',
+                                   lambda m: m.group(1).upper() + ":",
+                                   mesh_path)
+
+            root, ns = parse_xml(mesh_path)
+            if ns:
+                field_axis = root.find(f".//{{{ns['']}}}up_axis")
+            else:
+                field_axis = root.find(".//up_axis")
+            if field_axis is not None:
+                axis = field_axis.text.lower()
+                if axis == 'z_up':
+                    mesh.set_mat(Mat4.yToZUpMat())
+        if scale is not None:
+            mesh.set_scale(*scale)
+            if sum([s < 0 for s in scale]) % 2 != 0:
+                # reverse the cull order in case of negative scale values
+                mesh.set_attrib(CullFaceAttrib.make_reverse())
+        self.append_node(root_path, name, mesh, frame)
 
     def set_watermark(self,
                       img_fullpath: Optional[str] = None,
@@ -811,64 +830,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Refresh frame
         self.step()
 
-    def append_mesh(self,
-                    root_path: str,
-                    name: str,
-                    mesh_path: str,
-                    scale: Optional[Tuple3FType] = None,
-                    frame: Union[np.ndarray, Tuple[
-                        Union[np.ndarray, Sequence[float]],
-                        Union[np.ndarray, Sequence[float]]]] = None,
-                    no_cache: Optional[bool] = None) -> None:
-        """Append a mesh node to the group.
-
-        :param root_path: Path to the group's root node
-        :param name: Node name within a group
-        :param mesh_path: Path to the mesh file on disk
-        :param scale: Mesh scale.
-                    Optional: No rescaling by default.
-        :param frame: Local frame position and quaternion.
-                      Optional: ((0., 0., 0.), (0., 0., 0., 0.)) by default.
-        :param no_cache: Use cache to load a model.
-                        Optional: may depend on the mesh file.
-        """
-        mesh = self.loader.loadModel(mesh_path, noCache=no_cache)
-        if mesh_path.lower().endswith('.dae'):
-            def parse_xml(xml_path: str) -> Tuple[ET.Element, Dict[str, str]]:
-                xml_iter = ET.iterparse(xml_path, events=["start-ns"])
-                xml_namespaces = dict(prefix_namespace_pair
-                                      for _, prefix_namespace_pair in xml_iter)
-                return xml_iter.root, xml_namespaces
-
-            # Replace non-standard hard drive prefix on Windows
-            if sys.platform.startswith('win'):
-                mesh_path = re.sub(r'^/([A-Za-z])',
-                                   lambda m: m.group(1).upper() + ":",
-                                   mesh_path)
-
-            root, ns = parse_xml(mesh_path)
-            if ns:
-                field_axis = root.find(f".//{{{ns['']}}}up_axis")
-            else:
-                field_axis = root.find(".//up_axis")
-            if field_axis is not None:
-                axis = field_axis.text.lower()
-                if axis == 'z_up':
-                    mesh.set_mat(Mat4.yToZUpMat())
-        if scale is not None:
-            mesh.set_scale(*scale)
-            if sum([s < 0 for s in scale]) % 2 != 0:
-                # reverse the cull order in case of negative scale values
-                mesh.set_attrib(CullFaceAttrib.make_reverse())
-        self.append_node(root_path, name, mesh, frame)
-
-    def remove_node(self, root_path: str, name: str) -> None:
-        """Remove a signle node from the scene.
-        """
-        node = self._groups[root_path].find(name)
-        if node:
-            node.remove_node()
-
     def set_material(self,
                      root_path: str,
                      name: str,
@@ -890,12 +851,48 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             if color is None:
                 node.clear_color()
 
-    def enable_shadow(self, enable: bool) -> None:
-        for light in self._lights:
-            if not light.node().is_ambient_light():
-                light.node().set_shadow_caster(enable)
-        self.render.set_depth_offset(-1 if enable else 0)
-        self._shadow_enabled = enable
+    def move_node(self,
+                  root_path: str,
+                  name: str,
+                  frame: FrameType) -> None:
+        """Set pose of a single node.
+        """
+        node = self._groups[root_path].find(name).children[0]
+        if isinstance(frame, np.ndarray):
+            node.set_mat(Mat4(*frame.T.flat))
+        else:
+            pos, quat = frame
+            node.set_pos_quat(Vec3(*pos), Quat(*quat))
+
+    def set_scale(self,
+                  root_path: str,
+                  name: str,
+                  scale: Optional[Tuple3FType] = None) -> None:
+        """Override scale of node of a node.
+        """
+        node = self._groups[root_path].find(name).children[0]
+        node.set_scale(*scale)
+
+    def set_scales(self, root_path, name_scales_dict):
+        """Override scale of nodes within a group.
+        """
+        for name, scale in name_scales_dict.items():
+            self.set_scale(root_path, name, scale)
+
+    def remove_node(self, root_path: str, name: str) -> None:
+        """Remove a signle node from the scene.
+        """
+        node = self._groups[root_path].find(name)
+        if node:
+            node.remove_node()
+
+    def set_camera_transform(self,
+                             pos: Tuple3FType,
+                             quat: np.ndarray) -> None:
+        self.camera.set_pos(*pos)
+        self.camera.set_quat(LQuaternion(quat[-1], *quat[:-1]))
+        self.camera_lookat = np.zeros(3)
+        self.step()  # Update frame on-the-spot
 
     def set_window_size(self, width: int, height: int) -> None:
         self.buff.setSize(width, height)
@@ -962,6 +959,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         dsize = len(requested_format)
         array = np.frombuffer(image, np.uint8).reshape((ysize, xsize, dsize))
         return np.flipud(array)
+
+    def enable_shadow(self, enable: bool) -> None:
+        for light in self._lights:
+            if not light.node().is_ambient_light():
+                light.node().set_shadow_caster(enable)
+        self.render.set_depth_offset(-1 if enable else 0)
+        self._shadow_enabled = enable
 
 
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
