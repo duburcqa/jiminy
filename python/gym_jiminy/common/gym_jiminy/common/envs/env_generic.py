@@ -164,7 +164,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This method is not meant to be called manually.
         """
-        return getattr(super().__getattribute__('simulator'), name)
+        return getattr(self.__getattribute__('simulator'), name)
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.

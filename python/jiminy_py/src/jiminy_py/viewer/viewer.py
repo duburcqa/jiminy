@@ -17,7 +17,7 @@ from copy import deepcopy
 from functools import wraps
 from bisect import bisect_right
 from threading import Lock
-from typing import Optional, Union, Sequence, Tuple, Callable
+from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
 
 import psutil
 import numpy as np
@@ -39,8 +39,10 @@ from ..state import State
 from .meshcat.utilities import interactive_mode
 from .meshcat.wrapper import MeshcatWrapper
 from .meshcat.meshcat_visualizer import MeshcatVisualizer
-from .panda3d.panda3d_visualizer import (Panda3dViewer,
+from .panda3d.panda3d_visualizer import (Tuple3FType,
+                                         Tuple4FType,
                                          Panda3dApp,
+                                         Panda3dViewer,
                                          Panda3dVisualizer)
 
 
@@ -50,6 +52,33 @@ DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
 DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
+
+
+COLORS = {'green': (0.4, 0.7, 0.3, 1.0),
+          'purple': (0.6, 0.2, 0.9, 1.0),
+          'orange': (1.0, 0.45, 0.0, 1.0),
+          'grey': (0.55, 0.55, 0.55, 1.0),
+          'cyan': (0.2, 0.7, 1.0, 1.0),
+          'white': (1.0, 1.0, 1.0, 1.0),
+          'red': (0.9, 0.15, 0.15, 1.0),
+          'yellow': (1.0, 0.7, 0.0, 1.0),
+          'blue': (0.3, 0.3, 1.0, 1.0),
+          'black': (0.2, 0.2, 0.25, 1.0)}
+
+
+# Create logger
+class _DuplicateFilter:
+    def __init__(self):
+        self.msgs = set()
+
+    def filter(self, record):
+        rv = record.msg not in self.msgs
+        self.msgs.add(record.msg)
+        return rv
+
+
+logger = logging.getLogger(__name__)
+logger.addFilter(_DuplicateFilter())
 
 
 # Determine set the of available backends
@@ -68,25 +97,21 @@ except ImportError:
 
 
 def default_backend() -> str:
-    """Determine the default backend viewer, depending on the running
-    environment and the set of available backends.
+    """Determine the default backend viewer, depending eventually on the
+    running environment, hardware, and set of available backends.
 
     Meshcat will always be prefered in interactive mode, i.e. in Jupyter
-    notebooks, while Panda3d otherwise, unless there is some clues that no
-    X11-server is available on Linux. In such a case, it fallbacks to Meshcat
-    for now, since Nvidia EGL support without X-server of Panda3d is
-    implemented but not provided with the official wheels distributed on Pypi
-    so far. As a result, Panda3d would work, but relying on software rendering,
-    which is know to be unefficient. On the contrary, Meshcat supports Nvidia
-    EGL through bundled Chromium web-browser, but only on Linux-based OS.
+    notebooks, Panda3d otherwise.
+
+    .. note::
+        Both Meshcat and Panda3d supports Nvidia EGL rendering without
+        X11-server. Besides, both can fallback to software rendering if
+        necessary, but Panda3d offers only very limited support of it.
     """
     if interactive_mode():
         return 'meshcat'
     else:
-        if not sys.platform.startswith('linux') or os.environ.get('DISPLAY'):
-            return 'panda3d'
-        else:
-            return 'meshcat'
+        return 'panda3d'
 
 
 def _get_backend_exceptions(
@@ -107,21 +132,6 @@ def _get_backend_exceptions(
         return (zmq.error.Again, zmq.error.ZMQError)
 
 
-# Create logger
-class _DuplicateFilter:
-    def __init__(self):
-        self.msgs = set()
-
-    def filter(self, record):
-        rv = record.msg not in self.msgs
-        self.msgs.add(record.msg)
-        return rv
-
-
-logger = logging.getLogger(__name__)
-logger.addFilter(_DuplicateFilter())
-
-
 def sleep(dt: float) -> None:
     """Function to provide cross-platform time sleep with maximum accuracy.
 
@@ -133,9 +143,21 @@ def sleep(dt: float) -> None:
 
     :param dt: Sleep duration in seconds.
     """
-    _ = time.perf_counter() + dt
-    while time.perf_counter() < _:
+    t_end = time.perf_counter() + dt
+    while time.perf_counter() < t_end:
         pass
+
+
+def get_color_code(color: Optional[Union[str, Tuple4FType]]) -> Tuple4FType:
+    if isinstance(color, str):
+        try:
+            return COLORS[color]
+        except KeyError as e:
+            colors_str = ', '.join(f"'{e}'" for e in COLORS.keys())
+            raise ValueError(
+                f"Color '{color}' not available. Use a custom (R,G,B,A) "
+                f"code, or a predefined named color ({colors_str}).") from e
+    return color
 
 
 class _ProcessWrapper:
@@ -159,32 +181,34 @@ class _ProcessWrapper:
         return not isinstance(self._proc, psutil.Process)
 
     def is_alive(self) -> bool:
-        if isinstance(self._proc, subprocess.Popen):
-            return self._proc.poll() is None
-        elif isinstance(self._proc, multiprocessing.Process):
+        if isinstance(self._proc, multiprocessing.Process):
             return self._proc.is_alive()
-        elif isinstance(self._proc, Panda3dApp):
-            return True  # TODO
+        elif isinstance(self._proc, subprocess.Popen):
+            return self._proc.poll() is None
         elif isinstance(self._proc, psutil.Process):
             try:
                 return self._proc.status() in [
                     psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
             except psutil.NoSuchProcess:
                 return False
+        elif isinstance(self._proc, Panda3dApp):
+            return hasattr(self._proc, 'win')
+        return False  # Assuming it is not running by default
 
     def wait(self, timeout: Optional[float] = None) -> bool:
         if isinstance(self._proc, multiprocessing.Process):
             return self._proc.join(timeout)
-        elif isinstance(self._proc, Panda3dApp):
-            return None  # TODO
         elif isinstance(self._proc, (
                 subprocess.Popen, psutil.Process)):
             return self._proc.wait(timeout)
+        elif isinstance(self._proc, Panda3dApp):
+            self._proc.step()
+            return True
 
     def kill(self) -> None:
         if self.is_parent() and self.is_alive():
             if isinstance(self._proc, Panda3dApp):
-                pass  # TODO
+                self._proc.destroy()
             else:
                 # Try to terminate cleanly
                 self._proc.terminate()
@@ -204,8 +228,6 @@ class _ProcessWrapper:
                 multiprocessing.active_children()
 
 
-Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
-Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
 CameraPoseType = Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]
 
 
@@ -220,6 +242,21 @@ class CameraMotionBreakpointType(TypedDict, total=True):
 
 
 CameraMotionType = Sequence[CameraMotionBreakpointType]
+
+
+class MarkerDataType(TypedDict, total=True):
+    """Pose of the marker, as a single vector (position [X, Y, Z] + rotation
+    [Quat X, Quat Y, Quat Z, Quat W]).
+    """
+    pose: np.ndarray
+    """Size of the marker. Each principal axis of the geometry are scaled
+    separately.
+    """
+    scale: np.ndarray
+    """Color of the marker, as a list of 4 floating-point values ranging from
+    0.0 to 1.0.
+    """
+    color: np.ndarray
 
 
 class Viewer:
@@ -245,14 +282,14 @@ class Viewer:
     def __init__(self,
                  robot: jiminy.Robot,
                  use_theoretical_model: bool = False,
-                 robot_color: Optional[Tuple4FType] = None,
+                 robot_color: Optional[Union[str, Tuple4FType]] = None,
                  lock: Optional[Lock] = None,
                  backend: Optional[str] = None,
                  open_gui_if_parent: Optional[bool] = None,
                  delete_robot_on_close: bool = False,
                  robot_name: Optional[str] = None,
                  scene_name: str = 'world',
-                 **kwargs):
+                 **kwargs: Any):
         """
         :param robot: Jiminy.Robot to display.
         :param use_theoretical_model: Whether to use the theoretical (rigid)
@@ -261,10 +298,10 @@ class Viewer:
                                       model is more efficient since update of
                                       the frames placements can be skipped.
                                       Optional: Actual model by default.
-        :param robot_color: RGBA color to use to display this robot, as a list
-                            of 4 floating-point values between 0.0 and 1.0. It
-                            will override the original color of the meshes if
-                            specified. `None` to disable.
+        :param robot_color: Color of the robot. It will override the original
+                            color of the meshes if not `None`. It supports both
+                            RGBA codes as a list of 4 floating-point values
+                            ranging from 0.0 and 1.0, and a few named colors.
                             Optional: Disable by default.
         :param lock: Custom threading.Lock. Required for parallel rendering.
                      It is required since some backends does not support
@@ -300,12 +337,17 @@ class Viewer:
             robot_name = "_".join(("robot", uniq_id))
 
         # Backup some user arguments
-        self.robot_color = robot_color
+        self.robot_color = get_color_code(robot_color)
         self.robot_name = robot_name
         self.scene_name = scene_name
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
+
+        # Initialize marker register.
+        self.markers: Dict[str, MarkerDataType] = {}
+        self._markers_group = '/'.join((
+            self.scene_name, self.robot_name, "markers"))
 
         # Select the desired backend
         if backend is None:
@@ -346,11 +388,7 @@ class Viewer:
 
         # Reset some class attribute if backend not available
         if not is_backend_running:
-            Viewer._has_gui = False
-            Viewer._backend_robot_names.clear()
-            Viewer._backend_robot_colors.clear()
-            Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
-            Viewer.detach_camera()
+            Viewer.close()
 
         # Make sure that the windows, scene and robot names are valid
         if scene_name == Viewer.window_name:
@@ -386,9 +424,14 @@ class Viewer:
                     else:
                         open_gui_if_parent = True
 
-                # Start viewer backend
-                Viewer.__connect_backend(
-                    start_if_needed=True, open_gui=open_gui_if_parent)
+                # Start viewer backend, eventually with graphical window
+                try:
+                    Viewer.__connect_backend(
+                        start_if_needed=True, open_gui=open_gui_if_parent)
+                except RuntimeError as e:
+                    # It may raise an exception if no display is available.
+                    # In such a case, convert it into a warning.
+                    logger.warning(str(e))
 
                 # Update some flags
                 self.is_backend_parent = True
@@ -427,7 +470,7 @@ class Viewer:
 
     def __must_be_open(fct: Callable) -> Callable:
         @wraps(fct)
-        def fct_safe(*args, **kwargs):
+        def fct_safe(*args: Any, **kwargs: Any) -> Any:
             self = None
             if args and isinstance(args[0], Viewer):
                 self = args[0]
@@ -442,7 +485,7 @@ class Viewer:
     @__must_be_open
     def _setup(self,
                robot: jiminy.Robot,
-               robot_color: Optional[Tuple4FType] = None) -> None:
+               robot_color: Optional[Union[str, Tuple4FType]] = None) -> None:
         """Load (or reload) robot in viewer.
 
         .. note::
@@ -454,14 +497,14 @@ class Viewer:
             `simulator.Simulator` instead of `jiminy_py.core.Engine` directly.
 
         :param robot: Jiminy.Robot to display.
-        :param robot_color: RGBA color to use to display this robot, as a list
-                            of 4 floating-point values between 0.0 and 1.0.
-                            It will override the original color of the meshes
-                            if specified. None to disable.
+        :param robot_color: Color of the robot. It will override the original
+                            color of the meshes if not `None`. It supports both
+                            RGBA codes as a list of 4 floating-point values
+                            ranging from 0.0 and 1.0, and a few named colors.
                             Optional: Disable by default.
         """
         # Backup desired color
-        self.robot_color = robot_color
+        self.robot_color = get_color_code(robot_color)
 
         # Generate colorized URDF file if using gepetto-gui backend, since it
         # is not supported by default, because of memory optimizations.
@@ -528,9 +571,12 @@ class Viewer:
             self._client.initViewer(viewer=self._gui, loadModel=False)
 
             # Load the robot
-            robot_node_path = '/'.join((self.scene_name, self.robot_name))
             self._client.loadViewerModel(
-                rootNodeName=robot_node_path, color=robot_color)
+                rootNodeName=robot_node_path, color=self.robot_color)
+
+        # Add 'markers' group
+        if Viewer.backend.startswith('panda3d'):
+            self._gui.append_group(self._markers_group)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
@@ -620,6 +666,10 @@ class Viewer:
         Viewer._has_gui = True
 
     @staticmethod
+    def has_gui() -> bool:
+        return Viewer._has_gui
+
+    @staticmethod
     @__must_be_open
     def wait(require_client: bool = False) -> None:
         """Wait for all the meshes to finish loading in every clients.
@@ -674,14 +724,15 @@ class Viewer:
                 # automatically. One must call `Viewer.close` to do otherwise.
                 Viewer._backend_robot_names.clear()
                 Viewer._backend_robot_colors.clear()
+                Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
                 Viewer.detach_camera()
+                Viewer.remove_camera_motion()
                 if Viewer.is_alive():
-                    if Viewer.backend == 'meshcat':
+                    if Viewer.backend in ('meshcat', 'panda3d-qt'):
                         Viewer._backend_obj.close()
+                    if Viewer.backend == 'meshcat':
                         recorder_proc = Viewer._backend_obj.recorder.proc
                         _ProcessWrapper(recorder_proc).kill()
-                    else:
-                        Viewer._backend_obj._app.destroy()
                     Viewer._backend_proc.kill()
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
@@ -707,8 +758,10 @@ class Viewer:
                 Viewer._backend_robot_names.discard(self.robot_name)
                 Viewer._backend_robot_colors.pop(self.robot_name)
                 if self.delete_robot_on_close:
-                    Viewer._delete_nodes_viewer(
-                        ['/'.join((self.scene_name, self.robot_name))])
+                    Viewer._delete_nodes_viewer([
+                        self._client.visual_group,
+                        self._client.collision_group,
+                        self._markers_group])
 
                 if Viewer.backend == 'meshcat':
                     Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
@@ -1259,26 +1312,35 @@ class Viewer:
         Viewer._camera_travelling = None
 
     @__must_be_open
-    def set_color(self, robot_color: Tuple4FType) -> None:
+    def set_color(self,
+                  color: Optional[Union[str, Tuple4FType]] = None
+                  ) -> None:
         """Override the color of the visual and collision geometries of the
         robot on-the-fly.
 
         .. note::
             This method is only supported by Panda3d for now.
 
-        :param robot_color: RGBA color to use to display this robot, as a list
-                            of 4 floating-point values between 0.0 and 1.0. It
-                            will override the original color of the meshes if
-                            specified. `None` to disable.
-                            Optional: Disable by default.
+        :param color: Color of the robot. It will override the original color
+                      of the meshes if not `None`, and restore them otherwise.
+                      It supports both RGBA codes as a list of 4 floating-point
+                      values ranging from 0.0 and 1.0, and a few named colors.
+                      Optional: Disable by default.
         """
+        # Sanitize user-specified color code
+        color_ = get_color_code(color)
+
         if Viewer.backend.startswith('panda3d'):
             for model, geom_type in zip(
                     [self._client.visual_model, self._client.collision_model],
                     pin.GeometryType.names.values()):
                 for geom in model.geometryObjects:
                     node_name = self._client.getViewerNodeName(geom, geom_type)
-                    self._client.viewer.set_material(*node_name, robot_color)
+                    color = color_
+                    if color is None and geom.overrideMaterial:
+                        color = geom.meshColor
+                    self._gui.set_material(
+                        *node_name, color, disable_material=color_ is not None)
         else:
             logger.warning("This method is only supported by Panda3d.")
 
@@ -1414,6 +1476,73 @@ class Viewer:
         self.refresh()
 
     @__must_be_open
+    def add_marker(self,
+                   name: str,
+                   shape: str,
+                   pose: Optional[np.ndarray] = None,
+                   scale: Union[float, Tuple3FType] = 1.0,
+                   color: Optional[Union[str, Tuple4FType]] = 'red',
+                   **shape_kwargs: Any) -> MarkerDataType:
+        """Add marker on the scene.
+
+        .. note::
+            This method is only supported by Panda3d for now.
+
+        :param name: Unique identifier name.
+        :param shape: Desired shape, as a string, i.e. 'cone', 'box', 'sphere',
+                      'capsule', 'cylinder', or 'arrow'.
+        :param pose: Pose of the geometry on the scene, as a single vector
+                     (position [X, Y, Z] + quaternion [X,  Y, Z, W]). `None`
+                     corresponds to world frame.
+                     Optional: World frame by default.
+        :param scale: Size of the marker. Each principal axis of the geometry
+                      are scaled separately.
+        :param color: Color of the marker. It supports both RGBA codes as a
+                      list of 4 floating-point values ranging from 0.0 and 1.0,
+                      and a few named colors.
+                      Optional: 'red' by default.
+        :param shape_kwargs: Any additional keyword arguments to forward for
+                             shape instantiation.
+
+        :returns: Dict of type `MarkerDataType`, storing references to the
+                  current pose, scale, and color of the marker, and itself a
+                  reference to `viewer.markers[name]`. Any modification of it
+                  will take effect at next `refresh` call.
+        """
+        # Handling of user arguments
+        if pose is None:
+            pose = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+        color = np.asarray(get_color_code(color))
+        if isinstance(scale, float):
+            scale = np.full((3,), fill_value=scale)
+
+        # Make sure no marker with this name already exists
+        if name in self.markers.keys():
+            raise ValueError(f"marker's name '{name}' already exists.")
+
+        if Viewer.backend.startswith('panda3d'):
+            create_shape = getattr(self._gui, f"append_{shape}")
+            create_shape(
+                self._markers_group, name, frame=(pose[:3], pose[3:]),
+                **shape_kwargs)
+            self._gui.set_material(self._markers_group, name, color)
+            self._gui.set_scale(self._markers_group, name, scale)
+            marker_data = {"pose": pose, "scale": scale, "color": color}
+            self.markers[name] = marker_data
+            return marker_data
+        else:
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
+    @__must_be_open
+    def remove_marker(self, name: str) -> None:
+        try:
+            self.markers.pop(name)
+        except KeyError as e:
+            raise ValueError(f"marker's name '{name}' does not exists.") from e
+        self._gui.remove_node(self._markers_group, name)
+
+    @__must_be_open
     def refresh(self,
                 force_update_visual: bool = False,
                 force_update_collision: bool = False,
@@ -1451,35 +1580,34 @@ class Viewer:
 
             # Render new geometries placements
             if Viewer.backend == 'gepetto-gui':
-                for model, data, model_type in zip(
+                for geom_model, geom_data, model_type in zip(
                         model_list, data_list, model_type_list):
                     self._gui.applyConfigurations(
                         [self._client.getViewerNodeName(geom, model_type)
-                         for geom in model.geometryObjects],
-                        [tuple(SE3ToXYZQUAT(data.oMg[i]))
-                         for i, geom in enumerate(model.geometryObjects)])
+                         for geom in geom_model.geometryObjects],
+                        [tuple(SE3ToXYZQUAT(geom_data.oMg[i]))
+                         for i in range(len(geom_model.geometryObjects))])
             elif Viewer.backend.startswith('panda3d'):
-                for model, data, model_type in zip(
+                for geom_model, geom_data, model_type in zip(
                         model_list, data_list, model_type_list):
-                    name_pose_dict = {}
-                    for i, geom in enumerate(model.geometryObjects):
-                        oMg = data.oMg[i]
+                    pose_dict = {}
+                    for i, geom in enumerate(geom_model.geometryObjects):
+                        oMg = geom_data.oMg[i]
                         x, y, z, qx, qy, qz, qw = SE3ToXYZQUAT(oMg)
                         group, nodeName = self._client.getViewerNodeName(
                             geom, model_type)
-                        name_pose_dict[nodeName] = (x, y, z), (qw, qx, qy, qz)
-                    self._client.viewer.move_nodes(group, name_pose_dict)
+                        pose_dict[nodeName] = (x, y, z), (qw, qx, qy, qz)
+                    self._gui.move_nodes(group, pose_dict)
             else:
-                for model, data, model_type in zip(
+                for geom_model, geom_data, model_type in zip(
                         model_list, data_list, model_type_list):
-                    for i, geom in enumerate(model.geometryObjects):
-                        M = data.oMg[i]
-                        S = np.diag(np.concatenate((
-                            geom.meshScale, np.array([1.0]))).flat)
-                        T = M.homogeneous.dot(S)
+                    for i, geom in enumerate(geom_model.geometryObjects):
+                        oMg = geom_data.oMg[i]
+                        S = np.diag((*geom.meshScale, 1.0))
+                        T = oMg.homogeneous.dot(S)
                         nodeName = self._client.getViewerNodeName(
                             geom, model_type)
-                        self._client.viewer[nodeName].set_transform(T)
+                        self._gui[nodeName].set_transform(T)
 
             # Update the camera placement if necessary
             if Viewer._camera_travelling is not None:
@@ -1489,6 +1617,18 @@ class Viewer:
                         relative=Viewer._camera_travelling['frame'])
             elif Viewer._camera_motion is not None:
                 self.set_camera_transform()
+
+            # Update markers placements.
+            if Viewer.backend.startswith('panda3d'):
+                pose_dict, material_dict, scale_dict = {}, {}, {}
+                for marker_name, marker_data in self.markers.items():
+                    x, y, z, qx, qy, qz, qw = marker_data["pose"]
+                    pose_dict[marker_name] = (x, y, z), (qw, qx, qy, qz)
+                    material_dict[marker_name] = marker_data["color"]
+                    scale_dict[marker_name] = marker_data["scale"]
+                self._gui.move_nodes(self._markers_group, pose_dict)
+                self._gui.set_materials(self._markers_group, material_dict)
+                self._gui.set_scales(self._markers_group, scale_dict)
 
             # Refreshing viewer backend manually is necessary for gepetto-gui
             if Viewer.backend == 'gepetto-gui':

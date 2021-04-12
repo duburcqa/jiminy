@@ -15,23 +15,13 @@ from typing_extensions import TypedDict
 from .. import core as jiminy
 from ..state import State
 from .viewer import (
-    Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
+    COLORS, Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
 from .meshcat.utilities import interactive_mode
 
 
 VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (800, 800)
 VIDEO_QUALITY = 0.3  # [Mbytes/s]
-
-DEFAULT_URDF_COLORS = {
-    'green': (0.4, 0.7, 0.3, 1.0),
-    'purple': (0.6, 0.0, 0.9, 1.0),
-    'orange': (1.0, 0.45, 0.0, 1.0),
-    'cyan': (0.2, 0.7, 1.0, 1.0),
-    'red': (0.9, 0.15, 0.15, 1.0),
-    'yellow': (1.0, 0.7, 0.0, 1.0),
-    'blue': (0.25, 0.25, 1.0, 1.0)
-}
 
 
 logger = logging.getLogger(__name__)
@@ -141,8 +131,9 @@ def play_trajectories(trajectory_data: Union[
     :param xyz_offsets: List of constant position of the root joint for each
                         robot in world frame. None to disable.
                         Optional: None by default.
-    :param robots_colors: List of RGBA code defining the color for each robot.
-                          It will apply to every link. None to disable.
+    :param robots_colors: List of RGBA codes or named colors defining the color
+                          for each robot. It will be applied to every link.
+                          None to disable.
                           Optional: Original color if single robot, default
                           color cycle otherwise.
     :param travelling_frame: Name of the frame of the robot associated with the
@@ -236,22 +227,10 @@ def play_trajectories(trajectory_data: Union[
             robots_colors = [None]
         else:
             robots_colors = list(islice(
-                cycle(DEFAULT_URDF_COLORS.values()), len(trajectory_data)))
+                cycle(COLORS.values()), len(trajectory_data)))
     elif not isinstance(robots_colors, (list, tuple)) or \
             isinstance(robots_colors[0], float):
         robots_colors = [robots_colors]
-    elif isinstance(robots_colors, tuple):
-        robots_colors = list(robots_colors)
-    for i, color in enumerate(robots_colors):
-        if isinstance(color, str):
-            if color in DEFAULT_URDF_COLORS.keys():
-                robots_colors[i] = DEFAULT_URDF_COLORS[color]
-            else:
-                colors_str = ', '.join(
-                    f"'{e}'" for e in DEFAULT_URDF_COLORS.keys())
-                raise ValueError(
-                    f"Color '{color}' not available. Use custom (R,G,B,A) "
-                    f"codes, or predefined color names: {colors_str}.")
     assert len(robots_colors) == len(trajectory_data)
 
     # Sanitize user-specified legend

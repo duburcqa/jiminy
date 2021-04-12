@@ -19,22 +19,25 @@ from machomachomangler.pe import redll
 
 
 def hash_filename(filepath, blocksize=65536):
+    # Split original filename from extension
+    root, ext = os.path.splitext(filepath)
+    filename = os.path.basename(root)
+
     # Do NOT hash filename to make it unique in the particular case of boost
     # python modules, since otherwise it will be impossible to share a common
     # registery, which is necessary for cross module interoperability.
-    if "libboost_python" in filepath:
-        return filepath
+    if "boost_python" in filepath:
+        return f"{filename}{ext}"
 
+    # Compute unique hash based on file's content
     hasher = hashlib.sha256()
-
     with open(filepath, "rb") as afile:
         buf = afile.read(blocksize)
         while len(buf) > 0:
             hasher.update(buf)
             buf = afile.read(blocksize)
 
-    root, ext = os.path.splitext(filepath)
-    return f"{os.path.basename(root)}-{hasher.hexdigest()[:8]}{ext}"
+    return f"{filename}-{hasher.hexdigest()[:8]}{ext}"
 
 
 def find_dll_dependencies(dll_filepath, lib_dir):

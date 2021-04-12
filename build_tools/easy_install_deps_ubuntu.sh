@@ -43,6 +43,9 @@ apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc
 # Install some additional dependencies
 apt install -y libeigen3-dev libboost-all-dev liboctomap-dev
 
+# Install OpenGL
+apt install -y mesa-utils
+
 # Install robotpkg tools suite
 if ! [ -d "/opt/openrobots/lib/${PYTHON_BIN}/site-packages/" ] ; then
     # Add apt repository if necessary

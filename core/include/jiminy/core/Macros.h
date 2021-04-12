@@ -263,14 +263,18 @@ namespace jiminy
 
     #define FILE_LINE __FILE__ ":" STRINGIFY(__LINE__)
 
+    /* ANSI escape codes is used here as a cross-platform way to color text.
+       For reference, see:
+       https://solarianprogrammer.com/2019/04/08/c-programming-ansi-escape-codes-windows-macos-linux-terminals/ */
+
     #define PRINT_ERROR(...) \
-    std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\033[1;31merror:\033[0m " << to_string(__VA_ARGS__) << std::endl
+    std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\x1b[1;31merror:\x1b[0m " << to_string(__VA_ARGS__) << std::endl
 
     #ifdef NDEBUG
-    #define PRINT_WARNING(...)
+        #define PRINT_WARNING(...)
     #else
-    #define PRINT_WARNING(...) \
-    std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\033[1;93mwarning:\033[0m " << to_string(__VA_ARGS__) << std::endl
+        #define PRINT_WARNING(...) \
+        std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\x1b[1;93mwarning:\x1b[0m " << to_string(__VA_ARGS__) << std::endl
     #endif
 }
 

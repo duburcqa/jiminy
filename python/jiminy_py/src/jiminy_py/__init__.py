@@ -9,13 +9,21 @@ from contextlib import redirect_stderr as _redirect_stderr
 # Special dlopen flags are used when loading Boost Python shared library to
 # make sure the same boost python runtime is shared between every modules,
 # even if linked versions are different. It is necessary to share the same
-# boost python registers, required for inter-operability between modules.
+# boost python registers, required for inter-operability between modules. Note
+# that since Python3.8, PATH and the current working directory are no longer
+# used for DLL resolution on Windows OS. One is expected to explicitly call
+# `os.add_dll_directory` instead.
 import ctypes as _ctypes
-from distutils.sysconfig import get_config_var as _get_config_var
 try:
-    python_ver_suffix = "".join(map(str, _sys.version_info[:2]))
-    shared_lib_suffix = _get_config_var('SHLIB_SUFFIX')
-    boost_python_lib = f"libboost_python{python_ver_suffix}{shared_lib_suffix}"
+    pyver_suffix = "".join(map(str, _sys.version_info[:2]))
+    if _sys.platform.startswith('win'):
+        lib_prefix = ""
+        lib_suffix = ".dll"
+    else:
+        from distutils.sysconfig import get_config_var as _get_config_var
+        lib_prefix = "lib"
+        lib_suffix = _get_config_var('SHLIB_SUFFIX')
+    boost_python_lib = f"{lib_prefix}boost_python{pyver_suffix}{lib_suffix}"
     _ctypes.CDLL(boost_python_lib, _ctypes.RTLD_GLOBAL)
 except OSError:
     pass

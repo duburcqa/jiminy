@@ -230,7 +230,7 @@ class Simulator:
         .. note::
             This method is not meant to be called manually.
         """
-        return getattr(super().__getattribute__('engine'), name)
+        return getattr(self.__getattribute__('engine'), name)
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.
@@ -292,7 +292,7 @@ class Simulator:
         """Returns whether or not a viewer instance associated with the robot
         is available.
         """
-        return self.viewer is not None and self.viewer.is_alive()
+        return self.viewer is not None and self.viewer.is_open()
 
     def _callback(self,
                   t: float,
@@ -474,7 +474,7 @@ class Simulator:
             # Create a new viewer client
             self.viewer = Viewer(self.robot,
                                  use_theoretical_model=False,
-                                 open_gui_if_parent=(not return_rgb_array),
+                                 open_gui_if_parent=False,
                                  **{'scene_name': scene_name,
                                     'robot_name': robot_name,
                                     'backend': self.viewer_backend,
