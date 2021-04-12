@@ -424,9 +424,14 @@ class Viewer:
                     else:
                         open_gui_if_parent = True
 
-                # Start viewer backend
-                Viewer.__connect_backend(
-                    start_if_needed=True, open_gui=open_gui_if_parent)
+                # Start viewer backend, eventually with graphical window
+                try:
+                    Viewer.__connect_backend(
+                        start_if_needed=True, open_gui=open_gui_if_parent)
+                except RuntimeError as e:
+                    # It may raise an exception if no display is available.
+                    # In such a case, convert it into a warning.
+                    logger.warning(str(e))
 
                 # Update some flags
                 self.is_backend_parent = True
@@ -659,6 +664,10 @@ class Viewer:
 
         # There is at least one graphical window at this point
         Viewer._has_gui = True
+
+    @staticmethod
+    def has_gui() -> bool:
+        return Viewer._has_gui
 
     @staticmethod
     @__must_be_open

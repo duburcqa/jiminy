@@ -474,7 +474,7 @@ class Simulator:
             # Create a new viewer client
             self.viewer = Viewer(self.robot,
                                  use_theoretical_model=False,
-                                 open_gui_if_parent=(not return_rgb_array),
+                                 open_gui_if_parent=False,
                                  **{'scene_name': scene_name,
                                     'robot_name': robot_name,
                                     'backend': self.viewer_backend,

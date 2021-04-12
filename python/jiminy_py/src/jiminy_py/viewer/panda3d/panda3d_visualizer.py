@@ -201,10 +201,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('load-display', 'pandagl')
         config.set_value('aux-display',
                          'p3headlessgl'
+                         '\naux-display pandadx9'
+                         '\naux-display pandadx8'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
         config.set_value('default-near', 0.1)
         config.set_value('assimp-optimize-graph', True)
+        config.set_value('gl-version', '3 1')
         config.set_value('notify-level', 'error')
         config.set_value('notify-level-x11display', 'fatal')
         config.set_value('default-directnotify-level', 'error')
@@ -334,27 +337,40 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if any(isinstance(win, GraphicsWindow) for win in self.winList):
             raise RuntimeError("Only one graphical window can be opened.")
 
-        # Replace the original offscreen window by an onscreen one.
-        self.windowType = 'onscreen'
+        # Replace the original offscreen window by an onscreen one if possible
+        is_success = True
         size = self.win.get_size()
-        self.open_main_window(size=size)
+        try:
+            self.windowType = 'onscreen'
+            self.open_main_window(size=size)
+        except Exception:   # pylint: disable=broad-except
+            is_success = False
+            self.windowType = 'offscreen'
+            self.open_main_window(size=size)
 
-        # Setup mouse and keyboard controls for onscreen display
-        self._setup_shortcuts()
-        self.disableMouse()
-        self.accept("wheel_up", self.handle_key, ["wheelup", 1])
-        self.accept("wheel_down", self.handle_key, ["wheeldown", 1])
-        for i in range(1, 4):
-            self.accept(f"mouse{i}", self.handle_key, [f"mouse{i}", 1])
-            self.accept(f"mouse{i}-up", self.handle_key, [f"mouse{i}", 0])
-        self.taskMgr.add(
-            self.move_orbital_camera_task, "move_orbital_camera_task", sort=2)
+        if is_success:
+            # Setup mouse and keyboard controls for onscreen display
+            self._setup_shortcuts()
+            self.disableMouse()
+            self.accept("wheel_up", self.handle_key, ["wheelup", 1])
+            self.accept("wheel_down", self.handle_key, ["wheeldown", 1])
+            for i in range(1, 4):
+                self.accept(f"mouse{i}", self.handle_key, [f"mouse{i}", 1])
+                self.accept(f"mouse{i}-up", self.handle_key, [f"mouse{i}", 0])
+            self.taskMgr.add(
+                self.move_orbital_camera_task, "move_camera_task", sort=2)
+
+            # Limit framerate to reduce computation cost
+            self.set_framerate(PANDA3D_FRAMERATE_MAX)
 
         # Create resizeable offscreen buffer
         self._open_offscreen_window(size)
 
-        # Limit framerate to reduce computation cost
-        self.set_framerate(PANDA3D_FRAMERATE_MAX)
+        # Throw exception if opening display has failed
+        if not is_success:
+            raise RuntimeError(
+                "Impossible to open graphical window. Make sure display is "
+                "available on system.")
 
     def _open_offscreen_window(self,
                                size: Optional[Tuple[int, int]] = None) -> None:
