@@ -68,8 +68,9 @@ namespace jiminy
                                        float64_t        const & t,
                                        float64_t        const & dt,
                                        pinocchio::Force const & F);
-        hresult_t registerForceProfile(std::string           const & frameName,
-                                       forceProfileFunctor_t         forceFct);
+        hresult_t registerForceProfile(std::string const & frameName,
+                                       forceProfileFunctor_t const & forceFct,
+                                       float64_t const & updatePeriod = 0.0);
 
         // Redefined to take advantage of C++ name hiding of overloaded methods of base class in dervied class
         hresult_t removeForcesImpulse(void);

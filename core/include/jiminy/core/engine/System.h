@@ -23,12 +23,15 @@ namespace jiminy
         forceProfile_t(void) = default;
         forceProfile_t(std::string           const & frameNameIn,
                        int32_t               const & frameIdxIn,
+                       float64_t             const & updatePeriodIn,
                        forceProfileFunctor_t const & forceFctIn);
         ~forceProfile_t(void) = default;
 
     public:
         std::string frameName;
         int32_t frameIdx;
+        float64_t updatePeriod;
+        pinocchio::Force forcePrev;
         forceProfileFunctor_t forceFct;
     };
 
