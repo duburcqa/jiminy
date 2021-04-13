@@ -457,11 +457,13 @@ namespace jiminy
                                        float64_t        const & t,
                                        float64_t        const & dt,
                                        pinocchio::Force const & F);
-        /// \brief Apply an time-continuous external force on a frame.
-        ///        The force can be time and state dependent, and must be given in the world frame.
+        /// \brief Apply an external force profile on a frame.
+        ///        It can be either time-continuous or discrete. The force can be time
+        ///        and state dependent, and must be given in the world frame.
         hresult_t registerForceProfile(std::string const & systemName,
                                        std::string const & frameName,
-                                       forceProfileFunctor_t forceFct);
+                                       forceProfileFunctor_t const & forceFct,
+                                       float64_t const & updatePeriod = 0.0);
 
         hresult_t removeForcesImpulse(std::string const & systemName);
         hresult_t removeForcesProfile(std::string const & systemName);
@@ -550,11 +552,11 @@ namespace jiminy
                                     vectorN_t          const & v,
                                     forceVector_t            & fext) const;
         void computeExternalForces(systemHolder_t     const & system,
-                                   systemDataHolder_t const & systemData,
+                                   systemDataHolder_t       & systemData,
                                    float64_t          const & t,
                                    vectorN_t          const & q,
                                    vectorN_t          const & v,
-                                   forceVector_t            & fext) const;
+                                   forceVector_t            & fext);
         void computeForcesCoupling(float64_t              const & t,
                                    std::vector<vectorN_t> const & qSplit,
                                    std::vector<vectorN_t> const & vSplit);

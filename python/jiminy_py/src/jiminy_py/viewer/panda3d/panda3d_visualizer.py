@@ -8,7 +8,7 @@ import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import PureWindowsPath
-from typing import Optional, Dict, Tuple, Union, Sequence, Any
+from typing import Callable, Optional, Dict, Tuple, Union, Sequence, Any
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,7 +16,7 @@ from matplotlib import font_manager
 from matplotlib.patches import Patch
 
 from panda3d.core import (
-    NodePath, Point3, Vec3, Vec4, Mat4, LQuaternion, Geom, GeomEnums, GeomNode,
+    NodePath, Point3, Vec3, Mat4, Quat, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
     GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
     OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
@@ -52,31 +52,43 @@ WIDGET_MARGIN_REL = 0.05
 PANDA3D_FRAMERATE_MAX = 30
 
 
-def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
-    """
-    https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
-    """
-    subdiv = max(2, subdiv)
-    offset = max(0., min(1., offset))  # top and bottom offset
+Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
+Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
+FrameType = Union[Tuple[Tuple3FType, Tuple4FType], np.ndarray]
 
-    vertex_format = GeomVertexFormat()
-    array_format = GeomVertexArrayFormat()
-    array_format.add_column(
+
+def make_gradient_skybox(sky_color: Tuple3FType,
+                         ground_color: Tuple3FType,
+                         offset: float = 0.0,
+                         subdiv: int = 2):
+    """Simple gradient to be used as skybox.
+
+    For reference, see:
+    - https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
+    """
+    # Check validity of arguments
+    assert subdiv >= 2, "Number of sub-division must be larger than 2."
+    assert 0.0 <= offset and offset <= 1.0, "Offset must be in [0.0, 1.0]."
+
+    # Define vertex format
+    vformat = GeomVertexFormat()
+    aformat = GeomVertexArrayFormat()
+    aformat.add_column(
         InternalName.get_vertex(), 3, Geom.NT_float32, Geom.C_point)
-    vertex_format.add_array(array_format)
-    array_format = GeomVertexArrayFormat()
-    array_format.add_column(
+    vformat.add_array(aformat)
+    aformat = GeomVertexArrayFormat()
+    aformat.add_column(
         InternalName.make("color"), 4, Geom.NT_uint8, Geom.C_color)
-    vertex_format.add_array(array_format)
-    vertex_format = GeomVertexFormat.register_format(vertex_format)
+    vformat.add_array(aformat)
+    vformat = GeomVertexFormat.register_format(vformat)
 
-    # create a simple, horizontal prism;
-    # make it very wide to avoid ever seeing its left and right sides;
-    # one edge is at the "horizon", while the two other edges are above
+    # Create a simple, horizontal prism.
+    # Make it very wide to avoid ever seeing its left and right sides.
+    # One edge is at the "horizon", while the two other edges are above
     # and a bit behind the camera so they are only visible when looking
-    # straight up
+    # straight up.
     vertex_data = GeomVertexData(
-        "prism_data", vertex_format, GeomEnums.UH_static)
+        "prism_data", vformat, GeomEnums.UH_static)
     vertex_data.unclean_set_num_rows(4 + subdiv * 2)
     values = array.array("f", (-1000., -50., 86.6, 1000., -50., 86.6))
     offset_angle = np.pi / 1.5 * offset
@@ -91,7 +103,7 @@ def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
     memview = memoryview(pos_array).cast("B").cast("f")
     memview[:] = values
 
-    # interpolate the colors
+    # Interpolate the colors
     color1 = tuple(int(c * 255) for c in sky_color)
     color2 = tuple(int(c * 255) for c in ground_color)
     values = array.array("B", color1 * 2)
@@ -116,8 +128,8 @@ def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
     memview = memoryview(tris_array).cast("B").cast("H")
     memview[:] = indices
 
-    # the compass effect can make the node leave its bounds, so make them
-    # infinitely large
+    # The compass effect can make the node leave its bounds, so make them
+    # infinitely large.
     geom = Geom(vertex_data)
     geom.add_primitive(tris_prim)
     node = GeomNode("prism")
@@ -132,13 +144,58 @@ def create_gradient(sky_color, ground_color, offset=0.0, subdiv=2):
     return prism
 
 
+def make_cone(num_sides: int = 16) -> Geom:
+    """Create a close shaped cone, approximate by a pyramid with regular
+    convex n-sided polygon base.
+
+    For reference about refular polygon:
+    https://en.wikipedia.org/wiki/Regular_polygon
+    """
+    # Define vertex format
+    vformat = GeomVertexFormat.get_v3n3t2()
+    vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
+    vdata.uncleanSetNumRows(num_sides + 2)
+    vertex = GeomVertexWriter(vdata, 'vertex')
+    normal = GeomVertexWriter(vdata, 'normal')
+    tcoord = GeomVertexWriter(vdata, 'texcoord')
+
+    # Add radial points
+    for u in np.linspace(0.0, 2 * np.pi, num_sides):
+        x, y = math.cos(u), math.sin(u)
+        vertex.addData3(x, y, 0.0)
+        normal.addData3(x, y, 0.0)
+        tcoord.addData2(x, y)
+
+    # Add top and bottom points
+    vertex.addData3(0.0, 0.0, 1.0)
+    normal.addData3(0.0, 0.0, 1.0)
+    tcoord.addData2(0.0, 0.0)
+    vertex.addData3(0.0, 0.0, 0.0)
+    normal.addData3(0.0, 0.0, -1.0)
+    tcoord.addData2(0.0, 0.0)
+
+    # Make triangles.
+    # Note that by default, rendering is one-sided. It only renders the outside
+    # face, that is defined based on the "winding" order of the vertices making
+    # the triangles. For reference, see:
+    # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2
+    prim = GeomTriangles(Geom.UH_static)
+    for i in range(num_sides - 1):
+        prim.addVertices(i, i + 1, num_sides)
+        prim.addVertices(i + 1, i, num_sides + 1)
+
+    geom = Geom(vdata)
+    geom.addPrimitive(prim)
+    return geom
+
+
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Enforce viewer configuration
         config = Panda3dViewerConfig()
         config.set_window_size(*WINDOW_SIZE_DEFAULT)
         config.set_window_fixed(False)
-        config.enable_antialiasing(True, multisamples=4)
+        config.enable_antialiasing(True, multisamples=2)
         config.set_value('framebuffer-software', '0')
         config.set_value('framebuffer-hardware', '0')
         config.set_value('load-display', 'pandagl')
@@ -148,7 +205,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                          '\naux-display pandadx8'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
-        config.set_value('model-cache-textures', True)
+        config.set_value('default-near', 0.1)
+        config.set_value('assimp-optimize-graph', True)
+        config.set_value('gl-version', '3 1')
+        config.set_value('notify-level', 'error')
+        config.set_value('notify-level-x11display', 'fatal')
+        config.set_value('default-directnotify-level', 'error')
         loadPrcFileData('', str(config))
 
         # Define offscreen buffer
@@ -171,6 +233,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.framerate = None
 
         # Configure lighting and shadows
+        # Note that shadow resolution larger than 1024 significatly affects
+        # the frame rate on Intel GPU chipsets: going from 1024 to 2048 makes
+        # it drop from 60FPS to 30FPS.
         self._spotlight = self.config.GetBool('enable-spotlight', False)
         self._shadow_size = self.config.GetInt('shadow-buffer-size', 1024)
         self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
@@ -191,28 +256,26 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._scene_root.set_scale(self._scene_scale)
         self._groups = {}
 
-        # Create background sky
-        # define the colors at the top ("sky"), bottom ("ground") and center
-        # ("horizon") of the background gradient
+        # Create gradient for skybox
         sky_color = (0.53, 0.8, 0.98, 1.0)
         ground_color = (0.1, 0.1, 0.43, 1.0)
-        self.background_sky = create_gradient(
-            sky_color, ground_color, 0.7)
-        # looks like the background needs to be parented to an intermediary
-        # node to which a compass effect is applied to keep it at the same
-        # position as the camera, while being parented to render
+        self.skybox = make_gradient_skybox(sky_color, ground_color, 0.7)
+
+        # The background needs to be parented to an intermediary node to which
+        # a compass effect is applied to keep it at the same position as the
+        # camera, while being parented to render.
         pivot = self.render.attach_new_node("pivot")
         effect = CompassEffect.make(self.camera, CompassEffect.P_pos)
         pivot.set_effect(effect)
-        self.background_sky.reparent_to(pivot)
-        # now the background model just needs to keep facing the camera (only
-        # its heading should correspond to that of the camera; its pitch and
-        # roll need to remain unaffected)
+        self.skybox.reparent_to(pivot)
+
+        # The background needs to keep facing the camera a point behind the
+        # camera. Note that only its heading should correspond to that of the
+        # camera, while the pitch and roll remain unaffected.
         effect = BillboardEffect.make(
-            Vec3.up(), False, True, 0., NodePath(),
-            # make the background model face a point behind the camera
-            Point3(0., -10., 0.), False)
-        self.background_sky.set_effect(effect)
+            Vec3.up(), False, True, 0.0, NodePath(),
+            Point3(0.0, -10.0, 0.0), False)
+        self.skybox.set_effect(effect)
 
         # Create shared 2D renderer to allow display selectively gui elements
         # on offscreen and onscreen window used for capturing frames.
@@ -229,26 +292,27 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.offCamera2d.reparentTo(self.sharedRender2d)
 
         # Create dedicated aspect2d for offscreen rendering
-        self.offAspect2d = self.sharedRender2d.attachNewNode(
+        self.offAspect2d = self.sharedRender2d.attach_new_node(
             PGTop("offAspect2d"))
-        self.offA2dTopLeft = self.offAspect2d.attachNewNode(
+        self.offA2dTopLeft = self.offAspect2d.attach_new_node(
             "offA2dTopLeft")
-        self.offA2dTopRight = self.offAspect2d.attachNewNode(
+        self.offA2dTopRight = self.offAspect2d.attach_new_node(
             "offA2dTopRight")
-        self.offA2dBottomLeft = self.offAspect2d.attachNewNode(
+        self.offA2dBottomLeft = self.offAspect2d.attach_new_node(
             "offA2dBottomLeft")
-        self.offA2dBottomRight = self.offAspect2d.attachNewNode(
+        self.offA2dBottomRight = self.offAspect2d.attach_new_node(
             "offA2dBottomRight")
-        self.offA2dTopLeft.setPos(self.a2dLeft, 0, self.a2dTop)
-        self.offA2dTopRight.setPos(self.a2dRight, 0, self.a2dTop)
-        self.offA2dBottomLeft.setPos(self.a2dLeft, 0, self.a2dBottom)
-        self.offA2dBottomRight.setPos(self.a2dRight, 0, self.a2dBottom)
+        self.offA2dTopLeft.set_pos(self.a2dLeft, 0, self.a2dTop)
+        self.offA2dTopRight.set_pos(self.a2dRight, 0, self.a2dTop)
+        self.offA2dBottomLeft.set_pos(self.a2dLeft, 0, self.a2dBottom)
+        self.offA2dBottomRight.set_pos(self.a2dRight, 0, self.a2dBottom)
 
         # Initialize onscreen display and controls internal state
         self._help_label = None
         self._watermark = None
         self._legend = None
         self._clock = None
+        self.offGraphicsLens = None
         self.offDisplayRegion = None
         self.zoom_rate = 1.03
         self.camera_lookat = np.zeros(3)
@@ -257,7 +321,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.latitudeDeg = 0.0
 
         # Create resizeable offscreen buffer
-        self._openOffscreenWindow(WINDOW_SIZE_DEFAULT)
+        self._open_offscreen_window(WINDOW_SIZE_DEFAULT)
 
         # Set default options
         self.enable_lights(True)
@@ -268,134 +332,131 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_grid(False)
         self.show_floor(True)
 
-    def _make_light_ambient(self, color):
-        """Must be patched to fix wrong color alpha.
-        """
-        node = super()._make_light_ambient(color)
-        node.getNode(0).set_color(Vec4(*color, 1))
-        return node
-
-    def _make_light_direct(self, index, color, pos, target=(0, 0, 0)):
-        """Must be patched to fix wrong color alpha.
-        """
-        node = super()._make_light_direct(index, color, pos, target)
-        node.getNode(0).set_color(Vec4(*color, 1))
-        return node
-
-    def set_camera_transform(self, pos, quat):
-        self.camera.set_pos(Vec3(*pos))
-        self.camera.setQuat(LQuaternion(quat[-1], *quat[:-1]))
-        self.camera_lookat = np.zeros(3)
-        self.step()  # Update frame on-the-spot
-
     def open_window(self) -> None:
         # Make sure a graphical window is not already open
         if any(isinstance(win, GraphicsWindow) for win in self.winList):
             raise RuntimeError("Only one graphical window can be opened.")
 
-        # Replace the original offscreen window by an onscreen one
-        self.windowType = 'onscreen'
-        size = self.win.getSize()
-        self.openMainWindow()
+        # Replace the original offscreen window by an onscreen one if possible
+        is_success = True
+        size = self.win.get_size()
+        try:
+            self.windowType = 'onscreen'
+            self.open_main_window(size=size)
+        except Exception:   # pylint: disable=broad-except
+            is_success = False
+            self.windowType = 'offscreen'
+            self.open_main_window(size=size)
 
-        # Setup mouse and keyboard controls for onscreen display
-        self._setup_shortcuts()
-        self.disableMouse()
-        self.accept("wheel_up", self.handleKey, ["wheelup", 1])
-        self.accept("wheel_down", self.handleKey, ["wheeldown", 1])
-        for i in range(1, 4):
-            self.accept(f"mouse{i}", self.handleKey, [f"mouse{i}", 1])
-            self.accept(f"mouse{i}-up", self.handleKey, [f"mouse{i}", 0])
-        self.taskMgr.add(
-            self.moveOrbitalCameraTask, "moveOrbitalCameraTask", sort=2)
+        if is_success:
+            # Setup mouse and keyboard controls for onscreen display
+            self._setup_shortcuts()
+            self.disableMouse()
+            self.accept("wheel_up", self.handle_key, ["wheelup", 1])
+            self.accept("wheel_down", self.handle_key, ["wheeldown", 1])
+            for i in range(1, 4):
+                self.accept(f"mouse{i}", self.handle_key, [f"mouse{i}", 1])
+                self.accept(f"mouse{i}-up", self.handle_key, [f"mouse{i}", 0])
+            self.taskMgr.add(
+                self.move_orbital_camera_task, "move_camera_task", sort=2)
+
+            # Limit framerate to reduce computation cost
+            self.set_framerate(PANDA3D_FRAMERATE_MAX)
 
         # Create resizeable offscreen buffer
-        self._openOffscreenWindow(size)
+        self._open_offscreen_window(size)
 
-        # Limit framerate to reduce computation cost
-        self.set_framerate(PANDA3D_FRAMERATE_MAX)
+        # Throw exception if opening display has failed
+        if not is_success:
+            raise RuntimeError(
+                "Impossible to open graphical window. Make sure display is "
+                "available on system.")
 
-    def _openOffscreenWindow(self,
-                             size: Optional[Tuple[int, int]] = None
-                             ) -> None:
+    def _open_offscreen_window(self,
+                               size: Optional[Tuple[int, int]] = None) -> None:
         """Create new completely independent offscreen buffer, rendering the
         same scene than the main window.
         """
         # Handling of default size
         if size is None:
-            size = self.win.getSize()
+            size = self.win.get_size()
 
         # Close existing offscreen display if any.
         # Note that one must remove display region associated with shared 2D
         # renderer, otherwise it will be altered when closing current window.
         if self.buff is not None:
-            self.buff.removeDisplayRegion(self.offDisplayRegion)
-            self.closeWindow(self.buff, keepCamera=False)
+            self.buff.remove_display_region(self.offDisplayRegion)
+            self.close_window(self.buff, keepCamera=False)
 
         # Set offscreen buffer frame properties
         # Note that accumalator bits and back buffers is not supported by
         # resizeable buffers.
-        fprops = FrameBufferProperties(self.win.getFbProperties())
-        fprops.set_accum_bits(0)
-        fprops.set_back_buffers(0)
+        fbprops = FrameBufferProperties(self.win.getFbProperties())
+        fbprops.set_accum_bits(0)
+        fbprops.set_back_buffers(0)
 
         # Set offscreen buffer windows properties
         winprops = WindowProperties()
         winprops.set_size(*size)
 
         # Set offscreen buffer flags to enforce resizeable `GaphicsBuffer`
-        flags = GraphicsPipe.BFRefuseWindow | GraphicsPipe.BFRefuseParasite
-        flags |= GraphicsPipe.BFResizeable
+        flags = GraphicsPipe.BF_refuse_window | GraphicsPipe.BF_refuse_parasite
+        flags |= GraphicsPipe.BF_resizeable
 
         # Create new offscreen buffer.
         # Note that it is impossible to create resizeable buffer without an
         # already existing host for some reason...
-        self.buff = self.graphicsEngine.make_output(
-            self.pipe, "off_buffer", 0, fprops, winprops, flags,
+        win = self.graphicsEngine.make_output(
+            self.pipe, "off_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
 
         # Append buffer to the list of windows managed by the ShowBase
-        self.winList.append(self.buff)
+        self.buff = win
+        self.winList.append(win)
+
+        # Create 3D camera region for the scene.
+        # Set near distance of camera lens to allow seeing model from close.
+        self.offGraphicsLens = PerspectiveLens()
+        self.offGraphicsLens.set_near(0.1)
+        self.make_camera(win, camName='off_camera', lens=self.offGraphicsLens)
 
         # Create 2D display region for widgets
-        self.graphicsLens = PerspectiveLens()
-        self.makeCamera(self.buff, camName='off_cam', lens=self.graphicsLens)
-        self.offDisplayRegion = self.buff.makeMonoDisplayRegion()
-        self.offDisplayRegion.setSort(5)
-        self.offDisplayRegion.setCamera(self.offCamera2d)
+        self.offDisplayRegion = win.makeMonoDisplayRegion()
+        self.offDisplayRegion.set_sort(5)
+        self.offDisplayRegion.set_camera(self.offCamera2d)
 
         # # Adjust aspect ratio
-        self._adjustOffscreenWindowAspectRatio()
+        self._adjust_offscreen_window_aspect_ratio()
 
-    def _adjustOffscreenWindowAspectRatio(self):
+    def _adjust_offscreen_window_aspect_ratio(self) -> None:
         # Get aspect ratio
-        aspectRatio = self.getAspectRatio(self.buff)
+        aspect_ratio = self.get_aspect_ratio(self.buff)
 
         # Adjust 3D rendering aspect ratio
-        self.graphicsLens.setAspectRatio(aspectRatio)
+        self.offGraphicsLens.set_aspect_ratio(aspect_ratio)
 
         # Adjust existing anchors for offscreen 2D rendering
-        if aspectRatio < 1:
+        if aspect_ratio < 1:
             # If the window is TALL, lets expand the top and bottom
-            self.offAspect2d.setScale(1.0, aspectRatio, aspectRatio)
-            a2dTop = 1.0 / aspectRatio
-            a2dBottom = - 1.0 / aspectRatio
+            self.offAspect2d.set_scale(1.0, aspect_ratio, aspect_ratio)
+            a2dTop = 1.0 / aspect_ratio
+            a2dBottom = - 1.0 / aspect_ratio
             a2dLeft = -1
             a2dRight = 1.0
         else:
             # If the window is WIDE, lets expand the left and right
-            self.offAspect2d.setScale(1.0 / aspectRatio, 1.0, 1.0)
+            self.offAspect2d.setScale(1.0 / aspect_ratio, 1.0, 1.0)
             a2dTop = 1.0
             a2dBottom = -1.0
-            a2dLeft = -aspectRatio
-            a2dRight = aspectRatio
+            a2dLeft = -aspect_ratio
+            a2dRight = aspect_ratio
 
-        self.offA2dTopLeft.setPos(a2dLeft, 0, a2dTop)
-        self.offA2dTopRight.setPos(a2dRight, 0, a2dTop)
-        self.offA2dBottomLeft.setPos(a2dLeft, 0, a2dBottom)
-        self.offA2dBottomRight.setPos(a2dRight, 0, a2dBottom)
+        self.offA2dTopLeft.set_pos(a2dLeft, 0, a2dTop)
+        self.offA2dTopRight.set_pos(a2dRight, 0, a2dTop)
+        self.offA2dBottomLeft.set_pos(a2dLeft, 0, a2dBottom)
+        self.offA2dBottomRight.set_pos(a2dRight, 0, a2dBottom)
 
-    def getSize(self, win=None):
+    def getSize(self, win: Optional[Any] = None) -> Tuple[int, int]:
         """Must be patched to return the size of the window used for capturing
         frame by default, instead of main window.
         """
@@ -407,31 +468,31 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         md = self.win.getPointer(0)
         return md.getX(), md.getY()
 
-    def handleKey(self, key, value):
+    def handle_key(self, key: str, value: bool) -> None:
         if key in ["mouse1", "mouse2", "mouse3"]:
             self.lastMouseX, self.lastMouseY = self.getMousePos()
             self.key_map[key] = value
         elif key in ["wheelup", "wheeldown"]:
-            cam_dir = self.camera_lookat - np.asarray(self.camera.getPos())
+            cam_dir = self.camera_lookat - np.asarray(self.camera.get_pos())
             if key == "wheelup":
                 cam_pos = self.camera_lookat - cam_dir / self.zoom_rate
             else:
                 cam_pos = self.camera_lookat - cam_dir * self.zoom_rate
-            self.camera.set_pos(Vec3(*cam_pos.tolist()))
+            self.camera.set_pos(*cam_pos)
 
-    def moveOrbitalCameraTask(self, task):
+    def move_orbital_camera_task(self, task: Any) -> None:
         # Get mouse position
         x, y = self.getMousePos()
 
         # Ensure consistent camera pose and lookat
-        self.longitudeDeg, self.latitudeDeg, _ = self.camera.getHpr()
-        cam_pos = np.asarray(self.camera.getPos())
+        self.longitudeDeg, self.latitudeDeg, _ = self.camera.get_hpr()
+        cam_pos = np.asarray(self.camera.get_pos())
         cam_dir = self.camera_lookat - cam_pos
         cam_dist = np.linalg.norm(cam_dir)
         longitudeRad = self.longitudeDeg * np.pi / 180.0
         latitudeRad = self.latitudeDeg * np.pi / 180.0
-        cam_dir_n = np.array([-np.sin(longitudeRad) * np.cos(latitudeRad),
-                              np.cos(longitudeRad) * np.cos(latitudeRad),
+        cam_dir_n = np.array([-np.sin(longitudeRad)*np.cos(latitudeRad),
+                              np.cos(longitudeRad)*np.cos(latitudeRad),
                               np.sin(latitudeRad)])
         self.camera_lookat = cam_pos + cam_dist * cam_dir_n
 
@@ -456,11 +517,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                                   np.cos(longitudeRad) * np.cos(latitudeRad),
                                   np.sin(latitudeRad)])
             cam_pos = self.camera_lookat - cam_dist * cam_dir_n
-            self.camera.set_pos(Vec3(*cam_pos.tolist()))
-            self.camera.setHpr(self.longitudeDeg, self.latitudeDeg, 0)
+            self.camera.set_pos(*cam_pos)
+            self.camera.set_hpr(self.longitudeDeg, self.latitudeDeg, 0)
         if self.key_map["mouse2"]:
-            cam_pos = cam_pos - cam_dir * (y - self.lastMouseY) * 0.02
-            self.camera.set_pos(Vec3(*cam_pos.tolist()))
+            cam_delta = (y - self.lastMouseY) * 0.02 * cam_dir_n
+            self.camera_lookat -= cam_delta
+            cam_pos -= cam_delta
+            self.camera.set_pos(*cam_pos)
         elif self.key_map["mouse3"]:
             cam_n1 = np.array([np.cos(longitudeRad),
                                np.sin(longitudeRad),
@@ -472,7 +535,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                          (y - self.lastMouseY) * cam_n2) * 0.01
             cam_pos -= pos_shift
             self.camera_lookat -= pos_shift
-            self.camera.set_pos(Vec3(*cam_pos.tolist()))
+            self.camera.set_pos(*cam_pos)
 
         # Store latest mouse position for the next frame
         self.lastMouseX = x
@@ -481,12 +544,31 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # End task
         return task.cont
 
-    def _make_axes(self):
+    def _make_light_ambient(self, color: Tuple3FType) -> NodePath:
+        """Must be patched to fix wrong color alpha.
+        """
+        node = super()._make_light_ambient(color)
+        node.get_node(0).set_color((*color, 1.0))
+        return node
+
+    def _make_light_direct(self,
+                           index: int,
+                           color: Tuple3FType,
+                           pos: Tuple3FType,
+                           target: Tuple3FType = (0.0, 0.0, 0.0)
+                           ) -> NodePath:
+        """Must be patched to fix wrong color alpha.
+        """
+        node = super()._make_light_direct(index, color, pos, target)
+        node.get_node(0).set_color((*color, 1.0))
+        return node
+
+    def _make_axes(self) -> NodePath:
         node = super()._make_axes()
         node.set_scale(0.33)
         return node
 
-    def _make_floor(self):
+    def _make_floor(self) -> NodePath:
         model = GeomNode('floor')
         node = self.render.attach_new_node(model)
         for xi in range(-10, 11):
@@ -502,13 +584,110 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_two_sided(True)
         return node
 
+    def append_cone(self,
+                    root_path: str,
+                    name: str,
+                    radius: float,
+                    length: float,
+                    num_sides: int = 16,
+                    frame: Optional[FrameType] = None) -> None:
+        """Append a cone primitive node to the group.
+        """
+        geom_node = GeomNode("cone")
+        geom_node.add_geom(make_cone(num_sides))
+        node = NodePath(geom_node)
+        node.set_scale(radius, radius, length)
+        self.append_node(root_path, name, node, frame)
+
+    def append_arrow(self,
+                     root_path: str,
+                     name: str,
+                     radius: float,
+                     length: float,
+                     frame: Optional[FrameType] = None) -> None:
+        """Append an arrow primitive node to the group.
+
+        ..note::
+            The arrow is aligned with z-axis in world frame, and the tip is at
+            position (0.0, 0.0, 0.0) in world frame.
+        """
+        arrow_geom = GeomNode("arrow")
+        arrow_node = NodePath(arrow_geom)
+        head = make_cone()
+        head_geom = GeomNode("head")
+        head_geom.addGeom(head)
+        head_node = NodePath(head_geom)
+        head_node.reparent_to(arrow_node.attach_new_node("head"))
+        head_node.set_scale(1.75, 1.75, 3.5*radius)
+        head_node.set_pos(0.0, 0.0, -3.5*radius)
+        body = geometry.make_cylinder()
+        body_geom = GeomNode("body")
+        body_geom.addGeom(body)
+        body_node = NodePath(body_geom)
+        body_node.reparent_to(arrow_node.attach_new_node("body"))
+        body_node.set_scale(1.0, 1.0, length)
+        body_node.set_pos(0.0, 0.0, -length/2-3.5*radius)
+        arrow_node.set_scale(radius, radius, 1.0)
+        self.append_node(root_path, name, arrow_node, frame)
+
+    def append_mesh(self,
+                    root_path: str,
+                    name: str,
+                    mesh_path: str,
+                    scale: Optional[Tuple3FType] = None,
+                    frame: Union[np.ndarray, Tuple[
+                        Union[np.ndarray, Sequence[float]],
+                        Union[np.ndarray, Sequence[float]]]] = None,
+                    no_cache: Optional[bool] = None) -> None:
+        """Append a mesh node to the group.
+
+        :param root_path: Path to the group's root node
+        :param name: Node name within a group
+        :param mesh_path: Path to the mesh file on disk
+        :param scale: Mesh scale.
+                    Optional: No rescaling by default.
+        :param frame: Local frame position and quaternion.
+                      Optional: ((0., 0., 0.), (0., 0., 0., 0.)) by default.
+        :param no_cache: Use cache to load a model.
+                        Optional: may depend on the mesh file.
+        """
+        mesh = self.loader.loadModel(mesh_path, noCache=no_cache)
+        if mesh_path.lower().endswith('.dae'):
+            def parse_xml(xml_path: str) -> Tuple[ET.Element, Dict[str, str]]:
+                xml_iter = ET.iterparse(xml_path, events=["start-ns"])
+                xml_namespaces = dict(prefix_namespace_pair
+                                      for _, prefix_namespace_pair in xml_iter)
+                return xml_iter.root, xml_namespaces
+
+            # Replace non-standard hard drive prefix on Windows
+            if sys.platform.startswith('win'):
+                mesh_path = re.sub(r'^/([A-Za-z])',
+                                   lambda m: m.group(1).upper() + ":",
+                                   mesh_path)
+
+            root, ns = parse_xml(mesh_path)
+            if ns:
+                field_axis = root.find(f".//{{{ns['']}}}up_axis")
+            else:
+                field_axis = root.find(".//up_axis")
+            if field_axis is not None:
+                axis = field_axis.text.lower()
+                if axis == 'z_up':
+                    mesh.set_mat(Mat4.yToZUpMat())
+        if scale is not None:
+            mesh.set_scale(*scale)
+            if sum([s < 0 for s in scale]) % 2 != 0:
+                # reverse the cull order in case of negative scale values
+                mesh.set_attrib(CullFaceAttrib.make_reverse())
+        self.append_node(root_path, name, mesh, frame)
+
     def set_watermark(self,
                       img_fullpath: Optional[str] = None,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> None:
         # Remove existing watermark, if any
         if self._watermark is not None:
-            self._watermark.removeNode()
+            self._watermark.remove_node()
             self._watermark = None
 
         # Do nothing if img_fullpath is not specified
@@ -538,10 +717,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                                         scale=(width_rel, 1, height_rel))
 
         # Add it on secondary window
-        self.offA2dBottomLeft.node().addChild(self._watermark.node())
+        self.offA2dBottomLeft.node().add_child(self._watermark.node())
 
         # Move the watermark in bottom right corner
-        self._watermark.setPos(
+        self._watermark.set_pos(
             WIDGET_MARGIN_REL + width_rel, 0, WIDGET_MARGIN_REL + height_rel)
 
         # Refresh frame
@@ -552,7 +731,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                    ) -> None:
         # Remove existing watermark, if any
         if self._legend is not None:
-            self._legend.removeNode()
+            self._legend.remove_node()
             self._legend = None
 
         # Do nothing if items is not specified
@@ -597,7 +776,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         tex = Texture()
         tex.setup2dTexture(
             width, height, Texture.T_unsigned_byte, Texture.F_rgba8)
-        tex.setRamImage(img_raw)
+        tex.set_ram_image(img_raw)
 
         # Compute relative image size
         width_win, height_win = self.getSize()
@@ -610,15 +789,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                                      scale=(width_rel, 1, height_rel))
 
         # Add it on secondary window
-        self.offA2dTopLeft.node().addChild(self._legend.node())
+        self.offA2dTopLeft.node().add_child(self._legend.node())
 
         # Move the legend in top left corner
-        self._legend.setPos(
+        self._legend.set_pos(
             WIDGET_MARGIN_REL + width_rel, 0, - WIDGET_MARGIN_REL - height_rel)
 
         # Flip the vertical axis and enable transparency
-        self._legend.setTransparency(TransparencyAttrib.MAlpha)
-        self._legend.setTexScale(TextureStage.getDefault(), 1, -1)
+        self._legend.set_transparency(TransparencyAttrib.MAlpha)
+        self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
         # Refresh frame
         self.step()
@@ -627,7 +806,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Remove existing watermark, if any
         if time is None:
             if self._clock is not None:
-                self._clock.removeNode()
+                self._clock.remove_node()
                 self._clock = None
             return
 
@@ -646,16 +825,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 align=TextNode.ARight)
 
             # Add it on secondary window
-            self.offA2dBottomRight.node().addChild(self._clock.node())
+            self.offA2dBottomRight.node().add_child(self._clock.node())
 
             # Fix card margins not uniform
-            self._clock.textNode.setCardAsMargin(0.2, 0.2, 0.05, 0)
-            self._clock.textNode.setFrameAsMargin(0.2, 0.2, 0.05, 0)
+            self._clock.textNode.set_card_as_margin(0.2, 0.2, 0.05, 0)
+            self._clock.textNode.set_frame_as_margin(0.2, 0.2, 0.05, 0)
 
             # Move the clock in bottom right corner
-            card_dims = self._clock.textNode.getCardTransformed()
-            self._clock.setPos(- WIDGET_MARGIN_REL - card_dims[1],
-                               WIDGET_MARGIN_REL - card_dims[2])
+            card_dims = self._clock.textNode.get_card_transformed()
+            self._clock.set_pos(-WIDGET_MARGIN_REL-card_dims[1],
+                                WIDGET_MARGIN_REL-card_dims[2])
 
         # Update clock values
         hours, remainder = divmod(time, 3600)
@@ -668,81 +847,86 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Refresh frame
         self.step()
 
-    def append_mesh(self,
-                    root_path: str,
-                    name: str,
-                    mesh_path: str,
-                    scale: Optional[Tuple[float, float, float]] = None,
-                    frame: Union[np.ndarray, Tuple[
-                        Union[np.ndarray, Sequence[float]],
-                        Union[np.ndarray, Sequence[float]]]] = None,
-                    no_cache: Optional[bool] = None) -> None:
-        """Append a mesh node to the group.
-
-        :param root_path: Path to the group's root node
-        :param name: Node name within a group
-        :param mesh_path: Path to the mesh file on disk
-        :param scale: Mesh scale.
-                    Optional: No rescaling by default.
-        :param frame: Local frame position and quaternion.
-                      Optional: ((0., 0., 0.), (0., 0., 0., 0.)) by default.
-        :param no_cache: Use cache to load a model.
-                        Optional: may depend on the mesh file.
+    def set_material(self,
+                     root_path: str,
+                     name: str,
+                     color: Optional[Tuple4FType] = None,
+                     texture_path: str = '',
+                     disable_material: bool = False) -> None:
+        """Must be patched to avoid raising an exception if node does not
+        exist, and to clear color if not specified. In addition, an optional
+        argument to disable texture and has been added.
         """
-        mesh = self.loader.loadModel(mesh_path, noCache=no_cache)
-        if mesh_path.lower().endswith('.dae'):
-            def parse_xml(xml_path: str) -> Tuple[ET.Element, Dict[str, str]]:
-                xml_iter = ET.iterparse(xml_path, events=["start-ns"])
-                xml_namespaces = dict(prefix_namespace_pair
-                                      for _, prefix_namespace_pair in xml_iter)
-                return xml_iter.root, xml_namespaces
-
-            # Replace non-standard hard drive prefix on Windows
-            if sys.platform.startswith('win'):
-                mesh_path = re.sub(r'^/([A-Za-z])',
-                                   lambda m: m.group(1).upper() + ":",
-                                   mesh_path)
-
-            root, ns = parse_xml(mesh_path)
-            if ns:
-                field_axis = root.find(f".//{{{ns['']}}}up_axis")
+        node = self._groups[root_path].find(name)
+        if node:
+            if disable_material:
+                node.set_texture_off(1)
             else:
-                field_axis = root.find(".//up_axis")
-            if field_axis is not None:
-                axis = field_axis.text.lower()
-                if axis == 'z_up':
-                    mesh.set_mat(Mat4.yToZUpMat())
-        if scale is not None:
-            mesh.set_scale(scale)
-            if sum([s < 0 for s in scale]) % 2 != 0:
-                # reverse the cull order in case of negative scale values
-                mesh.set_attrib(CullFaceAttrib.make_reverse())
-        self.append_node(root_path, name, mesh, frame)
+                node.clear_texture()
+                node.clear_material()
+            super().set_material(root_path, name, color, texture_path)
+            if color is None:
+                node.clear_color()
 
-    def enable_shadow(self, enable: bool) -> None:
-        for light in self._lights:
-            if not light.node().is_ambient_light():
-                light.node().set_shadow_caster(enable)
-        self.render.set_depth_offset(-4 if enable else 0)
-        self._shadow_enabled = enable
+    def move_node(self,
+                  root_path: str,
+                  name: str,
+                  frame: FrameType) -> None:
+        """Set pose of a single node.
+        """
+        node = self._groups[root_path].find(name).children[0]
+        if isinstance(frame, np.ndarray):
+            node.set_mat(Mat4(*frame.T.flat))
+        else:
+            pos, quat = frame
+            node.set_pos_quat(Vec3(*pos), Quat(*quat))
+
+    def set_scale(self,
+                  root_path: str,
+                  name: str,
+                  scale: Optional[Tuple3FType] = None) -> None:
+        """Override scale of node of a node.
+        """
+        node = self._groups[root_path].find(name).children[0]
+        node.set_scale(*scale)
+
+    def set_scales(self, root_path, name_scales_dict):
+        """Override scale of nodes within a group.
+        """
+        for name, scale in name_scales_dict.items():
+            self.set_scale(root_path, name, scale)
+
+    def remove_node(self, root_path: str, name: str) -> None:
+        """Remove a signle node from the scene.
+        """
+        node = self._groups[root_path].find(name)
+        if node:
+            node.remove_node()
+
+    def set_camera_transform(self,
+                             pos: Tuple3FType,
+                             quat: np.ndarray) -> None:
+        self.camera.set_pos(*pos)
+        self.camera.set_quat(LQuaternion(quat[-1], *quat[:-1]))
+        self.camera_lookat = np.zeros(3)
+        self.step()  # Update frame on-the-spot
 
     def set_window_size(self, width: int, height: int) -> None:
         self.buff.setSize(width, height)
-        self._adjustOffscreenWindowAspectRatio()
+        self._adjust_offscreen_window_aspect_ratio()
         self.step()  # Update frame on-the-spot
 
-    def set_framerate(self,
-                      framerate: Optional[float] = None) -> None:
+    def set_framerate(self, framerate: Optional[float] = None) -> None:
         """Limit framerate of Panda3d to avoid consuming too much ressources.
 
         :param framerate: Desired framerate limit. None to disable.
                           Optional: Disable framerate limit by default.
         """
         if framerate is not None:
-            self.clock.setMode(ClockObject.MLimited)
-            self.clock.setFrameRate(PANDA3D_FRAMERATE_MAX)
+            self.clock.set_mode(ClockObject.MLimited)
+            self.clock.set_frame_rate(PANDA3D_FRAMERATE_MAX)
         else:
-            self.clock.setMode(ClockObject.MNormal)
+            self.clock.set_mode(ClockObject.MNormal)
         self.framerate = framerate
 
     def get_framerate(self) -> Optional[float]:
@@ -793,20 +977,27 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         array = np.frombuffer(image, np.uint8).reshape((ysize, xsize, dsize))
         return np.flipud(array)
 
+    def enable_shadow(self, enable: bool) -> None:
+        for light in self._lights:
+            if not light.node().is_ambient_light():
+                light.node().set_shadow_caster(enable)
+        self.render.set_depth_offset(-1 if enable else 0)
+        self._shadow_enabled = enable
+
 
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
-    def __getstate__(self):
+    def __getstate__(self) -> dict:
         """Required for Windows support, which uses spawning instead of forking
         to create subprocesses, requiring pickling of process instance.
         """
         return vars(self)
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: dict) -> None:
         """Must be defined for the same reason than `__getstate__`.
         """
         vars(self).update(state)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Callable:
         """Must be overloaded to catch closed window to avoid deadlock.
         """
         def _send(*args, **kwargs):
@@ -823,13 +1014,21 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
 
         return _send
 
-    def run(self):
+    def run(self) -> None:
         """Must be patched to use Jiminy ViewerApp instead of the original one.
         """
         panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
-        super().run()
+        return super().run()
 
 panda3d_viewer.viewer_proxy.ViewerAppProxy = Panda3dProxy  # noqa
+
+
+def delegate(self, name: str) -> Any:
+    return getattr(self.__getattribute__('_app'), name)
+
+
+Panda3dViewer.__getattr__ = delegate
+delattr(Panda3dViewer, 'set_material')
 
 
 class Panda3dVisualizer(BaseVisualizer):
@@ -841,7 +1040,7 @@ class Panda3dVisualizer(BaseVisualizer):
     """  # noqa: E501
     def initViewer(self,
                    viewer: Optional[Panda3dViewer] = None,
-                   loadModel: bool = False):
+                   loadModel: bool = False) -> None:
         """Init the viewer by attaching to / creating a GUI viewer.
         """
         self.visual_group = None
@@ -872,21 +1071,52 @@ class Panda3dVisualizer(BaseVisualizer):
                                  color: Optional[np.ndarray] = None) -> None:
         """Load a single geometry object
         """
+        # Skip ground plane
+        if geometry_object.name == "ground":
+            return
+
+        # Get node name
         node_name = self.getViewerNodeName(geometry_object, geometry_type)
 
         # Create panda3d object based on the geometry and add it to the scene
         geom = geometry_object.geometry
-        if isinstance(geom, hppfcl.ShapeBase):
+
+        # Try to load mesh from path first, to take advantage of very effective
+        # Panda3d model caching procedure.
+        is_success = True
+        mesh_path = geometry_object.meshPath
+        if '\\' in mesh_path or '/' in mesh_path:
+            # Assuming it is an actual path if it has a least on slash. It is
+            # way faster than actually checking if the path actually exists.
+
+            # Assimp backend used to load meshes does not support many things
+            # related to paths on Windows. First, it does not support symlinks,
+            # then the hard drive prefix must be `/x/` instead of `X:\`, and
+            # finally backslashes must be used as delimiter instead of
+            # forwardslashes.
+            mesh_path = geometry_object.meshPath
+            if sys.platform.startswith('win'):
+                mesh_path = os.path.realpath(mesh_path)
+                mesh_path = PureWindowsPath(mesh_path).as_posix()
+                mesh_path = re.sub(r'^([A-Za-z]):',
+                                   lambda m: "/" + m.group(1).lower(),
+                                   mesh_path)
+            # append a mesh
+            scale = npToTuple(geometry_object.meshScale)
+            self.viewer.append_mesh(*node_name, mesh_path, scale)
+        elif isinstance(geom, hppfcl.ShapeBase):
             # append a primitive geometry
             if isinstance(geom, hppfcl.Capsule):
                 self.viewer.append_capsule(
-                    *node_name, geom.radius, 2 * geom.halfLength)
+                    *node_name, geom.radius, 2.0 * geom.halfLength)
             elif isinstance(geom, hppfcl.Cylinder):
                 self.viewer.append_cylinder(
-                    *node_name, geom.radius, 2 * geom.halfLength)
+                    *node_name, geom.radius, 2.0 * geom.halfLength)
+            elif isinstance(geom, hppfcl.Cone):
+                self.viewer.append_cone(
+                    *node_name, geom.radius, 2.0 * geom.halfLength)
             elif isinstance(geom, hppfcl.Box):
-                size = npToTuple(2. * geom.halfSide)
-                self.viewer.append_box(*node_name, size)
+                self.viewer.append_box(*node_name, 2.0 * geom.halfSide)
             elif isinstance(geom, hppfcl.Sphere):
                 self.viewer.append_sphere(*node_name, geom.radius)
             elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelOBBRSS)):
@@ -921,35 +1151,24 @@ class Panda3dVisualizer(BaseVisualizer):
                 node = NodePath(geom_node)
                 self.viewer._app.append_node(*node_name, node)
             else:
-                msg = "Unsupported geometry type for %s (%s)" % (
-                    geometry_object.name, type(geom))
-                warnings.warn(msg, category=UserWarning, stacklevel=2)
-                return
+                is_success = False
         else:
-            # Assimp backend used to load meshes does not support many things
-            # related to paths on Windows. First, it does not support symlinks,
-            # then the hard drive prefix must be `/x/` instead of `X:\`, and
-            # finally backslashes must be used  as delimiter instead of
-            # forwardslashes.
-            mesh_path = geometry_object.meshPath
-            if sys.platform.startswith('win'):
-                mesh_path = os.path.realpath(mesh_path)
-                mesh_path = PureWindowsPath(mesh_path).as_posix()
-                mesh_path = re.sub(r'^([A-Za-z]):',
-                                   lambda m: "/" + m.group(1).lower(),
-                                   mesh_path)
+            is_success = False
 
-            # append a mesh
-            scale = npToTuple(geometry_object.meshScale)
-            self.viewer.append_mesh(*node_name, mesh_path, scale)
+        # Early return if impossible to load the geometry for some reason
+        if not is_success:
+            warnings.warn(
+                f"Unsupported geometry type for {geometry_object.name} "
+                f"({type(geom)})", category=UserWarning, stacklevel=2)
+            return
 
         # Set material color from URDF
         if color is not None:
             self.viewer.set_material(*node_name, color)
         elif geometry_object.overrideMaterial:
-            rgba = npToTuple(geometry_object.meshColor)
+            color = geometry_object.meshColor
             path = geometry_object.meshTexturePath
-            self.viewer.set_material(*node_name, rgba, path)
+            self.viewer.set_material(*node_name, color, path)
 
     def loadViewerModel(self,
                         rootNodeName: str,

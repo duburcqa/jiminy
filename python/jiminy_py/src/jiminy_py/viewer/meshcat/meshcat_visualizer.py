@@ -232,11 +232,14 @@ class MeshcatVisualizer(BaseVisualizer):
 
         # Create meshcat object based on the geometry
         try:
-            if isinstance(geometry_object.geometry, hppfcl.ShapeBase) or \
-                    not os.path.exists(geometry_object.meshPath):
+            # Trying to load mesh preferably if available
+            mesh_path = geometry_object.meshPath
+            if '\\' in mesh_path or '/' in mesh_path:
+                obj = self.loadMesh(geometry_object)
+            elif isinstance(geometry_object.geometry, hppfcl.ShapeBase):
                 obj = self.loadPrimitive(geometry_object)
             else:
-                obj = self.loadMesh(geometry_object)
+                obj = None
             if obj is None:
                 return
         except Exception as e:

@@ -96,6 +96,7 @@ setup(
         # collision bodies.
         "meshcat>=0.0.19",
         # Standalone mesh visualizer used as Viewer's backend.
+        # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
         "panda3d_viewer",
         # Used internally by Viewer to record video programmatically when
         # Meshcat is not used as rendering backend.
@@ -130,7 +131,10 @@ setup(
           # Render ASCII art diagram (https://aafigure.readthedocs.io)
           "aafigure",
           # Bridge between doxygen and sphinx. Used to generate C++ API docs
-          "breathe"
+          "breathe",
+          # Repair wheels to embed shared libraries.
+          # Since 3.2.0, it is now possible to use custom patcher.
+          "auditwheel>=3.2.0"
       ]
     },
     zip_safe=False

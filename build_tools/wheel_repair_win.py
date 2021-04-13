@@ -19,16 +19,25 @@ from machomachomangler.pe import redll
 
 
 def hash_filename(filepath, blocksize=65536):
-    hasher = hashlib.sha256()
+    # Split original filename from extension
+    root, ext = os.path.splitext(filepath)
+    filename = os.path.basename(root)
 
+    # Do NOT hash filename to make it unique in the particular case of boost
+    # python modules, since otherwise it will be impossible to share a common
+    # registery, which is necessary for cross module interoperability.
+    if "boost_python" in filepath:
+        return f"{filename}{ext}"
+
+    # Compute unique hash based on file's content
+    hasher = hashlib.sha256()
     with open(filepath, "rb") as afile:
         buf = afile.read(blocksize)
         while len(buf) > 0:
             hasher.update(buf)
             buf = afile.read(blocksize)
 
-    root, ext = os.path.splitext(filepath)
-    return f"{os.path.basename(root)}-{hasher.hexdigest()[:8]}{ext}"
+    return f"{filename}-{hasher.hexdigest()[:8]}{ext}"
 
 
 def find_dll_dependencies(dll_filepath, lib_dir):
@@ -99,7 +108,9 @@ for dll, dependencies in dll_dependencies.items():
         rel_path = next(path for path in pyd_rel_paths if path.endswith(dll))
 
     for dep in dependencies:
-        hashed_name = hash_filename(os.path.join(args.DLL_DIR, dep))  # already basename
+        src_path = os.path.join(args.DLL_DIR, dep)
+        hashed_name = hash_filename(src_path)  # already basename
+        new_path = os.path.join(bundle_path, hashed_name)
         if dll.endswith(".pyd"):
             bundle_rel_path = os.path.join(
                 "..\\" * rel_path.count(os.path.sep), bundle_name)
@@ -107,16 +118,15 @@ for dll, dependencies in dll_dependencies.items():
                 bundle_rel_path, hashed_name).encode("ascii")
         else:
             mapping[dep.encode("ascii")] = hashed_name.encode("ascii")
-        shutil.copy(
-            os.path.join(args.DLL_DIR, dep),
-            os.path.join(bundle_path, hashed_name))
+        if not os.path.exists(new_path):
+            shutil.copy2(src_path, new_path)
 
     if dll.endswith(".pyd"):
         old_name = os.path.join(old_wheel_dir, rel_path)
         new_name = os.path.join(new_wheel_dir, rel_path)
     else:
         old_name = os.path.join(args.DLL_DIR, dll)
-        hashed_name = hash_filename(os.path.join(args.DLL_DIR, dll))  # already basename
+        hashed_name = hash_filename(old_name)  # already basename
         new_name = os.path.join(bundle_path, hashed_name)
 
     mangle_filename(old_name, new_name, mapping)

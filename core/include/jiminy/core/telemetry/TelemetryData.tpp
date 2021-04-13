@@ -46,7 +46,7 @@ namespace jiminy
 
         if ((header->nextFreeNameOffset + static_cast<int64_t>(variableName.size()) + 1) >= header->startDataSection)
         {
-            PRINT_ERROR("Unspecified error.");  // TODO: write an appropriate error message
+            PRINT_ERROR("Trying to allocate too much memory to hold constants and variable names.");
             return hresult_t::ERROR_GENERIC;
         }
 

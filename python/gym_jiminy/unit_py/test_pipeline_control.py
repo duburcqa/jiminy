@@ -1,10 +1,15 @@
 """ TODO: Write documentation
 """
 import os
+import io
+import base64
 import warnings
 import unittest
+from glob import glob
+
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 
 from jiminy_py.core import EncoderSensor as encoder
 from jiminy_py.viewer import Viewer
@@ -47,16 +52,12 @@ class PipelineControl(unittest.TestCase):
         # Get the final posture of the robot as an RGB array
         rgb_array = self.env.render(mode='rgb_array')
 
-        # Check that the final posture matches the expected one.
-        robot_name = self.env.robot.name
-        i = 0
+        # Check that the final posture matches the expected one
+        data_dir = os.path.join(os.path.dirname(__file__), "data")
+        img_prefix = '_'.join((
+            self.env.robot.name, "standing", self.env.viewer.backend, "*"))
         img_diff = np.inf
-        while img_diff > 0.1:
-            img_name = '_'.join((
-                robot_name, f"standing_{self.env.viewer.backend}_{i}.png"))
-            data_dir = os.path.join(os.path.dirname(__file__), "data")
-            img_fullpath = os.path.join(data_dir, img_name)
-            # plt.imsave(img_fullpath, rgb_array)
+        for img_fullpath in glob(os.path.join(data_dir, img_prefix)):
             try:
                 rgba_array_rel_orig = plt.imread(img_fullpath)
             except FileNotFoundError:
@@ -64,7 +65,15 @@ class PipelineControl(unittest.TestCase):
             rgb_array_abs_orig = (
                 rgba_array_rel_orig[..., :3] * 255).astype(np.uint8)
             img_diff = np.mean(np.abs(rgb_array - rgb_array_abs_orig))
-            i += 1
+            if img_diff < 0.1:
+                break
+        if img_diff > 0.1:
+            img_obj = Image.fromarray(rgb_array)
+            raw_bytes = io.BytesIO()
+            img_obj.save(raw_bytes, "PNG")
+            raw_bytes.seek(0)
+            print(f"{self.env.robot.name} - {self.env.viewer.backend}:",
+                  base64.b64encode(raw_bytes.read()))
         self.assertTrue(img_diff < 0.1)
 
         # Get the simulation log
@@ -85,7 +94,8 @@ class PipelineControl(unittest.TestCase):
         self.assertTrue(np.all(np.abs(velocity_mes[time > 4.0]) < 1e-3))
 
     def test_pid_standing(self):
-        for Env in [AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv]:
-            self.env = Env(debug=False)
-            self._test_pid_standing()
-            Viewer.close()
+        for backend in ['meshcat', 'panda3d']:
+            for Env in [AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv]:
+                self.env = Env(debug=False, viewer_backend=backend)
+                self._test_pid_standing()
+                Viewer.close()

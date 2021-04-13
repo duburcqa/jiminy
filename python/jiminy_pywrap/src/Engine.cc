@@ -50,6 +50,10 @@ namespace python
                                         bp::return_value_policy<bp::return_by_value>()))
             .add_property("frame_idx", bp::make_getter(&forceProfile_t::frameIdx,
                                        bp::return_value_policy<bp::return_by_value>()))
+            .add_property("update_period", bp::make_getter(&forceProfile_t::updatePeriod,
+                                           bp::return_value_policy<bp::return_by_value>()))
+            .add_property("force_prev", bp::make_getter(&forceProfile_t::forcePrev,
+                                        bp::return_internal_reference<>()))
             .add_property("force_func", forceProfileWrapper);
 
         /* Note that it will be impossible to slice the vector if `boost::noncopyable` is set
@@ -461,7 +465,8 @@ namespace python
                     (bp::arg("self")))
                 .def("register_force_profile", &PyEngineMultiRobotVisitor::registerForceProfile,
                                                (bp::arg("self"), "system_name",
-                                                "frame_name", "force_function"))
+                                                "frame_name", "force_function",
+                                                bp::arg("update_period") = 0.0))
                 .def("remove_forces_profile",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(std::string const &)
@@ -656,10 +661,11 @@ namespace python
         static void registerForceProfile(EngineMultiRobot       & self,
                                          std::string      const & systemName,
                                          std::string      const & frameName,
-                                         bp::object       const & forcePy)
+                                         bp::object       const & forcePy,
+                                         float64_t        const & updatePeriod)
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            self.registerForceProfile(systemName, frameName, std::move(forceFct));
+            self.registerForceProfile(systemName, frameName, std::move(forceFct), updatePeriod);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -897,7 +903,8 @@ namespace python
                 .def("register_force_impulse", &PyEngineVisitor::registerForceImpulse,
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
                 .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
-                                               (bp::arg("self"), "frame_name", "force_function"))
+                                               (bp::arg("self"), "frame_name", "force_function",
+                                                bp::arg("update_period") = 0.0))
                 .def("register_force_coupling", &PyEngineVisitor::registerForceCoupling,
                                                 (bp::arg("self"), "frame_name_1", "frame_name_2", "force_function"))
                 .def("register_viscoelastic_force_coupling",
@@ -984,10 +991,11 @@ namespace python
 
         static void registerForceProfile(Engine            & self,
                                          std::string const & frameName,
-                                         bp::object  const & forcePy)
+                                         bp::object  const & forcePy,
+                                         float64_t   const & updatePeriod)
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            self.registerForceProfile(frameName, std::move(forceFct));
+            self.registerForceProfile(frameName, std::move(forceFct), updatePeriod);
         }
 
         static hresult_t registerForceCoupling(Engine            & self,

@@ -16,9 +16,12 @@ namespace jiminy
 
     forceProfile_t::forceProfile_t(std::string           const & frameNameIn,
                                    int32_t               const & frameIdxIn,
+                                   float64_t             const & updatePeriodIn,
                                    forceProfileFunctor_t const & forceFctIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
+    updatePeriod(updatePeriodIn),
+    forcePrev(pinocchio::Force::Zero()),
     forceFct(forceFctIn)
     {
         // Empty on purpose
@@ -141,6 +144,19 @@ namespace jiminy
     bool_t const & systemState_t::getIsInitialized(void) const
     {
         return isInitialized_;
+    }
+
+    void systemState_t::clear(void)
+    {
+        q = vectorN_t();
+        v = vectorN_t();
+        a = vectorN_t();
+        command = vectorN_t();
+        u = vectorN_t();
+        uMotor = vectorN_t();
+        uInternal = vectorN_t();
+        uCustom = vectorN_t();
+        fExternal.clear();
     }
 
     // ===============================================

@@ -6,6 +6,8 @@
 
 #include "json/json.h"
 
+#include "pinocchio/multibody/fcl.hpp"
+
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
@@ -104,6 +106,13 @@ namespace jiminy
                                                     pinocchio::Data  const & data,
                                                     int32_t          const & frameIdx,
                                                     pinocchio::Force const & fextInGlobal);
+
+    void buildGeom(pinocchio::Model const & model,
+                   std::string const & filename,
+                   pinocchio::GeometryType const & type,
+                   pinocchio::GeometryModel & geomModel,
+                   std::vector<std::string> const & package_dirs,
+                   bool_t const & loadMeshes = false);
 }
 
 #endif  // JIMINY_PINOCCHIO_H

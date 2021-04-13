@@ -20,6 +20,11 @@ if(NOT DEFINED PYTHON_EXECUTABLE)
         endif()
         set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
     endif()
+else()
+    find_program(PYTHON_EXECUTABLE python PATHS "${PYTHON_EXECUTABLE}" NO_DEFAULT_PATH)
+    if(NOT PYTHON_EXECUTABLE)
+        message(FATAL_ERROR "User-specified Python executable not valid, CMake will exit.")
+    endif()
 endif()
 
 execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c

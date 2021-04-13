@@ -32,16 +32,19 @@ sudo -u $(id -nu "$SUDO_UID") python3 -m pip install wheel && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install "numpy>=1.16"
 
 # Install Python 3 toolsuite for testing and documentation generation
+sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade setuptools auditwheel && \
+sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade flake8 pylint mypy && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade \
-    setuptools pygments colorama \
-    flake8 pylint mypy \
-    sphinx sphinx_rtd_theme recommonmark nbsphinx breathe aafigure
+    pygments colorama sphinx sphinx_rtd_theme recommonmark nbsphinx breathe aafigure
 
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc
 
 # Install some additional dependencies
 apt install -y libeigen3-dev libboost-all-dev liboctomap-dev
+
+# Install OpenGL
+apt install -y mesa-utils
 
 # Install robotpkg tools suite
 if ! [ -d "/opt/openrobots/lib/${PYTHON_BIN}/site-packages/" ] ; then

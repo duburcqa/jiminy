@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <numeric>
 
 
 namespace jiminy
@@ -14,14 +15,7 @@ namespace jiminy
     template<typename T0, typename T1, typename... Ts>
     typename std::common_type<T0, T1, Ts...>::type min(T0 && val1, T1 && val2, Ts &&... vs)
     {
-        if (val2 < val1)
-        {
-            return min(val2, std::forward<Ts>(vs)...);
-        }
-        else
-        {
-            return min(val1, std::forward<Ts>(vs)...);
-        }
+        return min(std::min(val1, val2), std::forward<Ts>(vs)...);
     }
 
     template<typename DerivedType>
@@ -42,6 +36,127 @@ namespace jiminy
                                           Eigen::MatrixBase<DerivedType2> const & maxThr)
     {
         return data.array().max(minThr).min(maxThr);
+    }
+
+    inline float64_t minClipped(void)
+    {
+        return INF;
+    }
+
+    inline float64_t minClipped(float64_t val)
+    {
+        if (val > EPS)
+        {
+            return std::forward<float64_t>(val);
+        }
+        return INF;
+    }
+
+    template<typename... Args>
+    float64_t minClipped(float64_t val1, float64_t val2, Args... vs)
+    {
+        bool_t const isValid1 = val1 > EPS;
+        bool_t const isValid2 = val2 > EPS;
+        if (isValid1 && isValid2)
+        {
+            return minClipped(std::min(val1, val2), std::forward<Args>(vs)...);
+        }
+        else if (isValid2)
+        {
+            return minClipped(val2, std::forward<Args>(vs)...);
+        }
+        else if (isValid1)
+        {
+            return minClipped(val1, std::forward<Args>(vs)...);
+        }
+        return minClipped(std::forward<Args>(vs)...);
+    }
+
+    template<typename ...Args>
+    std::tuple<bool_t, float64_t> isGcdIncluded(Args... values)
+    {
+        float64_t const minValue = minClipped(std::forward<Args>(values)...);
+        if (!std::isfinite(minValue))
+        {
+            return {true, INF};
+        }
+        auto lambda = [&minValue](float64_t const & value)
+        {
+            if (value < EPS)
+            {
+                return true;
+            }
+            return std::fmod(value, minValue) < EPS;
+        };
+        return {(... && lambda(values)), minValue};  // Taking advantage of C++17 "fold expression"
+    }
+
+    template<typename InputIt, typename UnaryFunction>
+    std::enable_if_t<is_iterator_v<InputIt> && is_unary_functor_v<InputIt, UnaryFunction>,
+        std::tuple<bool_t, float64_t> >
+    isGcdIncluded(InputIt first, InputIt last, UnaryFunction f)
+    {
+        // `transform_reduce` is par of C++17 but not available on gcc version available by default on Ubuntu 18
+        // float64_t const minValue = std::transform_reduce(first, last, f, INF, std::min<float64_t>, f);
+        float64_t const minValue = std::accumulate(first, last, INF,
+            [&f](float64_t const & value, typename std::iterator_traits<InputIt>::value_type const & elem)
+            {
+                return minClipped(f(elem), value);
+            });
+        if (!std::isfinite(minValue))
+        {
+            return {true, INF};
+        }
+        auto lambda = [&minValue, &f](typename std::iterator_traits<InputIt>::value_type const & elem)
+        {
+            float64_t const value = f(elem);
+            if (value < EPS)
+            {
+                return true;
+            }
+            return std::fmod(value, minValue) < EPS;
+        };
+        return {std::all_of(first, last, lambda), minValue};
+    }
+
+    template<typename InputIt, typename UnaryFunction, typename ...Args>
+    std::enable_if_t<is_iterator_v<InputIt> && is_unary_functor_v<InputIt, UnaryFunction>,
+        std::tuple<bool_t, float64_t> >
+    isGcdIncluded(InputIt first, InputIt last, UnaryFunction f, Args... values)
+    {
+        auto [isIncluded1, value1] = isGcdIncluded(std::forward<Args>(values)...);
+        auto [isIncluded2, value2] = isGcdIncluded(first, last, f);
+        if (!isIncluded1 || !isIncluded2)
+        {
+            return {false, INF};
+        }
+        if (value1 < value2)  // inf < inf : false
+        {
+            if (!std::isfinite(value2))
+            {
+                return {true, value1};
+            }
+            return {std::fmod(value2, value1) < EPS, value1};
+        }
+        else
+        {
+            if (!std::isfinite(value2))
+            {
+                if (std::isfinite(value1))
+                {
+                    return {true, value1};
+                }
+                return {true, INF};
+            }
+            return {std::fmod(value1, value2) < EPS, value2};
+        }
+    }
+
+    template<typename InputIt>
+    std::enable_if_t<is_iterator_v<InputIt>, bool_t>
+    isGcdIncluded(InputIt first, InputIt last)
+    {
+        return isGcdIncluded(first, last, [](float64_t const & x) -> float64_t { return x; });
     }
 
     // ******************** Std::vector helpers *********************

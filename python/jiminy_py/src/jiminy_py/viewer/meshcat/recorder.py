@@ -331,7 +331,7 @@ class MeshcatRecorder:
     def _send_request(self,
                       request: str,
                       message: Optional[str] = None,
-                      timeout: float = 10.0) -> None:
+                      timeout: float = 15.0) -> None:
         if not self.is_open:
             raise RuntimeError(
                 "Meshcat recorder is not open. Impossible to send requests.")

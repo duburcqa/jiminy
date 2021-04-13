@@ -51,7 +51,7 @@ namespace jiminy
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
     stepper_(),
-    stepperUpdatePeriod_(-1),
+    stepperUpdatePeriod_(INF),
     stepperState_(),
     systemsDataHolder_(),
     forcesCoupling_(),
@@ -814,6 +814,9 @@ namespace jiminy
                 systemData.forcesImpulseActive.clear();
                 systemData.forcesProfile.clear();
             }
+            stepperUpdatePeriod_ = std::get<1>(isGcdIncluded(
+                engineOptions_->stepper.sensorsUpdatePeriod,
+                engineOptions_->stepper.controllerUpdatePeriod));
         }
 
         // Reset the random number generators
@@ -827,6 +830,13 @@ namespace jiminy
         {
             system.robot->reset();
             system.controller->reset();
+        }
+
+        // Clear system state buffers, since the robot kinematic may change
+        for (auto & systemData : systemsDataHolder_)
+        {
+            systemData.state.clear();
+            systemData.statePrev.clear();
         }
     }
 
@@ -1515,11 +1525,11 @@ namespace jiminy
                 break;
             }
 
-            // Perform a single integration step up to tEnd, stopping at stepperUpdatePeriod_ to log.
+            // Perform a single integration step up to tEnd, stopping at stepperUpdatePeriod_ to log
             float64_t stepSize;
-            if (stepperUpdatePeriod_ > EPS)
+            if (std::isfinite(stepperUpdatePeriod_))
             {
-                stepSize = min(stepperUpdatePeriod_ , tEnd - stepperState_.t);
+                stepSize = min(stepperUpdatePeriod_, tEnd - stepperState_.t);
             }
             else
             {
@@ -1709,8 +1719,34 @@ namespace jiminy
                 }
             }
 
+            // Update the external force profiles if necessary (only for finite update frequency)
+            if (std::isfinite(stepperUpdatePeriod_))
+            {
+                auto systemIt = systems_.begin();
+                auto systemDataIt = systemsDataHolder_.begin();
+                for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+                {
+                    for (auto & forceProfile : systemDataIt->forcesProfile)
+                    {
+                        if (forceProfile.updatePeriod > EPS)
+                        {
+                            float64_t const & forceUpdatePeriod = forceProfile.updatePeriod;
+                            float64_t dtNextForceUpdatePeriod = forceUpdatePeriod - std::fmod(t, forceUpdatePeriod);
+                            if (dtNextForceUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                            || forceUpdatePeriod - dtNextForceUpdatePeriod < STEPPER_MIN_TIMESTEP)
+                            {
+                                vectorN_t const & q = systemDataIt->state.q;
+                                vectorN_t const & v = systemDataIt->state.v;
+                                forceProfile.forcePrev = forceProfile.forceFct(t, q, v);
+                                hasDynamicsChanged = true;
+                            }
+                        }
+                    }
+                }
+            }
+
             // Update the controller command if necessary (only for finite update frequency)
-            if (stepperUpdatePeriod_ > EPS && engineOptions_->stepper.controllerUpdatePeriod > EPS)
+            if (std::isfinite(stepperUpdatePeriod_) && engineOptions_->stepper.controllerUpdatePeriod > EPS)
             {
                 float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
                 float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
@@ -1741,9 +1777,9 @@ namespace jiminy
                natural since it preserves the consistency between sensors data and
                robot state.
                */
-            if (stepperUpdatePeriod_ < EPS || !engineOptions_->stepper.logInternalStepperSteps)
+            if (!std::isfinite(stepperUpdatePeriod_) || !engineOptions_->stepper.logInternalStepperSteps)
             {
-                bool mustUpdateTelemetry = stepperUpdatePeriod_ < EPS;
+                bool mustUpdateTelemetry = !std::isfinite(stepperUpdatePeriod_);
                 if (!mustUpdateTelemetry)
                 {
                     float64_t dtNextStepperUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
@@ -1757,7 +1793,7 @@ namespace jiminy
             }
 
             // Fix the FSAL issue if the dynamics has changed
-            if (stepperUpdatePeriod_ < EPS && hasDynamicsChanged)
+            if (!std::isfinite(stepperUpdatePeriod_) && hasDynamicsChanged)
             {
                 computeSystemsDynamics(t, qSplit, vSplit, aSplit);
                 computeAllExtraTerms(systems_, systemsDataHolder_);
@@ -1766,7 +1802,7 @@ namespace jiminy
                 hasDynamicsChanged = false;
             }
 
-            if (stepperUpdatePeriod_ > EPS)
+            if (std::isfinite(stepperUpdatePeriod_))
             {
                 /* Get the time of the next breakpoint for the ODE solver:
                    a breakpoint occurs if we reached tEnd, if an external force
@@ -2121,6 +2157,12 @@ namespace jiminy
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
+        if (frameName == "universe")
+        {
+            PRINT_ERROR("Impossible to apply external forces to the universe itself!");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
         int32_t systemIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -2146,9 +2188,27 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::registerForceProfile(std::string           const & systemName,
-                                                     std::string           const & frameName,
-                                                     forceProfileFunctor_t         forceFct)
+    template<typename ...Args>
+    std::tuple<bool_t, float64_t> isGcdIncluded(std::vector<systemDataHolder_t> const & systemsDataHolder, Args... values)
+    {
+        float64_t minValue = INF;
+        auto lambda = [&minValue, &values...](systemDataHolder_t const & systemData)
+        {
+            auto [isIncluded, value] = isGcdIncluded(
+                systemData.forcesProfile.begin(),
+                systemData.forcesProfile.end(),
+                [](forceProfile_t const & force) { return force.updatePeriod; },
+                std::forward<Args>(values)...);
+            minValue = minClipped(minValue, value);
+            return isIncluded;
+        };
+        return {std::all_of(systemsDataHolder.begin(), systemsDataHolder.end(), lambda), minValue};
+    }
+
+    hresult_t EngineMultiRobot::registerForceProfile(std::string const & systemName,
+                                                     std::string const & frameName,
+                                                     forceProfileFunctor_t const & forceFct,
+                                                     float64_t const & updatePeriod)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -2164,6 +2224,12 @@ namespace jiminy
             returnCode = getSystemIdx(systemName, systemIdx);
         }
 
+        if (frameName == "universe")
+        {
+            PRINT_ERROR("Impossible to apply external forces to the universe itself!");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
         int32_t frameIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -2171,10 +2237,44 @@ namespace jiminy
             returnCode = getFrameIdx(system.robot->pncModel_, frameName, frameIdx);
         }
 
+        // Make sure the update period is valid
         if (returnCode == hresult_t::SUCCESS)
         {
+            if ((EPS < updatePeriod && updatePeriod < SIMULATION_MIN_TIMESTEP)
+            || updatePeriod > SIMULATION_MAX_TIMESTEP
+            || (EPS < updatePeriod && updatePeriod < SIMULATION_MIN_TIMESTEP)
+            || updatePeriod > SIMULATION_MAX_TIMESTEP)
+            {
+                PRINT_ERROR("Cannot regsiter external force profile with update period smaller than ",
+                            SIMULATION_MIN_TIMESTEP, "s or larger than ", SIMULATION_MAX_TIMESTEP,
+                            "s. Adjust period or switch to continuous mode by setting period to zero.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        // Make sure the desired update period is a multiple of the stepper period
+        auto [isIncluded, minUpdatePeriod] = isGcdIncluded(
+            systemsDataHolder_, stepperUpdatePeriod_, updatePeriod);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (!isIncluded)
+            {
+                PRINT_ERROR("In discrete mode, the update period of force profiles and the stepper "
+                            "update period (min of controller and sensor update periods) must be "
+                            "multiple of each other.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Set breakpoint period during the integration loop
+            stepperUpdatePeriod_ = minUpdatePeriod;
+
+            // Add force profile to register
             systemDataHolder_t & systemData = systemsDataHolder_[systemIdx];
-            systemData.forcesProfile.emplace_back(frameName, frameIdx, std::move(forceFct));
+            systemData.forcesProfile.emplace_back(
+                frameName, frameIdx, updatePeriod, forceFct);
         }
 
         return returnCode;
@@ -2242,8 +2342,15 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Remove force profile from register
             systemDataHolder_t & systemData = systemsDataHolder_[systemIdx];
             systemData.forcesProfile.clear();
+
+            // Set breakpoint period during the integration loop
+            stepperUpdatePeriod_ = std::get<1>(isGcdIncluded(
+                systemsDataHolder_,
+                engineOptions_->stepper.sensorsUpdatePeriod,
+                engineOptions_->stepper.controllerUpdatePeriod));
         }
 
         return hresult_t::SUCCESS;
@@ -2355,11 +2462,13 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Make sure the controller and sensor update periods are multiple of each other
+        // Make sure the controller and sensor update periods are valid
         float64_t const & sensorsUpdatePeriod =
             boost::get<float64_t>(stepperOptions.at("sensorsUpdatePeriod"));
         float64_t const & controllerUpdatePeriod =
             boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod"));
+        auto [isIncluded, minUpdatePeriod] = isGcdIncluded(
+            systemsDataHolder_, controllerUpdatePeriod, sensorsUpdatePeriod);
         if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         || sensorsUpdatePeriod > SIMULATION_MAX_TIMESTEP
         || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
@@ -2367,17 +2476,10 @@ namespace jiminy
         {
             PRINT_ERROR("Cannot simulate a discrete system with update period smaller than ",
                         SIMULATION_MIN_TIMESTEP, "s or larger than ", SIMULATION_MAX_TIMESTEP,
-                        "s. Increase period or switch to continuous mode by setting period to zero.");
+                        "s. Adjust period or switch to continuous mode by setting period to zero.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
-        // to verify that b devides a with a tolerance EPS, we need to verify that a % b \in [-EPS, EPS] -
-        // however since std::fmod yields values in [0, b[, this interval maps to [O, EPS] \union [b - EPS, b[.
-        else if (sensorsUpdatePeriod > EPS && controllerUpdatePeriod > EPS
-        && (std::min(std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod),
-                     sensorsUpdatePeriod - std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod)) > EPS
-            && std::min(std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod),
-                        controllerUpdatePeriod - std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod)) > EPS))
+        else if (!isIncluded)
         {
             PRINT_ERROR("In discrete mode, the controller and sensor update periods must be "
                         "multiple of each other.");
@@ -2428,19 +2530,6 @@ namespace jiminy
             PRINT_ERROR("The contacts option 'transitionVelocity' must be strictly positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        // Compute the breakpoints' period (for command or observation) during the integration loop
-        if (sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
-        {
-            stepperUpdatePeriod_ = controllerUpdatePeriod;
-        }
-        else if (controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
-        {
-            stepperUpdatePeriod_ = sensorsUpdatePeriod;
-        }
-        else
-        {
-            stepperUpdatePeriod_ = std::min(sensorsUpdatePeriod, controllerUpdatePeriod);
-        }
 
         // Make sure the user-defined gravity force has the right dimension
         configHolder_t worldOptions = boost::get<configHolder_t>(engineOptions.at("world"));
@@ -2477,6 +2566,9 @@ namespace jiminy
                 engineOptions_->stepper.tolAbs,
                 engineOptions_->stepper.tolRel);
         }
+
+        // Set breakpoint period during the integration loop
+        stepperUpdatePeriod_ = minUpdatePeriod;
 
         return hresult_t::SUCCESS;
     }
@@ -3287,11 +3379,11 @@ namespace jiminy
     }
 
     void EngineMultiRobot::computeExternalForces(systemHolder_t     const & system,
-                                                 systemDataHolder_t const & systemData,
+                                                 systemDataHolder_t       & systemData,
                                                  float64_t          const & t,
                                                  vectorN_t          const & q,
                                                  vectorN_t          const & v,
-                                                 forceVector_t            & fext) const
+                                                 forceVector_t            & fext)
     {
         // Add the effect of user-defined external impulse forces
         auto forcesImpulseActiveIt = systemData.forcesImpulseActive.begin();
@@ -3313,16 +3405,17 @@ namespace jiminy
             }
         }
 
-        // Add the effect of user-defined external force profiles
-        for (auto const & forceProfile : systemData.forcesProfile)
+        // Add the effect of time-continuous external force profiles
+        for (auto & forceProfile : systemData.forcesProfile)
         {
             int32_t const & frameIdx = forceProfile.frameIdx;
             int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            forceProfileFunctor_t const & forceFct = forceProfile.forceFct;
-
-            pinocchio::Force const force = forceFct(t, q, v);
+            if (forceProfile.updatePeriod < EPS)
+            {
+                forceProfile.forcePrev = forceProfile.forceFct(t, q, v);
+            }
             fext[parentJointIdx] += convertForceGlobalFrameToJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, force);
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, forceProfile.forcePrev);
         }
     }
 
@@ -3468,7 +3561,7 @@ namespace jiminy
             /* Update the sensor data if necessary (only for infinite update frequency).
                Note that it is impossible to have access to the current accelerations
                and efforts since they depend on the sensor values themselves. */
-            if (engineOptions_->stepper.sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
+            if (engineOptions_->stepper.sensorsUpdatePeriod < EPS)
             {
                 // Roll back to forces and accelerations computed at previous iteration
                 fPrevIt->swap(systemIt->robot->pncData_.f);
@@ -3484,7 +3577,7 @@ namespace jiminy
 
             /* Update the controller command if necessary (only for infinite update frequency).
                Make sure that the sensor state has been updated beforehand. */
-            if (engineOptions_->stepper.controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
+            if (engineOptions_->stepper.controllerUpdatePeriod < EPS)
             {
                 command.setZero();
                 computeCommand(*systemIt, t, *qIt, *vIt, command);

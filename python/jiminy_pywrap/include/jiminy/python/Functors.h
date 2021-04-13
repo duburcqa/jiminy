@@ -149,6 +149,7 @@ namespace python
 
         OutputArg const & operator() (InputArgs const & ... args)
         {
+            PyArray_FILLWBYTE(reinterpret_cast<PyArrayObject *>(outPyPtr_), 0);  // Reset to 0 systematically
             bp::handle<> outPy(bp::borrowed(outPyPtr_));
             funcPyPtr_(FctPyWrapperArgToPython(args)..., outPy);
             return *outPtr_;

@@ -233,8 +233,8 @@ class CommManager:
         # `comm.on_msg` will NOT triggered automatically. It is only triggered
         # automatically once every other tacks has been process. The workaround
         # is to interleave blocking code with call of `kernel.do_one_iteration`
-        # or `await kernel.process_one(wait=True)`. See Stackoverflow for ref.
-        # https://stackoverflow.com/questions/63651823/direct-communication-between-javascript-in-jupyter-and-server-via-ipython-kernel/63666477#63666477
+        # or `await kernel.process_one(wait=True)`. See Stackoverflow for ref:
+        # https://stackoverflow.com/a/63666477/4820605
         @comm.on_msg
         def _on_msg(msg: Dict[str, Any]) -> None:
             self.n_message += 1

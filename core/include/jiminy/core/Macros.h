@@ -37,7 +37,7 @@ namespace jiminy
     template <class F, class... Args>
     void do_for(F f, Args... args)
     {
-        int x[] = {(f(args), 0)...};
+        (f(args), ...);
     }
 
     template<class F, class dF=std::decay_t<F> >
@@ -72,6 +72,24 @@ namespace jiminy
     {
         return std::static_pointer_cast<T>(shared_from_base(derived));
     }
+
+    // ======================== is_iterator ===========================
+
+    template<typename T, typename = void>
+    struct is_iterator
+    {
+        static constexpr bool value = false;
+    };
+
+    template<typename T>
+    struct is_iterator<T, typename std::enable_if<!std::is_same<
+        typename std::iterator_traits<T>::value_type, void>::value>::type>
+    {
+        static constexpr bool value = true;
+    };
+
+    template<typename T>
+    inline constexpr bool is_iterator_v = is_iterator<T>::value;
 
     // ======================== is_vector ===========================
 
@@ -263,14 +281,18 @@ namespace jiminy
 
     #define FILE_LINE __FILE__ ":" STRINGIFY(__LINE__)
 
+    /* ANSI escape codes is used here as a cross-platform way to color text.
+       For reference, see:
+       https://solarianprogrammer.com/2019/04/08/c-programming-ansi-escape-codes-windows-macos-linux-terminals/ */
+
     #define PRINT_ERROR(...) \
-    std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\033[1;31merror:\033[0m " << to_string(__VA_ARGS__) << std::endl
+    std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\x1b[1;31merror:\x1b[0m " << to_string(__VA_ARGS__) << std::endl
 
     #ifdef NDEBUG
-    #define PRINT_WARNING(...)
+        #define PRINT_WARNING(...)
     #else
-    #define PRINT_WARNING(...) \
-    std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\033[1;93mwarning:\033[0m " << to_string(__VA_ARGS__) << std::endl
+        #define PRINT_WARNING(...) \
+        std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\x1b[1;93mwarning:\x1b[0m " << to_string(__VA_ARGS__) << std::endl
     #endif
 }
 
