@@ -814,6 +814,9 @@ namespace jiminy
                 systemData.forcesImpulseActive.clear();
                 systemData.forcesProfile.clear();
             }
+            stepperUpdatePeriod_ = std::get<1>(isGcdIncluded(
+                engineOptions_->stepper.sensorsUpdatePeriod,
+                engineOptions_->stepper.controllerUpdatePeriod));
         }
 
         // Reset the random number generators
@@ -827,6 +830,13 @@ namespace jiminy
         {
             system.robot->reset();
             system.controller->reset();
+        }
+
+        // Clear system state buffers, since the robot kinematic may change
+        for (auto & systemData : systemsDataHolder_)
+        {
+            systemData.state.clear();
+            systemData.statePrev.clear();
         }
     }
 
@@ -2147,6 +2157,12 @@ namespace jiminy
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
+        if (frameName == "universe")
+        {
+            PRINT_ERROR("Impossible to apply external forces to the universe itself!");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
         int32_t systemIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -2206,6 +2222,12 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystemIdx(systemName, systemIdx);
+        }
+
+        if (frameName == "universe")
+        {
+            PRINT_ERROR("Impossible to apply external forces to the universe itself!");
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
         int32_t frameIdx;
@@ -2326,7 +2348,9 @@ namespace jiminy
 
             // Set breakpoint period during the integration loop
             stepperUpdatePeriod_ = std::get<1>(isGcdIncluded(
-                systemsDataHolder_, stepperUpdatePeriod_));
+                systemsDataHolder_,
+                engineOptions_->stepper.sensorsUpdatePeriod,
+                engineOptions_->stepper.controllerUpdatePeriod));
         }
 
         return hresult_t::SUCCESS;
@@ -3537,7 +3561,7 @@ namespace jiminy
             /* Update the sensor data if necessary (only for infinite update frequency).
                Note that it is impossible to have access to the current accelerations
                and efforts since they depend on the sensor values themselves. */
-            if (engineOptions_->stepper.sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
+            if (engineOptions_->stepper.sensorsUpdatePeriod < EPS)
             {
                 // Roll back to forces and accelerations computed at previous iteration
                 fPrevIt->swap(systemIt->robot->pncData_.f);
@@ -3553,7 +3577,7 @@ namespace jiminy
 
             /* Update the controller command if necessary (only for infinite update frequency).
                Make sure that the sensor state has been updated beforehand. */
-            if (engineOptions_->stepper.controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
+            if (engineOptions_->stepper.controllerUpdatePeriod < EPS)
             {
                 command.setZero();
                 computeCommand(*systemIt, t, *qIt, *vIt, command);
