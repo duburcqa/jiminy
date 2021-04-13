@@ -2157,6 +2157,12 @@ namespace jiminy
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
+        if (frameName == "universe")
+        {
+            PRINT_ERROR("Impossible to apply external forces to the universe itself!");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
         int32_t systemIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -2216,6 +2222,12 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystemIdx(systemName, systemIdx);
+        }
+
+        if (frameName == "universe")
+        {
+            PRINT_ERROR("Impossible to apply external forces to the universe itself!");
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
         int32_t frameIdx;
