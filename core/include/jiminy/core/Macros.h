@@ -37,7 +37,7 @@ namespace jiminy
     template <class F, class... Args>
     void do_for(F f, Args... args)
     {
-        int x[] = {(f(args), 0)...};
+        (f(args), ...);
     }
 
     template<class F, class dF=std::decay_t<F> >
@@ -72,6 +72,24 @@ namespace jiminy
     {
         return std::static_pointer_cast<T>(shared_from_base(derived));
     }
+
+    // ======================== is_iterator ===========================
+
+    template<typename T, typename = void>
+    struct is_iterator
+    {
+        static constexpr bool value = false;
+    };
+
+    template<typename T>
+    struct is_iterator<T, typename std::enable_if<!std::is_same<
+        typename std::iterator_traits<T>::value_type, void>::value>::type>
+    {
+        static constexpr bool value = true;
+    };
+
+    template<typename T>
+    inline constexpr bool is_iterator_v = is_iterator<T>::value;
 
     // ======================== is_vector ===========================
 

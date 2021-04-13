@@ -16,9 +16,12 @@ namespace jiminy
 
     forceProfile_t::forceProfile_t(std::string           const & frameNameIn,
                                    int32_t               const & frameIdxIn,
+                                   float64_t             const & updatePeriodIn,
                                    forceProfileFunctor_t const & forceFctIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
+    updatePeriod(updatePeriodIn),
+    forcePrev(pinocchio::Force::Zero()),
     forceFct(forceFctIn)
     {
         // Empty on purpose
