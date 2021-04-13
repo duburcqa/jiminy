@@ -36,13 +36,13 @@ namespace python
                                      (bp::arg("self"), "frame_name"))
                 .def("add_collision_bodies", &PyModelVisitor::addCollisionBodies,
                                              (bp::arg("self"),
-                                              bp::arg("bodies_names") = std::vector<std::string>(),
+                                              bp::arg("bodies_names") = bp::list(),
                                               bp::arg("ignore_meshes") = false))
                 .def("remove_collision_bodies", &PyModelVisitor::removeCollisionBodies,
                                                 (bp::arg("self"), "bodies_names"))
                 .def("add_contact_points", &PyModelVisitor::addContactPoints,
                                            (bp::arg("self"),
-                                            bp::arg("frame_names") = std::vector<std::string>()))
+                                            bp::arg("frame_names") = bp::list()))
                 .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
 
@@ -266,10 +266,10 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .def("initialize", &Robot::initialize,
+                .def("initialize", &PyRobotVisitor::initialize,
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false,
-                                    bp::arg("mesh_package_dirs") = std::vector<std::string>()))
+                                    bp::arg("mesh_package_dirs") = bp::list()))
 
                 .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))
@@ -279,7 +279,7 @@ namespace python
                                      (bp::arg("self"), "joint_name"))
                 .def("detach_motors", &PyRobotVisitor::detachMotors,
                                       (bp::arg("self"),
-                                       bp::arg("joints_names") = std::vector<std::string>()))
+                                       bp::arg("joints_names") = bp::list()))
                 .def("attach_sensor", &Robot::attachSensor,
                                       (bp::arg("self"), "sensor"))
                 .def("detach_sensor", &Robot::detachSensor,
@@ -329,6 +329,15 @@ namespace python
                 .add_property("logfile_motor_effort_headers", bp::make_function(&Robot::getMotorEffortFieldnames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
+        }
+
+        static hresult_t initialize(Robot             & self,
+                                    std::string const & urdfPath,
+                                    bool_t      const & hasFreeflyer,
+                                    bp::list    const & meshPackageDirsPy)
+        {
+            auto meshPackageDirs = convertFromPython<std::vector<std::string> >(meshPackageDirsPy);
+            return self.initialize(urdfPath, hasFreeflyer, meshPackageDirs);
         }
 
         static hresult_t detachMotors(Robot          & self,

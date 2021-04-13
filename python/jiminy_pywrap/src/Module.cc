@@ -8,11 +8,11 @@
    Undefined by default because it increases binary size by about 14%. */
 #define BOOST_PYTHON_PY_SIGNATURES_PROPER_INIT_SELF_TYPE
 
-// Manually import the Python C API to avoid relying on eigenpy and boost::numpy to do so.
-#define PY_ARRAY_UNIQUE_SYMBOL JIMINY_ARRAY_API
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include "numpy/arrayobject.h"
-#define NO_IMPORT_ARRAY
+#include "pinocchio/fwd.hpp"
+#include "eigenpy/eigenpy.hpp"
+
+#include "jiminy/core/utilities/Random.h"
+#include "jiminy/core/Types.h"
 
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Helpers.h"
@@ -24,19 +24,8 @@
 #include "jiminy/python/Motors.h"
 #include "jiminy/python/Sensors.h"
 
-#include "jiminy/core/utilities/Random.h"
-#include "jiminy/core/Types.h"
-
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
-#include <eigenpy/eigenpy.hpp>
-
-
-static void * initNumpy()
-{
-    import_array();
-    return NULL;
-}
 
 
 namespace jiminy
@@ -79,6 +68,31 @@ namespace python
         }
     };
 
+    template <typename T>
+    class arrayScalarFromPython
+    {
+    public:
+        static void * convertible(PyObject * obj)
+        {
+            PyTypeObject const * pytype = reinterpret_cast<PyArray_Descr*>(
+                bp::numpy::dtype::get_builtin<T>().ptr())->typeobj;
+            return (obj->ob_type == pytype) ? obj : 0;
+        }
+
+        static void convert(PyObject * obj, bp::converter::rvalue_from_python_stage1_data * data)
+        {
+            void * storage = reinterpret_cast<bp::converter::rvalue_from_python_storage<T>*>(data)->storage.bytes;
+            PyArray_ScalarAsCtype(obj, reinterpret_cast<T*>(storage));
+            data->convertible = storage;
+        }
+
+        static void declare()
+        {
+            // Note that no `get_pytype` is provided, so that the already existing one will be used
+            bp::converter::registry::push_back(&convertible, &convert, bp::type_id<T>());
+        }
+    };
+
     uint32_t getRandomSeed(void)
     {
         uint32_t seed;
@@ -91,12 +105,11 @@ namespace python
         // Initialize Jiminy random number generator
         resetRandomGenerators(0U);
 
-        // Initialized C API of Python, required to handle raw Python native object
-        Py_Initialize();
-        // Initialized C API of Numpy, required to handle raw numpy::ndarray object
-        initNumpy();
-        // Initialized boost::python::numpy, required to handle boost::python::numpy::ndarray object
-        bp::numpy::initialize();
+        /* Initialized boost::python::numpy.
+           It is required to handle boost::python::numpy::ndarray object directly.
+           Note that numpy scalar to native type automatic converters are disabled
+           because they are messing up with the docstring. */
+        bp::numpy::initialize(false);
         // Initialized EigenPy, enabling PyArrays<->Eigen automatic converters
         eigenpy::enableEigenPy();
 
@@ -137,6 +150,13 @@ namespace python
         bp::to_python_converter<std::vector<vectorN_t>, converterToPython<std::vector<vectorN_t> >, true>();
         bp::to_python_converter<std::vector<matrixN_t>, converterToPython<std::vector<matrixN_t> >, true>();
         bp::to_python_converter<configHolder_t, converterToPython<configHolder_t>, true>();
+
+        // Add some automatic C++ to Python converters for numpy array of scalars,
+        // which is different from a 0-dimensional numpy array.
+        arrayScalarFromPython<bool>::declare();
+        arrayScalarFromPython<npy_uint8>::declare();
+        arrayScalarFromPython<npy_uint32>::declare();
+        arrayScalarFromPython<npy_float32>::declare();
 
         // Disable CPP docstring
         bp::docstring_options doc_options;

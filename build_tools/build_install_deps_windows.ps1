@@ -37,7 +37,7 @@ if (-not (Test-Path -PathType Container "$RootDir/boost")) {
 }
 Set-Location -Path "$RootDir/boost"
 git reset --hard
-git checkout --force "boost-1.71.0"
+git checkout --force "boost-1.72.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 
@@ -161,13 +161,13 @@ if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
          --with-chrono --with-timer --with-date_time --with-system --with-test `
          --with-filesystem --with-atomic --with-serialization --with-thread `
-         --build-type=minimal architecture=x86 address-model=64 threading=multi `
-         --layout=system --lto=on link=static runtime-link=shared debug-symbols=off `
+         --build-type=minimal architecture=x86 address-model=64 threading=single `
+         --layout=system --lto=off link=static runtime-link=shared debug-symbols=off `
          toolset=msvc-14.2 variant="$BuildTypeB2" install -q -d0 -j2
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
          --with-python `
-         --build-type=minimal architecture=x86 address-model=64 threading=multi `
-         --layout=system --lto=on link=shared runtime-link=shared debug-symbols=off `
+         --build-type=minimal architecture=x86 address-model=64 threading=single `
+         --layout=system --lto=off link=shared runtime-link=shared debug-symbols=off `
          toolset=msvc-14.2 cxxflags="/permissive-" variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
