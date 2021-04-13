@@ -114,6 +114,8 @@ namespace jiminy
         hresult_t initialize(Robot const & robot);
         bool_t const & getIsInitialized(void) const;
 
+        void clear(void);
+
     public:
         vectorN_t q;
         vectorN_t v;
