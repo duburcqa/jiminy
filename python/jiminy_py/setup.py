@@ -1,6 +1,9 @@
+import os
 import sys
 from setuptools import setup, dist, find_packages
 from setuptools.command.install import install
+from distutils.command.install_headers import (
+    install_headers as install_headers_orig)
 
 
 # Force setuptools to recognize that this is actually a binary distribution
@@ -13,14 +16,29 @@ class BinaryDistribution(dist.Distribution):
 
 
 # Force setuptools to not consider shared libraries as purelib
-class InstallPlatlib(install):
+class install_platlib(install):
     def finalize_options(self) -> None:
         install.finalize_options(self)
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
 
 
-# 3.3 is broken on Windows 64 bits and cannot be installed properly.
+# Install headers, preserving folder hierarchy
+class install_headers(install_headers_orig):
+    def run(self):
+        headers_dirs = self.distribution.headers or []
+        for header_dir in headers_dirs:
+            for root, _, files in os.walk(header_dir):
+                root_rel = os.path.relpath(root, header_dir)
+                for header in files:
+                    src = os.path.join(root, header)
+                    dst = os.path.join(self.install_dir, root_rel)
+                    self.mkpath(dst)
+                    (out, _) = self.copy_file(src, dst)
+                    self.outfiles.append(out)
+
+
+# Matplotlib>=3.3 is broken on Windows 64 bits and cannot be installed properly
 if sys.platform.startswith('win'):
     matplotlib_spec = "<3.3"
 else:
@@ -56,13 +74,15 @@ setup(
     keywords="robotics physics simulator",
     distclass=BinaryDistribution,
     cmdclass={
-        "install": InstallPlatlib
+        "install": install_platlib,
+        'install_headers': install_headers,
     },
     packages=find_packages("src"),
     package_dir={"": "src"},
     package_data={"jiminy_py": [
         "**/*.dll", "**/*.so", "**/*.pyd", "**/*.html", "**/*.js"
     ]},
+    headers=["@PROJECT_INCLUDEDIR@"],
     include_package_data=True,
     entry_points={"console_scripts": [
         "jiminy_plot=jiminy_py.log:plot_log",

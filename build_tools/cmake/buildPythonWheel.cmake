@@ -16,9 +16,11 @@ function(buildPythonWheel)
     foreach(TARGET_PATH IN LISTS ARGS)
         get_filename_component(TARGET_NAME ${TARGET_PATH} NAME_WE)
         get_filename_component(TARGET_DIR ${TARGET_PATH} DIRECTORY)
+        get_target_property(CORE_SOURCE_DIR ${LIBRARY_NAME}_core SOURCE_DIR)
         install(CODE "cmake_policy(SET CMP0053 NEW)
                       cmake_policy(SET CMP0011 NEW)
                       set(PROJECT_VERSION ${BUILD_VERSION})
+                      set(PROJECT_INCLUDEDIR ${CORE_SOURCE_DIR}/include)
                       set(SOURCE_DIR ${CMAKE_SOURCE_DIR})
                       file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
                           LIST_DIRECTORIES false
@@ -31,7 +33,7 @@ function(buildPythonWheel)
                       list(FILTER src_file_list EXCLUDE REGEX \"mypy_cache\")
                       foreach(src_file \${src_file_list})
                           get_filename_component(src_file_real \"\${src_file}\" REALPATH
-                                                  BASE_DIR \"${CMAKE_SOURCE_DIR}/${TARGET_DIR}\")
+                                                 BASE_DIR \"${CMAKE_SOURCE_DIR}/${TARGET_DIR}\")
                           if(src_file_real MATCHES \".*\\.(txt|py|md|in|js|html|toml|json|urdf|xacro)\$\")
                               configure_file(\"\${src_file_real}\"
                                              \"${CMAKE_BINARY_DIR}/pypi/\${src_file}\" @ONLY)
