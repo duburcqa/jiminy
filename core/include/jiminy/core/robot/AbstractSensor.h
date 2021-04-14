@@ -446,7 +446,6 @@ namespace jiminy
         virtual hresult_t resetAll(void) override;
         void updateTelemetryAll(void) override final;
 
-        virtual hresult_t setOptions(configHolder_t const & sensorOptions) override;
         virtual hresult_t setOptionsAll(configHolder_t const & sensorOptions) override final;
         virtual int32_t const & getIdx(void) const override final;
         virtual std::string const & getType(void) const override final;

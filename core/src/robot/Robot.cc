@@ -32,7 +32,7 @@ namespace jiminy
     sensorsNames_(),
     commandFieldnames_(),
     motorEffortFieldnames_(),
-    nmotors_(-1),
+    nmotors_(0),
     mutexLocal_(std::make_unique<MutexLocal>()),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_()
