@@ -3,8 +3,12 @@
 
 /* Define Python C API, consistent with eigenpy, but do NOT
    import it to avoid "multiple definitions" error. */
+// #define NO_IMPORT_ARRAY
+// #include "eigenpy/numpy.hpp"
+#define PY_ARRAY_UNIQUE_SYMBOL EIGENPY_ARRAY_API
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #define NO_IMPORT_ARRAY
-#include "eigenpy/numpy.hpp"
+#include "numpy/arrayobject.h"
 
 #include "jiminy/core/Types.h"
 #include "jiminy/core/Macros.h"
