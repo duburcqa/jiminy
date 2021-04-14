@@ -5,12 +5,12 @@
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 
-#include "jiminy/python/Functors.h"
-#include "jiminy/python/Utilities.h"
-#include "jiminy/python/Engine.h"
-
 #include <boost/python.hpp>
 #include <boost/python/raw_function.hpp>
+
+#include "jiminy/python/Utilities.h"
+#include "jiminy/python/Functors.h"
+#include "jiminy/python/Engine.h"
 
 
 namespace jiminy

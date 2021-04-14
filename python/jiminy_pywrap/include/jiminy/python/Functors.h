@@ -3,9 +3,9 @@
 
 #include "jiminy/core/Types.h"
 
-#include "jiminy/python/Utilities.h"
-
 #include <boost/python.hpp>
+
+#include "jiminy/python/Utilities.h"
 
 
 namespace jiminy

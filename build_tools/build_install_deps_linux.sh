@@ -158,13 +158,13 @@ mkdir -p "$RootDir/boost/build"
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-chrono --with-timer --with-date_time --with-system --with-test \
      --with-filesystem --with-atomic --with-serialization --with-thread \
-     --build-type=minimal architecture=x86 address-model=64 threading=multi \
-     --layout=system --lto=on link=static runtime-link=static debug-symbols=off \
+     --build-type=minimal architecture=x86 address-model=64 threading=single \
+     --layout=system --lto=off link=static runtime-link=static debug-symbols=off \
      toolset=gcc cxxflags="-std=c++17 -fPIC -s" variant="$BuildTypeB2" install -q -d0 -j2
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-python \
-     --build-type=minimal architecture=x86 address-model=64 threading=multi \
-     --layout=system --lto=on link=shared runtime-link=shared debug-symbols=off \
+     --build-type=minimal architecture=x86 address-model=64 threading=single \
+     --layout=system --lto=off link=shared runtime-link=shared debug-symbols=off \
      toolset=gcc cxxflags="-std=c++17 -fPIC -s" variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################

@@ -766,13 +766,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     bbox_inches=bbox_inches)
         io_buf.seek(0)
         img_raw = io_buf.getvalue()
-        img_size = (bbox_pixels[2:] - bbox_pixels[:2]).astype(int)
+        width, height = map(int, bbox_pixels[2:] - bbox_pixels[:2])
 
         # Delete the legend along with its temporary figure
         plt.close(fig)
 
         # Create texture in which to render the image buffer
-        width, height = img_size
         tex = Texture()
         tex.setup2dTexture(
             width, height, Texture.T_unsigned_byte, Texture.F_rgba8)

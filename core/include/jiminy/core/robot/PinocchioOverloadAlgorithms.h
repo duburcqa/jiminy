@@ -15,7 +15,6 @@
 #ifndef PINOCCHIO_OVERLOAD_ALGORITHMS_H
 #define PINOCCHIO_OVERLOAD_ALGORITHMS_H
 
-
 #include <functional>
 
 #include "pinocchio/algorithm/kinematics.hpp"
