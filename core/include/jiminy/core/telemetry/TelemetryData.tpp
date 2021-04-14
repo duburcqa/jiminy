@@ -46,7 +46,8 @@ namespace jiminy
 
         if ((header->nextFreeNameOffset + static_cast<int64_t>(variableName.size()) + 1) >= header->startDataSection)
         {
-            PRINT_ERROR("Trying to allocate too much memory to hold constants and variable names.");
+            PRINT_ERROR("Trying to allocate too much memory to hold telemetry constants and variables. "
+                        "Try using shorter names or register less variables.");
             return hresult_t::ERROR_GENERIC;
         }
 
