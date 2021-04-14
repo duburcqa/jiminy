@@ -40,6 +40,8 @@ git reset --hard
 git checkout --force "boost-1.71.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
+dos2unix "$RootDir/build_tools/patch_deps_windows/boost.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/boost.patch"
 
 ### Checkout eigen3
 if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {

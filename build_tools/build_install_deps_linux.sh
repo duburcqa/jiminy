@@ -31,6 +31,8 @@ unset Boost_ROOT
 ################################## Checkout the dependencies ###########################################
 
 ### Checkout boost and its submodules
+#   Note that boost python must be patched for boost < 3 Fev. 2021 to fix error handling at import.
+#   Patches can be generated using `git diff --submodule=diff` command.
 if [ ! -d "$RootDir/boost" ]; then
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
@@ -39,6 +41,7 @@ git reset --hard
 git checkout --force "boost-1.71.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/boost.patch"
 
 ### Checkout eigen3
 if [ ! -d "$RootDir/eigen3" ]; then
@@ -48,7 +51,7 @@ cd "$RootDir/eigen3"
 git reset --hard
 git checkout --force "3.3.9"
 
-### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
+### Checkout eigenpy and its submodules
 if [ ! -d "$RootDir/eigenpy" ]; then
   git clone https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 fi
