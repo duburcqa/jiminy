@@ -31,7 +31,6 @@ execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                         "import sys; sys.stdout.write(';'.join([str(x) for x in sys.version_info[:3]]))"
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 OUTPUT_VARIABLE _VERSION)
-string(REPLACE ";" "." PYTHON_VERSION_STRING "${_VERSION}")
 list(GET _VERSION 0 PYTHON_VERSION_MAJOR)
 list(GET _VERSION 1 PYTHON_VERSION_MINOR)
 list(GET _VERSION 2 PYTHON_VERSION_PATCH)

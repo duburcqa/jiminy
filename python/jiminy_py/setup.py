@@ -1,4 +1,3 @@
-import os
 import sys
 from setuptools import setup, dist, find_packages
 from setuptools.command.install import install
@@ -61,9 +60,6 @@ setup(
     },
     packages=find_packages("src"),
     package_dir={"": "src"},
-    package_data={"jiminy_py": [
-        "**/*.dll", "**/*.so", "**/*.pyd", "**/*.html", "**/*.js"
-    ]},
     include_package_data=True,
     entry_points={"console_scripts": [
         "jiminy_plot=jiminy_py.log:plot_log",

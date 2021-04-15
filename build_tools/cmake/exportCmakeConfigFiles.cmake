@@ -8,7 +8,13 @@ function(exportCmakeConfigFiles)
     #           a already compiled target in a convenient way using
     #           Cmake `find_package` command.
 
-    export(TARGETS ${PROJECT_NAME}
+    set(ARGS ${ARGN})
+    list(LENGTH ARGS NUM_ARGS)
+    if(${NUM_ARGS} LESS 1)
+        set(ARGS ${PROJECT_NAME})
+    endif()
+
+    export(TARGETS ${ARGS}
            FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
     )
     install(EXPORT
@@ -33,5 +39,4 @@ function(exportCmakeConfigFiles)
             DESTINATION "${CMAKE_INSTALL_DATADIR}/${LIBRARY_NAME}/cmake"
     )
 endfunction()
-
 

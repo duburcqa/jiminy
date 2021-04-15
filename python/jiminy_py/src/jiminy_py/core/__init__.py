@@ -71,10 +71,24 @@ with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
 # `np.ndarray` type for from/to Python matrix converters.
 from . import _pinocchio_init  # noqa
 
+
 # Define include and lib path
 def get_include():
     return os.path.join(os.path.dirname(__file__), "include")
 
-def get_library():
+
+def get_libraries():
     lib_dir = os.path.join(os.path.dirname(__file__), "lib")
-    return os.path.join(lib_dir, os.listdir(lib_dir)[0])
+    libraries_fullpath = []
+    for library_filename in os.listdir(lib_dir):
+        libraries_fullpath.append(os.path.join(lib_dir, library_filename))
+    return ";".join(libraries_fullpath)
+
+
+__all__ = [
+    'core',
+    'get_include',
+    'get_libraries',
+    '__version__',
+    '__raw_version__',
+]

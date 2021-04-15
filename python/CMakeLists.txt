@@ -21,20 +21,15 @@ install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
 )
 
 # Bundle headers and core library into Python package `core` submodule.
-# Disable forbidden access to target LOCATION property if necessary, since expression
+# Disable forbidden access to target LOCATION property is necessary, since expression
 # generator in `install(CODE ...)` commands is only support from Cmake 3.14 and upward,
 # which is newer than default version available on Ubuntu 18.04. For reference, see:
 # https://stackoverflow.com/a/56528615/4820605
-get_target_property(CORE_SOURCE_DIR ${LIBRARY_NAME}_core SOURCE_DIR)
-if(CMAKE_VERSION VERSION_LESS "3.14.0")
-     cmake_policy(SET CMP0026 OLD)
-     get_property(CORE_LIB TARGET ${LIBRARY_NAME}_core PROPERTY LOCATION)
-endif()
-install(CODE "if(CMAKE_VERSION VERSION_LESS \"3.14.0\")
-                  set(CORE_LIB ${CORE_LIB})
-              else()
-                  set(CORE_LIB $<TARGET_FILE:${LIBRARY_NAME}_core>)
-              endif()
+get_target_property(CORE_SOURCE_DIR ${LIBRARY_NAME} SOURCE_DIR)
+get_property(CORE_BINARY_DIR TARGET ${LIBRARY_NAME} PROPERTY BINARY_DIR)
+get_property(CORE_SOVERSION TARGET ${LIBRARY_NAME} PROPERTY SOVERSION)
+set(CORE_LIB "${CORE_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${LIBRARY_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}.${CORE_SOVERSION}")
+install(CODE "set(CORE_LIB ${CORE_LIB})
               file(GLOB_RECURSE archive_files_list FOLLOW_SYMLINKS
                    LIST_DIRECTORIES false
                    RELATIVE \"${CORE_SOURCE_DIR}/include\"

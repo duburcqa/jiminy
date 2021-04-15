@@ -103,8 +103,7 @@ jobs:
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \
-                 --generated-members=numpy.*,torch.* \
-                 "gym_jiminy/"
+                 --generated-members=numpy.*,torch.* --ignored-modules=jiminy_py.core "gym_jiminy/"
 
           mypy --allow-redefinition --check-untyped-defs --disallow-incomplete-defs --disallow-untyped-defs \
                --ignore-missing-imports --no-implicit-optional --strict-equality --strict-optional \
