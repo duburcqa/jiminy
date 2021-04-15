@@ -81,7 +81,7 @@ jobs:
         cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
-          New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
+          New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         }
         Copy-Item -Force -Recurse -Path "$InstallDir/lib/site-packages/*" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"

@@ -16,9 +16,9 @@ function(exportCmakeConfigFiles)
             DESTINATION "${CMAKE_INSTALL_DATADIR}/${LIBRARY_NAME}/cmake"
     )
 
-    if(${CMAKE_VERSION} VERSION_GREATER "3.11.0")
+    if(CMAKE_VERSION VERSION_GREATER "3.11.0")
         set(COMPATIBILITY_VERSION SameMinorVersion)
-    else(${CMAKE_VERSION} VERSION_GREATER "3.11.0")
+    else(CMAKE_VERSION VERSION_GREATER "3.11.0")
         set(COMPATIBILITY_VERSION AnyNewerVersion)
     endif()
 

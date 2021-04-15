@@ -12,23 +12,14 @@ function(buildPythonWheel)
     list(GET ARGS -1 OUTPUT_DIR)
     list(REMOVE_AT ARGS -1)
 
-    # Disable forbidden acces to target LOCATION property, since expression generator
-    # in `install(CODE ...` is only support from Cmake 3.14 and upward, which is newer
-    # than default version available on Ubuntu 18.04. For reference, see:
-    # https://stackoverflow.com/a/56528615/4820605
-    cmake_policy(SET CMP0026 OLD)
-
     # Generate wheel sequentially for each target
     foreach(TARGET_PATH IN LISTS ARGS)
+        # Copy Python packages files in `build\pypi` after performing variable substitution
         get_filename_component(TARGET_NAME ${TARGET_PATH} NAME_WE)
         get_filename_component(TARGET_DIR ${TARGET_PATH} DIRECTORY)
-        get_target_property(CORE_SOURCE_DIR ${LIBRARY_NAME}_core SOURCE_DIR)
-        get_property(CORE_LIBDIR TARGET ${LIBRARY_NAME}_core PROPERTY LOCATION)
         install(CODE "cmake_policy(SET CMP0053 NEW)
                       cmake_policy(SET CMP0011 NEW)
                       set(PROJECT_VERSION ${BUILD_VERSION})
-                      set(PROJECT_INCLUDEDIR ${CORE_SOURCE_DIR}/include)
-                      set(PROJECT_LIBDIR ${CORE_LIBDIR})
                       set(SOURCE_DIR ${CMAKE_SOURCE_DIR})
                       file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
                           LIST_DIRECTORIES false
@@ -52,17 +43,19 @@ function(buildPythonWheel)
                       endforeach()"
             )
 
+        # Copy project README in Pypi for wheel package
+        install(FILES ${CMAKE_SOURCE_DIR}/README.md
+                DESTINATION "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}"
+                COMPONENT pypi
+                EXCLUDE_FROM_ALL
+        )
+
         # TODO: Use add_custom_command instead of install to enable auto-cleanup of copied files
         # add_custom_command(
         #     OUTPUT  ${CMAKE_BINARY_DIR}/pypi
         #     COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_SOURCE_DIR}/${TARGET_PATH}\" \"${CMAKE_BINARY_DIR}/pypi\"
         # )
 
-        install(FILES ${CMAKE_SOURCE_DIR}/README.md
-                DESTINATION "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}"
-                COMPONENT pypi
-                EXCLUDE_FROM_ALL
-        )
         install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py clean --all
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})
                       execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py sdist bdist_wheel

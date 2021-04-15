@@ -1,1 +1,1 @@
-recursive-include src/jiminy_py *.so *.dll *.pyd *.html *.js
+recursive-include src/jiminy_py *.a *.so *.dll *.pyd *.h *.tpp *.html *.js

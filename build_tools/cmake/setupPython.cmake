@@ -4,7 +4,7 @@
 
 # Get Python executable and version
 if(NOT DEFINED PYTHON_EXECUTABLE)
-    if(${CMAKE_VERSION} VERSION_LESS "3.12.4")
+    if(CMAKE_VERSION VERSION_LESS "3.12.4")
         if(PYTHON_REQUIRED_VERSION)
             message(FATAL_ERROR "Impossible to handle PYTHON_REQUIRED_VERSION for cmake older than 3.12.4, Cmake will exit.")
         endif()
@@ -36,7 +36,7 @@ list(GET _VERSION 0 PYTHON_VERSION_MAJOR)
 list(GET _VERSION 1 PYTHON_VERSION_MINOR)
 list(GET _VERSION 2 PYTHON_VERSION_PATCH)
 set(PYTHON_VERSION "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
-if(${PYTHON_VERSION_MAJOR} EQUAL 3)
+if(PYTHON_VERSION_MAJOR EQUAL 3)
     message(STATUS "Found PythonInterp: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION_STRING}\")")
 else()
     message(FATAL_ERROR "Python3 is required if BUILD_PYTHON_INTERFACE=ON.")

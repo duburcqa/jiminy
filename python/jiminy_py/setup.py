@@ -2,8 +2,6 @@ import os
 import sys
 from setuptools import setup, dist, find_packages
 from setuptools.command.install import install
-from distutils.command.install_headers import (
-    install_headers as install_headers_orig)
 
 
 # Force setuptools to recognize that this is actually a binary distribution
@@ -16,26 +14,11 @@ class BinaryDistribution(dist.Distribution):
 
 
 # Forcing setuptools not to consider shared libraries as purelib
-class install_platlib(install):
+class InstallPlatlib(install):
     def finalize_options(self) -> None:
         super().finalize_options()
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
-
-
-# Install core headers, preserving folder hierarchy
-class install_headers(install_headers_orig):
-    def run(self):
-        headers_dirs = self.distribution.headers or []
-        for header_dir in headers_dirs:
-            for root, _, files in os.walk(header_dir):
-                root_rel = os.path.relpath(root, header_dir)
-                for header in files:
-                    src = os.path.join(root, header)
-                    dst = os.path.join(self.install_dir, root_rel)
-                    self.mkpath(dst)
-                    (out, _) = self.copy_file(src, dst)
-                    self.outfiles.append(out)
 
 
 # Matplotlib>=3.3 is broken on Windows 64 bits and cannot be installed properly
@@ -74,14 +57,8 @@ setup(
     keywords="robotics physics simulator",
     distclass=BinaryDistribution,
     cmdclass={
-        "install": install_platlib,
-        "install_headers": install_headers
+        "install": InstallPlatlib
     },
-    headers=["@PROJECT_INCLUDEDIR@"],  # Must be specified, even if unused, to
-                                       # trigger wheel packaging.
-    data_files=[('lib', [
-         os.path.relpath("@PROJECT_LIBDIR@", os.path.dirname(__file__))
-    ])],
     packages=find_packages("src"),
     package_dir={"": "src"},
     package_data={"jiminy_py": [

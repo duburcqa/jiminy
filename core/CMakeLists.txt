@@ -35,10 +35,10 @@ find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eige
 # Pinocchio-specific stuffs
 set(COMPILE_FLAGS "-DPINOCCHIO_WITH_URDFDOM -DPINOCCHIO_WITH_HPP_FCL")
 if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom version undefined
-    if ("${urdfdom_VERSION}" VERSION_GREATER_EQUAL "0.4.0")
+    if (urdfdom_VERSION VERSION_GREATER_EQUAL "0.4.0")
         set(COMPILE_FLAGS "${COMPILE_FLAGS} -DPINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR")
     endif()
-    if ("${urdfdom_VERSION}" VERSION_GREATER "0.4.2")
+    if (urdfdom_VERSION VERSION_GREATER "0.4.2")
         set(COMPILE_FLAGS "${COMPILE_FLAGS} -DPINOCCHIO_URDFDOM_USE_STD_SHARED_PTR")
     endif()
 endif()
