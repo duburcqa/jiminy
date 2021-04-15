@@ -15,15 +15,15 @@ class BinaryDistribution(dist.Distribution):
         return True
 
 
-# Force setuptools to not consider shared libraries as purelib
+# Forcing setuptools not to consider shared libraries as purelib
 class install_platlib(install):
     def finalize_options(self) -> None:
-        install.finalize_options(self)
+        super().finalize_options()
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
 
 
-# Install headers, preserving folder hierarchy
+# Install core headers, preserving folder hierarchy
 class install_headers(install_headers_orig):
     def run(self):
         headers_dirs = self.distribution.headers or []
@@ -75,14 +75,18 @@ setup(
     distclass=BinaryDistribution,
     cmdclass={
         "install": install_platlib,
-        'install_headers': install_headers,
+        "install_headers": install_headers
     },
+    headers=["@PROJECT_INCLUDEDIR@"],  # Must be specified, even if unused, to
+                                       # trigger wheel packaging.
+    data_files=[('lib', [
+         os.path.relpath("@PROJECT_LIBDIR@", os.path.dirname(__file__))
+    ])],
     packages=find_packages("src"),
     package_dir={"": "src"},
     package_data={"jiminy_py": [
         "**/*.dll", "**/*.so", "**/*.pyd", "**/*.html", "**/*.js"
     ]},
-    headers=["@PROJECT_INCLUDEDIR@"],
     include_package_data=True,
     entry_points={"console_scripts": [
         "jiminy_plot=jiminy_py.log:plot_log",

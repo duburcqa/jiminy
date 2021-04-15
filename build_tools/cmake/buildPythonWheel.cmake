@@ -12,15 +12,23 @@ function(buildPythonWheel)
     list(GET ARGS -1 OUTPUT_DIR)
     list(REMOVE_AT ARGS -1)
 
+    # Disable forbidden acces to target LOCATION property, since expression generator
+    # in `install(CODE ...` is only support from Cmake 3.14 and upward, which is newer
+    # than default version available on Ubuntu 18.04. For reference, see:
+    # https://stackoverflow.com/a/56528615/4820605
+    cmake_policy(SET CMP0026 OLD)
+
     # Generate wheel sequentially for each target
     foreach(TARGET_PATH IN LISTS ARGS)
         get_filename_component(TARGET_NAME ${TARGET_PATH} NAME_WE)
         get_filename_component(TARGET_DIR ${TARGET_PATH} DIRECTORY)
         get_target_property(CORE_SOURCE_DIR ${LIBRARY_NAME}_core SOURCE_DIR)
+        get_property(CORE_LIBDIR TARGET ${LIBRARY_NAME}_core PROPERTY LOCATION)
         install(CODE "cmake_policy(SET CMP0053 NEW)
                       cmake_policy(SET CMP0011 NEW)
                       set(PROJECT_VERSION ${BUILD_VERSION})
                       set(PROJECT_INCLUDEDIR ${CORE_SOURCE_DIR}/include)
+                      set(PROJECT_LIBDIR ${CORE_LIBDIR})
                       set(SOURCE_DIR ${CMAKE_SOURCE_DIR})
                       file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
                           LIST_DIRECTORIES false
