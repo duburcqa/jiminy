@@ -9,7 +9,9 @@ on:
 
 jobs:
   build-and-test-win10:
-    name: (Windows) Build the dependencies. Build the project and run the unit tests.
+    name: >-
+      (Windows) (${{ matrix.python-version }}) Build the dependencies.
+      Build the project and run the unit tests.
     runs-on: [windows-2019]
 
     defaults:
@@ -81,10 +83,10 @@ jobs:
         cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
-          New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
+          New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         }
         Copy-Item -Force -Recurse -Path "$InstallDir/lib/site-packages/*" `
-                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
 
         $env:Path += ";$InstallDir/lib"
         cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"

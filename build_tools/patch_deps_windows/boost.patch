@@ -1,0 +1,22 @@
+diff --git a/libs/python b/libs/python
+--- a/libs/python
++++ b/libs/python
+@@ -1 +1 @@
+-Subproject commit 102acf1d34ff91e67fe9aae401edc6edd68be89e
++Subproject commit 102acf1d34ff91e67fe9aae401edc6edd68be89e-dirty
+[root@5695cbbc43eb boost]# git diff --submodule=diff
+error: cannot run less: No such file or directory
+Submodule libs/python contains modified content
+diff --git a/libs/python/src/module.cpp b/libs/python/src/module.cpp
+index 96284819..57675fa2 100644
+--- a/libs/python/src/module.cpp
++++ b/libs/python/src/module.cpp
+@@ -21,7 +21,7 @@ namespace
+             object m_obj(((borrowed_reference_t*)m));
+             scope current_module(m_obj);
+ 
+-            handle_exception(init_function);
++            if (handle_exception(init_function)) return NULL;
+         }
+ 
+         return m;

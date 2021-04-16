@@ -35,10 +35,10 @@ find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eige
 # Pinocchio-specific stuffs
 set(COMPILE_FLAGS "-DPINOCCHIO_WITH_URDFDOM -DPINOCCHIO_WITH_HPP_FCL")
 if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom version undefined
-    if ("${urdfdom_VERSION}" VERSION_GREATER_EQUAL "0.4.0")
+    if (urdfdom_VERSION VERSION_GREATER_EQUAL "0.4.0")
         set(COMPILE_FLAGS "${COMPILE_FLAGS} -DPINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR")
     endif()
-    if ("${urdfdom_VERSION}" VERSION_GREATER "0.4.2")
+    if (urdfdom_VERSION VERSION_GREATER "0.4.2")
         set(COMPILE_FLAGS "${COMPILE_FLAGS} -DPINOCCHIO_URDFDOM_USE_STD_SHARED_PTR")
     endif()
 endif()
@@ -84,13 +84,20 @@ set(SRC
 )
 
 # Create the library
-add_library(${PROJECT_NAME} STATIC ${SRC})
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    VERSION ${BUILD_VERSION}
+add_library(${PROJECT_NAME}-object OBJECT ${SRC})
+add_library(${PROJECT_NAME} STATIC $<TARGET_OBJECTS:${PROJECT_NAME}-object>)
+add_library(${LIBRARY_NAME} SHARED $<TARGET_OBJECTS:${PROJECT_NAME}-object>)
+
+# Activate C++17 for this target
+set_target_properties(${PROJECT_NAME}-object PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
 )
+target_compile_features(${PROJECT_NAME}-object PUBLIC cxx_std_17)
 
 # Set include directory
-target_include_directories(${PROJECT_NAME} PUBLIC
+target_include_directories(${PROJECT_NAME}-object PUBLIC
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>"
 )
@@ -100,48 +107,68 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # thus not making them available by a side-project depending on Jiminy. However, since
 # jsoncpp is installed on the system as an external project, those side-projects must
 # simply call find_package(jsoncpp) and it will be included automatically.
-add_dependencies(${PROJECT_NAME} jsoncpp_external hdf5_external)
+add_dependencies(${PROJECT_NAME}-object jsoncpp_external hdf5_external)
 externalproject_get_property(jsoncpp_external INSTALL_DIR)
-target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
+target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC
     $<BUILD_INTERFACE:${INSTALL_DIR}/include>
 )
 
 # Include headers from other libraries (in such a way to avoid any warnings compiling them)
-target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${Boost_INCLUDE_DIRS}")
+target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC "${Boost_INCLUDE_DIRS}")
 if(NOT LEGACY_MODE)
-    target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${urdfdom_INCLUDE_DIRS}")
+    target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC "${urdfdom_INCLUDE_DIRS}")
 endif()
+get_target_property(Eigen3_INCLUDE_DIRS Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC ${Eigen3_INCLUDE_DIRS})
 
-# Linking with other libraries (in such a way to avoid any warnings compiling them)
-if(pinocchio_FOUND)
-    target_link_libraries_system(${PROJECT_NAME} pinocchio::pinocchio)
-elseif(hpp-fcl_FOUND)
-    target_link_libraries_system(${PROJECT_NAME} hpp-fcl::hpp-fcl)
-elseif(LEGACY_MODE)
-    target_link_libraries(${PROJECT_NAME} pinocchio hpp-fcl)  # It is necessary to link to Pinocchio shared lib since 2.4.0
-endif()
-if(NOT LEGACY_MODE)
-    if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
-        list(APPEND urdfdom_LIBRARIES "tinyxml")
+# `target_link_libraries` for object libraries is not available for Cmake < 3.12,
+# so instead the dependencies must be added for both the static and the shared library.
+foreach(target "${PROJECT_NAME}" "${LIBRARY_NAME}")
+    # Set library version
+    set_target_properties(${target} PROPERTIES
+        VERSION ${BUILD_VERSION}
+        SOVERSION ${BUILD_VERSION_MAJOR}.${BUILD_VERSION_MINOR}
+    )
+
+    # Propagate include directories from object manually is necessary for Cmake < 3.12
+    target_include_directories(${target}
+        SYSTEM PUBLIC
+        $<TARGET_PROPERTY:${PROJECT_NAME}-object,INTERFACE_INCLUDE_DIRECTORIES>)
+
+    # Re-activate C++17 because it does not propagate properly for Cmake < 3.12
+    set_target_properties(${target} PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED YES
+        CXX_EXTENSIONS NO
+    )
+    target_compile_features(${target} PUBLIC cxx_std_17)
+
+    # Linking with other libraries (in such a way to avoid any warnings compiling them)
+    if(pinocchio_FOUND)
+        target_link_libraries_system(${target} pinocchio::pinocchio)
+    elseif(hpp-fcl_FOUND)
+        target_link_libraries_system(${target} hpp-fcl::hpp-fcl)
+    elseif(LEGACY_MODE)
+        # It is necessary to link to Pinocchio shared lib since 2.4.0
+        target_link_libraries(${target} pinocchio hpp-fcl)
     endif()
-    target_link_libraries(${PROJECT_NAME} "${urdfdom_LIBRARIES}")
-else()
-    target_link_libraries(${PROJECT_NAME} urdfdom_model) # Fallback to raw library name
-endif()
-target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
-target_link_libraries(${PROJECT_NAME} jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
-target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
-if(NOT WIN32)
-    target_link_libraries(${PROJECT_NAME} -ldl)  # Link some libraries that are not automatically linked with HDF5
-endif()
-
-# Activate C++17 for this target and propagate it
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
-)
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+    if(NOT LEGACY_MODE)
+        if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
+            list(APPEND urdfdom_LIBRARIES "tinyxml")
+        endif()
+        target_link_libraries(${target} "${urdfdom_LIBRARIES}")
+    else()
+        # Fallback to raw library name
+        target_link_libraries(${target} urdfdom_model)
+    endif()
+    target_link_libraries(${target} Eigen3::Eigen)
+    target_link_libraries(${target} jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
+    target_link_libraries(${target} ${Boost_LIBRARIES})
+    # Link some libraries that are not automatically linked with HDF5 and assimp (through hppfcl) respectively
+    if(NOT WIN32)
+        target_link_libraries(${target} -ldl -lrt)
+    endif()
+endforeach()
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"
@@ -149,11 +176,12 @@ install(DIRECTORY "include/${LIBRARY_NAME}"
 )
 
 # Generate Cmake configuration files used by find_package
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME}-object ${PROJECT_NAME}
         EXPORT  ${PROJECT_NAME}Config
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        OBJECTS DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
-exportCmakeConfigFiles()
+exportCmakeConfigFiles(${PROJECT_NAME}-object ${PROJECT_NAME})

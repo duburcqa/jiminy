@@ -1,9 +1,9 @@
 #include "jiminy/core/robot/BasicMotors.h"
 
+#include <boost/python.hpp>
+
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Motors.h"
-
-#include <boost/python.hpp>
 
 
 namespace jiminy

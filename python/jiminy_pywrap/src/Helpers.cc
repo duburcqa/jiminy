@@ -6,11 +6,18 @@
 #include "jiminy/core/utilities/Pinocchio.h"
 #include "jiminy/core/utilities/Random.h"
 
+#include <boost/optional.hpp>
+
+/* Note that it is necessary to import eigenpy to get access to the converters.
+   otherwise, the compilation will (sometimes) fail with a strange error message:
+
+   /usr/include/boost/python/detail/destroy.hpp:20:9: error: 'Eigen::MatrixBase<Derived>::~MatrixBase() ...' is protected within this context
+   20 |         p->~T(); */
+#include <eigenpy/eigenpy.hpp>
+#include <boost/python.hpp>
+
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Helpers.h"
-
-#include <boost/python.hpp>
-#include <eigenpy/eigenpy.hpp>  // Required to have access to eigenpy from python converters
 
 
 namespace jiminy
@@ -52,7 +59,7 @@ namespace python
 
     void resetRandomGenerators(bp::object const & seedPy)
     {
-        std::optional<uint32_t> seed = std::nullopt;
+        boost::optional<uint32_t> seed = boost::none;
         if (!seedPy.is_none())
         {
             seed = bp::extract<uint32_t>(seedPy);
@@ -63,10 +70,11 @@ namespace python
     pinocchio::GeometryModel buildGeomFromUrdf(pinocchio::Model const & model,
                                                std::string const & filename,
                                                pinocchio::GeometryType const & type,
-                                               std::vector<std::string> const & packageDirs,
+                                               bp::list const & packageDirsPy,
                                                bool_t loadMeshes)
     {
         pinocchio::GeometryModel geometryModel;
+        auto packageDirs = convertFromPython<std::vector<std::string> >(packageDirsPy);
         buildGeom(model, filename, type, geometryModel, packageDirs, loadMeshes);
         return geometryModel;
     }
@@ -77,7 +85,7 @@ namespace python
 
         bp::def("buildGeomFromUrdf", &buildGeomFromUrdf,
                                      (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
-                                      bp::arg("package_dirs") = std::vector<std::string>(),
+                                      bp::arg("package_dirs") = bp::list(),
                                       bp::arg("load_meshes") = true));
 
         bp::def("get_joint_type", &getJointTypeFromIdx,

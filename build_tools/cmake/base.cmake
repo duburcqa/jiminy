@@ -66,7 +66,7 @@ endif()
 # Eigen >= 3.3.7, Boost >= 1.71, and Pinocchio >=2.4.0.
 find_package(Boost QUIET)
 string(REPLACE "_" "." BOOST_VERSION "${Boost_LIB_VERSION}")
-if("${BOOST_VERSION}" VERSION_LESS "1.71.0")
+if(BOOST_VERSION VERSION_LESS "1.71.0")
     set(LEGACY_MODE ON)
 endif()
 if(LEGACY_MODE)

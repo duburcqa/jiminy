@@ -1,4 +1,4 @@
-name: Manylinux2014 CI (PyPi deploy)
+name: Manylinux CI (PyPi deploy)
 
 on:
   # Trigger the workflow on push on the master branch, or for any pull request
@@ -9,14 +9,11 @@ on:
 
 jobs:
   build-test-and-publish-pypi-manylinux:
-    name: (manylinux2014) Build and run the unit tests. Then generate and publish the wheels on PyPi.
+    name: >-
+      (${{ matrix.container }}) (Python${{ matrix.PYTHON_VERSION }})
+      Build and run the unit tests. Then generate and publish the wheels on PyPi.
     runs-on: ubuntu-20.04
-    # manylinux2014 must be used instead of manylinux2010 because Python3.9 requires opencv-python-headless>=4.3,
-    # for which only manylinux2014 pre-built binaries are provided. Anyway, manylinux2010 has reached EOL in
-    # november 2010 so the switch should be safe. Updating default pip to be able to install Jiminy will be
-    # required by more or less the same distributions, since manylinux2014 requires pip>=19.3 as opposed to
-    # pip>=19.0 for manylinux2010.
-    container: quay.io/pypa/manylinux2014_x86_64
+    container: quay.io/pypa/${{ matrix.container }}
 
     defaults:
       run:
@@ -27,6 +24,7 @@ jobs:
 
     strategy:
       matrix:
+        container: ['manylinux2010_x86_64', 'manylinux_2_24_x86_64']
         PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
 
     #####################################################################################
@@ -46,8 +44,8 @@ jobs:
 
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install twine wheel auditwheel
-        "${PYTHON_EXECUTABLE}" -m pip install cmake numpy
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel auditwheel cmake
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
 
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
@@ -78,7 +76,7 @@ jobs:
         make -j2
 
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
-        cp -r "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
+        cp -r -H "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         find "$RootDir/build/pypi/" -name "*.so*" -exec strip --strip-unneeded -v {} +
 
         make install

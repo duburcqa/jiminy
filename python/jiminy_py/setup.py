@@ -12,15 +12,15 @@ class BinaryDistribution(dist.Distribution):
         return True
 
 
-# Force setuptools to not consider shared libraries as purelib
+# Forcing setuptools not to consider shared libraries as purelib
 class InstallPlatlib(install):
     def finalize_options(self) -> None:
-        install.finalize_options(self)
+        super().finalize_options()
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
 
 
-# 3.3 is broken on Windows 64 bits and cannot be installed properly.
+# Matplotlib>=3.3 is broken on Windows 64 bits and cannot be installed properly
 if sys.platform.startswith('win'):
     matplotlib_spec = "<3.3"
 else:
@@ -60,9 +60,6 @@ setup(
     },
     packages=find_packages("src"),
     package_dir={"": "src"},
-    package_data={"jiminy_py": [
-        "**/*.dll", "**/*.so", "**/*.pyd", "**/*.html", "**/*.js"
-    ]},
     include_package_data=True,
     entry_points={"console_scripts": [
         "jiminy_plot=jiminy_py.log:plot_log",
@@ -133,8 +130,9 @@ setup(
           # Bridge between doxygen and sphinx. Used to generate C++ API docs
           "breathe",
           # Repair wheels to embed shared libraries.
-          # Since 3.2.0, it is now possible to use custom patcher.
-          "auditwheel>=3.2.0"
+          # Since 3.2.0, it is now possible to use custom patcher, and new
+          # manylinux_2_24 images are supported since 3.3.0
+          "auditwheel>=3.3.0"
       ]
     },
     zip_safe=False

@@ -14,6 +14,7 @@ function(buildPythonWheel)
 
     # Generate wheel sequentially for each target
     foreach(TARGET_PATH IN LISTS ARGS)
+        # Copy Python packages files in `build\pypi` after performing variable substitution
         get_filename_component(TARGET_NAME ${TARGET_PATH} NAME_WE)
         get_filename_component(TARGET_DIR ${TARGET_PATH} DIRECTORY)
         install(CODE "cmake_policy(SET CMP0053 NEW)
@@ -31,7 +32,7 @@ function(buildPythonWheel)
                       list(FILTER src_file_list EXCLUDE REGEX \"mypy_cache\")
                       foreach(src_file \${src_file_list})
                           get_filename_component(src_file_real \"\${src_file}\" REALPATH
-                                                  BASE_DIR \"${CMAKE_SOURCE_DIR}/${TARGET_DIR}\")
+                                                 BASE_DIR \"${CMAKE_SOURCE_DIR}/${TARGET_DIR}\")
                           if(src_file_real MATCHES \".*\\.(txt|py|md|in|js|html|toml|json|urdf|xacro)\$\")
                               configure_file(\"\${src_file_real}\"
                                              \"${CMAKE_BINARY_DIR}/pypi/\${src_file}\" @ONLY)
@@ -42,17 +43,19 @@ function(buildPythonWheel)
                       endforeach()"
             )
 
+        # Copy project README in Pypi for wheel package
+        install(FILES ${CMAKE_SOURCE_DIR}/README.md
+                DESTINATION "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}"
+                COMPONENT pypi
+                EXCLUDE_FROM_ALL
+        )
+
         # TODO: Use add_custom_command instead of install to enable auto-cleanup of copied files
         # add_custom_command(
         #     OUTPUT  ${CMAKE_BINARY_DIR}/pypi
         #     COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_SOURCE_DIR}/${TARGET_PATH}\" \"${CMAKE_BINARY_DIR}/pypi\"
         # )
 
-        install(FILES ${CMAKE_SOURCE_DIR}/README.md
-                DESTINATION "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}"
-                COMPONENT pypi
-                EXCLUDE_FROM_ALL
-        )
         install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py clean --all
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})
                       execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py sdist bdist_wheel

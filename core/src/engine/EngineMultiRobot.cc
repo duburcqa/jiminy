@@ -954,7 +954,7 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::start(std::map<std::string, vectorN_t> const & qInit,
                                       std::map<std::string, vectorN_t> const & vInit,
-                                      std::optional<std::map<std::string, vectorN_t> > const & aInit,
+                                      boost::optional<std::map<std::string, vectorN_t> > const & aInit,
                                       bool_t const & resetRandomNumbers,
                                       bool_t const & removeAllForce)
     {
@@ -1253,7 +1253,7 @@ namespace jiminy
 
             // Set Baumgarte stabilization natural frequency for every constraints
             systemDataIt->constraintsHolder.foreach(
-                [&freq = engineOptions_->contacts.stabilizationFreq](
+                [freq = engineOptions_->contacts.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
                     std::shared_ptr<AbstractConstraintBase> const & constraint,
                     constraintsHolderType_t const & /* holderType */)
                 {
@@ -1447,7 +1447,7 @@ namespace jiminy
     hresult_t EngineMultiRobot::simulate(float64_t                        const & tEnd,
                                          std::map<std::string, vectorN_t> const & qInit,
                                          std::map<std::string, vectorN_t> const & vInit,
-                                         std::optional<std::map<std::string, vectorN_t> > const & aInit)
+                                         boost::optional<std::map<std::string, vectorN_t> > const & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -2194,7 +2194,8 @@ namespace jiminy
         float64_t minValue = INF;
         auto lambda = [&minValue, &values...](systemDataHolder_t const & systemData)
         {
-            auto [isIncluded, value] = isGcdIncluded(
+            bool_t isIncluded; float64_t value;
+            std::tie(isIncluded, value) = isGcdIncluded(
                 systemData.forcesProfile.begin(),
                 systemData.forcesProfile.end(),
                 [](forceProfile_t const & force) { return force.updatePeriod; },
@@ -2253,7 +2254,8 @@ namespace jiminy
         }
 
         // Make sure the desired update period is a multiple of the stepper period
-        auto [isIncluded, minUpdatePeriod] = isGcdIncluded(
+        bool_t isIncluded; float64_t minUpdatePeriod;
+        std::tie(isIncluded, minUpdatePeriod) = isGcdIncluded(
             systemsDataHolder_, stepperUpdatePeriod_, updatePeriod);
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -2467,7 +2469,8 @@ namespace jiminy
             boost::get<float64_t>(stepperOptions.at("sensorsUpdatePeriod"));
         float64_t const & controllerUpdatePeriod =
             boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod"));
-        auto [isIncluded, minUpdatePeriod] = isGcdIncluded(
+        bool_t isIncluded; float64_t minUpdatePeriod;
+        std::tie(isIncluded, minUpdatePeriod) = isGcdIncluded(
             systemsDataHolder_, controllerUpdatePeriod, sensorsUpdatePeriod);
         if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         || sensorsUpdatePeriod > SIMULATION_MAX_TIMESTEP
@@ -3669,7 +3672,7 @@ namespace jiminy
             for (constraintsHolderType_t holderType : holderTypes)
             {
                 systemData.constraintsHolder.foreach(holderType,
-                    [&lo, &hi, &fIdx, &jointsIdx, &contactsIdx, &contactOptions = std::as_const(engineOptions_->contacts)](
+                    [&lo, &hi, &fIdx, &jointsIdx, &contactsIdx, &contactOptions = const_cast<contactOptions_t &>(engineOptions_->contacts)](
                         std::shared_ptr<AbstractConstraintBase> const & constraint,
                         constraintsHolderType_t const & /* holderType */)
                     {
@@ -3727,10 +3730,10 @@ namespace jiminy
             systemData.constraintsHolder.foreach(
                 constraintsHolderType_t::BOUNDS_JOINTS,
                 [&constraintIdx,
-                    &lambda_c = std::as_const(data.lambda_c),
+                    &lambda_c = const_cast<vectorN_t &>(data.lambda_c),  // std::as_const is not supported by gcc<7.3
                     &u = systemData.state.u,
                     &uInternal = systemData.state.uInternal,
-                    &joints = model.joints](
+                    &joints = const_cast<pinocchio::Model:: JointModelVector &>(model.joints)](
                     std::shared_ptr<AbstractConstraintBase> const & constraint,
                     constraintsHolderType_t const & /* holderType */)
                 {
@@ -3982,10 +3985,15 @@ namespace jiminy
                 char_t const * value = constantDescr.c_str() + (delimiterIdx + 1);
 
                 H5::DataSpace constantSpace = H5::DataSpace(H5S_SCALAR);  // There is only one string !
-                H5::StrType stringType(H5::PredType::C_S1, hsize_t(constantDescr.size() - (delimiterIdx + 1)));
-                H5::DataSet constantDataSet = constantsGroup.createDataSet(
-                    key, stringType, constantSpace);
-                constantDataSet.write(value, stringType);
+                hsize_t valueSize = constantDescr.size() - (delimiterIdx + 1);
+                if (valueSize > 0)
+                {
+                    // Impossible to register empty string variable
+                    H5::StrType stringType(H5::PredType::C_S1, valueSize);
+                    H5::DataSet constantDataSet = constantsGroup.createDataSet(
+                        key, stringType, constantSpace);
+                    constantDataSet.write(value, stringType);
+                }
             }
 
             /* Convert std:vector<std:vector<>> to Eigen Matrix for efficient transpose.

@@ -114,15 +114,15 @@ namespace jiminy
         }
     }
 
-	void resetRandomGenerators(std::optional<uint32_t> const & seed)
-	{
+    void resetRandomGenerators(boost::optional<uint32_t> const & seed)
+    {
         uint32_t newSeed = seed.value_or(seed_);
-		srand(newSeed);  // Eigen relies on srand for genering random numbers
+        srand(newSeed);  // Eigen relies on srand for genering random numbers
         generator_.seed(newSeed);
         r4_nor_setup();
         seed_ = newSeed;
         isInitialized_ = true;
-	}
+    }
 
     hresult_t getRandomSeed(uint32_t & seed)
     {
@@ -137,16 +137,16 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-	float64_t randUniform(float64_t const & lo,
-	                      float64_t const & hi)
+    float64_t randUniform(float64_t const & lo,
+                          float64_t const & hi)
     {
         assert(isInitialized_ && "Random number genetors not initialized. "
                                  "Please call `resetRandomGenerators` at least once.");
         return lo + r4_uni() * (hi - lo);
     }
 
-	float64_t randNormal(float64_t const & mean,
-	                     float64_t const & std)
+    float64_t randNormal(float64_t const & mean,
+                         float64_t const & std)
     {
         assert(isInitialized_ && "Random number genetors not initialized. "
                                  "Please call `resetRandomGenerators` at least once.");
@@ -247,17 +247,17 @@ namespace jiminy
         {
         case 3:
             k1 ^= tail[2] << 16;
-            [[fallthrough]];
+            /* Falls through. */  // [[fallthrough]] is not supported by gcc<7.3
         case 2:
             k1 ^= tail[1] << 8;
-            [[fallthrough]];
+            /* Falls through. */  // [[fallthrough]] is not supported by gcc<7.3
         case 1:
             k1 ^= tail[0];
             k1 *= c1;
             k1 = rotl32(k1,15);
             k1 *= c2;
             h1 ^= k1;
-            [[fallthrough]];
+            /* Falls through. */ // [[fallthrough]] is not supported by gcc<7.3
         case 0:
         default:
             break;

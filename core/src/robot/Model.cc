@@ -98,7 +98,8 @@ namespace jiminy
     bool_t constraintsHolder_t::exist(std::string const & key,
                                       constraintsHolderType_t const & holderType) const
     {
-        auto [constraintsMapPtr, constraintIt] = const_cast<constraintsHolder_t *>(this)->find(key, holderType);
+        constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
+        std::tie(constraintsMapPtr, constraintIt) = const_cast<constraintsHolder_t *>(this)->find(key, holderType);
         return (constraintsMapPtr && constraintIt != constraintsMapPtr->end());
     }
 
@@ -117,7 +118,8 @@ namespace jiminy
     std::shared_ptr<AbstractConstraintBase> constraintsHolder_t::get(std::string const & key,
                                                                  constraintsHolderType_t const & holderType)
     {
-        auto [constraintsMapPtr, constraintIt] = find(key, holderType);
+        constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
+        std::tie(constraintsMapPtr, constraintIt) = find(key, holderType);
         if (constraintsMapPtr && constraintIt != constraintsMapPtr->end())
         {
             return constraintIt->second;
@@ -162,7 +164,8 @@ namespace jiminy
     constraintsMap_t::iterator constraintsHolder_t::erase(std::string const & key,
                                                           constraintsHolderType_t const & holderType)
     {
-        auto [constraintsMapPtr, constraintIt] = find(key, holderType);
+        constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
+        std::tie(constraintsMapPtr, constraintIt) = find(key, holderType);
         if (constraintsMapPtr && constraintIt != constraintsMapPtr->end())
         {
             return constraintsMapPtr->erase(constraintIt);
@@ -818,7 +821,8 @@ namespace jiminy
         for (std::string const & constraintName : constraintsNames)
         {
             // Lookup constraint
-            auto [constraintsMapPtr, constraintIt] = constraintsHolder_.find(constraintName, holderType);
+            constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
+            std::tie(constraintsMapPtr, constraintIt) = constraintsHolder_.find(constraintName, holderType);
 
             // Detach the constraint
             constraintIt->second->detach();  // It cannot fail at this point

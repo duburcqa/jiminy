@@ -4,7 +4,7 @@
 
 # Get Python executable and version
 if(NOT DEFINED PYTHON_EXECUTABLE)
-    if(${CMAKE_VERSION} VERSION_LESS "3.12.4")
+    if(CMAKE_VERSION VERSION_LESS "3.12.4")
         if(PYTHON_REQUIRED_VERSION)
             message(FATAL_ERROR "Impossible to handle PYTHON_REQUIRED_VERSION for cmake older than 3.12.4, Cmake will exit.")
         endif()
@@ -31,12 +31,11 @@ execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                         "import sys; sys.stdout.write(';'.join([str(x) for x in sys.version_info[:3]]))"
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 OUTPUT_VARIABLE _VERSION)
-string(REPLACE ";" "." PYTHON_VERSION_STRING "${_VERSION}")
 list(GET _VERSION 0 PYTHON_VERSION_MAJOR)
 list(GET _VERSION 1 PYTHON_VERSION_MINOR)
 list(GET _VERSION 2 PYTHON_VERSION_PATCH)
 set(PYTHON_VERSION "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
-if(${PYTHON_VERSION_MAJOR} EQUAL 3)
+if(PYTHON_VERSION_MAJOR EQUAL 3)
     message(STATUS "Found PythonInterp: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION_STRING}\")")
 else()
     message(FATAL_ERROR "Python3 is required if BUILD_PYTHON_INTERFACE=ON.")
@@ -56,13 +55,13 @@ message(STATUS "Python user site-package: ${PYTHON_USER_SITELIB}")
 # Check write permissions on Python system site-package to
 # determine whether to use user site as fallback.
 # It also sets the installation flags
-if(NOT WIN32)
+if(WIN32)
+    set(HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB FALSE)
+else()
     execute_process(COMMAND bash -c
                             "if test -w ${PYTHON_SYS_SITELIB} ; then echo 0; else echo 1; fi"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB)
-else()
-    set(HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB FALSE)
 endif()
 
 if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
@@ -81,10 +80,10 @@ execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 OUTPUT_VARIABLE PYTHON_EXT_SUFFIX)
 if("${PYTHON_EXT_SUFFIX}" STREQUAL "")
-    if(NOT WIN32)
-        set(PYTHON_EXT_SUFFIX ".so")
-    else()
+    if(WIN32)
         set(PYTHON_EXT_SUFFIX ".pyd")
+    else()
+        set(PYTHON_EXT_SUFFIX ".so")
     endif()
 ENDIF()
 

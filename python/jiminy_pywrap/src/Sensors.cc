@@ -2,10 +2,10 @@
 #include "jiminy/core/robot/BasicSensors.h"
 #include "jiminy/core/Types.h"
 
+#include <boost/python.hpp>
+
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Sensors.h"
-
-#include <boost/python.hpp>
 
 
 namespace jiminy

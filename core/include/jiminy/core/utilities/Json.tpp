@@ -34,16 +34,16 @@ namespace jiminy
         Json::Value root;
 
         using TVal = typename T::value_type;
-        if constexpr (std::is_same_v<TVal, std::string>)
+        if (std::is_same<TVal, std::string>::value)  // C++17 conditional constexpr is not supported by gcc<7.3
         {
             root["type"] = "list(string)";
         }
-        else if constexpr (std::is_same_v<TVal, vectorN_t>
-                        || std::is_same_v<TVal, matrixN_t>)
+        else if (std::is_same<TVal, vectorN_t>::value
+              || std::is_same<TVal, matrixN_t>::value)  // constexpr
         {
             root["type"] = "list(array)";
         }
-        else if constexpr (std::is_same_v<TVal, flexibleJointData_t>)
+        else if (std::is_same<TVal, flexibleJointData_t>::value)  // constexpr
         {
             root["type"] = "list(flexibility)";
         }

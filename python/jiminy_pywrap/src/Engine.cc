@@ -5,12 +5,14 @@
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 
-#include "jiminy/python/Functors.h"
-#include "jiminy/python/Utilities.h"
-#include "jiminy/python/Engine.h"
+#include <boost/optional.hpp>
 
 #include <boost/python.hpp>
 #include <boost/python/raw_function.hpp>
+
+#include "jiminy/python/Utilities.h"
+#include "jiminy/python/Functors.h"
+#include "jiminy/python/Engine.h"
 
 
 namespace jiminy
@@ -597,7 +599,7 @@ namespace python
                                bool             const & resetRandomGenerator,
                                bool             const & removeForces)
         {
-            std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
+            boost::optional<std::map<std::string, vectorN_t> > aInit = boost::none;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<std::map<std::string, vectorN_t> >(aInitPy));
@@ -622,7 +624,7 @@ namespace python
                                   bp::object       const & vInitPy,
                                   bp::object       const & aInitPy)
         {
-            std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
+            boost::optional<std::map<std::string, vectorN_t> > aInit = boost::none;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<std::map<std::string, vectorN_t> >(aInitPy));
@@ -1043,7 +1045,7 @@ namespace python
                                bool       const & resetRandomGenerator,
                                bool       const & removeForces)
         {
-            std::optional<vectorN_t> aInit = std::nullopt;
+            boost::optional<vectorN_t> aInit = boost::none;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<vectorN_t>(aInitPy));
@@ -1058,7 +1060,7 @@ namespace python
                                   bp::object const & aInitPy,
                                   bool       const & isStateTheoretical)
         {
-            std::optional<vectorN_t> aInit = std::nullopt;
+            boost::optional<vectorN_t> aInit = boost::none;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<vectorN_t>(aInitPy));

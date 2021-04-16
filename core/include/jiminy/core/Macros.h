@@ -73,24 +73,6 @@ namespace jiminy
         return std::static_pointer_cast<T>(shared_from_base(derived));
     }
 
-    // ======================== is_iterator ===========================
-
-    template<typename T, typename = void>
-    struct is_iterator
-    {
-        static constexpr bool value = false;
-    };
-
-    template<typename T>
-    struct is_iterator<T, typename std::enable_if<!std::is_same<
-        typename std::iterator_traits<T>::value_type, void>::value>::type>
-    {
-        static constexpr bool value = true;
-    };
-
-    template<typename T>
-    inline constexpr bool is_iterator_v = is_iterator<T>::value;
-
     // ======================== is_vector ===========================
 
     template<typename T>
@@ -100,7 +82,7 @@ namespace jiminy
     struct is_vector<std::vector<T> > : std::true_type {};
 
     template<typename T>
-    inline constexpr bool is_vector_v = is_vector<T>::value;
+    constexpr bool is_vector_v = is_vector<T>::value;  // `inline` variables are not supported by gcc<7.3
 
     // ========================== is_map ============================
 
@@ -123,7 +105,7 @@ namespace jiminy
     struct is_map<T, typename std::enable_if<isMap<T>::value>::type> : std::true_type {};
 
     template<typename T>
-    inline constexpr bool is_map_v = is_map<T>::value;
+    constexpr bool is_map_v = is_map<T>::value;
 
     // ========================= is_eigen ===========================
 
@@ -148,7 +130,7 @@ namespace jiminy
     struct is_eigen<T, typename std::enable_if_t<isEigenObject<T>::value> > : std::true_type {};
 
     template<typename T>
-    inline constexpr bool is_eigen_v = is_eigen<T>::value;
+    constexpr bool is_eigen_v = is_eigen<T>::value;
 
     // ====================== is_not_eigen_expr =======================
 
@@ -182,7 +164,7 @@ namespace jiminy
     struct is_eigen_vector<T, typename std::enable_if_t<isEigenVector<T>::value> > : std::true_type {};
 
     template<typename T>
-    inline constexpr bool is_eigen_vector_v = is_eigen_vector<T>::value;
+    constexpr bool is_eigen_vector_v = is_eigen_vector<T>::value;
 
     // =================== is_pinocchio_joint_* ===================
 
@@ -200,7 +182,7 @@ namespace jiminy
     struct is_pinocchio_joint_ ## name <T, typename std::enable_if_t<isPinocchioJoint ## type <T>::value> > : std::true_type {}; \
      \
     template<typename T> \
-    inline constexpr bool is_pinocchio_joint_ ## name ## _v = is_pinocchio_joint_ ## name <T>::value;
+    constexpr bool is_pinocchio_joint_ ## name ## _v = is_pinocchio_joint_ ## name <T>::value;
 
     #define IS_PINOCCHIO_JOINT_DETAIL(type, name) \
     namespace isPinocchioJoint ## type ## Detail \

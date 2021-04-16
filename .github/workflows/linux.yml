@@ -9,8 +9,12 @@ on:
 
 jobs:
   build-and-test-linux:
-    name: (Linux) Build the dependencies. Build the project and run the unit tests.
-    runs-on: ubuntu-18.04
+    name: (${{ matrix.os }}) Build the dependencies. Build the project and run the unit tests.
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
 
     defaults:
       run:

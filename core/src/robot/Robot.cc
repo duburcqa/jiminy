@@ -32,7 +32,7 @@ namespace jiminy
     sensorsNames_(),
     commandFieldnames_(),
     motorEffortFieldnames_(),
-    nmotors_(-1),
+    nmotors_(0),
     mutexLocal_(std::make_unique<MutexLocal>()),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_()
@@ -1211,7 +1211,7 @@ namespace jiminy
         sensorsSharedHolder_t::const_iterator sensorsSharedIt = sensorsSharedHolder_.begin();
         for (; sensorsGroupIt != sensorsGroupHolder_.end() ; ++sensorsGroupIt, ++sensorsSharedIt)
         {
-            sensorDataTypeMap_t dataType(sensorsSharedIt->second->dataMeasured_);
+            sensorDataTypeMap_t dataType(std::cref(sensorsSharedIt->second->dataMeasured_));  // Need explicit call to `std::reference_wrapper` for gcc<7.3 
             for (auto & sensor : sensorsGroupIt->second)
             {
                 auto & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);

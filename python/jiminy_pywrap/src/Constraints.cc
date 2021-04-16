@@ -6,10 +6,11 @@
 #include "jiminy/core/robot/SphereConstraint.h"
 #include "jiminy/core/robot/WheelConstraint.h"
 
+#include <boost/python.hpp>
+
+#include "jiminy/python/Utilities.h"
 #include "jiminy/python/Functors.h"
 #include "jiminy/python/Constraints.h"
-
-#include <boost/python.hpp>
 
 
 namespace jiminy

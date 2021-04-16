@@ -8,12 +8,16 @@
    Undefined by default because it increases binary size by about 14%. */
 #define BOOST_PYTHON_PY_SIGNATURES_PROPER_INIT_SELF_TYPE
 
-// Manually import the Python C API to avoid relying on eigenpy and boost::numpy to do so.
-#define PY_ARRAY_UNIQUE_SYMBOL JIMINY_ARRAY_API
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include "numpy/arrayobject.h"
-#define NO_IMPORT_ARRAY
+#include "jiminy/core/utilities/Random.h"
+#include "jiminy/core/Types.h"
 
+/* Eigenpy must be imported first, since it sets pre-processor
+   definitions used by Boost Python to configure Python C API. */
+#include "eigenpy/eigenpy.hpp"
+#include <boost/python.hpp>
+#include <boost/python/numpy.hpp>
+
+#include "jiminy/python/Compatibility.h"
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Helpers.h"
 #include "jiminy/python/Functors.h"
@@ -23,20 +27,6 @@
 #include "jiminy/python/Robot.h"
 #include "jiminy/python/Motors.h"
 #include "jiminy/python/Sensors.h"
-
-#include "jiminy/core/utilities/Random.h"
-#include "jiminy/core/Types.h"
-
-#include <boost/python.hpp>
-#include <boost/python/numpy.hpp>
-#include <eigenpy/eigenpy.hpp>
-
-
-static void * initNumpy()
-{
-    import_array();
-    return NULL;
-}
 
 
 namespace jiminy
@@ -65,12 +55,12 @@ namespace python
         static PyTypeObject const * get_pytype()
         {
             std::type_info const * typeId(&typeid(bp::object));
-            if constexpr (is_vector<T>::value)
+            if (is_vector<T>::value)  // constexpr
             {
                 typeId = &typeid(bp::list);
             }
-            else if constexpr (std::is_same<T, configHolder_t>::value
-                            || std::is_same<T, flexibleJointData_t>::value)
+            else if (std::is_same<T, configHolder_t>::value
+                  || std::is_same<T, flexibleJointData_t>::value)  // constexpr
             {
                 typeId = &typeid(bp::dict);
             }
@@ -91,12 +81,11 @@ namespace python
         // Initialize Jiminy random number generator
         resetRandomGenerators(0U);
 
-        // Initialized C API of Python, required to handle raw Python native object
-        Py_Initialize();
-        // Initialized C API of Numpy, required to handle raw numpy::ndarray object
-        initNumpy();
-        // Initialized boost::python::numpy, required to handle boost::python::numpy::ndarray object
-        bp::numpy::initialize();
+        /* Initialized boost::python::numpy.
+           It is required to handle boost::python::numpy::ndarray object directly.
+           Note that numpy scalar to native type automatic converters are disabled
+           because they are messing up with the docstring. */
+        bp::numpy::initialize(false);
         // Initialized EigenPy, enabling PyArrays<->Eigen automatic converters
         eigenpy::enableEigenPy();
 
@@ -130,6 +119,10 @@ namespace python
         .value("STAIRS", heatMapType_t::STAIRS)
         .value("GENERIC", heatMapType_t::GENERIC);
 
+        // Disable CPP docstring
+        bp::docstring_options doc_options;
+        doc_options.disable_cpp_signatures();
+
         // Enable some automatic C++ to Python converters
         bp::to_python_converter<std::vector<std::string>, converterToPython<std::vector<std::string> >, true>();
         bp::to_python_converter<std::vector<std::vector<int32_t> >, converterToPython<std::vector<std::vector<int32_t> > >, true>();
@@ -138,14 +131,15 @@ namespace python
         bp::to_python_converter<std::vector<matrixN_t>, converterToPython<std::vector<matrixN_t> >, true>();
         bp::to_python_converter<configHolder_t, converterToPython<configHolder_t>, true>();
 
-        // Disable CPP docstring
-        bp::docstring_options doc_options;
-        doc_options.disable_cpp_signatures();
-
         // Expose functors
         TIME_STATE_FCT_EXPOSE(bool_t, Bool)
         TIME_STATE_FCT_EXPOSE(pinocchio::Force, PinocchioForce)
         exposeHeatMapFunctor();
+
+        /* Expose compatibility layer, to support both new and old C++ ABI, and to
+           restore automatic converters of numpy scalars without altering python
+           docstring signature. */
+        exposeCompatibility();
 
         // Expose helpers
         exposeHelpers();

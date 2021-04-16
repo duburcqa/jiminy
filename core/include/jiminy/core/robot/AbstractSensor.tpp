@@ -1,5 +1,8 @@
+#include <numeric>
+
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Constants.h"
+
 
 namespace jiminy
 {
@@ -134,6 +137,13 @@ namespace jiminy
     template <typename T>
     hresult_t AbstractSensorTpl<T>::resetAll(void)
     {
+        // Make sure the sensor is attached to a robot
+        if (!isAttached_)
+        {
+            PRINT_ERROR("Sensor not attached to any robot.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
         // Make sure the robot still exists
         if (robot_.expired())
         {
@@ -152,6 +162,14 @@ namespace jiminy
         }
         sharedHolder_->dataMeasured_.setZero();
 
+        // Compute max delay
+        sharedHolder_->delayMax_ = std::accumulate(
+            sharedHolder_->sensors_.begin(), sharedHolder_->sensors_.end(), 0.0,
+            [](float64_t const & value, AbstractSensorBase * sensor)
+            {
+                return std::max(sensor->baseSensorOptions_->delay, value);
+            });
+
         // Update sensor scope information
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
@@ -166,24 +184,15 @@ namespace jiminy
     }
 
     template <typename T>
-    hresult_t AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        returnCode = AbstractSensorBase::setOptions(sensorOptions);
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_, baseSensorOptions_->delay);
-        }
-
-        return returnCode;
-    }
-
-    template <typename T>
     hresult_t AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (!isAttached_)
+        {
+            PRINT_ERROR("Sensor not attached to any robot.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
 
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
@@ -235,18 +244,25 @@ namespace jiminy
     template <typename T>
     inline Eigen::Ref<vectorN_t const> AbstractSensorTpl<T>::get(void) const
     {
-        return sharedHolder_->dataMeasured_.col(sensorIdx_);
+        static vectorN_t dataDummy = vectorN_t::Zero(fieldNames_.size());
+        if (sharedHolder_)
+        {
+            return sharedHolder_->dataMeasured_.col(sensorIdx_);
+        }
+        return dataDummy;
     }
 
     template <typename T>
     inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::get(void)
     {
+        // No guard, since this method is not public
         return sharedHolder_->dataMeasured_.col(sensorIdx_);
     }
 
     template <typename T>
     inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data(void)
     {
+        // No guard, since this method is not public
         return sharedHolder_->data_.back().col(sensorIdx_);
     }
 
@@ -387,6 +403,12 @@ namespace jiminy
                                            vectorN_t const & uMotor)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (!isAttached_)
+        {
+            PRINT_ERROR("Sensor not attached to any robot.");
+            return hresult_t::ERROR_GENERIC;
+        }
 
         /* Make sure at least the requested delay plus the maximum time step
            is available to handle the case where the solver goes back in time.

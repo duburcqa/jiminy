@@ -9,7 +9,9 @@ on:
 
 jobs:
   build-test-and-deploy-doc-ubuntu:
-    name: (Ubuntu) Easy install the dependencies. Build the project and run the unit tests. Generate and deploy the documentation.
+    name: >-
+      (${{ matrix.os }}) Easy install the dependencies. Build the project and run the unit tests.
+      Generate and deploy the documentation.
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -55,7 +57,7 @@ jobs:
     - name: PEP8 Code Style Check
       if: matrix.os == 'ubuntu-18.04'
       run: |
-        flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,W504 --count --show-source --statistics "$RootDir/python"
+        flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,F405,W504 --count --show-source --statistics "$RootDir/python"
 
     #####################################################################################
 
@@ -103,8 +105,7 @@ jobs:
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \
-                 --generated-members=numpy.*,torch.* \
-                 "gym_jiminy/"
+                 --generated-members=numpy.*,torch.* "gym_jiminy/"
 
           mypy --allow-redefinition --check-untyped-defs --disallow-incomplete-defs --disallow-untyped-defs \
                --ignore-missing-imports --no-implicit-optional --strict-equality --strict-optional \

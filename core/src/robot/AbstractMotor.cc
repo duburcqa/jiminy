@@ -118,6 +118,13 @@ namespace jiminy
 
     hresult_t AbstractMotorBase::resetAll(void)
     {
+        // Make sure the motor is attached to a robot
+        if (!isAttached_)
+        {
+            PRINT_ERROR("Motor not attached to any robot.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
         // Make sure the robot still exists
         if (robot_.expired())
         {
@@ -261,12 +268,17 @@ namespace jiminy
         return returnCode;
     }
 
-    float64_t & AbstractMotorBase::data(void)
+    float64_t const & AbstractMotorBase::get(void) const
     {
-        return sharedHolder_->data_[motorIdx_];
+        static float64_t dataEmpty;
+        if (sharedHolder_)
+        {
+            return sharedHolder_->data_[motorIdx_];
+        }
+        return dataEmpty;
     }
 
-    float64_t const & AbstractMotorBase::get(void) const
+    float64_t & AbstractMotorBase::data(void)
     {
         return sharedHolder_->data_[motorIdx_];
     }
@@ -279,6 +291,13 @@ namespace jiminy
     hresult_t AbstractMotorBase::setOptionsAll(configHolder_t const & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Make sure the motor is attached to a robot
+        if (!isAttached_)
+        {
+            PRINT_ERROR("Motor not attached to any robot.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
 
         for (AbstractMotorBase * motor : sharedHolder_->motors_)
         {
@@ -348,6 +367,13 @@ namespace jiminy
                                                   vectorN_t const & command)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Make sure the motor is attached to a robot
+        if (!isAttached_)
+        {
+            PRINT_ERROR("Motor not attached to any robot.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
 
         // Compute the actual effort of every motor
         for (AbstractMotorBase * motor : sharedHolder_->motors_)
