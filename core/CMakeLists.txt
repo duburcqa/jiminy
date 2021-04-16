@@ -149,7 +149,8 @@ foreach(target "${PROJECT_NAME}" "${LIBRARY_NAME}")
     elseif(hpp-fcl_FOUND)
         target_link_libraries_system(${target} hpp-fcl::hpp-fcl)
     elseif(LEGACY_MODE)
-        target_link_libraries(${target} pinocchio hpp-fcl)  # It is necessary to link to Pinocchio shared lib since 2.4.0
+        # It is necessary to link to Pinocchio shared lib since 2.4.0
+        target_link_libraries(${target} pinocchio hpp-fcl)
     endif()
     if(NOT LEGACY_MODE)
         if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
@@ -157,13 +158,15 @@ foreach(target "${PROJECT_NAME}" "${LIBRARY_NAME}")
         endif()
         target_link_libraries(${target} "${urdfdom_LIBRARIES}")
     else()
-        target_link_libraries(${target} urdfdom_model) # Fallback to raw library name
+        # Fallback to raw library name
+        target_link_libraries(${target} urdfdom_model)
     endif()
     target_link_libraries(${target} Eigen3::Eigen)
     target_link_libraries(${target} jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
     target_link_libraries(${target} ${Boost_LIBRARIES})
+    # Link some libraries that are not automatically linked with HDF5 and assimp (through hppfcl) respectively
     if(NOT WIN32)
-        target_link_libraries(${target} -ldl)  # Link some libraries that are not automatically linked with HDF5
+        target_link_libraries(${target} -ldl -lrt)
     endif()
 endforeach()
 

@@ -9,7 +9,9 @@ on:
 
 jobs:
   build-test-and-deploy-doc-ubuntu:
-    name: (Ubuntu) Easy install the dependencies. Build the project and run the unit tests. Generate and deploy the documentation.
+    name: >-
+      (${{ matrix.os }}) Easy install the dependencies. Build the project and run the unit tests.
+      Generate and deploy the documentation.
     runs-on: ${{ matrix.os }}
 
     strategy:

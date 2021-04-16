@@ -130,8 +130,9 @@ setup(
           # Bridge between doxygen and sphinx. Used to generate C++ API docs
           "breathe",
           # Repair wheels to embed shared libraries.
-          # Since 3.2.0, it is now possible to use custom patcher.
-          "auditwheel>=3.2.0"
+          # Since 3.2.0, it is now possible to use custom patcher, and new
+          # manylinux_2_24 images are supported since 3.3.0
+          "auditwheel>=3.3.0"
       ]
     },
     zip_safe=False
