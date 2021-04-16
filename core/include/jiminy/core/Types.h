@@ -8,7 +8,17 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+
+// optional is not vailable for gcc<=7
+#if !defined(__GNUC__) || (defined(__GNUC__) && (__GNUC__ >= 7))
 #include <optional>
+#else
+#include <experimental/optional>
+namespace std
+{
+    namespace optional = std::experimental::optional;
+}
+#endif
 
 #include "pinocchio/fwd.hpp"
 #include "pinocchio/math/fwd.hpp"
