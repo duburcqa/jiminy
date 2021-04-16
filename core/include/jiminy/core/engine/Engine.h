@@ -46,7 +46,7 @@ namespace jiminy
         ///                                      during the simulation.
         hresult_t start(vectorN_t const & qInit,
                         vectorN_t const & vInit,
-                        std::optional<vectorN_t> const & aInit = std::nullopt,
+                        boost::optional<vectorN_t> const & aInit = boost::none,
                         bool_t    const & isStateTheoretical = false,
                         bool_t    const & resetRandomNumbers = false,
                         bool_t    const & removeAllForce = false);
@@ -61,7 +61,7 @@ namespace jiminy
         hresult_t simulate(float64_t const & tEnd,
                            vectorN_t const & qInit,
                            vectorN_t const & vInit,
-                           std::optional<vectorN_t> const & aInit = std::nullopt,
+                           boost::optional<vectorN_t> const & aInit = boost::none,
                            bool_t    const & isStateTheoretical = false);
 
         hresult_t registerForceImpulse(std::string      const & frameName,

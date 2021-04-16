@@ -55,12 +55,12 @@ namespace python
         static PyTypeObject const * get_pytype()
         {
             std::type_info const * typeId(&typeid(bp::object));
-            if constexpr (is_vector<T>::value)
+            if (is_vector<T>::value)  // constexpr
             {
                 typeId = &typeid(bp::list);
             }
-            else if constexpr (std::is_same<T, configHolder_t>::value
-                            || std::is_same<T, flexibleJointData_t>::value)
+            else if (std::is_same<T, configHolder_t>::value
+                  || std::is_same<T, flexibleJointData_t>::value)  // constexpr
             {
                 typeId = &typeid(bp::dict);
             }

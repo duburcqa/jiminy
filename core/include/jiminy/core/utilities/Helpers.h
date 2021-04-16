@@ -121,29 +121,17 @@ namespace jiminy
                     float64_t const & minThr = -INF,
                     float64_t const & maxThr = +INF);
 
-    template<typename InputIt, typename Function>
-    inline constexpr bool is_unary_functor_v = std::is_invocable_r_v<
-        float64_t, Function, typename std::iterator_traits<InputIt>::value_type>;
-
     template<typename... Args>
     float64_t minClipped(float64_t val1, float64_t val2, Args ... vs);
 
-    template<typename InputIt, typename UnaryFunction, typename ...Args>
-    std::enable_if_t<is_iterator_v<InputIt> && is_unary_functor_v<InputIt, UnaryFunction>,
-        std::tuple<bool_t, float64_t> >
-    isGcdIncluded(InputIt first, InputIt last, UnaryFunction f, Args... values);
-
-    template<typename InputIt, typename UnaryFunction>
-    std::enable_if_t<is_iterator_v<InputIt> && is_unary_functor_v<InputIt, UnaryFunction>,
-        std::tuple<bool_t, float64_t> >
-    isGcdIncluded(InputIt first, InputIt last, UnaryFunction f);
-
-    template<typename InputIt>
-    std::enable_if_t<is_iterator_v<InputIt>, std::tuple<bool_t, float64_t> >
-    isGcdIncluded(InputIt first, InputIt last);
-
     template<typename ...Args>
     std::tuple<bool_t, float64_t> isGcdIncluded(Args... values);
+
+    template<typename InputIt, typename UnaryFunction>
+    std::tuple<bool_t, float64_t> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f);
+
+    template<typename InputIt, typename UnaryFunction, typename ...Args>
+    std::tuple<bool_t, float64_t> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f, Args... values);
 
     // ********************* Std::vector helpers **********************
 

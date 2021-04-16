@@ -97,5 +97,5 @@ __all__ += [
     'get_include',
     'get_libraries',
     '__version__',
-    '__raw_version__',
+    '__raw_version__'
 ]

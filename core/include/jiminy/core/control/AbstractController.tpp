@@ -29,6 +29,11 @@ namespace jiminy
         return {var};
     }
 
+    inline std::string to_string(std::string const & var)
+    {
+        return var;
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////
     ///
     /// \brief      Register a constant to the telemetry.
@@ -63,14 +68,7 @@ namespace jiminy
             PRINT_ERROR("Constant already registered.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        if constexpr (std::is_same_v<T, std::string>)
-        {
-            registeredConstants_.emplace_back(fieldName, value);
-        }
-        else
-        {
-            registeredConstants_.emplace_back(fieldName, to_string(value));
-        }
+        registeredConstants_.emplace_back(fieldName, to_string(value));
 
         return hresult_t::SUCCESS;
     }

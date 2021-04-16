@@ -92,9 +92,7 @@ namespace jiminy
     }
 
     template<typename InputIt, typename UnaryFunction>
-    std::enable_if_t<is_iterator_v<InputIt> && is_unary_functor_v<InputIt, UnaryFunction>,
-        std::tuple<bool_t, float64_t> >
-    isGcdIncluded(InputIt first, InputIt last, UnaryFunction f)
+    std::tuple<bool_t, float64_t> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f)
     {
         // `transform_reduce` is par of C++17 but not available on gcc version available by default on Ubuntu 18
         // float64_t const minValue = std::transform_reduce(first, last, f, INF, std::min<float64_t>, f);
@@ -120,12 +118,12 @@ namespace jiminy
     }
 
     template<typename InputIt, typename UnaryFunction, typename ...Args>
-    std::enable_if_t<is_iterator_v<InputIt> && is_unary_functor_v<InputIt, UnaryFunction>,
-        std::tuple<bool_t, float64_t> >
-    isGcdIncluded(InputIt first, InputIt last, UnaryFunction f, Args... values)
+    std::tuple<bool_t, float64_t> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f, Args... values)
     {
-        auto [isIncluded1, value1] = isGcdIncluded(std::forward<Args>(values)...);
-        auto [isIncluded2, value2] = isGcdIncluded(first, last, f);
+        bool_t isIncluded1, isIncluded2;
+        float64_t value1, value2;
+        std::tie(isIncluded1, value1) = isGcdIncluded(std::forward<Args>(values)...);
+        std::tie(isIncluded2, value2) = isGcdIncluded(first, last, f);
         if (!isIncluded1 || !isIncluded2)
         {
             return {false, INF};
@@ -150,13 +148,6 @@ namespace jiminy
             }
             return {std::fmod(value1, value2) < EPS, value2};
         }
-    }
-
-    template<typename InputIt>
-    std::enable_if_t<is_iterator_v<InputIt>, bool_t>
-    isGcdIncluded(InputIt first, InputIt last)
-    {
-        return isGcdIncluded(first, last, [](float64_t const & x) -> float64_t { return x; });
     }
 
     // ******************** Std::vector helpers *********************

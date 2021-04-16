@@ -6,6 +6,8 @@
 #include "jiminy/core/utilities/Pinocchio.h"
 #include "jiminy/core/utilities/Random.h"
 
+#include <boost/optional.hpp>
+
 /* Note that it is necessary to import eigenpy to get access to the converters.
    otherwise, the compilation will (sometimes) fail with a strange error message:
 
@@ -57,7 +59,7 @@ namespace python
 
     void resetRandomGenerators(bp::object const & seedPy)
     {
-        std::optional<uint32_t> seed = std::nullopt;
+        boost::optional<uint32_t> seed = boost::none;
         if (!seedPy.is_none())
         {
             seed = bp::extract<uint32_t>(seedPy);

@@ -27,11 +27,11 @@ namespace jiminy
     // ************* Conversion from JSON utilities *****************
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T>, T>
+    std::enable_if_t<is_vector_v<T>, T>
     convertFromJson(Json::Value const & value);
 
     template<typename T>
-    std::enable_if_t<is_vector_v<T>, T>
+    std::enable_if_t<!is_vector_v<T>, T>
     convertFromJson(Json::Value const & value);
 
     hresult_t jsonLoad(configHolder_t                    & config,

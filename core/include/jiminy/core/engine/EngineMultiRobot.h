@@ -417,7 +417,7 @@ namespace jiminy
         /// \param[in] removeAllForce Whether or not to remove registered external forces.
         hresult_t start(std::map<std::string, vectorN_t> const & qInit,
                         std::map<std::string, vectorN_t> const & vInit,
-                        std::optional<std::map<std::string, vectorN_t> > const & aInit = std::nullopt,
+                        boost::optional<std::map<std::string, vectorN_t> > const & aInit = boost::none,
                         bool_t const & resetRandomNumbers = false,
                         bool_t const & removeAllForce = false);
 
@@ -448,7 +448,7 @@ namespace jiminy
         hresult_t simulate(float64_t const & tEnd,
                            std::map<std::string, vectorN_t> const & qInit,
                            std::map<std::string, vectorN_t> const & vInit,
-                           std::optional<std::map<std::string, vectorN_t> > const & aInit = std::nullopt);
+                           boost::optional<std::map<std::string, vectorN_t> > const & aInit = boost::none);
 
         /// \brief Apply an impulse force on a frame for a given duration at the desired time.
         ///        The force must be given in the world frame.
