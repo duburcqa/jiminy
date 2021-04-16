@@ -16,7 +16,7 @@ jobs:
     # november 2010 so the switch should be safe. Updating default pip to be able to install Jiminy will be
     # required by more or less the same distributions, since manylinux2014 requires pip>=19.3 as opposed to
     # pip>=19.0 for manylinux2010.
-    container: quay.io/pypa/manylinux2014_x86_64
+    container: ${{ matrix.container }}
 
     defaults:
       run:
@@ -27,6 +27,7 @@ jobs:
 
     strategy:
       matrix:
+        container: ['quay.io/pypa/manylinux2010_x86_64', 'quay.io/pypa/manylinux2014_x86_64']
         PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
 
     #####################################################################################
