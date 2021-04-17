@@ -66,6 +66,9 @@ setup(
     },
     packages=find_packages("src"),
     package_dir={"": "src"},
+    data_files=[
+        ("cmake", ["src/jiminy_py/core/cmake/JiminyConfig.cmake"])
+    ],
     include_package_data=True,
     entry_points={"console_scripts": [
         "jiminy_plot=jiminy_py.log:plot_log",

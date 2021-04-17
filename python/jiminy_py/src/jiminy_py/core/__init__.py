@@ -80,7 +80,11 @@ for name in dir(core):
 from . import _pinocchio_init  # noqa
 
 
-# Define include and lib path
+# Define helpers to build extension modules
+def get_cmake_module_path():
+    return _os.path.join(_os.path.dirname(__file__), "cmake")
+
+
 def get_include():
     return _os.path.join(_os.path.dirname(__file__), "include")
 
@@ -94,6 +98,7 @@ def get_libraries():
 
 
 __all__ += [
+    'get_cmake_module_path',
     'get_include',
     'get_libraries',
     '__version__',

@@ -20,7 +20,7 @@ install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
               endforeach()"
 )
 
-# Bundle headers and core library into Python package `core` submodule.
+# Bundle headers, core library, and cmake config into Python package `core` submodule.
 # Disable forbidden access to target LOCATION property is necessary, since expression
 # generator in `install(CODE ...)` commands is only support from Cmake 3.14 and upward,
 # which is newer than default version available on Ubuntu 18.04. For reference, see:
@@ -53,7 +53,9 @@ install(CODE "foreach(target_source \"${CORE_SOURCE_DIR}\" \"${PYWRAP_SOURCE_DIR
               get_filename_component(CORE_LIB_REAL \"${CORE_LIB}\" REALPATH)
               get_filename_component(CORE_LIB_NAME \"${CORE_LIB}\" NAME)
               file(COPY \"\${CORE_LIB_REAL}/\"
-                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/lib/\${CORE_LIB_NAME}\")"
+                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/lib/\${CORE_LIB_NAME}\")
+              file(COPY \"${CMAKE_SOURCE_DIR}/build_tools/cmake/JiminyConfig.cmake\"
+                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/cmake\")"
 )
 
 ################ jiminy_py ################
