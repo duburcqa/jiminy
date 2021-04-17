@@ -53,7 +53,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 # Link with other libraries
 target_include_directories(${PROJECT_NAME}
-        SYSTEM PRIVATE ${NUMPY_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS}
+        SYSTEM PRIVATE ${NumPy_INCLUDE_DIRS} ${Python_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core "${BOOST_PYTHON_LIB}")
 if(NOT LEGACY_MODE)
