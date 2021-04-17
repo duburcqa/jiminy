@@ -1,9 +1,11 @@
 #ifndef JIMINY_MODEL_H
 #define JIMINY_MODEL_H
 
-#include "pinocchio/multibody/model.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/algorithm/geometry.hpp"
+#include "pinocchio/spatial/fwd.hpp"         // `pinocchio::SE3`
+#include "pinocchio/multibody/model.hpp"     // `pinocchio::Model`
+#include "pinocchio/multibody/data.hpp"      // `pinocchio::Data`
+#include "pinocchio/multibody/geometry.hpp"  // `pinocchio::GeometryModel`, `pinocchio::GeometryData`
+#include "pinocchio/multibody/frame.hpp"     // `pinocchio::FrameType` (C-style enum cannot be forward declared)
 
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"

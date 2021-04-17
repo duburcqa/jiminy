@@ -7,13 +7,23 @@
 #include <map>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
 
-#include "pinocchio/fwd.hpp"
-#include "pinocchio/multibody/joint/joints.hpp"
+#include "pinocchio/fwd.hpp"                          // To avoid having to include it everywhere
+#include "pinocchio/multibody/joint/fwd.hpp"          // `pinocchio::JointModel ## type ## Tpl`, `pinocchio::JointData ## type ## Tpl`
 
 #include <Eigen/Core>
 
 #include <boost/current_function.hpp>
+
+// `pinocchio::JointModelMimic`, `pinocchio::JointDataMimic`
+namespace pinocchio
+{
+    /* Note that multiple forward declaration is not an error, so no big deal
+       if future pinocchio versions start to forward declare mimic joints. */
+    template<class JointModel> struct JointModelMimic;
+    template<class JointData> struct JointDataMimic;
+}
 
 
 namespace jiminy

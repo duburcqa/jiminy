@@ -8,6 +8,8 @@
    Undefined by default because it increases binary size by about 14%. */
 #define BOOST_PYTHON_PY_SIGNATURES_PROPER_INIT_SELF_TYPE
 
+#include "pinocchio/spatial/force.hpp"  // `Pinocchio::Force`
+
 #include "jiminy/core/utilities/Random.h"
 #include "jiminy/core/Types.h"
 

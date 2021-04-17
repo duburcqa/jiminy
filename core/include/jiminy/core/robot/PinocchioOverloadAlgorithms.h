@@ -17,18 +17,18 @@
 
 #include <functional>
 
-#include "pinocchio/algorithm/kinematics.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/multibody/model.hpp"
-#include "pinocchio/multibody/visitor.hpp"
-#include "pinocchio/algorithm/joint-configuration.hpp"
-#include "pinocchio/algorithm/aba.hpp"
-#include "pinocchio/algorithm/rnea.hpp"
-#include "pinocchio/algorithm/crba.hpp"
-#include "pinocchio/algorithm/energy.hpp"
+#include "pinocchio/algorithm/aba.hpp"             // `pinocchio::aba`
+#include "pinocchio/algorithm/rnea.hpp"            // `pinocchio::rnea`
+#include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crba`
+#include "pinocchio/algorithm/energy.hpp"          // `pinocchio::kineticEnergy`
+#include "pinocchio/multibody/visitor.hpp"         // `pinocchio::fusion::JointUnaryVisitorBase`
+#include "pinocchio/multibody/fwd.hpp"             // `pinocchio::ModelTpl`, `pinocchio::DataTpl`
+#include "pinocchio/multibody/joint/fwd.hpp"       // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
+#include "pinocchio/spatial/fwd.hpp"               // `Pinocchio::Motion`
 
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
+
 
 namespace jiminy
 {
@@ -39,9 +39,9 @@ namespace pinocchio_overload
     inline Scalar
     kineticEnergy(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
                   pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
-                  Eigen::MatrixBase<ConfigVectorType>                    const & q,
-                  Eigen::MatrixBase<TangentVectorType>                   const & v,
-                  bool_t                                                 const & update_kinematics)
+                  Eigen::MatrixBase<ConfigVectorType>                      const & q,
+                  Eigen::MatrixBase<TangentVectorType>                     const & v,
+                  bool_t                                                   const & update_kinematics)
     {
         pinocchio::kineticEnergy(model, data, q, v, update_kinematics);
         data.kinetic_energy += 0.5 * (model.rotorInertia.array() * Eigen::pow(v.array(), 2)).sum();
@@ -51,7 +51,7 @@ namespace pinocchio_overload
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
              typename ForceDerived>
-    inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &
+    inline typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType const &
     rnea(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
          pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
          Eigen::MatrixBase<ConfigVectorType>                    const & q,
@@ -66,12 +66,12 @@ namespace pinocchio_overload
 
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2>
-    inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &
+    inline typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType const &
     rnea(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
-         Eigen::MatrixBase<ConfigVectorType>                    const & q,
-         Eigen::MatrixBase<TangentVectorType1>                  const & v,
-         Eigen::MatrixBase<TangentVectorType2>                  const & a)
+         Eigen::MatrixBase<ConfigVectorType>                      const & q,
+         Eigen::MatrixBase<TangentVectorType1>                    const & v,
+         Eigen::MatrixBase<TangentVectorType2>                    const & a)
     {
         pinocchio::rnea(model, data, q, v, a);
         data.tau += model.rotorInertia.asDiagonal() * a;
@@ -80,10 +80,10 @@ namespace pinocchio_overload
 
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType>
-    inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs &
+    inline typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs const &
     crba(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
-         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
-         Eigen::MatrixBase<ConfigVectorType> const & q)
+         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
+         Eigen::MatrixBase<ConfigVectorType>                      const & q)
     {
         pinocchio::crba(model, data, q);
         data.M += model.rotorInertia.asDiagonal();

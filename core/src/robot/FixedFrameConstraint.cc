@@ -1,3 +1,5 @@
+#include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
+
 #include "jiminy/core/robot/Model.h"
 #include "jiminy/core/utilities/Pinocchio.h"
 

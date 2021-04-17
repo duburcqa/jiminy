@@ -1,8 +1,10 @@
 #include <algorithm>
 
-#include "pinocchio/spatial/explog.hpp"
-#include "pinocchio/multibody/model.hpp"
-#include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/spatial/explog.hpp"    // `pinocchio::exp3`
+#include "pinocchio/spatial/se3.hpp"       // `pinocchio::SE3`
+#include "pinocchio/spatial/force.hpp"     // `pinocchio::Force  `
+#include "pinocchio/spatial/motion.hpp"    // `pinocchio::Motion`
+#include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/utilities/Pinocchio.h"

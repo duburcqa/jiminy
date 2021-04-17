@@ -9,12 +9,8 @@
 #include <vector>
 #include <unordered_map>
 
-#include "pinocchio/fwd.hpp"
-#include "pinocchio/math/fwd.hpp"
-#include "pinocchio/multibody/fwd.hpp"
-#include "pinocchio/container/aligned-vector.hpp"
-#include "pinocchio/spatial/force.hpp"
-#include "pinocchio/spatial/skew.hpp"
+#include "pinocchio/fwd.hpp"          // To avoid having to include it everywhere
+#include "pinocchio/spatial/fwd.hpp"  // `Pinocchio::Force`, `Pinocchio::Motion`
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -29,6 +25,16 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/tag.hpp>
+
+
+// `pinocchio::container::aligned_vector`
+namespace pinocchio
+{
+    namespace container
+    {
+        template<typename T> struct aligned_vector;
+    }
+}
 
 
 namespace jiminy
@@ -59,8 +65,8 @@ namespace jiminy
     using quaternion_t = Eigen::Quaternion<float64_t>;
 
     // Pinocchio types
-    using motionVector_t = typename PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Motion);
-    using forceVector_t = typename PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Force);
+    using motionVector_t = pinocchio::container::aligned_vector<pinocchio::Motion>;
+    using forceVector_t = pinocchio::container::aligned_vector<pinocchio::Force>;
 
     // *************** Constant of the universe ******************
 

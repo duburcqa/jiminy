@@ -5,8 +5,6 @@
 
 #include <iostream>
 
-#include "pinocchio/algorithm/joint-configuration.hpp"
-
 #include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/control/ControllerFunctor.h"

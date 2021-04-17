@@ -35,11 +35,8 @@ namespace python
     }
 
     template<>
-    inline typename DataInternalBufferType<pinocchio::Force>::type
-    setDataInternalBuffer<pinocchio::Force>(pinocchio::Force * arg)
-    {
-        return arg->toVector();
-    }
+    typename DataInternalBufferType<pinocchio::Force>::type
+    setDataInternalBuffer<pinocchio::Force>(pinocchio::Force * arg);
 
     template<typename T>
     T * createInternalBuffer(void)
@@ -48,10 +45,7 @@ namespace python
     }
 
     template<>
-    inline pinocchio::Force * createInternalBuffer<pinocchio::Force>(void)
-    {
-        return (new pinocchio::Force(vector6_t::Zero()));
-    }
+    pinocchio::Force * createInternalBuffer<pinocchio::Force>(void);
 
     template<typename T>
     std::enable_if_t<std::is_arithmetic<T>::value, T>

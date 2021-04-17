@@ -6,8 +6,6 @@
 
 #include "json/json.h"
 
-#include "pinocchio/multibody/fcl.hpp"
-
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
