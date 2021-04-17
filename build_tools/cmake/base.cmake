@@ -58,35 +58,7 @@ if(Boost_NO_SYSTEM_PATHS AND (NOT DEFINED BOOST_ROOT))
     set(BOOST_ROOT "/opt/install/pc/")
 endif()
 
-# Determine if the old legacy old for Ubuntu 18 must be used.
-# It will not use "find_package" but instead plain old "link_directories"
-# and "include_directories" directives.
-# Thus it requires the dependencies to be installed from robotpkg apt repository.
-# TODO: Remove legacy mode after dropping support of Ubuntu 18 and moving to
-# Eigen >= 3.3.7, Boost >= 1.71, and Pinocchio >=2.4.0.
-find_package(Boost QUIET)
-string(REPLACE "_" "." BOOST_VERSION "${Boost_LIB_VERSION}")
-if(BOOST_VERSION VERSION_LESS "1.71.0")
-    set(LEGACY_MODE ON)
-endif()
-if(LEGACY_MODE)
-    if(WIN32)
-        message(FATAL_ERROR "Boost >= 1.71.0 required.")
-    else()
-        message(WARNING "Boost version < 1.71.0 detected. Falling back to Ubuntu 18 legacy mode. "
-                        "Make sure depedencies have been installed via `apt-get`, and building "
-                        "against Pinocchio >= 2.5.2, and Hpp-Fcl >= 1.5.4.")
-    endif()
-endif()
-
 # Add Fallback search paths for headers and libraries
-if(LEGACY_MODE)
-    link_directories("/opt/openrobots/lib/")
-    link_directories("/opt/install/pc/lib/")
-    include_directories(SYSTEM "/opt/openrobots/include/")
-    include_directories(SYSTEM "/opt/install/pc/include/")
-    include_directories(SYSTEM "/opt/install/pc/include/eigen3/")
-endif()
 list(APPEND CMAKE_PREFIX_PATH "/opt/openrobots/")
 
 # Due to license considerations, we will only use the MPL2 parts of Eigen.
