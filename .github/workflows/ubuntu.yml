@@ -121,8 +121,10 @@ jobs:
         cd build
         cmake . -DCOMPONENT=docs -P ./cmake_install.cmake
     - name: Deploy to GitHub Pages
-      if: success() && github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
-      uses: crazy-max/ghaction-github-pages@v1
+      if:  >-
+        matrix.os == 'ubuntu-18.04' && success() &&
+        github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: crazy-max/ghaction-github-pages@v2
       with:
         target_branch: gh-pages
         build_dir: docs/html
