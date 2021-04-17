@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.6.10)
+set(BUILD_VERSION 1.6.11)
 
 # Extract major, minor and patch version
 string(REPLACE "." ";" _VERSION "${BUILD_VERSION}")
@@ -12,6 +12,9 @@ list(GET _VERSION 2 BUILD_VERSION_PATCH)
 
 # Add definition of Jiminy version for C++ headers
 add_definitions("-DJIMINY_VERSION=\"${BUILD_VERSION}\"")
+
+# Enable C++ language
+enable_language(CXX)
 
 # Project and library name
 project(jiminy VERSION ${BUILD_VERSION})

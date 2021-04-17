@@ -1,0 +1,113 @@
+<?xml version="1.0" ?>
+<robot name="pendulum">
+    <link name="world">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <sphere radius="0.005"/>
+            </geometry>
+            <material name="">
+                <color rgba="1.0 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="1000.0"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+
+    <joint name="PendulumJoint" type="revolute">
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <parent link="world"/>
+      <child link="PendulumArm"/>
+      <limit effort="1000" velocity="100" lower="-100" upper="100"/>
+    </joint>
+
+    <link name="PendulumArm">
+        <visual>
+            <origin xyz="0 0 0.25" rpy="0 0 0" />
+            <geometry>
+                <box size="0.01 0.01 0.5"/>
+            </geometry>
+            <material name="">
+                <color rgba="0.0 0.0 1.0 1.0"/>
+            </material>
+        </visual>
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.0"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+
+    <joint name="PendulumMassJoint" type="fixed">
+      <origin xyz="0.0 0.0 0.5" rpy="0 0 0"/>
+      <parent link="PendulumArm"/>
+      <child link="PendulumMass"/>
+    </joint>
+    <link name="PendulumMass">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <sphere radius="0.06"/>
+            </geometry>
+            <material name="">
+                <color rgba="0.0 0.0 1.0 1.0"/>
+            </material>
+        </visual>
+        <inertial>
+            <origin xyz="0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="3.0"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+
+    <joint name="SecondPendulumJoint" type="revolute">
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <parent link="PendulumMass"/>
+      <child link="SecondPendulumArm"/>
+      <limit effort="1000" velocity="100" lower="-100" upper="100"/>
+    </joint>
+
+    <link name="SecondPendulumArm">
+        <visual>
+            <origin xyz="0 0 0.5" rpy="0 0 0" />
+            <geometry>
+                <box size="0.02 0.02 1.0"/>
+            </geometry>
+            <material name="">
+                <color rgba="0.0 1.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.0"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+
+    <joint name="SecondPendulumMassJoint" type="fixed">
+      <origin xyz="0.0 0.0 1.0" rpy="0 0 0"/>
+      <parent link="SecondPendulumArm"/>
+      <child link="SecondPendulumMass"/>
+    </joint>
+    <link name="SecondPendulumMass">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <sphere radius="0.06"/>
+            </geometry>
+            <material name="">
+                <color rgba="0.0 1.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <inertial>
+            <origin xyz="0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="2.0"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+</robot>
