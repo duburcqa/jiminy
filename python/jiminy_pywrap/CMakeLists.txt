@@ -5,14 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_pywrap VERSION ${BUILD_VERSION})
 
 # Find libraries and headers
-if(NOT LEGACY_MODE)
-    find_package(eigenpy 2.0.2 NO_MODULE NO_CMAKE_SYSTEM_PATH) # It adds target include lib eigenpy::eigenpy
-    if((NOT eigenpy_FOUND) AND (WIN32))
-        message(FATAL_ERROR "Eigenpy not found, CMake will exit.")
-    elseif(eigenpy_FOUND)
-        message(STATUS "Found eigenpy: version ${eigenpy_VERSION}")
-    endif()
-endif()
+find_package(eigenpy 2.0.2 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
 
 # Add cpp sources (in binary dir, since the sources are pre-processed to substitute docstring)
 set(SRC
@@ -53,14 +46,10 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 # Link with other libraries
 target_include_directories(${PROJECT_NAME}
-        SYSTEM PRIVATE ${NUMPY_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS}
+        SYSTEM PRIVATE ${NumPy_INCLUDE_DIRS} ${Python_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core "${BOOST_PYTHON_LIB}")
-if(NOT LEGACY_MODE)
-    target_link_libraries_system(${PROJECT_NAME} eigenpy::eigenpy)
-else()
-    target_link_libraries(${PROJECT_NAME} eigenpy) # Fallback to raw library name
-endif()
+target_link_libraries_system(${PROJECT_NAME} eigenpy::eigenpy)
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"

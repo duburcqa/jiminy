@@ -13,7 +13,7 @@ function(pythonDocstingSubstitution)
 
         add_custom_command(
             OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/${file_path}
-            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build_tools/docs/python_docstring_substitution.py
+            COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build_tools/docs/python_docstring_substitution.py
                     ${CMAKE_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/${file_path}
                     ${CMAKE_CURRENT_BINARY_DIR}/${file_path}

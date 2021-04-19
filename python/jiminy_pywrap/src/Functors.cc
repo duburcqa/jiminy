@@ -1,3 +1,5 @@
+#include "pinocchio/spatial/force.hpp"  // `Pinocchio::Force`
+
 #include "jiminy/core/Types.h"
 
 #include "jiminy/python/Functors.h"
@@ -8,6 +10,21 @@ namespace jiminy
 namespace python
 {
     namespace bp = boost::python;
+
+    // ************************** FctPyWrapper ******************************
+
+    template<>
+    typename DataInternalBufferType<pinocchio::Force>::type
+    setDataInternalBuffer<pinocchio::Force>(pinocchio::Force * arg)
+    {
+        return arg->toVector();
+    }
+
+    template<>
+    pinocchio::Force * createInternalBuffer<pinocchio::Force>(void)
+    {
+        return (new pinocchio::Force(vector6_t::Zero()));
+    }
 
     // **************************** PyHeatMapFunctorVisitor *****************************
 

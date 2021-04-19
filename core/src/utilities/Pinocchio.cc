@@ -1,9 +1,16 @@
 #include <numeric>
 
-#include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/multibody/model.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/algorithm/joint-configuration.hpp"
+#include "pinocchio/parsers/urdf.hpp"                      // `pinocchio::urdf::buildGeom `
+#include "pinocchio/spatial/se3.hpp"                       // `pinocchio::SE3`
+#include "pinocchio/spatial/force.hpp"                     // `pinocchio::Force`
+#include "pinocchio/spatial/inertia.hpp"                   // `pinocchio::Inertia`
+#include "pinocchio/multibody/model.hpp"                   // `pinocchio::Model`
+#include "pinocchio/multibody/fcl.hpp"                     // `pinocchio::GeometryType`
+#include "pinocchio/multibody/geometry.hpp"                // `pinocchio::GeometryModel`
+#include "pinocchio/multibody/data.hpp"                    // `pinocchio::Data`
+#include "pinocchio/multibody/visitor.hpp"                 // `pinocchio::fusion::JointUnaryVisitorBase`
+#include "pinocchio/multibody/joint/joint-model-base.hpp"  // `pinocchio::JointModelBase`
+#include "pinocchio/algorithm/joint-configuration.hpp"     // `pinocchio::isNormalized`
 
 #include "hpp/fcl/mesh_loader/loader.h"
 #include "hpp/fcl/BVH/BVH_model.h"

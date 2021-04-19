@@ -5,9 +5,23 @@
 #include <iostream>
 
 #include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/algorithm/contact-dynamics.hpp"
-#include "pinocchio/algorithm/geometry.hpp"
-#include "pinocchio/serialization/model.hpp"
+
+#include "pinocchio/spatial/inertia.hpp"                    // `pinocchio::Inertia`
+#include "pinocchio/spatial/force.hpp"                      // `pinocchio::Force`
+#include "pinocchio/spatial/se3.hpp"                        // `pinocchio::SE3`
+#include "pinocchio/spatial/explog.hpp"                     // `pinocchio::exp6`, `pinocchio::log6`
+#include "pinocchio/spatial/explog-quaternion.hpp"          // `pinocchio::quaternion::log3`
+#include "pinocchio/spatial/fcl-pinocchio-conversions.hpp"  // `pinocchio::toFclTransform3f`
+#include "pinocchio/multibody/visitor.hpp"                  // `pinocchio::fusion::JointUnaryVisitorBase`
+#include "pinocchio/multibody/joint/joint-model-base.hpp"   // `pinocchio::JointModelBase`
+#include "pinocchio/algorithm/center-of-mass.hpp"           // `pinocchio::getComFromCrba`
+#include "pinocchio/algorithm/frames.hpp"                   // `pinocchio::getFrameVelocity`
+#include "pinocchio/algorithm/jacobian.hpp"                 // `pinocchio::getJointJacobian`
+#include "pinocchio/algorithm/rnea.hpp"                     // `pinocchio::nonLinearEffects
+#include "pinocchio/algorithm/energy.hpp"                   // `pinocchio::potentialEnergy
+#include "pinocchio/algorithm/joint-configuration.hpp"      // `pinocchio::normalize`
+#include "pinocchio/algorithm/geometry.hpp"                 // `pinocchio::computeCollisions`
+#include "pinocchio/serialization/model.hpp"                // `pinocchio::ModelTpl<T>.serialize`
 
 #include "H5Cpp.h"
 
@@ -3733,7 +3747,7 @@ namespace jiminy
                     &lambda_c = const_cast<vectorN_t &>(data.lambda_c),  // std::as_const is not supported by gcc<7.3
                     &u = systemData.state.u,
                     &uInternal = systemData.state.uInternal,
-                    &joints = const_cast<pinocchio::Model:: JointModelVector &>(model.joints)](
+                    &joints = const_cast<pinocchio::Model::JointModelVector &>(model.joints)](
                     std::shared_ptr<AbstractConstraintBase> const & constraint,
                     constraintsHolderType_t const & /* holderType */)
                 {

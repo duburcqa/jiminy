@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "pinocchio/algorithm/joint-configuration.hpp"
+#include "pinocchio/algorithm/joint-configuration.hpp"  // pinocchio::neutral
 
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Constants.h"

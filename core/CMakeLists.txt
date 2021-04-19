@@ -6,30 +6,21 @@ project(${LIBRARY_NAME}_core VERSION ${BUILD_VERSION})
 
 # Find dependencies
 find_package(Boost REQUIRED COMPONENTS system filesystem serialization date_time thread)
-
-if(NOT LEGACY_MODE)
-    find_package(urdfdom REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH) # It is impossible to specify the version because it is not exported in cmake config files...
-    find_package(PkgConfig QUIET)  # Using pkgconfig is the only way to get the library version...
-    if (PkgConfig_FOUND)
-        pkg_check_modules(_URDFDOM QUIET "urdfdom")
-        if ((_URDFDOM_FOUND) AND (NOT _URDFDOM_PREFIX STREQUAL "/usr"))
-            set(urdfdom_VERSION "${_URDFDOM_VERSION}")
-        endif()
-    endif()
-    if(urdfdom_VERSION)
-        message(STATUS "Found urdfdom: version ${urdfdom_VERSION}")
-    else()
-        message(STATUS "Found urdfdom")
-    endif()
-
-    find_package(pinocchio 2.5.2 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio v2.5.2 introduces 'isNormalized' method
-    if(pinocchio_FOUND)
-        message(STATUS "Found pinocchio: version ${pinocchio_VERSION}")
-    else()
-        find_package(hpp-fcl 1.5.4 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # hpp-fcl >= 1.5.4 adds support of collision of primitives with halfspace
+find_package(urdfdom REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH) # It is impossible to specify the version because it is not exported in cmake config files...
+find_package(PkgConfig QUIET)  # Using pkgconfig is the only way to get the library version...
+if (PkgConfig_FOUND)
+    pkg_check_modules(_URDFDOM QUIET "urdfdom")
+    if ((_URDFDOM_FOUND) AND (NOT _URDFDOM_PREFIX STREQUAL "/usr"))
+        set(urdfdom_VERSION "${_URDFDOM_VERSION}")
     endif()
 endif()
-
+if(urdfdom_VERSION)
+    message(STATUS "Found urdfdom: version ${urdfdom_VERSION}")
+else()
+    message(STATUS "Found urdfdom")
+endif()
+find_package(pinocchio 2.5.2 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio v2.5.2 introduces 'isNormalized' method
+find_package(hpp-fcl 1.5.4 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # hpp-fcl >= 1.5.4 adds support of collision of primitives with halfspace
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eigen
 
 # Pinocchio-specific stuffs
@@ -71,17 +62,20 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/SphereConstraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/WheelConstraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/Robot.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/control/AbstractController.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/solver/LCPSolvers.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/AbstractStepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/EulerExplicitStepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/AbstractRungeKuttaStepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/RungeKutta4Stepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/RungeKuttaDOPRIStepper.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/control/AbstractController.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/System.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/EngineMultiRobot.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/Engine.cc"
 )
+
+# Export all symbols when building shared library to enable building extension module
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 # Create the library
 add_library(${PROJECT_NAME}-object OBJECT ${SRC})
@@ -115,9 +109,7 @@ target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC
 
 # Include headers from other libraries (in such a way to avoid any warnings compiling them)
 target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC "${Boost_INCLUDE_DIRS}")
-if(NOT LEGACY_MODE)
-    target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC "${urdfdom_INCLUDE_DIRS}")
-endif()
+target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC "${urdfdom_INCLUDE_DIRS}")
 get_target_property(Eigen3_INCLUDE_DIRS Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
 target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC ${Eigen3_INCLUDE_DIRS})
 
@@ -144,23 +136,12 @@ foreach(target "${PROJECT_NAME}" "${LIBRARY_NAME}")
     target_compile_features(${target} PUBLIC cxx_std_17)
 
     # Linking with other libraries (in such a way to avoid any warnings compiling them)
-    if(pinocchio_FOUND)
-        target_link_libraries_system(${target} pinocchio::pinocchio)
-    elseif(hpp-fcl_FOUND)
-        target_link_libraries_system(${target} hpp-fcl::hpp-fcl)
-    elseif(LEGACY_MODE)
-        # It is necessary to link to Pinocchio shared lib since 2.4.0
-        target_link_libraries(${target} pinocchio hpp-fcl)
+    target_link_libraries_system(${target} pinocchio::pinocchio)
+    target_link_libraries_system(${target} hpp-fcl::hpp-fcl)
+    if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
+        list(APPEND urdfdom_LIBRARIES "tinyxml")
     endif()
-    if(NOT LEGACY_MODE)
-        if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
-            list(APPEND urdfdom_LIBRARIES "tinyxml")
-        endif()
-        target_link_libraries(${target} "${urdfdom_LIBRARIES}")
-    else()
-        # Fallback to raw library name
-        target_link_libraries(${target} urdfdom_model)
-    endif()
+    target_link_libraries(${target} "${urdfdom_LIBRARIES}")
     target_link_libraries(${target} Eigen3::Eigen)
     target_link_libraries(${target} jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
     target_link_libraries(${target} ${Boost_LIBRARIES})

@@ -119,7 +119,9 @@ jobs:
         password: ${{ secrets.PYPI_DEPLOY }}
         packages_dir: build/wheelhouse
     - name: Publish on PyPi the wheel of Gym Jiminy (Any platform / Any python3 version)
-      if: matrix.PYTHON_VERSION == '3.6' && success() && github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: >-
+        matrix.container == 'manylinux2010_x86_64' && matrix.PYTHON_VERSION == '3.6' && success() &&
+        github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__

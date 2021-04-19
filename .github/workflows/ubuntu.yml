@@ -75,6 +75,18 @@ jobs:
 
     #####################################################################################
 
+    - name: Build extension module
+      run: |
+        "$InstallDir/bin/jiminy_double_pendulum"
+
+        mkdir -p "$RootDir/examples/pip_extension/build"
+        cd "$RootDir/examples/pip_extension/build"
+        cmake "$RootDir/examples/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+        make install
+
+        "$InstallDir/bin/pip_double_pendulum"
+
     - name: Run unit tests
       run: |
         "$RootDir/build/unit/unit"
@@ -121,8 +133,10 @@ jobs:
         cd build
         cmake . -DCOMPONENT=docs -P ./cmake_install.cmake
     - name: Deploy to GitHub Pages
-      if: success() && github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
-      uses: crazy-max/ghaction-github-pages@v1
+      if:  >-
+        matrix.os == 'ubuntu-18.04' && success() &&
+        github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: crazy-max/ghaction-github-pages@v2
       with:
         target_branch: gh-pages
         build_dir: docs/html

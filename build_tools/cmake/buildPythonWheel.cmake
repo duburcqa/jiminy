@@ -56,9 +56,9 @@ function(buildPythonWheel)
         #     COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_SOURCE_DIR}/${TARGET_PATH}\" \"${CMAKE_BINARY_DIR}/pypi\"
         # )
 
-        install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py clean --all
+        install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} setup.py clean --all
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})
-                      execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py sdist bdist_wheel
+                      execute_process(COMMAND ${Python_EXECUTABLE} setup.py sdist bdist_wheel
                                       --dist-dir \"${OUTPUT_DIR}\"
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})"
                 COMPONENT pypi

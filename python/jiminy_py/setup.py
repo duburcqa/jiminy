@@ -21,7 +21,7 @@ class InstallPlatlib(install):
 
 
 # Matplotlib>=3.3 is broken on Windows 64 bits and cannot be installed properly
-if sys.platform.startswith('win'):
+if sys.platform.startswith("win"):
     matplotlib_spec = "<3.3"
 else:
     matplotlib_spec = ""
@@ -30,11 +30,17 @@ else:
 setup(
     name="jiminy_py",
     version="@PROJECT_VERSION@",
-    description=("Fast and light weight simulator of rigid poly-articulated "
-                 "systems."),
+    description=(
+        "Fast and light weight simulator of rigid poly-articulated systems."),
     long_description=open("@SOURCE_DIR@/README.md", encoding="utf8").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/duburcqa/jiminy",
+    url="https://duburcqa.github.io/jiminy/README.html",
+    project_urls={
+        "Source": "https://github.com/duburcqa/jiminy",
+        "Documentation":
+            "https://duburcqa.github.io/jiminy/api/jiminy_py/index.html",
+        "Tutorial": "https://duburcqa.github.io/jiminy/tutorial.html"
+    },
     download_url=("https://github.com/duburcqa/jiminy/archive/"
                   "@PROJECT_VERSION@.tar.gz"),
     author="Alexis Duburcq",
@@ -60,6 +66,9 @@ setup(
     },
     packages=find_packages("src"),
     package_dir={"": "src"},
+    data_files=[
+        ("cmake", ["src/jiminy_py/core/cmake/jiminyConfig.cmake"])
+    ],
     include_package_data=True,
     entry_points={"console_scripts": [
         "jiminy_plot=jiminy_py.log:plot_log",

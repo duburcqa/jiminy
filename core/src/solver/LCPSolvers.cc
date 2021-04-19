@@ -1,5 +1,6 @@
-#include "pinocchio/multibody/model.hpp"
-#include "pinocchio/algorithm/cholesky.hpp"
+#include "pinocchio/multibody/model.hpp"     // `pinocchio::Model`
+#include "pinocchio/multibody/data.hpp"      // `pinocchio::Data`
+#include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
 
 #include "jiminy/core/utilities/Random.h"
 #include "jiminy/core/utilities/Helpers.h"

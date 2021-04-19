@@ -3,11 +3,25 @@
 #include <fstream>
 #include <exception>
 
-#include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/algorithm/joint-configuration.hpp"
-#include "pinocchio/algorithm/kinematics.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/algorithm/center-of-mass.hpp"
+#include "pinocchio/parsers/urdf.hpp"                      // `pinocchio::urdf::buildGeom`, `pinocchio::urdf::buildModel`
+#include "pinocchio/spatial/symmetric3.hpp"                // `pinocchio::Symmetric3 `
+#include "pinocchio/spatial/explog.hpp"                    // `pinocchio::exp3`
+#include "pinocchio/spatial/se3.hpp"                       // `pinocchio::SE3`
+#include "pinocchio/spatial/force.hpp"                     // `pinocchio::Force`
+#include "pinocchio/spatial/motion.hpp"                    // `pinocchio::Motion`
+#include "pinocchio/spatial/inertia.hpp"                   // `pinocchio::Inertia`
+#include "pinocchio/multibody/joint/joint-free-flyer.hpp"  // `pinocchio::JointModelFreeFlyer`
+#include "pinocchio/multibody/fwd.hpp"                     // `pinocchio::GeomIndex`
+#include "pinocchio/multibody/model.hpp"                   // `pinocchio::Model`
+#include "pinocchio/multibody/data.hpp"                    // `pinocchio::Data`
+#include "pinocchio/multibody/geometry.hpp"                // `pinocchio::GeometryModel`, `pinocchio::GeometryData`
+#include "pinocchio/multibody/fcl.hpp"                     // `pinocchio::GeometryObject`, `pinocchio::CollisionPair`
+#include "pinocchio/algorithm/frames.hpp"                  // `pinocchio::Frame`, `pinocchio::FrameType`, `pinocchio::updateFramePlacements`
+#include "pinocchio/algorithm/center-of-mass.hpp"          // `pinocchio::centerOfMass`
+#include "pinocchio/algorithm/joint-configuration.hpp"     // `pinocchio::neutral`
+#include "pinocchio/algorithm/kinematics.hpp"              // `pinocchio::forwardKinematics`
+#include "pinocchio/algorithm/jacobian.hpp"                // `pinocchio::computeJointJacobians`
+#include "pinocchio/algorithm/geometry.hpp"                // `pinocchio::updateGeometryPlacements`
 
 #include <Eigen/Eigenvalues>
 

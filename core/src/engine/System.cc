@@ -1,5 +1,5 @@
-#include "pinocchio/algorithm/joint-configuration.hpp"
-
+#include "pinocchio/spatial/force.hpp"                  // `pinocchio::Force`
+#include "pinocchio/algorithm/joint-configuration.hpp"  // `pinocchio::neutral`
 
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/robot/AbstractConstraint.h"

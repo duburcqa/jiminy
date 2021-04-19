@@ -3,12 +3,6 @@
 #include <fstream>
 #include <exception>
 
-#include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/algorithm/kinematics.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/algorithm/jacobian.hpp"
-#include "pinocchio/algorithm/joint-configuration.hpp"
-
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
@@ -1211,7 +1205,7 @@ namespace jiminy
         sensorsSharedHolder_t::const_iterator sensorsSharedIt = sensorsSharedHolder_.begin();
         for (; sensorsGroupIt != sensorsGroupHolder_.end() ; ++sensorsGroupIt, ++sensorsSharedIt)
         {
-            sensorDataTypeMap_t dataType(std::cref(sensorsSharedIt->second->dataMeasured_));  // Need explicit call to `std::reference_wrapper` for gcc<7.3 
+            sensorDataTypeMap_t dataType(std::cref(sensorsSharedIt->second->dataMeasured_));  // Need explicit call to `std::reference_wrapper` for gcc<7.3
             for (auto & sensor : sensorsGroupIt->second)
             {
                 auto & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);

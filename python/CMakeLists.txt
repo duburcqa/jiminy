@@ -20,7 +20,7 @@ install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
               endforeach()"
 )
 
-# Bundle headers and core library into Python package `core` submodule.
+# Bundle headers, core library, and cmake config into Python package `core` submodule.
 # Disable forbidden access to target LOCATION property is necessary, since expression
 # generator in `install(CODE ...)` commands is only support from Cmake 3.14 and upward,
 # which is newer than default version available on Ubuntu 18.04. For reference, see:
@@ -33,9 +33,11 @@ if(WIN32)
      set(CORE_BINARY_DIR "${CORE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}")
 endif()
 set(CORE_LIB "${CORE_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${LIBRARY_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
-if(NOT WIN32)
-     get_property(CORE_SOVERSION TARGET ${LIBRARY_NAME} PROPERTY SOVERSION)
-     set(CORE_LIB "${CORE_LIB}.${CORE_SOVERSION}")
+if(WIN32)
+    set(CORE_OBJ "${CORE_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${LIBRARY_NAME}.lib")
+else()
+    get_property(CORE_SOVERSION TARGET ${LIBRARY_NAME} PROPERTY SOVERSION)
+    set(CORE_LIB "${CORE_LIB}.${CORE_SOVERSION}")
 endif()
 install(CODE "foreach(target_source \"${CORE_SOURCE_DIR}\" \"${PYWRAP_SOURCE_DIR}\")
                   file(GLOB_RECURSE archive_files_list FOLLOW_SYMLINKS
@@ -53,7 +55,15 @@ install(CODE "foreach(target_source \"${CORE_SOURCE_DIR}\" \"${PYWRAP_SOURCE_DIR
               get_filename_component(CORE_LIB_REAL \"${CORE_LIB}\" REALPATH)
               get_filename_component(CORE_LIB_NAME \"${CORE_LIB}\" NAME)
               file(COPY \"\${CORE_LIB_REAL}/\"
-                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/lib/\${CORE_LIB_NAME}\")"
+                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/lib/\${CORE_LIB_NAME}\")
+              if(WIN32)
+                  get_filename_component(CORE_OBJ_REAL \"${CORE_OBJ}\" REALPATH)
+                  get_filename_component(CORE_OBJ_NAME \"${CORE_OBJ}\" NAME)
+                  file(COPY \"\${CORE_OBJ_REAL}/\"
+                       DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/lib/\${CORE_OBJ_NAME}\")
+              endif()
+              file(COPY \"${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake\"
+                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/cmake\")"
 )
 
 ################ jiminy_py ################

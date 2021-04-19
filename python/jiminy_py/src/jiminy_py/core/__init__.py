@@ -1,4 +1,5 @@
 import os as _os
+import re as _re
 import sys as _sys
 import ctypes as _ctypes
 import inspect as _inspect
@@ -29,6 +30,7 @@ except OSError:
 
 # Fix Dll seach path on windows for Python >= 3.8
 if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
+    _os.add_dll_directory(_os.path.join(_os.path.dirname(__file__), "lib"))
     for path in _os.environ['PATH'].split(_os.pathsep):
         if _os.path.exists(path):
             _os.add_dll_directory(path)
@@ -80,7 +82,11 @@ for name in dir(core):
 from . import _pinocchio_init  # noqa
 
 
-# Define include and lib path
+# Define helpers to build extension modules
+def get_cmake_module_path():
+    return _os.path.join(_os.path.dirname(__file__), "cmake")
+
+
 def get_include():
     return _os.path.join(_os.path.dirname(__file__), "include")
 
@@ -89,11 +95,13 @@ def get_libraries():
     lib_dir = _os.path.join(_os.path.dirname(__file__), "lib")
     libraries_fullpath = []
     for library_filename in _os.listdir(lib_dir):
-        libraries_fullpath.append(_os.path.join(lib_dir, library_filename))
+        if _re.search(r'\.(dll|so[0-9\.]*)$', library_filename):
+            libraries_fullpath.append(_os.path.join(lib_dir, library_filename))
     return ";".join(libraries_fullpath)
 
 
 __all__ += [
+    'get_cmake_module_path',
     'get_include',
     'get_libraries',
     '__version__',

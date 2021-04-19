@@ -12,7 +12,7 @@
 
 #include <numeric>
 
-#include "pinocchio/algorithm/joint-configuration.hpp"
+#include "pinocchio/algorithm/joint-configuration.hpp"  // `pinocchio::integrate`, `pinocchio::difference`
 
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Macros.h"
