@@ -2255,14 +2255,11 @@ namespace jiminy
         // Make sure the update period is valid
         if (returnCode == hresult_t::SUCCESS)
         {
-            if ((EPS < updatePeriod && updatePeriod < SIMULATION_MIN_TIMESTEP)
-            || updatePeriod > SIMULATION_MAX_TIMESTEP
-            || (EPS < updatePeriod && updatePeriod < SIMULATION_MIN_TIMESTEP)
-            || updatePeriod > SIMULATION_MAX_TIMESTEP)
+            if (EPS < updatePeriod && updatePeriod < SIMULATION_MIN_TIMESTEP)
             {
                 PRINT_ERROR("Cannot regsiter external force profile with update period smaller than ",
-                            SIMULATION_MIN_TIMESTEP, "s or larger than ", SIMULATION_MAX_TIMESTEP,
-                            "s. Adjust period or switch to continuous mode by setting period to zero.");
+                            SIMULATION_MIN_TIMESTEP, "s. Adjust period or switch to continuous mode "
+                            "by setting period to zero.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -2487,13 +2484,11 @@ namespace jiminy
         std::tie(isIncluded, minUpdatePeriod) = isGcdIncluded(
             systemsDataHolder_, controllerUpdatePeriod, sensorsUpdatePeriod);
         if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
-        || sensorsUpdatePeriod > SIMULATION_MAX_TIMESTEP
-        || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
-        || controllerUpdatePeriod > SIMULATION_MAX_TIMESTEP)
+        || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP))
         {
             PRINT_ERROR("Cannot simulate a discrete system with update period smaller than ",
-                        SIMULATION_MIN_TIMESTEP, "s or larger than ", SIMULATION_MAX_TIMESTEP,
-                        "s. Adjust period or switch to continuous mode by setting period to zero.");
+                        SIMULATION_MIN_TIMESTEP, "s. Adjust period or switch to continuous mode "
+                        "by setting period to zero.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         else if (!isIncluded)
