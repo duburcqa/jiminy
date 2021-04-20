@@ -179,6 +179,7 @@ def evaluate(env_creator: Callable[..., gym.Env],
 
     # Run the simulation
     try:
+        info_episode = []
         tot_reward = 0.0
         done = False
         while not done:
@@ -189,9 +190,10 @@ def evaluate(env_creator: Callable[..., gym.Env],
             if clip_action:
                 action = clip(action_space, action)
             input_dict["prev_n_obs"][0, -1] = input_dict["obs"][0]
-            obs, reward, done, _ = env.step(action)
+            obs, reward, done, info = env.step(action)
             input_dict["prev_n_act"][0, -1] = action
             input_dict["prev_n_rew"][0, -1] = reward
+            info_episode.append(info)
             tot_reward += reward
             if done or (horizon is not None and env.num_steps > horizon):
                 break
@@ -209,7 +211,7 @@ def evaluate(env_creator: Callable[..., gym.Env],
     if enable_replay:
         env.replay(**{'speed_ratio': 1.0, **viewer_kwargs})
 
-    return env
+    return env, info_episode
 
 
 def test(test_agent: Trainer,
