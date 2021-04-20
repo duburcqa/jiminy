@@ -13,7 +13,7 @@ from ..utils import SpaceDictNested, is_breakpoint, zeros
 from ..bases import BasePipelineWrapper
 
 
-class FilterFrameStack(gym.Wrapper):
+class FilteredFrameStack(gym.Wrapper):
     """Observation wrapper that stacks filtered observations in a rolling
     manner.
 
@@ -152,7 +152,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
         super().__init__(env, **kwargs)
 
         # Instantiate wrapper
-        self.wrapper = FilterFrameStack(env, **kwargs)
+        self.wrapper = FilteredFrameStack(env, **kwargs)
 
         # Assertion(s) for type checker
         assert self.env.action_space is not None
