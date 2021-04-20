@@ -3,7 +3,7 @@
 from copy import deepcopy
 from functools import reduce
 from collections import deque
-from typing import Tuple, Dict, Sequence, List, Any, Iterator
+from typing import Tuple, Dict, Sequence, List, Any, Iterator, Union
 
 import numpy as np
 
@@ -26,7 +26,7 @@ class FilterFrameStack(gym.Wrapper):
     """
     def __init__(self,  # pylint: disable=unused-argument
                  env: gym.Env,
-                 nested_filter_keys: Sequence[Sequence[str]],
+                 nested_filter_keys: Sequence[Union[Sequence[str], str]],
                  num_stack: int,
                  **kwargs: Any):
         """
@@ -39,6 +39,10 @@ class FilterFrameStack(gym.Wrapper):
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
         """
+        # Sanitize user arguments if necessary
+        if not isinstance(nested_filter_keys[0], (tuple, list, np.ndarray)):
+            nested_filter_keys = [[field] for field in nested_filter_keys]
+
         # Define helper that will be used to determine the leaf fields to stack
         def _get_branches(root: Any) -> Iterator[List[str]]:
             if isinstance(root, gym.spaces.Dict):
@@ -78,10 +82,8 @@ class FilterFrameStack(gym.Wrapper):
                 raise TypeError(
                     "Stacked leaf fields must be associated with "
                     "`gym.spaces.Box` space")
-            low = np.repeat(
-                space.low[np.newaxis, ...], self.num_stack, axis=0)
-            high = np.repeat(
-                space.high[np.newaxis, ...], self.num_stack, axis=0)
+            low = np.repeat(space.low[np.newaxis], self.num_stack, axis=0)
+            high = np.repeat(space.high[np.newaxis], self.num_stack, axis=0)
             root_space.spaces[fields[-1]] = gym.spaces.Box(
                 low=low, high=high, dtype=space.dtype)
 
