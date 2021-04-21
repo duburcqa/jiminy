@@ -2440,7 +2440,7 @@ namespace jiminy
         // Make sure that the selected time unit for logging makes sense
         configHolder_t telemetryOptions = boost::get<configHolder_t>(engineOptions.at("telemetry"));
         float64_t const & timeUnit = boost::get<float64_t>(telemetryOptions.at("timeUnit"));
-        if (1.0 / STEPPER_MIN_TIMESTEP < timeUnit || timeUnit < 1.0 / SIMULATION_MAX_TIMESTEP)
+        if (1.0 / (STEPPER_MIN_TIMESTEP - EPS) < timeUnit || timeUnit < 1.0 / (SIMULATION_MAX_TIMESTEP + EPS))
         {
             PRINT_ERROR("'timeUnit' is out of range.");
             return hresult_t::ERROR_BAD_INPUT;
@@ -2449,7 +2449,7 @@ namespace jiminy
         // Make sure the dtMax is not out of range
         configHolder_t stepperOptions = boost::get<configHolder_t>(engineOptions.at("stepper"));
         float64_t const & dtMax = boost::get<float64_t>(stepperOptions.at("dtMax"));
-        if (SIMULATION_MAX_TIMESTEP < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
+        if (SIMULATION_MAX_TIMESTEP + EPS < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
             PRINT_ERROR("'dtMax' option is out of range.");
             return hresult_t::ERROR_BAD_INPUT;
