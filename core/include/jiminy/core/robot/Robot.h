@@ -30,7 +30,7 @@ namespace jiminy
 
     public:
         Robot(void);
-        virtual ~Robot(void);
+        ~Robot(void);
 
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }

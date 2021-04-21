@@ -44,7 +44,7 @@ namespace jiminy
         constraintsHolder_t & operator = (constraintsHolder_t const & other) = default;
 
         constraintsHolder_t(void);
-        virtual ~constraintsHolder_t(void) = default;
+        ~constraintsHolder_t(void) = default;
 
         void clear(void);
 
@@ -246,7 +246,7 @@ namespace jiminy
 
     public:
         Model(void);
-        virtual ~Model(void) = default;
+        ~Model(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
