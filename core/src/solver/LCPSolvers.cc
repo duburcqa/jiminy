@@ -45,7 +45,7 @@ namespace jiminy
                           [n = 0]() mutable { return n++; });
             lastShuffle_ = randomPermutationPeriod_;
         }
-        if (std::isfinite(static_cast<float64_t>(randomPermutationPeriod_))  // MSVC does not support `isfinite`/`isnan` on integers...
+        if (randomPermutationPeriod_ > 0  // MSVC does not support `isfinite`/`isnan` on integers...
          && lastShuffle_ % randomPermutationPeriod_ == 0)
         {
             shuffleIndices(indices_);
