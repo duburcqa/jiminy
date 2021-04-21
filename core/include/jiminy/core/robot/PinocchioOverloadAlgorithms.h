@@ -20,7 +20,7 @@
 #include "pinocchio/algorithm/aba.hpp"             // `pinocchio::aba`
 #include "pinocchio/algorithm/rnea.hpp"            // `pinocchio::rnea`
 #include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crba`
-#include "pinocchio/algorithm/energy.hpp"          // `pinocchio::kineticEnergy`
+#include "pinocchio/algorithm/energy.hpp"          // `pinocchio::computeKineticEnergy`
 #include "pinocchio/multibody/visitor.hpp"         // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/fwd.hpp"             // `pinocchio::ModelTpl`, `pinocchio::DataTpl`
 #include "pinocchio/multibody/joint/fwd.hpp"       // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
@@ -37,13 +37,12 @@ namespace pinocchio_overload
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType, typename TangentVectorType>
     inline Scalar
-    kineticEnergy(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
-                  pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
-                  Eigen::MatrixBase<ConfigVectorType>                      const & q,
-                  Eigen::MatrixBase<TangentVectorType>                     const & v,
-                  bool_t                                                   const & update_kinematics)
+    computeKineticEnergy(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
+                         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
+                         Eigen::MatrixBase<ConfigVectorType>                      const & q,
+                         Eigen::MatrixBase<TangentVectorType>                     const & v)
     {
-        pinocchio::kineticEnergy(model, data, q, v, update_kinematics);
+        pinocchio::computeKineticEnergy(model, data, q, v);
         data.kinetic_energy += 0.5 * (model.rotorInertia.array() * Eigen::pow(v.array(), 2)).sum();
         return data.kinetic_energy;
     }
@@ -227,26 +226,26 @@ namespace pinocchio_overload
         calc_aba(JointModel const & model,
                  typename JointModel::JointDataDerived & data,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 Scalar const & Im,
+                 Scalar const & /* Im */,
                  bool const & update_I)
         {
             model.calc_aba(data.derived(), Ia, update_I);
         }
 
         template<int axis>
-        static int getAxis(pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> const & model)
+        static int getAxis(pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> const & /* model */)
         {
             return axis;
         }
 
         template<int axis>
-        static int getAxis(pinocchio::JointModelRevoluteUnboundedTpl<Scalar, Options, axis> const & model)
+        static int getAxis(pinocchio::JointModelRevoluteUnboundedTpl<Scalar, Options, axis> const & /* model */)
         {
             return axis;
         }
 
         template<int axis>
-        static int getAxis(pinocchio::JointModelPrismaticTpl<Scalar, Options, axis> const & model)
+        static int getAxis(pinocchio::JointModelPrismaticTpl<Scalar, Options, axis> const & /* model */)
         {
             return axis;
         }

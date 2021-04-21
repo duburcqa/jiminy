@@ -1532,7 +1532,7 @@ namespace jiminy
             if (!positionLimitFromUrdf)
             {
                 vectorN_t & jointsPositionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
-                if ((int32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMin.size())
+                if (static_cast<int32_t>(rigidJointsPositionIdx_.size()) != jointsPositionLimitMin.size())
                 {
                     PRINT_ERROR("Wrong vector size for 'positionLimitMin'.");
                     return hresult_t::ERROR_BAD_INPUT;
@@ -1540,7 +1540,7 @@ namespace jiminy
                 auto jointsPositionLimitMinDiff = jointsPositionLimitMin - mdlOptions_->joints.positionLimitMin;
                 internalBuffersMustBeUpdated |= (jointsPositionLimitMinDiff.array().abs() >= EPS).all();
                 vectorN_t & jointsPositionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
-                if ((uint32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMax.size())
+                if (static_cast<int32_t>(rigidJointsPositionIdx_.size()) != jointsPositionLimitMax.size())
                 {
                     PRINT_ERROR("Wrong vector size for 'positionLimitMax'.");
                     return hresult_t::ERROR_BAD_INPUT;
@@ -1552,7 +1552,7 @@ namespace jiminy
             if (!velocityLimitFromUrdf)
             {
                 vectorN_t & jointsVelocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
-                if ((int32_t) rigidJointsVelocityIdx_.size() != jointsVelocityLimit.size())
+                if (static_cast<int32_t>(rigidJointsVelocityIdx_.size()) != jointsVelocityLimit.size())
                 {
                     PRINT_ERROR("Wrong vector size for 'velocityLimit'.");
                     return hresult_t::ERROR_BAD_INPUT;

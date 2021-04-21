@@ -115,9 +115,9 @@ namespace python
                 "Computes CRBA, store the result in Data and return it.",
                 bp::return_value_policy<bp::return_by_value>());
         bp::def("computeKineticEnergy",
-                &pinocchio_overload::kineticEnergy<
+                &pinocchio_overload::computeKineticEnergy<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t>,
-                bp::args("pinocchio_model", "pinocchio_data", "q", "v", "update_kinematics"),
+                bp::args("pinocchio_model", "pinocchio_data", "q", "v"),
                 "Computes the forward kinematics and the kinematic energy of the model for the "
                 "given joint configuration and velocity given as input. "
                 "The result is accessible through data.kinetic_energy.");

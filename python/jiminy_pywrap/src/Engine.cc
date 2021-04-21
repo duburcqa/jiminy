@@ -526,9 +526,9 @@ namespace python
                                    std::shared_ptr<Robot>              const & robot,
                                    std::shared_ptr<AbstractController> const & controller)
         {
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
+            callbackFunctor_t callbackFct = [](float64_t const & /* t */,
+                                               vectorN_t const & /* q */,
+                                               vectorN_t const & /* v */) -> bool_t
                                             {
                                                 return true;
                                             };
@@ -539,9 +539,9 @@ namespace python
                                                     std::string            const & systemName,
                                                     std::shared_ptr<Robot> const & robot)
         {
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
+            callbackFunctor_t callbackFct = [](float64_t const & /* t */,
+                                               vectorN_t const & /* q */,
+                                               vectorN_t const & /* v */) -> bool_t
                                             {
                                                 return true;
                                             };
@@ -946,7 +946,7 @@ namespace python
                 ;
         }
 
-        static hresult_t addSystem(bp::tuple args, bp::dict kwargs)
+        static hresult_t addSystem(bp::tuple /* args */, bp::dict /* kwargs */)
         {
             // Hide all EngineMultiRobot `addSystem` overloads at once
             return Engine().addSystem("", std::shared_ptr<Robot>(), std::shared_ptr<AbstractController>());
@@ -959,9 +959,9 @@ namespace python
         {
             if (callbackPy.is_none())
             {
-                callbackFunctor_t callbackFct = [](float64_t const & t,
-                                                vectorN_t const & q,
-                                                vectorN_t const & v) -> bool_t
+                callbackFunctor_t callbackFct = [](float64_t const & /* t */,
+                                                   vectorN_t const & /* q */,
+                                                   vectorN_t const & /* v */) -> bool_t
                                                 {
                                                     return true;
                                                 };

@@ -32,7 +32,7 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 if(NOT WIN32)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -g -ftemplate-backtrace-limit=0 ${WARN_FULL}")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -Wfatal-errors -Werror ${WARN_FULL} \
-                                -Wno-non-virtual-dtor -Wno-deprecated-declarations -Wno-unused-parameter")
+                                -Wno-non-virtual-dtor")
 else()
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /EHsc /bigobj -g /Wall")
     # It would be great to have the same quality standard for Windows but
