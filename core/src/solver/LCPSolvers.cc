@@ -37,16 +37,8 @@ namespace jiminy
     {
         bool_t isSuccess = true;
 
-        // Shuffle coefficient update order to break repeating cycles
-        if (static_cast<int32_t>(indices_.size()) != b.size())
-        {
-            indices_.resize(b.size());
-            std::generate(indices_.begin(), indices_.end(),
-                          [n = 0]() mutable { return n++; });
-            lastShuffle_ = randomPermutationPeriod_;
-        }
-        if (randomPermutationPeriod_ > 0  // MSVC does not support `isfinite`/`isnan` on integers...
-         && lastShuffle_ % randomPermutationPeriod_ == 0)
+        // Shuffle coefficient update order to break any repeating cycles
+        if (randomPermutationPeriod_ > 0 && lastShuffle_ > randomPermutationPeriod_)
         {
             shuffleIndices(indices_);
             lastShuffle_ = 0U;
@@ -94,6 +86,16 @@ namespace jiminy
     {
         /* The implementation is partially adapted from Dart Simulator:
            https://github.com/dartsim/dart/blob/master/dart/constraint/PgsBoxedLcpSolver.cpp */
+        assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
+
+        /* Reset shuffling counter.
+           Note that it may converge faster to enforce constraints in reverse order,
+           since usually constraints bounds dependending on others have lower indices
+           by design. For instance, for friction, x and y  */
+        indices_.resize(b.size());
+        std::generate(indices_.begin(), indices_.end(),
+                      [n = static_cast<int32_t>(indices_.size() - 1)]() mutable { return n--; });
+        lastShuffle_ = 0U;  // Do NOT shuffle indices right after initialization
 
         // Single loop of standard Projected Gauss Seidel algorithm
         bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, true, false, x);
