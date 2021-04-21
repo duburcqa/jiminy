@@ -24,7 +24,7 @@ function(exportCmakeConfigFiles)
 
     if(CMAKE_VERSION VERSION_GREATER "3.11.0")
         set(COMPATIBILITY_VERSION SameMinorVersion)
-    else(CMAKE_VERSION VERSION_GREATER "3.11.0")
+    else()
         set(COMPATIBILITY_VERSION AnyNewerVersion)
     endif()
 

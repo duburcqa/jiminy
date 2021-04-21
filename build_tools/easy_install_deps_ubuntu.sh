@@ -7,12 +7,12 @@ export DEBIAN_FRONTEND=noninteractive
 # Determine if the script is being executed on Ubuntu
 if [ -f /etc/lsb-release ]; then
     source /etc/lsb-release
-    if [ "$DISTRIB_ID" != "Ubuntu" ] || ( [ "$DISTRIB_RELEASE" != "18.04" ] && [ "$DISTRIB_RELEASE" != "20.04" ] ) ; then
-        echo "Not running on Ubuntu 18 or 20. Aborting..."
+    if [ "$DISTRIB_ID" != "Ubuntu" ] ; then
+        echo "Not running on Ubuntu. Aborting..."
         exit 0
     fi
 else
-    echo "Not running on Ubuntu 18 or 20. Aborting..."
+    echo "Not running on Ubuntu. Aborting..."
     exit 0
 fi
 
