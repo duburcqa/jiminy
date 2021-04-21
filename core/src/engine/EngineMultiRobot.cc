@@ -395,11 +395,11 @@ namespace jiminy
                 pinocchio::Motion const oVf1 = getFrameVelocity(system1->robot->pncModel_,
                                                                 system1->robot->pncData_,
                                                                 frameIdx1,
-                                                                pinocchio::WORLD);
+                                                                pinocchio::LOCAL_WORLD_ALIGNED);
                 pinocchio::Motion const oVf2 = getFrameVelocity(system2->robot ->pncModel_,
                                                                 system2->robot->pncData_,
                                                                 frameIdx2,
-                                                                pinocchio::WORLD);
+                                                                pinocchio::LOCAL_WORLD_ALIGNED);
 
                 /* Compute the force coupling them.
                    Note that the application point is the "middle" between frames to
@@ -491,11 +491,11 @@ namespace jiminy
                 pinocchio::Motion const oVf1 = getFrameVelocity(system1->robot->pncModel_,
                                                                 system1->robot->pncData_,
                                                                 frameIdx1,
-                                                                pinocchio::WORLD);
+                                                                pinocchio::LOCAL_WORLD_ALIGNED);
                 pinocchio::Motion const oVf2 = getFrameVelocity(system2->robot ->pncModel_,
                                                                 system2->robot->pncData_,
                                                                 frameIdx2,
-                                                                pinocchio::WORLD);
+                                                                pinocchio::LOCAL_WORLD_ALIGNED);
 
                 // Compute the linear force coupling them
                 vector3_t const dir12 = oMf2.translation() - oMf1.translation();
