@@ -38,7 +38,7 @@ namespace jiminy
         bool_t isSuccess = true;
 
         // Shuffle coefficient update order to break repeating cycles
-        if ((int32_t) indices_.size() != b.size())
+        if (static_cast<int32_t>(indices_.size()) != b.size())
         {
             indices_.resize(b.size());
             std::generate(indices_.begin(), indices_.end(),

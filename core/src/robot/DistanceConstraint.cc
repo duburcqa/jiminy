@@ -44,8 +44,8 @@ namespace jiminy
         return distanceRef_;
     }
 
-    hresult_t DistanceConstraint::reset(vectorN_t const & q,
-                                        vectorN_t const & v)
+    hresult_t DistanceConstraint::reset(vectorN_t const & /* q */,
+                                        vectorN_t const & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -87,8 +87,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t DistanceConstraint::computeJacobianAndDrift(vectorN_t const & q,
-                                                          vectorN_t const & v)
+    hresult_t DistanceConstraint::computeJacobianAndDrift(vectorN_t const & /* q */,
+                                                          vectorN_t const & /* v */)
     {
         if (!isAttached_)
         {

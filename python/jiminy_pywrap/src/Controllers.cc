@@ -338,11 +338,11 @@ namespace python
             }
             else
             {
-                commandFct = [](float64_t        const & t,
-                                vectorN_t        const & q,
-                                vectorN_t        const & v,
-                                sensorsDataMap_t const & sensorsData,
-                                vectorN_t              & command) {};
+                commandFct = [](float64_t        const & /* t */,
+                                vectorN_t        const & /* q */,
+                                vectorN_t        const & /* v */,
+                                sensorsDataMap_t const & /* sensorsData */,
+                                vectorN_t              & /* command */) {};
             }
             ControllerFct internalDynamicsFct;
             if (!internalDynamicsPy.is_none())
@@ -351,11 +351,11 @@ namespace python
             }
             else
             {
-                internalDynamicsFct = [](float64_t        const & t,
-                                         vectorN_t        const & q,
-                                         vectorN_t        const & v,
-                                         sensorsDataMap_t const & sensorsData,
-                                         vectorN_t              & command) {};
+                internalDynamicsFct = [](float64_t        const & /* t */,
+                                         vectorN_t        const & /* q */,
+                                         vectorN_t        const & /* v */,
+                                         sensorsDataMap_t const & /* sensorsData */,
+                                         vectorN_t              & /* command */) {};
             }
             return std::make_shared<CtrlFunctor>(std::move(commandFct),
                                                  std::move(internalDynamicsFct));

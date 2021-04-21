@@ -921,8 +921,8 @@ namespace jiminy
             // Empty on purpose.
         }
 
-        virtual hpp::fcl::BVHModelPtr_t load(std::string const & filename,
-                                             hpp::fcl::Vec3f const & scale) override final
+        virtual hpp::fcl::BVHModelPtr_t load(std::string const & /* filename */,
+                                             hpp::fcl::Vec3f const & /* scale */) override final
         {
             return boost::shared_ptr<hpp::fcl::BVHModel<hpp::fcl::OBBRSS> >(
                 new hpp::fcl::BVHModel<hpp::fcl::OBBRSS>);

@@ -11,14 +11,13 @@
 #include "pinocchio/spatial/se3.hpp"                        // `pinocchio::SE3`
 #include "pinocchio/spatial/explog.hpp"                     // `pinocchio::exp6`, `pinocchio::log6`
 #include "pinocchio/spatial/explog-quaternion.hpp"          // `pinocchio::quaternion::log3`
-#include "pinocchio/spatial/fcl-pinocchio-conversions.hpp"  // `pinocchio::toFclTransform3f`
 #include "pinocchio/multibody/visitor.hpp"                  // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/joint/joint-model-base.hpp"   // `pinocchio::JointModelBase`
 #include "pinocchio/algorithm/center-of-mass.hpp"           // `pinocchio::getComFromCrba`
 #include "pinocchio/algorithm/frames.hpp"                   // `pinocchio::getFrameVelocity`
 #include "pinocchio/algorithm/jacobian.hpp"                 // `pinocchio::getJointJacobian`
 #include "pinocchio/algorithm/rnea.hpp"                     // `pinocchio::nonLinearEffects
-#include "pinocchio/algorithm/energy.hpp"                   // `pinocchio::potentialEnergy
+#include "pinocchio/algorithm/energy.hpp"                   // `pinocchio::computePotentialEnergy
 #include "pinocchio/algorithm/joint-configuration.hpp"      // `pinocchio::normalize`
 #include "pinocchio/algorithm/geometry.hpp"                 // `pinocchio::computeCollisions`
 #include "pinocchio/serialization/model.hpp"                // `pinocchio::ModelTpl<T>.serialize`
@@ -158,11 +157,11 @@ namespace jiminy
         }
 
         // Create and initialize a controller doing nothing
-        auto bypassFunctor = [](float64_t        const & t,
-                                vectorN_t        const & q,
-                                vectorN_t        const & v,
-                                sensorsDataMap_t const & sensorsData,
-                                vectorN_t              & out) {};
+        auto bypassFunctor = [](float64_t        const & /* t */,
+                                vectorN_t        const & /* q */,
+                                vectorN_t        const & /* v */,
+                                sensorsDataMap_t const & /* sensorsData */,
+                                vectorN_t              & /* out */) {};
         auto controller = std::make_shared<ControllerFunctor<
             decltype(bypassFunctor), decltype(bypassFunctor)> >(bypassFunctor, bypassFunctor);
         controller->initialize(robot);
@@ -755,17 +754,14 @@ namespace jiminy
         for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
         {
             // Compute the total energy of the system
-            float64_t energy = pinocchio_overload::kineticEnergy(
+            float64_t energy = pinocchio_overload::computeKineticEnergy(
                 systemIt->robot->pncModel_,
                 systemIt->robot->pncData_,
                 systemDataIt->state.q,
-                systemDataIt->state.v,
-                true);
-            energy += pinocchio::potentialEnergy(
+                systemDataIt->state.v);
+            energy += pinocchio::computePotentialEnergy(
                 systemIt->robot->pncModel_,
-                systemIt->robot->pncData_,
-                systemDataIt->state.q,
-                false);
+                systemIt->robot->pncData_);
 
             // Update the telemetry internal state
             if (engineOptions_->telemetry.enableConfiguration)
@@ -1530,7 +1526,7 @@ namespace jiminy
 
             // Stop the simulation if the max number of integration steps is reached
             if (0 < engineOptions_->stepper.iterMax
-                && (uint32_t) engineOptions_->stepper.iterMax <= stepperState_.iter)
+                && engineOptions_->stepper.iterMax <= static_cast<int32_t>(stepperState_.iter))
             {
                 if (engineOptions_->stepper.verbose)
                 {
@@ -2802,7 +2798,6 @@ namespace jiminy
             {
                 geomData.oMg[i] = geomModel.geometryObjects[i].placement;
             }
-            geomData.collisionObjects[i].setTransform(pinocchio::toFclTransform3f(geomData.oMg[i]));
         }
         pinocchio::computeCollisions(geomModel, geomData, false);
     }
@@ -3047,7 +3042,7 @@ namespace jiminy
     template<template<typename, int, int> class JointModel, typename Scalar, int Options, int axis>
     static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel<Scalar, Options, axis> >
                          || is_pinocchio_joint_revolute_unbounded_v<JointModel<Scalar, Options, axis> >, float64_t>
-    getSubtreeInertiaProj(JointModel<Scalar, Options, axis> const & model,
+    getSubtreeInertiaProj(JointModel<Scalar, Options, axis> const & /* model */,
                           pinocchio::Inertia                const & Isubtree)
     {
         return Isubtree.inertia()(axis, axis);
@@ -3056,7 +3051,8 @@ namespace jiminy
     template<typename JointModel>
     static std::enable_if_t<is_pinocchio_joint_revolute_unaligned_v<JointModel>
                          || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, float64_t>
-    getSubtreeInertiaProj(JointModel const & model, pinocchio::Inertia const & Isubtree)
+    getSubtreeInertiaProj(JointModel const & model,
+                          pinocchio::Inertia const & Isubtree)
     {
         return model.axis.dot(Isubtree.inertia() * model.axis);
     }
@@ -3064,7 +3060,8 @@ namespace jiminy
     template<typename JointModel>
     static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel>
                          || is_pinocchio_joint_prismatic_unaligned_v<JointModel>, float64_t>
-    getSubtreeInertiaProj(JointModel const & model, pinocchio::Inertia const & Isubtree)
+    getSubtreeInertiaProj(JointModel const & /* model */,
+                          pinocchio::Inertia const & Isubtree)
     {
         return Isubtree.mass();
     }
@@ -3163,17 +3160,17 @@ namespace jiminy
         template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_revolute_unbounded_v<JointModel>
                              || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, void>
-        algo(pinocchio::JointModelBase<JointModel> const & joint,
-             pinocchio::Data const & pncData,
-             vectorN_t const & q,
-             vectorN_t const & v,
-             vectorN_t const & positionLimitMin,
-             vectorN_t const & positionLimitMax,
+        algo(pinocchio::JointModelBase<JointModel> const & /* joint */,
+             pinocchio::Data const & /* pncData */,
+             vectorN_t const & /* q */,
+             vectorN_t const & /* v */,
+             vectorN_t const & /* positionLimitMin */,
+             vectorN_t const & /* positionLimitMax */,
              std::tuple<EngineMultiRobot::jointOptions_t const &,
-                        contactModel_t const &> jointOptionsAndContactModel,
-             std::shared_ptr<AbstractConstraintBase> & constraint,
-             int32_t & activeBoundDir,
-             vectorN_t & u)
+                        contactModel_t const &> /* jointOptionsAndContactModel */,
+             std::shared_ptr<AbstractConstraintBase> & /* constraint */,
+             int32_t & /* activeBoundDir */,
+             vectorN_t & /* u */)
         {
             // Empty on purpose.
         }
@@ -3186,17 +3183,17 @@ namespace jiminy
                              || is_pinocchio_joint_planar_v<JointModel>
                              || is_pinocchio_joint_mimic_v<JointModel>
                              || is_pinocchio_joint_composite_v<JointModel>, void>
-        algo(pinocchio::JointModelBase<JointModel> const & joint,
-             pinocchio::Data const & pncData,
-             vectorN_t const & q,
-             vectorN_t const & v,
-             vectorN_t const & positionLimitMin,
-             vectorN_t const & positionLimitMax,
+        algo(pinocchio::JointModelBase<JointModel> const & /* joint */,
+             pinocchio::Data const & /* pncData */,
+             vectorN_t const & /* q */,
+             vectorN_t const & /* v */,
+             vectorN_t const & /* positionLimitMin */,
+             vectorN_t const & /* positionLimitMax */,
              std::tuple<EngineMultiRobot::jointOptions_t const &,
-                        contactModel_t const &> jointOptionsAndContactModel,
-             std::shared_ptr<AbstractConstraintBase> & constraint,
-             int32_t & activeBoundDir,
-             vectorN_t & u)
+                        contactModel_t const &> /* jointOptionsAndContactModel */,
+             std::shared_ptr<AbstractConstraintBase> & /* constraint */,
+             int32_t & /* activeBoundDir */,
+             vectorN_t & /* u */)
         {
             PRINT_WARNING("No position bounds implemented for this type of joint.");
         }
@@ -3269,13 +3266,13 @@ namespace jiminy
                              || is_pinocchio_joint_planar_v<JointModel>
                              || is_pinocchio_joint_mimic_v<JointModel>
                              || is_pinocchio_joint_composite_v<JointModel>, void>
-        algo(pinocchio::JointModelBase<JointModel> const & joint,
-             pinocchio::Data const & pncData,
-             vectorN_t const & v,
-             vectorN_t const & velocityLimitMax,
-             EngineMultiRobot::jointOptions_t const & jointOptions,
-             contactModel_t const & contactModel,
-             vectorN_t & u)
+        algo(pinocchio::JointModelBase<JointModel> const & /* joint */,
+             pinocchio::Data const & /* pncData */,
+             vectorN_t const & /* v */,
+             vectorN_t const & /* velocityLimitMax */,
+             EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+             contactModel_t const & /* contactModel */,
+             vectorN_t & /* u */)
         {
             PRINT_WARNING("No velocity bounds implemented for this type of joint.");
         }
@@ -3283,7 +3280,7 @@ namespace jiminy
 
     void EngineMultiRobot::computeInternalDynamics(systemHolder_t     const & system,
                                                    systemDataHolder_t       & systemData,
-                                                   float64_t          const & t,
+                                                   float64_t          const & /* t */,
                                                    vectorN_t          const & q,
                                                    vectorN_t          const & v,
                                                    vectorN_t                & uInternal) const
@@ -3665,12 +3662,10 @@ namespace jiminy
                 if (*activeDirIt)
                 {
                     hi[jointsIdx] = 0.0;
-                    lo[jointsIdx] = -INF;
                 }
                 else
                 {
                     lo[jointsIdx] = 0.0;
-                    hi[jointsIdx] = INF;
                 }
                 jointsIdx += constraint->getDim();
             }
@@ -4154,7 +4149,7 @@ namespace jiminy
             // Deduce the parameters required to parse the whole binary log file
             integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
             floatSectionSize = NumFloatEntries * sizeof(float64_t);
-            headerSize = ((int32_t) file.tellg()) - START_LINE_TOKEN.size() - 1;
+            headerSize = static_cast<int32_t>(file.tellg()) - START_LINE_TOKEN.size() - 1;
 
             // Close the file
             file.close();
@@ -4179,7 +4174,7 @@ namespace jiminy
     }
 
     hresult_t EngineMultiRobot::parseLogBinary(std::string              const & filename,
-                                               std::vector<std::string>       & header,
+                                               std::vector<std::string>       & /* header */,
                                                matrixN_t                      & logMatrix)
     {
         logData_t logData;

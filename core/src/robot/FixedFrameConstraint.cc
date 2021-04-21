@@ -94,8 +94,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t FixedFrameConstraint::computeJacobianAndDrift(vectorN_t const & q,
-                                                            vectorN_t const & v)
+    hresult_t FixedFrameConstraint::computeJacobianAndDrift(vectorN_t const & /* q */,
+                                                            vectorN_t const & /* v */)
     {
         if (!isAttached_)
         {

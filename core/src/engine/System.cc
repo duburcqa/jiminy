@@ -89,9 +89,9 @@ namespace jiminy
 
     systemHolder_t::systemHolder_t(void) :
     systemHolder_t("", nullptr, nullptr,
-    [](float64_t const & t,
-       vectorN_t const & q,
-       vectorN_t const & v) -> bool_t
+    [](float64_t const & /* t */,
+       vectorN_t const & /* q */,
+       vectorN_t const & /* v */) -> bool_t
     {
         return false;
     })

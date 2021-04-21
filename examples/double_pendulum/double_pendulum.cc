@@ -17,32 +17,32 @@
 
 using namespace jiminy;
 
-void computeCommand(float64_t        const & t,
-                    vectorN_t        const & q,
-                    vectorN_t        const & v,
-                    sensorsDataMap_t const & sensorsData,
-                    vectorN_t              & command)
+void computeCommand(float64_t        const & /* t */,
+                    vectorN_t        const & /* q */,
+                    vectorN_t        const & /* v */,
+                    sensorsDataMap_t const & /* sensorsData */,
+                    vectorN_t              & /* command */)
 {
     // No controller: energy should be preserved
 }
 
-void internalDynamics(float64_t        const & t,
-                      vectorN_t        const & q,
-                      vectorN_t        const & v,
-                      sensorsDataMap_t const & sensorsData,
-                      vectorN_t              & uCustom)
+void internalDynamics(float64_t        const & /* t */,
+                      vectorN_t        const & /* q */,
+                      vectorN_t        const & /* v */,
+                      sensorsDataMap_t const & /* sensorsData */,
+                      vectorN_t              & /* uCustom */)
 {
     // Empty on purpose
 }
 
-bool_t callback(float64_t const & t,
-                vectorN_t const & q,
-                vectorN_t const & v)
+bool_t callback(float64_t const & /* t */,
+                vectorN_t const & /* q */,
+                vectorN_t const & /* v */)
 {
     return true;
 }
 
-int main(int argc, char_t * argv[])
+int main(int /* argc */, char_t * /* argv */[])
 {
     // =====================================================================
     // ==================== Extract the user paramaters ====================

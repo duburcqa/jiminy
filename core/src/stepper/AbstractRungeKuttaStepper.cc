@@ -75,8 +75,8 @@ namespace jiminy
         return hasSucceeded;
     }
 
-    bool_t AbstractRungeKuttaStepper::adjustStep(state_t   const & initialState,
-                                                 state_t   const & solution,
+    bool_t AbstractRungeKuttaStepper::adjustStep(state_t   const & /* initialState */,
+                                                 state_t   const & /* solution */,
                                                  float64_t       & dt)
     {
         /* Fixed-step by default, which never fails. By default INF is retuned

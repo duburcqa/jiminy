@@ -36,7 +36,7 @@ namespace python
     }
 
     template<typename R, typename ...Args>
-    boost::mpl::vector<R, Args...> functionToMLP(std::function<R(Args...)> func)
+    boost::mpl::vector<R, Args...> functionToMLP(std::function<R(Args...)> /* func */)
     {
         return {};
     }
@@ -98,7 +98,8 @@ namespace python
     class vector_indexing_suite_no_contains : public bp::vector_indexing_suite<Container, NoProxy, DerivedPolicies>
     {
     public:
-        static bool contains(Container & container, typename Container::value_type const & key)
+        static bool contains(Container & /* container */,
+                             typename Container::value_type const & /* key */)
         {
             throw std::runtime_error("Contains method not supported.");
             return false;
@@ -111,11 +112,11 @@ namespace python
 
     /// C++ to Python type mapping
 
-    inline int getPyType(bool_t const & data) { return NPY_BOOL; }
-    inline int getPyType(float64_t const & data) { return NPY_FLOAT64; }
-    inline int getPyType(float32_t const & data) { return NPY_FLOAT32; }
-    inline int getPyType(int32_t const & data) { return NPY_INT32; }
-    inline int getPyType(int64_t const & data) { return NPY_INT64; }
+    inline int getPyType(bool_t const & /* data */) { return NPY_BOOL; }
+    inline int getPyType(float64_t const & /* data */) { return NPY_FLOAT64; }
+    inline int getPyType(float32_t const & /* data */) { return NPY_FLOAT32; }
+    inline int getPyType(int32_t const & /* data */) { return NPY_INT32; }
+    inline int getPyType(int64_t const & /* data */) { return NPY_INT64; }
 
     /// Convert Eigen scalar/vector/matrix to Numpy array by reference.
 
@@ -295,7 +296,7 @@ namespace python
     template<typename T>
     std::enable_if_t<!is_vector<T>::value
                   && !is_eigen<T>::value, bp::object>
-    convertToPython(T const & data, bool const & copy = true)
+    convertToPython(T const & data, bool const & /* copy */ = true)
     {
         return bp::object(data);
     }
@@ -303,7 +304,7 @@ namespace python
     template<>
     inline bp::object convertToPython<flexibleJointData_t>(
         flexibleJointData_t const & flexibleJointData,
-        bool const & copy)
+        bool const & /* copy */)
     {
         bp::dict flexibilityJointDataPy;
         flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;

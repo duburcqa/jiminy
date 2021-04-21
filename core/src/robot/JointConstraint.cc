@@ -40,7 +40,7 @@ namespace jiminy
     }
 
     hresult_t JointConstraint::reset(vectorN_t const & q,
-                                     vectorN_t const & v)
+                                     vectorN_t const & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -86,7 +86,7 @@ namespace jiminy
     }
 
     template<typename JointModel, typename ConfigVectorIn1, typename ConfigVectorIn2>
-    auto difference(pinocchio::JointModelBase<JointModel> const & jmodel,
+    auto difference(pinocchio::JointModelBase<JointModel> const & /* jmodel */,
                     Eigen::MatrixBase<ConfigVectorIn1>    const & q0,
                     Eigen::MatrixBase<ConfigVectorIn2>    const & q1)
     {

@@ -131,14 +131,14 @@ namespace jiminy
         return bytesAvailable();
     }
 
-    hresult_t AbstractIODevice::resize(int64_t size)
+    hresult_t AbstractIODevice::resize(int64_t /* size */)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
         PRINT_ERROR("This method is not available.");
         return lastError_;
     }
 
-    hresult_t AbstractIODevice::seek(int64_t pos)
+    hresult_t AbstractIODevice::seek(int64_t /* pos */)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
         PRINT_ERROR("This method is not available.");
@@ -202,7 +202,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractIODevice::setBlockingMode(bool_t shouldBlock)
+    hresult_t AbstractIODevice::setBlockingMode(bool_t /* shouldBlock */)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
         PRINT_ERROR("This methid is not available.");
