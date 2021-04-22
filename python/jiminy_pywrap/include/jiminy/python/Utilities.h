@@ -406,7 +406,7 @@ namespace python
     inline vectorN_t listPyToEigenVector(bp::list const & listPy)
     {
         vectorN_t x(len(listPy));
-        for (int32_t i = 0; i < len(listPy); ++i)
+        for (bp::ssize_t i = 0; i < len(listPy); ++i)
         {
             x[i] = bp::extract<float64_t>(listPy[i]);
         }

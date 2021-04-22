@@ -107,7 +107,7 @@ namespace jiminy
     convertFromJson(Json::Value const & value)
     {
         T vec;
-        if (value.size() > 0)
+        if (!value.empty())
         {
             vec.resize(value.size());
             for (auto itr = value.begin() ; itr != value.end() ; ++itr)

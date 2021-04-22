@@ -871,7 +871,7 @@ namespace jiminy
                 data.Ycrb[i] = model.inertias[i];
                 data.oYcrb[i] = data.oMi[i].act(model.inertias[i]);
             }
-            for (int32_t i = model.njoints-1; i > 0; --i)
+            for (int32_t i = model.njoints - 1; i > 0; --i)
             {
                 jointIndex_t const & jointIdx = model.joints[i].id();
                 jointIndex_t const & parentIdx = model.parents[jointIdx];
@@ -1255,7 +1255,7 @@ namespace jiminy
                 systemIt->robot->getCollisionPairsIdx();
             systemDataIt->collisionBodiesForces.clear();
             systemDataIt->collisionBodiesForces.reserve(collisionPairsIdx.size());
-            for (uint32_t i=0; i < collisionPairsIdx.size(); ++i)
+            for (std::size_t i = 0; i < collisionPairsIdx.size(); ++i)
             {
                 systemDataIt->collisionBodiesForces.emplace_back(
                     collisionPairsIdx[i].size(), pinocchio::Force::Zero());
@@ -1284,7 +1284,7 @@ namespace jiminy
                 // Make sure that the contact forces are bounded for spring-damper model.
                 // TODO: One should rather use something like 10 * m * g instead of a fix threshold
                 float64_t forceMax = 0.0;
-                for (uint32_t i=0; i < contactFramesIdx.size(); ++i)
+                for (std::size_t i = 0; i < contactFramesIdx.size(); ++i)
                 {
                     auto & constraint = systemDataIt->constraintsHolder.contactFrames[i].second;
                     pinocchio::Force & fextLocal = systemDataIt->contactFramesForces[i];
@@ -1293,9 +1293,9 @@ namespace jiminy
                     forceMax = std::max(forceMax, fextLocal.linear().norm());
                 }
 
-                for (uint32_t i=0; i < collisionPairsIdx.size(); ++i)
+                for (std::size_t i = 0; i < collisionPairsIdx.size(); ++i)
                 {
-                    for (uint32_t j=0; j < collisionPairsIdx[i].size(); ++j)
+                    for (std::size_t j = 0; j < collisionPairsIdx[i].size(); ++j)
                     {
                         pairIndex_t const & collisionPairIdx = collisionPairsIdx[i][j];
                         auto & constraint = systemDataIt->constraintsHolder.collisionBodies[i][j].second;
@@ -3297,7 +3297,7 @@ namespace jiminy
             vectorN_t const & positionLimitMin = system.robot->getPositionLimitMin();
             vectorN_t const & positionLimitMax = system.robot->getPositionLimitMax();
             std::vector<jointIndex_t> const & rigidJointsIdx = system.robot->getRigidJointsModelIdx();
-            for (uint32_t i = 0; i < rigidJointsIdx.size(); ++i)
+            for (std::size_t i = 0; i < rigidJointsIdx.size(); ++i)
             {
                 auto & constraint = systemData.constraintsHolder.boundJoints[i].second;
                 int32_t & activeBoundDir = systemData.boundJointsActiveDir[i];
@@ -3325,10 +3325,11 @@ namespace jiminy
         // Compute the flexibilities (only support joint_t::SPHERICAL so far)
         Robot::dynamicsOptions_t const & mdlDynOptions = system.robot->mdlOptions_->dynamics;
         std::vector<jointIndex_t> const & flexibilityIdx = system.robot->getFlexibleJointsModelIdx();
-        for (uint32_t i=0; i<flexibilityIdx.size(); ++i)
+        for (std::size_t i = 0; i < flexibilityIdx.size(); ++i)
         {
-            uint32_t const & positionIdx = pncModel.joints[flexibilityIdx[i]].idx_q();
-            uint32_t const & velocityIdx = pncModel.joints[flexibilityIdx[i]].idx_v();
+            jointIndex_t const & jointIdx = flexibilityIdx[i];
+            uint32_t const & positionIdx = pncModel.joints[jointIdx].idx_q();
+            uint32_t const & velocityIdx = pncModel.joints[jointIdx].idx_v();
             vectorN_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
             vectorN_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
@@ -3348,7 +3349,7 @@ namespace jiminy
     {
         // Compute the forces at contact points
         std::vector<frameIndex_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
-        for (uint32_t i=0; i < contactFramesIdx.size(); ++i)
+        for (std::size_t i = 0; i < contactFramesIdx.size(); ++i)
         {
             // Compute force at the given contact frame.
             frameIndex_t const & frameIdx = contactFramesIdx[i];
@@ -3368,13 +3369,13 @@ namespace jiminy
         // Compute the force at collision bodies
         std::vector<frameIndex_t> const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
         std::vector<std::vector<pairIndex_t> > const & collisionPairsIdx = system.robot->getCollisionPairsIdx();
-        for (uint32_t i=0; i < collisionBodiesIdx.size(); ++i)
+        for (std::size_t i = 0; i < collisionBodiesIdx.size(); ++i)
         {
             // Compute force at the given collision body.
             // It returns the force applied at the origin of the parent joint frame, in global frame
             frameIndex_t const & frameIdx = collisionBodiesIdx[i];
             jointIndex_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            for (uint32_t j=0; j < collisionPairsIdx[i].size(); ++j)
+            for (std::size_t j = 0; j < collisionPairsIdx[i].size(); ++j)
             {
                 pairIndex_t const & collisionPairIdx = collisionPairsIdx[i][j];
                 auto & constraint = systemData.constraintsHolder.collisionBodies[i][j].second;
@@ -3823,16 +3824,16 @@ namespace jiminy
                               matrixN_t       & logMatrix)
     {
         // Never empty since it contains at least the initial state
-        logMatrix.resize(logData.timestamps.size(), 1 + logData.numInt + logData.numFloat);
+        logMatrix.resize(logData.timestamps.size(), 1U + logData.numInt + logData.numFloat);
         logMatrix.col(0) = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
             logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
-        for (uint32_t i=0; i<logData.intData.size(); ++i)
+        for (std::size_t i=0; i<logData.intData.size(); ++i)
         {
             logMatrix.block(i, 1, 1, logData.numInt) =
                 Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
                     logData.intData[i].data(), logData.numInt).cast<float64_t>();
         }
-        for (uint32_t i=0; i<logData.floatData.size(); ++i)
+        for (std::size_t i=0; i<logData.floatData.size(); ++i)
         {
             logMatrix.block(i, 1 + logData.numInt, 1, logData.numFloat) =
                 Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
@@ -3977,12 +3978,12 @@ namespace jiminy
 
             // Add group "constants"
             H5::Group constantsGroup(file->createGroup("constants"));
-            int64_t const lastConstantIdx = std::distance(logData->header.begin(), std::find(
+            std::ptrdiff_t const lastConstantIdx = std::distance(logData->header.begin(), std::find(
                 logData->header.begin(), logData->header.end(), START_COLUMNS));
-            for (int64_t i = 1; i < lastConstantIdx; ++i)
+            for (std::ptrdiff_t i = 1; i < lastConstantIdx; ++i)
             {
                 std::string const & constantDescr = logData->header[i];
-                int64_t const delimiterIdx = constantDescr.find(TELEMETRY_CONSTANT_DELIMITER);
+                std::size_t const delimiterIdx = constantDescr.find(TELEMETRY_CONSTANT_DELIMITER);
                 std::string const key = constantDescr.substr(0, delimiterIdx);
                 char_t const * value = constantDescr.c_str() + (delimiterIdx + 1);
 
@@ -4008,9 +4009,9 @@ namespace jiminy
 
             // Add group "variables"
             H5::Group variablesGroup(file->createGroup("variables"));
-            for (uint32_t i=0; i < logData->numInt; ++i)
+            for (std::size_t i=0; i < logData->numInt; ++i)
             {
-                std::string const & key = logData->header[i + (lastConstantIdx + 1) + 1];
+                std::string const & key = logData->header[i + (lastConstantIdx + 1U) + 1U];
 
                 // Create group for field
                 H5::Group fieldGroup(variablesGroup.createGroup(key));
@@ -4032,15 +4033,15 @@ namespace jiminy
                     "value", H5::PredType::NATIVE_LONG, valueSpace, plist);
 
                 // Write values in one-shot for efficiency
-                for (uint32_t j=0; j < logData->intData.size(); ++j)
+                for (std::size_t j = 0; j < logData->intData.size(); ++j)
                 {
                     intVector[j] = logData->intData[j][i];
                 }
                 valueDataset.write(intVector.data(), H5::PredType::NATIVE_LONG);
             }
-            for (uint32_t i=0; i < logData->numFloat; ++i)
+            for (std::size_t i = 0; i < logData->numFloat; ++i)
             {
-                std::string const & key = logData->header[i + (lastConstantIdx + 1) + 1 + logData->numInt];
+                std::string const & key = logData->header[i + (lastConstantIdx + 1U) + 1U + logData->numInt];
 
                 // Create group for field
                 H5::Group fieldGroup(variablesGroup.createGroup(key));
@@ -4062,7 +4063,7 @@ namespace jiminy
                     "value", H5::PredType::NATIVE_DOUBLE, valueSpace, plist);
 
                 // Write values
-                for (uint32_t j=0; j < logData->floatData.size(); ++j)
+                for (std::size_t j=0; j < logData->floatData.size(); ++j)
                 {
                     floatVector[j] = logData->floatData[j][i];
                 }

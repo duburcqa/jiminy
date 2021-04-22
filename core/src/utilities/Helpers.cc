@@ -87,7 +87,7 @@ namespace jiminy
     {
         std::vector<std::string> fieldnames;
         fieldnames.reserve(size);
-        for (uint32_t i=0; i<size; ++i)
+        for (uint32_t i = 0; i < size; ++i)
         {
             fieldnames.push_back(baseName + TELEMETRY_FIELDNAME_DELIMITER + std::to_string(i));
         }

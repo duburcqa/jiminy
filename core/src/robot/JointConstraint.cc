@@ -70,7 +70,7 @@ namespace jiminy
 
             // Compute the jacobian. It is simply the velocity selector mask.
             jacobian_ = matrixN_t::Zero(jointModel.nv(), model->pncModel_.nv);
-            for (int32_t i=0; i < jointModel.nv(); ++i)
+            for (Eigen::Index i=0; i < jointModel.nv(); ++i)
             {
                 jacobian_(i, jointModel.idx_v() + i) = 1.0;
             }

@@ -262,7 +262,7 @@ namespace python
             std::vector<std::string> const & fieldnames = self.getFieldnames();
             Eigen::Ref<vectorN_t const> const & sensorDataValue =
                 const_cast<AbstractSensorBase const &>(self).get();
-            for (uint32_t i=0; i<fieldnames.size(); ++i)
+            for (std::size_t i = 0; i<fieldnames.size(); ++i)
             {
                 std::string const & field = fieldnames[i];
                 float64_t const & value = sensorDataValue[i];

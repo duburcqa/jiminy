@@ -1276,9 +1276,9 @@ namespace jiminy
         return motorsNames_;
     }
 
-    std::vector<int32_t> Robot::getMotorsModelIdx(void) const
+    std::vector<jointIndex_t> Robot::getMotorsModelIdx(void) const
     {
-        std::vector<int32_t> motorsModelIdx;
+        std::vector<jointIndex_t> motorsModelIdx;
         motorsModelIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsModelIdx),

@@ -13,7 +13,7 @@ namespace jiminy
     Json::Value convertToJson<vectorN_t>(vectorN_t const & value)
     {
         Json::Value row(Json::arrayValue);
-        for (int32_t i=0; i<value.size(); ++i)
+        for (Eigen::Index i = 0; i < value.size(); ++i)
         {
             row.append(value[i]);
         }
@@ -26,12 +26,12 @@ namespace jiminy
         Json::Value mat(Json::arrayValue);
         if (value.rows() > 0)
         {
-            for (int32_t i=0; i<value.rows(); ++i)
+            for (Eigen::Index i = 0; i<value.rows(); ++i)
             {
                 Json::Value row(Json::arrayValue);
-                for (int32_t j=0; j<value.cols(); ++j)
+                for (Eigen::Index j = 0; j<value.cols(); ++j)
                 {
-                    row.append(value(i,j));
+                    row.append(value(i, j));
                 }
                 mat.append(row);
             }

@@ -400,7 +400,7 @@ namespace jiminy
     {
         // Compute distance matrix
         matrixN_t distMat(numTimes_, numTimes_);
-        for (uint32_t i=0; i < numTimes_; ++i)
+        for (uint32_t i = 0; i < numTimes_; ++i)
         {
             distMat.diagonal(i).setConstant(dt_ * i);
         }
@@ -727,7 +727,7 @@ namespace jiminy
     }
 
     RandomPerlinProcess::RandomPerlinProcess(float64_t const & wavelength,
-                                             uint32_t const & numOctaves) :
+                                             uint32_t  const & numOctaves) :
     AbstractPerlinProcess(wavelength, numOctaves)
     {
         // Empty on purpose

@@ -159,7 +159,7 @@ namespace python
                     auto fieldnames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
 
                     // Check fieldnames and array have same length
-                    if (data.size() != uint32_t(fieldnames.size()))
+                    if (static_cast<std::size_t>(data.size()) != fieldnames.size())
                     {
                         PRINT_ERROR("'values' input array must have same length than 'fieldnames'.");
                         returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -177,10 +177,10 @@ namespace python
                     auto fieldnames = convertFromPython<std::vector<std::vector<std::string> > >(fieldNamesPy);
 
                     // Check fieldnames and array have same shape
-                    bool_t are_fieldnames_valid = (data.rows() == uint32_t(fieldnames.size()));
+                    bool_t are_fieldnames_valid = (static_cast<std::size_t>(data.rows()) == fieldnames.size());
                     for (std::vector<std::string> const & subfieldnames : fieldnames)
                     {
-                        if (data.cols() != uint32_t(subfieldnames.size()))
+                        if (static_cast<std::size_t>(data.cols()) != subfieldnames.size())
                         {
                             are_fieldnames_valid = false;
                             break;
@@ -193,7 +193,7 @@ namespace python
                     }
 
                     // Register rows sequentially
-                    for (uint32_t i = 0; i < data.rows(); ++i)
+                    for (Eigen::Index i = 0; i < data.rows(); ++i)
                     {
                         if (returnCode == hresult_t::SUCCESS)
                         {

@@ -758,7 +758,7 @@ namespace Eigen
             assert(vector_.size() == vectorIn.size()); \
             std::vector<wrappedType> result; \
             result.reserve(vector_.size()); \
-            for (uint32_t i = 0; i < vector_.size(); ++i) \
+            for (std::size_t i = 0; i < vector_.size(); ++i) \
             { \
                 result.emplace_back(vector_[i] OP vectorIn[i]); \
             } \
@@ -790,7 +790,7 @@ namespace Eigen
             std::vector<typename internal::traits<OtherDerived>::ValueType> const & \
                 vectorIn = other.vector(); \
             assert(vector_.size() == vectorIn.size()); \
-            for (uint32_t i = 0; i < vector_.size(); ++i) \
+            for (std::size_t i = 0; i < vector_.size(); ++i) \
             { \
                 vector_[i] EIGEN_CAT(OP,=) vectorIn[i]; \
             } \
@@ -894,7 +894,7 @@ namespace Eigen
                 assert(arg.size() == robots.size());
             }, args...);
             vector_.reserve(robots.size());
-            for (uint32_t i = 0; i < robots.size(); ++i)
+            for (std::size_t i = 0; i < robots.size(); ++i)
             {
                 vector_.emplace_back(robots[i], args[i]...);
             }
@@ -909,7 +909,7 @@ namespace Eigen
                 assert(arg.size() == robots.size());
             }, args...);
             vector_.reserve(robots.size());
-            for (uint32_t i = 0; i < robots.size(); ++i)
+            for (std::size_t i = 0; i < robots.size(); ++i)
             {
                 vector_.emplace_back(robots[i], std::move(args[i])...);
             }
@@ -919,7 +919,7 @@ namespace Eigen
         vector_()
         {
             vector_.reserve(robots.size());
-            for (uint32_t i = 0; i < robots.size(); ++i)
+            for (std::size_t i = 0; i < robots.size(); ++i)
             {
                 vector_.emplace_back(robots[i]);
             }
@@ -964,7 +964,7 @@ namespace Eigen
         {
             std::vector<typename internal::traits<OtherDerived>::ValueType> const & vectorIn = other.vector();
             vector_.resize(vectorIn.size());
-            for (uint32_t i = 0; i < vector_.size(); ++i)
+            for (std::size_t i = 0; i < vector_.size(); ++i)
             {
                 vector_[i] = vectorIn[i];
             }
@@ -1110,7 +1110,7 @@ namespace Eigen
         { \
             assert(VAR1.size() == robots.size() && VAR2.size() == robots.size()); \
             vector_.reserve(robots.size()); \
-            for (uint32_t i = 0; i < robots.size(); ++i) \
+            for (std::size_t i = 0; i < robots.size(); ++i) \
             { \
                 vector_.emplace_back(robots[i], VAR1[i], VAR2[i]); \
             } \
@@ -1124,7 +1124,7 @@ namespace Eigen
             vector_.reserve(robots.size()); \
             VAR1.reserve(robots.size()); \
             VAR2.reserve(robots.size()); \
-            for (uint32_t i = 0; i < robots.size(); ++i) \
+            for (std::size_t i = 0; i < robots.size(); ++i) \
             { \
                 VAR1.emplace_back(robots[i]->SIZE1()); \
                 VAR2.emplace_back(robots[i]->SIZE2()); \
@@ -1139,7 +1139,7 @@ namespace Eigen
         { \
             std::vector<ValueType> const & vectorIn = other.vector(); \
             vector_.reserve(vectorIn.size()); \
-            for (uint32_t i = 0; i < vectorIn.size(); ++i) \
+            for (std::size_t i = 0; i < vectorIn.size(); ++i) \
             { \
                 vector_.emplace_back(vectorIn[i].robot(), VAR1[i], VAR2[i]); \
             } \
@@ -1163,7 +1163,7 @@ namespace Eigen
             vector_.reserve(vectorIn.size()); \
             VAR1.reserve(vectorIn.size()); \
             VAR2.reserve(vectorIn.size()); \
-            for (uint32_t i = 0; i < vectorIn.size(); ++i) \
+            for (std::size_t i = 0; i < vectorIn.size(); ++i) \
             { \
                 VAR1.push_back(vectorIn[i].VAR1()); \
                 VAR2.push_back(vectorIn[i].VAR2()); \
@@ -1180,7 +1180,7 @@ namespace Eigen
             vector_.reserve(vectorIn.size()); \
             VAR1.reserve(vectorIn.size()); \
             VAR2.reserve(vectorIn.size()); \
-            for (uint32_t i = 0; i < vectorIn.size(); ++i) \
+            for (std::size_t i = 0; i < vectorIn.size(); ++i) \
             { \
                 VAR1.push_back(std::move(vectorIn[i].VAR1())); \
                 VAR2.push_back(std::move(vectorIn[i].VAR2())); \
@@ -1191,7 +1191,7 @@ namespace Eigen
         static EIGEN_CAT(BASE,Vector) Ones(std::vector<Robot const *> const & robots) \
         { \
             EIGEN_CAT(BASE,Vector) container(robots); \
-            for (uint32_t i = 0; i < robots.size(); ++i) \
+            for (std::size_t i = 0; i < robots.size(); ++i) \
             { \
                 container.VAR1[i].setOnes(); \
                 container.VAR2[i].setOnes(); \
@@ -1202,7 +1202,7 @@ namespace Eigen
         static EIGEN_CAT(BASE,Vector) Zero(std::vector<Robot const *> const & robots) \
         { \
             EIGEN_CAT(BASE,Vector) container(robots); \
-            for (uint32_t i = 0; i < robots.size(); ++i) \
+            for (std::size_t i = 0; i < robots.size(); ++i) \
             { \
                 container.VAR1[i].setZero(); \
                 container.VAR2[i].setZero(); \
@@ -1215,7 +1215,7 @@ namespace Eigen
         { \
             std::vector<typename internal::traits<OtherDerived>::ValueType> const & vectorIn = other.vector(); \
             assert(vectorIn.size() == vector_.size()); \
-            for (uint32_t i = 0; i < vector_.size(); ++i) \
+            for (std::size_t i = 0; i < vector_.size(); ++i) \
             { \
                 assert(vectorIn[i].robot() == vector_[i].robot()); \
                 VAR1[i] = vectorIn[i].VAR1(); \
@@ -1228,7 +1228,7 @@ namespace Eigen
         { \
             std::vector<ValueType> const & vectorIn = other.vector(); \
             assert(vectorIn.size() == vector_.size()); \
-            for (uint32_t i = 0; i < vectorIn.size(); ++i) \
+            for (std::size_t i = 0; i < vectorIn.size(); ++i) \
             { \
                 assert(vectorIn[i].robot() == vector_[i].robot()); \
                 VAR1[i] = other.VAR1[i]; \
@@ -1261,7 +1261,7 @@ namespace Eigen
         std::vector<typename internal::traits<Derived>::ValueType> const & \
             vectorIn = other.vector(); \
         assert(vector_.size() == vectorOut.size()); \
-        for (uint32_t i = 0; i < vector_.size(); ++i) \
+        for (std::size_t i = 0; i < vector_.size(); ++i) \
         { \
             vector_[i] += scale * vectorIn[i]; \
         } \
@@ -1284,7 +1284,7 @@ namespace Eigen
         std::vector<typename internal::traits<OtherDerived>::ValueType> & \
             vectorOut = out.vector(); \
         assert(vectorIn.size() == vectorOut.size()); \
-        for (uint32_t i = 0; i < vector_.size(); ++i) \
+        for (std::size_t i = 0; i < vector_.size(); ++i) \
         { \
             vector_[i].sum(vectorIn[i], vectorOut[i]); \
         } \
@@ -1309,7 +1309,7 @@ namespace Eigen
         std::vector<typename internal::traits<Derived>::ValueType> const & \
             vectorIn = other.vector(); \
         assert(vector_.size() == vectorOut.size()); \
-        for (uint32_t i = 0; i < vector_.size(); ++i) \
+        for (std::size_t i = 0; i < vector_.size(); ++i) \
         { \
             vector_[i].sumInPlace(scale * vectorIn[i]); \
         } \
@@ -1331,7 +1331,7 @@ namespace Eigen
         std::vector<typename internal::traits<OtherDerived>::ValueType> & \
             vectorOut = out.vector(); \
         assert(vectorIn.size() == vectorOut.size()); \
-        for (uint32_t i = 0; i < vector_.size(); ++i) \
+        for (std::size_t i = 0; i < vector_.size(); ++i) \
         { \
             vector_[i].difference(vectorIn[i], vectorOut[i]); \
         } \

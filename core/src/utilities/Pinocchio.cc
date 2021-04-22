@@ -544,7 +544,7 @@ namespace jiminy
         if (firstJointIdx < secondJointIdx)
         {
             // Update parents for other joints.
-            for (uint32_t i = 0; i < modelInOut.parents.size(); ++i)
+            for (std::size_t i = 0; i < modelInOut.parents.size(); ++i)
             {
                 if (firstJointIdx == modelInOut.parents[i])
                 {
@@ -556,7 +556,7 @@ namespace jiminy
                 }
             }
             // Update frame parents.
-            for (uint32_t i = 0; i < modelInOut.frames.size(); ++i)
+            for (std::size_t i = 0; i < modelInOut.frames.size(); ++i)
             {
                 if (firstJointIdx == modelInOut.frames[i].parent)
                 {
@@ -568,9 +568,9 @@ namespace jiminy
                 }
             }
             // Update values in subtrees.
-            for (uint32_t i = 0; i < modelInOut.subtrees.size(); ++i)
+            for (std::size_t i = 0; i < modelInOut.subtrees.size(); ++i)
             {
-                for (uint32_t j = 0; j < modelInOut.subtrees[i].size(); ++j)
+                for (std::size_t j = 0; j < modelInOut.subtrees[i].size(); ++j)
                 {
                     if (firstJointIdx == modelInOut.subtrees[i][j])
                     {
@@ -638,7 +638,7 @@ namespace jiminy
                Skip 'universe' joint since it is not an actual joint. */
             uint32_t incrementalNq = 0;
             uint32_t incrementalNv = 0;
-            for (uint32_t i = 1; i < modelInOut.joints.size(); ++i)
+            for (std::size_t i = 1; i < modelInOut.joints.size(); ++i)
             {
                 modelInOut.joints[i].setIndexes(i, incrementalNq, incrementalNv);
                 incrementalNq += modelInOut.joints[i].nq();
@@ -685,7 +685,7 @@ namespace jiminy
         modelInOut.frames[childFrameIdx].placement = SE3::Identity();
 
         // Update new joint subtree to include all the joints below it
-        for (uint32_t i = 0; i < modelInOut.subtrees[childJointIdx].size(); ++i)
+        for (std::size_t i = 0; i < modelInOut.subtrees[childJointIdx].size(); ++i)
         {
             modelInOut.subtrees[newJointIdx].push_back(modelInOut.subtrees[childJointIdx][i]);
         }
@@ -799,7 +799,7 @@ namespace jiminy
                 modelInOut.jointPlacements[childJointIdx]);
 
             // Update new joint subtree to include all the joints below it
-            for (uint32_t i = 0; i < modelInOut.subtrees[childJointIdx].size(); ++i)
+            for (std::size_t i = 0; i < modelInOut.subtrees[childJointIdx].size(); ++i)
             {
                 modelInOut.subtrees[newJointIdx].push_back(
                     modelInOut.subtrees[childJointIdx][i]);
@@ -866,7 +866,7 @@ namespace jiminy
         int32_t timesInIdx = -1;
         vectorN_t qInterp(positionsIn.cols());
         positionsOut.resize(timesOut.size(), positionsIn.cols());
-        for (uint32_t i = 0; i < timesOut.size() ; ++i)
+        for (Eigen::Index i = 0; i < timesOut.size() ; ++i)
         {
             float64_t t = timesOut[i];
             while (timesInIdx < timesIn.size() - 1 && timesIn[timesInIdx + 1] < t)

@@ -78,7 +78,7 @@ namespace jiminy
         constraintsMap_t::iterator constraintIt;
         if (holderType == constraintsHolderType_t::COLLISION_BODIES)
         {
-            for (uint32_t i = 0; i < collisionBodies.size(); ++i)
+            for (std::size_t i = 0; i < collisionBodies.size(); ++i)
             {
                 constraintsMapPtr = &collisionBodies[i];
                 constraintIt = getImpl(*constraintsMapPtr, key);
@@ -516,7 +516,7 @@ namespace jiminy
         {
             // Find the geometries having the body for parent, and add a collision pair for each of them
             constraintsMap_t collisionConstraintsMap;
-            for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
                 bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
@@ -604,14 +604,14 @@ namespace jiminy
             bodyNames = collisionBodiesNames_;
         }
 
-        for (uint32_t i=0; i<bodyNames.size(); ++i)
+        for (std::size_t i = 0; i < bodyNames.size(); ++i)
         {
             std::string const & bodyName = bodyNames[i];
             auto const collisionBodiesNameIt = std::find(
                 collisionBodiesNames_.begin(),
                 collisionBodiesNames_.end(),
                 bodyName);
-            auto const collisionBodiesNameIdx = std::distance(
+            std::ptrdiff_t const collisionBodiesNameIdx = std::distance(
                 collisionBodiesNames_.begin(),
                 collisionBodiesNameIt);
             collisionBodiesNames_.erase(collisionBodiesNameIt);
@@ -624,7 +624,7 @@ namespace jiminy
         for (std::string const & name : bodyNames)
         {
             // Find the geometries having the body for parent, and remove the collision pair for each of them
-            for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
                 if (pncModel_.frames[geom.parentFrame].name == name)
@@ -1197,7 +1197,7 @@ namespace jiminy
             accelerationFieldnames_.resize(nv_);
             std::vector<std::string> const & jointNames = pncModel_.names;
             std::vector<std::string> jointShortNames = removeSuffix(jointNames, "Joint");
-            for (uint32_t i=0; i<jointNames.size(); ++i)
+            for (std::size_t i = 0; i < jointNames.size(); ++i)
             {
                 std::string const & jointName = jointNames[i];
                 jointIndex_t const & jointIdx = pncModel_.getJointId(jointName);
@@ -1299,17 +1299,18 @@ namespace jiminy
                 }
                 else
                 {
-                    for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); ++i)
+                    for (std::size_t i = 0; i < rigidJointsPositionIdx_.size(); ++i)
                     {
-                        positionLimitMin_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMin[i];
-                        positionLimitMax_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMax[i];
+                        uint32_t const & positionIdx = rigidJointsPositionIdx_[i];
+                        positionLimitMin_[positionIdx] = mdlOptions_->joints.positionLimitMin[i];
+                        positionLimitMax_[positionIdx] = mdlOptions_->joints.positionLimitMax[i];
                     }
                 }
             }
 
             /* Overwrite the position bounds for some specific joint type, mainly
                due to quaternion normalization and cos/sin representation. */
-            for (int32_t i=0 ; i < pncModel_.njoints ; ++i)
+            for (int32_t i = 0 ; i < pncModel_.njoints ; ++i)
             {
                 joint_t jointType(joint_t::NONE);
                 getJointTypeFromIdx(pncModel_, i, jointType);
@@ -1347,9 +1348,10 @@ namespace jiminy
                 }
                 else
                 {
-                    for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); ++i)
+                    for (std::size_t i = 0; i < rigidJointsVelocityIdx_.size(); ++i)
                     {
-                        velocityLimit_[rigidJointsVelocityIdx_[i]] = mdlOptions_->joints.velocityLimit[i];
+                        uint32_t const & velocityIdx = rigidJointsVelocityIdx_[i];
+                        velocityLimit_[velocityIdx] = mdlOptions_->joints.velocityLimit[i];
                     }
                 }
             }
@@ -1418,7 +1420,7 @@ namespace jiminy
             for (std::string const & name : collisionBodiesNames_)
             {
                 std::vector<pairIndex_t> collisionPairsIdx;
-                for (uint32_t i=0; i<pncGeometryModel_.collisionPairs.size(); ++i)
+                for (std::size_t i=0; i<pncGeometryModel_.collisionPairs.size(); ++i)
                 {
                     pinocchio::CollisionPair const & pair = pncGeometryModel_.collisionPairs[i];
                     pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[pair.first];

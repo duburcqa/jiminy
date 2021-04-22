@@ -230,10 +230,7 @@ namespace jiminy
             else
             {
                 // Resize internal buffer if needed
-                if (size() != size_type(sharedData.rows()))
-                {
-                    sharedData.resize(size(), this->begin()->value.size());
-                }
+                sharedData.resize(size(), this->begin()->value.size());
 
                 // Set internal buffer by copying sensor data sequentially
                 for (auto const & sensor : *this)

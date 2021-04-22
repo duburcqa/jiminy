@@ -276,51 +276,50 @@ namespace jiminy
 
         /* Determine the position of the closest right element.
         Bisection method can be used since times are sorted. */
-        auto bisectLeft =
-            [&](void) -> int64_t
+        auto bisectLeft = [&](void) -> std::ptrdiff_t
+        {
+            std::ptrdiff_t left = 0;
+            std::ptrdiff_t right = sharedHolder_->time_.size() - 1;
+            std::ptrdiff_t mid = 0;
+
+            if (timeDesired >= sharedHolder_->time_.back())
             {
-                std::size_t left = 0;
-                std::size_t right = sharedHolder_->time_.size() - 1;
-                std::size_t mid = 0;
+                return right;
+            }
+            else if (timeDesired < sharedHolder_->time_.front())
+            {
+                return -1;
+            }
 
-                if (timeDesired >= sharedHolder_->time_.back())
-                {
-                    return right;
-                }
-                else if (timeDesired < sharedHolder_->time_.front())
-                {
-                    return -1;
-                }
-
-                while(left < right)
-                {
-                    mid = (left + right) / 2;
-                    if (timeDesired < sharedHolder_->time_[mid])
-                    {
-                        right = mid;
-                    }
-                    else if (timeDesired > sharedHolder_->time_[mid])
-                    {
-                        left = mid + 1;
-                    }
-                    else
-                    {
-                        return mid;
-                    }
-                }
-
+            while(left < right)
+            {
+                mid = (left + right) / 2;
                 if (timeDesired < sharedHolder_->time_[mid])
                 {
-                    return mid - 1;
+                    right = mid;
+                }
+                else if (timeDesired > sharedHolder_->time_[mid])
+                {
+                    left = mid + 1;
                 }
                 else
                 {
                     return mid;
                 }
-            };
+            }
+
+            if (timeDesired < sharedHolder_->time_[mid])
+            {
+                return mid - 1;
+            }
+            else
+            {
+                return mid;
+            }
+        };
 
         int64_t const idxLeft = bisectLeft();
-        if (timeDesired >= 0.0 && static_cast<uint64_t>(idxLeft + 1) < sharedHolder_->time_.size())
+        if (timeDesired >= 0.0 && static_cast<std::size_t>(idxLeft + 1) < sharedHolder_->time_.size())
         {
             if (idxLeft < 0)
             {
@@ -355,8 +354,8 @@ namespace jiminy
                                        });
                 if (it != sharedHolder_->time_.end())
                 {
-                    int64_t idx = std::distance(sharedHolder_->time_.begin(), it);
-                    idx = std::max(0L, idx - 1);
+                    std::ptrdiff_t idx = std::distance(sharedHolder_->time_.begin(), it);
+                    idx = std::max(std::ptrdiff_t(0), idx - 1);
                     get() = sharedHolder_->data_[idx].col(sensorIdx_);
                 }
                 else
@@ -429,7 +428,7 @@ namespace jiminy
                 if (sharedHolder_->time_.size() > 2U + DELAY_MAX_BUFFER_EXCEED
                 && timeMin > sharedHolder_->time_[2U + DELAY_MAX_BUFFER_EXCEED])
                 {
-                    for (uint8_t i=0; i < 1 + DELAY_MAX_BUFFER_EXCEED; ++i)
+                    for (uint32_t i=0; i < 1U + DELAY_MAX_BUFFER_EXCEED; ++i)
                     {
                         sharedHolder_->time_.pop_front();
                         sharedHolder_->data_.pop_front();

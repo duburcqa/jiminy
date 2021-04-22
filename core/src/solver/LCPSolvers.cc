@@ -107,7 +107,7 @@ namespace jiminy
         }
 
         // Normalizing
-        for (int32_t i = 0; i < b.size(); ++i)
+        for (Eigen::Index i = 0; i < b.size(); ++i)
         {
             b[i] /= A(i, i);
             A.row(i).array() /= A(i, i);

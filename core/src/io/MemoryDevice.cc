@@ -6,8 +6,8 @@
 
 namespace jiminy
 {
-    MemoryDevice::MemoryDevice(int64_t size) :
-    buffer_(static_cast<size_t>(size)),
+    MemoryDevice::MemoryDevice(uint64_t const & size) :
+    buffer_(static_cast<std::size_t>(size)),
     currentPos_(0)
     {
         supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE | openMode_t::NON_BLOCKING | openMode_t::APPEND;
