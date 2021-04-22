@@ -125,7 +125,7 @@ namespace jiminy
         std::vector<std::string> const & getMotorEffortFieldnames(void) const;
 
         // Getters without 'get' prefix for consistency with pinocchio C++ API
-        int32_t const & nmotors(void) const;
+        uint64_t const & nmotors(void) const;
 
         hresult_t getLock(std::unique_ptr<LockGuardLocal> & lock);
         bool_t const & getIsLocked(void) const;
@@ -145,7 +145,7 @@ namespace jiminy
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///< Name of the sensors
         std::vector<std::string> commandFieldnames_;                                ///< Fieldnames of the command
         std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the motors effort
-        int32_t nmotors_;                                                           ///< The number of motors
+        uint64_t nmotors_;                                                          ///< The number of motors
 
     private:
         std::unique_ptr<MutexLocal> mutexLocal_;

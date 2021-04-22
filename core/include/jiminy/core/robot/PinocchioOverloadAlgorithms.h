@@ -319,8 +319,8 @@ namespace pinocchio_overload
                          pinocchio::Data & data,
                          Eigen::MatrixBase<TangentVectorType> const & a)
         {
-            uint32_t const & i = jmodel.id();
-            uint32_t const & parent = model.parents[i];
+            JointIndex_t const & i = jmodel.id();
+            JointIndex_t const & parent = model.parents[i];
             data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
             data.a[i] += data.liMi[i].actInv(data.a[parent]);
         }

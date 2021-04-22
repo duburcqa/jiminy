@@ -152,7 +152,7 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & ImuSensor::getFrameIdx(void) const
+    FrameIndex_t const & ImuSensor::getFrameIdx(void) const
     {
         return frameIdx_;
     }
@@ -287,7 +287,7 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & ContactSensor::getFrameIdx(void) const
+    FrameIndex_t const & ContactSensor::getFrameIdx(void) const
     {
         return frameIdx_;
     }
@@ -300,8 +300,8 @@ namespace jiminy
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        std::vector<int32_t> const & contactFramesIdx = robot->getContactFramesIdx();
-        std::vector<int32_t>::const_iterator it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
+        std::vector<FrameIndex_t> const & contactFramesIdx = robot->getContactFramesIdx();
+        auto it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
         data() = robot->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
 
         return hresult_t::SUCCESS;
@@ -366,12 +366,12 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & ForceSensor::getFrameIdx(void) const
+    FrameIndex_t const & ForceSensor::getFrameIdx(void) const
     {
         return frameIdx_;
     }
 
-    int32_t ForceSensor::getJointIdx(void) const
+    JointIndex_t ForceSensor::getJointIdx(void) const
     {
         return parentJointIdx_;
     }
@@ -464,7 +464,7 @@ namespace jiminy
         return jointName_;
     }
 
-    int32_t const & EncoderSensor::getJointIdx(void) const
+    JointIndex_t const & EncoderSensor::getJointIdx(void) const
     {
         return jointIdx_;
     }
@@ -512,7 +512,7 @@ namespace jiminy
     EffortSensor::EffortSensor(std::string const & name) :
     AbstractSensorTpl(name),
     motorName_(),
-    motorIdx_(0)
+    motorIdx_(-1)
     {
         // Empty.
     }

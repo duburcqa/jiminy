@@ -22,14 +22,14 @@ namespace jiminy
     public:
         forceProfile_t(void) = default;
         forceProfile_t(std::string           const & frameNameIn,
-                       int32_t               const & frameIdxIn,
+                       FrameIndex_t          const & frameIdxIn,
                        float64_t             const & updatePeriodIn,
                        forceProfileFunctor_t const & forceFctIn);
         ~forceProfile_t(void) = default;
 
     public:
         std::string frameName;
-        int32_t frameIdx;
+        FrameIndex_t frameIdx;
         float64_t updatePeriod;
         pinocchio::Force forcePrev;
         forceProfileFunctor_t forceFct;
@@ -40,7 +40,7 @@ namespace jiminy
     public:
         forceImpulse_t(void) = default;
         forceImpulse_t(std::string      const & frameNameIn,
-                       int32_t          const & frameIdxIn,
+                       FrameIndex_t     const & frameIdxIn,
                        float64_t        const & tIn,
                        float64_t        const & dtIn,
                        pinocchio::Force const & FIn);
@@ -48,7 +48,7 @@ namespace jiminy
 
     public:
         std::string frameName;
-        int32_t frameIdx;
+        FrameIndex_t frameIdx;
         float64_t t;
         float64_t dt;
         pinocchio::Force F;
@@ -63,9 +63,9 @@ namespace jiminy
                         std::string            const & systemName2In,
                         int32_t                const & systemIdx2In,
                         std::string            const & frameName1In,
-                        int32_t                const & frameIdx1In,
+                        FrameIndex_t           const & frameIdx1In,
                         std::string            const & frameName2In,
-                        int32_t                const & frameIdx2In,
+                        FrameIndex_t           const & frameIdx2In,
                         forceCouplingFunctor_t const & forceFctIn);
         ~forceCoupling_t(void) = default;
 
@@ -75,9 +75,9 @@ namespace jiminy
         std::string systemName2;
         int32_t systemIdx2;
         std::string frameName1;
-        int32_t frameIdx1;
+        FrameIndex_t frameIdx1;
         std::string frameName2;
-        int32_t frameIdx2;
+        FrameIndex_t frameIdx2;
         forceCouplingFunctor_t forceFct;
     };
 

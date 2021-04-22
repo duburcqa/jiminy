@@ -26,7 +26,7 @@ namespace jiminy
     sensorsNames_(),
     commandFieldnames_(),
     motorEffortFieldnames_(),
-    nmotors_(0),
+    nmotors_(0U),
     mutexLocal_(std::make_unique<MutexLocal>()),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_()
@@ -1282,7 +1282,7 @@ namespace jiminy
         motorsModelIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsModelIdx),
-                       [](auto const & motor) -> int32_t
+                       [](auto const & motor) -> JointIndex_t
                        {
                            return motor->getJointModelIdx();
                        });
@@ -1392,7 +1392,7 @@ namespace jiminy
         return motorEffortFieldnames_;
     }
 
-    int32_t const & Robot::nmotors(void) const
+    uint64_t const & Robot::nmotors(void) const
     {
         return nmotors_;
     }

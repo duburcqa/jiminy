@@ -29,7 +29,7 @@ namespace jiminy
         virtual ~DistanceConstraint(void);
 
         std::vector<std::string> const & getFramesNames(void) const;
-        std::vector<int32_t> const & getFramesIdx(void) const;
+        std::vector<FrameIndex_t> const & getFramesIdx(void) const;
 
         float64_t const & getReferenceDistance(void) const;
 
@@ -41,7 +41,7 @@ namespace jiminy
 
     private:
         std::vector<std::string> framesNames_;    ///< Names of the frames on which the constraint operates.
-        std::vector<int32_t> framesIdx_;          ///< Corresponding frames indices.
+        std::vector<FrameIndex_t> framesIdx_;     ///< Corresponding frames indices.
         float64_t distanceRef_;                   ///< Reference Distance between the frames
         matrixN_t firstFrameJacobian_;            ///< Stores first frame jacobian in world.
         matrixN_t secondFrameJacobian_;           ///< Stores second frame jacobian in world.

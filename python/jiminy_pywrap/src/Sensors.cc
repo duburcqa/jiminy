@@ -53,7 +53,7 @@ namespace python
                 ;
         }
 
-        static uint32_t len(sensorsDataMap_t & self)
+        static bp::ssize_t len(sensorsDataMap_t & self)
         {
             return self.size();
         }

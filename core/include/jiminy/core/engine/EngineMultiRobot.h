@@ -512,7 +512,7 @@ namespace jiminy
         /// \param[in] collisionPairIdx    Id of the collision pair associated with the body
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtBody(systemHolder_t const & system,
-                                          int32_t const & collisionPairIdx,
+                                          PairIndex_t const & collisionPairIdx,
                                           vectorN_t const & q,
                                           vectorN_t const & v,
                                           std::shared_ptr<AbstractConstraintBase> & contactConstraint,
@@ -524,7 +524,7 @@ namespace jiminy
         /// \param[in] frameIdx    Id of the frame in contact.
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtFrame(systemHolder_t const & system,
-                                           int32_t const & frameIdx,
+                                           FrameIndex_t const & frameIdx,
                                            vectorN_t const & q,
                                            vectorN_t const & v,
                                            std::shared_ptr<AbstractConstraintBase> & collisionConstraint,

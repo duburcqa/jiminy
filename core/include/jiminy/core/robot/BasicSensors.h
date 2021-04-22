@@ -23,7 +23,7 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getFrameName(void) const;
-        int32_t const & getFrameIdx(void) const;
+        FrameIndex_t const & getFrameIdx(void) const;
 
     private:
         virtual hresult_t set(float64_t const & t,
@@ -35,7 +35,7 @@ namespace jiminy
 
     private:
         std::string frameName_;
-        int32_t frameIdx_;
+        FrameIndex_t frameIdx_;
         quaternion_t sensorRotationBias_;  ///< Sensor rotation bias.
     };
 
@@ -52,7 +52,7 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getFrameName(void) const;
-        int32_t const & getFrameIdx(void) const;
+        FrameIndex_t const & getFrameIdx(void) const;
 
     private:
         virtual hresult_t set(float64_t const & t,
@@ -63,7 +63,7 @@ namespace jiminy
 
     private:
         std::string frameName_;
-        int32_t frameIdx_;
+        FrameIndex_t frameIdx_;
     };
 
     class ForceSensor : public AbstractSensorTpl<ForceSensor>
@@ -79,8 +79,8 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getFrameName(void) const;
-        int32_t const & getFrameIdx(void) const;
-        int32_t getJointIdx(void) const;
+        FrameIndex_t const & getFrameIdx(void) const;
+        JointIndex_t getJointIdx(void) const;
 
     private:
         virtual hresult_t set(float64_t const & t,
@@ -91,8 +91,8 @@ namespace jiminy
 
     private:
         std::string frameName_;
-        int32_t frameIdx_;
-        int32_t parentJointIdx_;
+        FrameIndex_t frameIdx_;
+        JointIndex_t parentJointIdx_;
     };
 
     class EncoderSensor : public AbstractSensorTpl<EncoderSensor>
@@ -108,7 +108,7 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getJointName(void) const;
-        int32_t const & getJointIdx(void) const;
+        JointIndex_t const & getJointIdx(void) const;
         joint_t const & getJointType(void) const;
 
     private:
@@ -120,7 +120,7 @@ namespace jiminy
 
     private:
         std::string jointName_;
-        int32_t jointIdx_;
+        JointIndex_t jointIdx_;
         joint_t jointType_;
     };
 

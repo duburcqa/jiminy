@@ -414,14 +414,14 @@ namespace python
     /// \brief  Convert a 2D python list into an Eigen matrix.
     inline matrixN_t listPyToEigenMatrix(bp::list const & listPy)
     {
-        int32_t const nRows = len(listPy);
+        bp::ssize_t const nRows = len(listPy);
         assert(nRows > 0 && "empty list");
 
-        int32_t const nCols = len(bp::extract<bp::list>(listPy[0]));
+        bp::ssize_t const nCols = len(bp::extract<bp::list>(listPy[0]));
         assert(nCols > 0 && "empty row");
 
         matrixN_t M(nRows, nCols);
-        for (int32_t i = 0; i < nRows; ++i)
+        for (bp::ssize_t i = 0; i < nRows; ++i)
         {
             bp::list row = bp::extract<bp::list>(listPy[i]);  // Beware it is not an actual copy
             assert(len(row) == nCols && "wrong number of columns");

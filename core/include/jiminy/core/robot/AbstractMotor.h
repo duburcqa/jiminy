@@ -191,7 +191,7 @@ namespace jiminy
         ///
         /// \details    It is the index of the joint associated with the motor in the kinematic tree.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        int32_t const & getJointModelIdx(void) const;
+        JointIndex_t const & getJointModelIdx(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get jointType_.
@@ -302,7 +302,7 @@ namespace jiminy
         std::string name_;                          ///< Name of the motor
         int32_t motorIdx_;                          ///< Index of the motor in the measurement buffer
         std::string jointName_;
-        int32_t jointModelIdx_;
+        JointIndex_t jointModelIdx_;
         joint_t jointType_;
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;

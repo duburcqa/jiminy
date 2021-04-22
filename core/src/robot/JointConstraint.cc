@@ -29,7 +29,7 @@ namespace jiminy
         return jointName_;
     }
 
-    int32_t const & JointConstraint::getJointIdx(void) const
+    JointIndex_t const & JointConstraint::getJointIdx(void) const
     {
         return jointIdx_;
     }
@@ -56,7 +56,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             jointIdx_ = model->pncModel_.getJointId(jointName_);
-            if (jointIdx_ == model->pncModel_.njoints)
+            if (static_cast<int32_t>(jointIdx_) == model->pncModel_.njoints)
             {
                 PRINT_ERROR("No joint with name '", jointName_, "' in model.");
                 returnCode = hresult_t::ERROR_GENERIC;

@@ -685,11 +685,11 @@ namespace python
             }
 
             // Get constants
-            int32_t const lastConstantIdx = std::distance(
+            int64_t const lastConstantIdx = std::distance(
                 logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
-            for (int32_t i = 1; i < lastConstantIdx; ++i)
+            for (int64_t i = 1; i < lastConstantIdx; ++i)
             {
-                int32_t const delimiter = logData.header[i].find(TELEMETRY_CONSTANT_DELIMITER);
+                int64_t const delimiter = logData.header[i].find(TELEMETRY_CONSTANT_DELIMITER);
                 constants[logData.header[i].substr(0, delimiter)] = logData.header[i].substr(delimiter + 1);
             }
 

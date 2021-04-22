@@ -92,7 +92,7 @@ namespace jiminy
         return kd_ / (4.0 * M_PI);
     }
 
-    uint32_t AbstractConstraintBase::getDim(void) const
+    uint64_t AbstractConstraintBase::getDim(void) const
     {
         return drift_.size();
     }

@@ -224,7 +224,7 @@ namespace jiminy
     }
 
     template <typename T>
-    uint32_t AbstractSensorTpl<T>::getSize(void) const
+    uint64_t AbstractSensorTpl<T>::getSize(void) const
     {
         return fieldNames_.size();
     }
@@ -269,17 +269,19 @@ namespace jiminy
     template <typename T>
     hresult_t AbstractSensorTpl<T>::interpolateData(void)
     {
+        assert(sharedHolder_->time_.size() > 0 && "Do data to interpolate.");
+
         // Add STEPPER_MIN_TIMESTEP to timeDesired to avoid float comparison issues
         float64_t const timeDesired = sharedHolder_->time_.back() - baseSensorOptions_->delay + STEPPER_MIN_TIMESTEP;
 
         /* Determine the position of the closest right element.
         Bisection method can be used since times are sorted. */
         auto bisectLeft =
-            [&](void) -> int32_t
+            [&](void) -> int64_t
             {
-                int32_t left = 0;
-                int32_t right = sharedHolder_->time_.size() - 1;
-                int32_t mid = 0;
+                std::size_t left = 0;
+                std::size_t right = sharedHolder_->time_.size() - 1;
+                std::size_t mid = 0;
 
                 if (timeDesired >= sharedHolder_->time_.back())
                 {
@@ -317,8 +319,8 @@ namespace jiminy
                 }
             };
 
-        int32_t const idxLeft = bisectLeft();
-        if (timeDesired >= 0.0 && uint32_t(idxLeft + 1) < sharedHolder_->time_.size())
+        int64_t const idxLeft = bisectLeft();
+        if (timeDesired >= 0.0 && static_cast<uint64_t>(idxLeft + 1) < sharedHolder_->time_.size())
         {
             if (idxLeft < 0)
             {
@@ -353,9 +355,9 @@ namespace jiminy
                                        });
                 if (it != sharedHolder_->time_.end())
                 {
-                    int32_t ind = std::distance(sharedHolder_->time_.begin(), it);
-                    ind = std::max(0, ind - 1);
-                    get() = sharedHolder_->data_[ind].col(sensorIdx_);
+                    int64_t idx = std::distance(sharedHolder_->time_.begin(), it);
+                    idx = std::max(0L, idx - 1);
+                    get() = sharedHolder_->data_[idx].col(sensorIdx_);
                 }
                 else
                 {

@@ -9,8 +9,9 @@
 #include <vector>
 #include <unordered_map>
 
-#include "pinocchio/fwd.hpp"          // To avoid having to include it everywhere
-#include "pinocchio/spatial/fwd.hpp"  // `Pinocchio::Force`, `Pinocchio::Motion`
+#include "pinocchio/fwd.hpp"            // To avoid having to include it everywhere
+#include "pinocchio/multibody/fwd.hpp"  // `pinocchio::Model::...Index`
+#include "pinocchio/spatial/fwd.hpp"    // `Pinocchio::Force`, `Pinocchio::Motion`
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -67,6 +68,10 @@ namespace jiminy
     // Pinocchio types
     using motionVector_t = pinocchio::container::aligned_vector<pinocchio::Motion>;
     using forceVector_t = pinocchio::container::aligned_vector<pinocchio::Force>;
+    using JointIndex_t = pinocchio::JointIndex;
+    using FrameIndex_t = pinocchio::FrameIndex;
+    using GeomIndex_t = pinocchio::GeomIndex;
+    using PairIndex_t = pinocchio::PairIndex;
 
     // *************** Constant of the universe ******************
 

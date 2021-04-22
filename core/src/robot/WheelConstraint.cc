@@ -40,7 +40,7 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & WheelConstraint::getFrameIdx(void) const
+    FrameIndex_t const & WheelConstraint::getFrameIdx(void) const
     {
         return frameIdx_;
     }

@@ -36,7 +36,7 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & SphereConstraint::getFrameIdx(void) const
+    FrameIndex_t const & SphereConstraint::getFrameIdx(void) const
     {
         return frameIdx_;
     }

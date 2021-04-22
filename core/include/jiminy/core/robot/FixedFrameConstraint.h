@@ -42,7 +42,7 @@ namespace jiminy
         virtual ~FixedFrameConstraint(void);
 
         std::string const & getFrameName(void) const;
-        int32_t const & getFrameIdx(void) const;
+        FrameIndex_t const & getFrameIdx(void) const;
 
         bool_t const & getIsTranslationFixed(void) const;
         bool_t const & getIsRotationFixed(void) const;
@@ -58,7 +58,7 @@ namespace jiminy
 
     private:
         std::string const frameName_;  ///< Name of the frame on which the constraint operates.
-        int32_t frameIdx_;             ///< Corresponding frame index.
+        FrameIndex_t frameIdx_;        ///< Corresponding frame index.
         bool_t isTranslationFixed_;    ///< Flag to determine if the translation must be fixed.
         bool_t isRotationFixed_;       ///< Flag to determine if the rotation must be fixed.
         pinocchio::SE3 transformRef_;  ///< Reference pose of the frame to enforce.

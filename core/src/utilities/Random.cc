@@ -301,7 +301,7 @@ namespace jiminy
     {
         /* Initialize lower Cholesky factor.
         Resizing is enough, no need to initialize it. */
-        uint32_t const n = a.rows();
+        uint64_t const n = a.rows();
         l.resize(n, n);
 
         /* Compute compressed representation of the matrix, which
@@ -333,7 +333,7 @@ namespace jiminy
     wavelength_(wavelength),
     period_(period),
     dt_(0.02 * wavelength_),
-    numTimes_(std::ceil(period_ / dt_)),
+    numTimes_(static_cast<uint32_t>(std::ceil(period_ / dt_))),
     isInitialized_(false),
     values_(numTimes_),
     covSqrtRoot_(numTimes_, numTimes_)
@@ -373,7 +373,7 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        int32_t const tLeftIdx = std::floor(tWrap / dt_);
+        int32_t const tLeftIdx = static_cast<int32_t>(std::floor(tWrap / dt_));
         int32_t const tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
@@ -437,8 +437,8 @@ namespace jiminy
     wavelength_(wavelength),
     period_(period),
     dt_(0.02 * wavelength_),
-    numTimes_(std::ceil(period_ / dt_)),
-    numHarmonics_(std::ceil(period_ / wavelength_)),
+    numTimes_(static_cast<uint32_t>(std::ceil(period_ / dt_))),
+    numHarmonics_(static_cast<uint32_t>(std::ceil(period_ / wavelength_))),
     isInitialized_(false),
     values_(numTimes_),
     cosMat_(numTimes_, numHarmonics_),
@@ -482,7 +482,7 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        int32_t const tLeftIdx = std::floor(tWrap / dt_);
+        int32_t const tLeftIdx = static_cast<int32_t>(std::floor(tWrap / dt_));
         int32_t const tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
@@ -550,7 +550,7 @@ namespace jiminy
         float64_t const phase = t / wavelength_ + shift_;
 
         // Compute closest right and left knots
-        int32_t const phaseIdxLeft = phase;
+        int32_t const phaseIdxLeft = static_cast<int32_t>(phase);
         int32_t const phaseIdxRight = phaseIdxLeft + 1;
 
         // Compute smoothed ratio of current phase wrt to the closest knots
@@ -604,7 +604,7 @@ namespace jiminy
         AbstractPerlinNoiseOctave::reset();
 
         // Sample new random seed for MurmurHash
-        seed_ = generator_();
+        seed_ = static_cast<uint32_t>(generator_());
     }
 
     float64_t RandomPerlinNoiseOctave::grad(int32_t knot,
