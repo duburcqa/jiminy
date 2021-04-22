@@ -1282,7 +1282,7 @@ namespace jiminy
         motorsModelIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsModelIdx),
-                       [](auto const & motor) -> JointIndex_t
+                       [](auto const & motor) -> jointIndex_t
                        {
                            return motor->getJointModelIdx();
                        });

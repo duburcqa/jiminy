@@ -34,7 +34,7 @@ namespace jiminy
         return framesNames_;
     }
 
-    std::vector<FrameIndex_t> const & DistanceConstraint::getFramesIdx(void) const
+    std::vector<frameIndex_t> const & DistanceConstraint::getFramesIdx(void) const
     {
         return framesIdx_;
     }
@@ -62,7 +62,7 @@ namespace jiminy
         framesIdx_.reserve(framesNames_.size());
         for (std::string const & frameName : framesNames_)
         {
-            FrameIndex_t frameIdx = 0;
+            frameIndex_t frameIdx = 0;
             if (returnCode == hresult_t::SUCCESS)
             {
                 returnCode = ::jiminy::getFrameIdx(model->pncModel_, frameName, frameIdx);

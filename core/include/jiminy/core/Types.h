@@ -68,10 +68,10 @@ namespace jiminy
     // Pinocchio types
     using motionVector_t = pinocchio::container::aligned_vector<pinocchio::Motion>;
     using forceVector_t = pinocchio::container::aligned_vector<pinocchio::Force>;
-    using JointIndex_t = pinocchio::JointIndex;
-    using FrameIndex_t = pinocchio::FrameIndex;
-    using GeomIndex_t = pinocchio::GeomIndex;
-    using PairIndex_t = pinocchio::PairIndex;
+    using jointIndex_t = pinocchio::JointIndex;
+    using frameIndex_t = pinocchio::FrameIndex;
+    using geomIndex_t = pinocchio::GeomIndex;
+    using pairIndex_t = pinocchio::PairIndex;
 
     // *************** Constant of the universe ******************
 

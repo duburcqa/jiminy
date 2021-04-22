@@ -10,7 +10,7 @@ namespace jiminy
     buffer_(static_cast<size_t>(size)),
     currentPos_(0)
     {
-        supportedModes_ = OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::NON_BLOCKING | OpenMode::APPEND;
+        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE | openMode_t::NON_BLOCKING | openMode_t::APPEND;
     }
 
 
@@ -36,7 +36,7 @@ namespace jiminy
     buffer_(std::move(initBuffer)),
     currentPos_(0)
     {
-        supportedModes_ = OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::NON_BLOCKING | OpenMode::APPEND;
+        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE | openMode_t::NON_BLOCKING | openMode_t::APPEND;
     }
 
     MemoryDevice::~MemoryDevice(void)
@@ -114,9 +114,9 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t MemoryDevice::doOpen(enum OpenMode modes)
+    hresult_t MemoryDevice::doOpen(openMode_t const & modes)
     {
-        if (!(modes & OpenMode::APPEND))
+        if (!(modes & openMode_t::APPEND))
         {
             currentPos_ = 0;
         }

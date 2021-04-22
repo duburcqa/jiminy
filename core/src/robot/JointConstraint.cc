@@ -29,7 +29,7 @@ namespace jiminy
         return jointName_;
     }
 
-    JointIndex_t const & JointConstraint::getJointIdx(void) const
+    jointIndex_t const & JointConstraint::getJointIdx(void) const
     {
         return jointIdx_;
     }

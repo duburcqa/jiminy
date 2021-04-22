@@ -339,7 +339,7 @@ namespace jiminy
         }
 
         // Check that parent frame exists
-        FrameIndex_t parentFrameId = 0;
+        frameIndex_t parentFrameId = 0;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
@@ -349,7 +349,7 @@ namespace jiminy
         {
             // Add the frame to the the original rigid model
             {
-                JointIndex_t const & parentJointId = pncModelRigidOrig_.frames[parentFrameId].parent;
+                jointIndex_t const & parentJointId = pncModelRigidOrig_.frames[parentFrameId].parent;
                 pinocchio::SE3 const & parentFramePlacement = pncModelRigidOrig_.frames[parentFrameId].placement;
                 pinocchio::SE3 const jointFramePlacement = parentFramePlacement.act(framePlacement);
                 pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
@@ -360,7 +360,7 @@ namespace jiminy
             // Add the frame to the the original flexible model
             {
                 getFrameIdx(pncModelFlexibleOrig_, parentBodyName, parentFrameId);  // It can no longer fail at this point.
-                JointIndex_t const & parentJointId = pncModelFlexibleOrig_.frames[parentFrameId].parent;
+                jointIndex_t const & parentJointId = pncModelFlexibleOrig_.frames[parentFrameId].parent;
                 pinocchio::SE3 const & parentFramePlacement = pncModelFlexibleOrig_.frames[parentFrameId].placement;
                 pinocchio::SE3 const jointFramePlacement = parentFramePlacement.act(framePlacement);
                 pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
@@ -393,7 +393,7 @@ namespace jiminy
            If so, it is also the case for the original flexible models. */
         for (std::string const & frameName : frameNames)
         {
-            FrameIndex_t frameId;
+            frameIndex_t frameId;
             pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
             returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
             if (returnCode == hresult_t::SUCCESS)
@@ -411,7 +411,7 @@ namespace jiminy
             for (std::string const & frameName : frameNames)
             {
                 // Get the frame idx
-                FrameIndex_t frameId;
+                frameIndex_t frameId;
                 getFrameIdx(pncModelRigidOrig_, frameName, frameId);  // It cannot fail
 
                 // Remove the frame from the the original rigid model
@@ -979,7 +979,7 @@ namespace jiminy
             }
 
             // Add joint to model, differently depending on its type
-            FrameIndex_t frameIdx;
+            frameIndex_t frameIdx;
             ::jiminy::getFrameIdx(pncModelFlexibleOrig_, frameName, frameIdx);
             std::string flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
             if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::FIXED_JOINT)
@@ -1036,7 +1036,7 @@ namespace jiminy
 
             for (std::string const & jointName : rigidJointsNames_)
             {
-                JointIndex_t const & jointIdx = pncModel_.getJointId(jointName);
+                jointIndex_t const & jointIdx = pncModel_.getJointId(jointName);
 
                 // Add bias to com position
                 float64_t const & comBiasStd = mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
@@ -1200,7 +1200,7 @@ namespace jiminy
             for (uint32_t i=0; i<jointNames.size(); ++i)
             {
                 std::string const & jointName = jointNames[i];
-                JointIndex_t const & jointIdx = pncModel_.getJointId(jointName);
+                jointIndex_t const & jointIdx = pncModel_.getJointId(jointName);
 
                 int32_t const idx_q = pncModel_.joints[jointIdx].idx_q();
 
@@ -1417,7 +1417,7 @@ namespace jiminy
             collisionPairsIdx_.clear();
             for (std::string const & name : collisionBodiesNames_)
             {
-                std::vector<PairIndex_t> collisionPairsIdx;
+                std::vector<pairIndex_t> collisionPairsIdx;
                 for (uint32_t i=0; i<pncGeometryModel_.collisionPairs.size(); ++i)
                 {
                     pinocchio::CollisionPair const & pair = pncGeometryModel_.collisionPairs[i];
@@ -1933,17 +1933,17 @@ namespace jiminy
         return contactFramesNames_;
     }
 
-    std::vector<FrameIndex_t> const & Model::getCollisionBodiesIdx(void) const
+    std::vector<frameIndex_t> const & Model::getCollisionBodiesIdx(void) const
     {
         return collisionBodiesIdx_;
     }
 
-    std::vector<std::vector<PairIndex_t> > const & Model::getCollisionPairsIdx(void) const
+    std::vector<std::vector<pairIndex_t> > const & Model::getCollisionPairsIdx(void) const
     {
         return collisionPairsIdx_;
     }
 
-    std::vector<FrameIndex_t> const & Model::getContactFramesIdx(void) const
+    std::vector<frameIndex_t> const & Model::getContactFramesIdx(void) const
     {
         return contactFramesIdx_;
     }
@@ -1983,7 +1983,7 @@ namespace jiminy
         return rigidJointsNames_;
     }
 
-    std::vector<JointIndex_t> const & Model::getRigidJointsModelIdx(void) const
+    std::vector<jointIndex_t> const & Model::getRigidJointsModelIdx(void) const
     {
         return rigidJointsModelIdx_;
     }
@@ -2011,9 +2011,9 @@ namespace jiminy
         }
     }
 
-    std::vector<JointIndex_t> const & Model::getFlexibleJointsModelIdx(void) const
+    std::vector<jointIndex_t> const & Model::getFlexibleJointsModelIdx(void) const
     {
-        static std::vector<JointIndex_t> const flexibleJointsModelIdxEmpty {};
+        static std::vector<jointIndex_t> const flexibleJointsModelIdxEmpty {};
         if (mdlOptions_->dynamics.enableFlexibleModel)
         {
             return flexibleJointsModelIdx_;

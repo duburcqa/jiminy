@@ -330,7 +330,7 @@ namespace jiminy
         return jointName_;
     }
 
-    JointIndex_t const & AbstractMotorBase::getJointModelIdx(void) const
+    jointIndex_t const & AbstractMotorBase::getJointModelIdx(void) const
     {
         return jointModelIdx_;
     }

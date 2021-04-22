@@ -55,7 +55,7 @@ namespace jiminy
         hresult_t resize(int64_t size) override;
 
     protected:
-        hresult_t doOpen(enum OpenMode modes) override;
+        hresult_t doOpen(openMode_t const & modes) override;
         hresult_t doClose(void) override;
 
     private:

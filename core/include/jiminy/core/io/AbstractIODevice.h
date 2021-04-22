@@ -16,7 +16,8 @@
 namespace jiminy
 {
     /// Possible modes for a device (their availability depend of the concrete device).
-    enum OpenMode
+    /// Note that plain enum instead of enum class is used because otheriwe conversion to bool is undefined.
+    enum openMode_t
     {
         NOT_OPEN       = 0x000,  ///< Device is not opened.
         READ_ONLY      = 0x001,  ///< Read only mode.
@@ -32,11 +33,11 @@ namespace jiminy
     };
 
     /// Facility operators to avoid cast.
-    enum OpenMode operator | (enum OpenMode const & modeA, enum OpenMode const & modeB);
-    enum OpenMode operator & (enum OpenMode const & modeA, enum OpenMode const & modeB);
-    enum OpenMode operator |= (enum OpenMode & modeA, enum OpenMode const & modeB);
-    enum OpenMode operator &= (enum OpenMode & modeA, enum OpenMode const & modeB);
-    enum OpenMode operator ~(enum OpenMode mode);
+    openMode_t operator | (openMode_t const & modeA, openMode_t const & modeB);
+    openMode_t operator & (openMode_t const & modeA, openMode_t const & modeB);
+    openMode_t operator |= (openMode_t & modeA, openMode_t const & modeB);
+    openMode_t operator &= (openMode_t & modeA, openMode_t const & modeB);
+    openMode_t operator ~(openMode_t const & mode);
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// \brief Base interface class for all I/O devices.
@@ -44,7 +45,7 @@ namespace jiminy
     class AbstractIODevice
     {
     public:
-        AbstractIODevice(void) = default;
+        AbstractIODevice(void);
         virtual ~AbstractIODevice(void) = default;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +55,7 @@ namespace jiminy
         ///
         /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t open(enum OpenMode mode);
+        hresult_t open(openMode_t const & mode);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Write data in the device.
@@ -70,12 +71,12 @@ namespace jiminy
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \return The current opening modes.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        enum OpenMode openModes(void) const;
+        openMode_t const & openModes(void) const;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \return The supported opening modes.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        enum OpenMode supportedModes(void) const;
+        openMode_t const & supportedModes(void) const;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \return true if the device is writable, false otherwise.
@@ -229,13 +230,13 @@ namespace jiminy
         virtual void removeBackend(void);
 
     protected:
-        virtual hresult_t doOpen(enum OpenMode mode) = 0;
+        virtual hresult_t doOpen(openMode_t const & mode) = 0;
         virtual hresult_t doClose(void) = 0;
 
-        enum OpenMode modes_{OpenMode::NOT_OPEN};           ///< Current opening mode.
-        enum OpenMode supportedModes_{OpenMode::NOT_OPEN};  ///< Supported modes of the device.
-        hresult_t lastError_{hresult_t::SUCCESS};           ///< Latest generated error.
-        std::unique_ptr<AbstractIODevice> io_{nullptr};     ///< Backend to use if any
+        openMode_t modes_;                        ///< Current opening mode.
+        openMode_t supportedModes_;               ///< Supported modes of the device.
+        hresult_t lastError_;                   ///< Latest generated error.
+        std::unique_ptr<AbstractIODevice> io_;  ///< Backend to use if any
     };
 }
 

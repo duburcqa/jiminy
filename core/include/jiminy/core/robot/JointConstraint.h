@@ -32,7 +32,7 @@ namespace jiminy
         virtual ~JointConstraint(void);
 
         std::string const & getJointName(void) const;
-        JointIndex_t const & getJointIdx(void) const;
+        jointIndex_t const & getJointIdx(void) const;
 
         template<typename DerivedType>
         void setReferenceConfiguration(Eigen::MatrixBase<DerivedType> const & configurationRef)
@@ -49,7 +49,7 @@ namespace jiminy
 
     private:
         std::string jointName_;       ///< Name of the joint on which the constraint operates.
-        JointIndex_t jointIdx_;       ///< Corresponding joint index.
+        jointIndex_t jointIdx_;       ///< Corresponding joint index.
         vectorN_t configurationRef_;  ///< Reference position of the joint to enforce.
     };
 }

@@ -14,14 +14,14 @@ namespace jiminy
 {
     std::string const ENGINE_TELEMETRY_NAMESPACE("HighLevelController");
 
-    enum class contactModel_t : uint32_t
+    enum class contactModel_t : uint8_t
     {
         NONE = 0,
         SPRING_DAMPER = 1,
         IMPULSE = 2
     };
 
-    enum class contactSolver_t : uint32_t
+    enum class contactSolver_t : uint8_t
     {
         NONE = 0,
         PGS = 1  // Projected Gauss-Seidel
@@ -512,7 +512,7 @@ namespace jiminy
         /// \param[in] collisionPairIdx    Id of the collision pair associated with the body
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtBody(systemHolder_t const & system,
-                                          PairIndex_t const & collisionPairIdx,
+                                          pairIndex_t const & collisionPairIdx,
                                           vectorN_t const & q,
                                           vectorN_t const & v,
                                           std::shared_ptr<AbstractConstraintBase> & contactConstraint,
@@ -524,7 +524,7 @@ namespace jiminy
         /// \param[in] frameIdx    Id of the frame in contact.
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtFrame(systemHolder_t const & system,
-                                           FrameIndex_t const & frameIdx,
+                                           frameIndex_t const & frameIdx,
                                            vectorN_t const & q,
                                            vectorN_t const & v,
                                            std::shared_ptr<AbstractConstraintBase> & collisionConstraint,

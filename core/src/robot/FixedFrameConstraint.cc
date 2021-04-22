@@ -35,7 +35,7 @@ namespace jiminy
         return frameName_;
     }
 
-    FrameIndex_t const & FixedFrameConstraint::getFrameIdx(void) const
+    frameIndex_t const & FixedFrameConstraint::getFrameIdx(void) const
     {
         return frameIdx_;
     }

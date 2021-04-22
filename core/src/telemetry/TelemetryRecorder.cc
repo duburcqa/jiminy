@@ -139,7 +139,7 @@ namespace jiminy
         int64_t maxRecordedDataLines = ((maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_);
         recordedBytesLimits_ = isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
-        returnCode = flows_.back().open(OpenMode::READ_WRITE);
+        returnCode = flows_.back().open(openMode_t::READ_WRITE);
 
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -182,7 +182,7 @@ namespace jiminy
     hresult_t TelemetryRecorder::writeDataBinary(std::string const & filename)
     {
         FileDevice myFile(filename);
-        myFile.open(OpenMode::WRITE_ONLY | OpenMode::TRUNCATE);
+        myFile.open(openMode_t::WRITE_ONLY | openMode_t::TRUNCATE);
         if (myFile.isOpen())
         {
             for (auto & flow : flows_)
