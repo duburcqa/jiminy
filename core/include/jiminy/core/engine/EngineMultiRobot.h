@@ -14,14 +14,14 @@ namespace jiminy
 {
     std::string const ENGINE_TELEMETRY_NAMESPACE("HighLevelController");
 
-    enum class contactModel_t : uint32_t
+    enum class contactModel_t : uint8_t
     {
         NONE = 0,
         SPRING_DAMPER = 1,
         IMPULSE = 2
     };
 
-    enum class contactSolver_t : uint32_t
+    enum class contactSolver_t : uint8_t
     {
         NONE = 0,
         PGS = 1  // Projected Gauss-Seidel
@@ -138,7 +138,7 @@ namespace jiminy
             configHolder_t config;
             config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
             config["groundProfile"] = heatMapFunctor_t(
-                [](vector3_t const & pos) -> std::pair <float64_t, vector3_t>
+                [](vector3_t const & /* pos */) -> std::pair <float64_t, vector3_t>
                 {
                     return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
                 });
@@ -157,7 +157,7 @@ namespace jiminy
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
             config["successiveIterFailedMax"] = 1000U;
-            config["iterMax"] = 0;  // <= 0: disable
+            config["iterMax"] = 0U;  // <= 0: disable
             config["timeout"] = 0.0;  // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
@@ -254,7 +254,7 @@ namespace jiminy
             float64_t   const dtMax;
             float64_t   const dtRestoreThresholdRel;
             uint32_t    const successiveIterFailedMax;
-            int32_t     const iterMax;
+            uint32_t    const iterMax;
             float64_t   const timeout;
             float64_t   const sensorsUpdatePeriod;
             float64_t   const controllerUpdatePeriod;
@@ -269,7 +269,7 @@ namespace jiminy
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
             dtRestoreThresholdRel(boost::get<float64_t>(options.at("dtRestoreThresholdRel"))),
             successiveIterFailedMax(boost::get<uint32_t>(options.at("successiveIterFailedMax"))),
-            iterMax(boost::get<int32_t>(options.at("iterMax"))),
+            iterMax(boost::get<uint32_t>(options.at("iterMax"))),
             timeout(boost::get<float64_t>(options.at("timeout"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
             controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
@@ -512,7 +512,7 @@ namespace jiminy
         /// \param[in] collisionPairIdx    Id of the collision pair associated with the body
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtBody(systemHolder_t const & system,
-                                          int32_t const & collisionPairIdx,
+                                          pairIndex_t const & collisionPairIdx,
                                           vectorN_t const & q,
                                           vectorN_t const & v,
                                           std::shared_ptr<AbstractConstraintBase> & contactConstraint,
@@ -524,7 +524,7 @@ namespace jiminy
         /// \param[in] frameIdx    Id of the frame in contact.
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtFrame(systemHolder_t const & system,
-                                           int32_t const & frameIdx,
+                                           frameIndex_t const & frameIdx,
                                            vectorN_t const & q,
                                            vectorN_t const & v,
                                            std::shared_ptr<AbstractConstraintBase> & collisionConstraint,

@@ -62,7 +62,7 @@ namespace jiminy
             hresult_t returnCode = computeCommand(t, q, v, command);
             if (returnCode == hresult_t::SUCCESS)
             {
-                if (command.size() != (int32_t) robot->getMotorsNames().size())
+                if (static_cast<std::size_t>(command.size()) != robot->getMotorsNames().size())
                 {
                     PRINT_ERROR("'computeCommand' returns command with wrong size.");
                     return hresult_t::ERROR_BAD_INPUT;
@@ -178,7 +178,7 @@ namespace jiminy
         }
 
         std::vector<std::string>::const_iterator fieldIt = fieldnames.begin();
-        for (uint32_t i=0; fieldIt != fieldnames.end(); ++fieldIt, ++i)
+        for (std::size_t i=0; fieldIt != fieldnames.end(); ++fieldIt, ++i)
         {
             // Check in local cache before.
             auto variableIt = std::find_if(registeredVariables_.begin(),

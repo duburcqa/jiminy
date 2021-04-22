@@ -47,7 +47,7 @@ namespace jiminy
         virtual ~WheelConstraint(void);
 
         std::string const & getFrameName(void) const;
-        int32_t const & getFrameIdx(void) const;
+        frameIndex_t const & getFrameIdx(void) const;
 
         void setReferenceTransform(pinocchio::SE3 const & transformRef);
         pinocchio::SE3 & getReferenceTransform(void);
@@ -60,7 +60,7 @@ namespace jiminy
 
     private:
         std::string frameName_;        ///< Name of the frame on which the constraint operates.
-        int32_t frameIdx_;             ///< Corresponding frame index.
+        frameIndex_t frameIdx_;        ///< Corresponding frame index.
         float64_t radius_;             ///< Wheel radius.
         vector3_t normal_;             ///< Ground normal, world frame.
         vector3_t axis_;               ///< Wheel axis, local frame.

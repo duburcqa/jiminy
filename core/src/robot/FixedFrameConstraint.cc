@@ -35,7 +35,7 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & FixedFrameConstraint::getFrameIdx(void) const
+    frameIndex_t const & FixedFrameConstraint::getFrameIdx(void) const
     {
         return frameIdx_;
     }
@@ -83,7 +83,7 @@ namespace jiminy
         {
             // Set jacobian / drift to right dimension
             frameJacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
-            uint32_t dim = 3 * (uint32_t(isTranslationFixed_) + uint32_t(isRotationFixed_));
+            uint32_t dim = 3U * (uint32_t(isTranslationFixed_) + uint32_t(isRotationFixed_));
             jacobian_ = matrixN_t::Zero(dim, model->pncModel_.nv);
             drift_ = vectorN_t::Zero(dim);
 
@@ -94,8 +94,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t FixedFrameConstraint::computeJacobianAndDrift(vectorN_t const & q,
-                                                            vectorN_t const & v)
+    hresult_t FixedFrameConstraint::computeJacobianAndDrift(vectorN_t const & /* q */,
+                                                            vectorN_t const & /* v */)
     {
         if (!isAttached_)
         {

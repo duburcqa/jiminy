@@ -19,28 +19,28 @@ float64_t const TOLERANCE = 1e-9;
 
 
 // Controller sending zero torque to the motors.
-void controllerZeroTorque(float64_t        const & t,
-                          vectorN_t        const & q,
-                          vectorN_t        const & v,
-                          sensorsDataMap_t const & sensorData,
-                          vectorN_t              & command)
+void controllerZeroTorque(float64_t        const & /* t */,
+                          vectorN_t        const & /* q */,
+                          vectorN_t        const & /* v */,
+                          sensorsDataMap_t const & /* sensorData */,
+                          vectorN_t              & /* command */)
 {
     // Empty on purpose
 }
 
 // Internal dynamics of the system (friction, ...)
-void internalDynamics(float64_t        const & t,
-                      vectorN_t        const & q,
-                      vectorN_t        const & v,
-                      sensorsDataMap_t const & sensorData,
-                      vectorN_t              & uCustom)
+void internalDynamics(float64_t        const & /* t */,
+                      vectorN_t        const & /* q */,
+                      vectorN_t        const & /* v */,
+                      sensorsDataMap_t const & /* sensorData */,
+                      vectorN_t              & /* uCustom */)
 {
     // Empty on purpose
 }
 
-bool_t callback(float64_t const & t,
-                vectorN_t const & q,
-                vectorN_t const & v)
+bool_t callback(float64_t const & /* t */,
+                vectorN_t const & /* q */,
+                vectorN_t const & /* v */)
 {
     return true;
 }

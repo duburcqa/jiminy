@@ -12,37 +12,45 @@
 
 namespace jiminy
 {
-    enum OpenMode operator | (enum OpenMode const & modeA,
-                              enum OpenMode const & modeB)
+    openMode_t operator|(openMode_t const & modeA,
+                         openMode_t const & modeB)
     {
-        return static_cast<enum OpenMode>(static_cast<int32_t>(modeA) | static_cast<int32_t>(modeB));
+        return static_cast<openMode_t>(static_cast<int32_t>(modeA) | static_cast<int32_t>(modeB));
     }
 
-    enum OpenMode operator & (enum OpenMode const & modeA,
-                              enum OpenMode const & modeB)
+    openMode_t operator&(openMode_t const & modeA,
+                         openMode_t const & modeB)
     {
-        return static_cast<enum OpenMode>(static_cast<int32_t>(modeA) & static_cast<int32_t>(modeB));
+        return static_cast<openMode_t>(static_cast<int32_t>(modeA) & static_cast<int32_t>(modeB));
     }
 
-    enum OpenMode operator |= (enum OpenMode       & modeA,
-                               enum OpenMode const & modeB)
+    openMode_t operator|=(openMode_t       & modeA,
+                          openMode_t const & modeB)
     {
         return modeA = modeA | modeB;
     }
 
-    enum OpenMode operator &= (enum OpenMode       & modeA,
-                               enum OpenMode const & modeB)
+    openMode_t operator&=(openMode_t       & modeA,
+                          openMode_t const & modeB)
     {
         return modeA = modeA & modeB;
     }
 
-    enum OpenMode operator ~(enum OpenMode mode)
+    openMode_t operator~(openMode_t const & mode)
     {
-        int32_t tmpMode = ~static_cast<int32_t>(mode);
-        return static_cast<enum OpenMode>(tmpMode);
+        return static_cast<openMode_t>(~static_cast<int32_t>(mode));
     }
 
-    hresult_t AbstractIODevice::open(OpenMode modes)
+    AbstractIODevice::AbstractIODevice() :
+    modes_(openMode_t::NOT_OPEN),
+    supportedModes_(openMode_t::NOT_OPEN),
+    lastError_(hresult_t::SUCCESS),
+    io_(nullptr)
+    {
+        // Empty on purpose.
+    }
+
+    hresult_t AbstractIODevice::open(openMode_t const & modes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -96,29 +104,29 @@ namespace jiminy
         return returnCode;
     }
 
-    enum OpenMode AbstractIODevice::openModes(void) const
+    openMode_t const & AbstractIODevice::openModes(void) const
     {
         return modes_;
     }
 
-    enum OpenMode AbstractIODevice::supportedModes(void) const
+    openMode_t const & AbstractIODevice::supportedModes(void) const
     {
         return supportedModes_;
     }
 
     bool_t AbstractIODevice::isWritable(void) const
     {
-        return (modes_ & OpenMode::WRITE_ONLY) || (modes_ & OpenMode::READ_WRITE);
+        return (modes_ & openMode_t::WRITE_ONLY) || (modes_ & openMode_t::READ_WRITE);
     }
 
     bool_t AbstractIODevice::isReadable(void) const
     {
-        return (modes_ & OpenMode::READ_ONLY) || (modes_ & OpenMode::READ_WRITE);
+        return (modes_ & openMode_t::READ_ONLY) || (modes_ & openMode_t::READ_WRITE);
     }
 
     bool_t AbstractIODevice::isOpen(void) const
     {
-        return (modes_ != OpenMode::NOT_OPEN);
+        return (modes_ != openMode_t::NOT_OPEN);
     }
 
     bool_t AbstractIODevice::isSequential(void) const
@@ -131,14 +139,14 @@ namespace jiminy
         return bytesAvailable();
     }
 
-    hresult_t AbstractIODevice::resize(int64_t size)
+    hresult_t AbstractIODevice::resize(int64_t /* size */)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
         PRINT_ERROR("This method is not available.");
         return lastError_;
     }
 
-    hresult_t AbstractIODevice::seek(int64_t pos)
+    hresult_t AbstractIODevice::seek(int64_t /* pos */)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
         PRINT_ERROR("This method is not available.");
@@ -202,7 +210,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractIODevice::setBlockingMode(bool_t shouldBlock)
+    hresult_t AbstractIODevice::setBlockingMode(bool_t /* shouldBlock */)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
         PRINT_ERROR("This methid is not available.");
@@ -223,7 +231,7 @@ namespace jiminy
     void AbstractIODevice::removeBackend(void)
     {
         io_.reset();
-        supportedModes_ = OpenMode::NOT_OPEN;
+        supportedModes_ = openMode_t::NOT_OPEN;
     }
 
     // Specific implementation - std::vector<uint8_t>

@@ -9,8 +9,9 @@
 #include <vector>
 #include <unordered_map>
 
-#include "pinocchio/fwd.hpp"          // To avoid having to include it everywhere
-#include "pinocchio/spatial/fwd.hpp"  // `Pinocchio::Force`, `Pinocchio::Motion`
+#include "pinocchio/fwd.hpp"            // To avoid having to include it everywhere
+#include "pinocchio/multibody/fwd.hpp"  // `pinocchio::Model::...Index`
+#include "pinocchio/spatial/fwd.hpp"    // `Pinocchio::Force`, `Pinocchio::Motion`
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -67,6 +68,10 @@ namespace jiminy
     // Pinocchio types
     using motionVector_t = pinocchio::container::aligned_vector<pinocchio::Motion>;
     using forceVector_t = pinocchio::container::aligned_vector<pinocchio::Force>;
+    using jointIndex_t = pinocchio::JointIndex;
+    using frameIndex_t = pinocchio::FrameIndex;
+    using geomIndex_t = pinocchio::GeomIndex;
+    using pairIndex_t = pinocchio::PairIndex;
 
     // *************** Constant of the universe ******************
 
@@ -225,10 +230,7 @@ namespace jiminy
             else
             {
                 // Resize internal buffer if needed
-                if (size() != size_type(sharedData.rows()))
-                {
-                    sharedData.resize(size(), this->begin()->value.size());
-                }
+                sharedData.resize(size(), this->begin()->value.size());
 
                 // Set internal buffer by copying sensor data sequentially
                 for (auto const & sensor : *this)

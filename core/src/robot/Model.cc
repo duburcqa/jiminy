@@ -78,7 +78,7 @@ namespace jiminy
         constraintsMap_t::iterator constraintIt;
         if (holderType == constraintsHolderType_t::COLLISION_BODIES)
         {
-            for (uint32_t i = 0; i < collisionBodies.size(); ++i)
+            for (std::size_t i = 0; i < collisionBodies.size(); ++i)
             {
                 constraintsMapPtr = &collisionBodies[i];
                 constraintIt = getImpl(*constraintsMapPtr, key);
@@ -339,7 +339,7 @@ namespace jiminy
         }
 
         // Check that parent frame exists
-        int32_t parentFrameId = 0;
+        frameIndex_t parentFrameId = 0;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
@@ -349,7 +349,7 @@ namespace jiminy
         {
             // Add the frame to the the original rigid model
             {
-                int32_t const & parentJointId = pncModelRigidOrig_.frames[parentFrameId].parent;
+                jointIndex_t const & parentJointId = pncModelRigidOrig_.frames[parentFrameId].parent;
                 pinocchio::SE3 const & parentFramePlacement = pncModelRigidOrig_.frames[parentFrameId].placement;
                 pinocchio::SE3 const jointFramePlacement = parentFramePlacement.act(framePlacement);
                 pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
@@ -360,7 +360,7 @@ namespace jiminy
             // Add the frame to the the original flexible model
             {
                 getFrameIdx(pncModelFlexibleOrig_, parentBodyName, parentFrameId);  // It can no longer fail at this point.
-                int32_t const & parentJointId = pncModelFlexibleOrig_.frames[parentFrameId].parent;
+                jointIndex_t const & parentJointId = pncModelFlexibleOrig_.frames[parentFrameId].parent;
                 pinocchio::SE3 const & parentFramePlacement = pncModelFlexibleOrig_.frames[parentFrameId].placement;
                 pinocchio::SE3 const jointFramePlacement = parentFramePlacement.act(framePlacement);
                 pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
@@ -393,7 +393,7 @@ namespace jiminy
            If so, it is also the case for the original flexible models. */
         for (std::string const & frameName : frameNames)
         {
-            int32_t frameId;
+            frameIndex_t frameId;
             pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
             returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
             if (returnCode == hresult_t::SUCCESS)
@@ -411,7 +411,7 @@ namespace jiminy
             for (std::string const & frameName : frameNames)
             {
                 // Get the frame idx
-                int32_t frameId;
+                frameIndex_t frameId;
                 getFrameIdx(pncModelRigidOrig_, frameName, frameId);  // It cannot fail
 
                 // Remove the frame from the the original rigid model
@@ -516,7 +516,7 @@ namespace jiminy
         {
             // Find the geometries having the body for parent, and add a collision pair for each of them
             constraintsMap_t collisionConstraintsMap;
-            for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
                 bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
@@ -604,14 +604,14 @@ namespace jiminy
             bodyNames = collisionBodiesNames_;
         }
 
-        for (uint32_t i=0; i<bodyNames.size(); ++i)
+        for (std::size_t i = 0; i < bodyNames.size(); ++i)
         {
             std::string const & bodyName = bodyNames[i];
-            auto collisionBodiesNameIt = std::find(
+            auto const collisionBodiesNameIt = std::find(
                 collisionBodiesNames_.begin(),
                 collisionBodiesNames_.end(),
                 bodyName);
-            int32_t collisionBodiesNameIdx = std::distance(
+            std::ptrdiff_t const collisionBodiesNameIdx = std::distance(
                 collisionBodiesNames_.begin(),
                 collisionBodiesNameIt);
             collisionBodiesNames_.erase(collisionBodiesNameIt);
@@ -624,7 +624,7 @@ namespace jiminy
         for (std::string const & name : bodyNames)
         {
             // Find the geometries having the body for parent, and remove the collision pair for each of them
-            for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
                 if (pncModel_.frames[geom.parentFrame].name == name)
@@ -979,7 +979,7 @@ namespace jiminy
             }
 
             // Add joint to model, differently depending on its type
-            int32_t frameIdx;
+            frameIndex_t frameIdx;
             ::jiminy::getFrameIdx(pncModelFlexibleOrig_, frameName, frameIdx);
             std::string flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
             if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::FIXED_JOINT)
@@ -1036,7 +1036,7 @@ namespace jiminy
 
             for (std::string const & jointName : rigidJointsNames_)
             {
-                int32_t const jointIdx = pncModel_.getJointId(jointName);
+                jointIndex_t const & jointIdx = pncModel_.getJointId(jointName);
 
                 // Add bias to com position
                 float64_t const & comBiasStd = mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
@@ -1141,11 +1141,11 @@ namespace jiminy
                 }
 
                 // Compute constraint jacobian and drift
-                uint32_t const constraintDimPrev = constraint->getDim();
+                uint64_t const constraintDimPrev = constraint->getDim();
                 constraint->computeJacobianAndDrift(q, v);
 
                 // Resize matrix if needed
-                uint32_t const constraintDim = constraint->getDim();
+                uint64_t const constraintDim = constraint->getDim();
                 if (constraintDimPrev != constraintDim)
                 {
                     constraintsJacobian_.conservativeResize(
@@ -1197,10 +1197,10 @@ namespace jiminy
             accelerationFieldnames_.resize(nv_);
             std::vector<std::string> const & jointNames = pncModel_.names;
             std::vector<std::string> jointShortNames = removeSuffix(jointNames, "Joint");
-            for (uint32_t i=0; i<jointNames.size(); ++i)
+            for (std::size_t i = 0; i < jointNames.size(); ++i)
             {
                 std::string const & jointName = jointNames[i];
-                int32_t const jointIdx = pncModel_.getJointId(jointName);
+                jointIndex_t const & jointIdx = pncModel_.getJointId(jointName);
 
                 int32_t const idx_q = pncModel_.joints[jointIdx].idx_q();
 
@@ -1299,17 +1299,18 @@ namespace jiminy
                 }
                 else
                 {
-                    for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); ++i)
+                    for (std::size_t i = 0; i < rigidJointsPositionIdx_.size(); ++i)
                     {
-                        positionLimitMin_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMin[i];
-                        positionLimitMax_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMax[i];
+                        uint32_t const & positionIdx = rigidJointsPositionIdx_[i];
+                        positionLimitMin_[positionIdx] = mdlOptions_->joints.positionLimitMin[i];
+                        positionLimitMax_[positionIdx] = mdlOptions_->joints.positionLimitMax[i];
                     }
                 }
             }
 
             /* Overwrite the position bounds for some specific joint type, mainly
                due to quaternion normalization and cos/sin representation. */
-            for (int32_t i=0 ; i < pncModel_.njoints ; ++i)
+            for (int32_t i = 0 ; i < pncModel_.njoints ; ++i)
             {
                 joint_t jointType(joint_t::NONE);
                 getJointTypeFromIdx(pncModel_, i, jointType);
@@ -1347,9 +1348,10 @@ namespace jiminy
                 }
                 else
                 {
-                    for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); ++i)
+                    for (std::size_t i = 0; i < rigidJointsVelocityIdx_.size(); ++i)
                     {
-                        velocityLimit_[rigidJointsVelocityIdx_[i]] = mdlOptions_->joints.velocityLimit[i];
+                        uint32_t const & velocityIdx = rigidJointsVelocityIdx_[i];
+                        velocityLimit_[velocityIdx] = mdlOptions_->joints.velocityLimit[i];
                     }
                 }
             }
@@ -1417,8 +1419,8 @@ namespace jiminy
             collisionPairsIdx_.clear();
             for (std::string const & name : collisionBodiesNames_)
             {
-                std::vector<int32_t> collisionPairsIdx;
-                for (uint32_t i=0; i<pncGeometryModel_.collisionPairs.size(); ++i)
+                std::vector<pairIndex_t> collisionPairsIdx;
+                for (std::size_t i=0; i<pncGeometryModel_.collisionPairs.size(); ++i)
                 {
                     pinocchio::CollisionPair const & pair = pncGeometryModel_.collisionPairs[i];
                     pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[pair.first];
@@ -1466,7 +1468,7 @@ namespace jiminy
         // Initialize backup joint space acceleration
         jointsAcceleration_ = motionVector_t(pncData_.a.size(), pinocchio::Motion::Zero());
 
-        uint32_t constraintSize = 0;
+        uint64_t constraintSize = 0;
         constraintsHolder_.foreach(
             [&](std::shared_ptr<AbstractConstraintBase> const & constraint,
                 constraintsHolderType_t const & /* holderType */)
@@ -1532,7 +1534,7 @@ namespace jiminy
             if (!positionLimitFromUrdf)
             {
                 vectorN_t & jointsPositionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
-                if ((int32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMin.size())
+                if (rigidJointsPositionIdx_.size() != static_cast<uint32_t>(jointsPositionLimitMin.size()))
                 {
                     PRINT_ERROR("Wrong vector size for 'positionLimitMin'.");
                     return hresult_t::ERROR_BAD_INPUT;
@@ -1540,7 +1542,7 @@ namespace jiminy
                 auto jointsPositionLimitMinDiff = jointsPositionLimitMin - mdlOptions_->joints.positionLimitMin;
                 internalBuffersMustBeUpdated |= (jointsPositionLimitMinDiff.array().abs() >= EPS).all();
                 vectorN_t & jointsPositionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
-                if ((uint32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMax.size())
+                if (rigidJointsPositionIdx_.size() != static_cast<uint32_t>(jointsPositionLimitMax.size()))
                 {
                     PRINT_ERROR("Wrong vector size for 'positionLimitMax'.");
                     return hresult_t::ERROR_BAD_INPUT;
@@ -1552,7 +1554,7 @@ namespace jiminy
             if (!velocityLimitFromUrdf)
             {
                 vectorN_t & jointsVelocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
-                if ((int32_t) rigidJointsVelocityIdx_.size() != jointsVelocityLimit.size())
+                if (rigidJointsVelocityIdx_.size() != static_cast<uint32_t>(jointsVelocityLimit.size()))
                 {
                     PRINT_ERROR("Wrong vector size for 'velocityLimit'.");
                     return hresult_t::ERROR_BAD_INPUT;
@@ -1933,17 +1935,17 @@ namespace jiminy
         return contactFramesNames_;
     }
 
-    std::vector<int32_t> const & Model::getCollisionBodiesIdx(void) const
+    std::vector<frameIndex_t> const & Model::getCollisionBodiesIdx(void) const
     {
         return collisionBodiesIdx_;
     }
 
-    std::vector<std::vector<int32_t> > const & Model::getCollisionPairsIdx(void) const
+    std::vector<std::vector<pairIndex_t> > const & Model::getCollisionPairsIdx(void) const
     {
         return collisionPairsIdx_;
     }
 
-    std::vector<int32_t> const & Model::getContactFramesIdx(void) const
+    std::vector<frameIndex_t> const & Model::getContactFramesIdx(void) const
     {
         return contactFramesIdx_;
     }
@@ -1983,7 +1985,7 @@ namespace jiminy
         return rigidJointsNames_;
     }
 
-    std::vector<int32_t> const & Model::getRigidJointsModelIdx(void) const
+    std::vector<jointIndex_t> const & Model::getRigidJointsModelIdx(void) const
     {
         return rigidJointsModelIdx_;
     }
@@ -2011,9 +2013,9 @@ namespace jiminy
         }
     }
 
-    std::vector<int32_t> const & Model::getFlexibleJointsModelIdx(void) const
+    std::vector<jointIndex_t> const & Model::getFlexibleJointsModelIdx(void) const
     {
-        static std::vector<int32_t> const flexibleJointsModelIdxEmpty {};
+        static std::vector<jointIndex_t> const flexibleJointsModelIdxEmpty {};
         if (mdlOptions_->dynamics.enableFlexibleModel)
         {
             return flexibleJointsModelIdx_;

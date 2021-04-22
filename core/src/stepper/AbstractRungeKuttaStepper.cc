@@ -34,10 +34,10 @@ namespace jiminy
         // First ki is simply the provided stateDerivative
         ki_[0] = stateDerivative;
 
-        for (uint32_t i = 1; i < c_.size(); ++i)
+        for (Eigen::Index i = 1; i < c_.size(); ++i)
         {
             stateIncrement_.setZero();
-            for (uint32_t j = 0; j < i; ++j)
+            for (Eigen::Index j = 0; j < i; ++j)
             {
                 stateIncrement_.sumInPlace(ki_[j], dt * A_(i, j));  // Equivalent to `stateIncrement_ += dt * A_(i, j) * ki_[j]` but more efficient because it avoid temporaries
             }
@@ -49,7 +49,7 @@ namespace jiminy
            Sum the velocities before summing into position the accuracy is greater
            for summing vectors than for summing velocities into lie groups. */
         stateIncrement_.setZero();
-        for (uint32_t i = 0; i < ki_.size(); ++i)
+        for (std::size_t i = 0; i < ki_.size(); ++i)
         {
             stateIncrement_.sumInPlace(ki_[i], dt * b_[i]);
         }
@@ -75,8 +75,8 @@ namespace jiminy
         return hasSucceeded;
     }
 
-    bool_t AbstractRungeKuttaStepper::adjustStep(state_t   const & initialState,
-                                                 state_t   const & solution,
+    bool_t AbstractRungeKuttaStepper::adjustStep(state_t   const & /* initialState */,
+                                                 state_t   const & /* solution */,
                                                  float64_t       & dt)
     {
         /* Fixed-step by default, which never fails. By default INF is retuned

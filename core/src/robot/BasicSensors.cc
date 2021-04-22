@@ -152,16 +152,16 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & ImuSensor::getFrameIdx(void) const
+    frameIndex_t const & ImuSensor::getFrameIdx(void) const
     {
         return frameIdx_;
     }
 
-    hresult_t ImuSensor::set(float64_t const & t,
-                             vectorN_t const & q,
-                             vectorN_t const & v,
-                             vectorN_t const & a,
-                             vectorN_t const & uMotor)
+    hresult_t ImuSensor::set(float64_t const & /* t */,
+                             vectorN_t const & /* q */,
+                             vectorN_t const & /* v */,
+                             vectorN_t const & /* a */,
+                             vectorN_t const & /* uMotor */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
@@ -287,21 +287,21 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & ContactSensor::getFrameIdx(void) const
+    frameIndex_t const & ContactSensor::getFrameIdx(void) const
     {
         return frameIdx_;
     }
 
-    hresult_t ContactSensor::set(float64_t const & t,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t const & a,
-                                 vectorN_t const & uMotor)
+    hresult_t ContactSensor::set(float64_t const & /* t */,
+                                 vectorN_t const & /* q */,
+                                 vectorN_t const & /* v */,
+                                 vectorN_t const & /* a */,
+                                 vectorN_t const & /* uMotor */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        std::vector<int32_t> const & contactFramesIdx = robot->getContactFramesIdx();
-        std::vector<int32_t>::const_iterator it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
+        std::vector<frameIndex_t> const & contactFramesIdx = robot->getContactFramesIdx();
+        auto it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
         data() = robot->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
 
         return hresult_t::SUCCESS;
@@ -366,21 +366,21 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & ForceSensor::getFrameIdx(void) const
+    frameIndex_t const & ForceSensor::getFrameIdx(void) const
     {
         return frameIdx_;
     }
 
-    int32_t ForceSensor::getJointIdx(void) const
+    jointIndex_t ForceSensor::getJointIdx(void) const
     {
         return parentJointIdx_;
     }
 
-    hresult_t ForceSensor::set(float64_t const & t,
-                               vectorN_t const & q,
-                               vectorN_t const & v,
-                               vectorN_t const & a,
-                               vectorN_t const & uMotor)
+    hresult_t ForceSensor::set(float64_t const & /* t */,
+                               vectorN_t const & /* q */,
+                               vectorN_t const & /* v */,
+                               vectorN_t const & /* a */,
+                               vectorN_t const & /* uMotor */)
     {
         // Returns the force applied at frame location, in the local frame of the parent joint
 
@@ -464,7 +464,7 @@ namespace jiminy
         return jointName_;
     }
 
-    int32_t const & EncoderSensor::getJointIdx(void) const
+    jointIndex_t const & EncoderSensor::getJointIdx(void) const
     {
         return jointIdx_;
     }
@@ -474,11 +474,11 @@ namespace jiminy
         return jointType_;
     }
 
-    hresult_t EncoderSensor::set(float64_t const & t,
+    hresult_t EncoderSensor::set(float64_t const & /* t */,
                                  vectorN_t const & q,
                                  vectorN_t const & v,
-                                 vectorN_t const & a,
-                                 vectorN_t const & uMotor)
+                                 vectorN_t const & /* a */,
+                                 vectorN_t const & /* uMotor */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
@@ -512,7 +512,7 @@ namespace jiminy
     EffortSensor::EffortSensor(std::string const & name) :
     AbstractSensorTpl(name),
     motorName_(),
-    motorIdx_(0)
+    motorIdx_(-1)
     {
         // Empty.
     }
@@ -564,10 +564,10 @@ namespace jiminy
         return motorIdx_;
     }
 
-    hresult_t EffortSensor::set(float64_t const & t,
-                                vectorN_t const & q,
-                                vectorN_t const & v,
-                                vectorN_t const & a,
+    hresult_t EffortSensor::set(float64_t const & /* t */,
+                                vectorN_t const & /* q */,
+                                vectorN_t const & /* v */,
+                                vectorN_t const & /* a */,
                                 vectorN_t const & uMotor)
     {
         if (!isInitialized_)

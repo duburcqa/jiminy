@@ -21,12 +21,12 @@ namespace jiminy
     {
     public:
         explicit JsonLoader(std::shared_ptr<AbstractIODevice> device);
-        virtual ~JsonLoader() = default;
+        ~JsonLoader() = default;
 
         ///////////////////////////////////////////////////////////////////////
         /// \brief Load json data from device and parse it to root json.
         ///////////////////////////////////////////////////////////////////////
-        virtual hresult_t load();
+        hresult_t load();
 
         ///////////////////////////////////////////////////////////////////////
         /// \brief Get a reference to the parsed root json document.

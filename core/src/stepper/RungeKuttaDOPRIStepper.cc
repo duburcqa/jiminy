@@ -29,7 +29,7 @@ namespace jiminy
     {
         // Compute alternative solution.
         stateIncrement_.setZero();
-        for (uint32_t i = 0; i < ki_.size(); ++i)
+        for (std::size_t i = 0; i < ki_.size(); ++i)
         {
             stateIncrement_.sumInPlace(ki_[i], dt * DOPRI::e[i]);
         }

@@ -36,7 +36,7 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & SphereConstraint::getFrameIdx(void) const
+    frameIndex_t const & SphereConstraint::getFrameIdx(void) const
     {
         return frameIdx_;
     }
@@ -84,8 +84,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SphereConstraint::computeJacobianAndDrift(vectorN_t const & q,
-                                                        vectorN_t const & v)
+    hresult_t SphereConstraint::computeJacobianAndDrift(vectorN_t const & /* q */,
+                                                        vectorN_t const & /* v */)
     {
         if (!isAttached_)
         {

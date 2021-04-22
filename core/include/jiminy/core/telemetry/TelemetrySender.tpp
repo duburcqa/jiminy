@@ -12,7 +12,7 @@ namespace jiminy
                                                 Eigen::MatrixBase<Derived> const & initialValues)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
-        for (uint32_t i=0; i < initialValues.size(); ++i)
+        for (Eigen::Index i=0; i < initialValues.size(); ++i)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
@@ -26,7 +26,7 @@ namespace jiminy
     void TelemetrySender::updateValue(std::vector<std::string>   const & fieldnames,
                                       Eigen::MatrixBase<Derived> const & values)
     {
-        for (uint32_t i=0; i < values.size(); ++i)
+        for (Eigen::Index i=0; i < values.size(); ++i)
         {
             updateValue(fieldnames[i], values[i]);
         }

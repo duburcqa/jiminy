@@ -100,7 +100,7 @@ namespace python
         {
             unaryfunc creator = *static_cast<unaryfunc*>(data->convertible);
             bp::handle<> intermediate(creator(obj));
-            void* storage = ((bp::converter::rvalue_from_python_storage<T>*)data)->storage.bytes;
+            void* storage = reinterpret_cast<bp::converter::rvalue_from_python_storage<T> *>(data)->storage.bytes;
             new (storage) T(SlotPolicy::extract(intermediate.get()));
             data->convertible = storage;
         }

@@ -29,7 +29,7 @@ namespace jiminy
         return jointName_;
     }
 
-    int32_t const & JointConstraint::getJointIdx(void) const
+    jointIndex_t const & JointConstraint::getJointIdx(void) const
     {
         return jointIdx_;
     }
@@ -40,7 +40,7 @@ namespace jiminy
     }
 
     hresult_t JointConstraint::reset(vectorN_t const & q,
-                                     vectorN_t const & v)
+                                     vectorN_t const & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -56,7 +56,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             jointIdx_ = model->pncModel_.getJointId(jointName_);
-            if (jointIdx_ == model->pncModel_.njoints)
+            if (jointIdx_ == static_cast<uint32_t>(model->pncModel_.njoints))
             {
                 PRINT_ERROR("No joint with name '", jointName_, "' in model.");
                 returnCode = hresult_t::ERROR_GENERIC;
@@ -70,7 +70,7 @@ namespace jiminy
 
             // Compute the jacobian. It is simply the velocity selector mask.
             jacobian_ = matrixN_t::Zero(jointModel.nv(), model->pncModel_.nv);
-            for (int32_t i=0; i < jointModel.nv(); ++i)
+            for (Eigen::Index i=0; i < jointModel.nv(); ++i)
             {
                 jacobian_(i, jointModel.idx_v() + i) = 1.0;
             }
@@ -86,7 +86,7 @@ namespace jiminy
     }
 
     template<typename JointModel, typename ConfigVectorIn1, typename ConfigVectorIn2>
-    auto difference(pinocchio::JointModelBase<JointModel> const & jmodel,
+    auto difference(pinocchio::JointModelBase<JointModel> const & /* jmodel */,
                     Eigen::MatrixBase<ConfigVectorIn1>    const & q0,
                     Eigen::MatrixBase<ConfigVectorIn2>    const & q1)
     {

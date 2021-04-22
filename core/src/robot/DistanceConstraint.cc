@@ -34,7 +34,7 @@ namespace jiminy
         return framesNames_;
     }
 
-    std::vector<int32_t> const & DistanceConstraint::getFramesIdx(void) const
+    std::vector<frameIndex_t> const & DistanceConstraint::getFramesIdx(void) const
     {
         return framesIdx_;
     }
@@ -44,8 +44,8 @@ namespace jiminy
         return distanceRef_;
     }
 
-    hresult_t DistanceConstraint::reset(vectorN_t const & q,
-                                        vectorN_t const & v)
+    hresult_t DistanceConstraint::reset(vectorN_t const & /* q */,
+                                        vectorN_t const & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -62,7 +62,7 @@ namespace jiminy
         framesIdx_.reserve(framesNames_.size());
         for (std::string const & frameName : framesNames_)
         {
-            int32_t frameIdx = 0;
+            frameIndex_t frameIdx = 0;
             if (returnCode == hresult_t::SUCCESS)
             {
                 returnCode = ::jiminy::getFrameIdx(model->pncModel_, frameName, frameIdx);
@@ -87,8 +87,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t DistanceConstraint::computeJacobianAndDrift(vectorN_t const & q,
-                                                          vectorN_t const & v)
+    hresult_t DistanceConstraint::computeJacobianAndDrift(vectorN_t const & /* q */,
+                                                          vectorN_t const & /* v */)
     {
         if (!isAttached_)
         {

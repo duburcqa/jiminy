@@ -13,7 +13,7 @@ namespace jiminy
     Json::Value convertToJson<vectorN_t>(vectorN_t const & value)
     {
         Json::Value row(Json::arrayValue);
-        for (int32_t i=0; i<value.size(); ++i)
+        for (Eigen::Index i = 0; i < value.size(); ++i)
         {
             row.append(value[i]);
         }
@@ -26,12 +26,12 @@ namespace jiminy
         Json::Value mat(Json::arrayValue);
         if (value.rows() > 0)
         {
-            for (int32_t i=0; i<value.rows(); ++i)
+            for (Eigen::Index i = 0; i<value.rows(); ++i)
             {
                 Json::Value row(Json::arrayValue);
-                for (int32_t j=0; j<value.cols(); ++j)
+                for (Eigen::Index j = 0; j<value.cols(); ++j)
                 {
-                    row.append(value(i,j));
+                    row.append(value(i, j));
                 }
                 mat.append(row);
             }
@@ -54,7 +54,7 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<heatMapFunctor_t>(heatMapFunctor_t const & value)
+    Json::Value convertToJson<heatMapFunctor_t>(heatMapFunctor_t const & /* value */)
     {
         return {"not supported"};
     }
@@ -193,11 +193,11 @@ namespace jiminy
     }
 
     template<>
-    heatMapFunctor_t convertFromJson<heatMapFunctor_t>(Json::Value const & value)
+    heatMapFunctor_t convertFromJson<heatMapFunctor_t>(Json::Value const & /* value */)
     {
         return {
             heatMapFunctor_t(
-                [](vector3_t const & pos) -> std::pair <float64_t, vector3_t>
+                [](vector3_t const & /* pos */) -> std::pair <float64_t, vector3_t>
                 {
                     return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
                 })

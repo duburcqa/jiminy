@@ -40,7 +40,7 @@ namespace jiminy
         return frameName_;
     }
 
-    int32_t const & WheelConstraint::getFrameIdx(void) const
+    frameIndex_t const & WheelConstraint::getFrameIdx(void) const
     {
         return frameIdx_;
     }
@@ -88,8 +88,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t WheelConstraint::computeJacobianAndDrift(vectorN_t const & q,
-                                                       vectorN_t const & v)
+    hresult_t WheelConstraint::computeJacobianAndDrift(vectorN_t const & /* q */,
+                                                       vectorN_t const & /* v */)
     {
         if (!isAttached_)
         {

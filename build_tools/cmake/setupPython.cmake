@@ -78,7 +78,7 @@ if("${PYTHON_EXT_SUFFIX}" STREQUAL "")
     else()
         set(PYTHON_EXT_SUFFIX ".so")
     endif()
-ENDIF()
+endif()
 
 # Include Python headers
 execute_process(COMMAND "${Python_EXECUTABLE}" -c

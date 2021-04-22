@@ -212,8 +212,8 @@ namespace jiminy
     }
 
     uint32_t MurmurHash3(void const * key,
-                        int32_t const & len,
-                        uint32_t const & seed)
+                         int32_t const & len,
+                         uint32_t const & seed)
     {
         // Define some internal constants
         uint32_t const c1 = 0xcc9e2d51;
@@ -224,11 +224,11 @@ namespace jiminy
         uint32_t h1 = seed;
 
         // Extract bytes from key
-        uint8_t const * data = (uint8_t const *) key;
+        uint8_t const * data = reinterpret_cast<uint8_t const *>(key);
         int32_t const nblocks = len / 4;  // len in bytes, so 32-bits blocks
 
         // Body
-        uint32_t const * blocks = (uint32_t const *)(data + nblocks * 4);
+        uint32_t const * blocks = reinterpret_cast<uint32_t const *>(data + nblocks * 4);
         for(int32_t i = -nblocks; i; ++i)
         {
             uint32_t k1 = blocks[i];
@@ -241,7 +241,7 @@ namespace jiminy
         }
 
         // Tail
-        uint8_t const * tail = (uint8_t const *)(data + nblocks * 4);
+        uint8_t const * tail = reinterpret_cast<uint8_t const *>(data + nblocks * 4);
         uint32_t k1 = 0U;
         switch(len & 3)
         {
@@ -301,7 +301,7 @@ namespace jiminy
     {
         /* Initialize lower Cholesky factor.
         Resizing is enough, no need to initialize it. */
-        uint32_t const n = a.rows();
+        uint64_t const n = a.rows();
         l.resize(n, n);
 
         /* Compute compressed representation of the matrix, which
@@ -333,7 +333,7 @@ namespace jiminy
     wavelength_(wavelength),
     period_(period),
     dt_(0.02 * wavelength_),
-    numTimes_(std::ceil(period_ / dt_)),
+    numTimes_(static_cast<uint32_t>(std::ceil(period_ / dt_))),
     isInitialized_(false),
     values_(numTimes_),
     covSqrtRoot_(numTimes_, numTimes_)
@@ -373,7 +373,7 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        int32_t const tLeftIdx = std::floor(tWrap / dt_);
+        int32_t const tLeftIdx = static_cast<int32_t>(std::floor(tWrap / dt_));
         int32_t const tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
@@ -400,7 +400,7 @@ namespace jiminy
     {
         // Compute distance matrix
         matrixN_t distMat(numTimes_, numTimes_);
-        for (uint32_t i=0; i < numTimes_; ++i)
+        for (uint32_t i = 0; i < numTimes_; ++i)
         {
             distMat.diagonal(i).setConstant(dt_ * i);
         }
@@ -437,8 +437,8 @@ namespace jiminy
     wavelength_(wavelength),
     period_(period),
     dt_(0.02 * wavelength_),
-    numTimes_(std::ceil(period_ / dt_)),
-    numHarmonics_(std::ceil(period_ / wavelength_)),
+    numTimes_(static_cast<uint32_t>(std::ceil(period_ / dt_))),
+    numHarmonics_(static_cast<uint32_t>(std::ceil(period_ / wavelength_))),
     isInitialized_(false),
     values_(numTimes_),
     cosMat_(numTimes_, numHarmonics_),
@@ -482,7 +482,7 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        int32_t const tLeftIdx = std::floor(tWrap / dt_);
+        int32_t const tLeftIdx = static_cast<int32_t>(std::floor(tWrap / dt_));
         int32_t const tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
@@ -550,7 +550,7 @@ namespace jiminy
         float64_t const phase = t / wavelength_ + shift_;
 
         // Compute closest right and left knots
-        int32_t const phaseIdxLeft = phase;
+        int32_t const phaseIdxLeft = static_cast<int32_t>(phase);
         int32_t const phaseIdxRight = phaseIdxLeft + 1;
 
         // Compute smoothed ratio of current phase wrt to the closest knots
@@ -604,7 +604,7 @@ namespace jiminy
         AbstractPerlinNoiseOctave::reset();
 
         // Sample new random seed for MurmurHash
-        seed_ = generator_();
+        seed_ = static_cast<uint32_t>(generator_());
     }
 
     float64_t RandomPerlinNoiseOctave::grad(int32_t knot,
@@ -727,7 +727,7 @@ namespace jiminy
     }
 
     RandomPerlinProcess::RandomPerlinProcess(float64_t const & wavelength,
-                                             uint32_t const & numOctaves) :
+                                             uint32_t  const & numOctaves) :
     AbstractPerlinProcess(wavelength, numOctaves)
     {
         // Empty on purpose

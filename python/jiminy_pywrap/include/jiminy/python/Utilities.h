@@ -36,7 +36,7 @@ namespace python
     }
 
     template<typename R, typename ...Args>
-    boost::mpl::vector<R, Args...> functionToMLP(std::function<R(Args...)> func)
+    boost::mpl::vector<R, Args...> functionToMLP(std::function<R(Args...)> /* func */)
     {
         return {};
     }
@@ -63,13 +63,13 @@ namespace python
         bp::converter::registration const * r = bp::converter::registry::query(typeid(WrappedClassT));
         assert(r && ("Class " + typeid(WrappedClassT).name() + " not registered to Boost Python."));
         PyTypeObject * nsPtr = r->get_class_object();
-        bp::object nsName(bp::handle<>(PyObject_GetAttrString((PyObject *) nsPtr, "__name__")));
+        bp::object nsName(bp::handle<>(PyObject_GetAttrString(reinterpret_cast<PyObject *>(nsPtr), "__name__")));
         bp::objects::function * funcPtr = bp::downcast<bp::objects::function>(func.ptr());
         bp::object & nsFunc = const_cast<bp::object &>(funcPtr->get_namespace());
         nsFunc = bp::object(nsName);
         bp::object & nameFunc = const_cast<bp::object &>(funcPtr->name());
         nameFunc = bp::str("function");
-        funcPtr->doc(bp::str(detail::py_signature_tag) + bp::str(detail::cpp_signature_tag)); // Add actual doc after thos tags, if any
+        funcPtr->doc(bp::str(detail::py_signature_tag) + bp::str(detail::cpp_signature_tag)); // Add actual doc after those tags, if any
         // auto dict = bp::handle<>(bp::borrowed(nsPtr->tp_dict));
         // bp::str funcName("force_func");
         // if (PyObject_GetItem(dict.get(), funcName.ptr()))
@@ -98,7 +98,8 @@ namespace python
     class vector_indexing_suite_no_contains : public bp::vector_indexing_suite<Container, NoProxy, DerivedPolicies>
     {
     public:
-        static bool contains(Container & container, typename Container::value_type const & key)
+        static bool contains(Container & /* container */,
+                             typename Container::value_type const & /* key */)
         {
             throw std::runtime_error("Contains method not supported.");
             return false;
@@ -111,11 +112,11 @@ namespace python
 
     /// C++ to Python type mapping
 
-    inline int getPyType(bool_t const & data) { return NPY_BOOL; }
-    inline int getPyType(float64_t const & data) { return NPY_FLOAT64; }
-    inline int getPyType(float32_t const & data) { return NPY_FLOAT32; }
-    inline int getPyType(int32_t const & data) { return NPY_INT32; }
-    inline int getPyType(int64_t const & data) { return NPY_INT64; }
+    inline int getPyType(bool_t const & /* data */) { return NPY_BOOL; }
+    inline int getPyType(float64_t const & /* data */) { return NPY_FLOAT64; }
+    inline int getPyType(float32_t const & /* data */) { return NPY_FLOAT32; }
+    inline int getPyType(int32_t const & /* data */) { return NPY_INT32; }
+    inline int getPyType(int64_t const & /* data */) { return NPY_INT64; }
 
     /// Convert Eigen scalar/vector/matrix to Numpy array by reference.
 
@@ -246,14 +247,15 @@ namespace python
         if (dataPyArrayNdims == 0)
         {
             Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                (float64_t *) PyArray_DATA(dataPyArray), 1, 1,
-                Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, 1));
+                static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
+                1, 1, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, 1));
             return {hresult_t::SUCCESS, data};
         }
         else if (dataPyArrayNdims == 1)
         {
             Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                (float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray), 1,
+                static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
+                PyArray_SIZE(dataPyArray), 1,
                 Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(PyArray_SIZE(dataPyArray), 1));
             return {hresult_t::SUCCESS, data};
         }
@@ -264,14 +266,16 @@ namespace python
             if (flags & NPY_ARRAY_C_CONTIGUOUS)
             {
                 Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                    (float64_t *) PyArray_DATA(dataPyArray), dataPyArrayShape[0], dataPyArrayShape[1],
+                    static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
+                    dataPyArrayShape[0], dataPyArrayShape[1],
                     Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, dataPyArrayShape[1]));
                 return {hresult_t::SUCCESS, data};
             }
             else if (flags & NPY_ARRAY_F_CONTIGUOUS)
             {
                 Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                    (float64_t *) PyArray_DATA(dataPyArray), dataPyArrayShape[0], dataPyArrayShape[1],
+                    static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
+                    dataPyArrayShape[0], dataPyArrayShape[1],
                     Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(dataPyArrayShape[0], 1));
                 return {hresult_t::SUCCESS, data};
             }
@@ -295,7 +299,7 @@ namespace python
     template<typename T>
     std::enable_if_t<!is_vector<T>::value
                   && !is_eigen<T>::value, bp::object>
-    convertToPython(T const & data, bool const & copy = true)
+    convertToPython(T const & data, bool const & /* copy */ = true)
     {
         return bp::object(data);
     }
@@ -303,7 +307,7 @@ namespace python
     template<>
     inline bp::object convertToPython<flexibleJointData_t>(
         flexibleJointData_t const & flexibleJointData,
-        bool const & copy)
+        bool const & /* copy */)
     {
         bp::dict flexibilityJointDataPy;
         flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
@@ -402,7 +406,7 @@ namespace python
     inline vectorN_t listPyToEigenVector(bp::list const & listPy)
     {
         vectorN_t x(len(listPy));
-        for (int32_t i = 0; i < len(listPy); ++i)
+        for (bp::ssize_t i = 0; i < len(listPy); ++i)
         {
             x[i] = bp::extract<float64_t>(listPy[i]);
         }
@@ -413,14 +417,14 @@ namespace python
     /// \brief  Convert a 2D python list into an Eigen matrix.
     inline matrixN_t listPyToEigenMatrix(bp::list const & listPy)
     {
-        int32_t const nRows = len(listPy);
+        bp::ssize_t const nRows = len(listPy);
         assert(nRows > 0 && "empty list");
 
-        int32_t const nCols = len(bp::extract<bp::list>(listPy[0]));
+        bp::ssize_t const nCols = len(bp::extract<bp::list>(listPy[0]));
         assert(nCols > 0 && "empty row");
 
         matrixN_t M(nRows, nCols);
-        for (int32_t i = 0; i < nRows; ++i)
+        for (bp::ssize_t i = 0; i < nRows; ++i)
         {
             bp::list row = bp::extract<bp::list>(listPy[i]);  // Beware it is not an actual copy
             assert(len(row) == nCols && "wrong number of columns");
@@ -438,8 +442,7 @@ namespace python
     std::enable_if_t<!is_vector<T>::value
                   && !is_map<T>::value
                   && !is_eigen<T>::value
-                  && !std::is_same<T, int32_t>::value
-                  && !std::is_same<T, uint32_t>::value
+                  && !(std::is_integral<T>::value && !std::is_same<T, bool_t>::value)
                   && !std::is_same<T, sensorsDataMap_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
@@ -447,8 +450,8 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same<T, int32_t>::value
-                  || std::is_same<T, uint32_t>::value, T>
+    std::enable_if_t<std::is_integral<T>::value
+                 && !std::is_same<T, bool_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         std::string const optionTypePyStr =
@@ -465,7 +468,16 @@ namespace python
         }
         else
         {
-            return bp::extract<T>(dataPy);
+            bp::extract<T> get_integral(dataPy);
+            if (get_integral.check())
+            {
+                return get_integral();
+            }
+            if (std::is_unsigned<T>::value)
+            {
+                return bp::extract<typename std::make_signed<T>::type>(dataPy);
+            }
+            return bp::extract<typename std::make_unsigned<T>::type>(dataPy);
         }
     }
 
