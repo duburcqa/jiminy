@@ -1525,8 +1525,8 @@ namespace jiminy
             }
 
             // Stop the simulation if the max number of integration steps is reached
-            if (0 < engineOptions_->stepper.iterMax
-                && engineOptions_->stepper.iterMax <= static_cast<int32_t>(stepperState_.iter))
+            if (0U < engineOptions_->stepper.iterMax
+                && engineOptions_->stepper.iterMax <= stepperState_.iter)
             {
                 if (engineOptions_->stepper.verbose)
                 {

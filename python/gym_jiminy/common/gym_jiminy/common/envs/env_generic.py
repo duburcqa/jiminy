@@ -879,8 +879,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             robot_options["motors"][motor_name]["enableFriction"] = True
 
         # Configure the stepper
-        engine_options["stepper"]["iterMax"] = -1
-        engine_options["stepper"]["timeout"] = -1
+        engine_options["stepper"]["iterMax"] = 0
+        engine_options["stepper"]["timeout"] = 0.0
         engine_options["stepper"]["logInternalStepperSteps"] = False
         engine_options["stepper"]["randomSeed"] = self._seed
 

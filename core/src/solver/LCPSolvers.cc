@@ -94,7 +94,7 @@ namespace jiminy
            by design. For instance, for friction, x and y  */
         indices_.resize(b.size());
         std::generate(indices_.begin(), indices_.end(),
-                      [n = static_cast<int32_t>(indices_.size() - 1)]() mutable { return n--; });
+                      [n = static_cast<int64_t>(indices_.size() - 1)]() mutable { return n--; });
         lastShuffle_ = 0U;  // Do NOT shuffle indices right after initialization
 
         // Single loop of standard Projected Gauss Seidel algorithm

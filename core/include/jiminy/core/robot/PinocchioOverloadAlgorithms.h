@@ -267,8 +267,6 @@ namespace pinocchio_overload
         assert(v.size() == model.nv && "The joint velocity vector is not of right size");
         assert(tau.size() == model.nv && "The joint acceleration vector is not of right size");
 
-        typedef typename pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl>::JointIndex JointIndex;
-
         data.v[0].setZero();
         #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 5 || (PINOCCHIO_MINOR_VERSION == 5 && PINOCCHIO_PATCH_VERSION >= 6)))
         data.a_gf[0] = -model.gravity;
@@ -279,7 +277,7 @@ namespace pinocchio_overload
 
         typedef pinocchio::AbaForwardStep1<Scalar, Options, JointCollectionTpl,
                                            ConfigVectorType, TangentVectorType1> Pass1;
-        for (JointIndex i = 1; i < static_cast<JointIndex>(model.njoints); ++i)
+        for (int32_t i = 1; i < model.njoints; ++i)
         {
             Pass1::run(model.joints[i], data.joints[i],
                        typename Pass1::ArgsType(model, data, q.derived(), v.derived()));
@@ -294,7 +292,7 @@ namespace pinocchio_overload
         }
 
         typedef pinocchio::AbaForwardStep2<Scalar,Options,JointCollectionTpl> Pass3;
-        for (JointIndex i = 1; i < static_cast<JointIndex>(model.njoints); ++i)
+        for (int32_t i = 1; i < model.njoints; ++i)
         {
             Pass3::run(model.joints[i], data.joints[i],
                        typename Pass3::ArgsType(model, data));

@@ -56,7 +56,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             jointIdx_ = model->pncModel_.getJointId(jointName_);
-            if (static_cast<int32_t>(jointIdx_) == model->pncModel_.njoints)
+            if (jointIdx_ == static_cast<uint32_t>(model->pncModel_.njoints))
             {
                 PRINT_ERROR("No joint with name '", jointName_, "' in model.");
                 returnCode = hresult_t::ERROR_GENERIC;

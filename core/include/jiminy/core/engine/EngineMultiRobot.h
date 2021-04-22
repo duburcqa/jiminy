@@ -157,7 +157,7 @@ namespace jiminy
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
             config["successiveIterFailedMax"] = 1000U;
-            config["iterMax"] = 0;  // <= 0: disable
+            config["iterMax"] = 0U;  // <= 0: disable
             config["timeout"] = 0.0;  // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
@@ -254,7 +254,7 @@ namespace jiminy
             float64_t   const dtMax;
             float64_t   const dtRestoreThresholdRel;
             uint32_t    const successiveIterFailedMax;
-            int32_t     const iterMax;
+            uint32_t    const iterMax;
             float64_t   const timeout;
             float64_t   const sensorsUpdatePeriod;
             float64_t   const controllerUpdatePeriod;
@@ -269,7 +269,7 @@ namespace jiminy
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
             dtRestoreThresholdRel(boost::get<float64_t>(options.at("dtRestoreThresholdRel"))),
             successiveIterFailedMax(boost::get<uint32_t>(options.at("successiveIterFailedMax"))),
-            iterMax(boost::get<int32_t>(options.at("iterMax"))),
+            iterMax(boost::get<uint32_t>(options.at("iterMax"))),
             timeout(boost::get<float64_t>(options.at("timeout"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
             controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),

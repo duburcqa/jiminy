@@ -62,7 +62,7 @@ namespace jiminy
             hresult_t returnCode = computeCommand(t, q, v, command);
             if (returnCode == hresult_t::SUCCESS)
             {
-                if (command.size() != static_cast<int32_t>(robot->getMotorsNames().size()))
+                if (static_cast<uint32_t>(command.size()) != robot->getMotorsNames().size())
                 {
                     PRINT_ERROR("'computeCommand' returns command with wrong size.");
                     return hresult_t::ERROR_BAD_INPUT;
