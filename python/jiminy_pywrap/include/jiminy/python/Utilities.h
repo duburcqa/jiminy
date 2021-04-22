@@ -442,8 +442,7 @@ namespace python
     std::enable_if_t<!is_vector<T>::value
                   && !is_map<T>::value
                   && !is_eigen<T>::value
-                  && !std::is_same<T, int32_t>::value
-                  && !std::is_same<T, uint32_t>::value
+                  && !(std::is_integral<T>::value && !std::is_same<T, bool_t>::value)
                   && !std::is_same<T, sensorsDataMap_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
@@ -451,8 +450,8 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same<T, int32_t>::value
-                  || std::is_same<T, uint32_t>::value, T>
+    std::enable_if_t<std::is_integral<T>::value
+                 && !std::is_same<T, bool_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         std::string const optionTypePyStr =
@@ -469,7 +468,16 @@ namespace python
         }
         else
         {
-            return bp::extract<T>(dataPy);
+            bp::extract<T> get_integral(dataPy);
+            if (get_integral.check())
+            {
+                return get_integral();
+            }
+            if (std::is_unsigned<T>::value)
+            {
+                return bp::extract<typename std::make_signed<T>::type>(dataPy);
+            }
+            return bp::extract<typename std::make_unsigned<T>::type>(dataPy);
         }
     }
 
