@@ -264,7 +264,7 @@ namespace jiminy
     {
         std::ostringstream sstr;
         using List = int[];
-        (void)List{0, ( (void)(sstr << args), 0 ) ... };
+        (void) List{0, (static_cast<void>(sstr << args), 0 ) ... };
         return sstr.str();
     }
 

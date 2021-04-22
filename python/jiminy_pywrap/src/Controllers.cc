@@ -124,7 +124,7 @@ namespace python
                 PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
                 if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64 && PyArray_SIZE(dataPyArray) == 1U)
                 {
-                    float64_t const * data = (float64_t *) PyArray_DATA(dataPyArray);
+                    float64_t const * data = static_cast<float64_t *>(PyArray_DATA(dataPyArray));
                     return self.registerVariable(fieldName, *data);
                 }
                 else

@@ -63,13 +63,13 @@ namespace python
         bp::converter::registration const * r = bp::converter::registry::query(typeid(WrappedClassT));
         assert(r && ("Class " + typeid(WrappedClassT).name() + " not registered to Boost Python."));
         PyTypeObject * nsPtr = r->get_class_object();
-        bp::object nsName(bp::handle<>(PyObject_GetAttrString((PyObject *) nsPtr, "__name__")));
+        bp::object nsName(bp::handle<>(PyObject_GetAttrString(reinterpret_cast<PyObject *>(nsPtr), "__name__")));
         bp::objects::function * funcPtr = bp::downcast<bp::objects::function>(func.ptr());
         bp::object & nsFunc = const_cast<bp::object &>(funcPtr->get_namespace());
         nsFunc = bp::object(nsName);
         bp::object & nameFunc = const_cast<bp::object &>(funcPtr->name());
         nameFunc = bp::str("function");
-        funcPtr->doc(bp::str(detail::py_signature_tag) + bp::str(detail::cpp_signature_tag)); // Add actual doc after thos tags, if any
+        funcPtr->doc(bp::str(detail::py_signature_tag) + bp::str(detail::cpp_signature_tag)); // Add actual doc after those tags, if any
         // auto dict = bp::handle<>(bp::borrowed(nsPtr->tp_dict));
         // bp::str funcName("force_func");
         // if (PyObject_GetItem(dict.get(), funcName.ptr()))
@@ -247,14 +247,15 @@ namespace python
         if (dataPyArrayNdims == 0)
         {
             Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                (float64_t *) PyArray_DATA(dataPyArray), 1, 1,
-                Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, 1));
+                static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
+                1, 1, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, 1));
             return {hresult_t::SUCCESS, data};
         }
         else if (dataPyArrayNdims == 1)
         {
             Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                (float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray), 1,
+                static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
+                PyArray_SIZE(dataPyArray), 1,
                 Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(PyArray_SIZE(dataPyArray), 1));
             return {hresult_t::SUCCESS, data};
         }
@@ -265,14 +266,16 @@ namespace python
             if (flags & NPY_ARRAY_C_CONTIGUOUS)
             {
                 Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                    (float64_t *) PyArray_DATA(dataPyArray), dataPyArrayShape[0], dataPyArrayShape[1],
+                    static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
+                    dataPyArrayShape[0], dataPyArrayShape[1],
                     Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, dataPyArrayShape[1]));
                 return {hresult_t::SUCCESS, data};
             }
             else if (flags & NPY_ARRAY_F_CONTIGUOUS)
             {
                 Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                    (float64_t *) PyArray_DATA(dataPyArray), dataPyArrayShape[0], dataPyArrayShape[1],
+                    static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
+                    dataPyArrayShape[0], dataPyArrayShape[1],
                     Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(dataPyArrayShape[0], 1));
                 return {hresult_t::SUCCESS, data};
             }

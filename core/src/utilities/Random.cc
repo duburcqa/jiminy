@@ -212,8 +212,8 @@ namespace jiminy
     }
 
     uint32_t MurmurHash3(void const * key,
-                        int32_t const & len,
-                        uint32_t const & seed)
+                         int32_t const & len,
+                         uint32_t const & seed)
     {
         // Define some internal constants
         uint32_t const c1 = 0xcc9e2d51;
@@ -224,11 +224,11 @@ namespace jiminy
         uint32_t h1 = seed;
 
         // Extract bytes from key
-        uint8_t const * data = (uint8_t const *) key;
+        uint8_t const * data = reinterpret_cast<uint8_t const *>(key);
         int32_t const nblocks = len / 4;  // len in bytes, so 32-bits blocks
 
         // Body
-        uint32_t const * blocks = (uint32_t const *)(data + nblocks * 4);
+        uint32_t const * blocks = reinterpret_cast<uint32_t const *>(data + nblocks * 4);
         for(int32_t i = -nblocks; i; ++i)
         {
             uint32_t k1 = blocks[i];
@@ -241,7 +241,7 @@ namespace jiminy
         }
 
         // Tail
-        uint8_t const * tail = (uint8_t const *)(data + nblocks * 4);
+        uint8_t const * tail = reinterpret_cast<uint8_t const *>(data + nblocks * 4);
         uint32_t k1 = 0U;
         switch(len & 3)
         {
