@@ -1,4 +1,7 @@
+#include "json/json.h"
+
 #include "jiminy/core/io/JsonWriter.h"
+#include "jiminy/core/Macros.h"
 
 
 namespace jiminy
@@ -24,44 +27,51 @@ namespace jiminy
     template<>
     Json::Value convertToJson<heatMapFunctor_t>(heatMapFunctor_t const & value);
 
+    template<typename T>
+    constexpr std::enable_if_t<!std::is_same<T, vectorN_t>::value
+                            && !std::is_same<T, matrixN_t>::value, const char *>
+    getJsonVectorType(std::vector<T> const & /* value */)
+    {
+        return "unknown";
+    }
+
+    template<typename T>
+    constexpr std::enable_if_t<std::is_same<T, vectorN_t>::value
+                            || std::is_same<T, matrixN_t>::value, const char *>
+    getJsonVectorType(std::vector<T> const & /* value */)
+    {
+        return "list(array)";
+    }
+
     template<>
-    Json::Value convertToJson<configHolder_t>(configHolder_t const & value);
+    constexpr const char * getJsonVectorType<std::string>(std::vector<std::string> const & /* value */)
+    {
+        return "list(string)";
+    }
+
+    template<>
+    constexpr const char * getJsonVectorType<flexibleJointData_t>(std::vector<flexibleJointData_t> const & /* value */)
+    {
+        return "list(flexibility)";
+    }
 
     template<typename T>
     std::enable_if_t<is_vector_v<T>, Json::Value>
     convertToJson(T const & value)
     {
         Json::Value root;
-
-        using TVal = typename T::value_type;
-        if (std::is_same<TVal, std::string>::value)  // C++17 conditional constexpr is not supported by gcc<7.3
-        {
-            root["type"] = "list(string)";
-        }
-        else if (std::is_same<TVal, vectorN_t>::value
-              || std::is_same<TVal, matrixN_t>::value)  // constexpr
-        {
-            root["type"] = "list(array)";
-        }
-        else if (std::is_same<TVal, flexibleJointData_t>::value)  // constexpr
-        {
-            root["type"] = "list(flexibility)";
-        }
-        else
-        {
-            PRINT_ERROR("Unknown data type: ", root.type());
-            root["type"] = "unknown";
-        }
-
+        root["type"] = getJsonVectorType(value);
         Json::Value vec(Json::arrayValue);
         for (auto const & elem : value)
         {
             vec.append(convertToJson(elem));
         }
         root["value"] = vec;
-
         return root;
     }
+
+    template<>
+    Json::Value convertToJson<configHolder_t>(configHolder_t const & value);
 
     // ************* Convertion from JSON utilities *****************
 
@@ -99,9 +109,6 @@ namespace jiminy
     template<>
     heatMapFunctor_t convertFromJson<heatMapFunctor_t>(Json::Value const & value);
 
-    template<>
-    configHolder_t convertFromJson<configHolder_t>(Json::Value const & value);
-
     template<typename T>
     std::enable_if_t<is_vector_v<T>, T>
     convertFromJson(Json::Value const & value)
@@ -117,4 +124,7 @@ namespace jiminy
         }
         return vec;
     }
+
+    template<>
+    configHolder_t convertFromJson<configHolder_t>(Json::Value const & value);
 }

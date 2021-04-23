@@ -1,5 +1,8 @@
-#include <iostream>
+#include <ostream>
 
+#include "json/json.h"
+
+#include "jiminy/core/io/AbstractIODevice.h"
 #include "jiminy/core/io/JsonWriter.h"
 
 

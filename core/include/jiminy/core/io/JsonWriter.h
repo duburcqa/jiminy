@@ -1,15 +1,18 @@
 #ifndef JIMINY_JSON_WRITER_H
 #define JIMINY_JSON_WRITER_H
 
-#include <string>
+#include "jiminy/core/Types.h"
 
-#include "json/json.h"
 
-#include "jiminy/core/io/AbstractIODevice.h"
-
+namespace Json
+{
+    class Value;
+}
 
 namespace jiminy
 {
+    class AbstractIODevice;
+
     class JsonWriter
     {
     public:

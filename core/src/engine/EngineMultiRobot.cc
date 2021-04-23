@@ -23,6 +23,7 @@
 #include "pinocchio/serialization/model.hpp"                // `pinocchio::ModelTpl<T>.serialize`
 
 #include "H5Cpp.h"
+#include "json/json.h"
 
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
