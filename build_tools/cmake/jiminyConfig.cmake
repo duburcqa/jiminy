@@ -1,6 +1,11 @@
 # Enable link rpath to find shared library dependencies at runtime
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+# Set Python find strategy to location by default
+if(CMAKE_VERSION VERSION_GREATER "3.15")
+    cmake_policy(SET CMP0094 NEW)
+endif()
+
 # Get Python executable
 if(DEFINED PYTHON_EXECUTABLE)
     get_filename_component(_PYTHON_PATH "${PYTHON_EXECUTABLE}" DIRECTORY)
@@ -10,6 +15,10 @@ else()
     if(CMAKE_VERSION VERSION_LESS "3.12.4")
         find_program(Python_EXECUTABLE "python${PYTHON_REQUIRED_VERSION}")
     else()
+        unset(Python_EXECUTABLE)
+        unset(Python_EXECUTABLE CACHE)
+        unset(_Python_EXECUTABLE)
+        unset(_Python_EXECUTABLE CACHE)
         if(PYTHON_REQUIRED_VERSION)
             find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS Interpreter)
         else()
@@ -21,6 +30,7 @@ if(NOT Python_EXECUTABLE)
     if (jiminy_FIND_REQUIRED)
         message(FATAL_ERROR "Python executable not found, CMake will exit.")
     else()
+        set(jiminy_FOUND FALSE)
         return()
     endif()
 endif()
@@ -29,11 +39,27 @@ endif()
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 "import importlib; print(int(importlib.util.find_spec('jiminy_py') is not None), end='')"
                 OUTPUT_VARIABLE jiminy_FOUND)
-if (NOT jiminy_FOUND)
+if(NOT jiminy_FOUND)
     if (jiminy_FIND_REQUIRED)
         message(FATAL_ERROR "`jiminy_py` Python module not found, CMake will exit.")
     else()
         return()
+    endif()
+endif()
+
+# Get jiminy version, and check if compatible with requested version, if any.
+# For now, compatibility is assumed as long as only patch version differs.
+execute_process(COMMAND "${Python_EXECUTABLE}" -c
+                "import jiminy_py; print(jiminy_py.__version__, end='')"
+                OUTPUT_VARIABLE jiminy_VERSION)
+string(REPLACE "." ";" _VERSION "${jiminy_VERSION}")
+list(GET _VERSION 0 jiminy_VERSION_MAJOR)
+list(GET _VERSION 1 jiminy_VERSION_MINOR)
+list(GET _VERSION 2 jiminy_VERSION_PATCH)
+if (PACKAGE_FIND_VERSION_MAJOR)
+    if (PACKAGE_FIND_VERSION_MAJOR EQUAL jiminy_VERSION_MAJOR)
+        message(FATAL_ERROR "Available `jiminy_py` version (${jiminy_VERSION}) not "
+                            "compatible with requested one (${PACKAGE_FIND_VERSION}).")
     endif()
 endif()
 
@@ -43,9 +69,6 @@ endif()
 # otherwise segfaults may occur. It should be fine for the standard library,
 # but not for precompiled boost libraries such as boost::filesystem.
 # https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
-execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                "import jiminy_py; print(jiminy_py.__version__, end='')"
-                OUTPUT_VARIABLE jiminy_VERSION)
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 "import jiminy_py; print(jiminy_py.get_include(), end='')"
                 OUTPUT_VARIABLE jiminy_INCLUDE_DIRS)

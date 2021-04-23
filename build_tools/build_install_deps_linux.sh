@@ -133,10 +133,10 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/pinoc
 
 # How to properly detect custom install of Boost library:
 # - if Boost_NO_BOOST_CMAKE is TRUE:
+#   * Set the cmake cache variable BOOST_ROOT and Boost_INCLUDE_DIR
+# - if Boost_NO_BOOST_CMAKE is FALSE:
 #   * Set the cmake cache variable CMAKE_PREFIX_PATH
 #   * Set the environment variable Boost_DIR
-# - if Boost_NO_BOOST_CMAKE is FALSE:
-#   * Set the cmake cache variable BOOST_ROOT and Boost_INCLUDE_DIR
 
 ### Build and install the build tool b2 (build-ception !)
 cd "$RootDir/boost"
