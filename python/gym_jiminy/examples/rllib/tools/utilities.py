@@ -14,11 +14,10 @@ import tensorflow as tf
 from tensorboard.program import TensorBoard
 
 import ray
-from ray.tune.logger import UnifiedLogger
+from ray.tune.logger import Logger, TBXLogger
 from ray.rllib.env import BaseEnv
 from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
 from ray.rllib.policy import Policy
-from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.filter import NoFilter
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
@@ -67,7 +66,7 @@ def initialize(num_cpus: int = 0,
                log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
                debug: bool = False,
-               verbose: bool = True) -> Callable[[], UnifiedLogger]:
+               verbose: bool = True) -> Callable[[], Logger]:
     """Initialize Ray and Tensorboard daemons.
 
     It will be used later for almost everything from dashboard, remote/client
@@ -128,7 +127,7 @@ def initialize(num_cpus: int = 0,
 
     # Define Ray logger
     def logger_creator(config):
-        return UnifiedLogger(config, log_path, loggers=None)
+        return TBXLogger(config, log_path)
 
     return logger_creator
 
