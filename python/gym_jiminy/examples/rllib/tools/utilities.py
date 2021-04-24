@@ -14,11 +14,14 @@ import tensorflow as tf
 from tensorboard.program import TensorBoard
 
 import ray
-from ray.tune.logger import UnifiedLogger
+from ray.tune.logger import Logger, TBXLogger
+from ray.rllib.env import BaseEnv
+from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
+from ray.rllib.policy import Policy
 from ray.rllib.utils.filter import NoFilter
 from ray.rllib.agents.trainer import Trainer
+from ray.rllib.agents.callbacks import DefaultCallbacks
 from ray.rllib.models.action_dist import ActionDistribution
-from ray.rllib.policy import TFPolicy
 
 from gym_jiminy.common.utils import clip
 
@@ -34,12 +37,36 @@ PRINT_RESULT_FIELDS_FILTER = [
 ]
 
 
+class MonitorInfoCallbacks(DefaultCallbacks):
+    # Base on `rllib/examples/custom_metrics_and_callbacks.py` example.
+
+    def on_episode_step(self,
+                        worker: RolloutWorker,
+                        base_env: BaseEnv,
+                        episode: MultiAgentEpisode,
+                        **kwargs):
+        info = episode.last_info_for()
+        if info is not None:
+            for key, value in info.items():
+                episode.user_data.setdefault(key, []).append(value)
+
+    def on_episode_end(self,
+                       worker: RolloutWorker,
+                       base_env: BaseEnv,
+                       policies: Dict[str, Policy],
+                       episode: MultiAgentEpisode,
+                       **kwargs):
+        for key, value in episode.user_data.items():
+            # episode.custom_metrics[key] = np.mean(value)
+            episode.hist_data[key] = value
+
+
 def initialize(num_cpus: int = 0,
                num_gpus: int = 0,
                log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
                debug: bool = False,
-               verbose: bool = True) -> Callable[[], UnifiedLogger]:
+               verbose: bool = True) -> Callable[[], Logger]:
     """Initialize Ray and Tensorboard daemons.
 
     It will be used later for almost everything from dashboard, remote/client
@@ -100,12 +127,79 @@ def initialize(num_cpus: int = 0,
 
     # Define Ray logger
     def logger_creator(config):
-        return UnifiedLogger(config, log_path, loggers=None)
+        return TBXLogger(config, log_path)
 
     return logger_creator
 
 
-def compute_action(policy: TFPolicy,
+def train(train_agent: Trainer,
+          max_timesteps: int,
+          evaluation_period: int = 0,
+          verbose: bool = True) -> str:
+    """Train a model on a specific environment using a given agent.
+
+    Note that the agent is associated with a given reinforcement learning
+    algorithm, and instanciated for a specific environment and neural network
+    model. Thus, it already wraps all the required information to actually
+    perform training.
+
+    .. note::
+        This function can be terminated early using CTRL+C.
+
+    :param train_agent: Training agent.
+    :param max_timesteps: Number of maximum training timesteps.
+    :param evaluation_period: Run one simulation without exploration every
+                              given number of training steps, and save a video
+                              of the esult in log folder. 0 to disable.
+                              Optional: Disable by default.
+    :param verbose: Whether or not to print information about what is going on.
+                    Optional: True by default.
+
+    :returns: Fullpath of agent's final state dump. Note that it also contains
+              the trained neural network model.
+    """
+    env_spec = [spec for ev in train_agent.workers.foreach_worker(
+        lambda ev: ev.foreach_env(lambda env: env.spec)) for spec in ev][0]
+    if env_spec is None or env_spec.reward_threshold is None:
+        reward_threshold = math.inf
+    else:
+        reward_threshold = env_spec.reward_threshold
+
+    try:
+        while True:
+            # Perform one iteration of training the policy
+            result = train_agent.train()
+
+            # Print current training result
+            msg_data = []
+            for field in PRINT_RESULT_FIELDS_FILTER:
+                if field in result.keys():
+                    msg_data.append(f"{field}: {result[field]:.5g}")
+            print(" - ".join(msg_data))
+
+            # Record video of the result if requested
+            iter = result["training_iteration"]
+            if evaluation_period > 0 and iter % evaluation_period == 0:
+                record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
+                test(train_agent, explore=False, viewer_kwargs={
+                    "record_video_path": record_video_path,
+                    "scene_name": f"iter_{iter}"})
+
+            # Check terminal conditions
+            if result["timesteps_total"] > max_timesteps:
+                break
+            if result["episode_reward_mean"] > reward_threshold:
+                if verbose:
+                    print("Problem solved successfully!")
+                break
+    except KeyboardInterrupt:
+        if verbose:
+            print("Interrupting training...")
+
+    return train_agent.save()
+
+
+def compute_action(policy: Policy,
                    dist_class: ActionDistribution,
                    input_dict: Dict[str, np.ndarray],
                    explore: bool) -> np.ndarray:
@@ -145,7 +239,7 @@ def compute_action(policy: TFPolicy,
 
 
 def evaluate(env_creator: Callable[..., gym.Env],
-             policy: TFPolicy,
+             policy: Policy,
              dist_class: ActionDistribution,
              obs_filter_fn: Optional[
                  Callable[[np.ndarray], np.ndarray]] = None,
@@ -258,70 +352,3 @@ def test(test_agent: Trainer,
                     enable_stats=enable_stats,
                     enable_replay=enable_replay,
                     viewer_kwargs=kwargs)
-
-
-def train(train_agent: Trainer,
-          max_timesteps: int,
-          evaluation_period: int = 0,
-          verbose: bool = True) -> str:
-    """Train a model on a specific environment using a given agent.
-
-    Note that the agent is associated with a given reinforcement learning
-    algorithm, and instanciated for a specific environment and neural network
-    model. Thus, it already wraps all the required information to actually
-    perform training.
-
-    .. note::
-        This function can be terminated early using CTRL+C.
-
-    :param train_agent: Training agent.
-    :param max_timesteps: Number of maximum training timesteps.
-    :param evaluation_period: Run one simulation without exploration every
-                              given number of training steps, and save a video
-                              of the esult in log folder. 0 to disable.
-                              Optional: Disable by default.
-    :param verbose: Whether or not to print information about what is going on.
-                    Optional: True by default.
-
-    :returns: Fullpath of agent's final state dump. Note that it also contains
-              the trained neural network model.
-    """
-    env_spec = [spec for ev in train_agent.workers.foreach_worker(
-        lambda ev: ev.foreach_env(lambda env: env.spec)) for spec in ev][0]
-    if env_spec is None or env_spec.reward_threshold is None:
-        reward_threshold = math.inf
-    else:
-        reward_threshold = env_spec.reward_threshold
-
-    try:
-        while True:
-            # Perform one iteration of training the policy
-            result = train_agent.train()
-
-            # Print current training result
-            msg_data = []
-            for field in PRINT_RESULT_FIELDS_FILTER:
-                if field in result.keys():
-                    msg_data.append(f"{field}: {result[field]:.5g}")
-            print(" - ".join(msg_data))
-
-            # Record video of the result if requested
-            iter = result["training_iteration"]
-            if evaluation_period > 0 and iter % evaluation_period == 0:
-                record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
-                test(train_agent, explore=False, viewer_kwargs={
-                    "record_video_path": record_video_path,
-                    "scene_name": f"iter_{iter}"})
-
-            # Check terminal conditions
-            if result["timesteps_total"] > max_timesteps:
-                break
-            if result["episode_reward_mean"] > reward_threshold:
-                if verbose:
-                    print("Problem solved successfully!")
-                break
-    except KeyboardInterrupt:
-        if verbose:
-            print("Interrupting training...")
-
-    return train_agent.save()

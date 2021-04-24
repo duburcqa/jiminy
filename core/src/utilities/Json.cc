@@ -1,8 +1,12 @@
+
+
+#include "jiminy/core/io/AbstractIODevice.h"
 #include "jiminy/core/io/MemoryDevice.h"
 #include "jiminy/core/io/JsonWriter.h"
 #include "jiminy/core/io/JsonLoader.h"
 
 #include "jiminy/core/utilities/Json.h"
+#include "jiminy/core/utilities/Json.tpp"
 
 
 namespace jiminy
@@ -95,6 +99,11 @@ namespace jiminy
         return root;
     }
 
+    Json::Value convertToJson(configHolder_t const & value)
+    {
+        return convertToJson<configHolder_t>(value);
+    }
+
     hresult_t jsonDump(configHolder_t                    const & config,
                        std::shared_ptr<AbstractIODevice>       & device)
     {
@@ -185,10 +194,9 @@ namespace jiminy
     flexibleJointData_t convertFromJson<flexibleJointData_t>(Json::Value const & value)
     {
         return {
-            flexibleJointData_t{
-                convertFromJson<std::string>(value["frameName"]),
-                convertFromJson<vectorN_t>(value["stiffness"]),
-                convertFromJson<vectorN_t>(value["damping"])}
+            convertFromJson<std::string>(value["frameName"]),
+            convertFromJson<vectorN_t>(value["stiffness"]),
+            convertFromJson<vectorN_t>(value["damping"])
         };
     }
 
@@ -309,6 +317,11 @@ namespace jiminy
         return config;
     }
 
+    configHolder_t convertFromJson(Json::Value const & value)
+    {
+        return convertFromJson<configHolder_t>(value);
+    }
+
     hresult_t jsonLoad(configHolder_t                    & config,
                        std::shared_ptr<AbstractIODevice> & device)
     {
@@ -320,7 +333,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            config = convertFromJson<configHolder_t>(ioRead.getRoot());
+            config = convertFromJson<configHolder_t>(*ioRead.getRoot());
         }
 
         return returnCode;

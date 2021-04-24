@@ -4,8 +4,6 @@
 #include <chrono>
 #include <type_traits>
 
-#include "json/json.h"
-
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
