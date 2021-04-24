@@ -11,10 +11,15 @@ else()
     if(CMAKE_VERSION VERSION_LESS "3.12.4")
         find_program(Python_EXECUTABLE "python${PYTHON_REQUIRED_VERSION}")
     else()
-        if(PYTHON_REQUIRED_VERSION)
-            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS Interpreter)
+        if(CMAKE_VERSION VERSION_LESS "3.14")
+            set(Python_COMPONENTS_FIND Interpreter)
         else()
-            find_package(Python COMPONENTS Interpreter)
+            set(Python_COMPONENTS_FIND Interpreter NumPy)
+        endif()
+        if(PYTHON_REQUIRED_VERSION)
+            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS ${Python_COMPONENTS_FIND})
+        else()
+            find_package(Python COMPONENTS ${Python_COMPONENTS_FIND})
         endif()
     endif()
 endif()
@@ -93,8 +98,15 @@ if(WIN32)
     message(STATUS "Found PythonLibraryDirs: ${PYTHON_ROOT}/libs/")
 endif()
 
-# Define NumPy_INCLUDE_DIRS
-find_package(NumPy REQUIRED)
+# Define Python_NumPy_INCLUDE_DIRS if necessary
+if (NOT Python_NumPy_INCLUDE_DIRS)
+    execute_process(
+        COMMAND "${Python_EXECUTABLE}" -c
+        "import numpy; print(numpy.get_include(), end='')\n"
+        OUTPUT_VARIABLE __numpy_path)
+    find_path(Python_NumPy_INCLUDE_DIRS numpy/arrayobject.h
+        HINTS "${__numpy_path}" "${Python_INCLUDE_DIRS}" NO_DEFAULT_PATH)
+endif()
 
 # Define BOOST_PYTHON_LIB
 find_package(Boost QUIET REQUIRED)

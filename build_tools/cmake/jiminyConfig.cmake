@@ -15,14 +15,19 @@ else()
     if(CMAKE_VERSION VERSION_LESS "3.12.4")
         find_program(Python_EXECUTABLE "python${PYTHON_REQUIRED_VERSION}")
     else()
+        if(CMAKE_VERSION VERSION_LESS "3.14")
+            set(Python_COMPONENTS_FIND Interpreter)
+        else()
+            set(Python_COMPONENTS_FIND Interpreter NumPy)
+        endif()
         unset(Python_EXECUTABLE)
         unset(Python_EXECUTABLE CACHE)
         unset(_Python_EXECUTABLE)
         unset(_Python_EXECUTABLE CACHE)
         if(PYTHON_REQUIRED_VERSION)
-            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS Interpreter)
+            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS ${Python_COMPONENTS_FIND})
         else()
-            find_package(Python COMPONENTS Interpreter)
+            find_package(Python COMPONENTS ${Python_COMPONENTS_FIND})
         endif()
     endif()
 endif()
@@ -45,6 +50,16 @@ if(NOT jiminy_FOUND)
     else()
         return()
     endif()
+endif()
+
+# Define Python_NumPy_INCLUDE_DIRS if necessary
+if (NOT Python_NumPy_INCLUDE_DIRS)
+    execute_process(
+        COMMAND "${Python_EXECUTABLE}" -c
+        "import numpy; print(numpy.get_include(), end='')\n"
+        OUTPUT_VARIABLE __numpy_path)
+    find_path(Python_NumPy_INCLUDE_DIRS numpy/arrayobject.h
+        HINTS "${__numpy_path}" "${Python_INCLUDE_DIRS}" NO_DEFAULT_PATH)
 endif()
 
 # Get jiminy version, and check if compatible with requested version, if any.

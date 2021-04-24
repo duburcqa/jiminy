@@ -46,7 +46,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 # Link with other libraries
 target_include_directories(${PROJECT_NAME}
-        SYSTEM PRIVATE ${NumPy_INCLUDE_DIRS} ${Python_INCLUDE_DIRS}
+        SYSTEM PRIVATE ${Python_NumPy_INCLUDE_DIRS} ${Python_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core "${BOOST_PYTHON_LIB}")
 target_link_libraries_system(${PROJECT_NAME} eigenpy::eigenpy)
