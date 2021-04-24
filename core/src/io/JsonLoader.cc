@@ -1,10 +1,13 @@
+#include "json/json.h"
+
+#include "jiminy/core/io/AbstractIODevice.h"
 #include "jiminy/core/io/JsonLoader.h"
 
 
 namespace jiminy
 {
     JsonLoader::JsonLoader(std::shared_ptr<AbstractIODevice> device) :
-    rootJson_(),
+    rootJson_(std::make_unique<Json::Value>()),
     payload_(),
     device_(std::move(device))
     {
@@ -15,7 +18,7 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        returnCode = device_->open(OpenMode::READ_ONLY);
+        returnCode = device_->open(openMode_t::READ_ONLY);
 
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -31,7 +34,7 @@ namespace jiminy
            std::unique_ptr<Json::CharReader> reader(rbuilder.newCharReader());
            bool_t const isParsingOk = reader->parse((payload_.data()),
                                                      payload_.data() + payload_.size(),
-                                                     &rootJson_,
+                                                     rootJson_.get(),
                                                      &errs);
            if (!isParsingOk)
            {
@@ -44,8 +47,8 @@ namespace jiminy
         return returnCode;
     }
 
-    Json::Value & JsonLoader::getRoot()
+    Json::Value const * JsonLoader::getRoot()
     {
-        return rootJson_;
+        return rootJson_.get();
     }
 }  // End of namespace jiminy.

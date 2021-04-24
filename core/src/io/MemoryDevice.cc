@@ -6,11 +6,11 @@
 
 namespace jiminy
 {
-    MemoryDevice::MemoryDevice(int64_t size) :
-    buffer_(static_cast<size_t>(size)),
+    MemoryDevice::MemoryDevice(uint64_t const & size) :
+    buffer_(static_cast<std::size_t>(size)),
     currentPos_(0)
     {
-        supportedModes_ = OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::NON_BLOCKING | OpenMode::APPEND;
+        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE | openMode_t::NON_BLOCKING | openMode_t::APPEND;
     }
 
 
@@ -36,7 +36,7 @@ namespace jiminy
     buffer_(std::move(initBuffer)),
     currentPos_(0)
     {
-        supportedModes_ = OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::NON_BLOCKING | OpenMode::APPEND;
+        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE | openMode_t::NON_BLOCKING | openMode_t::APPEND;
     }
 
     MemoryDevice::~MemoryDevice(void)
@@ -65,7 +65,7 @@ namespace jiminy
 
     hresult_t MemoryDevice::seek(int64_t pos)
     {
-        if ((pos < 0) || (pos > (int64_t) buffer_.size()))
+        if ((pos < 0) || pos > static_cast<int64_t>(buffer_.size()))
         {
             lastError_ = hresult_t::ERROR_GENERIC;
             PRINT_ERROR("The requested position '", pos, "' is out of scope.");
@@ -114,9 +114,9 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t MemoryDevice::doOpen(enum OpenMode modes)
+    hresult_t MemoryDevice::doOpen(openMode_t const & modes)
     {
-        if (!(modes & OpenMode::APPEND))
+        if (!(modes & openMode_t::APPEND))
         {
             currentPos_ = 0;
         }

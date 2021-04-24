@@ -221,7 +221,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Set maximum computation time for single internal integration steps
         if self.debug:
-            engine_options["stepper"]["timeout"] = -1
+            engine_options["stepper"]["timeout"] = 0.0
         else:
             engine_options["stepper"]["timeout"] = 1.0
 

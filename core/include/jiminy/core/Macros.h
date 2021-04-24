@@ -264,8 +264,21 @@ namespace jiminy
     {
         std::ostringstream sstr;
         using List = int[];
-        (void)List{0, ( (void)(sstr << args), 0 ) ... };
+        (void) List{0, (static_cast<void>(sstr << args), 0 ) ... };
         return sstr.str();
+    }
+
+    template<size_t FL, size_t PFL>
+    const char * extractMethodName(char const (&function)[FL],
+                                   char const (&prettyFunction)[PFL])
+    {
+        using reverse_ptr = std::reverse_iterator<const char*>;
+        thread_local static char result[PFL];
+        char const * locFuncName = std::search(prettyFunction,prettyFunction+PFL-1,function,function+FL-1);
+        char const * locClassName = std::find(reverse_ptr(locFuncName), reverse_ptr(prettyFunction), ' ').base();
+        char const * endFuncName = std::find(locFuncName,prettyFunction+PFL-1,'(');
+        std::copy(locClassName, endFuncName, result);
+        return result;
     }
 
     #define STRINGIFY_DETAIL(x) #x
@@ -278,13 +291,15 @@ namespace jiminy
        https://solarianprogrammer.com/2019/04/08/c-programming-ansi-escape-codes-windows-macos-linux-terminals/ */
 
     #define PRINT_ERROR(...) \
-    std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\x1b[1;31merror:\x1b[0m " << to_string(__VA_ARGS__) << std::endl
+    std::cerr << "In " FILE_LINE ": In " << extractMethodName(__func__, BOOST_CURRENT_FUNCTION) \
+              << ":\n\x1b[1;31merror:\x1b[0m " << to_string(__VA_ARGS__) << std::endl
 
     #ifdef NDEBUG
         #define PRINT_WARNING(...)
     #else
         #define PRINT_WARNING(...) \
-        std::cerr << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\x1b[1;93mwarning:\x1b[0m " << to_string(__VA_ARGS__) << std::endl
+        std::cerr << "In " FILE_LINE ": In " << extractMethodName(__func__, BOOST_CURRENT_FUNCTION) \
+                  << ":\n\x1b[1;93mwarning:\x1b[0m " << to_string(__VA_ARGS__) << std::endl
     #endif
 }
 

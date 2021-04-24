@@ -1,5 +1,8 @@
-#include <iostream>
+#include <ostream>
 
+#include "json/json.h"
+
+#include "jiminy/core/io/AbstractIODevice.h"
 #include "jiminy/core/io/JsonWriter.h"
 
 
@@ -15,7 +18,7 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        returnCode = device_->open(OpenMode::WRITE_ONLY);
+        returnCode = device_->open(openMode_t::WRITE_ONLY);
 
         std::stringbuf buffer;
         if (returnCode == hresult_t::SUCCESS)

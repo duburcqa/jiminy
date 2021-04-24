@@ -37,7 +37,7 @@ namespace jiminy
         std::string const & name(void) const;
 
     protected:
-        hresult_t doOpen(enum OpenMode mode) override;
+        hresult_t doOpen(openMode_t const & mode) override;
         hresult_t doClose(void) override;
 
         std::string filename_;

@@ -16,6 +16,8 @@ from gym_jiminy.common.envs import BaseJiminyEnv
 
 # Stepper update period
 STEP_DT = 0.02
+# Controller update period
+CONTROL_DT = 0.02
 # Maximum absolute position of the cart before considering the episode failed
 X_THRESHOLD = 2.4
 # Maximum absolute angle of the pole before considering the episode failed
@@ -136,7 +138,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # Increase stepper accuracy for time-continuous control
         engine_options = self.simulator.engine.get_options()
         engine_options["stepper"]["solver"] = "euler_explicit"
-        engine_options["stepper"]["dtMax"] = STEP_DT
+        engine_options["stepper"]["dtMax"] = CONTROL_DT
         self.simulator.engine.set_options(engine_options)
 
     def _refresh_observation_space(self) -> None:

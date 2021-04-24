@@ -14,11 +14,14 @@ import tensorflow as tf
 from tensorboard.program import TensorBoard
 
 import ray
-from ray.tune.logger import UnifiedLogger
+from ray.tune.logger import Logger, TBXLogger
+from ray.rllib.env import BaseEnv
+from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
+from ray.rllib.policy import Policy
 from ray.rllib.utils.filter import NoFilter
 from ray.rllib.agents.trainer import Trainer
+from ray.rllib.agents.callbacks import DefaultCallbacks
 from ray.rllib.models.action_dist import ActionDistribution
-from ray.rllib.policy import TFPolicy
 
 from gym_jiminy.common.utils import clip
 
@@ -34,12 +37,36 @@ PRINT_RESULT_FIELDS_FILTER = [
 ]
 
 
+class MonitorInfoCallbacks(DefaultCallbacks):
+    # Base on `rllib/examples/custom_metrics_and_callbacks.py` example.
+
+    def on_episode_step(self,
+                        worker: RolloutWorker,
+                        base_env: BaseEnv,
+                        episode: MultiAgentEpisode,
+                        **kwargs):
+        info = episode.last_info_for()
+        if info is not None:
+            for key, value in info.items():
+                episode.user_data.setdefault(key, []).append(value)
+
+    def on_episode_end(self,
+                       worker: RolloutWorker,
+                       base_env: BaseEnv,
+                       policies: Dict[str, Policy],
+                       episode: MultiAgentEpisode,
+                       **kwargs):
+        for key, value in episode.user_data.items():
+            # episode.custom_metrics[key] = np.mean(value)
+            episode.hist_data[key] = value
+
+
 def initialize(num_cpus: int = 0,
                num_gpus: int = 0,
                log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
                debug: bool = False,
-               verbose: bool = True) -> Callable[[], UnifiedLogger]:
+               verbose: bool = True) -> Callable[[], Logger]:
     """Initialize Ray and Tensorboard daemons.
 
     It will be used later for almost everything from dashboard, remote/client
@@ -100,162 +127,9 @@ def initialize(num_cpus: int = 0,
 
     # Define Ray logger
     def logger_creator(config):
-        return UnifiedLogger(config, log_path, loggers=None)
+        return TBXLogger(config, log_path)
 
     return logger_creator
-
-
-def compute_action(policy: TFPolicy,
-                   dist_class: ActionDistribution,
-                   input_dict: Dict[str, np.ndarray],
-                   explore: bool) -> np.ndarray:
-    """TODO Write documentation.
-    """
-    if policy.framework == 'torch':
-        with torch.no_grad():
-            input_dict = policy._lazy_tensor_dict(input_dict)
-            action_logits, _ = policy.model(input_dict)
-            action_dist = dist_class(action_logits, policy.model)
-            if explore:
-                action_torch = action_dist.sample()
-            else:
-                action_torch = action_dist.deterministic_sample()
-            action = action_torch.cpu().numpy()
-    elif tf.compat.v1.executing_eagerly():
-        action_logits, _ = policy.model(input_dict)
-        action_dist = dist_class(action_logits, policy.model)
-        if explore:
-            action_tf = action_dist.sample()
-        else:
-            action_tf = action_dist.deterministic_sample()
-        action = action_tf.numpy()
-    else:
-        # This obscure piece of code takes advantage of already existing
-        # placeholders to avoid creating new nodes to evalute computation
-        # graph. It is several order of magnitude more efficient than calling
-        # `action_logits, _ = model(input_dict).eval(session=policy._sess)[0]`
-        # directly, but also significantly trickier.
-        feed_dict = {policy._input_dict[key]: value
-                     for key, value in input_dict.items()
-                     if key in policy._input_dict.keys()}
-        feed_dict[policy._is_exploring] = explore
-        action = policy._sess.run(
-            policy._sampled_action, feed_dict=feed_dict)
-    return action
-
-
-def evaluate(env_creator: Callable[..., gym.Env],
-             policy: TFPolicy,
-             dist_class: ActionDistribution,
-             obs_filter_fn: Optional[
-                 Callable[[np.ndarray], np.ndarray]] = None,
-             n_frames_stack: int = 1,
-             horizon: Optional[int] = None,
-             clip_action: bool = False,
-             explore: bool = False,
-             enable_stats: bool = True,
-             enable_replay: bool = True,
-             viewer_kwargs: Optional[Dict[str, Any]] = None) -> gym.Env:
-    """TODO Write documentation.
-    """
-    # Handling of default arguments
-    if viewer_kwargs is None:
-        viewer_kwargs = {}
-
-    # Instantiate the environment
-    env = FlattenObservation(env_creator(debug=True))
-    observation_space, action_space = env.observation_space, env.action_space
-
-    # Initialize frame stack
-    input_dict = {
-        "obs": np.zeros([1, *observation_space.shape]),
-        "prev_n_obs": np.zeros([1, n_frames_stack, *observation_space.shape]),
-        "prev_n_act": np.zeros([1, n_frames_stack, *action_space.shape]),
-        "prev_n_rew": np.zeros([1, n_frames_stack])
-    }
-
-    # Initialize the simulation
-    obs = env.reset()
-
-    # Run the simulation
-    try:
-        tot_reward = 0.0
-        done = False
-        while not done:
-            if obs_filter_fn is not None:
-                obs = obs_filter_fn(obs)
-            input_dict["obs"][0] = obs
-            action = compute_action(policy, dist_class, input_dict, explore)
-            if clip_action:
-                action = clip(action_space, action)
-            input_dict["prev_n_obs"][0, -1] = input_dict["obs"][0]
-            obs, reward, done, _ = env.step(action)
-            input_dict["prev_n_act"][0, -1] = action
-            input_dict["prev_n_rew"][0, -1] = reward
-            tot_reward += reward
-            if done or (horizon is not None and env.num_steps > horizon):
-                break
-            for field in input_dict.values():
-                field[:] = np.roll(field, shift=-1, axis=1)
-    except KeyboardInterrupt:
-        pass
-
-    # Display some statistic if requested
-    if enable_stats:
-        print("env.num_steps:", env.num_steps)
-        print("cumulative reward:", tot_reward)
-
-    # Replay the result if requested
-    if enable_replay:
-        env.replay(**{'speed_ratio': 1.0, **viewer_kwargs})
-
-    return env
-
-
-def test(test_agent: Trainer,
-         explore: bool = True,
-         n_frames_stack: int = 1,
-         enable_stats: bool = True,
-         enable_replay: bool = True,
-         viewer_kwargs: Optional[Dict[str, Any]] = None,
-         **kwargs: Any) -> gym.Env:
-    """Test a model on a specific environment using a given agent. It will
-    render the result in the default viewer.
-
-    .. note::
-        This function can be terminated early using CTRL+C.
-    """
-    # Define environment creator
-    def env_creator(**kwargs: Any):
-        nonlocal test_agent
-        return test_agent.env_creator(
-            {**test_agent.config["env_config"], **kwargs})
-
-    # Get policy model
-    policy = test_agent.get_policy()
-    dist_class = policy.dist_class
-    obs_filter = test_agent.workers.local_worker().filters["default_policy"]
-    if isinstance(obs_filter, NoFilter):
-        obs_filter_fn = None
-    else:
-        obs_mean, obs_std = obs_filter.rs.mean, obs_filter.rs.std
-        obs_filter_fn = \
-            lambda obs: (obs - obs_mean) / (obs_std + 1.0e-8)  # noqa: E731
-
-    if viewer_kwargs is not None:
-        kwargs.update(viewer_kwargs)
-
-    return evaluate(env_creator,
-                    policy,
-                    dist_class,
-                    obs_filter_fn,
-                    n_frames_stack=n_frames_stack,
-                    horizon=test_agent.config["horizon"],
-                    clip_action=test_agent.config["clip_actions"],
-                    explore=explore,
-                    enable_stats=enable_stats,
-                    enable_replay=enable_replay,
-                    viewer_kwargs=kwargs)
 
 
 def train(train_agent: Trainer,
@@ -323,3 +197,158 @@ def train(train_agent: Trainer,
             print("Interrupting training...")
 
     return train_agent.save()
+
+
+def compute_action(policy: Policy,
+                   dist_class: ActionDistribution,
+                   input_dict: Dict[str, np.ndarray],
+                   explore: bool) -> np.ndarray:
+    """TODO Write documentation.
+    """
+    if policy.framework == 'torch':
+        with torch.no_grad():
+            input_dict = policy._lazy_tensor_dict(input_dict)
+            action_logits, _ = policy.model(input_dict)
+            action_dist = dist_class(action_logits, policy.model)
+            if explore:
+                action_torch = action_dist.sample()
+            else:
+                action_torch = action_dist.deterministic_sample()
+            action = action_torch.cpu().numpy()
+    elif tf.compat.v1.executing_eagerly():
+        action_logits, _ = policy.model(input_dict)
+        action_dist = dist_class(action_logits, policy.model)
+        if explore:
+            action_tf = action_dist.sample()
+        else:
+            action_tf = action_dist.deterministic_sample()
+        action = action_tf.numpy()
+    else:
+        # This obscure piece of code takes advantage of already existing
+        # placeholders to avoid creating new nodes to evalute computation
+        # graph. It is several order of magnitude more efficient than calling
+        # `action_logits, _ = model(input_dict).eval(session=policy._sess)[0]`
+        # directly, but also significantly trickier.
+        feed_dict = {policy._input_dict[key]: value
+                     for key, value in input_dict.items()
+                     if key in policy._input_dict.keys()}
+        feed_dict[policy._is_exploring] = explore
+        action = policy._sess.run(
+            policy._sampled_action, feed_dict=feed_dict)
+    return action
+
+
+def evaluate(env_creator: Callable[..., gym.Env],
+             policy: Policy,
+             dist_class: ActionDistribution,
+             obs_filter_fn: Optional[
+                 Callable[[np.ndarray], np.ndarray]] = None,
+             n_frames_stack: int = 1,
+             horizon: Optional[int] = None,
+             clip_action: bool = False,
+             explore: bool = False,
+             enable_stats: bool = True,
+             enable_replay: bool = True,
+             viewer_kwargs: Optional[Dict[str, Any]] = None) -> gym.Env:
+    """TODO Write documentation.
+    """
+    # Handling of default arguments
+    if viewer_kwargs is None:
+        viewer_kwargs = {}
+
+    # Instantiate the environment
+    env = FlattenObservation(env_creator(debug=True))
+    observation_space, action_space = env.observation_space, env.action_space
+
+    # Initialize frame stack
+    input_dict = {
+        "obs": np.zeros([1, *observation_space.shape]),
+        "prev_n_obs": np.zeros([1, n_frames_stack, *observation_space.shape]),
+        "prev_n_act": np.zeros([1, n_frames_stack, *action_space.shape]),
+        "prev_n_rew": np.zeros([1, n_frames_stack])
+    }
+
+    # Initialize the simulation
+    obs = env.reset()
+
+    # Run the simulation
+    try:
+        info_episode = []
+        tot_reward = 0.0
+        done = False
+        while not done:
+            if obs_filter_fn is not None:
+                obs = obs_filter_fn(obs)
+            input_dict["obs"][0] = obs
+            action = compute_action(policy, dist_class, input_dict, explore)
+            if clip_action:
+                action = clip(action_space, action)
+            input_dict["prev_n_obs"][0, -1] = input_dict["obs"][0]
+            obs, reward, done, info = env.step(action)
+            input_dict["prev_n_act"][0, -1] = action
+            input_dict["prev_n_rew"][0, -1] = reward
+            info_episode.append(info)
+            tot_reward += reward
+            if done or (horizon is not None and env.num_steps > horizon):
+                break
+            for field in input_dict.values():
+                field[:] = np.roll(field, shift=-1, axis=1)
+    except KeyboardInterrupt:
+        pass
+
+    # Display some statistic if requested
+    if enable_stats:
+        print("env.num_steps:", env.num_steps)
+        print("cumulative reward:", tot_reward)
+
+    # Replay the result if requested
+    if enable_replay:
+        env.replay(**{'speed_ratio': 1.0, **viewer_kwargs})
+
+    return env, info_episode
+
+
+def test(test_agent: Trainer,
+         explore: bool = True,
+         n_frames_stack: int = 1,
+         enable_stats: bool = True,
+         enable_replay: bool = True,
+         viewer_kwargs: Optional[Dict[str, Any]] = None,
+         **kwargs: Any) -> gym.Env:
+    """Test a model on a specific environment using a given agent. It will
+    render the result in the default viewer.
+
+    .. note::
+        This function can be terminated early using CTRL+C.
+    """
+    # Define environment creator
+    def env_creator(**kwargs: Any):
+        nonlocal test_agent
+        return test_agent.env_creator(
+            {**test_agent.config["env_config"], **kwargs})
+
+    # Get policy model
+    policy = test_agent.get_policy()
+    dist_class = policy.dist_class
+    obs_filter = test_agent.workers.local_worker().filters["default_policy"]
+    if isinstance(obs_filter, NoFilter):
+        obs_filter_fn = None
+    else:
+        obs_mean, obs_std = obs_filter.rs.mean, obs_filter.rs.std
+        obs_filter_fn = \
+            lambda obs: (obs - obs_mean) / (obs_std + 1.0e-8)  # noqa: E731
+
+    if viewer_kwargs is not None:
+        kwargs.update(viewer_kwargs)
+
+    return evaluate(env_creator,
+                    policy,
+                    dist_class,
+                    obs_filter_fn,
+                    n_frames_stack=n_frames_stack,
+                    horizon=test_agent.config["horizon"],
+                    clip_action=test_agent.config["clip_actions"],
+                    explore=explore,
+                    enable_stats=enable_stats,
+                    enable_replay=enable_replay,
+                    viewer_kwargs=kwargs)

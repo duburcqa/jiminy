@@ -148,17 +148,17 @@ namespace python
             s << "\nt:\n    " << self.t;
             s << "\ndt:\n    " << self.dt;
             s << "\nq:";
-            for (uint32_t i=0; i < self.qSplit.size(); ++i)
+            for (std::size_t i = 0; i < self.qSplit.size(); ++i)
             {
                 s << "\n    (" << i << "): " << self.qSplit[i].transpose().format(HeavyFmt);
             }
             s << "\nv:";
-            for (uint32_t i=0; i < self.vSplit.size(); ++i)
+            for (std::size_t i = 0; i < self.vSplit.size(); ++i)
             {
                 s << "\n    (" << i << "): " << self.vSplit[i].transpose().format(HeavyFmt);
             }
             s << "\na:";
-            for (uint32_t i=0; i < self.aSplit.size(); ++i)
+            for (std::size_t i = 0; i < self.aSplit.size(); ++i)
             {
                 s << "\n    (" << i << "): " << self.aSplit[i].transpose().format(HeavyFmt);
             }
@@ -526,9 +526,9 @@ namespace python
                                    std::shared_ptr<Robot>              const & robot,
                                    std::shared_ptr<AbstractController> const & controller)
         {
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
+            callbackFunctor_t callbackFct = [](float64_t const & /* t */,
+                                               vectorN_t const & /* q */,
+                                               vectorN_t const & /* v */) -> bool_t
                                             {
                                                 return true;
                                             };
@@ -539,9 +539,9 @@ namespace python
                                                     std::string            const & systemName,
                                                     std::shared_ptr<Robot> const & robot)
         {
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
+            callbackFunctor_t callbackFct = [](float64_t const & /* t */,
+                                               vectorN_t const & /* q */,
+                                               vectorN_t const & /* v */) -> bool_t
                                             {
                                                 return true;
                                             };
@@ -685,11 +685,11 @@ namespace python
             }
 
             // Get constants
-            int32_t const lastConstantIdx = std::distance(
+            std::ptrdiff_t const lastConstantIdx = std::distance(
                 logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
-            for (int32_t i = 1; i < lastConstantIdx; ++i)
+            for (std::ptrdiff_t i = 1; i < lastConstantIdx; ++i)
             {
-                int32_t const delimiter = logData.header[i].find(TELEMETRY_CONSTANT_DELIMITER);
+                std::size_t const delimiter = logData.header[i].find(TELEMETRY_CONSTANT_DELIMITER);
                 constants[logData.header[i].substr(0, delimiter)] = logData.header[i].substr(delimiter + 1);
             }
 
@@ -715,10 +715,10 @@ namespace python
                 Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
                 intVector.resize(logData.timestamps.size());
 
-                for (uint32_t i=0; i<logData.numInt; ++i)
+                for (std::size_t i = 0; i < logData.numInt; ++i)
                 {
                     std::string const & header_i = logData.header[i + (lastConstantIdx + 1) + 1];
-                    for (uint32_t j=0; j < logData.intData.size(); ++j)
+                    for (std::size_t j = 0; j < logData.intData.size(); ++j)
                     {
                         intVector[j] = logData.intData[j][i];
                     }
@@ -730,7 +730,7 @@ namespace python
             else
             {
                 npy_intp dims[1] = {npy_intp(0)};
-                for (uint32_t i=0; i<logData.numInt; ++i)
+                for (std::size_t i = 0; i < logData.numInt; ++i)
                 {
                     std::string const & header_i = logData.header[i + (lastConstantIdx + 1) + 1];
                     variables[header_i] = bp::object(bp::handle<>(
@@ -744,11 +744,11 @@ namespace python
                 Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
                 floatVector.resize(logData.timestamps.size());
 
-                for (uint32_t i=0; i<logData.numFloat; ++i)
+                for (std::size_t i = 0; i < logData.numFloat; ++i)
                 {
                     std::string const & header_i =
                         logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
-                    for (uint32_t j=0; j < logData.floatData.size(); ++j)
+                    for (std::size_t j = 0; j < logData.floatData.size(); ++j)
                     {
                         floatVector[j] = logData.floatData[j][i];
                     }
@@ -760,7 +760,7 @@ namespace python
             else
             {
                 npy_intp dims[1] = {npy_intp(0)};
-                for (uint32_t i=0; i<logData.numFloat; ++i)
+                for (std::size_t i = 0; i < logData.numFloat; ++i)
                 {
                     std::string const & header_i =
                         logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
@@ -946,7 +946,7 @@ namespace python
                 ;
         }
 
-        static hresult_t addSystem(bp::tuple args, bp::dict kwargs)
+        static hresult_t addSystem(bp::tuple /* args */, bp::dict /* kwargs */)
         {
             // Hide all EngineMultiRobot `addSystem` overloads at once
             return Engine().addSystem("", std::shared_ptr<Robot>(), std::shared_ptr<AbstractController>());
@@ -959,9 +959,9 @@ namespace python
         {
             if (callbackPy.is_none())
             {
-                callbackFunctor_t callbackFct = [](float64_t const & t,
-                                                vectorN_t const & q,
-                                                vectorN_t const & v) -> bool_t
+                callbackFunctor_t callbackFct = [](float64_t const & /* t */,
+                                                   vectorN_t const & /* q */,
+                                                   vectorN_t const & /* v */) -> bool_t
                                                 {
                                                     return true;
                                                 };

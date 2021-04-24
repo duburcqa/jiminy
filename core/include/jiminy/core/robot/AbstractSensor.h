@@ -94,9 +94,9 @@ namespace jiminy
 
         struct abstractSensorOptions_t
         {
-            vectorN_t const noiseStd;   ///< Standard deviation of the noise of the sensor
-            vectorN_t const bias;       ///< Bias of the sensor
-            float64_t const delay;      ///< Delay of the sensor
+            vectorN_t const noiseStd;                 ///< Standard deviation of the noise of the sensor
+            vectorN_t const bias;                     ///< Bias of the sensor
+            float64_t const delay;                    ///< Delay of the sensor
             uint32_t  const delayInterpolationOrder;  ///< Order of the interpolation used to compute delayed sensor data. [0: Zero-order holder, 1: Linear interpolation]
 
             abstractSensorOptions_t(configHolder_t const & options) :
@@ -321,7 +321,7 @@ namespace jiminy
         /// \brief      It is the size of the sensor's data vector.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual uint32_t getSize(void) const = 0;
+        virtual uint64_t getSize(void) const = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -450,7 +450,7 @@ namespace jiminy
         virtual int32_t const & getIdx(void) const override final;
         virtual std::string const & getType(void) const override final;
         virtual std::vector<std::string> const & getFieldnames(void) const final;
-        virtual uint32_t getSize(void) const override final;
+        virtual uint64_t getSize(void) const override final;
 
         virtual Eigen::Ref<vectorN_t const> get(void) const override final;
         virtual hresult_t setAll(float64_t const & t,

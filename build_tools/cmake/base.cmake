@@ -24,14 +24,17 @@ set(WARN_FULL "-Wall -Wextra -Weffc++ -pedantic -pedantic-errors \
                -Wcast-align -Wcast-qual -Wfloat-equal -Wformat=2 \
                -Wformat-nonliteral -Wformat-security -Wformat-y2k \
                -Wimport -Winit-self -Winvalid-pch -Wlong-long \
-               -Wmissing-field-initializers -Wmissing-format-attribute \
-               -Wmissing-noreturn -Wpacked -Wpointer-arith \
-               -Wredundant-decls -Wshadow -Wstack-protector \
+               -Wmissing-field-initializers -Wmissing-noreturn \
+               -Wmissing-format-attribute -Wctor-dtor-privacy \
+               -Wpointer-arith -Wold-style-cast -Wpacked \
+               -Woverloaded-virtual -Wredundant-decls \
+               -Wstrict-null-sentinel -Wshadow -Wstack-protector \
                -Wstrict-aliasing=2 -Wswitch-default -Wswitch-enum \
                -Wunreachable-code -Wunused -Wundef -Wlogical-op \
                -Wdisabled-optimization -Wmissing-braces -Wtrigraphs \
                -Wparentheses -Wwrite-strings -Werror=return-type \
-               -Wsequence-point -Wdeprecated")  # -Wconversion
+               -Wsequence-point -Wdeprecated -Wconversion \
+               -Wdelete-non-virtual-dtor -Wno-non-virtual-dtor")
 
 # Shared libraries need PIC
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)

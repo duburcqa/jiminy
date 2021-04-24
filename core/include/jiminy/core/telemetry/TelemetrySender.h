@@ -30,7 +30,7 @@ namespace jiminy
     {
     public:
         explicit TelemetrySender(void);
-        virtual ~TelemetrySender(void) = default;
+        ~TelemetrySender(void) = default;
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief      Register a variable into the telemetry system..

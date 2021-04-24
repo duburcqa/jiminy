@@ -141,9 +141,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         qpos = self._neutral()
         update_quantities(self.robot, qpos, use_theoretical_model=False)
 
-        # Refresh the observation and action spaces
-        self._refresh_observation_space()
+        # Refresh the observation and action spaces.
+        # Note that it is necessary to refresh the action space before the
+        # observation one, since it may be useful to observe the action.
         self._refresh_action_space()
+        self._refresh_observation_space()
 
         # Assertion(s) for type checker
         assert (isinstance(self.observation_space, spaces.Space) and
@@ -879,8 +881,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             robot_options["motors"][motor_name]["enableFriction"] = True
 
         # Configure the stepper
-        engine_options["stepper"]["iterMax"] = -1
-        engine_options["stepper"]["timeout"] = -1
+        engine_options["stepper"]["iterMax"] = 0
+        engine_options["stepper"]["timeout"] = 0.0
         engine_options["stepper"]["logInternalStepperSteps"] = False
         engine_options["stepper"]["randomSeed"] = self._seed
 

@@ -4,8 +4,6 @@
 #include <chrono>
 #include <type_traits>
 
-#include "json/json.h"
-
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
@@ -13,15 +11,15 @@
 namespace jiminy
 {
     hresult_t getJointNameFromPositionIdx(pinocchio::Model const & model,
-                                          int32_t          const & idIn,
+                                          jointIndex_t     const & idIn,
                                           std::string            & jointNameOut);
 
     hresult_t getJointNameFromVelocityIdx(pinocchio::Model const & model,
-                                          int32_t          const & idIn,
+                                          jointIndex_t     const & idIn,
                                           std::string            & jointNameOut);
 
     hresult_t getJointTypeFromIdx(pinocchio::Model const & model,
-                                  int32_t          const & idIn,
+                                  jointIndex_t     const & idIn,
                                   joint_t                & jointTypeOut);
 
     hresult_t getJointTypePositionSuffixes(joint_t                  const & jointTypeIn,
@@ -32,24 +30,24 @@ namespace jiminy
 
     hresult_t getBodyIdx(pinocchio::Model const & model,
                          std::string      const & bodyName,
-                         int32_t                & bodyIdx);
-    hresult_t getBodiesIdx(pinocchio::Model         const & model,
-                           std::vector<std::string> const & bodiesNames,
-                           std::vector<int32_t>           & bodiesIdx);
+                         frameIndex_t           & bodyIdx);
+    hresult_t getBodiesIdx(pinocchio::Model          const & model,
+                           std::vector<std::string>  const & bodiesNames,
+                           std::vector<frameIndex_t>       & bodiesIdx);
 
     hresult_t getFrameIdx(pinocchio::Model const & model,
                           std::string      const & frameName,
-                          int32_t                & frameIdx);
-    hresult_t getFramesIdx(pinocchio::Model         const & model,
-                           std::vector<std::string> const & framesNames,
-                           std::vector<int32_t>           & framesIdx);
+                          frameIndex_t           & frameIdx);
+    hresult_t getFramesIdx(pinocchio::Model          const & model,
+                           std::vector<std::string>  const & framesNames,
+                           std::vector<frameIndex_t>       & framesIdx);
 
     hresult_t getJointModelIdx(pinocchio::Model const & model,
                                std::string      const & jointName,
-                               int32_t                & jointModelIdx);
-    hresult_t getJointsModelIdx(pinocchio::Model         const & model,
-                                std::vector<std::string> const & jointsNames,
-                                std::vector<int32_t>           & jointsModelIdx);
+                               jointIndex_t           & jointModelIdx);
+    hresult_t getJointsModelIdx(pinocchio::Model          const & model,
+                                std::vector<std::string>  const & jointsNames,
+                                std::vector<jointIndex_t>       & jointsModelIdx);
 
     hresult_t getJointPositionIdx(pinocchio::Model     const & model,
                                   std::string          const & jointName,
@@ -102,15 +100,15 @@ namespace jiminy
     /// \return Force in the parent joint local frame.
     pinocchio::Force convertForceGlobalFrameToJoint(pinocchio::Model const & model,
                                                     pinocchio::Data  const & data,
-                                                    int32_t          const & frameIdx,
+                                                    frameIndex_t     const & frameIdx,
                                                     pinocchio::Force const & fextInGlobal);
 
-    void buildGeom(pinocchio::Model const & model,
-                   std::string const & filename,
-                   pinocchio::GeometryType const & type,
-                   pinocchio::GeometryModel & geomModel,
+    void buildGeom(pinocchio::Model         const & model,
+                   std::string              const & filename,
+                   pinocchio::GeometryType  const & type,
+                   pinocchio::GeometryModel       & geomModel,
                    std::vector<std::string> const & package_dirs,
-                   bool_t const & loadMeshes = false);
+                   bool_t                   const & loadMeshes = false);
 }
 
 #endif  // JIMINY_PINOCCHIO_H

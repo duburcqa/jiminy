@@ -94,7 +94,7 @@ namespace jiminy
 
     float64_t TelemetryRecorder::getMaximumLogTime(float64_t const & timeUnit)
     {
-        return std::numeric_limits<int64_t>::max() / timeUnit;
+        return static_cast<float64_t>(std::numeric_limits<int64_t>::max()) / timeUnit;
     }
 
     float64_t TelemetryRecorder::getMaximumLogTime(void) const
@@ -134,12 +134,12 @@ namespace jiminy
            does not really affect the performances since it is written
            only once, at init of the simulation. The optimized buffer
            size is used for the log data. */
-        uint32_t isHeaderThere = flows_.empty();
-        uint32_t maxBufferSize = std::max(TELEMETRY_MIN_BUFFER_SIZE, isHeaderThere * headerSize_);
-        uint32_t maxRecordedDataLines = ((maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_);
+        int64_t isHeaderThere = flows_.empty();
+        int64_t maxBufferSize = std::max(TELEMETRY_MIN_BUFFER_SIZE, isHeaderThere * headerSize_);
+        int64_t maxRecordedDataLines = ((maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_);
         recordedBytesLimits_ = isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
-        returnCode = flows_.back().open(OpenMode::READ_WRITE);
+        returnCode = flows_.back().open(openMode_t::READ_WRITE);
 
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -182,7 +182,7 @@ namespace jiminy
     hresult_t TelemetryRecorder::writeDataBinary(std::string const & filename)
     {
         FileDevice myFile(filename);
-        myFile.open(OpenMode::WRITE_ONLY | OpenMode::TRUNCATE);
+        myFile.open(openMode_t::WRITE_ONLY | openMode_t::TRUNCATE);
         if (myFile.isOpen())
         {
             for (auto & flow : flows_)
@@ -224,10 +224,10 @@ namespace jiminy
         {
             int64_t timestamp;
             std::vector<int64_t> intDataLine;
-            logData.numInt = integerSectionSize / sizeof(int64_t);
+            logData.numInt = static_cast<uint32_t>(integerSectionSize / sizeof(int64_t));
             intDataLine.resize(logData.numInt);
             std::vector<float64_t> floatDataLine;
-            logData.numFloat = floatSectionSize / sizeof(float64_t);
+            logData.numFloat = static_cast<uint32_t>(floatSectionSize / sizeof(float64_t));
             floatDataLine.resize(logData.numFloat);
 
             bool_t isReadingHeaderDone = false;
@@ -257,7 +257,7 @@ namespace jiminy
 
                     // Parse header
                     char_t const * pHeader = &headerCharBuffer[0];
-                    uint32_t posHeader = 0;
+                    std::size_t posHeader = 0;
                     std::string fieldHeader(pHeader);
                     while (true)
                     {
@@ -283,7 +283,7 @@ namespace jiminy
                 auto const lastConstantIt = std::find(logData.header.begin(), logData.header.end(), START_COLUMNS);
                 for (auto constantIt = logData.header.begin() ; constantIt != lastConstantIt ; ++constantIt)
                 {
-                    int32_t const delimiter = constantIt->find(TELEMETRY_CONSTANT_DELIMITER);
+                    std::size_t const delimiter = constantIt->find(TELEMETRY_CONSTANT_DELIMITER);
                     if (constantIt->substr(0, delimiter) == TIME_UNIT)
                     {
                         timeUnit = std::stof(constantIt->substr(delimiter + 1));
@@ -295,7 +295,7 @@ namespace jiminy
                 // Dealing with data lines, starting with new line flag, time, integers, and ultimately floats
                 if (recordedBytesDataLine > 0)
                 {
-                    uint32_t numberLines = flow->bytesAvailable() / recordedBytesDataLine;
+                    uint32_t numberLines = static_cast<uint32_t>(flow->bytesAvailable() / recordedBytesDataLine);
                     logData.timestamps.reserve(logData.timestamps.size() + numberLines);
                     logData.intData.reserve(logData.intData.size() + numberLines);
                     logData.floatData.reserve(logData.floatData.size() + numberLines);

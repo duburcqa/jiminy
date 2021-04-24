@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.6.11)
+set(BUILD_VERSION 1.6.12)
 
 # Extract major, minor and patch version
 string(REPLACE "." ";" _VERSION "${BUILD_VERSION}")
@@ -31,8 +31,7 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 # Set the compilation flags
 if(NOT WIN32)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -g -ftemplate-backtrace-limit=0 ${WARN_FULL}")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -Wfatal-errors -Werror ${WARN_FULL} \
-                                -Wno-non-virtual-dtor -Wno-deprecated-declarations -Wno-unused-parameter")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -Wfatal-errors -Werror ${WARN_FULL}")
 else()
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /EHsc /bigobj -g /Wall")
     # It would be great to have the same quality standard for Windows but

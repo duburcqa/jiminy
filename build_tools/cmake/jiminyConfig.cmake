@@ -1,6 +1,11 @@
 # Enable link rpath to find shared library dependencies at runtime
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+# Set Python find strategy to location by default
+if(CMAKE_VERSION VERSION_GREATER "3.15")
+    cmake_policy(SET CMP0094 NEW)
+endif()
+
 # Get Python executable
 if(DEFINED PYTHON_EXECUTABLE)
     get_filename_component(_PYTHON_PATH "${PYTHON_EXECUTABLE}" DIRECTORY)
@@ -10,10 +15,19 @@ else()
     if(CMAKE_VERSION VERSION_LESS "3.12.4")
         find_program(Python_EXECUTABLE "python${PYTHON_REQUIRED_VERSION}")
     else()
-        if(PYTHON_REQUIRED_VERSION)
-            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS Interpreter)
+        if(CMAKE_VERSION VERSION_LESS "3.14")
+            set(Python_COMPONENTS_FIND Interpreter)
         else()
-            find_package(Python COMPONENTS Interpreter)
+            set(Python_COMPONENTS_FIND Interpreter NumPy)
+        endif()
+        unset(Python_EXECUTABLE)
+        unset(Python_EXECUTABLE CACHE)
+        unset(_Python_EXECUTABLE)
+        unset(_Python_EXECUTABLE CACHE)
+        if(PYTHON_REQUIRED_VERSION)
+            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS ${Python_COMPONENTS_FIND})
+        else()
+            find_package(Python COMPONENTS ${Python_COMPONENTS_FIND})
         endif()
     endif()
 endif()
@@ -21,6 +35,7 @@ if(NOT Python_EXECUTABLE)
     if (jiminy_FIND_REQUIRED)
         message(FATAL_ERROR "Python executable not found, CMake will exit.")
     else()
+        set(jiminy_FOUND FALSE)
         return()
     endif()
 endif()
@@ -29,11 +44,37 @@ endif()
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 "import importlib; print(int(importlib.util.find_spec('jiminy_py') is not None), end='')"
                 OUTPUT_VARIABLE jiminy_FOUND)
-if (NOT jiminy_FOUND)
+if(NOT jiminy_FOUND)
     if (jiminy_FIND_REQUIRED)
         message(FATAL_ERROR "`jiminy_py` Python module not found, CMake will exit.")
     else()
         return()
+    endif()
+endif()
+
+# Define Python_NumPy_INCLUDE_DIRS if necessary
+if (NOT Python_NumPy_INCLUDE_DIRS)
+    execute_process(
+        COMMAND "${Python_EXECUTABLE}" -c
+        "import numpy; print(numpy.get_include(), end='')\n"
+        OUTPUT_VARIABLE __numpy_path)
+    find_path(Python_NumPy_INCLUDE_DIRS numpy/arrayobject.h
+        HINTS "${__numpy_path}" "${Python_INCLUDE_DIRS}" NO_DEFAULT_PATH)
+endif()
+
+# Get jiminy version, and check if compatible with requested version, if any.
+# For now, compatibility is assumed as long as only patch version differs.
+execute_process(COMMAND "${Python_EXECUTABLE}" -c
+                "import jiminy_py; print(jiminy_py.__version__, end='')"
+                OUTPUT_VARIABLE jiminy_VERSION)
+string(REPLACE "." ";" _VERSION "${jiminy_VERSION}")
+list(GET _VERSION 0 jiminy_VERSION_MAJOR)
+list(GET _VERSION 1 jiminy_VERSION_MINOR)
+list(GET _VERSION 2 jiminy_VERSION_PATCH)
+if (PACKAGE_FIND_VERSION_MAJOR)
+    if (PACKAGE_FIND_VERSION_MAJOR EQUAL jiminy_VERSION_MAJOR)
+        message(FATAL_ERROR "Available `jiminy_py` version (${jiminy_VERSION}) not "
+                            "compatible with requested one (${PACKAGE_FIND_VERSION}).")
     endif()
 endif()
 
@@ -44,9 +85,6 @@ endif()
 # but not for precompiled boost libraries such as boost::filesystem.
 # https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                "import jiminy_py; print(jiminy_py.__version__, end='')"
-                OUTPUT_VARIABLE jiminy_VERSION)
-execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 "import jiminy_py; print(jiminy_py.get_include(), end='')"
                 OUTPUT_VARIABLE jiminy_INCLUDE_DIRS)
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
@@ -54,7 +92,10 @@ execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 OUTPUT_VARIABLE jiminy_LIBRARIES)
 
 # Define compilation options and definitions
-set(jiminy_DEFINITIONS EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC)
+set(jiminy_DEFINITIONS
+    EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC
+    BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON BOOST_MPL_LIMIT_VECTOR_SIZE=30 BOOST_MPL_LIMIT_LIST_SIZE=30
+)
 if(WIN32)
     set(jiminy_DEFINITIONS ${jiminy_DEFINITIONS} _USE_MATH_DEFINES=1 NOMINMAX)
     set(jiminy_OPTIONS /EHsc /bigobj /Zc:__cplusplus /permissive- /wd4996 /wd4554)

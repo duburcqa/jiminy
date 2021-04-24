@@ -14,6 +14,8 @@ from gym_jiminy.common.envs import BaseJiminyEnv, BaseJiminyGoalEnv
 
 # Stepper update period
 STEP_DT = 0.2
+# Controller update period
+CONTROL_DT = 0.02
 # Range of uniform sampling distribution of joint angles
 THETA_RANDOM_MAX = 0.1
 # Range of uniform sampling distribution of joint velocities
@@ -119,7 +121,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         # Increase stepper accuracy for time-continuous control
         engine_options = self.simulator.engine.get_options()
         engine_options["stepper"]["solver"] = "runge_kutta_4"
-        engine_options["stepper"]["dtMax"] = min(STEP_DT, 0.02)
+        engine_options["stepper"]["dtMax"] = CONTROL_DT
         self.simulator.engine.set_options(engine_options)
 
     def _refresh_observation_space(self) -> None:

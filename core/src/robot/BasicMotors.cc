@@ -79,10 +79,10 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SimpleMotor::computeEffort(float64_t const & t,
-                                         Eigen::VectorBlock<vectorN_t const> const & q,
+    hresult_t SimpleMotor::computeEffort(float64_t const & /* t */,
+                                         Eigen::VectorBlock<vectorN_t const> const & /* q */,
                                          float64_t const & v,
-                                         float64_t const & a,
+                                         float64_t const & /* a */,
                                          float64_t command)
     {
         if (!isInitialized_)

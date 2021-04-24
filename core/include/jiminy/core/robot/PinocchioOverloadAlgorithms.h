@@ -20,7 +20,7 @@
 #include "pinocchio/algorithm/aba.hpp"             // `pinocchio::aba`
 #include "pinocchio/algorithm/rnea.hpp"            // `pinocchio::rnea`
 #include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crba`
-#include "pinocchio/algorithm/energy.hpp"          // `pinocchio::kineticEnergy`
+#include "pinocchio/algorithm/energy.hpp"          // `pinocchio::computeKineticEnergy`
 #include "pinocchio/multibody/visitor.hpp"         // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/fwd.hpp"             // `pinocchio::ModelTpl`, `pinocchio::DataTpl`
 #include "pinocchio/multibody/joint/fwd.hpp"       // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
@@ -37,13 +37,12 @@ namespace pinocchio_overload
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType, typename TangentVectorType>
     inline Scalar
-    kineticEnergy(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
-                  pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
-                  Eigen::MatrixBase<ConfigVectorType>                      const & q,
-                  Eigen::MatrixBase<TangentVectorType>                     const & v,
-                  bool_t                                                   const & update_kinematics)
+    computeKineticEnergy(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
+                         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
+                         Eigen::MatrixBase<ConfigVectorType>                      const & q,
+                         Eigen::MatrixBase<TangentVectorType>                     const & v)
     {
-        pinocchio::kineticEnergy(model, data, q, v, update_kinematics);
+        pinocchio::computeKineticEnergy(model, data, q, v);
         data.kinetic_energy += 0.5 * (model.rotorInertia.array() * Eigen::pow(v.array(), 2)).sum();
         return data.kinetic_energy;
     }
@@ -227,26 +226,26 @@ namespace pinocchio_overload
         calc_aba(JointModel const & model,
                  typename JointModel::JointDataDerived & data,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 Scalar const & Im,
+                 Scalar const & /* Im */,
                  bool const & update_I)
         {
             model.calc_aba(data.derived(), Ia, update_I);
         }
 
         template<int axis>
-        static int getAxis(pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> const & model)
+        static int getAxis(pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> const & /* model */)
         {
             return axis;
         }
 
         template<int axis>
-        static int getAxis(pinocchio::JointModelRevoluteUnboundedTpl<Scalar, Options, axis> const & model)
+        static int getAxis(pinocchio::JointModelRevoluteUnboundedTpl<Scalar, Options, axis> const & /* model */)
         {
             return axis;
         }
 
         template<int axis>
-        static int getAxis(pinocchio::JointModelPrismaticTpl<Scalar, Options, axis> const & model)
+        static int getAxis(pinocchio::JointModelPrismaticTpl<Scalar, Options, axis> const & /* model */)
         {
             return axis;
         }
@@ -268,8 +267,6 @@ namespace pinocchio_overload
         assert(v.size() == model.nv && "The joint velocity vector is not of right size");
         assert(tau.size() == model.nv && "The joint acceleration vector is not of right size");
 
-        typedef typename pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl>::JointIndex JointIndex;
-
         data.v[0].setZero();
         #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 5 || (PINOCCHIO_MINOR_VERSION == 5 && PINOCCHIO_PATCH_VERSION >= 6)))
         data.a_gf[0] = -model.gravity;
@@ -280,7 +277,7 @@ namespace pinocchio_overload
 
         typedef pinocchio::AbaForwardStep1<Scalar, Options, JointCollectionTpl,
                                            ConfigVectorType, TangentVectorType1> Pass1;
-        for (JointIndex i=1; i<(JointIndex)model.njoints; ++i)
+        for (int32_t i = 1; i < model.njoints; ++i)
         {
             Pass1::run(model.joints[i], data.joints[i],
                        typename Pass1::ArgsType(model, data, q.derived(), v.derived()));
@@ -288,14 +285,14 @@ namespace pinocchio_overload
         }
 
         typedef AbaBackwardStep<Scalar,Options,JointCollectionTpl> Pass2;
-        for (JointIndex i=(JointIndex)model.njoints-1; i>0; --i)
+        for (int32_t i = model.njoints - 1; i > 0; --i)
         {
             Pass2::run(model.joints[i], data.joints[i],
                        typename Pass2::ArgsType(model, data));
         }
 
         typedef pinocchio::AbaForwardStep2<Scalar,Options,JointCollectionTpl> Pass3;
-        for (JointIndex i=1; i<(JointIndex)model.njoints; ++i)
+        for (int32_t i = 1; i < model.njoints; ++i)
         {
             Pass3::run(model.joints[i], data.joints[i],
                        typename Pass3::ArgsType(model, data));
@@ -320,8 +317,8 @@ namespace pinocchio_overload
                          pinocchio::Data & data,
                          Eigen::MatrixBase<TangentVectorType> const & a)
         {
-            uint32_t const & i = jmodel.id();
-            uint32_t const & parent = model.parents[i];
+            jointIndex_t const & i = jmodel.id();
+            jointIndex_t const & parent = model.parents[i];
             data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
             data.a[i] += data.liMi[i].actInv(data.a[parent]);
         }

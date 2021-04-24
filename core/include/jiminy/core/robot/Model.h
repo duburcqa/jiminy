@@ -44,7 +44,7 @@ namespace jiminy
         constraintsHolder_t & operator = (constraintsHolder_t const & other) = default;
 
         constraintsHolder_t(void);
-        virtual ~constraintsHolder_t(void) = default;
+        ~constraintsHolder_t(void) = default;
 
         void clear(void);
 
@@ -246,7 +246,7 @@ namespace jiminy
 
     public:
         Model(void);
-        virtual ~Model(void) = default;
+        ~Model(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
@@ -336,15 +336,15 @@ namespace jiminy
 
         std::vector<std::string> const & getCollisionBodiesNames(void) const;
         std::vector<std::string> const & getContactFramesNames(void) const;
-        std::vector<int32_t> const & getCollisionBodiesIdx(void) const;
-        std::vector<std::vector<int32_t> > const & getCollisionPairsIdx(void) const;
-        std::vector<int32_t> const & getContactFramesIdx(void) const;
+        std::vector<frameIndex_t> const & getCollisionBodiesIdx(void) const;
+        std::vector<std::vector<pairIndex_t> > const & getCollisionPairsIdx(void) const;
+        std::vector<frameIndex_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
-        std::vector<int32_t> const & getRigidJointsModelIdx(void) const;
+        std::vector<jointIndex_t> const & getRigidJointsModelIdx(void) const;
         std::vector<int32_t> const & getRigidJointsPositionIdx(void) const;
         std::vector<int32_t> const & getRigidJointsVelocityIdx(void) const;
         std::vector<std::string> const & getFlexibleJointsNames(void) const;
-        std::vector<int32_t> const & getFlexibleJointsModelIdx(void) const;
+        std::vector<jointIndex_t> const & getFlexibleJointsModelIdx(void) const;
 
         vectorN_t const & getPositionLimitMin(void) const;
         vectorN_t const & getPositionLimitMax(void) const;
@@ -409,20 +409,20 @@ namespace jiminy
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;
 
-        std::vector<std::string> collisionBodiesNames_;         ///< Name of the collision bodies of the robot
-        std::vector<std::string> contactFramesNames_;           ///< Name of the contact frames of the robot
-        std::vector<int32_t> collisionBodiesIdx_;               ///< Indices of the collision bodies in the frame list of the robot
-        std::vector<std::vector<int32_t> > collisionPairsIdx_;  ///< Indices of the collision pairs associated with each collision body
-        std::vector<int32_t> contactFramesIdx_;                 ///< Indices of the contact frames in the frame list of the robot
-        std::vector<std::string> rigidJointsNames_;             ///< Name of the actual joints of the robot, not taking into account the freeflyer
-        std::vector<int32_t> rigidJointsModelIdx_;              ///< Index of the actual joints in the pinocchio robot
-        std::vector<int32_t> rigidJointsPositionIdx_;           ///< All the indices of the actual joints in the configuration vector of the robot (ie including all the degrees of freedom)
-        std::vector<int32_t> rigidJointsVelocityIdx_;           ///< All the indices of the actual joints in the velocity vector of the robot (ie including all the degrees of freedom)
-        std::vector<std::string> flexibleJointsNames_;          ///< Name of the flexibility joints of the robot regardless of whether the flexibilities are enable
-        std::vector<int32_t> flexibleJointsModelIdx_;           ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
+        std::vector<std::string> collisionBodiesNames_;             ///< Name of the collision bodies of the robot
+        std::vector<std::string> contactFramesNames_;               ///< Name of the contact frames of the robot
+        std::vector<frameIndex_t> collisionBodiesIdx_;              ///< Indices of the collision bodies in the frame list of the robot
+        std::vector<std::vector<pairIndex_t> > collisionPairsIdx_;  ///< Indices of the collision pairs associated with each collision body
+        std::vector<frameIndex_t> contactFramesIdx_;                ///< Indices of the contact frames in the frame list of the robot
+        std::vector<std::string> rigidJointsNames_;                 ///< Name of the actual joints of the robot, not taking into account the freeflyer
+        std::vector<jointIndex_t> rigidJointsModelIdx_;             ///< Index of the actual joints in the pinocchio robot
+        std::vector<int32_t> rigidJointsPositionIdx_;               ///< All the indices of the actual joints in the configuration vector of the robot (ie including all the degrees of freedom)
+        std::vector<int32_t> rigidJointsVelocityIdx_;               ///< All the indices of the actual joints in the velocity vector of the robot (ie including all the degrees of freedom)
+        std::vector<std::string> flexibleJointsNames_;              ///< Name of the flexibility joints of the robot regardless of whether the flexibilities are enable
+        std::vector<jointIndex_t> flexibleJointsModelIdx_;          ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
 
         constraintsHolder_t constraintsHolder_;                 ///< Store constraints
-        uint32_t constraintsMask_;                              ///< Mask used to filter out disable constraints from full jacobian and drift
+        uint64_t constraintsMask_;                              ///< Mask used to filter out disable constraints from full jacobian and drift
         matrixN_t constraintsJacobian_;                         ///< Matrix holding the jacobian of the constraints
         vectorN_t constraintsDrift_;                            ///< Vector holding the drift of the constraints
 

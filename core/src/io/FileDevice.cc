@@ -46,11 +46,11 @@ namespace jiminy
     filename_(filename),
     fileDescriptor_(-1)
     {
-        supportedModes_ = OpenMode::READ_ONLY     | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE |
-                          OpenMode::NON_BLOCKING  | OpenMode::TRUNCATE   | OpenMode::NEW_ONLY   |
-                          OpenMode::EXISTING_ONLY | OpenMode::APPEND     | OpenMode::SYNC;
+        supportedModes_ = openMode_t::READ_ONLY     | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
+                          openMode_t::NON_BLOCKING  | openMode_t::TRUNCATE   | openMode_t::NEW_ONLY   |
+                          openMode_t::EXISTING_ONLY | openMode_t::APPEND     | openMode_t::SYNC;
         #ifndef _WIN32
-        supportedModes_ |= OpenMode::NON_BLOCKING | OpenMode::SYNC;
+        supportedModes_ |= openMode_t::NON_BLOCKING | openMode_t::SYNC;
         #endif
     }
 
@@ -66,44 +66,44 @@ namespace jiminy
         #endif
     }
 
-    hresult_t FileDevice::doOpen(enum OpenMode mode)
+    hresult_t FileDevice::doOpen(openMode_t const & mode)
     {
         int32_t posixFLags = 0;
-        if (mode & OpenMode::READ_ONLY)
+        if (mode & openMode_t::READ_ONLY)
         {
             posixFLags |= O_RDONLY;
         }
-        if (mode & OpenMode::WRITE_ONLY)
+        if (mode & openMode_t::WRITE_ONLY)
         {
             posixFLags |= O_WRONLY;
             posixFLags |= O_CREAT;
         }
-        if (mode & OpenMode::READ_WRITE)
+        if (mode & openMode_t::READ_WRITE)
         {
             posixFLags |= O_RDWR;
         }
-        if (mode & OpenMode::TRUNCATE)
+        if (mode & openMode_t::TRUNCATE)
         {
             posixFLags |= O_TRUNC;
         }
-        if (mode & OpenMode::NEW_ONLY)
+        if (mode & openMode_t::NEW_ONLY)
         {
             posixFLags |= O_EXCL;
         }
-        if (mode & OpenMode::EXISTING_ONLY)
+        if (mode & openMode_t::EXISTING_ONLY)
         {
             posixFLags &= ~O_CREAT;
         }
-        if (mode & OpenMode::APPEND)
+        if (mode & openMode_t::APPEND)
         {
             posixFLags |= O_APPEND;
         }
         #ifndef _WIN32
-        if (mode & OpenMode::NON_BLOCKING)
+        if (mode & openMode_t::NON_BLOCKING)
         {
             posixFLags |= O_NONBLOCK;
         }
-        if (mode & OpenMode::SYNC)
+        if (mode & openMode_t::SYNC)
         {
             posixFLags |= O_SYNC;
         }

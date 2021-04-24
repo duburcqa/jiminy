@@ -12,7 +12,7 @@ namespace jiminy
     class MemoryDevice : public AbstractIODevice
     {
     public:
-        MemoryDevice(int64_t size);
+        MemoryDevice(uint64_t const & size);
         MemoryDevice(MemoryDevice const & other);
         MemoryDevice(MemoryDevice && other);
 
@@ -25,7 +25,7 @@ namespace jiminy
 
         int64_t size(void) override
         {
-            return buffer_.size();
+            return static_cast<int64_t>(buffer_.size());
         }
 
         bool_t isSequential(void) const override
@@ -40,7 +40,7 @@ namespace jiminy
 
         int64_t bytesAvailable(void) override
         {
-            return (buffer_.size() - currentPos_);
+            return buffer_.size() - currentPos_;
         }
 
         hresult_t seek(int64_t pos) override;
@@ -55,7 +55,7 @@ namespace jiminy
         hresult_t resize(int64_t size) override;
 
     protected:
-        hresult_t doOpen(enum OpenMode modes) override;
+        hresult_t doOpen(openMode_t const & modes) override;
         hresult_t doClose(void) override;
 
     private:

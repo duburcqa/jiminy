@@ -15,7 +15,7 @@ namespace jiminy
     // ====================================================
 
     forceProfile_t::forceProfile_t(std::string           const & frameNameIn,
-                                   int32_t               const & frameIdxIn,
+                                   frameIndex_t          const & frameIdxIn,
                                    float64_t             const & updatePeriodIn,
                                    forceProfileFunctor_t const & forceFctIn) :
     frameName(frameNameIn),
@@ -32,7 +32,7 @@ namespace jiminy
     // ====================================================
 
     forceImpulse_t::forceImpulse_t(std::string      const & frameNameIn,
-                                   int32_t          const & frameIdxIn,
+                                   frameIndex_t     const & frameIdxIn,
                                    float64_t        const & tIn,
                                    float64_t        const & dtIn,
                                    pinocchio::Force const & FIn) :
@@ -54,9 +54,9 @@ namespace jiminy
                                      std::string            const & systemName2In,
                                      int32_t                const & systemIdx2In,
                                      std::string            const & frameName1In,
-                                     int32_t                const & frameIdx1In,
+                                     frameIndex_t           const & frameIdx1In,
                                      std::string            const & frameName2In,
-                                     int32_t                const & frameIdx2In,
+                                     frameIndex_t           const & frameIdx2In,
                                      forceCouplingFunctor_t const & forceFctIn) :
     systemName1(systemName1In),
     systemIdx1(systemIdx1In),
@@ -89,9 +89,9 @@ namespace jiminy
 
     systemHolder_t::systemHolder_t(void) :
     systemHolder_t("", nullptr, nullptr,
-    [](float64_t const & t,
-       vectorN_t const & q,
-       vectorN_t const & v) -> bool_t
+    [](float64_t const & /* t */,
+       vectorN_t const & /* q */,
+       vectorN_t const & /* v */) -> bool_t
     {
         return false;
     })

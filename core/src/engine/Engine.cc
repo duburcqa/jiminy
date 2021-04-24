@@ -82,9 +82,9 @@ namespace jiminy
         return EngineMultiRobot::setController("", controller);
     }
 
-    hresult_t Engine::addSystem(std::string const & systemName,
-                                std::shared_ptr<Robot> robot,
-                                std::shared_ptr<AbstractController> controller)
+    hresult_t Engine::addSystem(std::string const & /* systemName */,
+                                std::shared_ptr<Robot> /* robot */,
+                                std::shared_ptr<AbstractController> /* controller */)
     {
         PRINT_ERROR("This method is not supported by this class. Please call "
                     "`initialize` instead to set the model, or use `EngineMultiRobot` "
@@ -92,7 +92,7 @@ namespace jiminy
         return hresult_t::ERROR_GENERIC;
     }
 
-    hresult_t Engine::removeSystem(std::string const & systemName)
+    hresult_t Engine::removeSystem(std::string const & /* systemName */)
     {
         PRINT_ERROR("This method is not supported by this class. Please call "
                     "`initialize` instead to set the model, or use `EngineMultiRobot` "
@@ -266,8 +266,8 @@ namespace jiminy
         auto forceCouplingFct = [forceFct](float64_t const & t,
                                            vectorN_t const & q1,
                                            vectorN_t const & v1,
-                                           vectorN_t const & q2,
-                                           vectorN_t const & v2)
+                                           vectorN_t const & /* q2 */,
+                                           vectorN_t const & /* v2 */)
                                 {
                                     return forceFct(t, q1, v1);
                                 };
