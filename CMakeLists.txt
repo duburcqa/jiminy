@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.6.11)
+set(BUILD_VERSION 1.6.12)
 
 # Extract major, minor and patch version
 string(REPLACE "." ";" _VERSION "${BUILD_VERSION}")
