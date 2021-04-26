@@ -71,8 +71,10 @@ namespace python
                                             &PyConstraintVisitor::setIsEnable)
                 .add_property("baumgarte_freq", &AbstractConstraintBase::getBaumgarteFreq,
                                                 &AbstractConstraintBase::setBaumgarteFreq)
-                .add_property("jacobian", &PyConstraintVisitor::getJacobian)
-                .add_property("drift", &PyConstraintVisitor::getDrift)
+                .add_property("jacobian", bp::make_function(&AbstractConstraintBase::getJacobian,
+                                          bp::return_value_policy<result_converter<false> >()))
+                .add_property("drift", bp::make_function(&AbstractConstraintBase::getDrift,
+                                       bp::return_value_policy<result_converter<false> >()))
                 ;
         }
 
@@ -94,24 +96,6 @@ namespace python
             {
                 self.disable();
             }
-        }
-
-        static bp::object getJacobian(AbstractConstraintBase const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<matrixN_t const>(self.getJacobian(), false);
-        }
-
-        static bp::object getDrift(AbstractConstraintBase const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t const>(self.getDrift(), false);
-        }
-
-        static bp::object getReferenceConfiguration(JointConstraint & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.getReferenceConfiguration(), false);
         }
 
         static void setReferenceConfiguration(JointConstraint & self, vectorN_t const & value)
@@ -150,7 +134,8 @@ namespace python
                                             bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("joint_idx", bp::make_function(&JointConstraint::getJointIdx,
                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("reference_configuration", &PyConstraintVisitor::getReferenceConfiguration,
+                .add_property("reference_configuration", bp::make_function(&JointConstraint::getReferenceConfiguration,
+                                                         bp::return_value_policy<result_converter<false> >()),
                                                          &PyConstraintVisitor::setReferenceConfiguration);
 
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraintBase>,
@@ -180,9 +165,9 @@ namespace python
                        bp::args("self", "first_frame_name", "second_frame_name", "distance_reference")))
                 .def_readonly("type", &DistanceConstraint::type_)
                 .add_property("frames_names", bp::make_function(&DistanceConstraint::getFramesNames,
-                                              bp::return_value_policy<bp::copy_const_reference>()))
+                                              bp::return_value_policy<result_converter<true> >()))
                 .add_property("frames_idx", bp::make_function(&DistanceConstraint::getFramesIdx,
-                                             bp::return_value_policy<bp::copy_const_reference>()))
+                                            bp::return_value_policy<result_converter<true> >()))
                 .add_property("reference_distance", bp::make_function(&DistanceConstraint::getReferenceDistance,
                                                     bp::return_value_policy<bp::copy_const_reference>()));
 
