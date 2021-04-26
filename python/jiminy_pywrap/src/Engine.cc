@@ -426,7 +426,7 @@ namespace python
                         void (EngineMultiRobot::*)(bool_t const &, bool_t const &)
                     >(&EngineMultiRobot::reset),
                     (bp::arg("self"),
-                     bp::arg("remove_all_forces") = false,
+                     bp::arg("reset_random_generator") = false,
                      bp::arg("remove_all_forces") = false))
                 .def("start", &PyEngineMultiRobotVisitor::start,
                               (bp::arg("self"), "q_init_list", "v_init_list",
