@@ -117,26 +117,14 @@ namespace python
                 .def_readonly("iter_failed", &stepperState_t::iterFailed)
                 .def_readonly("t", &stepperState_t::t)
                 .def_readonly("dt", &stepperState_t::dt)
-                .add_property("q", &PyStepperStateVisitor::getPosition)
-                .add_property("v", &PyStepperStateVisitor::getVelocity)
-                .add_property("a", &PyStepperStateVisitor::getAcceleration)
+                .add_property("q", bp::make_getter(&stepperState_t::qSplit,
+                                   bp::return_value_policy<result_converter<false> >()))
+                .add_property("v", bp::make_getter(&stepperState_t::vSplit,
+                                   bp::return_value_policy<result_converter<false> >()))
+                .add_property("a", bp::make_getter(&stepperState_t::aSplit,
+                                   bp::return_value_policy<result_converter<false> >()))
                 .def("__repr__", &PyStepperStateVisitor::repr)
                 ;
-        }
-
-        static bp::object getPosition(stepperState_t const & self)
-        {
-            return convertToPython<std::vector<vectorN_t> >(self.qSplit, false);
-        }
-
-        static bp::object getVelocity(stepperState_t const & self)
-        {
-            return convertToPython<std::vector<vectorN_t> >(self.vSplit, false);
-        }
-
-        static bp::object getAcceleration(stepperState_t const & self)
-        {
-            return convertToPython<std::vector<vectorN_t> >(self.aSplit, false);
         }
 
         static std::string repr(stepperState_t const & self)
@@ -192,66 +180,26 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .add_property("q", &PySystemStateVisitor::getPosition)
-                .add_property("v", &PySystemStateVisitor::getVelocity)
-                .add_property("a", &PySystemStateVisitor::getAcceleration)
-                .add_property("command", &PySystemStateVisitor::getCommand)
-                .add_property("u", &PySystemStateVisitor::getTotalEffort)
-                .add_property("u_motor", &PySystemStateVisitor::getMotorEffort)
-                .add_property("u_internal", &PySystemStateVisitor::getInternalEffort)
-                .add_property("u_custom", &PySystemStateVisitor::getCustomDynamicsEffort)
+                .add_property("q", bp::make_getter(&systemState_t::q,
+                                   bp::return_value_policy<result_converter<false> >()))
+                .add_property("v", bp::make_getter(&systemState_t::v,
+                                   bp::return_value_policy<result_converter<false> >()))
+                .add_property("a", bp::make_getter(&systemState_t::a,
+                                   bp::return_value_policy<result_converter<false> >()))
+                .add_property("command", bp::make_getter(&systemState_t::command,
+                                         bp::return_value_policy<result_converter<false> >()))
+                .add_property("u", bp::make_getter(&systemState_t::u,
+                                   bp::return_value_policy<result_converter<false> >()))
+                .add_property("u_motor", bp::make_getter(&systemState_t::uMotor,
+                                         bp::return_value_policy<result_converter<false> >()))
+                .add_property("u_internal", bp::make_getter(&systemState_t::uInternal,
+                                            bp::return_value_policy<result_converter<false> >()))
+                .add_property("u_custom", bp::make_getter(&systemState_t::uCustom,
+                                          bp::return_value_policy<result_converter<false> >()))
                 .add_property("f_external", bp::make_getter(&systemState_t::fExternal,
                                             bp::return_internal_reference<>()))
                 .def("__repr__", &PySystemStateVisitor::repr)
                 ;
-        }
-
-        static bp::object getPosition(systemState_t const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.q, false);
-        }
-
-        static bp::object getVelocity(systemState_t const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.v, false);
-        }
-
-        static bp::object getAcceleration(systemState_t const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.a, false);
-        }
-
-        static bp::object getCommand(systemState_t const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.command, false);
-        }
-
-        static bp::object getTotalEffort(systemState_t const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.u, false);
-        }
-
-        static bp::object getMotorEffort(systemState_t const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.uMotor, false);
-        }
-
-        static bp::object getInternalEffort(systemState_t const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.uInternal, false);
-        }
-
-        static bp::object getCustomDynamicsEffort(systemState_t const & self)
-        {
-            // Do not use automatic converter for efficiency
-            return convertToPython<vectorN_t>(self.uCustom, false);
         }
 
         static std::string repr(systemState_t & self)
@@ -503,7 +451,7 @@ namespace python
                 .add_property("systems", bp::make_getter(&EngineMultiRobot::systems_,
                                          bp::return_internal_reference<>()))
                 .add_property("systems_names", bp::make_function(&EngineMultiRobot::getSystemsNames,
-                                               bp::return_value_policy<bp::return_by_value>()))
+                                               bp::return_value_policy<result_converter<true> >()))
                 .add_property("stepper_state", bp::make_function(&EngineMultiRobot::getStepperState,
                                                bp::return_internal_reference<>()))
                 .add_property("is_simulation_running", &PyEngineMultiRobotVisitor::getIsSimulationRunning)

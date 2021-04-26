@@ -1,6 +1,7 @@
 #ifndef UTILITIES_PYTHON_H
 #define UTILITIES_PYTHON_H
 
+#include <functional>
 
 #include "jiminy/core/Types.h"
 #include "jiminy/core/Macros.h"
@@ -297,7 +298,7 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
 
     template<typename T>
-    std::enable_if_t<!is_vector<T>::value
+    std::enable_if_t<!is_vector_v<T>
                   && !is_eigen<T>::value, bp::object>
     convertToPython(T const & data, bool const & /* copy */ = true)
     {
@@ -341,7 +342,7 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<is_vector<T>::value, bp::object>
+    std::enable_if_t<is_vector_v<T>, bp::object>
     convertToPython(T & data, bool const & copy = true)
     {
         bp::list dataPy;
@@ -353,7 +354,7 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<is_vector<T>::value, bp::object>
+    std::enable_if_t<is_vector_v<T>, bp::object>
     convertToPython(T const & data, bool const & copy = true)
     {
         bp::list dataPy;
@@ -398,6 +399,54 @@ namespace python
         return configPyDict;
     }
 
+    template<typename T, bool copy = true>
+    struct converterToPython
+    {
+        static PyObject * convert(T const & data)
+        {
+            return bp::incref(convertToPython<T>(data, copy).ptr());
+        }
+
+        static PyTypeObject const * get_pytype()
+        {
+            if (is_vector_v<T>)  // constexpr
+            {
+                return &PyList_Type;
+            }
+            else if (std::is_same<T, configHolder_t>::value
+                  || std::is_same<T, flexibleJointData_t>::value)  // constexpr
+            {
+                return &PyDict_Type;
+            }
+            std::type_info const * typeId(&typeid(bp::object));
+            bp::converter::registration const * r = bp::converter::registry::query(*typeId);
+            return r ? r->to_python_target_type(): 0;
+        }
+    };
+
+    template<bool copy>
+    struct result_converter
+    {
+        template<typename T>
+        struct apply
+        {
+            struct type
+            {
+                typedef typename std::remove_reference<T>::type value_type;
+
+                PyObject * operator()(T const & x) const
+                {
+                    return converterToPython<value_type, copy>::convert(x);
+                }
+
+                PyTypeObject const * get_pytype(void) const
+                {
+                    return converterToPython<value_type, copy>::get_pytype();
+                }
+            };
+        };
+    };
+
     // ****************************************************************************
     // **************************** PYTHON TO C++ *********************************
     // ****************************************************************************
@@ -439,7 +488,7 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
 
     template<typename T>
-    std::enable_if_t<!is_vector<T>::value
+    std::enable_if_t<!is_vector_v<T>
                   && !is_map<T>::value
                   && !is_eigen<T>::value
                   && !(std::is_integral<T>::value && !std::is_same<T, bool_t>::value)
@@ -554,7 +603,7 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<is_vector<T>::value, T>
+    std::enable_if_t<is_vector_v<T>, T>
     convertFromPython(bp::object const & dataPy)
     {
         using V = typename T::value_type;

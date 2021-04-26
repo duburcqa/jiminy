@@ -90,7 +90,7 @@ namespace python
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("mesh_package_dirs", bp::make_function(&Model::getMeshPackageDirs,
-                                                   bp::return_value_policy<bp::copy_const_reference>()))
+                                                   bp::return_value_policy<result_converter<true> >()))
                 .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
@@ -104,27 +104,27 @@ namespace python
                                     bp::return_value_policy<bp::copy_const_reference>()))
 
                 .add_property("collision_bodies_names", bp::make_function(&Model::getCollisionBodiesNames,
-                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                                                        bp::return_value_policy<result_converter<true> >()))
                 .add_property("collision_bodies_idx", bp::make_function(&Model::getCollisionBodiesIdx,
-                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                                                      bp::return_value_policy<result_converter<true> >()))
                 .add_property("collision_pairs_idx_by_body", bp::make_function(&Model::getCollisionPairsIdx,
-                                                             bp::return_value_policy<bp::copy_const_reference>()))
+                                                             bp::return_value_policy<result_converter<true> >()))
                 .add_property("contact_frames_names", bp::make_function(&Model::getContactFramesNames,
-                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                                                      bp::return_value_policy<result_converter<true> >()))
                 .add_property("contact_frames_idx", bp::make_function(&Model::getContactFramesIdx,
-                                                    bp::return_value_policy<bp::copy_const_reference>()))
+                                                    bp::return_value_policy<result_converter<true> >()))
                 .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
-                                                    bp::return_value_policy<bp::copy_const_reference>()))
+                                                    bp::return_value_policy<result_converter<true> >()))
                 .add_property("rigid_joints_idx", bp::make_function(&Model::getRigidJointsModelIdx,
-                                                  bp::return_value_policy<bp::copy_const_reference>()))
+                                                  bp::return_value_policy<result_converter<true> >()))
                 .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
-                                                           bp::return_value_policy<bp::copy_const_reference>()))
+                                                           bp::return_value_policy<result_converter<true> >()))
                 .add_property("rigid_joints_velocity_idx", bp::make_function(&Model::getRigidJointsVelocityIdx,
-                                                           bp::return_value_policy<bp::copy_const_reference>()))
+                                                           bp::return_value_policy<result_converter<true> >()))
                 .add_property("flexible_joints_names", bp::make_function(&Model::getFlexibleJointsNames,
-                                                       bp::return_value_policy<bp::copy_const_reference>()))
+                                                       bp::return_value_policy<result_converter<true> >()))
                 .add_property("flexible_joints_idx", bp::make_function(&Model::getFlexibleJointsModelIdx,
-                                                     bp::return_value_policy<bp::copy_const_reference>()))
+                                                     bp::return_value_policy<result_converter<true> >()))
 
                 .add_property("position_limit_lower", bp::make_function(&Model::getPositionLimitMin,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
@@ -134,11 +134,11 @@ namespace python
                                                 bp::return_value_policy<bp::copy_const_reference>()))
 
                 .add_property("logfile_position_headers", bp::make_function(&Model::getPositionFieldnames,
-                                                          bp::return_value_policy<bp::copy_const_reference>()))
+                                                          bp::return_value_policy<result_converter<true> >()))
                 .add_property("logfile_velocity_headers", bp::make_function(&Model::getVelocityFieldnames,
-                                                          bp::return_value_policy<bp::copy_const_reference>()))
+                                                          bp::return_value_policy<result_converter<true> >()))
                 .add_property("logfile_acceleration_headers", bp::make_function(&Model::getAccelerationFieldnames,
-                                                              bp::return_value_policy<bp::copy_const_reference>()))
+                                                              bp::return_value_policy<result_converter<true> >()))
                 ;
         }
 
@@ -314,7 +314,7 @@ namespace python
                 .add_property("nmotors", bp::make_function(&Robot::nmotors,
                                          bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_names", bp::make_function(&Robot::getMotorsNames,
-                                              bp::return_value_policy<bp::copy_const_reference>()))
+                                              bp::return_value_policy<result_converter<true> >()))
                 .add_property("motors_position_idx", &Robot::getMotorsPositionIdx)
                 .add_property("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
                 .add_property("sensors_names", &PyRobotVisitor::getSensorsNames)
@@ -325,9 +325,9 @@ namespace python
                                            bp::return_value_policy<bp::copy_const_reference>()))
 
                 .add_property("logfile_command_headers", bp::make_function(&Robot::getCommandFieldnames,
-                                                         bp::return_value_policy<bp::copy_const_reference>()))
+                                                         bp::return_value_policy<result_converter<true> >()))
                 .add_property("logfile_motor_effort_headers", bp::make_function(&Robot::getMotorEffortFieldnames,
-                                                              bp::return_value_policy<bp::copy_const_reference>()))
+                                                              bp::return_value_policy<result_converter<true> >()))
                 ;
         }
 
