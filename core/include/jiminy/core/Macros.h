@@ -92,7 +92,7 @@ namespace jiminy
     struct is_vector<std::vector<T> > : std::true_type {};
 
     template<typename T>
-    constexpr bool is_vector_v = is_vector<T>::value;  // `inline` variables are not supported by gcc<7.3
+    constexpr bool is_vector_v = is_vector<std::decay_t<T> >::value;  // `inline` variables are not supported by gcc<7.3
 
     // ========================== is_map ============================
 
@@ -106,7 +106,7 @@ namespace jiminy
     }
 
     template<typename T>
-    struct isMap : public decltype(isMapDetail::test(std::declval<T *>())) {};
+    struct isMap : public decltype(isMapDetail::test(std::declval<std::add_pointer_t<T> >())) {};
 
     template<typename T, typename Enable = void>
     struct is_map : std::false_type {};
@@ -131,7 +131,7 @@ namespace jiminy
     }
 
     template<typename T>
-    struct isEigenObject : public decltype(isEigenObjectDetail::test(std::declval<T *>())) {};
+    struct isEigenObject : public decltype(isEigenObjectDetail::test(std::declval<std::add_pointer_t<T> >())) {};
 
     template<typename T, typename Enable = void>
     struct is_eigen : public std::false_type {};
@@ -165,7 +165,7 @@ namespace jiminy
     }
 
     template<typename T>
-    struct isEigenVector : public decltype(isEigenVectorDetail::test(std::declval<T *>())) {};
+    struct isEigenVector : public decltype(isEigenVectorDetail::test(std::declval<std::add_pointer_t<T> >())) {};
 
     template<typename T, typename Enable = void>
     struct is_eigen_vector : std::false_type {};
@@ -183,7 +183,7 @@ namespace jiminy
      \
     template<typename T> \
     struct isPinocchioJoint ## type : \
-        public decltype(isPinocchioJoint ## type ## Detail ::test(std::declval<T *>())) {}; \
+        public decltype(isPinocchioJoint ## type ## Detail ::test(std::declval<std::add_pointer_t<T> >())) {}; \
      \
     template<typename T, typename Enable = void> \
     struct is_pinocchio_joint_ ## name : public std::false_type {}; \

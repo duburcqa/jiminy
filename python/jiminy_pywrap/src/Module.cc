@@ -46,31 +46,6 @@ namespace python
                          bp::return_value_policy<bp::return_by_value>(), \
                          (bp::arg("self"), bp::arg("t"), bp::arg("q"), bp::arg("v")));
 
-    template<typename T>
-    struct converterToPython
-    {
-        static PyObject * convert(T const & data)
-        {
-            return bp::incref(convertToPython<T>(data).ptr());
-        }
-
-        static PyTypeObject const * get_pytype()
-        {
-            std::type_info const * typeId(&typeid(bp::object));
-            if (is_vector<T>::value)  // constexpr
-            {
-                typeId = &typeid(bp::list);
-            }
-            else if (std::is_same<T, configHolder_t>::value
-                  || std::is_same<T, flexibleJointData_t>::value)  // constexpr
-            {
-                typeId = &typeid(bp::dict);
-            }
-            bp::converter::registration const * r = bp::converter::registry::query(*typeId);
-            return r ? r->to_python_target_type(): 0;
-        }
-    };
-
     uint32_t getRandomSeed(void)
     {
         uint32_t seed;

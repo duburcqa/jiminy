@@ -510,7 +510,7 @@ class BaseJiminyRobot(jiminy.Robot):
         name than the URDF file will be detected automatically without
         requiring to manually specify its path.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.extra_info = {}
         self.urdf_path_orig = None
@@ -521,7 +521,7 @@ class BaseJiminyRobot(jiminy.Robot):
                    mesh_path: Optional[str] = None,
                    has_freeflyer: bool = True,
                    avoid_instable_collisions: bool = True,
-                   verbose: bool = True):
+                   verbose: bool = True) -> None:
         """Initialize the robot.
 
         :param urdf_path: Path of the URDF file of the robot.
@@ -844,5 +844,5 @@ class BaseJiminyRobot(jiminy.Robot):
                 pass
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.pinocchio_model.name

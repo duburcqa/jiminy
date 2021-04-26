@@ -973,8 +973,9 @@ namespace jiminy
         {
             // Check if joint name exists
             std::string const & frameName = flexibleJoint.frameName;
-            if (!pncModel_.existFrame(frameName))
+            if (!pncModelFlexibleOrig_.existFrame(frameName))
             {
+                PRINT_ERROR("Frame '", frameName, "' does not exists. Impossible to insert flexible joint on it.");
                 return hresult_t::ERROR_GENERIC;
             }
 
