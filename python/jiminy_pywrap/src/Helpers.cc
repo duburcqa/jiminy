@@ -69,11 +69,14 @@ namespace python
 
     pinocchio::GeometryModel buildGeomFromUrdf(pinocchio::Model const & model,
                                                std::string const & filename,
-                                               pinocchio::GeometryType const & type,
+                                               bp::object const & typePy,
                                                bp::list const & packageDirsPy,
                                                bool_t loadMeshes)
     {
+        /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType`
+           is not properly converted from Python to C++ automatically in some cases. */
         pinocchio::GeometryModel geometryModel;
+        auto const type = static_cast<pinocchio::GeometryType>(bp::extract<int>(typePy)());
         auto packageDirs = convertFromPython<std::vector<std::string> >(packageDirsPy);
         buildGeom(model, filename, type, geometryModel, packageDirs, loadMeshes);
         return geometryModel;
