@@ -237,10 +237,6 @@ def play_trajectories(trajectory_data: Union[
     if legend is not None and not isinstance(legend, (list, tuple)):
         legend = [legend]
 
-    # Add default legend with robots names if replaying multiple trajectories
-    if all(color is not None for color in robots_colors) and legend is None:
-        legend = [viewer.robot_name for viewer in viewers]
-
     # Instantiate or refresh viewers if necessary
     if viewers is None:
         # Delete robot by default only if not in notebook
@@ -278,6 +274,10 @@ def play_trajectories(trajectory_data: Union[
             if color != viewer.robot_color:
                 viewer._setup(traj['robot'], color)
     assert len(viewers) == len(trajectory_data)
+
+    # Add default legend with robots names if replaying multiple trajectories
+    if all(color is not None for color in robots_colors) and legend is None:
+        legend = [viewer.robot_name for viewer in viewers]
 
     # Use first viewers as main viewer to call static methods conveniently
     viewer = viewers[0]
