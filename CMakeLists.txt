@@ -4,6 +4,13 @@ cmake_minimum_required(VERSION 3.10)
 # Set the build version
 set(BUILD_VERSION 1.6.13)
 
+# Set compatibility
+if(CMAKE_VERSION VERSION_GREATER "3.11.0")
+    set(COMPATIBILITY_VERSION SameMinorVersion)
+else()
+    set(COMPATIBILITY_VERSION ExactVersion)
+endif()
+
 # Extract major, minor and patch version
 string(REPLACE "." ";" _VERSION "${BUILD_VERSION}")
 list(GET _VERSION 0 BUILD_VERSION_MAJOR)

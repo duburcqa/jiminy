@@ -67,7 +67,10 @@ setup(
     packages=find_packages("src"),
     package_dir={"": "src"},
     data_files=[
-        ("cmake", ["src/jiminy_py/core/cmake/jiminyConfig.cmake"])
+        ("cmake", [
+            "src/jiminy_py/core/cmake/jiminyConfig.cmake",
+            "src/jiminy_py/core/cmake/jiminyConfigVersion.cmake"
+        ])
     ],
     include_package_data=True,
     entry_points={"console_scripts": [
