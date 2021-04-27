@@ -3,7 +3,6 @@
 #include <fstream>
 #include <exception>
 
-#include "pinocchio/parsers/urdf.hpp"                      // `pinocchio::urdf::buildGeom`, `pinocchio::urdf::buildModel`
 #include "pinocchio/spatial/symmetric3.hpp"                // `pinocchio::Symmetric3 `
 #include "pinocchio/spatial/explog.hpp"                    // `pinocchio::exp3`
 #include "pinocchio/spatial/se3.hpp"                       // `pinocchio::SE3`
@@ -190,7 +189,7 @@ namespace jiminy
     Model::Model(void) :
     pncModel_(),
     pncData_(),
-    pncGeometryModel_(),
+    collisionModel_(),
     pncGeometryData_(nullptr),
     pncModelRigidOrig_(),
     pncDataRigidOrig_(),
@@ -231,25 +230,57 @@ namespace jiminy
         setOptions(getDefaultModelOptions());
     }
 
-    hresult_t Model::initialize(std::string              const & urdfPath,
-                                bool_t                   const & hasFreeflyer,
-                                std::vector<std::string> const & meshPackageDirs)
+    hresult_t Model::initialize(pinocchio::Model         const & pncModel,
+                                pinocchio::GeometryModel const & collisionModel)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        // Clear existing constraints
-        constraintsHolder_.clear();
-        constraintsMask_ = 0U;
-        constraintsJacobian_.resize(0, 0);
-        constraintsDrift_.resize(0);
-        jointsAcceleration_.clear();
-
-        // Initialize the URDF model
-        returnCode = loadUrdfModel(urdfPath, hasFreeflyer, meshPackageDirs);
-        isInitialized_ = true;
+        if (pncModel.nq == 0)
+        {
+            PRINT_ERROR("Pinocchio model must not be empty.");
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Clear existing constraints
+            constraintsHolder_.clear();
+            constraintsMask_ = 0U;
+            constraintsJacobian_.resize(0, 0);
+            constraintsDrift_.resize(0);
+            jointsAcceleration_.clear();
+
+            // Initialize URDF info
+            joint_t rootJointType;
+            getJointTypeFromIdx(pncModel, 1, rootJointType);  // It cannot fail.
+            urdfPath_ = "";
+            hasFreeflyer_ = (rootJointType == joint_t::FREE);
+            meshPackageDirs_.clear();
+
+            // Set the models
+            pncModelRigidOrig_ = pncModel;
+            collisionModel_ = collisionModel;
+
+            // Add ground geometry object to collision model is not already available
+            if (!collisionModel_.existGeometryName("ground"))
+            {
+                // Instantiate ground FCL box geometry, wrapped as a pinocchio collision geometry.
+                // Note that half-space cannot be used for Shape-Shape collision because it has no
+                // shape support. So a very large box is used instead. In the future, it could be
+                // a more complex topological object, even a mesh would be supported.
+                auto groudBox = hpp::fcl::CollisionGeometryPtr_t(new hpp::fcl::Box(1000.0, 1000.0, 2.0));
+
+                // Create a Pinocchio Geometry object associated with the ground plan.
+                // Its parent frame and parent joint are the universe. It is aligned with world frame,
+                // and the top face is the actual ground surface.
+                pinocchio::SE3 groundPose = pinocchio::SE3::Identity();
+                groundPose.translation() = (vector3_t() << 0.0, 0.0, -1.0).finished();
+                pinocchio::GeometryObject groundPlane("ground", 0, 0, groudBox, groundPose);
+
+                // Add the ground plane pinocchio to the robot model
+                collisionModel_.addGeometryObject(groundPlane, pncModelRigidOrig_);
+            }
+
             // Backup the original model and data
             pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
 
@@ -264,14 +295,13 @@ namespace jiminy
                                     pncDataRigidOrig_,
                                     pinocchio::neutral(pncModelRigidOrig_));
 
-            /* Get the list of joint names of the rigid model and
-               remove the 'universe' and 'root' if any, since they
-               are not actual joints. */
+            /* Get the list of joint names of the rigid model and remove the 'universe'
+               and 'root_joint' if any, since they are not actual joints. */
             rigidJointsNames_ = pncModelRigidOrig_.names;
-            rigidJointsNames_.erase(rigidJointsNames_.begin());  // remove the 'universe'
-            if (hasFreeflyer)
+            rigidJointsNames_.erase(rigidJointsNames_.begin());  // remove 'universe'
+            if (hasFreeflyer_)
             {
-                rigidJointsNames_.erase(rigidJointsNames_.begin());  // remove the 'root'
+                rigidJointsNames_.erase(rigidJointsNames_.begin());  // remove 'root_joint'
             }
 
             // Create the flexible model
@@ -282,6 +312,8 @@ namespace jiminy
            Note that is also refresh all proxies automatically. */
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Assume the model is fully initialized at this point
+            isInitialized_ = true;
             returnCode = generateModelBiased();
         }
 
@@ -302,6 +334,34 @@ namespace jiminy
         if (returnCode != hresult_t::SUCCESS)
         {
             isInitialized_ = false;
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Model::initialize(std::string              const & urdfPath,
+                                bool_t                   const & hasFreeflyer,
+                                std::vector<std::string> const & meshPackageDirs)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Load new robot and collision models
+        pinocchio::Model pncModel;
+        pinocchio::GeometryModel pncGeometryModel;
+        returnCode = buildModelsFromUrdf(
+            urdfPath, hasFreeflyer, meshPackageDirs, pncModel, pncGeometryModel);
+
+        // Initialize jiminy model
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = initialize(pncModel, pncGeometryModel);
+        }
+
+        // Backup URDF info
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            urdfPath_ = urdfPath;
+            meshPackageDirs_ = meshPackageDirs;
         }
 
         return returnCode;
@@ -455,7 +515,7 @@ namespace jiminy
             return hresult_t::SUCCESS;  // Nothing to do. Returning early.
         }
 
-        if (pncGeometryModel_.ngeoms == 0)  // If successfully loaded, the ground should be available
+        if (collisionModel_.ngeoms == 0)  // If successfully loaded, the ground should be available
         {
             PRINT_ERROR("Collision geometry not available. Some collision meshes were probably not found.");
             return hresult_t::ERROR_INIT_FAILED;
@@ -489,7 +549,7 @@ namespace jiminy
         for (std::string const & name : bodyNames)
         {
             bool_t hasGeometry = false;
-            for (pinocchio::GeometryObject const & geom : pncGeometryModel_.geometryObjects)
+            for (pinocchio::GeometryObject const & geom : collisionModel_.geometryObjects)
             {
                 bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
                                            geom.meshPath.find('\\') != std::string::npos);
@@ -511,14 +571,14 @@ namespace jiminy
         collisionBodiesNames_.insert(collisionBodiesNames_.end(), bodyNames.begin(), bodyNames.end());
 
         // Create the collision pairs and add them to the geometry model of the robot
-        pinocchio::GeomIndex const & groundId = pncGeometryModel_.getGeometryId("ground");
+        pinocchio::GeomIndex const & groundId = collisionModel_.getGeometryId("ground");
         for (std::string const & name : bodyNames)
         {
             // Find the geometries having the body for parent, and add a collision pair for each of them
             constraintsMap_t collisionConstraintsMap;
-            for (std::size_t i = 0; i < pncGeometryModel_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < collisionModel_.geometryObjects.size(); ++i)
             {
-                pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
+                pinocchio::GeometryObject const & geom = collisionModel_.geometryObjects[i];
                 bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
                                            geom.meshPath.find('\\') != std::string::npos);
                 std::string const & frameName = pncModel_.frames[geom.parentFrame].name;
@@ -528,7 +588,7 @@ namespace jiminy
                        Note that the ground always comes second for the normal to be
                        consistently compute wrt the ground instead of the body. */
                     pinocchio::CollisionPair const collisionPair(i, groundId);
-                    pncGeometryModel_.addCollisionPair(collisionPair);
+                    collisionModel_.addCollisionPair(collisionPair);
 
                     if (returnCode == hresult_t::SUCCESS)
                     {
@@ -620,18 +680,18 @@ namespace jiminy
 
         // Get the indices of the corresponding collision pairs in the geometry model of the robot and remove them
         std::vector<std::string> collisionConstraintsNames;
-        pinocchio::GeomIndex const & groundId = pncGeometryModel_.getGeometryId("ground");
+        pinocchio::GeomIndex const & groundId = collisionModel_.getGeometryId("ground");
         for (std::string const & name : bodyNames)
         {
             // Find the geometries having the body for parent, and remove the collision pair for each of them
-            for (std::size_t i = 0; i < pncGeometryModel_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < collisionModel_.geometryObjects.size(); ++i)
             {
-                pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
+                pinocchio::GeometryObject const & geom = collisionModel_.geometryObjects[i];
                 if (pncModel_.frames[geom.parentFrame].name == name)
                 {
                     // Remove the collision pair with the ground
                     pinocchio::CollisionPair const collisionPair(i, groundId);
-                    pncGeometryModel_.removeCollisionPair(collisionPair);
+                    collisionModel_.removeCollisionPair(collisionPair);
 
                     // Append collision geometry to the list of constraints to remove
                     if (constraintsHolder_.exist(geom.name,  constraintsHolderType_t::COLLISION_BODIES))
@@ -960,12 +1020,6 @@ namespace jiminy
 
     hresult_t Model::generateModelFlexible(void)
     {
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Model not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
         flexibleJointsNames_.clear();
         flexibleJointsModelIdx_.clear();
         pncModelFlexibleOrig_ = pncModelRigidOrig_;
@@ -1006,9 +1060,8 @@ namespace jiminy
             flexibleJointsNames_.emplace_back(flexName);
         }
 
-        getJointsModelIdx(pncModelFlexibleOrig_,
-                          flexibleJointsNames_,
-                          flexibleJointsModelIdx_);
+        // Compute flexible joint indices
+        getJointsModelIdx(pncModelFlexibleOrig_, flexibleJointsNames_, flexibleJointsModelIdx_);
 
         return hresult_t::SUCCESS;
     }
@@ -1017,15 +1070,16 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
+        // Make sure the model is initialized
         if (!isInitialized_)
         {
             PRINT_ERROR("Model not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
+        // Reset the robot either with the original rigid or flexible model
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Reset the robot either with the original rigid or flexible model
             if (mdlOptions_->dynamics.enableFlexibleModel)
             {
                 pncModel_ = pncModelFlexibleOrig_;
@@ -1094,11 +1148,8 @@ namespace jiminy
             pinocchio::updateFramePlacements(pncModel_, pncData_);
             pinocchio::centerOfMass(pncModel_, pncData_,
                                     pinocchio::neutral(pncModel_));
-        }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Initialize the internal proxies.
+            // Refresh internal proxies
             returnCode = refreshProxies();
         }
 
@@ -1392,17 +1443,17 @@ namespace jiminy
             if (pncGeometryData_.get())
             {
                 // No object stored at this point, so created a new one
-                *pncGeometryData_ = pinocchio::GeometryData(pncGeometryModel_);
+                *pncGeometryData_ = pinocchio::GeometryData(collisionModel_);
             }
             else
             {
                 /* Use copy assignment to avoid changing memory pointers, to
                    avoid dangling reference at Python-side. */
-                pncGeometryData_ = std::make_unique<pinocchio::GeometryData>(pncGeometryModel_);
+                pncGeometryData_ = std::make_unique<pinocchio::GeometryData>(collisionModel_);
             }
             pinocchio::updateGeometryPlacements(pncModel_,
                                                 pncData_,
-                                                pncGeometryModel_,
+                                                collisionModel_,
                                                 *pncGeometryData_);
 
             // Set the max number of contact points per collision pairs
@@ -1421,10 +1472,10 @@ namespace jiminy
             for (std::string const & name : collisionBodiesNames_)
             {
                 std::vector<pairIndex_t> collisionPairsIdx;
-                for (std::size_t i=0; i<pncGeometryModel_.collisionPairs.size(); ++i)
+                for (std::size_t i=0; i<collisionModel_.collisionPairs.size(); ++i)
                 {
-                    pinocchio::CollisionPair const & pair = pncGeometryModel_.collisionPairs[i];
-                    pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[pair.first];
+                    pinocchio::CollisionPair const & pair = collisionModel_.collisionPairs[i];
+                    pinocchio::GeometryObject const & geom = collisionModel_.geometryObjects[pair.first];
                     if (pncModel_.frames[geom.parentFrame].name == name)
                     {
                         collisionPairsIdx.push_back(i);
@@ -1673,96 +1724,6 @@ namespace jiminy
     bool_t const & Model::getHasFreeflyer(void) const
     {
         return hasFreeflyer_;
-    }
-
-    hresult_t Model::loadUrdfModel(std::string              const & urdfPath,
-                                   bool_t                   const & hasFreeflyer,
-                                   std::vector<std::string>         meshPackageDirs)
-    {
-        if (!std::ifstream(urdfPath.c_str()).good())
-        {
-            PRINT_ERROR("The URDF file does not exist. Impossible to load it.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        urdfPath_ = urdfPath;
-        meshPackageDirs_ = meshPackageDirs;
-        hasFreeflyer_ = hasFreeflyer;
-
-        // Build robot physics model
-        try
-        {
-            pncModelRigidOrig_ = pinocchio::Model();
-            if (hasFreeflyer)
-            {
-                pinocchio::urdf::buildModel(urdfPath,
-                                            pinocchio::JointModelFreeFlyer(),
-                                            pncModelRigidOrig_);
-            }
-            else
-            {
-                pinocchio::urdf::buildModel(urdfPath, pncModelRigidOrig_);
-            }
-        }
-        catch (std::exception const & e)
-        {
-            PRINT_ERROR("Something is wrong with the URDF. Impossible to build a model from it.\n"
-                        "Raised from exception: ", e.what());
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        // Build robot geometry model
-        try
-        {
-            pncGeometryModel_ = pinocchio::GeometryModel();
-            pinocchio::urdf::buildGeom(pncModelRigidOrig_,
-                                       urdfPath,
-                                       pinocchio::COLLISION,
-                                       pncGeometryModel_,
-                                       meshPackageDirs);
-        }
-        catch (std::exception const & e)
-        {
-            PRINT_WARNING("Something is wrong with the URDF. Impossible to load the collision geometries.");
-            return hresult_t::SUCCESS;
-        }
-
-        // Replace the mesh geometry object by its convex representation for efficiency
-        try
-        {
-            for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
-            {
-                auto & geometry = pncGeometryModel_.geometryObjects[i].geometry;
-                if (geometry->getObjectType() == hpp::fcl::OT_BVH)
-                {
-                    hpp::fcl::BVHModelPtr_t bvh = boost::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
-                    bvh->buildConvexHull(true);
-                    geometry = bvh->convex;
-                }
-            }
-        }
-        catch (std::logic_error const & e)
-        {
-            PRINT_WARNING("hpp-fcl not built with qhull. Impossible to convert meshes to convex hulls.");
-        }
-
-        // Instantiate ground FCL box geometry, wrapped as a pinocchio collision geometry.
-        // Note that half-space cannot be used for Shape-Shape collision because it has no
-        // shape support. So a very large box is used instead. In the future, it could be
-        // a more complex topological object, even a mesh would be supported.
-        auto groudBox = hpp::fcl::CollisionGeometryPtr_t(new hpp::fcl::Box(1000.0, 1000.0, 2.0));
-
-        // Create a Pinocchio Geometry object associated with the ground plan.
-        // Its parent frame and parent joint are the universe. It is aligned with world frame,
-        // and the top face is the actual ground surface.
-        pinocchio::SE3 groundPose = pinocchio::SE3::Identity();
-        groundPose.translation() = (vector3_t() << 0.0, 0.0, -1.0).finished();
-        pinocchio::GeometryObject groundPlane("ground", 0, 0, groudBox, groundPose);
-
-        // Add the ground plane pinocchio to the robot model
-        pncGeometryModel_.addGeometryObject(groundPlane, pncModelRigidOrig_);
-
-        return hresult_t::SUCCESS;
     }
 
     hresult_t Model::getFlexibleConfigurationFromRigid(vectorN_t const & qRigid,

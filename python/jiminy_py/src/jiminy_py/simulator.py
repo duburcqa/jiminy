@@ -19,7 +19,7 @@ from .core import (EncoderSensor as encoder,
                    ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .plot import TabbedFigure
-from .viewer import interactive_mode, play_logfiles, Viewer
+from .viewer import interactive_mode, play_logs_data, Viewer
 
 if interactive_mode():
     from tqdm.notebook import tqdm
@@ -518,7 +518,7 @@ class Simulator:
         self.render(**{
             'return_rgb_array': kwargs.get(
                 'record_video_path', None) is not None, **kwargs})
-        play_logfiles(
+        play_logs_data(
             [self.robot], [self.log_data], viewers=[self.viewer],
             **{'verbose': True, 'backend': self.viewer_backend, **kwargs})
 

@@ -1,3 +1,4 @@
+import os
 import logging
 import pathlib
 import asyncio
@@ -14,6 +15,7 @@ from typing_extensions import TypedDict
 
 from .. import core as jiminy
 from ..state import State
+from ..log import read_log
 from .viewer import (
     COLORS, Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
 from .meshcat.utilities import interactive_mode
@@ -40,7 +42,7 @@ ColorType = Union[Tuple4FType, str]
 
 
 def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
-                                 robot: jiminy.Robot) -> TrajectoryDataType:
+                                 robot: jiminy.Model) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
@@ -283,11 +285,10 @@ def play_trajectories(trajectory_data: Union[
     viewer = viewers[0]
 
     # Make sure clock is only enabled for panda3d backend
-    if enable_clock:
-        if Viewer.backend != 'panda3d':
-            logger.warn(
-                "`enable_clock` is only available with 'panda3d' backend.")
-            enable_clock = False
+    if enable_clock and Viewer.backend != 'panda3d':
+        logger.warn(
+            "`enable_clock` is only available with 'panda3d' backend.")
+        enable_clock = False
 
     # Early return if nothing to replay
     if all(not len(traj['evolution_robot']) for traj in trajectory_data):
@@ -471,11 +472,11 @@ def play_trajectories(trajectory_data: Union[
     return viewers
 
 
-def play_logfiles(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
-                  logs_data: Union[Sequence[Dict[str, np.ndarray]],
-                                   Dict[str, np.ndarray]],
-                  **kwargs) -> Sequence[Viewer]:
-    """Play the content of a logfile in a viewer.
+def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
+                   logs_data: Union[Sequence[Dict[str, np.ndarray]],
+                                    Dict[str, np.ndarray]],
+                   **kwargs) -> Sequence[Viewer]:
+    """Play log data in a viewer.
 
     This method simply formats the data then calls play_trajectories.
 
@@ -484,7 +485,7 @@ def play_logfiles(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
                       simulation data log.
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
     """
-    # Reformat everything as lists
+    # Reformat input arguments as lists
     if not isinstance(logs_data, (list, tuple)):
         logs_data = [logs_data]
     if not isinstance(robots, (list, tuple)):
@@ -497,3 +498,58 @@ def play_logfiles(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
 
     # Finally, play the trajectories
     return play_trajectories(trajectories, **kwargs)
+
+
+def play_logs_files(logs_files: Union[str, Sequence[str]],
+                    **kwargs) -> Sequence[Viewer]:
+    """Play the content of a logfile in a viewer.
+
+    This method reconstruct the exact model used during the simulation
+    corresponding to the logfile, including random biases or flexible joints.
+
+    :param logs_files: Either a single simulation log files in any format, or
+                       a list.
+    :param kwargs: Keyword arguments to forward to `play_trajectories` method.
+    """
+    # Reformat as list
+    if not isinstance(logs_files, (list, tuple)):
+        logs_files = [logs_files]
+
+    # Extract log data and build robot for each log file
+    robots = []
+    logs_data = []
+    for log_file in logs_files:
+        # Parse log file
+        log_data, log_constants = read_log(log_file)
+        logs_data.append(log_data)
+
+        # Extract robot info
+        pinocchio_model_str = log_constants[
+            "HighLevelController.pinocchio_model"]
+        urdf_file = log_constants["HighLevelController.urdf_file"]
+        has_freeflyer = int(log_constants["HighLevelController.has_freeflyer"])
+        mesh_package_dirs = log_constants[
+            "HighLevelController.mesh_package_dirs"].split(";")
+        all_options = jiminy.load_config_json_string(
+            log_constants["HighLevelController.options"])
+
+        # Create temporary URDF file
+        fd, urdf_path = tempfile.mkstemp(
+            prefix=f"{pathlib.Path(log_file).stem}_", suffix=".urdf")
+        os.write(fd, urdf_file.encode())
+        os.close(fd)
+
+        # Build robot
+        robot = jiminy.Robot()
+        robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
+        robot.set_options(all_options["system"]["robot"])
+        robot.pinocchio_model.loadFromString(pinocchio_model_str)
+        robots.append(robot)
+
+    # Default legend
+    if "legend" not in kwargs:
+        kwargs["legend"] = [pathlib.Path(log_file).stem.split('_')[-1]
+                            for log_file in logs_files]
+
+    # Forward arguments to lower-level method
+    return play_logs_data(robots, logs_data, **kwargs)

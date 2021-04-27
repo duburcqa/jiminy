@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import jiminy_py.core as jiminy
-from jiminy_py.viewer import play_logfiles
+from jiminy_py.viewer import play_logs_data
 
 
 # ################################ User parameters #######################################
@@ -104,7 +104,7 @@ plt.grid()
 plt.show()
 
 # Display the simulation trajectory and the reference
-play_logfiles(robot, log_data,
-              speed_ratio=0.5,
-              camera_xyzrpy=[(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)],
-              delete_robot_on_close=False)
+play_logs_data(robot, log_data,
+               speed_ratio=0.5,
+               camera_xyzrpy=[(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)],
+               delete_robot_on_close=False)

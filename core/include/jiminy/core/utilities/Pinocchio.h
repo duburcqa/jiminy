@@ -103,12 +103,21 @@ namespace jiminy
                                                     frameIndex_t     const & frameIdx,
                                                     pinocchio::Force const & fextInGlobal);
 
-    void buildGeom(pinocchio::Model         const & model,
-                   std::string              const & filename,
-                   pinocchio::GeometryType  const & type,
-                   pinocchio::GeometryModel       & geomModel,
-                   std::vector<std::string> const & package_dirs,
-                   bool_t                   const & loadMeshes = false);
+    hresult_t buildGeomFromUrdf(pinocchio::Model         const & model,
+                                std::string              const & filename,
+                                pinocchio::GeometryType  const & type,
+                                pinocchio::GeometryModel       & geomModel,
+                                std::vector<std::string> const & packageDirs,
+                                bool_t                   const & loadMeshes = true,
+                                bool_t                   const & makeConvexMeshes = false);
+
+    hresult_t buildModelsFromUrdf(std::string const & urdfPath,
+                                  bool_t const & hasFreeflyer,
+                                  std::vector<std::string> const & meshPackageDirs,
+                                  pinocchio::Model & pncModel,
+                                  pinocchio::GeometryModel & collisionModel,
+                                  boost::optional<pinocchio::GeometryModel &> visualModel = boost::none,
+                                  bool_t const & loadVisualMeshes = false);
 }
 
 #endif  // JIMINY_PINOCCHIO_H
