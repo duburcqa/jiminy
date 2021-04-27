@@ -739,7 +739,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             return
 
         # Create empty figure with the legend
-        color_default = np.array([0.0, 0.0, 0.0, 1.0])
+        color_default = (0.0, 0.0, 0.0, 1.0)
         handles = [Patch(color=c if c is not None else color_default, label=t)
                    for t, c in items.items()]
         fig = plt.figure()
@@ -775,7 +775,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         tex = Texture()
         tex.setup2dTexture(
             width, height, Texture.T_unsigned_byte, Texture.F_rgba8)
-        tex.set_ram_image(img_raw)
+        tex.set_ram_image_as(img_raw, 'rgba')
 
         # Compute relative image size
         width_win, height_win = self.getSize()
