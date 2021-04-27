@@ -428,8 +428,13 @@ class Simulator:
 
         # Write log
         if log_path is not None:
-            log_path = str(pathlib.Path(log_path).with_suffix('.hdf5'))
-            self.engine.write_log(log_path, format="hdf5")
+            log_suffix = pathlib.Path(log_path).suffix[1:]
+            if log_suffix not in ("data", "csv", "hdf5"):
+                raise ValueError(
+                    "Log format not recognized. It must be either '.data', "
+                    "'.csv', or '.hdf5'.")
+            log_format = log_suffix if log_suffix != 'data' else 'binary'
+            self.engine.write_log(log_path, format=log_format)
 
     def render(self,
                return_rgb_array: bool = False,
