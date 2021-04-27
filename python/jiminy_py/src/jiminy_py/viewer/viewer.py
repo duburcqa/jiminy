@@ -1721,5 +1721,6 @@ class Viewer:
                 return
 
         # Disable clock after replay if enable and alive
-        if Viewer.is_alive():
-            Viewer.set_clock()
+        if enable_clock and Viewer.is_alive():
+            with self._lock:
+                Viewer.set_clock()

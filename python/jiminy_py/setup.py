@@ -73,7 +73,8 @@ setup(
     entry_points={"console_scripts": [
         "jiminy_plot=jiminy_py.log:plot_log",
         ("jiminy_meshcat_server="
-         "jiminy_py.meshcat.server:start_meshcat_server_standalone")
+         "jiminy_py.meshcat.server:start_meshcat_server_standalone"),
+        "jiminy_replay=jiminy_py.viewer.replay:_play_logs_files_entrypoint"
     ]},
     install_requires=[
         # Used internally by Viewer to read/write snapshots.

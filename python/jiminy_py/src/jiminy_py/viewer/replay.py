@@ -3,6 +3,7 @@ import logging
 import pathlib
 import asyncio
 import tempfile
+import argparse
 from bisect import bisect_right
 from threading import Thread, Lock
 from itertools import cycle, islice
@@ -553,3 +554,25 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 
     # Forward arguments to lower-level method
     return play_logs_data(robots, logs_data, **kwargs)
+
+
+def _play_logs_files_entrypoint() -> None:
+    """Command-line entrypoint to replay the content of a logfile in a viewer.
+    """
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description=(
+        "Replay Jiminy simulation log files in a viewer. Multiple files "
+        "can be specified for simultaneous display"))
+    parser.add_argument(
+        '-p', '--start_paused', action='store_true',
+        help="Start in pause, waiting for keyboard input.")
+    parser.add_argument(
+        '-s', '--speed_ratio', type=float, default=0.5,
+        help="Real time to simulation time factor.")
+    parser.add_argument(
+        '-b', '--backend', default='panda3d',
+        help="Display backend (panda3d, meshcat, or gepetto-gui).")
+    options, files = parser.parse_known_args()
+    kwargs = vars(options)
+    kwargs['logs_files'] = files
+    play_logs_files(**kwargs)
