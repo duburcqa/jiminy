@@ -210,6 +210,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('gl-version', '3 1')
         config.set_value('notify-level', 'error')
         config.set_value('notify-level-x11display', 'fatal')
+        config.set_value('notify-level-device', 'fatal')
         config.set_value('default-directnotify-level', 'error')
         loadPrcFileData('', str(config))
 
