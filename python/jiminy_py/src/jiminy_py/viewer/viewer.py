@@ -1123,7 +1123,7 @@ class Viewer:
             if labels is None:
                 items = None
             else:
-                items = dict(zip(
+                items = list(zip(
                     labels, Viewer._backend_robot_colors.values()))
             Viewer._backend_obj._app.set_legend(items)
         else:

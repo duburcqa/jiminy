@@ -1,3 +1,4 @@
+import time
 import logging
 import pathlib
 import asyncio
@@ -110,7 +111,8 @@ def play_trajectories(trajectory_data: Union[
                       start_paused: bool = False,
                       backend: Optional[str] = None,
                       delete_robot_on_close: Optional[bool] = None,
-                      close_backend: Optional[bool] = None,
+                      remove_widgets_overlay: bool = True,
+                      close_backend: bool = False,
                       viewers: Sequence[Viewer] = None,
                       verbose: bool = True,
                       **kwargs: Any) -> Sequence[Viewer]:
@@ -183,9 +185,12 @@ def play_trajectories(trajectory_data: Union[
     :param delete_robot_on_close: Whether or not to delete the robot from the
                                   viewer when closing it.
                                   Optional: True by default.
-    :param close_backend: Close backend automatically before returning.
-                          Optional: Enable by default if not (presumably)
-                          available beforehand.
+    :param remove_widgets_overlay: Remove overlay (legend, watermark, clock,
+                                   ...) automatically before returning.
+                                   Optional: Enable by default.
+    :param close_backend: Whether or not to close backend automatically before
+                          returning.
+                          Optional: Disable by default.
     :param viewers: List of already instantiated viewers, associated one by one
                     in order to each trajectory data. None to disable.
                     Optional: None by default.
@@ -212,10 +217,6 @@ def play_trajectories(trajectory_data: Union[
                 if viewer is None or not viewer.is_open():
                     viewers = None
                     break
-
-        # Do not close backend by default if it was supposed to be available
-        if close_backend is None:
-            close_backend = False
 
     # Sanitize user-specified robot offsets
     if xyz_offsets is None:
@@ -265,10 +266,6 @@ def play_trajectories(trajectory_data: Union[
                 delete_robot_on_close=delete_robot_on_close,
                 open_gui_if_parent=(record_video_path is None))
             viewers.append(viewer)
-
-            # Close backend by default
-            if close_backend is None:
-                close_backend = True
     else:
         # Reset robot model in viewer if requested color has changed
         for viewer, traj, color in zip(
@@ -454,18 +451,19 @@ def play_trajectories(trajectory_data: Union[
         if camera_motion is not None:
             Viewer.remove_camera_motion()
 
-        # Disable legend if it was enabled
-        if legend is not None:
-            Viewer.set_legend()
+        if remove_widgets_overlay:
+            # Disable legend if it was enabled
+            if legend is not None:
+                Viewer.set_legend()
 
-        # Disable watermark if it was enabled
-        if watermark_fullpath is not None:
-            Viewer.set_watermark()
+            # Disable watermark if it was enabled
+            if watermark_fullpath is not None:
+                Viewer.set_watermark()
 
-        if enable_clock:
-            Viewer.set_clock()
+            if enable_clock:
+                Viewer.set_clock()
 
-    # Close backend if needed
+    # Close backend if requested
     if close_backend:
         Viewer.close()
 
@@ -516,8 +514,7 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
         logs_files = [logs_files]
 
     # Extract log data and build robot for each log file
-    robots = []
-    logs_data = []
+    robots, logs_data = [], []
     for log_file in logs_files:
         robot, (log_data, _) = build_robot_from_log(log_file)
         logs_data.append(log_data)
@@ -551,4 +548,10 @@ def _play_logs_files_entrypoint() -> None:
     options, files = parser.parse_known_args()
     kwargs = vars(options)
     kwargs['logs_files'] = files
-    play_logs_files(**kwargs)
+
+    # Replay trajectories
+    play_logs_files(**{"remove_widgets_overlay": False, **kwargs})
+
+    # Do not exit method as long as Jiminy viewer is open
+    while Viewer.is_alive():
+        time.sleep(0.5)
