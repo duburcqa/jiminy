@@ -63,7 +63,13 @@ install(CODE "foreach(target_source \"${CORE_SOURCE_DIR}\" \"${PYWRAP_SOURCE_DIR
                        DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/lib/\${CORE_OBJ_NAME}\")
               endif()
               file(COPY \"${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake\"
-                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/cmake\")"
+                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/cmake\")
+              include(CMakePackageConfigHelpers)
+              write_basic_package_version_file(
+                  ${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/cmake/${LIBRARY_NAME}ConfigVersion.cmake
+                  VERSION ${BUILD_VERSION}
+                  COMPATIBILITY ${COMPATIBILITY_VERSION}
+              )"
 )
 
 ################ jiminy_py ################

@@ -62,22 +62,6 @@ if (NOT Python_NumPy_INCLUDE_DIRS)
         HINTS "${__numpy_path}" "${Python_INCLUDE_DIRS}" NO_DEFAULT_PATH)
 endif()
 
-# Get jiminy version, and check if compatible with requested version, if any.
-# For now, compatibility is assumed as long as only patch version differs.
-execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                "import jiminy_py; print(jiminy_py.__version__, end='')"
-                OUTPUT_VARIABLE jiminy_VERSION)
-string(REPLACE "." ";" _VERSION "${jiminy_VERSION}")
-list(GET _VERSION 0 jiminy_VERSION_MAJOR)
-list(GET _VERSION 1 jiminy_VERSION_MINOR)
-list(GET _VERSION 2 jiminy_VERSION_PATCH)
-if (PACKAGE_FIND_VERSION_MAJOR)
-    if (PACKAGE_FIND_VERSION_MAJOR EQUAL jiminy_VERSION_MAJOR)
-        message(FATAL_ERROR "Available `jiminy_py` version (${jiminy_VERSION}) not "
-                            "compatible with requested one (${PACKAGE_FIND_VERSION}).")
-    endif()
-endif()
-
 # Find jiminy library and headers.
 # Note that jiminy is compiled under C++17 using either old or new CXX11 ABI.
 # Make sure very project dependencies are compiled for the same CXX11 ABI

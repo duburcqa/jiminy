@@ -101,7 +101,7 @@ def setup_controller_and_engine(
     else:
         engine.initialize(robot)
 
-def neutral_state(robot: jiminy.Robot,
+def neutral_state(robot: jiminy.Model,
                   split: bool = False
                   ) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     """

@@ -77,7 +77,7 @@ def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
 # ################### Kinematic and dynamics ##########################
 # #####################################################################
 
-def update_quantities(robot: jiminy.Robot,
+def update_quantities(robot: jiminy.Model,
                       position: np.ndarray,
                       velocity: Optional[np.ndarray] = None,
                       acceleration: Optional[np.ndarray] = None,
@@ -195,7 +195,7 @@ def update_quantities(robot: jiminy.Robot,
 
 
 def get_body_index_and_fixedness(
-        robot: jiminy.Robot,
+        robot: jiminy.Model,
         body_name: str,
         use_theoretical_model: bool = True) -> Tuple[int, bool]:
     """Retrieve the body index and fixedness from its name.
@@ -226,7 +226,7 @@ def get_body_index_and_fixedness(
     return body_id, is_body_fixed
 
 
-def get_body_world_transform(robot: jiminy.Robot,
+def get_body_world_transform(robot: jiminy.Model,
                              body_name: str,
                              use_theoretical_model: bool = True,
                              copy: bool = True) -> pin.SE3:
@@ -260,7 +260,7 @@ def get_body_world_transform(robot: jiminy.Robot,
     return transform
 
 
-def get_body_world_velocity(robot: jiminy.Robot,
+def get_body_world_velocity(robot: jiminy.Model,
                             body_name: str,
                             use_theoretical_model: bool = True) -> pin.SE3:
     """Get the spatial velocity wrt world in body frame for a given body.
@@ -300,7 +300,7 @@ def get_body_world_velocity(robot: jiminy.Robot,
     return spatial_velocity
 
 
-def get_body_world_acceleration(robot: jiminy.Robot,
+def get_body_world_acceleration(robot: jiminy.Model,
                                 body_name: str,
                                 use_theoretical_model: bool = True) -> pin.SE3:
     """Get the body spatial acceleration in world frame.
@@ -345,7 +345,7 @@ def get_body_world_acceleration(robot: jiminy.Robot,
 
 
 def compute_transform_contact(
-        robot: jiminy.Robot,
+        robot: jiminy.Model,
         ground_profile: Optional[Callable[
             [np.ndarray], Tuple[float, np.ndarray]]] = None) -> pin.SE3:
     """Compute the transform the apply to the freeflyer to touch the ground
@@ -469,7 +469,7 @@ def compute_transform_contact(
 
 
 def compute_freeflyer_state_from_fixed_body(
-        robot: jiminy.Robot,
+        robot: jiminy.Model,
         position: np.ndarray,
         velocity: Optional[np.ndarray] = None,
         acceleration: Optional[np.ndarray] = None,
@@ -575,7 +575,7 @@ def compute_freeflyer_state_from_fixed_body(
 
 
 def compute_efforts_from_fixed_body(
-        robot: jiminy.Robot,
+        robot: jiminy.Model,
         position: np.ndarray,
         velocity: np.ndarray,
         acceleration: np.ndarray,

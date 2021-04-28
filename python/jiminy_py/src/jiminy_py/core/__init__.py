@@ -54,20 +54,10 @@ for module_name, module_obj in submodules:
     module_sym_path = ".".join(('pinocchio', module_name))
     _sys.modules[module_sym_path] = module_obj
 
-# Import core submodule once every dependencies have been preloaded.
-# Note that embedded dependencies must be imported after core if provided. This
-# is necessary to make sure converters that could be missing in already
-# available versions are properly initialized. Indeed, because of PEP
-# specifications, jiminy_py is compile on `manylinux2014` image, which does not
-# support the new C++11 ABI strings. Therefore, if the dependencies have been
-# compiled with it, it would result in segmentation faults.
+# Import core submodule once every dependencies have been preloaded
 with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
     from .core import *  # noqa: F403
     from .core import __version__, __raw_version__
-    for module_name in ["eigenpy", "hppfcl", "pinocchio"]:
-        module_path = ".".join((__name__, module_name))
-        if _importlib.util.find_spec(module_path) is not None:
-            _importlib.import_module(module_path)
 
 # Update core submodule to appear as member of current module
 __all__ = []

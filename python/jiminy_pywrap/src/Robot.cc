@@ -82,7 +82,7 @@ namespace python
                                                     bp::return_internal_reference<>()))
                 .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
                                                    bp::return_internal_reference<>()))
-                .add_property("collision_model", bp::make_getter(&Model::pncGeometryModel_,
+                .add_property("collision_model", bp::make_getter(&Model::collisionModel_,
                                                  bp::return_internal_reference<>()))
                 .add_property("collision_data", bp::make_function(&PyModelVisitor::getGeometryData,
                                                 bp::return_internal_reference<>()))
@@ -270,6 +270,11 @@ namespace python
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false,
                                     bp::arg("mesh_package_dirs") = bp::list()))
+
+                .def("dump_options", &Robot::dumpOptions,
+                                     (bp::arg("self"), "json_filename"))
+                .def("load_options", &Robot::loadOptions,
+                                     (bp::arg("self"), "json_filename"))
 
                 .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))

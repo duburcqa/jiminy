@@ -364,9 +364,9 @@ namespace jiminy
                                                vectorN_t       & vRigid) const;
 
     protected:
-        hresult_t loadUrdfModel(std::string              const & urdfPath,
-                                bool_t                   const & hasFreeflyer,
-                                std::vector<std::string>         meshPackageDirs);
+        hresult_t initialize(pinocchio::Model         const & pncModel,
+                             pinocchio::GeometryModel const & collisionModel);
+
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
 
@@ -395,7 +395,7 @@ namespace jiminy
     public:
         pinocchio::Model pncModel_;
         mutable pinocchio::Data pncData_;
-        pinocchio::GeometryModel pncGeometryModel_;
+        pinocchio::GeometryModel collisionModel_;
         mutable std::unique_ptr<pinocchio::GeometryData> pncGeometryData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes Pinocchio segfault at least up to v2.5.6
         pinocchio::Model pncModelRigidOrig_;
         pinocchio::Data pncDataRigidOrig_;
