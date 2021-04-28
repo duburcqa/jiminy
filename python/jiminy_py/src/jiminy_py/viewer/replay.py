@@ -1,7 +1,9 @@
+import time
 import logging
 import pathlib
 import asyncio
 import tempfile
+import argparse
 from bisect import bisect_right
 from threading import Thread, Lock
 from itertools import cycle, islice
@@ -14,6 +16,7 @@ from typing_extensions import TypedDict
 
 from .. import core as jiminy
 from ..state import State
+from ..log import build_robot_from_log
 from .viewer import (
     COLORS, Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
 from .meshcat.utilities import interactive_mode
@@ -40,7 +43,7 @@ ColorType = Union[Tuple4FType, str]
 
 
 def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
-                                 robot: jiminy.Robot) -> TrajectoryDataType:
+                                 robot: jiminy.Model) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
@@ -108,7 +111,8 @@ def play_trajectories(trajectory_data: Union[
                       start_paused: bool = False,
                       backend: Optional[str] = None,
                       delete_robot_on_close: Optional[bool] = None,
-                      close_backend: Optional[bool] = None,
+                      remove_widgets_overlay: bool = True,
+                      close_backend: bool = False,
                       viewers: Sequence[Viewer] = None,
                       verbose: bool = True,
                       **kwargs: Any) -> Sequence[Viewer]:
@@ -181,9 +185,12 @@ def play_trajectories(trajectory_data: Union[
     :param delete_robot_on_close: Whether or not to delete the robot from the
                                   viewer when closing it.
                                   Optional: True by default.
-    :param close_backend: Close backend automatically before returning.
-                          Optional: Enable by default if not (presumably)
-                          available beforehand.
+    :param remove_widgets_overlay: Remove overlay (legend, watermark, clock,
+                                   ...) automatically before returning.
+                                   Optional: Enable by default.
+    :param close_backend: Whether or not to close backend automatically before
+                          returning.
+                          Optional: Disable by default.
     :param viewers: List of already instantiated viewers, associated one by one
                     in order to each trajectory data. None to disable.
                     Optional: None by default.
@@ -211,10 +218,6 @@ def play_trajectories(trajectory_data: Union[
                     viewers = None
                     break
 
-        # Do not close backend by default if it was supposed to be available
-        if close_backend is None:
-            close_backend = False
-
     # Sanitize user-specified robot offsets
     if xyz_offsets is None:
         xyz_offsets = len(trajectory_data) * [None]
@@ -236,10 +239,6 @@ def play_trajectories(trajectory_data: Union[
     # Sanitize user-specified legend
     if legend is not None and not isinstance(legend, (list, tuple)):
         legend = [legend]
-
-    # Add default legend with robots names if replaying multiple trajectories
-    if all(color is not None for color in robots_colors) and legend is None:
-        legend = [viewer.robot_name for viewer in viewers]
 
     # Instantiate or refresh viewers if necessary
     if viewers is None:
@@ -267,10 +266,6 @@ def play_trajectories(trajectory_data: Union[
                 delete_robot_on_close=delete_robot_on_close,
                 open_gui_if_parent=(record_video_path is None))
             viewers.append(viewer)
-
-            # Close backend by default
-            if close_backend is None:
-                close_backend = True
     else:
         # Reset robot model in viewer if requested color has changed
         for viewer, traj, color in zip(
@@ -279,15 +274,18 @@ def play_trajectories(trajectory_data: Union[
                 viewer._setup(traj['robot'], color)
     assert len(viewers) == len(trajectory_data)
 
+    # Add default legend with robots names if replaying multiple trajectories
+    if all(color is not None for color in robots_colors) and legend is None:
+        legend = [viewer.robot_name for viewer in viewers]
+
     # Use first viewers as main viewer to call static methods conveniently
     viewer = viewers[0]
 
     # Make sure clock is only enabled for panda3d backend
-    if enable_clock:
-        if Viewer.backend != 'panda3d':
-            logger.warn(
-                "`enable_clock` is only available with 'panda3d' backend.")
-            enable_clock = False
+    if enable_clock and Viewer.backend != 'panda3d':
+        logger.warn(
+            "`enable_clock` is only available with 'panda3d' backend.")
+        enable_clock = False
 
     # Early return if nothing to replay
     if all(not len(traj['evolution_robot']) for traj in trajectory_data):
@@ -453,29 +451,30 @@ def play_trajectories(trajectory_data: Union[
         if camera_motion is not None:
             Viewer.remove_camera_motion()
 
-        # Disable legend if it was enabled
-        if legend is not None:
-            Viewer.set_legend()
+        if remove_widgets_overlay:
+            # Disable legend if it was enabled
+            if legend is not None:
+                Viewer.set_legend()
 
-        # Disable watermark if it was enabled
-        if watermark_fullpath is not None:
-            Viewer.set_watermark()
+            # Disable watermark if it was enabled
+            if watermark_fullpath is not None:
+                Viewer.set_watermark()
 
-        if enable_clock:
-            Viewer.set_clock()
+            if enable_clock:
+                Viewer.set_clock()
 
-    # Close backend if needed
+    # Close backend if requested
     if close_backend:
         Viewer.close()
 
     return viewers
 
 
-def play_logfiles(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
-                  logs_data: Union[Sequence[Dict[str, np.ndarray]],
-                                   Dict[str, np.ndarray]],
-                  **kwargs) -> Sequence[Viewer]:
-    """Play the content of a logfile in a viewer.
+def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
+                   logs_data: Union[Sequence[Dict[str, np.ndarray]],
+                                    Dict[str, np.ndarray]],
+                   **kwargs) -> Sequence[Viewer]:
+    """Play log data in a viewer.
 
     This method simply formats the data then calls play_trajectories.
 
@@ -484,7 +483,7 @@ def play_logfiles(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
                       simulation data log.
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
     """
-    # Reformat everything as lists
+    # Reformat input arguments as lists
     if not isinstance(logs_data, (list, tuple)):
         logs_data = [logs_data]
     if not isinstance(robots, (list, tuple)):
@@ -497,3 +496,62 @@ def play_logfiles(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
 
     # Finally, play the trajectories
     return play_trajectories(trajectories, **kwargs)
+
+
+def play_logs_files(logs_files: Union[str, Sequence[str]],
+                    **kwargs) -> Sequence[Viewer]:
+    """Play the content of a logfile in a viewer.
+
+    This method reconstruct the exact model used during the simulation
+    corresponding to the logfile, including random biases or flexible joints.
+
+    :param logs_files: Either a single simulation log files in any format, or
+                       a list.
+    :param kwargs: Keyword arguments to forward to `play_trajectories` method.
+    """
+    # Reformat as list
+    if not isinstance(logs_files, (list, tuple)):
+        logs_files = [logs_files]
+
+    # Extract log data and build robot for each log file
+    robots, logs_data = [], []
+    for log_file in logs_files:
+        robot, (log_data, _) = build_robot_from_log(log_file)
+        logs_data.append(log_data)
+        robots.append(robot)
+
+    # Default legend
+    if "legend" not in kwargs:
+        kwargs["legend"] = [pathlib.Path(log_file).stem.split('_')[-1]
+                            for log_file in logs_files]
+
+    # Forward arguments to lower-level method
+    return play_logs_data(robots, logs_data, **kwargs)
+
+
+def _play_logs_files_entrypoint() -> None:
+    """Command-line entrypoint to replay the content of a logfile in a viewer.
+    """
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description=(
+        "Replay Jiminy simulation log files in a viewer. Multiple files "
+        "can be specified for simultaneous display"))
+    parser.add_argument(
+        '-p', '--start_paused', action='store_true',
+        help="Start in pause, waiting for keyboard input.")
+    parser.add_argument(
+        '-s', '--speed_ratio', type=float, default=0.5,
+        help="Real time to simulation time factor.")
+    parser.add_argument(
+        '-b', '--backend', default='panda3d',
+        help="Display backend (panda3d, meshcat, or gepetto-gui).")
+    options, files = parser.parse_known_args()
+    kwargs = vars(options)
+    kwargs['logs_files'] = files
+
+    # Replay trajectories
+    play_logs_files(**{"remove_widgets_overlay": False, **kwargs})
+
+    # Do not exit method as long as Jiminy viewer is open
+    while Viewer.is_alive():
+        time.sleep(0.5)

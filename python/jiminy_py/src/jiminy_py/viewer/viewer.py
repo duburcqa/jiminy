@@ -54,15 +54,15 @@ DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 
-COLORS = {'green': (0.4, 0.7, 0.3, 1.0),
+COLORS = {'red': (0.9, 0.15, 0.15, 1.0),
+          'blue': (0.3, 0.3, 1.0, 1.0),
+          'green': (0.4, 0.7, 0.3, 1.0),
+          'yellow': (1.0, 0.7, 0.0, 1.0),
           'purple': (0.6, 0.2, 0.9, 1.0),
           'orange': (1.0, 0.45, 0.0, 1.0),
           'grey': (0.55, 0.55, 0.55, 1.0),
           'cyan': (0.2, 0.7, 1.0, 1.0),
           'white': (1.0, 1.0, 1.0, 1.0),
-          'red': (0.9, 0.15, 0.15, 1.0),
-          'yellow': (1.0, 0.7, 0.0, 1.0),
-          'blue': (0.3, 0.3, 1.0, 1.0),
           'black': (0.2, 0.2, 0.25, 1.0)}
 
 
@@ -280,7 +280,7 @@ class Viewer:
     _lock = Lock()  # Unique lock for every viewer in same thread by default
 
     def __init__(self,
-                 robot: jiminy.Robot,
+                 robot: jiminy.Model,
                  use_theoretical_model: bool = False,
                  robot_color: Optional[Union[str, Tuple4FType]] = None,
                  lock: Optional[Lock] = None,
@@ -291,7 +291,7 @@ class Viewer:
                  scene_name: str = 'world',
                  **kwargs: Any):
         """
-        :param robot: Jiminy.Robot to display.
+        :param robot: Jiminy.Model to display.
         :param use_theoretical_model: Whether to use the theoretical (rigid)
                                       model or the actual (flexible) model of
                                       this robot. Note that using the actual
@@ -484,7 +484,7 @@ class Viewer:
 
     @__must_be_open
     def _setup(self,
-               robot: jiminy.Robot,
+               robot: jiminy.Model,
                robot_color: Optional[Union[str, Tuple4FType]] = None) -> None:
         """Load (or reload) robot in viewer.
 
@@ -496,7 +496,7 @@ class Viewer:
             other parameters. This is done automatically if  one is using
             `simulator.Simulator` instead of `jiminy_py.core.Engine` directly.
 
-        :param robot: Jiminy.Robot to display.
+        :param robot: jiminy.Model to display.
         :param robot_color: Color of the robot. It will override the original
                             color of the meshes if not `None`. It supports both
                             RGBA codes as a list of 4 floating-point values
@@ -529,7 +529,7 @@ class Viewer:
         # Create robot visual model.
         # Note that it does not actually loads the meshes if possible, since
         # the rendering backend will reload them anyway.
-        visual_model = jiminy.buildGeomFromUrdf(
+        visual_model = jiminy.build_geom_from_urdf(
             pinocchio_model, self.urdf_path, pin.GeometryType.VISUAL,
             robot.mesh_package_dirs, load_meshes=False)
 
@@ -778,7 +778,7 @@ class Viewer:
         self.__is_open = False
 
     @staticmethod
-    def _get_colorized_urdf(robot: jiminy.Robot,
+    def _get_colorized_urdf(robot: jiminy.Model,
                             rgb: Tuple3FType,
                             output_root_path: Optional[str] = None) -> str:
         """Generate a unique colorized URDF for a given robot model.
@@ -787,7 +787,7 @@ class Viewer:
             Multiple identical URDF model of different colors can be loaded in
             Gepetto-viewer this way.
 
-        :param robot: Jiminy.Robot already initialized for the desired URDF.
+        :param robot: jiminy.Model already initialized for the desired URDF.
         :param rgb: RGB code defining the color of the model. It is the same
                     for each link.
         :param output_root_path: Root directory of the colorized URDF data.
@@ -851,16 +851,12 @@ class Viewer:
                 # Update mesh fullpath
                 geom.find('mesh').set('filename', mesh_realpath)
 
-            # Update color tag if any, create one otherwise
+            # Override color tag, remove existing one, if any
             material = visual.find('material')
             if material is not None:
-                name = material.get('name')
-                if name is not None:
-                    material = root.find(f"./material[@name='{name}']")
-                material.find('color').set('rgba', color_tag)
-            else:
-                material = ET.SubElement(visual, 'material', name='')
-                ET.SubElement(material, 'color', rgba=color_tag)
+                visual.remove(material)
+            material = ET.SubElement(visual, 'material', name='')
+            ET.SubElement(material, 'color', rgba=color_tag)
 
         # Write on disk the generated URDF file
         tree = ET.ElementTree(root)
@@ -1127,7 +1123,7 @@ class Viewer:
             if labels is None:
                 items = None
             else:
-                items = dict(zip(
+                items = list(zip(
                     labels, Viewer._backend_robot_colors.values()))
             Viewer._backend_obj._app.set_legend(items)
         else:
@@ -1725,5 +1721,6 @@ class Viewer:
                 return
 
         # Disable clock after replay if enable and alive
-        if Viewer.is_alive():
-            Viewer.set_clock()
+        if enable_clock and Viewer.is_alive():
+            with self._lock:
+                Viewer.set_clock()

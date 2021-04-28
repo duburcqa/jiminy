@@ -3,6 +3,9 @@
 #include <unordered_set>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
+#include <fstream>
+#include <streambuf>
 
 #include "pinocchio/parsers/urdf.hpp"
 
@@ -1401,26 +1404,37 @@ namespace jiminy
             // Log systems data
             for (auto const & system : systems_)
             {
-                // Backup Robot's input arguments
-                std::string const telemetryUrdfPath = addCircumfix(
-                    "urdf_path", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                telemetrySender_.registerConstant(
-                    telemetryUrdfPath, system.robot->getUrdfPath());
+                // Backup URDF file
+                std::string const telemetryUrdfFile = addCircumfix(
+                    "urdf_file", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                std::ifstream urdfFileStream(system.robot->getUrdfPath());
+                std::string const urdfFileString((std::istreambuf_iterator<char_t>(urdfFileStream)),
+                                                 std::istreambuf_iterator<char_t>());
+                telemetrySender_.registerConstant(telemetryUrdfFile, urdfFileString);
+
+                // Backup 'has_freeflyer' option
                 std::string const telemetrHasFreeflyer = addCircumfix(
                     "has_freeflyer", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 telemetrySender_.registerConstant(
                     telemetrHasFreeflyer, std::to_string(system.robot->getHasFreeflyer()));
+
+                // Backup mesh package lookup directories
                 std::string const telemetryMeshPackageDirs = addCircumfix(
                     "mesh_package_dirs", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 std::string meshPackageDirsString;
-                for (std::string const & dir : system.robot->getMeshPackageDirs())
+                std::stringstream meshPackageDirsStream;
+                std::vector<std::string> const & meshPackageDirs = system.robot->getMeshPackageDirs();
+                copy(meshPackageDirs.begin(), meshPackageDirs.end(),
+                     std::ostream_iterator<std::string>(meshPackageDirsStream, ";"));
+                if (meshPackageDirsStream.peek() != decltype(meshPackageDirsStream)::traits_type::eof())
                 {
-                    meshPackageDirsString += dir + '\n';
+                    meshPackageDirsString = meshPackageDirsStream.str();
+                    meshPackageDirsString.pop_back();
                 }
                 telemetrySender_.registerConstant(
                     telemetryMeshPackageDirs, meshPackageDirsString);
 
-                // Backup the Pinocchio Model related to the current simulation
+                // Backup the Pinocchio Model used for the simulation
                 std::string const telemetryModelName = addCircumfix(
                     "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 std::string modelString = system.robot->pncModel_.saveToString();
@@ -2737,7 +2751,7 @@ namespace jiminy
         // Create proxies for convenience
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
-        pinocchio::GeometryModel const & geomModel = system.robot->pncGeometryModel_;
+        pinocchio::GeometryModel const & geomModel = system.robot->collisionModel_;
         pinocchio::GeometryData & geomData = *system.robot->pncGeometryData_;
 
         // Update forward kinematics
@@ -2815,8 +2829,8 @@ namespace jiminy
         // object simply by sampling points on the profile.
 
         // Get the frame and joint indices
-        geomIndex_t const & geometryIdx = system.robot->pncGeometryModel_.collisionPairs[collisionPairIdx].first;
-        jointIndex_t const & parentJointIdx = system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentJoint;
+        geomIndex_t const & geometryIdx = system.robot->collisionModel_.collisionPairs[collisionPairIdx].first;
+        jointIndex_t const & parentJointIdx = system.robot->collisionModel_.geometryObjects[geometryIdx].parentJoint;
 
         // Extract collision and distance results
         hpp::fcl::CollisionResult const & collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];

@@ -10,7 +10,7 @@ on:
 jobs:
   build-test-and-publish-pypi-manylinux:
     name: >-
-      (${{ matrix.container }}) (Python${{ matrix.PYTHON_VERSION }})
+      (${{ matrix.container }}) (${{ matrix.PYTHON_VERSION }})
       Build and run the unit tests. Then generate and publish the wheels on PyPi.
     runs-on: ubuntu-20.04
     container: quay.io/pypa/${{ matrix.container }}

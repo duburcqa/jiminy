@@ -1,6 +1,6 @@
 #include <numeric>
 
-#include "pinocchio/parsers/urdf.hpp"                      // `pinocchio::urdf::buildGeom `
+#include "pinocchio/parsers/urdf.hpp"                      // `pinocchio::urdf::buildGeom`, `pinocchio::urdf::buildModel`
 #include "pinocchio/spatial/se3.hpp"                       // `pinocchio::SE3`
 #include "pinocchio/spatial/force.hpp"                     // `pinocchio::Force`
 #include "pinocchio/spatial/inertia.hpp"                   // `pinocchio::Inertia`
@@ -929,22 +929,123 @@ namespace jiminy
         }
     };
 
-    void buildGeom(pinocchio::Model         const & model,
-                   std::string              const & filename,
-                   pinocchio::GeometryType  const & type,
-                   pinocchio::GeometryModel       & geomModel,
-                   std::vector<std::string> const & package_dirs,
-                   bool_t                   const & loadMeshes)
+    hresult_t buildGeomFromUrdf(pinocchio::Model         const & model,
+                                std::string              const & filename,
+                                pinocchio::GeometryType  const & type,
+                                pinocchio::GeometryModel       & geomModel,
+                                std::vector<std::string> const & packageDirs,
+                                bool_t                   const & loadMeshes,
+                                bool_t                   const & makeConvexMeshes)
     {
-        if (loadMeshes)
+        // Load geometry model
+        try
         {
-            pinocchio::urdf::buildGeom(model, filename, type, geomModel, package_dirs);
+            if (loadMeshes)
+            {
+                pinocchio::urdf::buildGeom(model, filename, type, geomModel, packageDirs);
+            }
+            else
+            {
+                hpp::fcl::MeshLoaderPtr MeshLoaderPtr(new DummyMeshLoader);
+                pinocchio::urdf::buildGeom(model, filename, type, geomModel, packageDirs, MeshLoaderPtr);
+            }
         }
-        else
+        catch (std::exception const & e)
         {
-            hpp::fcl::MeshLoaderPtr MeshLoaderPtr(new DummyMeshLoader);
-            pinocchio::urdf::buildGeom(model, filename, type, geomModel, package_dirs, MeshLoaderPtr);
+            PRINT_ERROR("Something is wrong with the URDF. Impossible to load the collision geometries.\n"
+                        "Raised from exception: ", e.what());
+            return hresult_t::ERROR_GENERIC;
+        }
 
+        // Replace the mesh geometry object by its convex representation if necessary
+        if (makeConvexMeshes)
+        {
+            try
+            {
+                for (uint32_t i=0; i<geomModel.geometryObjects.size(); ++i)
+                {
+                    auto & geometry = geomModel.geometryObjects[i].geometry;
+                    if (geometry->getObjectType() == hpp::fcl::OT_BVH)
+                    {
+                        hpp::fcl::BVHModelPtr_t bvh = boost::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
+                        bvh->buildConvexHull(true);
+                        geometry = bvh->convex;
+                    }
+                }
+            }
+            catch (std::logic_error const & e)
+            {
+                PRINT_WARNING("hpp-fcl not built with qhull. Impossible to convert meshes to convex hulls.");
+            }
         }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t buildModelsFromUrdf(std::string const & urdfPath,
+                                  bool_t const & hasFreeflyer,
+                                  std::vector<std::string> const & meshPackageDirs,
+                                  pinocchio::Model & pncModel,
+                                  pinocchio::GeometryModel & collisionModel,
+                                  boost::optional<pinocchio::GeometryModel &> visualModel,
+                                  bool_t const & loadVisualMeshes)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Make sure the URDF file exists
+        if (!std::ifstream(urdfPath.c_str()).good())
+        {
+            PRINT_ERROR("The URDF file does not exist. Impossible to load it.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Build physics model
+        try
+        {
+            if (hasFreeflyer)
+            {
+                pinocchio::urdf::buildModel(
+                    urdfPath, pinocchio::JointModelFreeFlyer(), pncModel);
+            }
+            else
+            {
+                pinocchio::urdf::buildModel(urdfPath, pncModel);
+            }
+        }
+        catch (std::exception const & e)
+        {
+            PRINT_ERROR("Something is wrong with the URDF. Impossible to build a model from it.\n"
+                        "Raised from exception: ", e.what());
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Build collision model
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = buildGeomFromUrdf(pncModel,
+                                           urdfPath,
+                                           pinocchio::COLLISION,
+                                           collisionModel,
+                                           meshPackageDirs,
+                                           true,
+                                           true);
+        }
+
+        // Build visual model
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (visualModel.is_initialized())
+            {
+                returnCode = buildGeomFromUrdf(pncModel,
+                                               urdfPath,
+                                               pinocchio::VISUAL,
+                                               visualModel.value(),
+                                               meshPackageDirs,
+                                               loadVisualMeshes,
+                                               false);
+            }
+        }
+
+        return returnCode;
     }
 }

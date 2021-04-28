@@ -210,6 +210,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('gl-version', '3 1')
         config.set_value('notify-level', 'error')
         config.set_value('notify-level-x11display', 'fatal')
+        config.set_value('notify-level-device', 'fatal')
         config.set_value('default-directnotify-level', 'error')
         loadPrcFileData('', str(config))
 
@@ -727,8 +728,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.step()
 
     def set_legend(self,
-                   items: Optional[Dict[str, Optional[Sequence[int]]]] = None
-                   ) -> None:
+                   items: Optional[Sequence[
+                       Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
         # Remove existing watermark, if any
         if self._legend is not None:
             self._legend.remove_node()
@@ -739,9 +740,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             return
 
         # Create empty figure with the legend
-        color_default = np.array([0.0, 0.0, 0.0, 1.0])
+        color_default = (0.0, 0.0, 0.0, 1.0)
         handles = [Patch(color=c if c is not None else color_default, label=t)
-                   for t, c in items.items()]
+                   for t, c in items]
         fig = plt.figure()
         legend = fig.gca().legend(handles=handles, framealpha=1, frameon=True)
         fig.gca().set_axis_off()
@@ -775,7 +776,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         tex = Texture()
         tex.setup2dTexture(
             width, height, Texture.T_unsigned_byte, Texture.F_rgba8)
-        tex.set_ram_image(img_raw)
+        tex.set_ram_image_as(img_raw, 'rgba')
 
         # Compute relative image size
         width_win, height_win = self.getSize()

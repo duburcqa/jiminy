@@ -274,11 +274,14 @@ namespace jiminy
             {
                 field = convertFromJson<float64_t>(*root);
             }
-            else if (root->type() == Json::uintValue)
+            else if (root->isConvertibleTo(Json::uintValue))
             {
+                /* One must use `Json::isConvertibleTo` instead of checking type since JSON
+                   format as no way to distinguish between both, so that (u)int32_t are
+                   always parsed as int64_t. */
                 field = convertFromJson<uint32_t>(*root);
             }
-            else if (root->type() == Json::intValue)
+            else if (root->isConvertibleTo(Json::intValue))
             {
                 field = convertFromJson<int32_t>(*root);
             }

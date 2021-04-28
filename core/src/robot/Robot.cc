@@ -45,17 +45,13 @@ namespace jiminy
                                 bool_t                   const & hasFreeflyer,
                                 std::vector<std::string> const & meshPackageDirs)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Detach all the motors and sensors
         detachSensors({});
         detachMotors({});
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
-        returnCode = Model::initialize(urdfPath, hasFreeflyer, meshPackageDirs);
-
-        return returnCode;
+        return Model::initialize(urdfPath, hasFreeflyer, meshPackageDirs);
     }
 
     void Robot::reset(void)

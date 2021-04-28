@@ -3,7 +3,9 @@
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
+#include "jiminy/core/io/MemoryDevice.h"
 #include "jiminy/core/utilities/Pinocchio.h"
+#include "jiminy/core/utilities/Json.h"
 #include "jiminy/core/utilities/Random.h"
 
 #include <boost/optional.hpp>
@@ -38,12 +40,8 @@ namespace python
                            vectorN_t        const & position)
     {
         bool_t isValid;
-        hresult_t returnCode = ::jiminy::isPositionValid(
+        ::jiminy::isPositionValid(
             model, position, isValid, Eigen::NumTraits<float64_t>::dummy_precision());
-        if (returnCode != hresult_t::SUCCESS)
-        {
-            return false;
-        }
         return isValid;
     }
 
@@ -69,24 +67,84 @@ namespace python
 
     pinocchio::GeometryModel buildGeomFromUrdf(pinocchio::Model const & model,
                                                std::string const & filename,
-                                               pinocchio::GeometryType const & type,
+                                               bp::object const & typePy,
                                                bp::list const & packageDirsPy,
-                                               bool_t loadMeshes)
+                                               bool_t const & loadMeshes,
+                                               bool_t const & makeMeshesConvex)
     {
+        /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType`
+           is not properly converted from Python to C++ automatically in some cases. */
         pinocchio::GeometryModel geometryModel;
+        auto const type = static_cast<pinocchio::GeometryType>(bp::extract<int>(typePy)());
         auto packageDirs = convertFromPython<std::vector<std::string> >(packageDirsPy);
-        buildGeom(model, filename, type, geometryModel, packageDirs, loadMeshes);
+        ::jiminy::buildGeomFromUrdf(model,
+                                    filename,
+                                    type,
+                                    geometryModel,
+                                    packageDirs,
+                                    loadMeshes,
+                                    makeMeshesConvex);
         return geometryModel;
+    }
+
+    bp::tuple buildModelsFromUrdf(std::string const & urdfPath,
+                                  bool_t const & hasFreeflyer,
+                                  bp::list const & packageDirsPy,
+                                  bool_t const & buildVisualModel,
+                                  bool_t const & loadVisualMeshes)
+    {
+        /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType`
+           is not properly converted from Python to C++ automatically in some cases. */
+        pinocchio::Model model;
+        pinocchio::GeometryModel collisionModel;
+        pinocchio::GeometryModel visualModel;
+        boost::optional<pinocchio::GeometryModel &> visualModelOptionalRef = boost::none;
+        if (buildVisualModel)
+        {
+            visualModelOptionalRef = visualModel;
+        }
+        auto packageDirs = convertFromPython<std::vector<std::string> >(packageDirsPy);
+        ::jiminy::buildModelsFromUrdf(urdfPath,
+                                      hasFreeflyer,
+                                      packageDirs,
+                                      model,
+                                      collisionModel,
+                                      visualModelOptionalRef,
+                                      loadVisualMeshes);
+        if (buildVisualModel)
+        {
+            return bp::make_tuple(model, collisionModel, visualModel);
+        }
+        return bp::make_tuple(model, collisionModel);
+    }
+
+    configHolder_t loadConfigJsonString(std::string const & jsonString)
+    {
+        std::vector<uint8_t> jsonStringVec(jsonString.begin(), jsonString.end());
+        std::shared_ptr<AbstractIODevice> device =
+            std::make_shared<MemoryDevice>(std::move(jsonStringVec));
+        configHolder_t robotOptions;
+        jsonLoad(robotOptions, device);
+        return robotOptions;
     }
 
     void exposeHelpers(void)
     {
         bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed") = bp::object()));
 
-        bp::def("buildGeomFromUrdf", &buildGeomFromUrdf,
-                                     (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
-                                      bp::arg("package_dirs") = bp::list(),
-                                      bp::arg("load_meshes") = true));
+        bp::def("build_geom_from_urdf", &buildGeomFromUrdf,
+                                        (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
+                                         bp::arg("mesh_package_dirs") = bp::list(),
+                                         bp::arg("load_meshes") = true,
+                                         bp::arg("make_meshes_convex") = false));
+
+        bp::def("build_models_from_urdf", &buildModelsFromUrdf,
+                                          (bp::arg("urdf_path"), "has_freeflyer",
+                                           bp::arg("mesh_package_dirs") = bp::list(),
+                                           bp::arg("build_visual_model") = false,
+                                           bp::arg("load_visual_meshes") = false));
+
+        bp::def("load_config_json_string", &loadConfigJsonString, (bp::arg("json_string")));
 
         bp::def("get_joint_type", &getJointTypeFromIdx,
                                   (bp::arg("pinocchio_model"), "joint_idx"));
