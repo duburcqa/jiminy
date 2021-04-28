@@ -1,4 +1,3 @@
-import os
 import logging
 import pathlib
 import asyncio
@@ -16,7 +15,7 @@ from typing_extensions import TypedDict
 
 from .. import core as jiminy
 from ..state import State
-from ..log import read_log
+from ..log import build_robot_from_log
 from .viewer import (
     COLORS, Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
 from .meshcat.utilities import interactive_mode
@@ -520,31 +519,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
     robots = []
     logs_data = []
     for log_file in logs_files:
-        # Parse log file
-        log_data, log_constants = read_log(log_file)
+        robot, (log_data, _) = build_robot_from_log(log_file)
         logs_data.append(log_data)
-
-        # Extract robot info
-        pinocchio_model_str = log_constants[
-            "HighLevelController.pinocchio_model"]
-        urdf_file = log_constants["HighLevelController.urdf_file"]
-        has_freeflyer = int(log_constants["HighLevelController.has_freeflyer"])
-        mesh_package_dirs = log_constants[
-            "HighLevelController.mesh_package_dirs"].split(";")
-        all_options = jiminy.load_config_json_string(
-            log_constants["HighLevelController.options"])
-
-        # Create temporary URDF file
-        fd, urdf_path = tempfile.mkstemp(
-            prefix=f"{pathlib.Path(log_file).stem}_", suffix=".urdf")
-        os.write(fd, urdf_file.encode())
-        os.close(fd)
-
-        # Build robot
-        robot = jiminy.Robot()
-        robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
-        robot.set_options(all_options["system"]["robot"])
-        robot.pinocchio_model.loadFromString(pinocchio_model_str)
         robots.append(robot)
 
     # Default legend

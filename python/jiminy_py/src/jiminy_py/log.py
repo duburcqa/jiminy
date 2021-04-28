@@ -1,6 +1,7 @@
 import os
 import pathlib
 import fnmatch
+import tempfile
 import argparse
 from csv import DictReader
 from textwrap import dedent
@@ -13,7 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-from .core import Engine
+from .core import Engine, Robot, load_config_json_string
 
 
 def _is_log_binary(fullpath: str) -> bool:
@@ -123,6 +124,59 @@ def read_log(fullpath: str,
                 data_dict[key] = value['value'][()]
 
     return data_dict, const_dict
+
+
+def build_robot_from_log(log_file: str) -> Robot:
+    """Extract log data and build robot from it.
+
+    .. note::
+        model options and `robot.pinocchio_model` are guarentee to be the same
+        as during the simulation until the next call to `reset` method.
+
+    .. note::
+        It returns a valid and fully initialized robot, that can be used to
+        perform new simulation if added to a Jiminy Engine, but the original
+        controller is lost.
+
+    .. warning::
+        It does ot require the original URDF file to exist, but the original
+        mesh paths (if any) must be valid since they are not bundle in the log
+        archive for now.
+
+    :param log_file: Path of the simulation log file, in any format.
+
+    :returns: Reconstructed robot, and parsed log data as returned by
+              `jiminy_py.log.read_log` method.
+    """
+    # Parse log file
+    log_data, log_constants = read_log(log_file)
+
+    # Extract robot info
+    pinocchio_model_str = log_constants[
+        "HighLevelController.pinocchio_model"]
+    urdf_file = log_constants["HighLevelController.urdf_file"]
+    has_freeflyer = int(log_constants["HighLevelController.has_freeflyer"])
+    if "HighLevelController.mesh_package_dirs" in log_constants.keys():
+        mesh_package_dirs = log_constants[
+            "HighLevelController.mesh_package_dirs"].split(";")
+    else:
+        mesh_package_dirs = []
+    all_options = load_config_json_string(
+        log_constants["HighLevelController.options"])
+
+    # Create temporary URDF file
+    fd, urdf_path = tempfile.mkstemp(
+        prefix=f"{pathlib.Path(log_file).stem}_", suffix=".urdf")
+    os.write(fd, urdf_file.encode())
+    os.close(fd)
+
+    # Build robot
+    robot = Robot()
+    robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
+    robot.set_options(all_options["system"]["robot"])
+    robot.pinocchio_model.loadFromString(pinocchio_model_str)
+
+    return robot, (log_data, log_constants)
 
 
 def plot_log():
