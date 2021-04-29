@@ -223,7 +223,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Configure rendering
         self.render.set_shader_auto()
-        self.render.set_antialias(AntialiasAttrib.MAuto)
+        self.render.set_antialias(
+            AntialiasAttrib.M_auto | AntialiasAttrib.M_faster)
 
         # Define default camera pos
         self._camera_defaults = CAMERA_POS_DEFAULT
@@ -748,7 +749,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         fig.gca().set_axis_off()
 
         # Render the legend
-        fig.canvas.draw()
+        fig.draw(renderer=fig.canvas.get_renderer())
 
         # Compute bbox size to be power of 2 for software rendering.
         bbox = legend.get_window_extent().padded(2)
