@@ -1475,16 +1475,20 @@ class Viewer:
     def add_marker(self,
                    name: str,
                    shape: str,
-                   pose: List[Optional[np.ndarray]] = (None, None),
-                   scale: Union[float, Tuple3FType] = 1.0,
-                   color: Optional[Union[str, Tuple4FType]] = None,
+                   pose: Union[List[Optional[np.ndarray]],
+                               Callable[[], Tuple[np.ndarray, np.ndarray]]
+                               ] = (None, None),
+                   scale: Union[Union[float, Tuple3FType],
+                                Callable[[], np.ndarray]] = 1.0,
+                   color: Union[Optional[Union[str, Tuple4FType]],
+                                Callable[[], Tuple4FType]] = None,
                    **shape_kwargs: Any) -> MarkerDataType:
         """Add marker on the scene.
 
         .. note::
             This method is only supported by Panda3d for now.
 
-        :param name: Unique identifier name.
+        :param name: Unique name. It must be a valid string identifier.
         :param shape: Desired shape, as a string, i.e. 'cone', 'box', 'sphere',
                       'capsule', 'cylinder', or 'arrow'.
         :param pose: Pose of the geometry on the scene, as a list of vectors
@@ -1545,6 +1549,16 @@ class Viewer:
 
     @__must_be_open
     def show_center_of_mass(self, is_enable: bool) -> None:
+        """Display the position of the center of mass as a sphere.
+
+        .. note::
+            It corresponds to the attribute `com[0]` of the provided
+            `robot.pinocchio_model`. Calling `Viewer.display` will update it
+            automatically, while `Viewer.refresh` will not.
+
+        :param is_enable: Whether to enable or disable display of the center of
+                          mass.
+        """
         if is_enable:
             if "com_0" not in self.markers.keys():
                 self.add_marker(name="com_0",
@@ -1556,9 +1570,33 @@ class Viewer:
                 self.remove_marker("com_0")
 
     @__must_be_open
+    def show_contact_force(self,
+                           sensor: Optional[jiminy.ContactSensor] = None
+                           ) -> None:
+        """Display contact force associated with a contact sensor.
+
+        .. warning::
+            It corresponds to the attribute `data` of the provided
+            `jiminy.ContactSensor`. Calling `Viewer.display` will NOT update
+            its value automatically. It is up to the user to keep it
+            up-to-date. It will always be the case during a simulation, but not
+            when replaying a log file a-posteriori. In such a case, the user is
+            responsible of specifying a custom `update_hook` to
+            `Viewer.display` and `Viewer.replay` methods to emulate sensor
+            update based on log data.
+
+        :param sensor: Contact sensor attached to the robot.
+        """
+        pass
+
+    @__must_be_open
     def remove_marker(self, name: str) -> None:
+        """Remove a marker, based on its name.
+
+        :param identifier: Name of the marker to remove.
+        """
         if name not in self.markers.keys():
-            raise ValueError(f"marker's name '{name}' does not exists.")
+            raise ValueError(f"Marker's name '{name}' does not exists.")
         self.markers.pop(name)
         self._gui.remove_node(self._markers_group, name)
 
@@ -1638,10 +1676,12 @@ class Viewer:
             elif Viewer._camera_motion is not None:
                 self.set_camera_transform()
 
-            # Update markers placements.
+            # Update pose, color and scale of the markers, if any
             if Viewer.backend.startswith('panda3d'):
                 pose_dict, material_dict, scale_dict = {}, {}, {}
                 for marker_name, marker_data in self.markers.items():
+                    marker_data = {key: value() if callable(value) else value
+                                   for key, value in marker_data.items()}
                     (x, y, z), (qx, qy, qz, qw) = marker_data["pose"]
                     pose_dict[marker_name] = ((x, y, z), (qw, qx, qy, qz))
                     material_dict[marker_name] = marker_data["color"]
@@ -1650,7 +1690,7 @@ class Viewer:
                 self._gui.set_materials(self._markers_group, material_dict)
                 self._gui.set_scales(self._markers_group, scale_dict)
 
-            # Refreshing viewer backend manually is necessary for gepetto-gui
+            # Refreshing viewer backend manually if necessary
             if Viewer.backend == 'gepetto-gui':
                 self._gui.refresh()
             elif Viewer.backend.startswith('panda3d'):
