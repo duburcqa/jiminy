@@ -1532,9 +1532,10 @@ class Viewer:
 
         if Viewer.backend.startswith('panda3d'):
             create_shape = getattr(self._gui, f"append_{shape}")
-            create_shape(self._markers_group, name, frame=pose, **shape_kwargs)
+            create_shape(self._markers_group, name, **shape_kwargs)
             self._gui.set_material(self._markers_group, name, color)
             self._gui.set_scale(self._markers_group, name, scale)
+            self._gui.move_node(self._markers_group, name, pose)
             marker_data = {"pose": pose, "scale": scale, "color": color}
             self.markers[name] = marker_data
             return marker_data

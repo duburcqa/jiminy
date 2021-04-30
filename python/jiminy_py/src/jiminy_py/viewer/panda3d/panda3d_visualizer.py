@@ -963,7 +963,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                   frame: FrameType) -> None:
         """Set pose of a single node.
         """
-        node = self._groups[root_path].find(name).children[0]
+        node = self._groups[root_path].find(name)
         if isinstance(frame, np.ndarray):
             node.set_mat(Mat4(*frame.T.flat))
         else:
