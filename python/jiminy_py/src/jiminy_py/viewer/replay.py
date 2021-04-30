@@ -520,8 +520,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
         logs_data.append(log_data)
         robots.append(robot)
 
-    # Default legend
-    if "legend" not in kwargs:
+    # Default legend if several log files are provided
+    if "legend" not in kwargs and len(logs_files) > 1:
         kwargs["legend"] = [pathlib.Path(log_file).stem.split('_')[-1]
                             for log_file in logs_files]
 
