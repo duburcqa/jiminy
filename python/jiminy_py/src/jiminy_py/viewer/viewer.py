@@ -1704,6 +1704,8 @@ class Viewer:
     def display(self,
                 q: np.ndarray,
                 xyz_offset: Optional[np.ndarray] = None,
+                update_hook: Optional[
+                    Callable[[pin.Model, pin.Data], None]] = None,
                 wait: bool = False) -> None:
         """Update the configuration of the robot.
 
@@ -1714,6 +1716,9 @@ class Viewer:
         :param q: Configuration of the robot.
         :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
+        :param update_hook: Callable that will be called right after updating
+                            kinematics data. `None` to disable.
+                            Optional: None by default.
         :param wait: Whether or not to wait for rendering to finish.
         """
         assert self._client.model.nq == q.shape[0], (
@@ -1729,6 +1734,10 @@ class Viewer:
         pin.framesForwardKinematics(self._client.model, self._client.data, q)
         pin.centerOfMass(self._client.model, self._client.data, False)
 
+        # Call custom update hook
+        if update_hook is not None:
+            update_hook(self._client.model, self._client.data)
+
         # Refresh the viewer
         self.refresh(wait)
 
@@ -1740,6 +1749,8 @@ class Viewer:
                speed_ratio: float = 1.0,
                xyz_offset: Optional[np.ndarray] = None,
                enable_clock: bool = False,
+               update_hook: Optional[
+                   Callable[[pin.Model, pin.Data], None]] = None,
                wait: bool = False) -> None:
         """Replay a complete robot trajectory at a given real-time ratio.
 
@@ -1755,6 +1766,9 @@ class Viewer:
         :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
                            OPtional: None by default.
+        :param update_hook: Callable that will be called periodically between
+                            every state update. `None` to disable.
+                            Optional: None by default.
         :param wait: Whether or not to wait for rendering to finish.
         """
         t = [s.t for s in evolution_robot]
@@ -1771,7 +1785,7 @@ class Viewer:
                 q = pin.interpolate(self._client.model, s.q, s_next.q, ratio)
                 if Viewer._camera_motion is not None:
                     Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
-                self.display(q, xyz_offset, wait)
+                self.display(q, xyz_offset, update_hook, wait)
                 t_simu = time_interval[0] + speed_ratio * (
                     time.time() - init_time)
                 i = bisect_right(t, t_simu)
