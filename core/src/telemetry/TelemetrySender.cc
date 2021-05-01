@@ -23,7 +23,7 @@ namespace jiminy
         // Empty.
     }
 
-    template <>
+    template<>
     void TelemetrySender::updateValue<int64_t>(std::string const & fieldNameIn,
                                                int64_t     const & value)
     {
@@ -38,7 +38,7 @@ namespace jiminy
         *(it->second) = value;
     }
 
-    template <>
+    template<>
     void TelemetrySender::updateValue<float64_t>(std::string const & fieldNameIn,
                                                  float64_t   const & value)
     {

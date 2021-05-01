@@ -44,7 +44,7 @@ namespace jiminy
         hresult_t registerVariable(std::string const & fieldname,
                                    T           const & initialValue);
 
-        template <typename Derived>
+        template<typename Derived>
         hresult_t registerVariable(std::vector<std::string>   const & fieldnames,
                                    Eigen::MatrixBase<Derived> const & values);
 
@@ -54,11 +54,11 @@ namespace jiminy
         /// \param[in]  fieldname  Name of the value to update.
         /// \param[in]  value      Updated value of the variable.
         ////////////////////////////////////////////////////////////////////////
-        template <typename T>
+        template<typename T>
         void updateValue(std::string const & fieldname,
                          T           const & value);
 
-        template <typename Derived>
+        template<typename Derived>
         void updateValue(std::vector<std::string>   const & fieldnames,
                          Eigen::MatrixBase<Derived> const & values);
 

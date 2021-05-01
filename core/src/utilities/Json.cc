@@ -75,7 +75,7 @@ namespace jiminy
 
         ~AppendBoostVariantToJson(void) = default;
 
-        template <typename T>
+        template<typename T>
         void operator()(T const & value)
         {
             root_[field_] = convertToJson(value);

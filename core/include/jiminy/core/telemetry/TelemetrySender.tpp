@@ -7,7 +7,7 @@
 
 namespace jiminy
 {
-    template <typename Derived>
+    template<typename Derived>
     hresult_t TelemetrySender::registerVariable(std::vector<std::string>   const & fieldnames,
                                                 Eigen::MatrixBase<Derived> const & initialValues)
     {
@@ -22,7 +22,7 @@ namespace jiminy
         return returnCode;
     }
 
-    template <typename Derived>
+    template<typename Derived>
     void TelemetrySender::updateValue(std::vector<std::string>   const & fieldnames,
                                       Eigen::MatrixBase<Derived> const & values)
     {
