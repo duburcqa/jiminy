@@ -612,7 +612,8 @@ class Viewer:
                 return (frame_position, frame_rotation)
 
             def get_scale(sensor: contact) -> Tuple3FType:
-                return (1.0, 1.0, sensor.data[2] / CONTACT_FORCE_SCALE)
+                length = min(abs(sensor.data[2]) / CONTACT_FORCE_SCALE, 100.0)
+                return (1.0, 1.0, - np.sign(sensor.data[2]) * length)
 
             if contact.type in robot.sensors_names.keys():
                 for name in robot.sensors_names[contact.type]:
@@ -1582,7 +1583,7 @@ class Viewer:
         if color is None:
             color = self.robot_color
         if color is None:
-            color = 'red'
+            color = 'white'
         color = np.asarray(get_color_code(color))
 
         # Make sure no marker with this name already exists
@@ -1621,7 +1622,9 @@ class Viewer:
         if Viewer.backend.startswith('panda3d'):
             for name in self.markers:
                 if name.startswith("com_0"):
-                    self._gui.show_node(self._markers_group, name, visibility)
+                    self._gui.show_node(
+                        self._markers_group, name, visibility,
+                        always_foreground=True)
             self._display_com = visibility
         else:
             raise NotImplementedError(
@@ -1650,7 +1653,9 @@ class Viewer:
         if Viewer.backend.startswith('panda3d'):
             for name in self.markers:
                 if name.startswith(contact.type):
-                    self._gui.show_node(self._markers_group, name, visibility)
+                    self._gui.show_node(
+                        self._markers_group, name, visibility,
+                        always_foreground=True)
             self._display_contacts = visibility
         else:
             raise NotImplementedError(
