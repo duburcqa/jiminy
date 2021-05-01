@@ -736,6 +736,24 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_scale(radius, radius, length)
         self.append_node(root_path, name, node, frame)
 
+    def append_cylinder(self,
+                        root_path: str,
+                        name: str,
+                        radius: float,
+                        length: float,
+                        anchor_bottom: bool = False,
+                        frame: Optional[FrameType] = None) -> None:
+        """Must be patched to add optional to place anchor at the bottom of the
+        cylinder instead of the middle.
+        """
+        geom_node = GeomNode('cylinder')
+        geom_node.add_geom(geometry.make_cylinder())
+        node = NodePath(geom_node)
+        node.set_scale(Vec3(radius, radius, length))
+        if anchor_bottom:
+            node.set_pos(0.0, 0.0, -length/2)
+        self.append_node(root_path, name, node, frame)
+
     def append_arrow(self,
                      root_path: str,
                      name: str,
@@ -1177,6 +1195,7 @@ def delegate(self, name: str) -> Any:
 
 Panda3dViewer.__getattr__ = delegate
 delattr(Panda3dViewer, 'set_material')
+delattr(Panda3dViewer, 'append_cylinder')
 
 
 class Panda3dVisualizer(BaseVisualizer):
