@@ -30,21 +30,8 @@ namespace jiminy
 {
     // **************** Generic template utilities ******************
 
-    // https://stackoverflow.com/a/34672753/4820605
-    template<template<typename...> class base, typename derived>
-    struct is_base_of_template_impl
-    {
-        template<typename... Ts>
-        static constexpr std::true_type test(base<Ts...> const *);
-        static constexpr std::false_type test(...);
-        using type = decltype(test(std::declval<derived *>()));
-    };
-
-    template<template <typename...> class base, typename derived>
-    using is_base_of_template = typename is_base_of_template_impl<base, derived>::type;
-
     // https://stackoverflow.com/a/37227316/4820605
-    template <class F, class... Args>
+    template<class F, class... Args>
     void do_for(F f, Args... args)
     {
         (f(args), ...);
@@ -83,6 +70,21 @@ namespace jiminy
         return std::static_pointer_cast<T>(shared_from_base(derived));
     }
 
+    // ======================== is_base_of_template ===========================
+
+    // https://stackoverflow.com/a/34672753/4820605
+    template<template<typename...> class base, typename derived>
+    struct is_base_of_template_impl
+    {
+        template<typename... Ts>
+        static constexpr std::true_type test(base<Ts...> const *);
+        static constexpr std::false_type test(...);
+        using type = decltype(test(std::declval<derived *>()));
+    };
+
+    template<template<typename...> class base, typename derived>
+    using is_base_of_template = typename is_base_of_template_impl<base, derived>::type;
+
     // ======================== is_vector ===========================
 
     template<typename T>
@@ -112,35 +114,10 @@ namespace jiminy
     struct is_map : std::false_type {};
 
     template<typename T>
-    struct is_map<T, typename std::enable_if<isMap<T>::value>::type> : std::true_type {};
+    struct is_map<T, typename std::enable_if_t<isMap<T>::value> > : std::true_type {};
 
     template<typename T>
     constexpr bool is_map_v = is_map<T>::value;
-
-    // ========================= is_eigen ===========================
-
-    namespace isEigenObjectDetail
-    {
-        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
-        std::true_type test(Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const *);
-        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
-        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> > const *);
-        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
-        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const> const *);
-        std::false_type test(...);
-    }
-
-    template<typename T>
-    struct isEigenObject : public decltype(isEigenObjectDetail::test(std::declval<std::add_pointer_t<T> >())) {};
-
-    template<typename T, typename Enable = void>
-    struct is_eigen : public std::false_type {};
-
-    template<typename T>
-    struct is_eigen<T, typename std::enable_if_t<isEigenObject<T>::value> > : std::true_type {};
-
-    template<typename T>
-    constexpr bool is_eigen_v = is_eigen<T>::value;
 
     // ====================== is_not_eigen_expr =======================
 
@@ -175,6 +152,52 @@ namespace jiminy
 
     template<typename T>
     constexpr bool is_eigen_vector_v = is_eigen_vector<T>::value;
+
+    // ====================== is_eigen_ref =======================
+
+    namespace isEigenRefDetail
+    {
+        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> > const *);
+        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const> const *);
+        std::false_type test(...);
+    }
+
+    template<typename T>
+    struct isEigenRef : public decltype(isEigenRefDetail::test(std::declval<std::add_pointer_t<T> >())) {};
+
+    template<typename T, typename Enable = void>
+    struct is_eigen_ref : std::false_type {};
+
+    template<typename T>
+    struct is_eigen_ref<T, typename std::enable_if_t<isEigenRef<T>::value> > : std::true_type {};
+
+    template<typename T>
+    constexpr bool is_eigen_ref_v = is_eigen_ref<T>::value;
+
+    // ========================= is_eigen ===========================
+
+    namespace isEigenObjectDetail
+    {
+        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+        std::true_type test(Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const *);
+        template<typename T>
+        std::enable_if_t<is_eigen_ref_v<T>, std::true_type> test(T const *);
+        std::false_type test(...);
+    }
+
+    template<typename T>
+    struct isEigenObject : public decltype(isEigenObjectDetail::test(std::declval<std::add_pointer_t<T> >())) {};
+
+    template<typename T, typename Enable = void>
+    struct is_eigen : public std::false_type {};
+
+    template<typename T>
+    struct is_eigen<T, typename std::enable_if_t<isEigenObject<T>::value> > : std::true_type {};
+
+    template<typename T>
+    constexpr bool is_eigen_v = is_eigen<T>::value;
 
     // =================== is_pinocchio_joint_* ===================
 

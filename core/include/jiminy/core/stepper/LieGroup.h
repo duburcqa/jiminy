@@ -885,7 +885,7 @@ namespace Eigen
             // Empty on purpose
         }
 
-        template <typename ... Args>
+        template<typename ... Args>
         explicit VectorContainer(std::vector<Robot const *> const & robots,
                                  std::vector<Args> const & ... args) :
         vector_()
@@ -900,7 +900,7 @@ namespace Eigen
             }
         }
 
-        template <typename ... Args>
+        template<typename ... Args>
         explicit VectorContainer(std::vector<Robot const *> const & robots,
                                  std::vector<Args> && ... args) :
         vector_()

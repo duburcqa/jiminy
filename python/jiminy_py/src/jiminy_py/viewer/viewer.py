@@ -14,10 +14,10 @@ import webbrowser
 import multiprocessing
 import xml.etree.ElementTree as ET
 from copy import deepcopy
-from functools import wraps
+from functools import wraps, partial
 from bisect import bisect_right
 from threading import Lock
-from typing import Optional, Union, Sequence, Tuple, List, Dict, Callable, Any
+from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
 
 import psutil
 import numpy as np
@@ -35,6 +35,7 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
 from .. import core as jiminy
+from ..core import ContactSensor as contact
 from ..state import State
 from .meshcat.utilities import interactive_mode
 from .meshcat.wrapper import MeshcatWrapper
@@ -53,6 +54,8 @@ DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
+# Fz force value corresponding to capsule's length of 1cm
+CONTACT_FORCE_SCALE = 100.0  # [N]
 
 COLORS = {'red': (0.9, 0.15, 0.15, 1.0),
           'blue': (0.3, 0.3, 1.0, 1.0),
@@ -344,10 +347,12 @@ class Viewer:
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
 
-        # Initialize marker register.
+        # Initialize marker register
         self.markers: Dict[str, MarkerDataType] = {}
         self._markers_group = '/'.join((
             self.scene_name, self.robot_name, "markers"))
+        self._display_com = False
+        self._display_contacts = False
 
         # Select the desired backend
         if backend is None:
@@ -503,6 +508,12 @@ class Viewer:
                             ranging from 0.0 and 1.0, and a few named colors.
                             Optional: Disable by default.
         """
+        # Delete existing robot, if any
+        robot_node_path = '/'.join((self.scene_name, self.robot_name))
+        Viewer._delete_nodes_viewer([
+            '/'.join((robot_node_path, "visuals")),
+            '/'.join((robot_node_path, "collisions"))])
+
         # Backup desired color
         self.robot_color = get_color_code(robot_color)
 
@@ -539,10 +550,6 @@ class Viewer:
         self._client.data = pinocchio_data
         self._client.collision_data = robot.collision_data
 
-        # Delete existing robot, if any
-        robot_node_path = '/'.join((self.scene_name, self.robot_name))
-        Viewer._delete_nodes_viewer([robot_node_path])
-
         # Create the scene and load robot
         if Viewer.backend == 'gepetto-gui':
             # Initialize the viewer
@@ -574,9 +581,54 @@ class Viewer:
             self._client.loadViewerModel(
                 rootNodeName=robot_node_path, color=self.robot_color)
 
-        # Add 'markers' group
         if Viewer.backend.startswith('panda3d'):
-            self._gui.append_group(self._markers_group)
+            # Add markers' display groups
+            self._gui.append_group(self._markers_group, remove_if_exists=False)
+
+            # Add center of mass
+            def get_scale() -> Tuple3FType:
+                return (1.0, 1.0, self._client.data.com[0][2])
+
+            self.add_marker(name="com_0_sphere",
+                            shape="sphere",
+                            pose=[self._client.data.com[0], None],
+                            remove_if_exists=True,
+                            radius=0.03)
+
+            self.add_marker(name="com_0_cylinder",
+                            shape="cylinder",
+                            pose=[self._client.data.com[0], None],
+                            scale=get_scale,
+                            remove_if_exists=True,
+                            radius=0.005,
+                            length=1.0,
+                            anchor_bottom=True)
+
+            # Add contact sensor markers
+            def get_pose(sensor: contact) -> Tuple[Tuple3FType, Tuple4FType]:
+                oMf = self._client.data.oMf[sensor.frame_idx]
+                frame_position = oMf.translation
+                frame_rotation = pin.Quaternion(oMf.rotation).coeffs()
+                return (frame_position, frame_rotation)
+
+            def get_scale(sensor: contact) -> Tuple3FType:
+                return (1.0, 1.0, sensor.data[2] / CONTACT_FORCE_SCALE)
+
+            if contact.type in robot.sensors_names.keys():
+                for name in robot.sensors_names[contact.type]:
+                    sensor = robot.get_sensor(contact.type, name)
+                    self.add_marker(name='_'.join((contact.type, name)),
+                                    shape="cylinder",
+                                    pose=partial(get_pose, sensor),
+                                    scale=partial(get_scale, sensor),
+                                    remove_if_exists=True,
+                                    radius=0.02,
+                                    length=0.01,
+                                    anchor_bottom=True)
+
+            # Refresh CoM and contacts visibility
+            self.display_center_of_mass(self._display_com)
+            self.display_contact_forces(self._display_contacts)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
@@ -1475,16 +1527,22 @@ class Viewer:
     def add_marker(self,
                    name: str,
                    shape: str,
-                   pose: List[Optional[np.ndarray]] = (None, None),
-                   scale: Union[float, Tuple3FType] = 1.0,
-                   color: Optional[Union[str, Tuple4FType]] = None,
+                   pose: Union[Sequence[Optional[np.ndarray]],
+                               Callable[[], Tuple[Tuple3FType, Tuple4FType]]
+                               ] = (None, None),
+                   scale: Union[Union[float, Tuple3FType],
+                                Callable[[], np.ndarray]] = 1.0,
+                   color: Union[Optional[Union[str, Tuple4FType]],
+                                Callable[[], Tuple4FType]] = None,
+                   remove_if_exists: bool = False,
+                   auto_refresh: bool = True,
                    **shape_kwargs: Any) -> MarkerDataType:
         """Add marker on the scene.
 
-        .. note::
-            This method is only supported by Panda3d for now.
+        .. warning::
+            This method is only supported by Panda3d.
 
-        :param name: Unique identifier name.
+        :param name: Unique name. It must be a valid string identifier.
         :param shape: Desired shape, as a string, i.e. 'cone', 'box', 'sphere',
                       'capsule', 'cylinder', or 'arrow'.
         :param pose: Pose of the geometry on the scene, as a list of vectors
@@ -1498,6 +1556,10 @@ class Viewer:
                       and a few named colors.
                       Optional: robot's color by default if overridden,
                       'red' otherwise.
+        :param auto_refresh: Whether or not to refresh the scene after adding
+                             the marker. Useful for adding a bunch of markers
+                             and only refresh once. Note that the marker will
+                             not display properly until then.
         :param shape_kwargs: Any additional keyword arguments to forward for
                              shape instantiation.
 
@@ -1509,56 +1571,99 @@ class Viewer:
         # Handling of user arguments
         if pose is None:
             pose = [None, None]
-        if not all(isinstance(e, np.ndarray) for e in pose):
+        if not callable(pose) and any(value is None for value in pose):
             pose = list(pose)
             if pose[0] is None:
                 pose[0] = np.zeros(3)
             if pose[1] is None:
                 pose[1] = np.array([0.0, 0.0, 0.0, 1.0])
+        if np.isscalar(scale):
+            scale = np.full((3,), fill_value=float(scale))
         if color is None:
             color = self.robot_color
         if color is None:
             color = 'red'
-
-        # Sanitize user arguments
         color = np.asarray(get_color_code(color))
-        if not isinstance(scale, np.ndarray):
-            scale = np.full((3,), fill_value=scale)
-        pose = tuple(pose)
 
         # Make sure no marker with this name already exists
         if name in self.markers.keys():
-            raise ValueError(f"marker's name '{name}' already exists.")
+            if not remove_if_exists:
+                raise ValueError(f"marker's name '{name}' already exists.")
+            self.remove_marker(name)
 
         if Viewer.backend.startswith('panda3d'):
             create_shape = getattr(self._gui, f"append_{shape}")
             create_shape(self._markers_group, name, **shape_kwargs)
-            self._gui.set_material(self._markers_group, name, color)
-            self._gui.set_scale(self._markers_group, name, scale)
-            self._gui.move_node(self._markers_group, name, pose)
             marker_data = {"pose": pose, "scale": scale, "color": color}
             self.markers[name] = marker_data
-            return marker_data
+        else:
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
+        # Refresh the scene if desired
+        if auto_refresh:
+            self.refresh()
+
+        return marker_data
+
+    @__must_be_open
+    def display_center_of_mass(self, visibility: bool) -> None:
+        """Display the position of the center of mass as a sphere.
+
+        .. note::
+            It corresponds to the attribute `com[0]` of the provided
+            `robot.pinocchio_model`. Calling `Viewer.display` will update it
+            automatically, while `Viewer.refresh` will not.
+
+        :param visibility: Whether to enable or disable display of the center
+                           of mass.
+        """
+        if Viewer.backend.startswith('panda3d'):
+            for name in self.markers:
+                if name.startswith("com_0"):
+                    self._gui.show_node(self._markers_group, name, visibility)
+            self._display_com = visibility
         else:
             raise NotImplementedError(
                 "This method is only supported by Panda3d.")
 
     @__must_be_open
-    def show_center_of_mass(self, is_enable: bool) -> None:
-        if is_enable:
-            if "com_0" not in self.markers.keys():
-                self.add_marker(name="com_0",
-                                shape="sphere",
-                                pose=[self._client.data.com[0], None],
-                                radius=0.03)
+    def display_contact_forces(self, visibility: bool) -> None:
+        """Display forces associated with the contact sensors attached to the
+        robot, as a capsule of variable length depending of Fz.
+
+        .. note::
+            Fz can be signed. It will affect the orientation of the capsule.
+
+        .. warning::
+            It corresponds to the attribute `data` of `jiminy.ContactSensor`.
+            Calling `Viewer.display` will NOT update its value automatically.
+            It is up to the user to keep it up-to-date. It will always be the
+            case during a simulation, but not when replaying a log file
+            a-posteriori. In such a case, the user is responsible of specifying
+            a custom `update_hook` to `Viewer.display` and `Viewer.replay`
+            methods to emulate sensor update based on log data.
+
+        .. warning::
+            This method is only supported by Panda3d.
+        """
+        if Viewer.backend.startswith('panda3d'):
+            for name in self.markers:
+                if name.startswith(contact.type):
+                    self._gui.show_node(self._markers_group, name, visibility)
+            self._display_contacts = visibility
         else:
-            if "com_0" in self.markers.keys():
-                self.remove_marker("com_0")
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
 
     @__must_be_open
     def remove_marker(self, name: str) -> None:
+        """Remove a marker, based on its name.
+
+        :param identifier: Name of the marker to remove.
+        """
         if name not in self.markers.keys():
-            raise ValueError(f"marker's name '{name}' does not exists.")
+            raise ValueError(f"Marker's name '{name}' does not exists.")
         self.markers.pop(name)
         self._gui.remove_node(self._markers_group, name)
 
@@ -1638,19 +1743,22 @@ class Viewer:
             elif Viewer._camera_motion is not None:
                 self.set_camera_transform()
 
-            # Update markers placements.
+            # Update pose, color and scale of the markers, if any
             if Viewer.backend.startswith('panda3d'):
                 pose_dict, material_dict, scale_dict = {}, {}, {}
                 for marker_name, marker_data in self.markers.items():
+                    marker_data = {key: value() if callable(value) else value
+                                   for key, value in marker_data.items()}
                     (x, y, z), (qx, qy, qz, qw) = marker_data["pose"]
                     pose_dict[marker_name] = ((x, y, z), (qw, qx, qy, qz))
-                    material_dict[marker_name] = marker_data["color"]
+                    r, g, b, a = marker_data["color"]
+                    material_dict[marker_name] = (2.0 * r, 2.0 * g, 2.0 * b, a)
                     scale_dict[marker_name] = marker_data["scale"]
                 self._gui.move_nodes(self._markers_group, pose_dict)
                 self._gui.set_materials(self._markers_group, material_dict)
                 self._gui.set_scales(self._markers_group, scale_dict)
 
-            # Refreshing viewer backend manually is necessary for gepetto-gui
+            # Refreshing viewer backend manually if necessary
             if Viewer.backend == 'gepetto-gui':
                 self._gui.refresh()
             elif Viewer.backend.startswith('panda3d'):
@@ -1664,6 +1772,8 @@ class Viewer:
     def display(self,
                 q: np.ndarray,
                 xyz_offset: Optional[np.ndarray] = None,
+                update_hook: Optional[
+                    Callable[[pin.Model, pin.Data], None]] = None,
                 wait: bool = False) -> None:
         """Update the configuration of the robot.
 
@@ -1674,6 +1784,9 @@ class Viewer:
         :param q: Configuration of the robot.
         :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
+        :param update_hook: Callable that will be called right after updating
+                            kinematics data. `None` to disable.
+                            Optional: None by default.
         :param wait: Whether or not to wait for rendering to finish.
         """
         assert self._client.model.nq == q.shape[0], (
@@ -1689,6 +1802,10 @@ class Viewer:
         pin.framesForwardKinematics(self._client.model, self._client.data, q)
         pin.centerOfMass(self._client.model, self._client.data, False)
 
+        # Call custom update hook
+        if update_hook is not None:
+            update_hook(self._client.model, self._client.data)
+
         # Refresh the viewer
         self.refresh(wait)
 
@@ -1700,6 +1817,8 @@ class Viewer:
                speed_ratio: float = 1.0,
                xyz_offset: Optional[np.ndarray] = None,
                enable_clock: bool = False,
+               update_hook: Optional[
+                   Callable[[pin.Model, pin.Data], None]] = None,
                wait: bool = False) -> None:
         """Replay a complete robot trajectory at a given real-time ratio.
 
@@ -1715,6 +1834,9 @@ class Viewer:
         :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
                            OPtional: None by default.
+        :param update_hook: Callable that will be called periodically between
+                            every state update. `None` to disable.
+                            Optional: None by default.
         :param wait: Whether or not to wait for rendering to finish.
         """
         t = [s.t for s in evolution_robot]
@@ -1731,7 +1853,7 @@ class Viewer:
                 q = pin.interpolate(self._client.model, s.q, s_next.q, ratio)
                 if Viewer._camera_motion is not None:
                     Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
-                self.display(q, xyz_offset, wait)
+                self.display(q, xyz_offset, update_hook, wait)
                 t_simu = time_interval[0] + speed_ratio * (
                     time.time() - init_time)
                 i = bisect_right(t, t_simu)

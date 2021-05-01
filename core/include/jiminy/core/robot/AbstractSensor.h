@@ -215,31 +215,8 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         configHolder_t getOptions(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Request every sensors of the same type than the current one to record data
-        ///             based of the input data.
-        ///
-        /// \details    It assumes that the internal state of the robot is consistent with the
-        ///             input arguments.
-        ///
-        /// \remark     This method is not intended to be called manually. The Robot to which the
-        ///             sensor is added is taking care of it while updating the state of the sensors.
-        ///
-        /// \param[in]  t       Current time.
-        /// \param[in]  q       Current configuration vector of the motor.
-        /// \param[in]  v       Current velocity vector of the motor.
-        /// \param[in]  a       Current acceleration vector of the motor.
-        /// \param[in]  uMotor  Current motor effort vector of the motor.
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t setAll(float64_t const & t,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t const & a,
-                                 vectorN_t const & uMotor) = 0;
+        template<typename DerivedType>
+        hresult_t set(Eigen::MatrixBase<DerivedType> const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -331,6 +308,32 @@ namespace jiminy
         virtual std::vector<std::string> const & getFieldnames(void) const = 0;
 
     protected:
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Request every sensors of the same type than the current one to record data
+        ///             based of the input data.
+        ///
+        /// \details    It assumes that the internal state of the robot is consistent with the
+        ///             input arguments.
+        ///
+        /// \remark     This method is not intended to be called manually. The Robot to which the
+        ///             sensor is added is taking care of it while updating the state of the sensors.
+        ///
+        /// \param[in]  t       Current time.
+        /// \param[in]  q       Current configuration vector of the motor.
+        /// \param[in]  v       Current velocity vector of the motor.
+        /// \param[in]  a       Current acceleration vector of the motor.
+        /// \param[in]  uMotor  Current motor effort vector of the motor.
+        ///
+        /// \return     Return code to determine whether the execution of the method was successful.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t setAll(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t const & a,
+                                 vectorN_t const & uMotor) = 0;
+
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
         /// \brief      Request the sensor to record data based of the input data.
@@ -453,13 +456,13 @@ namespace jiminy
         virtual uint64_t getSize(void) const override final;
 
         virtual Eigen::Ref<vectorN_t const> get(void) const override final;
+
+    protected:
         virtual hresult_t setAll(float64_t const & t,
                                  vectorN_t const & q,
                                  vectorN_t const & v,
                                  vectorN_t const & a,
                                  vectorN_t const & uMotor) override final;
-
-    protected:
         virtual Eigen::Ref<vectorN_t> get(void) override final;
         virtual Eigen::Ref<vectorN_t> data(void) override final;
 

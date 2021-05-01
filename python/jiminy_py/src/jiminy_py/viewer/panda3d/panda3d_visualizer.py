@@ -311,24 +311,31 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.offA2dBottomLeft.set_pos(self.a2dLeft, 0, self.a2dBottom)
         self.offA2dBottomRight.set_pos(self.a2dRight, 0, self.a2dBottom)
 
-        # Initialize onscreen display and controls internal state
+        # Define widget overlay
+        self.offscreen_graphics_lens = None
+        self.offscreen_display_region = None
         self._help_label = None
         self._watermark = None
         self._legend = None
         self._clock = None
-        self.offscreen_graphics_lens = None
-        self.offscreen_display_region = None
+
+        # Define input control
+        self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
+
+        # Define camera control
         self.zoom_rate = 1.03
         self.camera_lookat = np.zeros(3)
-        self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
-        self.click_mouse_x = 0.0
-        self.click_mouse_y = 0.0
-        self.last_mouse_x = 0.0
-        self.last_mouse_y = 0.0
         self.longitude_deg = 0.0
         self.latitude_deg = 0.0
+        self.last_mouse_x = 0.0
+        self.last_mouse_y = 0.0
+
+        # Define object/highlighting selector
         self.picker_ray = None
         self.picker_node = None
+        self.picked_object = None
+        self.click_mouse_x = 0.0
+        self.click_mouse_y = 0.0
 
         # Create resizeable offscreen buffer
         self._open_offscreen_window(WINDOW_SIZE_DEFAULT)
@@ -343,6 +350,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_floor(True)
 
     def open_window(self) -> None:
+        """Open a graphical window, with offscreen buffer attached on it to
+        allow for arbitrary size screenshot.
+        """
         # Make sure a graphical window is not already open
         if any(isinstance(win, GraphicsWindow) for win in self.winList):
             raise RuntimeError("Only one graphical window can be opened.")
@@ -451,6 +461,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._adjust_offscreen_window_aspect_ratio()
 
     def _adjust_offscreen_window_aspect_ratio(self) -> None:
+        """Adjust aspect ratio of offscreen window.
+
+        .. note::
+            This method is called automatically after resize.
+        """
         # Get aspect ratio
         aspect_ratio = self.get_aspect_ratio(self.buff)
 
@@ -487,10 +502,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return super().getSize(win)
 
     def getMousePos(self) -> Tuple[int, int]:
+        """Get current mouse position.
+
+        .. note::
+            Can be overloaded to allow for emulated mouse click.
+        """
         md = self.win.getPointer(0)
         return md.getX(), md.getY()
 
     def handle_key(self, key: str, value: bool) -> None:
+        """Input controller handler.
+        """
         if key in ["mouse1", "mouse2", "mouse3"]:
             mouseX, mouseY = self.getMousePos()
             if key == "mouse1":
@@ -498,7 +520,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     self.click_mouse_x, self.click_mouse_y = mouseX, mouseY
                 elif (self.click_mouse_x == mouseX and
                         self.click_mouse_y == mouseY):
-                    self.click_on_object()
+                    self.click_on_node()
             self.last_mouse_x, self.last_mouse_y = mouseX, mouseY
             self.key_map[key] = value
         elif key in ["wheelup", "wheeldown"]:
@@ -509,27 +531,46 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 cam_pos = self.camera_lookat - cam_dir * self.zoom_rate
             self.camera.set_pos(*cam_pos)
 
-    def click_on_object(self) -> None:
+    def click_on_node(self) -> None:
+        """Object selector handler.
+        """
+        # Remove focus of currently selected object
+        picked_object_prev = self.picked_object
+        if self.picked_object is not None:
+            self.highlight_node(*self.picked_object, False)
+            self.picked_object = None
+
+        # Select new object if the user actually clicked on a selectable node
+        object_found = False
         mpos = self.mouseWatcherNode.getMouse()
         self.picker_ray.set_from_lens(self.camNode, mpos.getX(), mpos.getY())
         self.picker_traverser.traverse(self.render)
         for i in range(self.picker_queue.getNumEntries()):
             self.picker_queue.sortEntries()
             picked_node = self.picker_queue.getEntry(i).getIntoNodePath()
+            # Do not allow selecting hidden node
             if not picked_node.isHidden():
-                node_found = False
                 node_path = str(picked_node)
                 for group_name in self._groups.keys():
                     group_path = f"render/scene_root/{group_name}/"
+                    # Only nodes part of user groups can be selected
                     if node_path.startswith(group_path):
                         name = node_path[len(group_path):].split("/", 1)[0]
-                        self.highlight_node(group_name, name)
-                        node_found = True
+                        if (group_name, name) != picked_object_prev:
+                            self.picked_object = (group_name, name)
+                        object_found = True
                         break
-                if node_found:
+                if object_found:
                     break
 
+        # Focus on newly selected node
+        if self.picked_object is not None:
+            self.highlight_node(*self.picked_object, True)
+
     def move_orbital_camera_task(self, task: Any) -> None:
+        """Custom control of the camera to be more suitable for robotic
+        application than the default one.
+        """
         # Get mouse position
         x, y = self.getMousePos()
 
@@ -633,6 +674,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_two_sided(True)
         return node
 
+    def append_group(self,
+                     root_path: str,
+                     remove_if_exists: bool = True,
+                     scale: float = 1.0) -> None:
+        """Must be patched to avoid adding new group if 'remove_if_exists' is
+        false, otherwise it will be impossible to access to old ones.
+        """
+        if not remove_if_exists and root_path in self._groups:
+            return
+        super().append_group(root_path, remove_if_exists, scale)
+
     def append_node(self,
                     root_path: str,
                     name: str,
@@ -645,15 +697,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             "string (including underscores).")
         super().append_node(root_path, name, node, frame)
 
-    def highlight_node(self,
-                       root_path: str,
-                       name: str,
-                       enable: Optional[bool] = None) -> None:
+    def highlight_node(self, root_path: str, name: str, enable: bool) -> None:
         node = self._groups[root_path].find(name)
-        render_mode = node.get_render_mode()
-        if enable is None:
-            enable = (render_mode == RenderModeAttrib.M_off)
         if node:
+            render_mode = node.get_render_mode()
             if enable:
                 if render_mode == RenderModeAttrib.M_filled_wireframe:
                     return
@@ -687,6 +734,24 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         geom_node.add_geom(make_cone(num_sides))
         node = NodePath(geom_node)
         node.set_scale(radius, radius, length)
+        self.append_node(root_path, name, node, frame)
+
+    def append_cylinder(self,
+                        root_path: str,
+                        name: str,
+                        radius: float,
+                        length: float,
+                        anchor_bottom: bool = False,
+                        frame: Optional[FrameType] = None) -> None:
+        """Must be patched to add optional to place anchor at the bottom of the
+        cylinder instead of the middle.
+        """
+        geom_node = GeomNode('cylinder')
+        geom_node.add_geom(geometry.make_cylinder())
+        node = NodePath(geom_node)
+        node.set_scale(Vec3(radius, radius, length))
+        if anchor_bottom:
+            node.set_pos(0.0, 0.0, -length/2)
         self.append_node(root_path, name, node, frame)
 
     def append_arrow(self,
@@ -957,6 +1022,23 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             if color is None:
                 node.clear_color()
 
+    def set_scale(self,
+                  root_path: str,
+                  name: str,
+                  scale: Optional[Tuple3FType] = None) -> None:
+        """Override scale of node of a node.
+        """
+        node = self._groups[root_path].find(name)
+        if node:
+            node.set_scale(*[max(s, 0.001) if s > 0.0 else min(s, -0.001)
+                             for s in scale])
+
+    def set_scales(self, root_path, name_scales_dict):
+        """Override scale of nodes within a group.
+        """
+        for name, scale in name_scales_dict.items():
+            self.set_scale(root_path, name, scale)
+
     def move_node(self,
                   root_path: str,
                   name: str,
@@ -970,28 +1052,22 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             pos, quat = frame
             node.set_pos_quat(Vec3(*pos), Quat(*quat))
 
-    def set_scale(self,
-                  root_path: str,
-                  name: str,
-                  scale: Optional[Tuple3FType] = None) -> None:
-        """Override scale of node of a node.
-        """
-        node = self._groups[root_path].find(name)
-        if node:
-            node.set_scale(*scale)
-
-    def set_scales(self, root_path, name_scales_dict):
-        """Override scale of nodes within a group.
-        """
-        for name, scale in name_scales_dict.items():
-            self.set_scale(root_path, name, scale)
-
     def remove_node(self, root_path: str, name: str) -> None:
-        """Remove a signle node from the scene.
+        """Remove a single node from the scene.
         """
         node = self._groups[root_path].find(name)
         if node:
             node.remove_node()
+
+    def show_node(self, root_path: str, name: str, show: bool) -> None:
+        """Turn rendering on or off for a single node.
+        """
+        node = self._groups[root_path].find(name)
+        if node:
+            if show:
+                node.show()
+            else:
+                node.hide()
 
     def set_camera_transform(self,
                              pos: Tuple3FType,
@@ -1119,6 +1195,7 @@ def delegate(self, name: str) -> Any:
 
 Panda3dViewer.__getattr__ = delegate
 delattr(Panda3dViewer, 'set_material')
+delattr(Panda3dViewer, 'append_cylinder')
 
 
 class Panda3dVisualizer(BaseVisualizer):

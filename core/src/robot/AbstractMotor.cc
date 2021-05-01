@@ -271,7 +271,7 @@ namespace jiminy
     float64_t const & AbstractMotorBase::get(void) const
     {
         static float64_t dataEmpty;
-        if (sharedHolder_)
+        if (isAttached_)
         {
             return sharedHolder_->data_[motorIdx_];
         }
