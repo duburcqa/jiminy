@@ -351,7 +351,8 @@ class Viewer:
         self.markers: Dict[str, MarkerDataType] = {}
         self._markers_group = '/'.join((
             self.scene_name, self.robot_name, "markers"))
-        self.display_contacts = False
+        self._display_com = False
+        self._display_contacts = False
 
         # Select the desired backend
         if backend is None:
@@ -509,8 +510,9 @@ class Viewer:
         """
         # Delete existing robot, if any
         robot_node_path = '/'.join((self.scene_name, self.robot_name))
-        Viewer._delete_nodes_viewer(['/'.join((robot_node_path, "visuals")),
-                                     '/'.join((robot_node_path, "collisions"))])
+        Viewer._delete_nodes_viewer([
+            '/'.join((robot_node_path, "visuals")),
+            '/'.join((robot_node_path, "collisions"))])
 
         # Backup desired color
         self.robot_color = get_color_code(robot_color)
@@ -583,6 +585,25 @@ class Viewer:
             # Add markers' display groups
             self._gui.append_group(self._markers_group, remove_if_exists=False)
 
+            # Add center of mass
+            def get_scale() -> Tuple3FType:
+                return (1.0, 1.0, self._client.data.com[0][2])
+
+            self.add_marker(name="com_0_sphere",
+                            shape="sphere",
+                            pose=[self._client.data.com[0], None],
+                            remove_if_exists=True,
+                            radius=0.03)
+
+            self.add_marker(name="com_0_cylinder",
+                            shape="cylinder",
+                            pose=[self._client.data.com[0], None],
+                            scale=get_scale,
+                            remove_if_exists=True,
+                            radius=0.005,
+                            length=1.0,
+                            anchor_bottom=True)
+
             # Add contact sensor markers
             def get_pose(sensor: contact) -> Tuple[Tuple3FType, Tuple4FType]:
                 oMf = self._client.data.oMf[sensor.frame_idx]
@@ -602,10 +623,12 @@ class Viewer:
                                     scale=partial(get_scale, sensor),
                                     remove_if_exists=True,
                                     radius=0.02,
-                                    length=0.01)
+                                    length=0.01,
+                                    anchor_bottom=True)
 
-            # Refresh contact visibility
-            self.display_contact_forces(self.display_contacts)
+            # Refresh CoM and contacts visibility
+            self.display_center_of_mass(self._display_com)
+            self.display_contact_forces(self._display_contacts)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
@@ -1554,6 +1577,8 @@ class Viewer:
                 pose[0] = np.zeros(3)
             if pose[1] is None:
                 pose[1] = np.array([0.0, 0.0, 0.0, 1.0])
+        if np.isscalar(scale):
+            scale = np.full((3,), fill_value=float(scale))
         if color is None:
             color = self.robot_color
         if color is None:
@@ -1590,21 +1615,17 @@ class Viewer:
             `robot.pinocchio_model`. Calling `Viewer.display` will update it
             automatically, while `Viewer.refresh` will not.
 
-        .. note::
-            'com_0' is used as marker's name.
-
         :param visibility: Whether to enable or disable display of the center
                            of mass.
         """
-        if visibility:
-            if "com_0" not in self.markers.keys():
-                self.add_marker(name="com_0",
-                                shape="sphere",
-                                pose=[self._client.data.com[0], None],
-                                radius=0.03)
+        if Viewer.backend.startswith('panda3d'):
+            for name in self.markers:
+                if name.startswith("com_0"):
+                    self._gui.show_node(self._markers_group, name, visibility)
+            self._display_com = visibility
         else:
-            if "com_0" in self.markers.keys():
-                self.remove_marker("com_0")
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
 
     @__must_be_open
     def display_contact_forces(self, visibility: bool) -> None:
@@ -1630,7 +1651,7 @@ class Viewer:
             for name in self.markers:
                 if name.startswith(contact.type):
                     self._gui.show_node(self._markers_group, name, visibility)
-            self.display_contacts = visibility
+            self._display_contacts = visibility
         else:
             raise NotImplementedError(
                 "This method is only supported by Panda3d.")

@@ -2,6 +2,7 @@
 #include "jiminy/core/robot/BasicSensors.h"
 #include "jiminy/core/Types.h"
 
+#include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
 
 #include "jiminy/python/Utilities.h"
