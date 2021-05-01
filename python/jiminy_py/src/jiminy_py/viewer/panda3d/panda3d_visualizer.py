@@ -674,6 +674,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_two_sided(True)
         return node
 
+    def append_group(self,
+                     root_path: str,
+                     remove_if_exists: bool = True,
+                     scale: float = 1.0) -> None:
+        """Must be patched to avoid adding new group if 'remove_if_exists' is
+        false, otherwise it will be impossible to access to old ones.
+        """
+        if not remove_if_exists and root_path in self._groups:
+            return
+        super().append_group(root_path, remove_if_exists, scale)
+
     def append_node(self,
                     root_path: str,
                     name: str,
@@ -1001,7 +1012,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """
         node = self._groups[root_path].find(name)
         if node:
-            node.set_scale(*scale)
+            node.set_scale(*[max(s, 0.001) if s > 0.0 else min(s, -0.001)
+                             for s in scale])
 
     def set_scales(self, root_path, name_scales_dict):
         """Override scale of nodes within a group.
@@ -1028,6 +1040,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node = self._groups[root_path].find(name)
         if node:
             node.remove_node()
+
+    def show_node(self, root_path: str, name: str, show: bool) -> None:
+        """Turn rendering on or off for a single node.
+        """
+        node = self._groups[root_path].find(name)
+        if node:
+            if show:
+                node.show()
+            else:
+                node.hide()
 
     def set_camera_transform(self,
                              pos: Tuple3FType,
