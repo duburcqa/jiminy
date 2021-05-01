@@ -75,8 +75,7 @@ namespace python
                 auto & sensorsDataTypeByName = self.at(sensorType).get<IndexByName>();
                 auto sensorDataIt = sensorsDataTypeByName.find(sensorName);
                 Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorDataIt->value;
-                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
-                return bp::object(valuePy);
+                return convertToPython(sensorDataValue, false);
             }
             catch (...)
             {
@@ -91,8 +90,7 @@ namespace python
             try
             {
                 auto & sensorsDataType = self.at(sensorType);
-                bp::handle<> valuePy(getNumpyReference(sensorsDataType.getAll()));
-                return bp::object(valuePy);
+                return convertToPython(sensorsDataType.getAll(), false);
             }
             catch (...)
             {
@@ -145,8 +143,7 @@ namespace python
             bp::list sensorsValue;
             for (auto const & sensorsDataType : self)
             {
-                bp::handle<> valuePy(getNumpyReference(sensorsDataType.second.getAll()));
-                sensorsValue.append(bp::object(valuePy));
+                sensorsValue.append(convertToPython(sensorsDataType.second.getAll(), false));
             }
             return sensorsValue;
         }
@@ -156,8 +153,9 @@ namespace python
             bp::list sensorsDataPy;
             for (auto const & sensorsDataType : self)
             {
-                bp::handle<> valuePy(getNumpyReference(sensorsDataType.second.getAll()));
-                sensorsDataPy.append(bp::make_tuple(sensorsDataType.first, bp::object(valuePy)));
+                sensorsDataPy.append(bp::make_tuple(
+                    sensorsDataType.first,
+                    convertToPython(sensorsDataType.second.getAll(), false)));
             }
             return sensorsDataPy;
         }
@@ -225,15 +223,24 @@ namespace python
             cl
                 .add_property("is_initialized", bp::make_function(&AbstractSensorBase::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("name", bp::make_function(&AbstractSensorBase::getName,
-                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("idx", bp::make_function(&AbstractSensorBase::getIdx,
-                                     bp::return_value_policy<bp::copy_const_reference>()))
+
                 .add_property("type", bp::make_function(&AbstractSensorBase::getType,
                                       bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldnames,
                                             bp::return_value_policy<bp::return_by_value>()))
-                .add_property("data", &PyAbstractSensorVisitor::getData)
+
+                .add_property("name", bp::make_function(&AbstractSensorBase::getName,
+                                      bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("idx", bp::make_function(&AbstractSensorBase::getIdx,
+                                     bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("data", bp::make_function(
+                    static_cast<
+                        Eigen::Ref<vectorN_t const> (AbstractSensorBase::*)(void) const
+                    >(&AbstractSensorBase::get),
+                    bp::return_value_policy<result_converter<false> >()),
+                    static_cast<
+                        hresult_t (AbstractSensorBase::*)(Eigen::MatrixBase<vectorN_t> const &)
+                    >(&AbstractSensorBase::set))
 
                 .def("set_options", &PyAbstractSensorVisitor::setOptions)
                 .def("get_options", &AbstractSensorBase::getOptions)
@@ -243,15 +250,6 @@ namespace python
         }
 
     public:
-        static bp::object getData(AbstractSensorBase & self)
-        {
-            // Be careful, it removes the const qualifier, so that the data can be modified from Python
-            Eigen::Ref<vectorN_t const> const & sensorDataValue =
-                const_cast<AbstractSensorBase const &>(self).get();
-            bp::handle<> valuePy(getNumpyReference(sensorDataValue));
-            return bp::object(valuePy);
-        }
-
         static std::string repr(AbstractSensorBase & self)
         {
             std::stringstream s;

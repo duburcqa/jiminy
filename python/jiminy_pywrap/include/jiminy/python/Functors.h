@@ -19,7 +19,7 @@ namespace python
     template<typename T>
     struct DataInternalBufferType
     {
-        using type = typename std::add_lvalue_reference<T>::type;
+        using type = typename std::add_lvalue_reference_t<T>;
     };
 
     template<>
@@ -55,14 +55,14 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen<T>::value, bp::handle<> >
+    std::enable_if_t<is_eigen_v<T>, bp::handle<> >
     FctPyWrapperArgToPython(T & arg)
     {
         return bp::handle<>(getNumpyReference(arg));
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen<T>::value, bp::handle<> >
+    std::enable_if_t<is_eigen_v<T>, bp::handle<> >
     FctPyWrapperArgToPython(T const & arg)
     {
         return bp::handle<>(getNumpyReference(arg));
@@ -303,8 +303,6 @@ namespace python
 
         std::pair<float64_t, vector3_t> operator() (vector3_t const & posFrame)
         {
-            // Pass the arguments by reference (be careful const qualifiers are lost)
-
             if (heatMapType_ == heatMapType_t::STAIRS)
             {
                 bp::handle<> out1Py(bp::borrowed(out1PyPtr_));

@@ -82,18 +82,18 @@ namespace python
     }
 
     // Forward declaration
-    template <class Container, bool NoProxy, class DerivedPolicies>
+    template<class Container, bool NoProxy, class DerivedPolicies>
     class vector_indexing_suite_no_contains;
 
     namespace detail
     {
-        template <class Container, bool NoProxy>
+        template<class Container, bool NoProxy>
         class final_vector_derived_policies
             : public vector_indexing_suite_no_contains<Container,
                 NoProxy, bp::detail::final_vector_derived_policies<Container, NoProxy> > {};
     }
 
-    template <class Container,
+    template<class Container,
               bool NoProxy = false,
               class DerivedPolicies = detail::final_vector_derived_policies<Container, NoProxy> >
     class vector_indexing_suite_no_contains : public bp::vector_indexing_suite<Container, NoProxy, DerivedPolicies>
@@ -195,22 +195,21 @@ namespace python
     /// Generic converter from Eigen Matrix to Numpy array by reference
 
     template<typename T>
-    std::enable_if_t<!is_eigen<T>::value, PyObject *>
+    std::enable_if_t<!is_eigen_v<T>, PyObject *>
     getNumpyReference(T & value)
     {
         return getNumpyReferenceFromScalar(value);
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_vector<T>::value, PyObject *>
+    std::enable_if_t<is_eigen_vector_v<T>, PyObject *>
     getNumpyReference(T & value)
     {
         return getNumpyReferenceFromEigenVector(value);
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen<T>::value
-                 && !is_eigen_vector<T>::value, PyObject *>
+    std::enable_if_t<is_eigen_v<T> && !is_eigen_vector_v<T>, PyObject *>
     getNumpyReference(T & value)
     {
         return getNumpyReferenceFromEigenMatrix(value);
@@ -298,8 +297,7 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T>
-                  && !is_eigen<T>::value, bp::object>
+    std::enable_if_t<!is_vector_v<T> && !is_eigen_v<T>, bp::object>
     convertToPython(T const & data, bool const & /* copy */ = true)
     {
         return bp::object(data);
@@ -318,7 +316,7 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen<T>::value, bp::object>
+    std::enable_if_t<is_eigen_v<T>, bp::object>
     convertToPython(T & data, bool const & copy = true)
     {
         PyObject * vecPyPtr = getNumpyReference(data);
@@ -330,7 +328,7 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen<T>::value, bp::object>
+    std::enable_if_t<is_eigen_v<T>, bp::object>
     convertToPython(T const & data, bool const & copy = true)
     {
         PyObject * vecPyPtr = getNumpyReference(data);
@@ -374,7 +372,7 @@ namespace python
             // Empty on purpose
         }
 
-        template <typename T>
+        template<typename T>
         auto operator()(T const & value) const
         {
             return convertToPython(value, copy_);
@@ -427,16 +425,17 @@ namespace python
     template<bool copy>
     struct result_converter
     {
-        template<typename T>
+        template<typename T, typename = typename std::enable_if_t<
+            copy || std::is_reference<T>::value || is_eigen_ref_v<T> > >
         struct apply
         {
             struct type
             {
-                typedef typename std::remove_reference<T>::type value_type;
+                typedef typename std::remove_reference_t<T> value_type;
 
-                PyObject * operator()(T const & x) const
+                PyObject * operator()(T x) const
                 {
-                    return converterToPython<value_type, copy>::convert(x);
+                    return bp::incref(convertToPython<value_type>(x, copy).ptr());
                 }
 
                 PyTypeObject const * get_pytype(void) const
@@ -489,8 +488,8 @@ namespace python
 
     template<typename T>
     std::enable_if_t<!is_vector_v<T>
-                  && !is_map<T>::value
-                  && !is_eigen<T>::value
+                  && !is_map_v<T>
+                  && !is_eigen_v<T>
                   && !(std::is_integral<T>::value && !std::is_same<T, bool_t>::value)
                   && !std::is_same<T, sensorsDataMap_t>::value, T>
     convertFromPython(bp::object const & dataPy)
@@ -524,14 +523,14 @@ namespace python
             }
             if (std::is_unsigned<T>::value)
             {
-                return bp::extract<typename std::make_signed<T>::type>(dataPy);
+                return bp::extract<typename std::make_signed_t<T> >(dataPy);
             }
-            return bp::extract<typename std::make_unsigned<T>::type>(dataPy);
+            return bp::extract<typename std::make_unsigned_t<T> >(dataPy);
         }
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen<T>::value, T>
+    std::enable_if_t<is_eigen_v<T>, T>
     convertFromPython(bp::object const & dataPy)
     {
         using Scalar = typename T::Scalar;
@@ -547,7 +546,7 @@ namespace python
             }
             Scalar * dataPtr = reinterpret_cast<Scalar *>(dataNumpy.get_data());
             Py_intptr_t const * dataShape = dataNumpy.get_shape();
-            if (is_eigen_vector<T>::value)
+            if (is_eigen_vector_v<T>)
             {
                 return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> >(
                     dataPtr, dataShape[0]);
@@ -567,7 +566,7 @@ namespace python
             }
             Scalar * dataPtr = reinterpret_cast<Scalar *>(dataMatrix.get_data());
             Py_intptr_t const * dataShape = dataMatrix.get_shape();
-            if (is_eigen_vector<T>::value)
+            if (is_eigen_vector_v<T>)
             {
                 return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> >(
                     dataPtr, dataShape[0]);
@@ -580,7 +579,7 @@ namespace python
         }
         else
         {
-            if (is_eigen_vector<T>::value)
+            if (is_eigen_vector_v<T>)
             {
                 return listPyToEigenVector(bp::extract<bp::list>(dataPy));
             }
@@ -679,14 +678,14 @@ namespace python
 
         ~AppendPythonToBoostVariant(void) = default;
 
-        template <typename T>
+        template<typename T>
         std::enable_if_t<!std::is_same<T, configHolder_t>::value, void>
         operator()(T & value)
         {
             value = convertFromPython<T>(*objPy_);
         }
 
-        template <typename T>
+        template<typename T>
         std::enable_if_t<std::is_same<T, configHolder_t>::value, void>
         operator()(T & value)
         {
