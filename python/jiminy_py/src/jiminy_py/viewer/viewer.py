@@ -17,7 +17,7 @@ from copy import deepcopy
 from functools import wraps
 from bisect import bisect_right
 from threading import Lock
-from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
+from typing import Optional, Union, Sequence, Tuple, List, Dict, Callable, Any
 
 import psutil
 import numpy as np
@@ -30,7 +30,7 @@ import meshcat.transformations as mtf
 from panda3d_viewer.viewer_errors import ViewerClosedError
 
 import pinocchio as pin
-from pinocchio import SE3, SE3ToXYZQUAT
+from pinocchio import SE3, SE3ToXYZQUAT, SE3ToXYZQUATtuple
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
@@ -1475,9 +1475,9 @@ class Viewer:
     def add_marker(self,
                    name: str,
                    shape: str,
-                   pose: Optional[np.ndarray] = None,
+                   pose: List[Optional[np.ndarray]] = (None, None),
                    scale: Union[float, Tuple3FType] = 1.0,
-                   color: Optional[Union[str, Tuple4FType]] = 'red',
+                   color: Optional[Union[str, Tuple4FType]] = None,
                    **shape_kwargs: Any) -> MarkerDataType:
         """Add marker on the scene.
 
@@ -1487,16 +1487,17 @@ class Viewer:
         :param name: Unique identifier name.
         :param shape: Desired shape, as a string, i.e. 'cone', 'box', 'sphere',
                       'capsule', 'cylinder', or 'arrow'.
-        :param pose: Pose of the geometry on the scene, as a single vector
-                     (position [X, Y, Z] + quaternion [X,  Y, Z, W]). `None`
-                     corresponds to world frame.
+        :param pose: Pose of the geometry on the scene, as a list of vectors
+                     (position [X, Y, Z], quaternion [X,  Y, Z, W]). `None`
+                     corresponds to world frame position and/or orientation.
                      Optional: World frame by default.
         :param scale: Size of the marker. Each principal axis of the geometry
                       are scaled separately.
         :param color: Color of the marker. It supports both RGBA codes as a
                       list of 4 floating-point values ranging from 0.0 and 1.0,
                       and a few named colors.
-                      Optional: 'red' by default.
+                      Optional: robot's color by default if overridden,
+                      'red' otherwise.
         :param shape_kwargs: Any additional keyword arguments to forward for
                              shape instantiation.
 
@@ -1507,10 +1508,23 @@ class Viewer:
         """
         # Handling of user arguments
         if pose is None:
-            pose = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+            pose = [None, None]
+        if not all(isinstance(e, np.ndarray) for e in pose):
+            pose = list(pose)
+            if pose[0] is None:
+                pose[0] = np.zeros(3)
+            if pose[1] is None:
+                pose[1] = np.array([0.0, 0.0, 0.0, 1.0])
+        if color is None:
+            color = self.robot_color
+        if color is None:
+            color = 'red'
+
+        # Sanitize user arguments
         color = np.asarray(get_color_code(color))
-        if isinstance(scale, float):
+        if not isinstance(scale, np.ndarray):
             scale = np.full((3,), fill_value=scale)
+        pose = tuple(pose)
 
         # Make sure no marker with this name already exists
         if name in self.markers.keys():
@@ -1518,11 +1532,10 @@ class Viewer:
 
         if Viewer.backend.startswith('panda3d'):
             create_shape = getattr(self._gui, f"append_{shape}")
-            create_shape(
-                self._markers_group, name, frame=(pose[:3], pose[3:]),
-                **shape_kwargs)
+            create_shape(self._markers_group, name, **shape_kwargs)
             self._gui.set_material(self._markers_group, name, color)
             self._gui.set_scale(self._markers_group, name, scale)
+            self._gui.move_node(self._markers_group, name, pose)
             marker_data = {"pose": pose, "scale": scale, "color": color}
             self.markers[name] = marker_data
             return marker_data
@@ -1531,11 +1544,22 @@ class Viewer:
                 "This method is only supported by Panda3d.")
 
     @__must_be_open
+    def show_center_of_mass(self, is_enable: bool) -> None:
+        if is_enable:
+            if "com_0" not in self.markers.keys():
+                self.add_marker(name="com_0",
+                                shape="sphere",
+                                pose=[self._client.data.com[0], None],
+                                radius=0.03)
+        else:
+            if "com_0" in self.markers.keys():
+                self.remove_marker("com_0")
+
+    @__must_be_open
     def remove_marker(self, name: str) -> None:
-        try:
-            self.markers.pop(name)
-        except KeyError as e:
-            raise ValueError(f"marker's name '{name}' does not exists.") from e
+        if name not in self.markers.keys():
+            raise ValueError(f"marker's name '{name}' does not exists.")
+        self.markers.pop(name)
         self._gui.remove_node(self._markers_group, name)
 
     @__must_be_open
@@ -1581,7 +1605,7 @@ class Viewer:
                     self._gui.applyConfigurations(
                         [self._client.getViewerNodeName(geom, model_type)
                          for geom in geom_model.geometryObjects],
-                        [tuple(SE3ToXYZQUAT(geom_data.oMg[i]))
+                        [SE3ToXYZQUATtuple(geom_data.oMg[i])
                          for i in range(len(geom_model.geometryObjects))])
             elif Viewer.backend.startswith('panda3d'):
                 for geom_model, geom_data, model_type in zip(
@@ -1592,7 +1616,7 @@ class Viewer:
                         x, y, z, qx, qy, qz, qw = SE3ToXYZQUAT(oMg)
                         group, nodeName = self._client.getViewerNodeName(
                             geom, model_type)
-                        pose_dict[nodeName] = (x, y, z), (qw, qx, qy, qz)
+                        pose_dict[nodeName] = ((x, y, z), (qw, qx, qy, qz))
                     self._gui.move_nodes(group, pose_dict)
             else:
                 for geom_model, geom_data, model_type in zip(
@@ -1618,8 +1642,8 @@ class Viewer:
             if Viewer.backend.startswith('panda3d'):
                 pose_dict, material_dict, scale_dict = {}, {}, {}
                 for marker_name, marker_data in self.markers.items():
-                    x, y, z, qx, qy, qz, qw = marker_data["pose"]
-                    pose_dict[marker_name] = (x, y, z), (qw, qx, qy, qz)
+                    (x, y, z), (qx, qy, qz, qw) = marker_data["pose"]
+                    pose_dict[marker_name] = ((x, y, z), (qw, qx, qy, qz))
                     material_dict[marker_name] = marker_data["color"]
                     scale_dict[marker_name] = marker_data["scale"]
                 self._gui.move_nodes(self._markers_group, pose_dict)
@@ -1662,8 +1686,8 @@ class Viewer:
             q[:3] += xyz_offset
 
         # Update pinocchio data
-        pin.forwardKinematics(self._client.model, self._client.data, q)
         pin.framesForwardKinematics(self._client.model, self._client.data, q)
+        pin.centerOfMass(self._client.model, self._client.data, False)
 
         # Refresh the viewer
         self.refresh(wait)
