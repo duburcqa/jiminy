@@ -1,48 +1,50 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// \brief      Class constraining a sphere to roll without slipping on a flat plane.
+/// \brief      Class constraining a wheel to roll without slipping on a flat plane.
 ///
-/// \details    Given a frame to represent the sphere center, this class constrains it to move
+/// \details    Given a frame to represent the wheel center, this class constrains it to move
 ///             like it were rolling without slipping on a flat (not necessarily level) surface.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef JIMINY_SPHERE_CONSTRAINT_H
-#define JIMINY_SPHERE_CONSTRAINT_H
+#ifndef JIMINY_WHEEL_CONSTRAINT_H
+#define JIMINY_WHEEL_CONSTRAINT_H
 
 #include <memory>
 
 #include "jiminy/core/Types.h"
-#include "jiminy/core/robot/AbstractConstraint.h"
+#include "jiminy/core/constraints/AbstractConstraint.h"
 
 
 namespace jiminy
 {
     class Model;
 
-    class SphereConstraint: public AbstractConstraintTpl<SphereConstraint>
+    class WheelConstraint: public AbstractConstraintTpl<WheelConstraint>
     {
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Forbid the copy of the class
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        SphereConstraint(SphereConstraint const & abstractConstraint) = delete;
-        SphereConstraint & operator = (SphereConstraint const & other) = delete;
+        WheelConstraint(WheelConstraint const & abstractConstraint) = delete;
+        WheelConstraint & operator = (WheelConstraint const & other) = delete;
 
         auto shared_from_this() { return shared_from(this); }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor
         ///
-        /// \param[in]  frameName     Name of the frame representing the center of the sphere.
-        /// \param[in]  sphereRadius  Radius of the sphere (in m).
-        /// \param[in]  groundNormal  Unit vector representing the normal to the ground, in the world frame.
+        /// \param[in]  frameName   Name of the frame representing the center of the wheel.
+        /// \param[in]  wheelRadius Radius of the wheel (in m).
+        /// \param[in]  groundNormal Unit vector representing the normal to the ground, in the world frame.
+        /// \param[in]  wheelAxis   Axis of the wheel, in the local frame.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        SphereConstraint(std::string const & frameName,
-                         float64_t   const & sphereRadius,
-                         vector3_t   const & groundNormal = (vector3_t() << 0.0, 0.0, 1.0).finished());
-        virtual ~SphereConstraint(void);
+        WheelConstraint(std::string const & frameName,
+                        float64_t   const & wheelRadius,
+                        vector3_t   const & groundNormal,
+                        vector3_t   const & wheelAxis);
+        virtual ~WheelConstraint(void);
 
         std::string const & getFrameName(void) const;
         frameIndex_t const & getFrameIdx(void) const;
@@ -59,12 +61,15 @@ namespace jiminy
     private:
         std::string frameName_;        ///< Name of the frame on which the constraint operates.
         frameIndex_t frameIdx_;        ///< Corresponding frame index.
-        float64_t radius_;             ///< Sphere radius.
+        float64_t radius_;             ///< Wheel radius.
         vector3_t normal_;             ///< Ground normal, world frame.
-        matrix3_t shewRadius_;         ///< Skew of ground normal, in world frame, scaled by radius.
+        vector3_t axis_;               ///< Wheel axis, local frame.
+        vector3_t x3_;                 ///< Wheel axis, world frame.
+        matrix3_t skewRadius_;         ///< Skew matrix of wheel axis, in world frame, scaled by radius.
+        matrix3_t dskewRadius_;        ///< Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
         pinocchio::SE3 transformRef_;  ///< Reference pose of the frame to enforce.
         matrixN_t frameJacobian_;      ///< Stores full frame jacobian in world.
     };
 }
 
-#endif //end of JIMINY_SPHERE_CONSTRAINT_H
+#endif //end of JIMINY_WHEEL_CONSTRAINT_H

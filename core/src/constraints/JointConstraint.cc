@@ -2,7 +2,7 @@
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
-#include "jiminy/core/robot/JointConstraint.h"
+#include "jiminy/core/constraints/JointConstraint.h"
 
 
 namespace jiminy
@@ -68,15 +68,16 @@ namespace jiminy
             // Get the joint model
             pinocchio::JointModel const & jointModel = model->pncModel_.joints[jointIdx_];
 
-            // Compute the jacobian. It is simply the velocity selector mask.
+            // Initialize the jacobian. It is simply the velocity selector mask.
             jacobian_ = matrixN_t::Zero(jointModel.nv(), model->pncModel_.nv);
             for (Eigen::Index i=0; i < jointModel.nv(); ++i)
             {
                 jacobian_(i, jointModel.idx_v() + i) = 1.0;
             }
 
-            // Compute the drift.
+            // Initialize drift and multipliers
             drift_ = vectorN_t::Zero(jointModel.nv());
+            lambda_ = vectorN_t::Zero(jointModel.nv());
 
             // Get the current joint position and use it as reference
             configurationRef_ = jointModel.jointConfigSelector(q);

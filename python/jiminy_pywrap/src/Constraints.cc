@@ -1,10 +1,10 @@
 #include "jiminy/core/robot/Model.h"
-#include "jiminy/core/robot/AbstractConstraint.h"
-#include "jiminy/core/robot/JointConstraint.h"
-#include "jiminy/core/robot/FixedFrameConstraint.h"
-#include "jiminy/core/robot/DistanceConstraint.h"
-#include "jiminy/core/robot/SphereConstraint.h"
-#include "jiminy/core/robot/WheelConstraint.h"
+#include "jiminy/core/constraints/AbstractConstraint.h"
+#include "jiminy/core/constraints/JointConstraint.h"
+#include "jiminy/core/constraints/FixedFrameConstraint.h"
+#include "jiminy/core/constraints/DistanceConstraint.h"
+#include "jiminy/core/constraints/SphereConstraint.h"
+#include "jiminy/core/constraints/WheelConstraint.h"
 
 #include <boost/python.hpp>
 
@@ -75,6 +75,8 @@ namespace python
                                           bp::return_value_policy<result_converter<false> >()))
                 .add_property("drift", bp::make_function(&AbstractConstraintBase::getDrift,
                                        bp::return_value_policy<result_converter<false> >()))
+                .add_property("lambda_c", bp::make_getter(&AbstractConstraintBase::lambda_,
+                                          bp::return_value_policy<result_converter<false> >()))
                 ;
         }
 

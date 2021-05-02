@@ -97,15 +97,6 @@ namespace jiminy
                       [n = static_cast<int64_t>(indices_.size() - 1)]() mutable { return n--; });
         lastShuffle_ = 0U;  // Do NOT shuffle indices right after initialization
 
-        // Single loop of standard Projected Gauss Seidel algorithm
-        bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, true, false, x);
-
-        // If termination condition has been reached, return right now
-        if (isSuccess)
-        {
-            return true;
-        }
-
         // Normalizing
         for (Eigen::Index i = 0; i < b.size(); ++i)
         {
@@ -114,9 +105,9 @@ namespace jiminy
         }
 
         // Perform multiple PGS loop until convergence or max iter reached
-        for (uint32_t iter = 1; iter < maxIter_; ++iter)
+        for (uint32_t iter = 0; iter < maxIter_; ++iter)
         {
-            isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, false, true, x);
+            bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, false, true, x);
             if (isSuccess)
             {
                 return true;
@@ -140,12 +131,6 @@ namespace jiminy
         // Define some proxies for convenience
         matrixN_t & A = data.JMinvJt;
         vectorN_t & f = data.lambda_c;
-
-        // Keep previous value if size did not change, reset it otherwise
-        if (f.size() != gamma.size())
-        {
-            f = vectorN_t::Zero(gamma.size());
-        }
 
         // Compute the UDUt decomposition of data.M
         pinocchio::cholesky::decompose(model, data);

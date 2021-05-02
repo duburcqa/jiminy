@@ -1,6 +1,6 @@
 #include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/robot/AbstractMotor.h"
-#include "jiminy/core/robot/AbstractConstraint.h"
+#include "jiminy/core/constraints/AbstractConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
 #include "jiminy/core/io/MemoryDevice.h"
