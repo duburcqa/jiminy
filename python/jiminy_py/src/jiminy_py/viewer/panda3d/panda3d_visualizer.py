@@ -712,10 +712,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     render_attrib.perspective,
                     (2.0, 2.0, 2.0, 1.0)  # wireframe_color
                 ))
-
-                # node.set_bin("fixed", 0)
-                # node.set_depth_test(False)
-                # node.set_depth_write(False)
             else:
                 if render_mode == RenderModeAttrib.M_off:
                     return
@@ -1030,8 +1026,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """
         node = self._groups[root_path].find(name)
         if node:
-            node.set_scale(*[max(s, 0.001) if s > 0.0 else min(s, -0.001)
-                             for s in scale])
+            if any(abs(s) < 1e-3 for s in scale):
+                if not node.is_hidden():
+                    node.set_tag("status", "disable")
+                    node.hide()
+            else:
+                node.set_scale(*scale)
+                if node.get_tag("status") == "disable":
+                    node.set_tag("status", "auto")
+                    node.show()
 
     def set_scales(self, root_path, name_scales_dict):
         """Override scale of nodes within a group.
@@ -1059,15 +1062,28 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if node:
             node.remove_node()
 
-    def show_node(self, root_path: str, name: str, show: bool) -> None:
+    def show_node(self,
+                  root_path: str,
+                  name: str,
+                  show: bool,
+                  always_foreground: bool = False) -> None:
         """Turn rendering on or off for a single node.
         """
         node = self._groups[root_path].find(name)
         if node:
             if show:
-                node.show()
+                if node.get_tag("status") in ("hidden", ""):
+                    node.set_tag("status", "auto")
+                    node.show()
             else:
+                node.set_tag("status", "hidden")
                 node.hide()
+            if always_foreground:
+                node.set_bin("fixed", 0)
+            else:
+                node.clear_bin()
+            node.set_depth_test(not always_foreground)
+            node.set_depth_write(not always_foreground)
 
     def set_camera_transform(self,
                              pos: Tuple3FType,

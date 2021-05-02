@@ -292,6 +292,8 @@ class Viewer:
                  delete_robot_on_close: bool = False,
                  robot_name: Optional[str] = None,
                  scene_name: str = 'world',
+                 display_com: bool = False,
+                 display_contacts: bool = False,
                  **kwargs: Any):
         """
         :param robot: Jiminy.Model to display.
@@ -332,6 +334,13 @@ class Viewer:
         :param scene_name: Scene name, used only with 'gepetto-gui' backend. It
                            must differ from the scene name.
                            Optional: 'world' by default.
+        :param display_com: Whether or not to display the center of mass.
+                            Optional: Disable by default.
+        :param display_contacts: Whether or not to display the contact forces.
+                                 Note that the user is responsible for updating
+                                 sensors data since `Viewer.display` is only
+                                 computing kinematic quantities.
+                                 Optional: Disable by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
         # Handling of default arguments
@@ -344,15 +353,15 @@ class Viewer:
         self.robot_name = robot_name
         self.scene_name = scene_name
         self.use_theoretical_model = use_theoretical_model
-        self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
+        self._lock = lock if lock is not None else Viewer._lock
+        self._display_com = display_com
+        self._display_contacts = display_contacts
 
         # Initialize marker register
         self.markers: Dict[str, MarkerDataType] = {}
         self._markers_group = '/'.join((
             self.scene_name, self.robot_name, "markers"))
-        self._display_com = False
-        self._display_contacts = False
 
         # Select the desired backend
         if backend is None:
@@ -600,7 +609,7 @@ class Viewer:
                             pose=[self._client.data.com[0], None],
                             scale=get_scale,
                             remove_if_exists=True,
-                            radius=0.005,
+                            radius=0.004,
                             length=1.0,
                             anchor_bottom=True)
 
@@ -612,7 +621,8 @@ class Viewer:
                 return (frame_position, frame_rotation)
 
             def get_scale(sensor: contact) -> Tuple3FType:
-                return (1.0, 1.0, sensor.data[2] / CONTACT_FORCE_SCALE)
+                length = min(abs(sensor.data[2]) / CONTACT_FORCE_SCALE, 100.0)
+                return (1.0, 1.0, - np.sign(sensor.data[2]) * length)
 
             if contact.type in robot.sensors_names.keys():
                 for name in robot.sensors_names[contact.type]:
@@ -1582,7 +1592,7 @@ class Viewer:
         if color is None:
             color = self.robot_color
         if color is None:
-            color = 'red'
+            color = 'white'
         color = np.asarray(get_color_code(color))
 
         # Make sure no marker with this name already exists
@@ -1621,7 +1631,9 @@ class Viewer:
         if Viewer.backend.startswith('panda3d'):
             for name in self.markers:
                 if name.startswith("com_0"):
-                    self._gui.show_node(self._markers_group, name, visibility)
+                    self._gui.show_node(
+                        self._markers_group, name, visibility,
+                        always_foreground=True)
             self._display_com = visibility
         else:
             raise NotImplementedError(
@@ -1650,7 +1662,9 @@ class Viewer:
         if Viewer.backend.startswith('panda3d'):
             for name in self.markers:
                 if name.startswith(contact.type):
-                    self._gui.show_node(self._markers_group, name, visibility)
+                    self._gui.show_node(
+                        self._markers_group, name, visibility,
+                        always_foreground=True)
             self._display_contacts = visibility
         else:
             raise NotImplementedError(
@@ -1772,8 +1786,7 @@ class Viewer:
     def display(self,
                 q: np.ndarray,
                 xyz_offset: Optional[np.ndarray] = None,
-                update_hook: Optional[
-                    Callable[[pin.Model, pin.Data], None]] = None,
+                update_hook: Optional[Callable[[], None]] = None,
                 wait: bool = False) -> None:
         """Update the configuration of the robot.
 
@@ -1804,7 +1817,7 @@ class Viewer:
 
         # Call custom update hook
         if update_hook is not None:
-            update_hook(self._client.model, self._client.data)
+            update_hook()
 
         # Refresh the viewer
         self.refresh(wait)
@@ -1816,11 +1829,15 @@ class Viewer:
                    np.ndarray, Tuple[float, float]]] = (0.0, np.inf),
                speed_ratio: float = 1.0,
                xyz_offset: Optional[np.ndarray] = None,
+               update_hook: Optional[Callable[[float], None]] = None,
                enable_clock: bool = False,
-               update_hook: Optional[
-                   Callable[[pin.Model, pin.Data], None]] = None,
                wait: bool = False) -> None:
         """Replay a complete robot trajectory at a given real-time ratio.
+
+        .. note::
+            Specifying 'udpate_hook' is necessary to be able to display sensor
+            information usch as contact forces. It will be automatically
+            disable otherwise.
 
         .. warning::
             It will alter original robot data if viewer attribute
@@ -1839,24 +1856,34 @@ class Viewer:
                             Optional: None by default.
         :param wait: Whether or not to wait for rendering to finish.
         """
-        t = [s.t for s in evolution_robot]
+        # Disable display of sensor data if no update hook is provided
+        disable_display_contacts = False
+        if update_hook is None and self._display_contacts:
+            disable_display_contacts = True
+            self.display_contact_forces(False)
+
+        # Replay the whole trajectory at constant speed ratio
+        update_hook_t = None
+        times = [s.t for s in evolution_robot]
         t_simu = time_interval[0]
-        i = bisect_right(t, t_simu)
+        i = bisect_right(times, t_simu)
         init_time = time.time()
         while i < len(evolution_robot):
             try:
                 if enable_clock:
                     Viewer.set_clock(t_simu)
-                s = evolution_robot[i]
-                s_next = evolution_robot[min(i, len(evolution_robot)) - 1]
+                s_next = evolution_robot[min(i, len(times) - 1)]
+                s = evolution_robot[max(i - 1, 0)]
                 ratio = (t_simu - s.t) / (s_next.t - s.t)
                 q = pin.interpolate(self._client.model, s.q, s_next.q, ratio)
                 if Viewer._camera_motion is not None:
                     Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
-                self.display(q, xyz_offset, update_hook, wait)
+                if update_hook is not None:
+                    update_hook_t = partial(update_hook, t_simu)
+                self.display(q, xyz_offset, update_hook_t, wait)
                 t_simu = time_interval[0] + speed_ratio * (
                     time.time() - init_time)
-                i = bisect_right(t, t_simu)
+                i = bisect_right(times, t_simu)
                 wait = False  # Waiting for the first timestep is enough
                 if t_simu > time_interval[1]:
                     break
@@ -1866,7 +1893,14 @@ class Viewer:
                 Viewer.close()
                 return
 
-        # Disable clock after replay if enable and alive
-        if enable_clock and Viewer.is_alive():
-            with self._lock:
-                Viewer.set_clock()
+        # Restore Viewer's state if it has been altered
+        if Viewer.is_alive():
+            # Disable clock after replay if enabled
+            if enable_clock:
+                with self._lock:
+                    Viewer.set_clock()
+
+            # Restore display of sensor data
+            if disable_display_contacts:
+                with self._lock:
+                    self.display_contact_forces(True)

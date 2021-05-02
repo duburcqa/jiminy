@@ -811,6 +811,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             kwargs['mode'] = 'rgb_array'
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
+        # Stop any running simulation before replay if `is_done` is True.
+        # It will enable to display contact forces.
+        if self.simulator.is_simulation_running:
+            if self.is_done():
+                if not self.viewer or self.viewer._display_contacts:
+                    self.simulator.stop()
+
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose.
         self.render(**kwargs)
