@@ -241,7 +241,8 @@ def build_robot_from_log(log_file: str) -> jiminy.Robot:
 
 
 def emulate_sensors_data_from_log(log_data: Dict[str, np.ndarray],
-                                  robot: jiminy.Model) -> Callable[[float], None]:
+                                  robot: jiminy.Model
+                                  ) -> Callable[[float], None]:
     """Helper to make it easy to emulate sensor data update based on log data.
 
     .. note::

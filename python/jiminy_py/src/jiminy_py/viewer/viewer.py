@@ -292,6 +292,8 @@ class Viewer:
                  delete_robot_on_close: bool = False,
                  robot_name: Optional[str] = None,
                  scene_name: str = 'world',
+                 display_com: bool = False,
+                 display_contacts: bool = False,
                  **kwargs: Any):
         """
         :param robot: Jiminy.Model to display.
@@ -332,6 +334,13 @@ class Viewer:
         :param scene_name: Scene name, used only with 'gepetto-gui' backend. It
                            must differ from the scene name.
                            Optional: 'world' by default.
+        :param display_com: Whether or not to display the center of mass.
+                            Optional: Disable by default.
+        :param display_contacts: Whether or not to display the contact forces.
+                                 Note that the user is responsible for updating
+                                 sensors data since `Viewer.display` is only
+                                 computing kinematic quantities.
+                                 Optional: Disable by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
         # Handling of default arguments
@@ -344,15 +353,15 @@ class Viewer:
         self.robot_name = robot_name
         self.scene_name = scene_name
         self.use_theoretical_model = use_theoretical_model
-        self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
+        self._lock = lock if lock is not None else Viewer._lock
+        self._display_com = display_com
+        self._display_contacts = display_contacts
 
         # Initialize marker register
         self.markers: Dict[str, MarkerDataType] = {}
         self._markers_group = '/'.join((
             self.scene_name, self.robot_name, "markers"))
-        self._display_com = False
-        self._display_contacts = False
 
         # Select the desired backend
         if backend is None:
@@ -600,7 +609,7 @@ class Viewer:
                             pose=[self._client.data.com[0], None],
                             scale=get_scale,
                             remove_if_exists=True,
-                            radius=0.005,
+                            radius=0.004,
                             length=1.0,
                             anchor_bottom=True)
 
@@ -1827,7 +1836,7 @@ class Viewer:
 
         .. note::
             Specifying 'udpate_hook' is necessary to be able to display sensor
-            information such as contact forces. It will be automatically
+            information usch as contact forces. It will be automatically
             disable otherwise.
 
         .. warning::
