@@ -1777,8 +1777,7 @@ class Viewer:
     def display(self,
                 q: np.ndarray,
                 xyz_offset: Optional[np.ndarray] = None,
-                update_hook: Optional[
-                    Callable[[pin.Model, pin.Data], None]] = None,
+                update_hook: Optional[Callable[[], None]] = None,
                 wait: bool = False) -> None:
         """Update the configuration of the robot.
 
@@ -1809,7 +1808,7 @@ class Viewer:
 
         # Call custom update hook
         if update_hook is not None:
-            update_hook(self._client.model, self._client.data)
+            update_hook()
 
         # Refresh the viewer
         self.refresh(wait)
@@ -1821,11 +1820,15 @@ class Viewer:
                    np.ndarray, Tuple[float, float]]] = (0.0, np.inf),
                speed_ratio: float = 1.0,
                xyz_offset: Optional[np.ndarray] = None,
+               update_hook: Optional[Callable[[float], None]] = None,
                enable_clock: bool = False,
-               update_hook: Optional[
-                   Callable[[pin.Model, pin.Data], None]] = None,
                wait: bool = False) -> None:
         """Replay a complete robot trajectory at a given real-time ratio.
+
+        .. note::
+            Specifying 'udpate_hook' is necessary to be able to display sensor
+            information such as contact forces. It will be automatically
+            disable otherwise.
 
         .. warning::
             It will alter original robot data if viewer attribute
@@ -1844,24 +1847,31 @@ class Viewer:
                             Optional: None by default.
         :param wait: Whether or not to wait for rendering to finish.
         """
-        t = [s.t for s in evolution_robot]
+        # Disable display of sensor data if no update hook is provided
+        disable_display_contacts = False
+        if update_hook is None and self._display_contacts:
+            disable_display_contacts = True
+            self.display_contact_forces(False)
+
+        # Replay the whole trajectory at constant speed ratio
+        times = [s.t for s in evolution_robot]
         t_simu = time_interval[0]
-        i = bisect_right(t, t_simu)
+        i = bisect_right(times, t_simu)
         init_time = time.time()
         while i < len(evolution_robot):
             try:
                 if enable_clock:
                     Viewer.set_clock(t_simu)
-                s = evolution_robot[i]
-                s_next = evolution_robot[min(i, len(evolution_robot)) - 1]
+                s_next = evolution_robot[min(i, len(times) - 1)]
+                s = evolution_robot[max(i - 1, 0)]
                 ratio = (t_simu - s.t) / (s_next.t - s.t)
                 q = pin.interpolate(self._client.model, s.q, s_next.q, ratio)
                 if Viewer._camera_motion is not None:
                     Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
-                self.display(q, xyz_offset, update_hook, wait)
+                self.display(q, xyz_offset, partial(update_hook, t_simu), wait)
                 t_simu = time_interval[0] + speed_ratio * (
                     time.time() - init_time)
-                i = bisect_right(t, t_simu)
+                i = bisect_right(times, t_simu)
                 wait = False  # Waiting for the first timestep is enough
                 if t_simu > time_interval[1]:
                     break
@@ -1871,7 +1881,13 @@ class Viewer:
                 Viewer.close()
                 return
 
-        # Disable clock after replay if enable and alive
-        if enable_clock and Viewer.is_alive():
-            with self._lock:
-                Viewer.set_clock()
+        # Restore Viewer's state if it has been altered
+        if Viewer.is_alive():
+            # Disable clock after replay if enabled
+            if enable_clock:
+                with self._lock:
+                    Viewer.set_clock()
+
+            # Restore display of sensor data
+            if disable_display_contacts:
+                self.display_contact_forces(True)
