@@ -1863,6 +1863,7 @@ class Viewer:
             self.display_contact_forces(False)
 
         # Replay the whole trajectory at constant speed ratio
+        update_hook_t = None
         times = [s.t for s in evolution_robot]
         t_simu = time_interval[0]
         i = bisect_right(times, t_simu)
@@ -1877,7 +1878,9 @@ class Viewer:
                 q = pin.interpolate(self._client.model, s.q, s_next.q, ratio)
                 if Viewer._camera_motion is not None:
                     Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
-                self.display(q, xyz_offset, partial(update_hook, t_simu), wait)
+                if update_hook is not None:
+                    update_hook_t = partial(update_hook, t_simu)
+                self.display(q, xyz_offset, update_hook_t, wait)
                 t_simu = time_interval[0] + speed_ratio * (
                     time.time() - init_time)
                 i = bisect_right(times, t_simu)
@@ -1899,4 +1902,5 @@ class Viewer:
 
             # Restore display of sensor data
             if disable_display_contacts:
-                self.display_contact_forces(True)
+                with self._lock:
+                    self.display_contact_forces(True)

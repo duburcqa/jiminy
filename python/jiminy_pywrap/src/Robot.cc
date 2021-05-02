@@ -271,6 +271,9 @@ namespace python
                                     bp::arg("has_freeflyer") = false,
                                     bp::arg("mesh_package_dirs") = bp::list()))
 
+                .add_property("is_locked", bp::make_function(&Robot::getIsLocked,
+                                           bp::return_value_policy<bp::copy_const_reference>()))
+
                 .def("dump_options", &Robot::dumpOptions,
                                      (bp::arg("self"), "json_filename"))
                 .def("load_options", &Robot::loadOptions,

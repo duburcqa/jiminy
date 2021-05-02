@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 ColorType = Union[Tuple4FType, str]
 
 
-def play_trajectories(traj_data: Union[
+def play_trajectories(trajs_data: Union[
                           TrajectoryDataType, Sequence[TrajectoryDataType]],
                       update_hooks: Optional[Union[
                           Callable[[float], None],
@@ -75,7 +75,7 @@ def play_trajectories(traj_data: Union[
         Replay speed is independent of the platform (windows, linux...) and
         available CPU power.
 
-    :param traj_data: List of `TrajectoryDataType` dicts.
+    :param trajs_data: List of `TrajectoryDataType` dicts.
     :param update_hooks: Callables associated with each robot that can be used
                          to update non-kinematic robot data, for instance to
                          emulate sensors data from log using the hook provided
@@ -96,9 +96,9 @@ def play_trajectories(traj_data: Union[
                           Optional: Original color if single robot, default
                           color cycle otherwise.
     :param travelling_frame: Name of the frame of the robot associated with the
-                             first traj_data. The camera will
-                             automatically follow it. None to disable.
-                             Optional: None by default.
+                             first `trajs_data`. The camera will utomatically
+                             follow it. `None` to disable.
+                             Optional: Disable by default.
     :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
                           corresponding to the absolute pose of the camera
                           during replay, if travelling is disable, or the
@@ -167,8 +167,10 @@ def play_trajectories(traj_data: Union[
     :returns: List of viewers used to play the trajectories.
     """
     # Make sure trajectory data and update hook are list or tuple
-    if not isinstance(traj_data, (list, tuple)):
-        traj_data = [traj_data]
+    if not isinstance(trajs_data, (list, tuple)):
+        trajs_data = [trajs_data]
+    if update_hooks is None:
+        update_hooks = [None] * len(trajs_data)
     if not isinstance(update_hooks, (list, tuple)):
         update_hooks = [update_hooks]
 
@@ -194,23 +196,31 @@ def play_trajectories(traj_data: Union[
         if display_contacts is None:
             display_contacts = all(func is not None for func in update_hooks)
 
+    # Make sure it is possible to display contacts if requested
+    if display_contacts is not False:
+        if any(traj['robot'].is_locked for traj in trajs_data):
+            logger.debug(
+                "`display_contacts` is not available if robot is locked. "
+                "Please stop any running simulation before replay.")
+            display_contacts = False
+
     # Sanitize user-specified robot offsets
     if xyz_offsets is None:
-        xyz_offsets = len(traj_data) * [None]
-    elif len(xyz_offsets) != len(traj_data):
-        xyz_offsets = np.tile(xyz_offsets, (len(traj_data), 1))
+        xyz_offsets = len(trajs_data) * [None]
+    elif len(xyz_offsets) != len(trajs_data):
+        xyz_offsets = np.tile(xyz_offsets, (len(trajs_data), 1))
 
     # Sanitize user-specified robot colors
     if robots_colors is None:
-        if len(traj_data) == 1:
+        if len(trajs_data) == 1:
             robots_colors = [None]
         else:
             robots_colors = list(islice(
-                cycle(COLORS.values()), len(traj_data)))
+                cycle(COLORS.values()), len(trajs_data)))
     elif not isinstance(robots_colors, (list, tuple)) or \
             isinstance(robots_colors[0], float):
         robots_colors = [robots_colors]
-    assert len(robots_colors) == len(traj_data)
+    assert len(robots_colors) == len(trajs_data)
 
     # Sanitize user-specified legend
     if legend is not None and not isinstance(legend, (list, tuple)):
@@ -226,7 +236,7 @@ def play_trajectories(traj_data: Union[
         viewers = []
         lock = Lock()
         uniq_id = next(tempfile._get_candidate_names())
-        for i, (traj, color) in enumerate(zip(traj_data, robots_colors)):
+        for i, (traj, color) in enumerate(zip(trajs_data, robots_colors)):
             # Create a new viewer instance, and load the robot in it
             robot = traj['robot']
             robot_name = f"{uniq_id}_robot_{i}"
@@ -245,10 +255,10 @@ def play_trajectories(traj_data: Union[
     else:
         # Reset robot model in viewer if requested color has changed
         for viewer, traj, color in zip(
-                viewers, traj_data, robots_colors):
+                viewers, trajs_data, robots_colors):
             if color != viewer.robot_color:
                 viewer._setup(traj['robot'], color)
-    assert len(viewers) == len(traj_data)
+    assert len(viewers) == len(trajs_data)
 
     # Add default legend with robots names if replaying multiple trajectories
     if all(color is not None for color in robots_colors) and legend is None:
@@ -264,7 +274,7 @@ def play_trajectories(traj_data: Union[
         enable_clock = False
 
     # Early return if nothing to replay
-    if all(not len(traj['evolution_robot']) for traj in traj_data):
+    if all(not len(traj['evolution_robot']) for traj in trajs_data):
         return viewers
 
     # Set camera pose or activate camera travelling if requested
@@ -286,7 +296,7 @@ def play_trajectories(traj_data: Union[
         Viewer.set_watermark(watermark_fullpath)
 
     # Initialize robot configuration is viewer before any further processing
-    for viewer_i, traj, offset in zip(viewers, traj_data, xyz_offsets):
+    for viewer_i, traj, offset in zip(viewers, trajs_data, xyz_offsets):
         evolution_robot = traj['evolution_robot']
         if evolution_robot:
             i = bisect_right([s.t for s in evolution_robot], time_interval[0])
@@ -314,7 +324,7 @@ def play_trajectories(traj_data: Union[
     if record_video_path is not None:
         # Extract and resample trajectory data at fixed framerate
         time_max = time_interval[0]
-        for traj in traj_data:
+        for traj in trajs_data:
             if len(traj['evolution_robot']):
                 time_max = max([time_max, traj['evolution_robot'][-1].t])
         time_max = min(time_max, time_interval[1])
@@ -322,7 +332,7 @@ def play_trajectories(traj_data: Union[
         time_global = np.arange(
             time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
         position_evolutions = []
-        for traj in traj_data:
+        for traj in trajs_data:
             if len(traj['evolution_robot']):
                 data_orig = traj['evolution_robot']
                 if traj['use_theoretical_model']:
@@ -370,8 +380,11 @@ def play_trajectories(traj_data: Union[
             for viewer, positions, xyz_offset, update_hook in zip(
                     viewers, position_evolutions, xyz_offsets, update_hooks):
                 if positions is not None:
-                    viewer.display(
-                        positions[i], xyz_offset, partial(update_hook, t_cur))
+                    if update_hook is not None:
+                        update_hook_t = partial(update_hook, t_cur)
+                    else:
+                        update_hook_t = None
+                    viewer.display(positions[i], xyz_offset, update_hook_t)
 
             # Update clock if enabled
             if enable_clock:
@@ -411,7 +424,7 @@ def play_trajectories(traj_data: Union[
         # Play trajectories with multithreading
         threads = []
         for viewer, traj, xyz_offset, update_hook in zip(
-                viewers, traj_data, xyz_offsets, update_hooks):
+                viewers, trajs_data, xyz_offsets, update_hooks):
             threads.append(Thread(
                 target=replay_thread,
                 args=(viewer,
@@ -478,8 +491,11 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
                     for log, robot in zip(logs_data, robots)]
 
     # Define `update_hook` to emulate sensor update
-    update_hooks = [emulate_sensors_data_from_log(log, robot)
-                    for log, robot in zip(logs_data, robots)]
+    if not any(robot.is_locked for robot in robots):
+        update_hooks = [emulate_sensors_data_from_log(log, robot)
+                        for log, robot in zip(logs_data, robots)]
+    else:
+        update_hooks = None
 
     # Finally, play the trajectories
     return play_trajectories(trajectories, update_hooks, **kwargs)
