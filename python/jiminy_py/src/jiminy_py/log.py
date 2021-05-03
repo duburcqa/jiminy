@@ -6,15 +6,27 @@ import argparse
 from csv import DictReader
 from textwrap import dedent
 from itertools import cycle
+from bisect import bisect_right
 from collections import OrderedDict
-from typing import Tuple, Dict, Optional, Any
+from typing import Callable, Tuple, Dict, Optional, Any, Sequence
 
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from typing_extensions import TypedDict
 
-from .core import Engine, Robot, load_config_json_string
+from . import core as jiminy
+from .state import State
+
+
+class TrajectoryDataType(TypedDict, total=False):
+    # List of State objects of increasing time.
+    evolution_robot: Sequence[State]
+    # Jiminy robot. None if omitted.
+    robot: Optional[jiminy.Robot]
+    # Whether to use theoretical or actual model
+    use_theoretical_model: bool
 
 
 def _is_log_binary(fullpath: str) -> bool:
@@ -69,7 +81,7 @@ def read_log(fullpath: str,
 
     if file_format == 'binary':
         # Read binary file using C++ parser.
-        data_dict, const_dict = Engine.read_log_binary(fullpath)
+        data_dict, const_dict = jiminy.Engine.read_log_binary(fullpath)
     elif file_format == 'csv':
         # Read text csv file.
         const_dict = {}
@@ -126,7 +138,56 @@ def read_log(fullpath: str,
     return data_dict, const_dict
 
 
-def build_robot_from_log(log_file: str) -> Robot:
+def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
+                                 robot: jiminy.Model) -> TrajectoryDataType:
+    """Extract the minimal required information from raw log data in order to
+    replay the simulation in a viewer.
+
+    It extracts only the required data for replay, namely the evolution over
+    time of the joints positions.
+
+    :param log_data: Data from the log file, in a dictionnary.
+    :param robot: Jiminy robot.
+
+    :returns: Trajectory dictionary. The actual trajectory corresponds to the
+              field "evolution_robot" and it is a list of State object. The
+              other fields are additional information.
+    """
+    t = log_data["Global.Time"]
+    try:
+        # Extract the joint positions evolution over time
+        qe = np.stack([log_data[".".join(("HighLevelController", s))]
+                       for s in robot.logfile_position_headers], axis=-1)
+
+        # Determine whether to use the theoretical or flexible model
+        use_theoretical_model = not robot.is_flexible
+
+        # Create state sequence
+        evolution_robot = []
+        for t_i, q_i in zip(t, qe):
+            evolution_robot.append(State(t=t_i, q=q_i))
+
+        traj_data = {'evolution_robot': evolution_robot,
+                     'robot': robot,
+                     'use_theoretical_model': use_theoretical_model}
+    except KeyError:  # The current options are inconsistent with log data
+        # Toggle flexibilities
+        model_options = robot.get_model_options()
+        dyn_options = model_options['dynamics']
+        dyn_options['enableFlexibleModel'] = not robot.is_flexible
+        robot.set_model_options(model_options)
+
+        # Get viewer data
+        traj_data = extract_viewer_data_from_log(log_data, robot)
+
+        # Restore back flexibilities
+        dyn_options['enableFlexibleModel'] = not robot.is_flexible
+        robot.set_model_options(model_options)
+
+    return traj_data
+
+
+def build_robot_from_log(log_file: str) -> jiminy.Robot:
     """Extract log data and build robot from it.
 
     .. note::
@@ -161,7 +222,7 @@ def build_robot_from_log(log_file: str) -> Robot:
             "HighLevelController.mesh_package_dirs"].split(";")
     else:
         mesh_package_dirs = []
-    all_options = load_config_json_string(
+    all_options = jiminy.load_config_json_string(
         log_constants["HighLevelController.options"])
 
     # Create temporary URDF file
@@ -171,12 +232,59 @@ def build_robot_from_log(log_file: str) -> Robot:
     os.close(fd)
 
     # Build robot
-    robot = Robot()
+    robot = jiminy.Robot()
     robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
     robot.set_options(all_options["system"]["robot"])
     robot.pinocchio_model.loadFromString(pinocchio_model_str)
 
     return robot, (log_data, log_constants)
+
+
+def emulate_sensors_data_from_log(log_data: Dict[str, np.ndarray],
+                                  robot: jiminy.Model
+                                  ) -> Callable[[float], None]:
+    """Helper to make it easy to emulate sensor data update based on log data.
+
+    .. note::
+        It returns an update_hook that can forwarding the `Viewer.replay` to
+        display sensor information such as contact forces for instance.
+
+    :param log_data: Data from the log file, in a dictionnary.
+    :param robot: Jiminy robot.
+
+    :returns: Callable taking update time in argument and returning nothing.
+              Note that it does not through an exception if out-of-range, but
+              rather clip to desired time to the available data range.
+    """
+    # Filter sensors whose data is available
+    sensors_set, sensors_log = [], []
+    for sensor_type, sensors_names in robot.sensors_names.items():
+        sensor_fieldnames = getattr(jiminy, sensor_type).fieldnames
+        for name in sensors_names:
+            sensor = robot.get_sensor(sensor_type, name)
+            if any(field.startswith(sensor.name) for field in log_data.keys()):
+                sensor_log = np.stack([
+                    log_data['.'.join((sensor.name, field))]
+                    for field in sensor_fieldnames], axis=-1)
+                sensors_set.append(sensor)
+                sensors_log.append(sensor_log)
+
+    def update_hook(t: float) -> None:
+        nonlocal sensors_set, sensors_log
+
+        # Get current time ratio and surrounding indices in log data
+        times = log_data['Global.Time']
+        i = bisect_right(times, t)
+        i_prev, i_next = max(i - 1, 0), min(i, len(times) - 1)
+        ratio = (t - times[i_prev]) / (times[i_next] - times[i_prev])
+
+        # Update sensors data
+        for sensor, sensor_log, in zip(sensors_set, sensors_log):
+            value_prev, value_next = sensor_log[i_prev], sensor_log[i_next]
+            value = value_prev + (value_next - value_prev) * ratio
+            sensor.data = value
+
+    return update_hook
 
 
 def plot_log():

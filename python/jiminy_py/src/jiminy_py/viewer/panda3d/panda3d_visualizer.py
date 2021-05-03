@@ -22,7 +22,9 @@ from panda3d.core import (
     OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
     Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
     TransparencyAttrib, OrthographicLens, ClockObject, GraphicsPipe,
-    WindowProperties, FrameBufferProperties, loadPrcFileData, AntialiasAttrib)
+    WindowProperties, FrameBufferProperties, loadPrcFileData, AntialiasAttrib,
+    CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
+    RenderModeAttrib)
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
@@ -181,11 +183,11 @@ def make_cone(num_sides: int = 16) -> Geom:
     # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2
     prim = GeomTriangles(Geom.UH_static)
     for i in range(num_sides - 1):
-        prim.addVertices(i, i + 1, num_sides)
-        prim.addVertices(i + 1, i, num_sides + 1)
+        prim.add_vertices(i, i + 1, num_sides)
+        prim.add_vertices(i + 1, i, num_sides + 1)
 
     geom = Geom(vdata)
-    geom.addPrimitive(prim)
+    geom.add_primitive(prim)
     return geom
 
 
@@ -223,14 +225,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Configure rendering
         self.render.set_shader_auto()
-        self.render.set_antialias(AntialiasAttrib.MAuto)
+        self.render.set_antialias(
+            AntialiasAttrib.M_auto | AntialiasAttrib.M_faster)
 
         # Define default camera pos
         self._camera_defaults = CAMERA_POS_DEFAULT
         self.reset_camera(*self._camera_defaults)
 
         # Define clock. It will be used later to limit framerate.
-        self.clock = ClockObject.getGlobalClock()
+        self.clock = ClockObject.get_global_clock()
         self.framerate = None
 
         # Configure lighting and shadows
@@ -280,20 +283,20 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Create shared 2D renderer to allow display selectively gui elements
         # on offscreen and onscreen window used for capturing frames.
-        self.sharedRender2d = NodePath('sharedRender2d')
-        self.sharedRender2d.setDepthTest(False)
-        self.sharedRender2d.setDepthWrite(False)
+        self.shared_render_2d = NodePath('shared_render_2d')
+        self.shared_render_2d.set_depth_test(False)
+        self.shared_render_2d.set_depth_write(False)
 
         # Create dedicated camera 2D for offscreen rendering
-        self.offCamera2d = NodePath(Camera('off_camera2d'))
+        self.offscreen_camera_2d = NodePath(Camera('offscreen_camera2d'))
         lens = OrthographicLens()
-        lens.setFilmSize(2, 2)
-        lens.setNearFar(-1000, 1000)
-        self.offCamera2d.node().setLens(lens)
-        self.offCamera2d.reparentTo(self.sharedRender2d)
+        lens.set_film_size(2, 2)
+        lens.set_near_far(-1000, 1000)
+        self.offscreen_camera_2d.node().set_lens(lens)
+        self.offscreen_camera_2d.reparent_to(self.shared_render_2d)
 
         # Create dedicated aspect2d for offscreen rendering
-        self.offAspect2d = self.sharedRender2d.attach_new_node(
+        self.offAspect2d = self.shared_render_2d.attach_new_node(
             PGTop("offAspect2d"))
         self.offA2dTopLeft = self.offAspect2d.attach_new_node(
             "offA2dTopLeft")
@@ -308,18 +311,31 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.offA2dBottomLeft.set_pos(self.a2dLeft, 0, self.a2dBottom)
         self.offA2dBottomRight.set_pos(self.a2dRight, 0, self.a2dBottom)
 
-        # Initialize onscreen display and controls internal state
+        # Define widget overlay
+        self.offscreen_graphics_lens = None
+        self.offscreen_display_region = None
         self._help_label = None
         self._watermark = None
         self._legend = None
         self._clock = None
-        self.offGraphicsLens = None
-        self.offDisplayRegion = None
+
+        # Define input control
+        self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
+
+        # Define camera control
         self.zoom_rate = 1.03
         self.camera_lookat = np.zeros(3)
-        self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
-        self.longitudeDeg = 0.0
-        self.latitudeDeg = 0.0
+        self.longitude_deg = 0.0
+        self.latitude_deg = 0.0
+        self.last_mouse_x = 0.0
+        self.last_mouse_y = 0.0
+
+        # Define object/highlighting selector
+        self.picker_ray = None
+        self.picker_node = None
+        self.picked_object = None
+        self.click_mouse_x = 0.0
+        self.click_mouse_y = 0.0
 
         # Create resizeable offscreen buffer
         self._open_offscreen_window(WINDOW_SIZE_DEFAULT)
@@ -334,6 +350,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_floor(True)
 
     def open_window(self) -> None:
+        """Open a graphical window, with offscreen buffer attached on it to
+        allow for arbitrary size screenshot.
+        """
         # Make sure a graphical window is not already open
         if any(isinstance(win, GraphicsWindow) for win in self.winList):
             raise RuntimeError("Only one graphical window can be opened.")
@@ -361,6 +380,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.taskMgr.add(
                 self.move_orbital_camera_task, "move_camera_task", sort=2)
 
+            # Setup object pickler
+            self.picker_ray = CollisionRay()
+            self.picker_node = CollisionNode('mouse_ray')
+            self.picker_node.set_from_collide_mask(
+                GeomNode.get_default_collide_mask())
+            self.picker_node.addSolid(self.picker_ray)
+            self.picker_traverser = CollisionTraverser('traverser')
+            picker_np = self.camera.attachNewNode(self.picker_node)
+            self.picker_queue = CollisionHandlerQueue()
+            self.picker_traverser.addCollider(picker_np, self.picker_queue)
+
             # Limit framerate to reduce computation cost
             self.set_framerate(PANDA3D_FRAMERATE_MAX)
 
@@ -386,7 +416,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Note that one must remove display region associated with shared 2D
         # renderer, otherwise it will be altered when closing current window.
         if self.buff is not None:
-            self.buff.remove_display_region(self.offDisplayRegion)
+            self.buff.remove_display_region(self.offscreen_display_region)
             self.close_window(self.buff, keepCamera=False)
 
         # Set offscreen buffer frame properties
@@ -408,7 +438,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Note that it is impossible to create resizeable buffer without an
         # already existing host for some reason...
         win = self.graphicsEngine.make_output(
-            self.pipe, "off_buffer", 0, fbprops, winprops, flags,
+            self.pipe, "offscreen_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
 
         # Append buffer to the list of windows managed by the ShowBase
@@ -417,24 +447,30 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Create 3D camera region for the scene.
         # Set near distance of camera lens to allow seeing model from close.
-        self.offGraphicsLens = PerspectiveLens()
-        self.offGraphicsLens.set_near(0.1)
-        self.make_camera(win, camName='off_camera', lens=self.offGraphicsLens)
+        self.offscreen_graphics_lens = PerspectiveLens()
+        self.offscreen_graphics_lens.set_near(0.1)
+        self.make_camera(
+            win, camName='offscreen_camera', lens=self.offscreen_graphics_lens)
 
         # Create 2D display region for widgets
-        self.offDisplayRegion = win.makeMonoDisplayRegion()
-        self.offDisplayRegion.set_sort(5)
-        self.offDisplayRegion.set_camera(self.offCamera2d)
+        self.offscreen_display_region = win.makeMonoDisplayRegion()
+        self.offscreen_display_region.set_sort(5)
+        self.offscreen_display_region.set_camera(self.offscreen_camera_2d)
 
         # # Adjust aspect ratio
         self._adjust_offscreen_window_aspect_ratio()
 
     def _adjust_offscreen_window_aspect_ratio(self) -> None:
+        """Adjust aspect ratio of offscreen window.
+
+        .. note::
+            This method is called automatically after resize.
+        """
         # Get aspect ratio
         aspect_ratio = self.get_aspect_ratio(self.buff)
 
         # Adjust 3D rendering aspect ratio
-        self.offGraphicsLens.set_aspect_ratio(aspect_ratio)
+        self.offscreen_graphics_lens.set_aspect_ratio(aspect_ratio)
 
         # Adjust existing anchors for offscreen 2D rendering
         if aspect_ratio < 1:
@@ -446,7 +482,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             a2dRight = 1.0
         else:
             # If the window is WIDE, lets expand the left and right
-            self.offAspect2d.setScale(1.0 / aspect_ratio, 1.0, 1.0)
+            self.offAspect2d.set_scale(1.0/aspect_ratio, 1.0, 1.0)
             a2dTop = 1.0
             a2dBottom = -1.0
             a2dLeft = -aspect_ratio
@@ -466,12 +502,26 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return super().getSize(win)
 
     def getMousePos(self) -> Tuple[int, int]:
+        """Get current mouse position.
+
+        .. note::
+            Can be overloaded to allow for emulated mouse click.
+        """
         md = self.win.getPointer(0)
         return md.getX(), md.getY()
 
     def handle_key(self, key: str, value: bool) -> None:
+        """Input controller handler.
+        """
         if key in ["mouse1", "mouse2", "mouse3"]:
-            self.lastMouseX, self.lastMouseY = self.getMousePos()
+            mouseX, mouseY = self.getMousePos()
+            if key == "mouse1":
+                if value:
+                    self.click_mouse_x, self.click_mouse_y = mouseX, mouseY
+                elif (self.click_mouse_x == mouseX and
+                        self.click_mouse_y == mouseY):
+                    self.click_on_node()
+            self.last_mouse_x, self.last_mouse_y = mouseX, mouseY
             self.key_map[key] = value
         elif key in ["wheelup", "wheeldown"]:
             cam_dir = self.camera_lookat - np.asarray(self.camera.get_pos())
@@ -481,66 +531,105 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 cam_pos = self.camera_lookat - cam_dir * self.zoom_rate
             self.camera.set_pos(*cam_pos)
 
+    def click_on_node(self) -> None:
+        """Object selector handler.
+        """
+        # Remove focus of currently selected object
+        picked_object_prev = self.picked_object
+        if self.picked_object is not None:
+            self.highlight_node(*self.picked_object, False)
+            self.picked_object = None
+
+        # Select new object if the user actually clicked on a selectable node
+        object_found = False
+        mpos = self.mouseWatcherNode.getMouse()
+        self.picker_ray.set_from_lens(self.camNode, mpos.getX(), mpos.getY())
+        self.picker_traverser.traverse(self.render)
+        for i in range(self.picker_queue.getNumEntries()):
+            self.picker_queue.sortEntries()
+            picked_node = self.picker_queue.getEntry(i).getIntoNodePath()
+            # Do not allow selecting hidden node
+            if not picked_node.isHidden():
+                node_path = str(picked_node)
+                for group_name in self._groups.keys():
+                    group_path = f"render/scene_root/{group_name}/"
+                    # Only nodes part of user groups can be selected
+                    if node_path.startswith(group_path):
+                        name = node_path[len(group_path):].split("/", 1)[0]
+                        if (group_name, name) != picked_object_prev:
+                            self.picked_object = (group_name, name)
+                        object_found = True
+                        break
+                if object_found:
+                    break
+
+        # Focus on newly selected node
+        if self.picked_object is not None:
+            self.highlight_node(*self.picked_object, True)
+
     def move_orbital_camera_task(self, task: Any) -> None:
+        """Custom control of the camera to be more suitable for robotic
+        application than the default one.
+        """
         # Get mouse position
         x, y = self.getMousePos()
 
         # Ensure consistent camera pose and lookat
-        self.longitudeDeg, self.latitudeDeg, _ = self.camera.get_hpr()
+        self.longitude_deg, self.latitude_deg, _ = self.camera.get_hpr()
         cam_pos = np.asarray(self.camera.get_pos())
         cam_dir = self.camera_lookat - cam_pos
         cam_dist = np.linalg.norm(cam_dir)
-        longitudeRad = self.longitudeDeg * np.pi / 180.0
-        latitudeRad = self.latitudeDeg * np.pi / 180.0
-        cam_dir_n = np.array([-np.sin(longitudeRad)*np.cos(latitudeRad),
-                              np.cos(longitudeRad)*np.cos(latitudeRad),
-                              np.sin(latitudeRad)])
+        longitude = self.longitude_deg * np.pi / 180.0
+        latitude = self.latitude_deg * np.pi / 180.0
+        cam_dir_n = np.array([-np.sin(longitude)*np.cos(latitude),
+                              np.cos(longitude)*np.cos(latitude),
+                              np.sin(latitude)])
         self.camera_lookat = cam_pos + cam_dist * cam_dir_n
 
         if self.key_map["mouse1"]:
             # Update camera rotation
-            self.longitudeDeg -= (x - self.lastMouseX) * 0.2
-            self.latitudeDeg -= (y - self.lastMouseY) * 0.2
+            self.longitude_deg -= (x - self.last_mouse_x) * 0.2
+            self.latitude_deg -= (y - self.last_mouse_y) * 0.2
 
             # Limit angles to [-180;+180] x [-90;+90]
-            if (self.longitudeDeg > 180.0):
-                self.longitudeDeg = self.longitudeDeg - 360.0
-            if (self.longitudeDeg < -180.0):
-                self.longitudeDeg = self.longitudeDeg + 360.0
-            if (self.latitudeDeg > (90.0 - 0.001)):
-                self.latitudeDeg = 90.0 - 0.001
-            if (self.latitudeDeg < (-90.0 + 0.001)):
-                self.latitudeDeg = -90.0 + 0.001
+            if (self.longitude_deg > 180.0):
+                self.longitude_deg = self.longitude_deg - 360.0
+            if (self.longitude_deg < -180.0):
+                self.longitude_deg = self.longitude_deg + 360.0
+            if (self.latitude_deg > (90.0 - 0.001)):
+                self.latitude_deg = 90.0 - 0.001
+            if (self.latitude_deg < (-90.0 + 0.001)):
+                self.latitude_deg = -90.0 + 0.001
 
-            longitudeRad = self.longitudeDeg * np.pi / 180.0
-            latitudeRad = self.latitudeDeg * np.pi / 180.0
-            cam_dir_n = np.array([-np.sin(longitudeRad) * np.cos(latitudeRad),
-                                  np.cos(longitudeRad) * np.cos(latitudeRad),
-                                  np.sin(latitudeRad)])
+            longitude = self.longitude_deg * np.pi / 180.0
+            latitude = self.latitude_deg * np.pi / 180.0
+            cam_dir_n = np.array([-np.sin(longitude) * np.cos(latitude),
+                                  np.cos(longitude) * np.cos(latitude),
+                                  np.sin(latitude)])
             cam_pos = self.camera_lookat - cam_dist * cam_dir_n
             self.camera.set_pos(*cam_pos)
-            self.camera.set_hpr(self.longitudeDeg, self.latitudeDeg, 0)
+            self.camera.set_hpr(self.longitude_deg, self.latitude_deg, 0)
         if self.key_map["mouse2"]:
-            cam_delta = (y - self.lastMouseY) * 0.02 * cam_dir_n
+            cam_delta = (y - self.last_mouse_y) * 0.02 * cam_dir_n
             self.camera_lookat -= cam_delta
             cam_pos -= cam_delta
             self.camera.set_pos(*cam_pos)
         elif self.key_map["mouse3"]:
-            cam_n1 = np.array([np.cos(longitudeRad),
-                               np.sin(longitudeRad),
+            cam_n1 = np.array([np.cos(longitude),
+                               np.sin(longitude),
                                0.0])
-            cam_n2 = np.array([-np.sin(longitudeRad) * np.sin(latitudeRad),
-                               np.cos(longitudeRad) * np.sin(latitudeRad),
-                               -np.cos(latitudeRad)])
-            pos_shift = ((x - self.lastMouseX) * cam_n1 +
-                         (y - self.lastMouseY) * cam_n2) * 0.01
+            cam_n2 = np.array([-np.sin(longitude) * np.sin(latitude),
+                               np.cos(longitude) * np.sin(latitude),
+                               -np.cos(latitude)])
+            pos_shift = ((x - self.last_mouse_x) * cam_n1 +
+                         (y - self.last_mouse_y) * cam_n2) * 0.01
             cam_pos -= pos_shift
             self.camera_lookat -= pos_shift
             self.camera.set_pos(*cam_pos)
 
         # Store latest mouse position for the next frame
-        self.lastMouseX = x
-        self.lastMouseY = y
+        self.last_mouse_x = x
+        self.last_mouse_y = y
 
         # End task
         return task.cont
@@ -566,7 +655,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
     def _make_axes(self) -> NodePath:
         node = super()._make_axes()
-        node.set_scale(0.33)
+        node.set_scale(0.3)
         return node
 
     def _make_floor(self) -> NodePath:
@@ -585,6 +674,49 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_two_sided(True)
         return node
 
+    def append_group(self,
+                     root_path: str,
+                     remove_if_exists: bool = True,
+                     scale: float = 1.0) -> None:
+        """Must be patched to avoid adding new group if 'remove_if_exists' is
+        false, otherwise it will be impossible to access to old ones.
+        """
+        if not remove_if_exists and root_path in self._groups:
+            return
+        super().append_group(root_path, remove_if_exists, scale)
+
+    def append_node(self,
+                    root_path: str,
+                    name: str,
+                    node: NodePath,
+                    frame: Optional[FrameType] = None) -> None:
+        """Must be patched to make sure node's name is valid.
+        """
+        assert name.isidentifier(), (
+            "Node's name is restricted to case-insensitive ASCII alphanumeric "
+            "string (including underscores).")
+        super().append_node(root_path, name, node, frame)
+
+    def highlight_node(self, root_path: str, name: str, enable: bool) -> None:
+        node = self._groups[root_path].find(name)
+        if node:
+            render_mode = node.get_render_mode()
+            if enable:
+                if render_mode == RenderModeAttrib.M_filled_wireframe:
+                    return
+                render_attrib = node.get_state().get_attrib_def(
+                    RenderModeAttrib.get_class_slot())
+                node.set_attrib(RenderModeAttrib.make(
+                    RenderModeAttrib.M_filled_wireframe,
+                    1.5,  # thickness (1.0 by default)
+                    render_attrib.perspective,
+                    (2.0, 2.0, 2.0, 1.0)  # wireframe_color
+                ))
+            else:
+                if render_mode == RenderModeAttrib.M_off:
+                    return
+                node.clear_render_mode()
+
     def append_cone(self,
                     root_path: str,
                     name: str,
@@ -598,6 +730,24 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         geom_node.add_geom(make_cone(num_sides))
         node = NodePath(geom_node)
         node.set_scale(radius, radius, length)
+        self.append_node(root_path, name, node, frame)
+
+    def append_cylinder(self,
+                        root_path: str,
+                        name: str,
+                        radius: float,
+                        length: float,
+                        anchor_bottom: bool = False,
+                        frame: Optional[FrameType] = None) -> None:
+        """Must be patched to add optional to place anchor at the bottom of the
+        cylinder instead of the middle.
+        """
+        geom_node = GeomNode('cylinder')
+        geom_node.add_geom(geometry.make_cylinder())
+        node = NodePath(geom_node)
+        node.set_scale(Vec3(radius, radius, length))
+        if anchor_bottom:
+            node.set_pos(0.0, 0.0, -length/2)
         self.append_node(root_path, name, node, frame)
 
     def append_arrow(self,
@@ -748,7 +898,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         fig.gca().set_axis_off()
 
         # Render the legend
-        fig.canvas.draw()
+        fig.draw(renderer=fig.canvas.get_renderer())
 
         # Compute bbox size to be power of 2 for software rendering.
         bbox = legend.get_window_extent().padded(2)
@@ -868,27 +1018,23 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             if color is None:
                 node.clear_color()
 
-    def move_node(self,
-                  root_path: str,
-                  name: str,
-                  frame: FrameType) -> None:
-        """Set pose of a single node.
-        """
-        node = self._groups[root_path].find(name).children[0]
-        if isinstance(frame, np.ndarray):
-            node.set_mat(Mat4(*frame.T.flat))
-        else:
-            pos, quat = frame
-            node.set_pos_quat(Vec3(*pos), Quat(*quat))
-
     def set_scale(self,
                   root_path: str,
                   name: str,
                   scale: Optional[Tuple3FType] = None) -> None:
         """Override scale of node of a node.
         """
-        node = self._groups[root_path].find(name).children[0]
-        node.set_scale(*scale)
+        node = self._groups[root_path].find(name)
+        if node:
+            if any(abs(s) < 1e-3 for s in scale):
+                if not node.is_hidden():
+                    node.set_tag("status", "disable")
+                    node.hide()
+            else:
+                node.set_scale(*scale)
+                if node.get_tag("status") == "disable":
+                    node.set_tag("status", "auto")
+                    node.show()
 
     def set_scales(self, root_path, name_scales_dict):
         """Override scale of nodes within a group.
@@ -896,12 +1042,48 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         for name, scale in name_scales_dict.items():
             self.set_scale(root_path, name, scale)
 
+    def move_node(self,
+                  root_path: str,
+                  name: str,
+                  frame: FrameType) -> None:
+        """Set pose of a single node.
+        """
+        node = self._groups[root_path].find(name)
+        if isinstance(frame, np.ndarray):
+            node.set_mat(Mat4(*frame.T.flat))
+        else:
+            pos, quat = frame
+            node.set_pos_quat(Vec3(*pos), Quat(*quat))
+
     def remove_node(self, root_path: str, name: str) -> None:
-        """Remove a signle node from the scene.
+        """Remove a single node from the scene.
         """
         node = self._groups[root_path].find(name)
         if node:
             node.remove_node()
+
+    def show_node(self,
+                  root_path: str,
+                  name: str,
+                  show: bool,
+                  always_foreground: bool = False) -> None:
+        """Turn rendering on or off for a single node.
+        """
+        node = self._groups[root_path].find(name)
+        if node:
+            if show:
+                if node.get_tag("status") in ("hidden", ""):
+                    node.set_tag("status", "auto")
+                    node.show()
+            else:
+                node.set_tag("status", "hidden")
+                node.hide()
+            if always_foreground:
+                node.set_bin("fixed", 0)
+            else:
+                node.clear_bin()
+            node.set_depth_test(not always_foreground)
+            node.set_depth_write(not always_foreground)
 
     def set_camera_transform(self,
                              pos: Tuple3FType,
@@ -1029,6 +1211,7 @@ def delegate(self, name: str) -> Any:
 
 Panda3dViewer.__getattr__ = delegate
 delattr(Panda3dViewer, 'set_material')
+delattr(Panda3dViewer, 'append_cylinder')
 
 
 class Panda3dVisualizer(BaseVisualizer):
@@ -1203,7 +1386,7 @@ class Panda3dVisualizer(BaseVisualizer):
             name_pose_dict = {}
             for obj in model.geometryObjects:
                 oMg = data.oMg[model.getGeometryId(obj.name)]
-                x, y, z, qx, qy, qz, qw = pin.SE3ToXYZQUATtuple(oMg)
+                x, y, z, qx, qy, qz, qw = pin.SE3ToXYZQUAT(oMg)
                 name_pose_dict[obj.name] = ((x, y, z), (qw, qx, qy, qz))
             self.viewer.move_nodes(group, name_pose_dict)
 

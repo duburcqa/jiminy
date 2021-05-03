@@ -13,7 +13,7 @@
 
 namespace jiminy
 {
-    template <typename T>
+    template<typename T>
     hresult_t TelemetryData::internalRegisterVariable(struct memHeader       *   header,
                                                       std::string      const   & variableName,
                                                       T                      * & positionInBufferOut)

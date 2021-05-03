@@ -459,7 +459,8 @@ class Simulator:
                               Yaw] corresponding to the absolute pose of the
                               camera. None to disable.
                               Optional:None by default.
-        :param kwargs: Used argument to allow chaining renderining methods.
+        :param kwargs: Extra keyword arguments to forward at `Viewer`
+                       initialization.
 
         :returns: Rendering as an RGB array (3D numpy array), if enabled, None
                   otherwise.
@@ -483,6 +484,8 @@ class Simulator:
                                  **{'scene_name': scene_name,
                                     'robot_name': robot_name,
                                     'backend': self.viewer_backend,
+                                    'display_com': True,
+                                    'display_contacts': True,
                                     'delete_robot_on_close': True,
                                     **kwargs})
             self.viewer_backend = Viewer.backend  # Just in case it was `None`
@@ -517,10 +520,16 @@ class Simulator:
                 "`replay` method.")
         self.render(**{
             'return_rgb_array': kwargs.get(
-                'record_video_path', None) is not None, **kwargs})
-        play_logs_data(
-            [self.robot], [self.log_data], viewers=[self.viewer],
-            **{'verbose': True, 'backend': self.viewer_backend, **kwargs})
+                'record_video_path', None) is not None,
+            **kwargs})
+        play_logs_data([self.robot],
+                       [self.log_data],
+                       viewers=[self.viewer],
+                       **{'verbose': True,
+                          'backend': self.viewer_backend,
+                          'display_com': True,
+                          'display_contacts': True,
+                          **kwargs})
 
     def close(self) -> None:
         """Close the connection with the renderer.

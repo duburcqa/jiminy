@@ -12,7 +12,7 @@ namespace python
 {
     namespace bp = boost::python;
 
-    template <typename T>
+    template<typename T>
     class arrayScalarFromPython
     {
     public:
@@ -76,7 +76,7 @@ namespace python
         static PyTypeObject const* get_pytype() { return &PyUnicode_Type; }
     };
 
-    template <class T, class SlotPolicy>
+    template<class T, class SlotPolicy>
     struct nativeFromPython
     {
     public:

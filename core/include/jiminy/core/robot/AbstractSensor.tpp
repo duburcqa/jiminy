@@ -6,7 +6,32 @@
 
 namespace jiminy
 {
-    template <typename T>
+    // ========================== AbstractSensorBase ==============================
+
+    template<typename DerivedType>
+    hresult_t AbstractSensorBase::set(Eigen::MatrixBase<DerivedType> const & value)
+    {
+        if (!isAttached_)
+        {
+            PRINT_ERROR("Sensor not attached to any robot.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        auto robot = robot_.lock();
+        if (!robot || robot->getIsLocked())
+        {
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before setting sensor value manually.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        get() = value;
+        return hresult_t::SUCCESS;
+    }
+
+    // ========================== AbstractSensorTpl ===============================
+
+    template<typename T>
     AbstractSensorTpl<T>::AbstractSensorTpl(std::string const & name) :
     AbstractSensorBase(name),
     sensorIdx_(-1),
@@ -15,7 +40,7 @@ namespace jiminy
         // Empty
     }
 
-    template <typename T>
+    template<typename T>
     AbstractSensorTpl<T>::~AbstractSensorTpl(void)
     {
         // Detach the sensor before deleting it if necessary
@@ -25,7 +50,7 @@ namespace jiminy
         }
     }
 
-    template <typename T>
+    template<typename T>
     hresult_t AbstractSensorTpl<T>::attach(std::weak_ptr<Robot const> robot,
                                            SensorSharedDataHolder_t * sharedHolder)
     {
@@ -69,7 +94,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    template <typename T>
+    template<typename T>
     hresult_t AbstractSensorTpl<T>::detach(void)
     {
         // Delete the part of the shared memory associated with the sensor
@@ -134,7 +159,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    template <typename T>
+    template<typename T>
     hresult_t AbstractSensorTpl<T>::resetAll(void)
     {
         // Make sure the sensor is attached to a robot
@@ -183,7 +208,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    template <typename T>
+    template<typename T>
     hresult_t AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -205,30 +230,30 @@ namespace jiminy
         return returnCode;
     }
 
-    template <typename T>
+    template<typename T>
     int32_t const & AbstractSensorTpl<T>::getIdx(void) const
     {
         return sensorIdx_;
     }
 
-    template <typename T>
+    template<typename T>
     std::string const & AbstractSensorTpl<T>::getType(void) const
     {
         return type_;
     }
 
-    template <typename T>
+    template<typename T>
     std::vector<std::string> const & AbstractSensorTpl<T>::getFieldnames(void) const
     {
         return fieldNames_;
     }
 
-    template <typename T>
+    template<typename T>
     uint64_t AbstractSensorTpl<T>::getSize(void) const
     {
         return fieldNames_.size();
     }
-    template <typename T>
+    template<typename T>
     std::string AbstractSensorTpl<T>::getTelemetryName(void) const
     {
         if (areFieldnamesGrouped_)
@@ -241,11 +266,11 @@ namespace jiminy
         }
     }
 
-    template <typename T>
-    inline Eigen::Ref<vectorN_t const> AbstractSensorTpl<T>::get(void) const
+    template<typename T>
+    Eigen::Ref<vectorN_t const> AbstractSensorTpl<T>::get(void) const
     {
         static vectorN_t dataDummy = vectorN_t::Zero(fieldNames_.size());
-        if (sharedHolder_)
+        if (isAttached_)
         {
             return sharedHolder_->dataMeasured_.col(sensorIdx_);
         }
@@ -259,14 +284,14 @@ namespace jiminy
         return sharedHolder_->dataMeasured_.col(sensorIdx_);
     }
 
-    template <typename T>
+    template<typename T>
     inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data(void)
     {
         // No guard, since this method is not public
         return sharedHolder_->data_.back().col(sensorIdx_);
     }
 
-    template <typename T>
+    template<typename T>
     hresult_t AbstractSensorTpl<T>::interpolateData(void)
     {
         assert(sharedHolder_->time_.size() > 0 && "Do data to interpolate.");
@@ -373,7 +398,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    template <typename T>
+    template<typename T>
     hresult_t AbstractSensorTpl<T>::generateMeasurementAll(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -396,7 +421,7 @@ namespace jiminy
         return returnCode;
     }
 
-    template <typename T>
+    template<typename T>
     hresult_t AbstractSensorTpl<T>::setAll(float64_t const & t,
                                            vectorN_t const & q,
                                            vectorN_t const & v,
@@ -486,7 +511,7 @@ namespace jiminy
         return returnCode;
     }
 
-    template <typename T>
+    template<typename T>
     void AbstractSensorTpl<T>::updateTelemetryAll(void)
     {
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)

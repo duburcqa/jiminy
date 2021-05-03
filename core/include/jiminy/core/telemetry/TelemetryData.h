@@ -145,7 +145,7 @@ namespace jiminy
         ///
         /// \return S_OK if successful, the corresponding telemetry error otherwise.
         ////////////////////////////////////////////////////////////////////////
-        template <typename T>
+        template<typename T>
         hresult_t registerVariable(std::string const   & variableNameIn,
                                    T                 * & positionInBufferOut);
 
@@ -191,7 +191,7 @@ namespace jiminy
         ///
         /// \return S_OK if successful, the corresponding telemetry error otherwise.
         ////////////////////////////////////////////////////////////////////////
-        template <typename T>
+        template<typename T>
         hresult_t internalRegisterVariable(struct memHeader       *   header,
                                            std::string      const   & variableNameIn,
                                            T                      * & positionInBufferOut);

@@ -13,7 +13,7 @@ namespace jiminy
     }
 
     template<typename T0, typename T1, typename... Ts>
-    typename std::common_type<T0, T1, Ts...>::type min(T0 && val1, T1 && val2, Ts &&... vs)
+    typename std::common_type_t<T0, T1, Ts...> min(T0 && val1, T1 && val2, Ts &&... vs)
     {
         return min(std::min(val1, val2), std::forward<Ts>(vs)...);
     }
