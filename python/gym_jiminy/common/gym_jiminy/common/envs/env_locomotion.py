@@ -212,6 +212,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # computation and log replay
         engine_options['telemetry']['enableConfiguration'] = True
         engine_options['telemetry']['enableVelocity'] = True
+        engine_options['telemetry']['enableForceExternal'] = \
+            'disturbance' in self.std_ratio.keys()
 
         # Enable the flexible model
         robot_options["model"]["dynamics"]["enableFlexibleModel"] = True

@@ -1995,8 +1995,8 @@ class Viewer:
             `use_theoretical_model` is false.
 
         :param q: Configuration of the robot.
-        :param v: Velocity of the robot. It is used to update velocity
-                  dependent
+        :param v: Velocity of the robot. Used only to update velocity
+                  dependent markers such as DCM. `None` if undefined.
         :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
         :param update_hook: Callable that will be called right after updating

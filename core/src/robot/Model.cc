@@ -1250,7 +1250,7 @@ namespace jiminy
             accelerationFieldnames_.clear();
             accelerationFieldnames_.resize(nv_);
             forceExternalFieldnames_.clear();
-            forceExternalFieldnames_.resize(6U * pncModel_.njoints);
+            forceExternalFieldnames_.resize(6U * (pncModel_.njoints - 1));
             for (std::size_t i = 1; i < pncModel_.joints.size(); ++i)
             {
                 // Get joint name without "Joint" suffix, if any
@@ -1334,7 +1334,7 @@ namespace jiminy
                     }
                     std::copy(jointForceExternalFieldnames.begin(),
                               jointForceExternalFieldnames.end(),
-                              forceExternalFieldnames_.begin() + 6U);
+                              forceExternalFieldnames_.begin() + 6U * (i - 1));
                 }
             }
         }

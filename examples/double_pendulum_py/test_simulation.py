@@ -49,6 +49,7 @@ robot_options["telemetry"]["enableImuSensors"] = True
 engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True
 engine_options["telemetry"]["enableAcceleration"] = True
+engine_options["telemetry"]["enableForceExternal"] = False
 engine_options["telemetry"]["enableCommand"] = True
 engine_options["telemetry"]["enableMotorEffort"] = True
 engine_options["telemetry"]["enableEnergy"] = True

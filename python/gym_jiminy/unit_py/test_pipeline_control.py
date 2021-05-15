@@ -30,13 +30,7 @@ class PipelineControl(unittest.TestCase):
         """ TODO: Write documentation
         """
         # Reset the environment
-        def configure_telemetry() -> None:
-            nonlocal self
-            engine_options = self.env.simulator.engine.get_options()
-            engine_options['telemetry']['enableVelocity'] = True
-            self.env.simulator.engine.set_options(engine_options)
-
-        obs_init = self.env.reset(controller_hook=configure_telemetry)
+        obs_init = self.env.reset()
 
         # Compute the initial target, so that the robot stand-still.
         # In practice, it corresponds to the initial joints state.

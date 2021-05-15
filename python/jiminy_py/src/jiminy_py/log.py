@@ -145,9 +145,10 @@ def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
     replay the simulation in a viewer.
 
     .. note::
-        It extracts the required data for replay, namely the evolution over
-        time of the robot configuration, and the velocities, which is required
-        for updating markers such as DCM.
+        It extracts the required data for replay, namely temporal evolution of:
+          - robot configuration: to display of the robot on the scene,
+          - robot velocity: to update velocity-dependent markers such as DCM,
+          - external forces: to update force-dependent markers.
 
     :param log_data: Data from the log file, in a dictionnary.
     :param robot: Jiminy robot.
@@ -158,21 +159,37 @@ def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
     """
     times = log_data["Global.Time"]
     try:
-        # Extract the joint positions and velocities evolution over time
+        # Extract the joint positions, velocities and external forces over time
         positions = np.stack([
-            log_data.get(".".join(("HighLevelController", field)), None)
+            log_data.get(".".join(("HighLevelController", field)), [])
             for field in robot.logfile_position_headers], axis=-1)
         velocities = np.stack([
-            log_data.get(".".join(("HighLevelController", field)), None)
+            log_data.get(".".join(("HighLevelController", field)), [])
             for field in robot.logfile_velocity_headers], axis=-1)
+        forces = np.stack([
+            log_data.get(".".join(("HighLevelController", field)), [])
+            for field in robot.logfile_f_external_headers], axis=-1)
+
+        # Determine available data
+        has_positions = len(positions) > 0
+        has_velocities = len(velocities) > 0
+        has_forces = len(forces) > 0
 
         # Determine whether to use the theoretical or flexible model
         use_theoretical_model = not robot.is_flexible
 
         # Create state sequence
         evolution_robot = []
-        for t, q, v in zip(times, positions, velocities):
-            evolution_robot.append(State(t=t, q=q, v=v))
+        q, v, f_ext = None, None, None
+        for i, t in enumerate(times):
+            if has_positions:
+                q = positions[i]
+            if has_velocities:
+                v = velocities[i]
+            if has_forces:
+                f_ext = [forces[i, (6 * (j - 1)):(6 * j)]
+                         for j in range(1, robot.pinocchio_model.njoints)]
+            evolution_robot.append(State(t=t, q=q, v=v, f_ext=f_ext))
 
         traj_data = {"evolution_robot": evolution_robot,
                      "robot": robot,
