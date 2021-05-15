@@ -353,6 +353,7 @@ namespace jiminy
         std::vector<std::string> const & getPositionFieldnames(void) const;
         std::vector<std::string> const & getVelocityFieldnames(void) const;
         std::vector<std::string> const & getAccelerationFieldnames(void) const;
+        std::vector<std::string> const & getForceExternalFieldnames(void) const;
 
         hresult_t getFlexibleConfigurationFromRigid(vectorN_t const & qRigid,
                                                     vectorN_t       & qFlex) const;
@@ -427,16 +428,17 @@ namespace jiminy
         vectorN_t constraintsDrift_;                            ///< Vector holding the drift of the constraints
 
         vectorN_t positionLimitMin_;                            ///< Upper position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
-        vectorN_t positionLimitMax_;                            ///< Lower position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
-        vectorN_t velocityLimit_;                               ///< Maximum absolute velocity of the whole velocity vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
+        vectorN_t positionLimitMax_;                            ///< Lower position limit of the whole configuration vector
+        vectorN_t velocityLimit_;                               ///< Maximum absolute velocity of the whole velocity vector
 
-        std::vector<std::string> positionFieldnames_;           ///< Fieldnames of the elements in the configuration vector of the rigid robot
-        std::vector<std::string> velocityFieldnames_;           ///< Fieldnames of the elements in the velocity vector of the rigid robot
-        std::vector<std::string> accelerationFieldnames_;       ///< Fieldnames of the elements in the acceleration vector of the rigid robot
+        std::vector<std::string> positionFieldnames_;       ///< Fieldnames of the elements in the configuration vector of the model
+        std::vector<std::string> velocityFieldnames_;       ///< Fieldnames of the elements in the velocity vector of the model
+        std::vector<std::string> accelerationFieldnames_;   ///< Fieldnames of the elements in the acceleration vector of the model
+        std::vector<std::string> forceExternalFieldnames_;  ///< Concatenated fieldnames of the external force applied at each joint of the model, 'universe' excluded
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;
-        motionVector_t jointsAcceleration_;                     ///< Vector of joints acceleration corresponding to a copy of data.a - temporary buffer for computing constraints.
+        motionVector_t jointsAcceleration_;      ///< Vector of joints acceleration corresponding to a copy of data.a - temporary buffer for computing constraints.
 
         int32_t nq_;
         int32_t nv_;

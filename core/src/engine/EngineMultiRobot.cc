@@ -665,6 +665,9 @@ namespace jiminy
                 systemDataIt->accelerationFieldnames =
                     addCircumfix(systemIt->robot->getAccelerationFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                systemDataIt->forceExternalFieldnames =
+                    addCircumfix(systemIt->robot->getForceExternalFieldnames(),
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->commandFieldnames =
                     addCircumfix(systemIt->robot->getCommandFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
@@ -701,6 +704,19 @@ namespace jiminy
                         returnCode = telemetrySender_.registerVariable(
                             systemDataIt->accelerationFieldnames,
                             systemDataIt->state.a);
+                    }
+                }
+                if (engineOptions_->telemetry.enableForceExternal)
+                {
+                    for (std::size_t i = 1; i < systemDataIt->state.fExternal.size(); ++i)
+                    {
+                        auto const & fext = systemDataIt->state.fExternal[i].toVector();
+                        for (uint8_t j = 0; j < 6U; ++j)
+                        {
+                            returnCode = telemetrySender_.registerVariable(
+                                systemDataIt->forceExternalFieldnames[(i - 1) * 6U + j],
+                                fext[j]);
+                        }
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -767,7 +783,7 @@ namespace jiminy
                 systemIt->robot->pncModel_,
                 systemIt->robot->pncData_);
 
-            // Update the telemetry internal state
+            // Update telemetry values
             if (engineOptions_->telemetry.enableConfiguration)
             {
                 telemetrySender_.updateValue(systemDataIt->positionFieldnames,
@@ -782,6 +798,19 @@ namespace jiminy
             {
                 telemetrySender_.updateValue(systemDataIt->accelerationFieldnames,
                                              systemDataIt->state.a);
+            }
+            if (engineOptions_->telemetry.enableForceExternal)
+            {
+                for (std::size_t i = 1; i < systemDataIt->state.fExternal.size(); ++i)
+                {
+                    auto const & fext = systemDataIt->state.fExternal[i].toVector();
+                    for (uint8_t j = 0; j < 6U; ++j)
+                    {
+                        telemetrySender_.updateValue(
+                            systemDataIt->forceExternalFieldnames[(i - 1) * 6U + j],
+                            fext[j]);
+                    }
+                }
             }
             if (engineOptions_->telemetry.enableCommand)
             {
