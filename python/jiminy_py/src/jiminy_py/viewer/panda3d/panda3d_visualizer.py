@@ -891,8 +891,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Create empty figure with the legend
         color_default = (0.0, 0.0, 0.0, 1.0)
-        handles = [Patch(color=c if c is not None else color_default, label=t)
-                   for t, c in items]
+        handles = [Patch(color=c or color_default, label=t) for t, c in items]
         fig = plt.figure()
         legend = fig.gca().legend(handles=handles, framealpha=1, frameon=True)
         fig.gca().set_axis_off()
@@ -1306,12 +1305,12 @@ class Panda3dVisualizer(BaseVisualizer):
                 # Extract vertices and faces from geometry
                 if isinstance(geom, hppfcl.Convex):
                     vertices = [geom.points(i) for i in range(geom.num_points)]
-                    faces = [np.array(list(geom.polygons(i)))
+                    faces = [np.array(geom.polygons(i))
                              for i in range(geom.num_polygons)]
                 else:
                     vertices = [geom.vertices(i)
                                 for i in range(geom.num_vertices)]
-                    faces = [np.array(list(geom.tri_indices(i)))
+                    faces = [np.array(geom.tri_indices(i))
                              for i in range(geom.num_tris)]
 
                 # Create primitive triangle geometry

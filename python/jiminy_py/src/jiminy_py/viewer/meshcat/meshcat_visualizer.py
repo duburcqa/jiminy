@@ -173,14 +173,14 @@ class MeshcatVisualizer(BaseVisualizer):
         elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelOBBRSS)):
             # Extract vertices and faces from geometry
             if isinstance(geom, hppfcl.Convex):
-                vertices = np.vstack([geom.points(i)
-                                      for i in range(geom.num_points)])
-                faces = np.vstack([np.array(list(geom.polygons(i)))
+                vertices = np.vstack([
+                    geom.points(i) for i in range(geom.num_points)])
+                faces = np.vstack([np.array(geom.polygons(i))
                                    for i in range(geom.num_polygons)])
             else:
                 vertices = np.vstack([geom.vertices(i)
                                       for i in range(geom.num_vertices)])
-                faces = np.vstack([np.array(list(geom.tri_indices(i)))
+                faces = np.vstack([np.array(geom.tri_indices(i))
                                    for i in range(geom.num_tris)])
 
             # Create primitive triangle geometry

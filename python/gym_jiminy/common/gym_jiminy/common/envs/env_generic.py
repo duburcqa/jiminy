@@ -716,11 +716,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 # Add terminal reward to current reward
                 reward += self.compute_reward_terminal(info=self._info)
 
-        # Check if the observation is out-of-bounds, in debug mode only
-        if not done and self.debug and \
-                not self.observation_space.contains(obs):
-            logger.warn("The observation is out-of-bounds.")
-
         # Update number of (successful) steps
         self.num_steps += 1
 
@@ -851,7 +846,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             action = self._key_to_action(key)
         else:
             action = None
-        _, _, done, _ = self.step(action)
+        *_, done, _ = self.step(action)
         self.render()
         sleep(self.step_dt - (time.time() - t_init))
         return done
@@ -982,15 +977,19 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """Compute the observation based on the current state of the robot.
 
         .. note::
-            There is no way in the current implementation to discriminate the
-            initialization of the observation buffer from the next one. A
-            workaround is to check if the simulation already stated. Even
-            though it is not the same rigorousely speaking, it does the job of
-            preserving efficiency.
+            This method is called right after step, so it is the right place to
+            update shared data between `refresh_observation`, `is_done`, and
+            `compute_reward` methods.
 
         .. warning::
             In practice, it updates the internal buffer directly for the sake
             of efficiency.
+
+            As a side note, there is no way in the current implementation to
+            discriminate the initialization of the observation buffer from the
+            next one. The workaround is to check if the simulation already
+            started. Even though it is not the same rigorously speaking, it
+            does the job here since it is only about preserving efficiency.
 
         :param full_refresh: Whether or not to do a full refresh. This is
                              usually done once, when calling `reset` method.

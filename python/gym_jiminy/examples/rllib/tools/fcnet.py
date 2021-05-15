@@ -295,7 +295,7 @@ class FrameStackingModel(TFModelV2):
             name="value_out",
             activation=None,
             kernel_initializer=normc_initializer_tf(1.0))(
-                last_vf_layer if last_vf_layer is not None else last_layer)
+                last_vf_layer or last_layer)
 
         # Finish definition of the model
         self.base_model = tf.keras.Model(inputs, [logits_out, value_out])

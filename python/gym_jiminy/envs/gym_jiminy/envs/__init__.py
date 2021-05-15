@@ -3,10 +3,10 @@ from gym.envs.registration import register
 from .cartpole import CartPoleJiminyEnv
 from .acrobot import AcrobotJiminyEnv, AcrobotJiminyGoalEnv
 from .ant import AntEnv
-from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
-from .atlas import AtlasJiminyEnv, AtlasPDControlJiminyEnv
 from .spotmicro import SpotmicroJiminyEnv
 from .cassie import CassieJiminyEnv, CassiePDControlJiminyEnv
+from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
+from .atlas import AtlasJiminyEnv, AtlasPDControlJiminyEnv
 
 
 __all__ = [
@@ -14,13 +14,13 @@ __all__ = [
     'AcrobotJiminyEnv',
     'AcrobotJiminyGoalEnv',
     'AntEnv',
+    'SpotmicroJiminyEnv',
+    'CassieJiminyEnv',
+    'CassiePDControlJiminyEnv',
     'ANYmalJiminyEnv',
     'ANYmalPDControlJiminyEnv',
     'AtlasJiminyEnv',
-    'AtlasPDControlJiminyEnv',
-    'SpotmicroJiminyEnv',
-    'CassieJiminyEnv',
-    'CassiePDControlJiminyEnv'
+    'AtlasPDControlJiminyEnv'
 ]
 
 register(
@@ -42,6 +42,18 @@ register(
     reward_threshold=6000.0
 )
 register(
+    id='spotmicro-v0',
+    entry_point='gym_jiminy.envs:SpotmicroJiminyEnv'
+)
+register(
+    id='cassie-v0',
+    entry_point='gym_jiminy.envs:CassieJiminyEnv'
+)
+register(
+    id='cassie-pid-v0',
+    entry_point='gym_jiminy.envs:CassiePDControlJiminyEnv'
+)
+register(
     id='anymal-v0',
     entry_point='gym_jiminy.envs:ANYmalJiminyEnv'
 )
@@ -56,16 +68,4 @@ register(
 register(
     id='atlas-pid-v0',
     entry_point='gym_jiminy.envs:AtlasPDControlJiminyEnv'
-)
-register(
-    id='spotmicro-v0',
-    entry_point='gym_jiminy.envs:SpotmicroJiminyEnv'
-)
-register(
-    id='cassie-v0',
-    entry_point='gym_jiminy.envs:CassieJiminyEnv'
-)
-register(
-    id='cassie-pid-v0',
-    entry_point='gym_jiminy.envs:CassiePDControlJiminyEnv'
 )

@@ -173,7 +173,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
 
     def forward_to_websockets(self, frames: Sequence[bytes]) -> None:
         super().forward_to_websockets(frames)
-        _, _, data = frames
+        *_, data = frames
         for comm_id in self.comm_pool:
             self.forward_to_comm(comm_id, data)
 

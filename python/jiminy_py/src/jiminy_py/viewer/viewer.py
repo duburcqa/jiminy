@@ -354,7 +354,7 @@ class Viewer:
         self.scene_name = scene_name
         self.use_theoretical_model = use_theoretical_model
         self.delete_robot_on_close = delete_robot_on_close
-        self._lock = lock if lock is not None else Viewer._lock
+        self._lock = lock or Viewer._lock
         self._display_com = display_com
         self._display_contacts = display_contacts
 

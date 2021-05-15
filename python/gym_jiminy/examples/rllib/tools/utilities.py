@@ -21,7 +21,6 @@ from ray.rllib.policy import Policy
 from ray.rllib.utils.filter import NoFilter
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
-from ray.rllib.models.action_dist import ActionDistribution
 
 from gym_jiminy.common.utils import clip
 

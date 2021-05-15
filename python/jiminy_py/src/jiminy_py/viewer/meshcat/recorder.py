@@ -355,9 +355,7 @@ class MeshcatRecorder:
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> str:
         self._send_request(
-            "take_snapshot", message=(
-                f"{width if width is not None else -1}|"
-                f"{height if height is not None else -1}"))
+            "take_snapshot", message=f"{width or -1}|{height or -1}")
         return self.__shm['message'].value
 
     def start_video_recording(self,
