@@ -303,11 +303,10 @@ def generate_hardware_description_file(
         joint_name = joint_descr.get('name')
         dyn_descr = joint_descr.find('./dynamics')
         if dyn_descr is not None:
-            damping = float(dyn_descr.get('damping'))
-            friction = float(dyn_descr.get('friction'))
+            damping = float(dyn_descr.get('damping') or 0.0)
+            friction = float(dyn_descr.get('friction') or 0.0)
         else:
-            damping = 0.0
-            friction = 0.0
+            damping, friction = 0.0, 0.0
         joints_options[joint_name] = OrderedDict(
             frictionViscousPositive=-damping,
             frictionViscousNegative=-damping,
