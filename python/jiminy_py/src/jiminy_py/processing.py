@@ -1,24 +1,177 @@
-from math import factorial
+import math
 from typing import Optional, Dict, Union, Sequence
 
+import numba as nb
 import numpy as np
-from scipy.linalg import toeplitz
+from numpy.lib.stride_tricks import as_strided
 from scipy.interpolate import UnivariateSpline
+from scipy.spatial.qhull import _Qhull
+
+
+FACTORIAL_TABLE = (1, 1, 2, 6, 24, 120, 720)
+
+
+class ConvexHull:
+    def __init__(self, points: np.ndarray) -> None:
+        """Compute the convex hull defined by a set of points.
+
+        :param points: N-D points whose to computed the associated convex hull,
+                       as a 2D array whose first dimension corresponds to the
+                       number of points, and the second to the N-D coordinates.
+        """
+        assert len(points) > 0, "The length of 'points' must be at least 1."
+
+        # Backup user argument(s)
+        self._points = points
+
+        # Create convex full if possible
+        if len(self._points) > 2:
+            self._hull = _Qhull(points=self._points,
+                                options=b"",
+                                mode_option=b"i",
+                                required_options=b"Qt",
+                                furthest_site=False,
+                                incremental=False,
+                                interior_point=None)
+        else:
+            self._hull = None
+
+        # Buffer to cache center computation
+        self._center = None
+
+    @property
+    def center(self) -> np.ndarray:
+        """Get the center of the convex hull.
+
+        .. note::
+            Degenerated convex hulls corresponding to len(points) == 1 or 2 are
+            handled separately.
+
+        :returns: 1D float vector with N-D coordinates of the center.
+        """
+        if self._center is None:
+            if len(self._points) > 3:
+                vertices = self._points[self._hull.get_extremes_2d()]
+            else:
+                vertices = self._points
+            self._center = np.mean(vertices, axis=0)
+        return self._center
+
+    def get_distance(self, queries: np.ndarray) -> np.ndarray:
+        """Compute the signed distance of query points from the convex hull.
+
+        Positive distance corresponds to a query point lying outside the convex
+        hull.
+
+        .. note::
+            Degenerated convex hulls corresponding to len(points) == 1 or 2 are
+            handled separately. The distance from a point and a segment is used
+            respectevely.
+
+        :param queries: N-D query points for which to compute distance from the
+                        convex hull, as a 2D array.
+
+        :returns: 1D float vector of the same length than `queries`.
+        """
+        if len(self._points) > 2:
+            equations = self._hull.get_simplex_facet_array()[2].T
+            return np.max(queries @ equations[:-1] + equations[-1], axis=1)
+        elif len(self._points) == 2:
+            vec = self._points[1] - self._points[0]
+            ratio = (queries - self._points[0]) @ vec / squared_norm_2(vec)
+            proj = self._points[0] + np.outer(np.clip(ratio, 0.0, 1.0), vec)
+            return np.linalg.norm(queries - proj, 2, axis=1)
+        else:
+            return np.linalg.norm(queries - self._points, 2, axis=1)
+
+
+@nb.jit(nopython=True, nogil=True)
+def toeplitz(c: np.ndarray, r: np.ndarray) -> np.ndarray:
+    """Numba-compatible implementation of `scipy.linalg.toeplitz` method.
+
+    .. note:
+        It does not handle any special case for efficiency, so the input types
+        is more respective than originally.
+
+    .. warning:
+        It returns a strided matrix instead of contiguous copy for efficiency.
+
+    :param c: First column of the matrix.
+    :param r: First row of the matrix.
+
+    see::
+        https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.toeplitz.html
+    """
+    vals = np.concatenate((c[::-1], r[1:]))
+    n = vals.strides[0]
+    return as_strided(
+        vals[len(c)-1:], shape=(len(c), len(r)), strides=(-n, n))
+
+
+@nb.jit(nopython=True, nogil=True)
+def _integrate_zoh_impl(state_prev: np.ndarray,
+                        dt: float,
+                        state_min: np.ndarray,
+                        state_max: np.ndarray) -> np.ndarray:
+    # Compute integration matrix
+    order = len(state_prev)
+    integ_coeffs = np.array([
+        pow(dt, k) / FACTORIAL_TABLE[k] for k in range(order)])
+    integ_matrix = toeplitz(integ_coeffs, np.zeros(order)).T
+    integ_zero = integ_matrix[:, :-1].copy() @ state_prev[:-1]
+    integ_drift = np.expand_dims(integ_matrix[:, -1], axis=-1)
+
+    # Propagate derivative bounds to compute highest derivative bounds
+    deriv = state_prev[-1]
+    deriv_min_stack = (state_min - integ_zero) / integ_drift
+    deriv_max_stack = (state_max - integ_zero) / integ_drift
+    deriv_min = np.full_like(deriv, fill_value=-np.inf)
+    deriv_max = np.full_like(deriv, fill_value=np.inf)
+    for deriv_min_i, deriv_max_i in zip(deriv_min_stack, deriv_max_stack):
+        deriv_min_i_valid = np.logical_and(
+            deriv_min < deriv_min_i, deriv_min_i < deriv_max)
+        deriv_min[deriv_min_i_valid] = deriv_min_i[deriv_min_i_valid]
+        deriv_max_i_valid = np.logical_and(
+            deriv_min < deriv_max_i, deriv_max_i < deriv_max)
+        deriv_max[deriv_max_i_valid] = deriv_max_i[deriv_max_i_valid]
+
+    # Clip highest derivative to ensure every derivative are withing bounds
+    # it possible, lowest orders in priority otherwise.
+    deriv = np.minimum(np.maximum(deriv, deriv_min), deriv_max)
+
+    # Integrate, taking into account clipped highest derivative
+    return integ_zero + integ_drift * deriv
 
 
 def integrate_zoh(state_prev: np.ndarray,
-                  dt: float) -> np.ndarray:
+                  dt: float,
+                  state_min: Optional[np.ndarray] = None,
+                  state_max: Optional[np.ndarray] = None) -> np.ndarray:
     """N-order integration scheme assuming Zero-Order-Hold for highest
-    derivative.
+    derivative, taking state bounds into account to make sure integrated state
+    is wthin bounds.
 
     :param state_prev: Previous state update, ordered from lowest to highest
                        derivative order, which means:
                        s[i](t) = s[i](t-1) + integ_{t-1}^{t}(s[i+1](t))
+    :param state_min: Lower bounds of the state.
+                      Optional: -Inf by default.
+    :param state_max: Upper bounds of the state.
+                      Optional: Inf by default.
     :param dt: Integration delta of time since previous state update.
     """
-    integ_coeffs = [pow(dt, k) / factorial(k) for k in range(len(state_prev))]
-    integ_matrix = toeplitz(integ_coeffs, np.zeros(len(state_prev))).T
-    return integ_matrix @ state_prev
+    # Make sure dt is not zero, otherwise return early
+    if abs(dt) < 1e-9:
+        return state_prev.copy()
+
+    # Handling of default arguments
+    if state_min is None:
+        state_min = np.full_like(state_prev, fill_value=-np.inf)
+    if state_max is None:
+        state_max = np.full_like(state_prev, fill_value=-np.inf)
+
+    # Call internal implementation
+    return _integrate_zoh_impl(state_prev, dt, state_min, state_max)
 
 
 def smoothing_filter(
