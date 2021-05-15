@@ -17,7 +17,7 @@ from tqdm import tqdm
 from .. import core as jiminy
 from ..log import (TrajectoryDataType,
                    build_robot_from_log,
-                   extract_viewer_data_from_log,
+                   extract_trajectory_data_from_log,
                    emulate_sensors_data_from_log)
 from .viewer import (
     COLORS, Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
@@ -297,10 +297,10 @@ def play_trajectories(trajs_data: Union[
 
     # Initialize robot configuration is viewer before any further processing
     for viewer_i, traj, offset in zip(viewers, trajs_data, xyz_offsets):
-        evolution_robot = traj['evolution_robot']
-        if evolution_robot:
-            i = bisect_right([s.t for s in evolution_robot], time_interval[0])
-            viewer_i.display(evolution_robot[i].q, offset)
+        data = traj['evolution_robot']
+        if data:
+            i = bisect_right([s.t for s in data], time_interval[0])
+            viewer_i.display(data[i].q, data[i].v, offset)
         if display_com is not None:
             viewer_i.display_center_of_mass(display_com)
         if display_contacts is not None:
@@ -331,7 +331,7 @@ def play_trajectories(trajs_data: Union[
 
         time_global = np.arange(
             time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
-        position_evolutions = []
+        position_evolutions, velocity_evolutions = [], []
         for traj in trajs_data:
             if len(traj['evolution_robot']):
                 data_orig = traj['evolution_robot']
@@ -343,8 +343,15 @@ def play_trajectories(trajs_data: Union[
                 pos_orig = np.stack([s.q for s in data_orig], axis=0)
                 position_evolutions.append(jiminy.interpolate(
                     model, t_orig, pos_orig, time_global))
+                if data_orig[0].v is not None:
+                    vel_orig = np.stack([s.v for s in data_orig], axis=0)
+                    velocity_evolutions.append(
+                        np.interp(time_global, t_orig, vel_orig))
+                else:
+                    velocity_evolutions = (None,) * len(time_global)
             else:
                 position_evolutions.append(None)
+                velocity_evolutions.append(None)
 
         # Disable framerate limit of Panda3d for efficiency
         if Viewer.backend.startswith('panda3d'):
@@ -377,14 +384,16 @@ def play_trajectories(trajs_data: Union[
         for i, t_cur in enumerate(tqdm(
                 time_global, desc="Rendering frames", disable=(not verbose))):
             # Update the configurations of the robots
-            for viewer, positions, xyz_offset, update_hook in zip(
-                    viewers, position_evolutions, xyz_offsets, update_hooks):
+            for viewer, positions, velocities, xyz_offset, update_hook in zip(
+                    viewers, position_evolutions, velocity_evolutions,
+                    xyz_offsets, update_hooks):
                 if positions is not None:
+                    q, v = positions[i], velocities[i]
                     if update_hook is not None:
                         update_hook_t = partial(update_hook, t_cur)
                     else:
                         update_hook_t = None
-                    viewer.display(positions[i], xyz_offset, update_hook_t)
+                    viewer.display(q, v, xyz_offset, update_hook_t)
 
             # Update clock if enabled
             if enable_clock:
@@ -487,7 +496,7 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
 
     # For each pair (log, robot), extract a trajectory object for
     # `play_trajectories`
-    trajectories = [extract_viewer_data_from_log(log, robot)
+    trajectories = [extract_trajectory_data_from_log(log, robot)
                     for log, robot in zip(logs_data, robots)]
 
     # Define `update_hook` to emulate sensor update

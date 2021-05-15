@@ -56,7 +56,7 @@ class FilteredFrameStack(gym.Wrapper):
 
         # Backup user arguments
         self.nested_filter_keys: List[List[str]] = list(
-            map(list, nested_filter_keys))  # type: ignore[arg-type]
+            map(list, nested_filter_keys))
         self.num_stack = num_stack
 
         # Initialize base wrapper

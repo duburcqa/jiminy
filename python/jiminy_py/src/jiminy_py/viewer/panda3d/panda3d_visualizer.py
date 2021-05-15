@@ -156,13 +156,13 @@ def make_cone(num_sides: int = 16) -> Geom:
     # Define vertex format
     vformat = GeomVertexFormat.get_v3n3t2()
     vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
-    vdata.uncleanSetNumRows(num_sides + 2)
+    vdata.uncleanSetNumRows(num_sides + 3)
     vertex = GeomVertexWriter(vdata, 'vertex')
     normal = GeomVertexWriter(vdata, 'normal')
     tcoord = GeomVertexWriter(vdata, 'texcoord')
 
     # Add radial points
-    for u in np.linspace(0.0, 2 * np.pi, num_sides):
+    for u in np.linspace(0.0, 2 * np.pi, num_sides + 1):
         x, y = math.cos(u), math.sin(u)
         vertex.addData3(x, y, 0.0)
         normal.addData3(x, y, 0.0)
@@ -182,9 +182,9 @@ def make_cone(num_sides: int = 16) -> Geom:
     # the triangles. For reference, see:
     # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2
     prim = GeomTriangles(Geom.UH_static)
-    for i in range(num_sides - 1):
-        prim.add_vertices(i, i + 1, num_sides)
-        prim.add_vertices(i + 1, i, num_sides + 1)
+    for i in range(num_sides):
+        prim.add_vertices(i, i + 1, num_sides + 1)
+        prim.add_vertices(i + 1, i, num_sides + 2)
 
     geom = Geom(vdata)
     geom.add_primitive(prim)

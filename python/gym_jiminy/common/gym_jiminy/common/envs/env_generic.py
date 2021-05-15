@@ -877,6 +877,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if field.startswith('enable'):
                 engine_options["telemetry"][field] = self.debug
         engine_options['telemetry']['enableConfiguration'] = True
+        engine_options['telemetry']['enableVelocity'] = True
 
         # Enable the friction model
         for motor_name in robot_options["motors"].keys():

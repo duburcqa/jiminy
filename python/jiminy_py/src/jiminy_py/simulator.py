@@ -485,6 +485,7 @@ class Simulator:
                                     'robot_name': robot_name,
                                     'backend': self.viewer_backend,
                                     'display_com': True,
+                                    'display_dcm': True,
                                     'display_contacts': True,
                                     'delete_robot_on_close': True,
                                     **kwargs})
