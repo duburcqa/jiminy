@@ -13,6 +13,7 @@ from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 import av
 import numpy as np
 from tqdm import tqdm
+from scipy.interpolate import interp1d
 
 from .. import core as jiminy
 from ..log import (TrajectoryDataType,
@@ -328,7 +329,7 @@ def play_trajectories(trajs_data: Union[
             if display_contacts is not None:
                 viewer_i.display_contact_forces(display_contacts)
             if display_f_external is not None:
-                viewer_i.display_contact_forces(display_f_external)
+                viewer_i.display_external_forces(display_f_external)
 
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:
@@ -355,7 +356,7 @@ def play_trajectories(trajs_data: Union[
 
         time_global = np.arange(
             time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
-        position_evolutions, velocity_evolutions = [], []
+        position_evolutions, velocity_evolutions, force_evolutions = [], [], []
         for traj in trajs_data:
             if len(traj['evolution_robot']):
                 data_orig = traj['evolution_robot']
@@ -370,12 +371,25 @@ def play_trajectories(trajs_data: Union[
                 if data_orig[0].v is not None:
                     vel_orig = np.stack([s.v for s in data_orig], axis=0)
                     velocity_evolutions.append(
-                        np.interp(time_global, t_orig, vel_orig))
+                        interp1d(t_orig, vel_orig, axis=0)(time_global))
                 else:
                     velocity_evolutions = (None,) * len(time_global)
+                if data_orig[0].f_ext is not None:
+                    forces = []
+                    for i in range(len(data_orig[0].f_ext)):
+                        f_ext_orig = np.stack([
+                            s.f_ext[i] for s in data_orig], axis=0)
+                        forces.append(interp1d(
+                            t_orig, f_ext_orig, axis=0)(time_global))
+                    force_evolutions.append([
+                        [f_ext[i] for f_ext in forces]
+                        for i in range(len(time_global))])
+                else:
+                    force_evolutions = (None,) * len(time_global)
             else:
                 position_evolutions.append(None)
                 velocity_evolutions.append(None)
+                force_evolutions.append(None)
 
         # Disable framerate limit of Panda3d for efficiency
         if Viewer.backend.startswith('panda3d'):
@@ -407,17 +421,21 @@ def play_trajectories(trajs_data: Union[
         # Add frames to video sequentially
         for i, t_cur in enumerate(tqdm(
                 time_global, desc="Rendering frames", disable=(not verbose))):
-            # Update the configurations of the robots
-            for viewer, positions, velocities, xyz_offset, update_hook in zip(
+            # Update 3D view
+            for viewer, pos, vel, forces, xyz_offset, update_hook in zip(
                     viewers, position_evolutions, velocity_evolutions,
-                    xyz_offsets, update_hooks):
-                if positions is not None:
-                    q, v = positions[i], velocities[i]
-                    if update_hook is not None:
-                        update_hook_t = partial(update_hook, t_cur)
-                    else:
-                        update_hook_t = None
-                    viewer.display(q, v, xyz_offset, update_hook_t)
+                    force_evolutions, xyz_offsets, update_hooks):
+                if pos is None:
+                    continue
+                q, v, f_ext = pos[i], vel[i], forces[i]
+                if f_ext is not None:
+                    for i, f_ext in enumerate(f_ext):
+                        viewer.f_external[i].vector[:] = f_ext
+                if update_hook is not None:
+                    update_hook_t = partial(update_hook, t_cur, q, v)
+                else:
+                    update_hook_t = None
+                viewer.display(q, v, xyz_offset, update_hook_t)
 
             # Update clock if enabled
             if enable_clock:
@@ -522,6 +540,16 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
     # `play_trajectories`
     trajectories = [extract_trajectory_data_from_log(log, robot)
                     for log, robot in zip(logs_data, robots)]
+
+    # Display external forces on root joint, if any
+    if robots[0].has_freeflyer:
+        if "display_f_external" not in kwargs and "viewers" not in kwargs:
+            if kwargs.get("use_theoretical_model", False):
+                njoints = robots[0].pinocchio_model_th.njoints
+            else:
+                njoints = robots[0].pinocchio_model.njoints
+            visibility = [True] + [False] * (njoints - 2)
+            kwargs["display_f_external"] = visibility
 
     # Define `update_hook` to emulate sensor update
     if not any(robot.is_locked for robot in robots):

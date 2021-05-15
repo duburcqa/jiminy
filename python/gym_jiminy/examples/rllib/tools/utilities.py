@@ -1,10 +1,14 @@
 import os
+import copy
 import math
+import json
+import shutil
 import socket
 import pathlib
 import logging
+import inspect
 from datetime import datetime
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable, Dict, Any, Type
 
 import numpy as np
 import torch
@@ -15,10 +19,12 @@ from tensorboard.program import TensorBoard
 
 import ray
 from ray.tune.logger import Logger, TBXLogger
+from ray.tune.utils.util import SafeFallbackEncoder
 from ray.rllib.env import BaseEnv
 from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
 from ray.rllib.policy import Policy
 from ray.rllib.utils.filter import NoFilter
+from ray.rllib.utils.typing import PolicyID
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
 
@@ -36,28 +42,94 @@ PRINT_RESULT_FIELDS_FILTER = [
 ]
 
 
-class MonitorInfoCallbacks(DefaultCallbacks):
+logger = logging.getLogger(__name__)
+
+
+class MonitorInfoMixin:
     # Base on `rllib/examples/custom_metrics_and_callbacks.py` example.
 
     def on_episode_step(self,
+                        *,
                         worker: RolloutWorker,
                         base_env: BaseEnv,
                         episode: MultiAgentEpisode,
-                        **kwargs):
+                        env_index: Optional[int] = None,
+                        **kwargs) -> None:
         info = episode.last_info_for()
         if info is not None:
             for key, value in info.items():
                 episode.user_data.setdefault(key, []).append(value)
 
     def on_episode_end(self,
+                       *,
                        worker: RolloutWorker,
                        base_env: BaseEnv,
-                       policies: Dict[str, Policy],
+                       policies: Dict[PolicyID, Policy],
                        episode: MultiAgentEpisode,
-                       **kwargs):
+                       env_index: Optional[int] = None,
+                       **kwargs) -> None:
         for key, value in episode.user_data.items():
             # episode.custom_metrics[key] = np.mean(value)
             episode.hist_data[key] = value
+        episode.user_data.clear()
+
+
+class CurriculumUpdateMixin:
+    def on_train_result(self,
+                        *,
+                        trainer,
+                        result: dict,
+                        **kwargs) -> None:
+        trainer.workers.foreach_worker(
+            lambda worker: worker.foreach_env(
+                lambda env: env.update(result)))
+
+
+def build_callbacks(*callback_mixins: Type) -> DefaultCallbacks:
+    """Aggregate several callback mixin together.
+
+    .. note::
+        Note that the order is important if several mixin are implementing the
+        same method. It follows the same precedence roles than usual multiple
+        inheritence, namely ordered from highest to lowest priority.
+
+    :param callback_mixins: Sequence of callback mixin objects.
+    """
+    return type("UnifiedCallbacks", (*callback_mixins, DefaultCallbacks), {})
+
+
+def flatten_dict(dt, delimiter="/", prevent_delimiter=False):
+    """Must be patched to use copy instead of deepcopy to prevent memory
+    allocation, significantly impeding computational efficiency of `TBXLogger`,
+    and slowing down the optimization by about 25%.
+    """
+    dt = copy.copy(dt)
+    if prevent_delimiter and any(delimiter in key for key in dt):
+        # Raise if delimiter is any of the keys
+        raise ValueError(
+            "Found delimiter `{}` in key when trying to flatten array."
+            "Please avoid using the delimiter in your specification.")
+    while any(isinstance(v, dict) for v in dt.values()):
+        remove = []
+        add = {}
+        for key, value in dt.items():
+            if isinstance(value, dict):
+                for subkey, v in value.items():
+                    if prevent_delimiter and delimiter in subkey:
+                        # Raise  if delimiter is in any of the subkeys
+                        raise ValueError(
+                            "Found delimiter `{}` in key when trying to "
+                            "flatten array. Please avoid using the delimiter "
+                            "in your specification.")
+                    add[delimiter.join([key, str(subkey)])] = v
+                remove.append(key)
+        dt.update(add)
+        for k in remove:
+            del dt[k]
+    return dt
+
+
+ray.tune.logger.flatten_dict = flatten_dict
 
 
 def initialize(num_cpus: int = 0,
@@ -132,7 +204,8 @@ def initialize(num_cpus: int = 0,
 
 
 def train(train_agent: Trainer,
-          max_timesteps: int,
+          max_timesteps: int = 0,
+          max_iters: int = 0,
           evaluation_period: int = 0,
           verbose: bool = True) -> str:
     """Train a model on a specific environment using a given agent.
@@ -146,7 +219,10 @@ def train(train_agent: Trainer,
         This function can be terminated early using CTRL+C.
 
     :param train_agent: Training agent.
-    :param max_timesteps: Number of maximum training timesteps.
+    :param max_timesteps: Maximum number of training timesteps. 0 to disable.
+                          Optional: Disable by default.
+    :param max_iters: Maximum number of training iterations. 0 to disable.
+                      Optional: Disable by default.
     :param evaluation_period: Run one simulation without exploration every
                               given number of training steps, and save a video
                               of the esult in log folder. 0 to disable.
@@ -157,13 +233,43 @@ def train(train_agent: Trainer,
     :returns: Fullpath of agent's final state dump. Note that it also contains
               the trained neural network model.
     """
-    env_spec = [spec for ev in train_agent.workers.foreach_worker(
-        lambda ev: ev.foreach_env(lambda env: env.spec)) for spec in ev][0]
+    # Get environment's reward threshold, if any
+    env_spec, *_ = [val for worker in train_agent.workers.foreach_worker(
+        lambda worker: worker.foreach_env(lambda env: env.spec))
+        for val in worker]
     if env_spec is None or env_spec.reward_threshold is None:
         reward_threshold = math.inf
     else:
         reward_threshold = env_spec.reward_threshold
 
+    # Backup some information
+    if not train_agent.iteration:
+        # Make sure log dir exists
+        os.makedirs(train_agent.logdir, exist_ok=True)
+
+        # Backup environment's source file
+        env_type, *_ = [val for worker in train_agent.workers.foreach_worker(
+            lambda worker: worker.foreach_env(lambda env: type(env.unwrapped)))
+            for val in worker]
+        env_file = inspect.getfile(env_type)
+        shutil.copy2(env_file, train_agent.logdir, follow_symlinks=True)
+
+        # Backup main's source file, if any
+        frame = inspect.stack()[1]  # assuming called directly from main script
+        main_file = inspect.getfile(frame[0])
+        main_backup_name = f"{train_agent.logdir}/main.py"
+        if main_file.endswith(".py"):
+            shutil.copy2(main_file, main_backup_name, follow_symlinks=True)
+
+        # Backup RLlib config
+        with open(f"{train_agent.logdir}/params.json", 'w') as f:
+            json.dump(train_agent.config,
+                      f,
+                      indent=2,
+                      sort_keys=True,
+                      cls=SafeFallbackEncoder)
+
+    # Run several training iterations until terminal condition is reached
     try:
         while True:
             # Perform one iteration of training the policy
@@ -176,16 +282,19 @@ def train(train_agent: Trainer,
                     msg_data.append(f"{field}: {result[field]:.5g}")
             print(" - ".join(msg_data))
 
-            # Record video of the result if requested
+            # Record video and log data of the result if requested
             iter = result["training_iteration"]
             if evaluation_period > 0 and iter % evaluation_period == 0:
                 record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
-                test(train_agent, explore=False, viewer_kwargs={
+                env, _ = test(train_agent, explore=False, viewer_kwargs={
                     "record_video_path": record_video_path,
                     "scene_name": f"iter_{iter}"})
+                env.write_log(f"{train_agent.logdir}/iter_{iter}.hdf5")
 
             # Check terminal conditions
-            if result["timesteps_total"] > max_timesteps:
+            if max_timesteps > 0 and result["timesteps_total"] > max_timesteps:
+                break
+            if max_iters > 0 and iter > max_iters:
                 break
             if result["episode_reward_mean"] > reward_threshold:
                 if verbose:
@@ -195,6 +304,7 @@ def train(train_agent: Trainer,
         if verbose:
             print("Interrupting training...")
 
+    # Backup trained agent and return file location
     return train_agent.save()
 
 
@@ -237,7 +347,7 @@ def compute_action(policy: Policy,
     return action
 
 
-def evaluate(env_creator: Callable[..., gym.Env],
+def evaluate(env: gym.Env,
              policy: Policy,
              dist_class: ActionDistribution,
              obs_filter_fn: Optional[
@@ -255,8 +365,10 @@ def evaluate(env_creator: Callable[..., gym.Env],
     if viewer_kwargs is None:
         viewer_kwargs = {}
 
-    # Instantiate the environment
-    env = FlattenObservation(env_creator(debug=True))
+    # Wrap the environment to flatten the observation space
+    env = FlattenObservation(env)
+
+    # Extract some proxies for convenience
     observation_space, action_space = env.observation_space, env.action_space
 
     # Initialize frame stack
@@ -302,7 +414,11 @@ def evaluate(env_creator: Callable[..., gym.Env],
 
     # Replay the result if requested
     if enable_replay:
-        env.replay(**{'speed_ratio': 1.0, **viewer_kwargs})
+        try:
+            env.replay(**{'speed_ratio': 1.0, **viewer_kwargs})
+        except Exception as e:
+            # Do not fail because of replay/recording exception
+            logger.warning(str(e))
 
     return env, info_episode
 
@@ -312,6 +428,7 @@ def test(test_agent: Trainer,
          n_frames_stack: int = 1,
          enable_stats: bool = True,
          enable_replay: bool = True,
+         test_env: Optional[gym.Env] = None,
          viewer_kwargs: Optional[Dict[str, Any]] = None,
          **kwargs: Any) -> gym.Env:
     """Test a model on a specific environment using a given agent. It will
@@ -320,10 +437,9 @@ def test(test_agent: Trainer,
     .. note::
         This function can be terminated early using CTRL+C.
     """
-    # Define environment creator
-    def env_creator(**kwargs: Any):
-        nonlocal test_agent
-        return test_agent.env_creator(
+    # Instantiate the environment if not provided
+    if test_env is None:
+        test_env = test_agent.env_creator(
             {**test_agent.config["env_config"], **kwargs})
 
     # Get policy model
@@ -340,7 +456,7 @@ def test(test_agent: Trainer,
     if viewer_kwargs is not None:
         kwargs.update(viewer_kwargs)
 
-    return evaluate(env_creator,
+    return evaluate(test_env,
                     policy,
                     dist_class,
                     obs_filter_fn,

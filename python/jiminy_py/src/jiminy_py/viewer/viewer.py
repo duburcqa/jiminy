@@ -1819,7 +1819,8 @@ class Viewer:
 
     @__must_be_open
     def display_external_forces(self,
-            visibility: Union[Sequence[bool], bool]) -> None:
+                                visibility: Union[Sequence[bool], bool]
+                                ) -> None:
         """Display external forces applied on the joints the robot, as an
         arrow of variable length depending of magnitude of the force.
 
@@ -1849,7 +1850,7 @@ class Viewer:
 
         # Convert boolean visiblity to mask if necessary
         if isinstance(visibility, bool):
-            visibility = [visibility,] * (self._client.model.njoints - 1)
+            visibility = [visibility] * (self._client.model.njoints - 1)
 
         # Check that the length of the mask is consistent with the model
         assert len(visibility) == self._client.model.njoints - 1, (
@@ -2078,12 +2079,8 @@ class Viewer:
             disable_display_dcm = True
             self.display_capture_point(False)
 
-        # Disable display of external forces if no force data provided
-        disable_display_f_external = False
+        # Check if force data is available
         has_forces = evolution_robot[0].f_ext is not None
-        if not has_forces and self._display_f_external:
-            disable_display_f_external = True
-            self.display_external_forces(False)
 
         # Replay the whole trajectory at constant speed ratio
         v = None
@@ -2137,5 +2134,3 @@ class Viewer:
                     self.display_contact_forces(True)
                 if disable_display_dcm:
                     self.display_capture_point(True)
-                if disable_display_f_external:
-                    self.display_external_forces(True)
