@@ -98,7 +98,7 @@ def build_callbacks(*callback_mixins: Type) -> DefaultCallbacks:
     return type("UnifiedCallbacks", (*callback_mixins, DefaultCallbacks), {})
 
 
-def flatten_dict(dt, delimiter="/", prevent_delimiter=False):
+def _flatten_dict(dt, delimiter="/", prevent_delimiter=False):
     """Must be patched to use copy instead of deepcopy to prevent memory
     allocation, significantly impeding computational efficiency of `TBXLogger`,
     and slowing down the optimization by about 25%.
@@ -129,7 +129,7 @@ def flatten_dict(dt, delimiter="/", prevent_delimiter=False):
     return dt
 
 
-ray.tune.logger.flatten_dict = flatten_dict
+ray.tune.logger.flatten_dict = _flatten_dict
 
 
 def initialize(num_cpus: int = 0,
@@ -143,10 +143,24 @@ def initialize(num_cpus: int = 0,
     It will be used later for almost everything from dashboard, remote/client
     management, to multithreaded environment.
 
+    :param num_cpus: Maximum number of CPU threads that can be executed in
+                     parallel. Note that it does not actually reserve part of
+                     the CPU, so that several processes can reserve the number
+                     of threads available on the system at the same time. 0 for
+                     unlimited.
+                     Optional: Unlimited by default.
+    :param num_gpu: Maximum number of GPU unit that can be used, which can be
+                    fractional to only allocate part of the resource. Note that
+                    contrary to CPU resource, the memory is likely to actually
+                    be reserve and allocated by the process, in particular
+                    using Tensorflow backend. 0 for unlimited.
+                    Optional: Unlimited by default.
     :param log_root_path: Fullpath of root log directory.
                           Optional: location of this file / log by default.
     :param log_name: Name of the subdirectory where to save data.
                      Optional: full date _ hostname by default.
+    :param debug: Whether or not to display debugging trace.
+                  Optional: Disable by default.
     :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
 
@@ -207,6 +221,7 @@ def train(train_agent: Trainer,
           max_timesteps: int = 0,
           max_iters: int = 0,
           evaluation_period: int = 0,
+          record_video: bool = True,
           verbose: bool = True) -> str:
     """Train a model on a specific environment using a given agent.
 
@@ -223,11 +238,16 @@ def train(train_agent: Trainer,
                           Optional: Disable by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
                       Optional: Disable by default.
-    :param evaluation_period: Run one simulation without exploration every
-                              given number of training steps, and save a video
-                              of the esult in log folder. 0 to disable.
+    :param evaluation_period: Run one simulation (without exploration) every
+                              given number of training steps, and save the log
+                              file and a video of the result in log folder if
+                              requested. 0 to disable.
                               Optional: Disable by default.
-    :param verbose: Whether or not to print information about what is going on.
+    :param record_video: Whether or not to enable video recording during
+                         evaluation.
+                         Optional: True by default.
+    :param verbose: Whether or not to print high-level information after each
+                    training iteration.
                     Optional: True by default.
 
     :returns: Fullpath of agent's final state dump. Note that it also contains
@@ -285,7 +305,10 @@ def train(train_agent: Trainer,
             # Record video and log data of the result if requested
             iter = result["training_iteration"]
             if evaluation_period > 0 and iter % evaluation_period == 0:
-                record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
+                if record_video:
+                    record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
+                else:
+                    record_video_path = None
                 env, _ = test(train_agent, explore=False, viewer_kwargs={
                     "record_video_path": record_video_path,
                     "scene_name": f"iter_{iter}"})
@@ -309,16 +332,25 @@ def train(train_agent: Trainer,
 
 
 def compute_action(policy: Policy,
-                   dist_class: ActionDistribution,
                    input_dict: Dict[str, np.ndarray],
-                   explore: bool) -> np.ndarray:
-    """TODO Write documentation.
+                   explore: bool) -> Any:
+    """Compute predicted action by the policy.
+
+    .. note::
+        It supports both Pytorch and Tensorflow backends (both eager and
+        compiled graph modes).
+
+    :param policy: `rllib.poli.Policy` to use to predict the action, which is
+                   a thin wrapper around the actual policy model.
+    :param input_dict: Input dictionary for forward as input of the policy.
+    :param explore: Whether or not to enable exploration during sampling of the
+                    action.
     """
     if policy.framework == 'torch':
         with torch.no_grad():
             input_dict = policy._lazy_tensor_dict(input_dict)
             action_logits, _ = policy.model(input_dict)
-            action_dist = dist_class(action_logits, policy.model)
+            action_dist = policy.dist_class(action_logits, policy.model)
             if explore:
                 action_torch = action_dist.sample()
             else:
@@ -326,7 +358,7 @@ def compute_action(policy: Policy,
             action = action_torch.cpu().numpy()
     elif tf.compat.v1.executing_eagerly():
         action_logits, _ = policy.model(input_dict)
-        action_dist = dist_class(action_logits, policy.model)
+        action_dist = policy.dist_class(action_logits, policy.model)
         if explore:
             action_tf = action_dist.sample()
         else:
@@ -349,7 +381,6 @@ def compute_action(policy: Policy,
 
 def evaluate(env: gym.Env,
              policy: Policy,
-             dist_class: ActionDistribution,
              obs_filter_fn: Optional[
                  Callable[[np.ndarray], np.ndarray]] = None,
              n_frames_stack: int = 1,
@@ -359,7 +390,37 @@ def evaluate(env: gym.Env,
              enable_stats: bool = True,
              enable_replay: bool = True,
              viewer_kwargs: Optional[Dict[str, Any]] = None) -> gym.Env:
-    """TODO Write documentation.
+    """Evaluate a policy on a given environment over a complete episode.
+
+    :param env: Environment on which to evaluate the policy. Note that the
+                environment must be already instantiated and ready-to-use.
+    :param policy: Policy to evaluate.
+    :param obs_filter_fn: Observation filter to apply on (flattened)
+                          observation from the environment, usually used
+                          from moving average normalization. `None` to
+                          disable.
+                          Optional: Disable by default.
+    :param n_frames_stack: Number of frames to stack in the input to provide
+                           to the policy. Note that previous observation,
+                           action, and reward will be stacked.
+                           Optional: 1 by default.
+    :param horizon: Horizon of the simulation, namely maximum number of steps
+                    before termination. `None` to disable.
+                    Optional: Disable by default.
+    :param clip_action: Whether or not to clip action to make sure the
+                        prediction by the policy is not out-of-bounds.
+                        Optional: Disable by default.
+    :param explore: Whether or not to enable exploration during sampling of the
+                    actions predicted by the policy.
+                    Optional: Disable by default.
+    :param enable_stats: Whether or not to print high-level statistics after
+                         simulation.
+                         Optional: Enable by default.
+    :param enable_replay: Whether or not to enable replay of the simulation,
+                          and eventually recording through `viewer_kwargs`.
+                          Optional: Enable by default.
+    :param viewer_kwargs: Extra keyword arguments to forward to the viewer if
+                          replay has been requested.
     """
     # Handling of default arguments
     if viewer_kwargs is None:
@@ -391,7 +452,7 @@ def evaluate(env: gym.Env,
             if obs_filter_fn is not None:
                 obs = obs_filter_fn(obs)
             input_dict["obs"][0] = obs
-            action = compute_action(policy, dist_class, input_dict, explore)
+            action = compute_action(policy, input_dict, explore)
             if clip_action:
                 action = clip(action_space, action)
             input_dict["prev_n_obs"][0, -1] = input_dict["obs"][0]
@@ -431,11 +492,29 @@ def test(test_agent: Trainer,
          test_env: Optional[gym.Env] = None,
          viewer_kwargs: Optional[Dict[str, Any]] = None,
          **kwargs: Any) -> gym.Env:
-    """Test a model on a specific environment using a given agent. It will
-    render the result in the default viewer.
+    """Test a model on a specific environment using a given agent.
 
     .. note::
         This function can be terminated early using CTRL+C.
+
+    :param test_agent: Agent to evaluate on a single simulation.
+    :param explore: Whether or not to enable exploration during sampling of the
+                    actions predicted by the policy.
+                    Optional: Disable by default.
+    :param n_frames_stack: Number of frames to stack in the input to provide
+                           to the policy. Note that previous observation,
+                           action, and reward will be stacked.
+                           Optional: 1 by default.
+    :param enable_stats: Whether or not to print high-level statistics after
+                         simulation.
+                         Optional: Enable by default.
+    :param enable_replay: Whether or not to enable replay of the simulation,
+                          and eventually recording through `viewer_kwargs`.
+                          Optional: Enable by default.
+    :param test_env: Environment on which to evaluate the policy. It must be
+                     already instantiated and ready-to-use.
+    :param viewer_kwargs: Extra keyword arguments to forward to the viewer if
+                          replay has been requested.
     """
     # Instantiate the environment if not provided
     if test_env is None:
@@ -444,7 +523,6 @@ def test(test_agent: Trainer,
 
     # Get policy model
     policy = test_agent.get_policy()
-    dist_class = policy.dist_class
     obs_filter = test_agent.workers.local_worker().filters["default_policy"]
     if isinstance(obs_filter, NoFilter):
         obs_filter_fn = None
@@ -458,7 +536,6 @@ def test(test_agent: Trainer,
 
     return evaluate(test_env,
                     policy,
-                    dist_class,
                     obs_filter_fn,
                     n_frames_stack=n_frames_stack,
                     horizon=test_agent.config["horizon"],

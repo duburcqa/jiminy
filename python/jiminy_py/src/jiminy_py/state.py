@@ -1,10 +1,7 @@
 from copy import deepcopy
-from collections import defaultdict
-from typing import Optional, Union, Sequence, Dict
+from typing import Optional, Sequence
 
 import numpy as np
-
-from pinocchio import Force, StdVec_Force
 
 
 class State:
