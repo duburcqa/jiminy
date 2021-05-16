@@ -477,22 +477,34 @@ class Simulator:
                 robot_name = self.viewer.robot_name
                 scene_name = self.viewer.scene_name
 
-            # Create a new viewer client
+            # Handling of default backend
+            self.viewer_backend = self.viewer_backend or Viewer.backend
+
+            # Create new viewer instance
             self.viewer = Viewer(self.robot,
                                  use_theoretical_model=False,
                                  open_gui_if_parent=False,
                                  **{'scene_name': scene_name,
                                     'robot_name': robot_name,
                                     'backend': self.viewer_backend,
-                                    'display_com': True,
-                                    'display_dcm': True,
-                                    'display_contacts': True,
                                     'delete_robot_on_close': True,
                                     **kwargs})
-            self.viewer_backend = Viewer.backend  # Just in case it was `None`
+
+            if self.viewer_backend.startswith('panda3d'):
+                # Enable display of COM, DCM and contact markers by default
+                if "display_com" not in kwargs:
+                    self.viewer.display_center_of_mass(True)
+                if "display_dcm" not in kwargs:
+                    self.viewer.display_capture_point(True)
+                if "display_contacts" not in kwargs:
+                    self.viewer.display_contact_forces(True)
+
+            # Initialize camera pose
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
-            self.viewer.wait(require_client=False)  # Wait to finish loading
+
+            # Wait for the viewer to finish loading
+            self.viewer.wait(require_client=False)
 
         # Set the camera pose if requested
         if camera_xyzrpy is not None:

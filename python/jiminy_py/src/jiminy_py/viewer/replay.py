@@ -53,7 +53,8 @@ def play_trajectories(trajs_data: Union[
                       watermark_fullpath: Optional[str] = None,
                       legend: Optional[Union[str, Sequence[str]]] = None,
                       enable_clock: bool = False,
-                      display_com: bool = None,
+                      display_com: Optional[bool] = None,
+                      display_dcm: Optional[bool] = None,
                       display_contacts: Optional[bool] = None,
                       scene_name: str = 'world',
                       record_video_path: Optional[str] = None,
@@ -119,18 +120,24 @@ def play_trajectories(trajs_data: Union[
                    Optional: No legend if no color by default, the robots names
                    otherwise.
     :param enable_clock: Add clock on bottom right corner of the viewer.
-                         Only available with panda3d rendering backend.
+                         Only available with 'panda3d' rendering backend.
                          Optional: Disable by default.
     :param display_com: Whether or not to display the center of mass. `None`
                         to keep current viewers' settings, if any.
-                        Optional: Enable by default iif `viewers` is `None`.
+                        Optional: Enable by default iif `viewers` is `None`,
+                        and backend is 'panda3d'.
+    :param display_dcm: Whether or not to display the capture point (also
+                        called DCM). `None to keep current viewers' settings.
+                        Optional: Enable by default iif `viewers` is `None`,
+                        and backend is 'panda3d'.
     :param display_contacts: Whether or not to display the contact forces.
                              Note that the user is responsible for updating
                              sensors data since `Viewer.display` is only
                              computing kinematic quantities. `None` to keep
-                             current viewers' settings, if any.
+                             current viewers' settings.
                              Optional: Enable by default iif `update_hooks` is
-                             specified and `viewers` is `None`.
+                             specified, `viewers` is `None`, and backend is
+                             'panda3d'.
     :param scene_name: Name of viewer's scene in which to display the robot.
                        Optional: Common default name if omitted.
     :param record_video_path: Fullpath location where to save generated video.
@@ -143,10 +150,10 @@ def play_trajectories(trajs_data: Union[
                          input before starting to play the trajectories.
                          Only available if `record_video_path` is None.
                          Optional: False by default.
-    :param backend: Backend, one of 'meshcat' or 'gepetto-gui'. If None,
-                    'meshcat' is used in notebook environment and 'gepetto-gui'
-                    otherwise.
-                    Optional: None by default.
+    :param backend: Backend, one of 'panda3d', 'meshcat', or 'gepetto-gui'. If
+                    `None`, the most appropriate backend will be selected
+                    automatically, based on hardware and python environment.
+                    Optional: `None` by default.
     :param delete_robot_on_close: Whether or not to delete the robot from the
                                   viewer when closing it.
                                   Optional: True by default.
@@ -166,21 +173,20 @@ def play_trajectories(trajs_data: Union[
 
     :returns: List of viewers used to play the trajectories.
     """
-    # Make sure trajectory data and update hook are list or tuple
+    # Make sure sequence arguments are list or tuple
     if not isinstance(trajs_data, (list, tuple)):
         trajs_data = [trajs_data]
     if update_hooks is None:
         update_hooks = [None] * len(trajs_data)
     if not isinstance(update_hooks, (list, tuple)):
         update_hooks = [update_hooks]
+    if not isinstance(viewers, (list, tuple)):
+        viewers = [viewers]
+    elif not viewers:
+        viewers = None
 
-    # Sanitize user-specified viewers
+    # Make sure the viewers are still running if specified
     if viewers is not None:
-        # Make sure that viewers is a list
-        if not isinstance(viewers, (list, tuple)):
-            viewers = [viewers]
-
-        # Make sure the viewers are still running if specified
         if not Viewer.is_open():
             viewers = None
         else:
@@ -189,15 +195,17 @@ def play_trajectories(trajs_data: Union[
                     viewers = None
                     break
 
-    # Handling of default display of CoM and contact forces
-    if viewers is None:
+    # Handling of default display of CoM, DCM and contact forces
+    if viewers is None and Viewer.backend.startswith('panda3d'):
         if display_com is None:
             display_com = True
+        if display_dcm is None:
+            display_dcm = True
         if display_contacts is None:
             display_contacts = all(func is not None for func in update_hooks)
 
     # Make sure it is possible to display contacts if requested
-    if display_contacts is not False:
+    if display_contacts:
         if any(traj['robot'].is_locked for traj in trajs_data):
             logger.debug(
                 "`display_contacts` is not available if robot is locked. "
@@ -241,16 +249,15 @@ def play_trajectories(trajs_data: Union[
             robot = traj['robot']
             robot_name = f"{uniq_id}_robot_{i}"
             use_theoretical_model = traj['use_theoretical_model']
-            viewer = Viewer(
-                robot,
-                use_theoretical_model=use_theoretical_model,
-                robot_color=color,
-                robot_name=robot_name,
-                lock=lock,
-                backend=backend,
-                scene_name=scene_name,
-                delete_robot_on_close=delete_robot_on_close,
-                open_gui_if_parent=(record_video_path is None))
+            viewer = Viewer(robot,
+                            use_theoretical_model=use_theoretical_model,
+                            robot_color=color,
+                            robot_name=robot_name,
+                            lock=lock,
+                            backend=backend,
+                            scene_name=scene_name,
+                            delete_robot_on_close=delete_robot_on_close,
+                            open_gui_if_parent=(record_video_path is None))
             viewers.append(viewer)
     else:
         # Reset robot model in viewer if requested color has changed
@@ -268,7 +275,7 @@ def play_trajectories(trajs_data: Union[
     viewer = viewers[0]
 
     # Make sure clock is only enabled for panda3d backend
-    if enable_clock and Viewer.backend != 'panda3d':
+    if enable_clock and not Viewer.backend.startswith('panda3d'):
         logger.warn(
             "`enable_clock` is only available with 'panda3d' backend.")
         enable_clock = False
@@ -301,10 +308,13 @@ def play_trajectories(trajs_data: Union[
         if data:
             i = bisect_right([s.t for s in data], time_interval[0])
             viewer_i.display(data[i].q, data[i].v, offset)
-        if display_com is not None:
-            viewer_i.display_center_of_mass(display_com)
-        if display_contacts is not None:
-            viewer_i.display_contact_forces(display_contacts)
+        if Viewer.backend.startswith('panda3d'):
+            if display_com is not None:
+                viewer_i.display_center_of_mass(display_com)
+            if display_dcm is not None:
+                viewer_i.display_capture_point(display_dcm)
+            if display_contacts is not None:
+                viewer_i.display_contact_forces(display_contacts)
 
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:

@@ -352,6 +352,14 @@ class Viewer:
             uniq_id = next(tempfile._get_candidate_names())
             robot_name = "_".join(("robot", uniq_id))
 
+        # Make sure user arguments are valid
+        if not Viewer.backend.startswith('panda3d'):
+            if display_com or display_dcm or display_contacts:
+                logger.warning(
+                    "Panda3d backend is required to display markers, e.g. "
+                    "CoM, DCM or Contact.")
+            display_com, display_dcm, display_contacts = False, False, False
+
         # Backup some user arguments
         self.robot_color = get_color_code(robot_color)
         self.robot_name = robot_name
