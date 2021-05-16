@@ -56,7 +56,8 @@ def play_trajectories(trajs_data: Union[
                       display_com: Optional[bool] = None,
                       display_dcm: Optional[bool] = None,
                       display_contacts: Optional[bool] = None,
-                      display_f_external: Union[Sequence[bool], bool] = False,
+                      display_f_external: Optional[
+                          Union[Sequence[bool], bool]] = None,
                       scene_name: str = 'world',
                       record_video_path: Optional[str] = None,
                       start_paused: bool = False,
@@ -575,11 +576,14 @@ def _play_logs_files_entrypoint() -> None:
         '-p', '--start_paused', action='store_true',
         help="Start in pause, waiting for keyboard input.")
     parser.add_argument(
-        '-s', '--speed_ratio', type=float, default=0.5,
+        '-s', '--speed_ratio', type=float, default=1.0,
         help="Real time to simulation time factor.")
     parser.add_argument(
         '-b', '--backend', default='panda3d',
         help="Display backend (panda3d, meshcat, or gepetto-gui).")
+    parser.add_argument(
+        '-v', '--record_video_path', default=None,
+        help="Fullpath location where to save generated video.")
     options, files = parser.parse_known_args()
     kwargs = vars(options)
     kwargs['logs_files'] = files
@@ -588,5 +592,5 @@ def _play_logs_files_entrypoint() -> None:
     play_logs_files(**{"remove_widgets_overlay": False, **kwargs})
 
     # Do not exit method as long as Jiminy viewer is open
-    while Viewer.is_alive():
+    while Viewer.is_alive() and not kwargs['record_video_path']:
         time.sleep(0.5)
