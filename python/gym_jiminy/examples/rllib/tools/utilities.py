@@ -58,7 +58,7 @@ class MonitorInfoMixin:
         info = episode.last_info_for()
         if info is not None:
             for key, value in info.items():
-                episode.user_data.setdefault(key, []).append(value)
+                episode.hist_data.setdefault(key, []).append(value)
 
     def on_episode_end(self,
                        *,
@@ -68,10 +68,8 @@ class MonitorInfoMixin:
                        episode: MultiAgentEpisode,
                        env_index: Optional[int] = None,
                        **kwargs) -> None:
-        for key, value in episode.user_data.items():
-            # episode.custom_metrics[key] = np.mean(value)
-            episode.hist_data[key] = value
-        episode.user_data.clear()
+        episode.custom_metrics["episode_duration"] = \
+            base_env.get_unwrapped()[0].step_dt * episode.length
 
 
 class CurriculumUpdateMixin:
@@ -238,9 +236,9 @@ def train(train_agent: Trainer,
                           Optional: Disable by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
                       Optional: Disable by default.
-    :param evaluation_period: Run one simulation (without exploration) every
-                              given number of training steps, and save the log
-                              file and a video of the result in log folder if
+    :param evaluation_period: Run one simulation (with exploration) every given
+                              number of training steps, and save the log file
+                              and a video of the result in log folder if
                               requested. 0 to disable.
                               Optional: Disable by default.
     :param record_video: Whether or not to enable video recording during
@@ -309,7 +307,7 @@ def train(train_agent: Trainer,
                     record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
                 else:
                     record_video_path = None
-                env, _ = test(train_agent, explore=False, viewer_kwargs={
+                env, _ = test(train_agent, explore=True, viewer_kwargs={
                     "record_video_path": record_video_path,
                     "scene_name": f"iter_{iter}"})
                 env.write_log(f"{train_agent.logdir}/iter_{iter}.hdf5")
