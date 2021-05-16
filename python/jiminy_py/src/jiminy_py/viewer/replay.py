@@ -56,6 +56,7 @@ def play_trajectories(trajs_data: Union[
                       display_com: Optional[bool] = None,
                       display_dcm: Optional[bool] = None,
                       display_contacts: Optional[bool] = None,
+                      display_f_external: Union[Sequence[bool], bool] = False,
                       scene_name: str = 'world',
                       record_video_path: Optional[str] = None,
                       start_paused: bool = False,
@@ -132,12 +133,22 @@ def play_trajectories(trajs_data: Union[
                         and backend is 'panda3d'.
     :param display_contacts: Whether or not to display the contact forces.
                              Note that the user is responsible for updating
-                             sensors data since `Viewer.display` is only
-                             computing kinematic quantities. `None` to keep
+                             sensors data via `update_hooks`. `None` to keep
                              current viewers' settings.
                              Optional: Enable by default iif `update_hooks` is
                              specified, `viewers` is `None`, and backend is
                              'panda3d'.
+    :param display_f_external: Whether or not to display the external external
+                               forces applied at the joints on the robot. If a
+                               boolean is provided, the same visibility will be
+                               set for each joint, alternatively one can
+                               provide a boolean list whose ordering is
+                               consistent with `pinocchio_model.names`. Note
+                               that the user is responsible for updating the
+                               force buffer `viewer.f_external` via
+                               `update_hooks`. `None` to keep current viewers'
+                               settings.
+                               Optional: `None` by default.
     :param scene_name: Name of viewer's scene in which to display the robot.
                        Optional: Common default name if omitted.
     :param record_video_path: Fullpath location where to save generated video.
@@ -315,6 +326,8 @@ def play_trajectories(trajs_data: Union[
                 viewer_i.display_capture_point(display_dcm)
             if display_contacts is not None:
                 viewer_i.display_contact_forces(display_contacts)
+            if display_f_external is not None:
+                viewer_i.display_contact_forces(display_f_external)
 
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:

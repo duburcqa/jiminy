@@ -55,8 +55,9 @@ DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
-# Fz force value corresponding to capsule's length of 1cm
-CONTACT_FORCE_SCALE = 100.0  # [N]
+# Fz force value corresponding to capsule's length of 1m
+CONTACT_FORCE_SCALE = 10000.0  # [N]
+EXTERNAL_FORCE_SCALE = 800.0  # [N]
 
 COLORS = {'red': (0.9, 0.15, 0.15, 1.0),
           'blue': (0.3, 0.3, 1.0, 1.0),
@@ -296,6 +297,7 @@ class Viewer:
                  display_com: bool = False,
                  display_dcm: bool = False,
                  display_contacts: bool = False,
+                 display_f_external: Union[Sequence[bool], bool] = False,
                  **kwargs: Any):
         """
         :param robot: Jiminy.Model to display.
@@ -345,6 +347,15 @@ class Viewer:
                                  sensors data since `Viewer.display` is only
                                  computing kinematic quantities.
                                  Optional: Disable by default.
+        :param display_f_external:
+            Whether or not to display the external external forces applied at
+            the joints on the robot. If a boolean is provided, the same
+            visibility will be set for each joint, alternatively one can
+            provide a boolean list whose ordering is consistent with
+            `pinocchio_model.names`. Note that the user is responsible for
+            updating the force buffer `viewer.f_external` data since
+            `Viewer.display` is only computing kinematic quantities.
+            Optional: Disable by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
         # Handling of default arguments
@@ -370,11 +381,22 @@ class Viewer:
         self._display_com = display_com
         self._display_dcm = display_dcm
         self._display_contacts = display_contacts
+        self._display_f_external = display_f_external
 
         # Initialize marker register
         self.markers: Dict[str, MarkerDataType] = {}
         self._markers_group = '/'.join((
             self.scene_name, self.robot_name, "markers"))
+        self._markers_visibility: Dict[str, bool] = {}
+
+        # Initialize external forces
+        if self.use_theoretical_model:
+            pinocchio_model = robot.pinocchio_model_th
+        else:
+            pinocchio_model = robot.pinocchio_model
+        self.f_external = pin.StdVec_Force()
+        self.f_external.extend([
+            pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
 
         # Select the desired backend
         if backend is None:
@@ -559,6 +581,12 @@ class Viewer:
             pinocchio_model = robot.pinocchio_model
             pinocchio_data = robot.pinocchio_data
 
+        # Reset external force buffer iif it is necessary
+        if len(self.f_external) != pinocchio_model.njoints - 1:
+            self.f_external = pin.StdVec_Force()
+            self.f_external.extend([
+                pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
+
         # Create robot visual model.
         # Note that it does not actually loads the meshes if possible, since
         # the rendering backend will reload them anyway.
@@ -611,44 +639,24 @@ class Viewer:
             def get_com_scale() -> Tuple3FType:
                 return (1.0, 1.0, self._client.data.com[0][2])
 
-            self.add_marker(name="com_0_sphere",
+            self.add_marker(name="COM_0_sphere",
                             shape="sphere",
                             pose=[self._client.data.com[0], None],
                             remove_if_exists=True,
+                            auto_refresh=False,
                             radius=0.03)
 
-            self.add_marker(name="com_0_cylinder",
+            self.add_marker(name="COM_0_cylinder",
                             shape="cylinder",
                             pose=[self._client.data.com[0], None],
                             scale=get_com_scale,
                             remove_if_exists=True,
+                            auto_refresh=False,
                             radius=0.004,
                             length=1.0,
                             anchor_bottom=True)
 
-            # Add contact sensor markers
-            def get_contact_pose(
-                    sensor: contact) -> Tuple[Tuple3FType, Tuple4FType]:
-                oMf = self._client.data.oMf[sensor.frame_idx]
-                frame_position = oMf.translation
-                frame_rotation = pin.Quaternion(oMf.rotation).coeffs()
-                return (frame_position, frame_rotation)
-
-            def get_contact_scale(sensor: contact) -> Tuple3FType:
-                length = min(abs(sensor.data[2]) / CONTACT_FORCE_SCALE, 100.0)
-                return (1.0, 1.0, - np.sign(sensor.data[2]) * length)
-
-            if contact.type in robot.sensors_names.keys():
-                for name in robot.sensors_names[contact.type]:
-                    sensor = robot.get_sensor(contact.type, name)
-                    self.add_marker(name='_'.join((contact.type, name)),
-                                    shape="cylinder",
-                                    pose=partial(get_contact_pose, sensor),
-                                    scale=partial(get_contact_scale, sensor),
-                                    remove_if_exists=True,
-                                    radius=0.02,
-                                    length=0.01,
-                                    anchor_bottom=True)
+            self.display_center_of_mass(self._display_com)
 
             # Add DCM marker
             def get_dcm_pose() -> Tuple[Tuple3FType, Tuple4FType]:
@@ -665,20 +673,82 @@ class Viewer:
                 com_position = self._client.data.com[0]
                 return np.full((3,), com_position[2] > 0.0, dtype=np.float64)
 
-            self.add_marker(name="dcm",
+            self.add_marker(name="DCM",
                             shape="cone",
                             color="green",
                             pose=get_dcm_pose,
                             scale=get_dcm_scale,
                             remove_if_exists=True,
+                            auto_refresh=False,
                             radius=0.03,
                             length=0.03,
                             num_sides=4)
 
-            # Refresh CoM and contacts visibility
-            self.display_center_of_mass(self._display_com)
             self.display_capture_point(self._display_dcm)
+
+            # Add contact sensor markers
+            def get_contact_pose(
+                    sensor: contact) -> Tuple[Tuple3FType, Tuple4FType]:
+                oMf = self._client.data.oMf[sensor.frame_idx]
+                frame_position = oMf.translation
+                frame_rotation = pin.Quaternion(oMf.rotation).coeffs()
+                return (frame_position, frame_rotation)
+
+            def get_contact_scale(sensor: contact) -> Tuple3FType:
+                length = min(abs(sensor.data[2]) / CONTACT_FORCE_SCALE, 1.0)
+                return (1.0, 1.0, - np.sign(sensor.data[2]) * length)
+
+            if contact.type in robot.sensors_names.keys():
+                for name in robot.sensors_names[contact.type]:
+                    sensor = robot.get_sensor(contact.type, name)
+                    self.add_marker(name='_'.join((contact.type, name)),
+                                    shape="cylinder",
+                                    pose=partial(get_contact_pose, sensor),
+                                    scale=partial(get_contact_scale, sensor),
+                                    remove_if_exists=True,
+                                    auto_refresh=False,
+                                    radius=0.02,
+                                    length=0.5,
+                                    anchor_bottom=True)
+
             self.display_contact_forces(self._display_contacts)
+
+            # Add external forces
+            def get_force_pose(
+                    joint_idx: int) -> Tuple[Tuple3FType, Tuple4FType]:
+                joint_pose = self._client.data.oMi[joint_idx]
+                joint_position = joint_pose.translation
+                if self.f_external:
+                    f_ext = self.f_external[joint_idx - 1].linear
+                    joint_rotation = pin.Quaternion(joint_pose.rotation)
+                    frame_rotation = (joint_rotation * pin.Quaternion(
+                        np.array([0.0, 0.0, 1.0]), f_ext)).coeffs()
+                else:
+                    frame_rotation = pin.Quaternion.Identity().coeffs()
+                return (joint_position, frame_rotation)
+
+            def get_force_scale(joint_idx: int) -> Tuple[float, float, float]:
+                if self.f_external:
+                    f_ext = self.f_external[joint_idx - 1].linear
+                    f_ext_norm = np.linalg.norm(f_ext, 2)
+                    length = min(f_ext_norm / EXTERNAL_FORCE_SCALE, 1.0)
+                else:
+                    length = 0.0
+                return (1.0, 1.0, length)
+
+            for i in range(1, pinocchio_model.njoints):
+                frame_name = self._client.model.names[i]
+                self.add_marker(name=f"ForceExternal_{frame_name}",
+                                shape="arrow",
+                                color="red",
+                                pose=partial(get_force_pose, i),
+                                scale=partial(get_force_scale, i),
+                                remove_if_exists=True,
+                                auto_refresh=False,
+                                radius=0.015,
+                                length=0.7)
+
+            self.display_external_forces(self._display_f_external)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
@@ -1618,6 +1688,11 @@ class Viewer:
                   reference to `viewer.markers[name]`. Any modification of it
                   will take effect at next `refresh` call.
         """
+        # Make sure the backend supports this method
+        if not Viewer.backend.startswith('panda3d'):
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
         # Handling of user arguments
         if pose is None:
             pose = [None, None]
@@ -1635,20 +1710,22 @@ class Viewer:
             color = 'white'
         color = np.asarray(get_color_code(color))
 
-        # Make sure no marker with this name already exists
+        # Remove marker is one already exists and requested
         if name in self.markers.keys():
             if not remove_if_exists:
                 raise ValueError(f"marker's name '{name}' already exists.")
             self.remove_marker(name)
 
-        if Viewer.backend.startswith('panda3d'):
-            create_shape = getattr(self._gui, f"append_{shape}")
-            create_shape(self._markers_group, name, **shape_kwargs)
-            marker_data = {"pose": pose, "scale": scale, "color": color}
-            self.markers[name] = marker_data
-        else:
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
+        # Add new marker
+        create_shape = getattr(self._gui, f"append_{shape}")
+        create_shape(self._markers_group, name, **shape_kwargs)
+        marker_data = {"pose": pose, "scale": scale, "color": color}
+        self.markers[name] = marker_data
+        self._markers_visibility[name] = True
+
+        # Make sure the marker always display in front of the model
+        self._gui.show_node(
+            self._markers_group, name, True, always_foreground=True)
 
         # Refresh the scene if desired
         if auto_refresh:
@@ -1668,16 +1745,15 @@ class Viewer:
         :param visibility: Whether to enable or disable display of the center
                            of mass.
         """
-        if Viewer.backend.startswith('panda3d'):
-            for name in self.markers:
-                if name.startswith("com_0"):
-                    self._gui.show_node(
-                        self._markers_group, name, visibility,
-                        always_foreground=True)
-            self._display_com = visibility
-        else:
+        if not Viewer.backend.startswith('panda3d'):
             raise NotImplementedError(
                 "This method is only supported by Panda3d.")
+
+        for name in self.markers:
+            if name.startswith("COM_0"):
+                self._gui.show_node(self._markers_group, name, visibility)
+                self._markers_visibility[name] = visibility
+        self._display_com = visibility
 
     @__must_be_open
     def display_capture_point(self, visibility: bool) -> None:
@@ -1691,16 +1767,21 @@ class Viewer:
         :param visibility: Whether to enable or disable display of the capture
                            point.
         """
-        if Viewer.backend.startswith('panda3d'):
-            for name in self.markers:
-                if name.startswith("dcm"):
-                    self._gui.show_node(
-                        self._markers_group, name, visibility,
-                        always_foreground=True)
-            self._display_dcm = visibility
-        else:
+        # Make sure the current backend is supported by this method
+        if not Viewer.backend.startswith('panda3d'):
             raise NotImplementedError(
                 "This method is only supported by Panda3d.")
+
+        # Update visibility
+        for name in self.markers:
+            if name == "DCM":
+                self._gui.show_node(self._markers_group, name, visibility)
+                self._markers_visibility[name] = visibility
+        self._display_dcm = visibility
+
+        # Must refresh the scene
+        if visibility:
+            self.refresh()
 
     @__must_be_open
     def display_contact_forces(self, visibility: bool) -> None:
@@ -1713,25 +1794,78 @@ class Viewer:
         .. warning::
             It corresponds to the attribute `data` of `jiminy.ContactSensor`.
             Calling `Viewer.display` will NOT update its value automatically.
-            It is up to the user to keep it up-to-date. It will always be the
-            case during a simulation, but not when replaying a log file
-            a-posteriori. In such a case, the user is responsible of specifying
-            a custom `update_hook` to `Viewer.display` and `Viewer.replay`
-            methods to emulate sensor update based on log data.
+            It is up to the user to keep it up-to-date.
 
         .. warning::
             This method is only supported by Panda3d.
+
+        :param visibility: Whether or not to display the contact forces.
         """
-        if Viewer.backend.startswith('panda3d'):
-            for name in self.markers:
-                if name.startswith(contact.type):
-                    self._gui.show_node(
-                        self._markers_group, name, visibility,
-                        always_foreground=True)
-            self._display_contacts = visibility
-        else:
+        # Make sure the current backend is supported by this method
+        if not Viewer.backend.startswith('panda3d'):
             raise NotImplementedError(
                 "This method is only supported by Panda3d.")
+
+        # Update visibility
+        for name in self.markers:
+            if name.startswith(contact.type):
+                self._gui.show_node(self._markers_group, name, visibility)
+                self._markers_visibility[name] = visibility
+        self._display_contacts = visibility
+
+        # Must refresh the scene
+        if visibility:
+            self.refresh()
+
+    @__must_be_open
+    def display_external_forces(self,
+            visibility: Union[Sequence[bool], bool]) -> None:
+        """Display external forces applied on the joints the robot, as an
+        arrow of variable length depending of magnitude of the force.
+
+        .. warning::
+            It only display the linear component of the force, while ignoring
+            the angular part for now.
+
+        .. warning::
+            It corresponds to the attribute ``viewer.f_external`. Calling
+            `Viewer.display` will NOT update its value automatically.  It is up
+            to the user to keep it up-to-date.
+
+        .. warning::
+            This method is only supported by Panda3d.
+
+        :param visibility: Whether or not to display the external force applied
+                           at each joint selectively. If a boolean is provided,
+                           the same visibility will be set for each joint,
+                           alternatively, one can provide a boolean list whose
+                           ordering is consistent with pinocchio model (i.e.
+                           `pinocchio_model.names`).
+        """
+        # Make sure the current backend is supported by this method
+        if not Viewer.backend.startswith('panda3d'):
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
+        # Convert boolean visiblity to mask if necessary
+        if isinstance(visibility, bool):
+            visibility = [visibility,] * (self._client.model.njoints - 1)
+
+        # Check that the length of the mask is consistent with the model
+        assert len(visibility) == self._client.model.njoints - 1, (
+            "The length of the visibility mask must be equal to the number of "
+            "joints of the model, 'universe' excluded.")
+
+        # Update visibility
+        for i in range(self._client.model.njoints - 1):
+            name = f"ForceExternal_{self._client.model.names[i + 1]}"
+            self._gui.show_node(self._markers_group, name, visibility[i])
+            self._markers_visibility[name] = visibility[i]
+        self._display_f_external = list(visibility)
+
+        # Must refresh the scene
+        if any(visibility):
+            self.refresh()
 
     @__must_be_open
     def remove_marker(self, name: str) -> None:
@@ -1824,6 +1958,8 @@ class Viewer:
             if Viewer.backend.startswith('panda3d'):
                 pose_dict, material_dict, scale_dict = {}, {}, {}
                 for marker_name, marker_data in self.markers.items():
+                    if not self._markers_visibility[marker_name]:
+                        continue
                     marker_data = {key: value() if callable(value) else value
                                    for key, value in marker_data.items()}
                     (x, y, z), (qx, qy, qz, qw) = marker_data["pose"]
@@ -1942,6 +2078,13 @@ class Viewer:
             disable_display_dcm = True
             self.display_capture_point(False)
 
+        # Disable display of external forces if no force data provided
+        disable_display_f_external = False
+        has_forces = evolution_robot[0].f_ext is not None
+        if not has_forces and self._display_f_external:
+            disable_display_f_external = True
+            self.display_external_forces(False)
+
         # Replay the whole trajectory at constant speed ratio
         v = None
         update_hook_t = None
@@ -1959,6 +2102,11 @@ class Viewer:
                 q = pin.interpolate(self._client.model, s.q, s_next.q, ratio)
                 if has_velocities:
                     v = s.v + ratio * (s_next.v - s.v)
+                if has_forces:
+                    for i, (f_ext, f_ext_next) in enumerate(zip(
+                            s.f_ext, s_next.f_ext)):
+                        self.f_external[i].vector[:] = \
+                            f_ext + ratio * (f_ext_next - f_ext)
                 if Viewer._camera_motion is not None:
                     Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
                 if update_hook is not None:
@@ -1989,3 +2137,5 @@ class Viewer:
                     self.display_contact_forces(True)
                 if disable_display_dcm:
                     self.display_capture_point(True)
+                if disable_display_f_external:
+                    self.display_external_forces(True)

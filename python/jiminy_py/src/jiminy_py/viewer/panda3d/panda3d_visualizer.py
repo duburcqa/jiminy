@@ -1065,7 +1065,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                   root_path: str,
                   name: str,
                   show: bool,
-                  always_foreground: bool = False) -> None:
+                  always_foreground: Optional[bool] = None) -> None:
         """Turn rendering on or off for a single node.
         """
         node = self._groups[root_path].find(name)
@@ -1077,12 +1077,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             else:
                 node.set_tag("status", "hidden")
                 node.hide()
-            if always_foreground:
-                node.set_bin("fixed", 0)
-            else:
-                node.clear_bin()
-            node.set_depth_test(not always_foreground)
-            node.set_depth_write(not always_foreground)
+            if always_foreground is not None:
+                if always_foreground:
+                    node.set_bin("fixed", 0)
+                else:
+                    node.clear_bin()
+                node.set_depth_test(not always_foreground)
+                node.set_depth_write(not always_foreground)
 
     def set_camera_transform(self,
                              pos: Tuple3FType,

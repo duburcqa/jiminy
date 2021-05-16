@@ -364,6 +364,10 @@ class Simulator:
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Failed to start the simulation.")
 
+        # Share the external force buffer of the viewer with the engine
+        if self.viewer is not None:
+            self.viewer.f_external = self.system_state.f_external[1:]
+
     def step(self, step_dt: float = -1) -> None:
         """Integrate system dynamics from current state for a given duration.
 
@@ -490,6 +494,9 @@ class Simulator:
                                     'delete_robot_on_close': True,
                                     **kwargs})
 
+            # Share the external force buffer of the viewer with the engine
+            self.viewer.f_external = self.system_state.f_external[1:]
+
             if self.viewer_backend.startswith('panda3d'):
                 # Enable display of COM, DCM and contact markers by default
                 if "display_com" not in kwargs:
@@ -498,6 +505,20 @@ class Simulator:
                     self.viewer.display_capture_point(True)
                 if "display_contacts" not in kwargs:
                     self.viewer.display_contact_forces(True)
+
+                # Enable display of external forces by default only for
+                # the joints having an external force registered to it.
+                if "display_f_external" not in kwargs:
+                    force_frames = set([
+                        self.robot.pinocchio_model.frames[f_i.frame_idx].parent
+                        for f_i in self.engine.forces_profile])
+                    force_frames |= set([
+                        self.robot.pinocchio_model.frames[f_i.frame_idx].parent
+                        for f_i in self.engine.forces_impulse])
+                    visibility = self.viewer._display_f_external
+                    for i in force_frames:
+                        visibility[i - 1] = True
+                    self.viewer.display_external_forces(visibility)
 
             # Initialize camera pose
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
@@ -540,8 +561,6 @@ class Simulator:
                        viewers=[self.viewer],
                        **{'verbose': True,
                           'backend': self.viewer_backend,
-                          'display_com': True,
-                          'display_contacts': True,
                           **kwargs})
 
     def close(self) -> None:
