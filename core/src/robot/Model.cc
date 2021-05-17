@@ -1100,7 +1100,7 @@ namespace jiminy
                 if (comBiasStd > EPS)
                 {
                     vector3_t & comRelativePositionBody = pncModel_.inertias[jointIdx].lever();
-                    comRelativePositionBody += randVectorNormal(3U, comBiasStd);
+                    comRelativePositionBody.array() *= randVectorNormal(3U, comBiasStd).array();
                 }
 
                 /* Add bias to body mass.
@@ -1109,7 +1109,8 @@ namespace jiminy
                 if (massBiasStd > EPS)
                 {
                     float64_t & massBody = pncModel_.inertias[jointIdx].mass();
-                    massBody = std::max(massBody + randNormal(0.0, massBiasStd), std::min(massBody, 1.0e-3));
+                    massBody = std::max(massBody * (1.0 + randNormal(0.0, massBiasStd)),
+                                        std::min(massBody, 1.0e-3));
                 }
 
                 /* Add bias to inertia matrix of body.
@@ -1128,7 +1129,7 @@ namespace jiminy
                     matrix3_t inertiaBodyAxes = solver.eigenvectors();
                     vector3_t const randAxis = randVectorNormal(3U, inertiaBiasStd);
                     inertiaBodyAxes = inertiaBodyAxes * quaternion_t(pinocchio::exp3(randAxis));
-                    inertiaBodyMoments += randVectorNormal(3U, inertiaBiasStd);
+                    inertiaBodyMoments.array() *= randVectorNormal(3U, inertiaBiasStd).array();
                     inertiaBody = pinocchio::Symmetric3((
                         inertiaBodyAxes * inertiaBodyMoments.asDiagonal() * inertiaBodyAxes.transpose()).eval());
                 }
@@ -1138,7 +1139,7 @@ namespace jiminy
                 if (relativeBodyPosBiasStd > EPS)
                 {
                     vector3_t & relativePositionBody = pncModel_.jointPlacements[jointIdx].translation();
-                    relativePositionBody += randVectorNormal(3U, relativeBodyPosBiasStd);
+                    relativePositionBody.array() *= randVectorNormal(3U, relativeBodyPosBiasStd).array();
                 }
             }
 
