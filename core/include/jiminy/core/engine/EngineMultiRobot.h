@@ -410,19 +410,15 @@ namespace jiminy
 
         /// \brief Reset the engine and compute initial state.
         ///
-        /// \details This function reset the engine, the robot and the controller, and update internal data
-        ///          to match the given initial state.
+        /// \details This function does NOT reset the engine, robot and controller.
+        ///          It is up to the user to do so, by calling `reset` method first.
         ///
         /// \param[in] qInit Initial configuration of every system.
         /// \param[in] vInit Initial velocity of every system.
         /// \param[in] aInit Initial acceleration of every system. Optional: Zero by default.
-        /// \param[in] resetRandomNumbers Whether or not to reset the random number generators.
-        /// \param[in] removeAllForce Whether or not to remove registered external forces.
         hresult_t start(std::map<std::string, vectorN_t> const & qInit,
                         std::map<std::string, vectorN_t> const & vInit,
-                        boost::optional<std::map<std::string, vectorN_t> > const & aInit = boost::none,
-                        bool_t const & resetRandomNumbers = false,
-                        bool_t const & removeAllForce = false);
+                        boost::optional<std::map<std::string, vectorN_t> > const & aInit = boost::none);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///

@@ -159,9 +159,7 @@ namespace jiminy
     hresult_t Engine::start(vectorN_t const & qInit,
                             vectorN_t const & vInit,
                             boost::optional<vectorN_t> const & aInit,
-                            bool_t    const & isStateTheoretical,
-                            bool_t    const & resetRandomNumbers,
-                            bool_t    const & removeAllForce)
+                            bool_t    const & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -182,8 +180,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = EngineMultiRobot::start(
-                qInitList, vInitList, aInitList, resetRandomNumbers, removeAllForce);
+            returnCode = EngineMultiRobot::start(qInitList, vInitList, aInitList);
         }
 
         return returnCode;

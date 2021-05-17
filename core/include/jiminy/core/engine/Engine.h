@@ -34,22 +34,17 @@ namespace jiminy
 
         /// \brief Reset the engine and compute initial state.
         ///
-        /// \details This function reset the engine, the robot and the controller, and update internal data
-        ///          to match the given initial state.
+        /// \details This function does NOT reset the engine, robot and controller.
+        ///          It is up to the user to do so, by calling `reset` method first.
         ///
         /// \param[in] qInit Initial configuration.
         /// \param[in] vInit Initial velocity.
         /// \param[in] aInit Initial acceleration. Optional: Zero by default.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
-        /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
-        /// \param[in] removeAllForce Whether or not to register the external force profiles applied
-        ///                                      during the simulation.
         hresult_t start(vectorN_t const & qInit,
                         vectorN_t const & vInit,
                         boost::optional<vectorN_t> const & aInit = boost::none,
-                        bool_t    const & isStateTheoretical = false,
-                        bool_t    const & resetRandomNumbers = false,
-                        bool_t    const & removeAllForce = false);
+                        bool_t    const & isStateTheoretical = false);
 
         /// \brief Run a simulation of duration tEnd, starting at xInit.
         ///

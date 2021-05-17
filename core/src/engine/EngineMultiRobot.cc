@@ -1007,9 +1007,7 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::start(std::map<std::string, vectorN_t> const & qInit,
                                       std::map<std::string, vectorN_t> const & vInit,
-                                      boost::optional<std::map<std::string, vectorN_t> > const & aInit,
-                                      bool_t const & resetRandomNumbers,
-                                      bool_t const & removeAllForce)
+                                      boost::optional<std::map<std::string, vectorN_t> > const & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1151,9 +1149,6 @@ namespace jiminy
                 }
             }
         }
-
-        // Reset the robot, controller, engine, and registered impulse forces if requested
-        reset(resetRandomNumbers, removeAllForce);
 
         auto systemIt = systems_.begin();
         auto systemDataIt = systemsDataHolder_.begin();
@@ -1527,10 +1522,13 @@ namespace jiminy
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Reset the robot, controller, and engine
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = start(qInit, vInit, aInit, true, false);
+            // Reset the robot, controller, and engine
+            reset(true, false);
+
+            // Start the simulation
+            returnCode = start(qInit, vInit, aInit);
         }
 
         // Now that telemetry has been initialized, check simulation duration.
