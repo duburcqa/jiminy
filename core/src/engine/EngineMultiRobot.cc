@@ -926,7 +926,6 @@ namespace jiminy
             }
         }
 
-
         /* Now that `data.oYcrb` and `data.h` are available, one can get directly
            the position and velocity of the center of mass of each subtrees. */
         data.Ig.mass() = data.oYcrb[0].mass();
@@ -2227,6 +2226,11 @@ namespace jiminy
     template<typename ...Args>
     std::tuple<bool_t, float64_t> isGcdIncluded(std::vector<systemDataHolder_t> const & systemsDataHolder, Args... values)
     {
+        if (systemsDataHolder.empty())
+        {
+            return isGcdIncluded(std::forward<Args>(values)...);
+        }
+
         float64_t minValue = INF;
         auto lambda = [&minValue, &values...](systemDataHolder_t const & systemData)
         {
