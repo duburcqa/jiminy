@@ -373,7 +373,7 @@ def play_trajectories(trajs_data: Union[
                     velocity_evolutions.append(
                         interp1d(t_orig, vel_orig, axis=0)(time_global))
                 else:
-                    velocity_evolutions = (None,) * len(time_global)
+                    velocity_evolutions.append((None,) * len(time_global))
                 if data_orig[0].f_ext is not None:
                     forces = []
                     for i in range(len(data_orig[0].f_ext)):
@@ -385,7 +385,7 @@ def play_trajectories(trajs_data: Union[
                         [f_ext[i] for f_ext in forces]
                         for i in range(len(time_global))])
                 else:
-                    force_evolutions = (None,) * len(time_global)
+                    force_evolutions.append((None,) * len(time_global))
             else:
                 position_evolutions.append(None)
                 velocity_evolutions.append(None)
