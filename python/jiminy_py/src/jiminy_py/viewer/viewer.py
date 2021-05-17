@@ -839,7 +839,9 @@ class Viewer:
 
     @staticmethod
     def has_gui() -> bool:
-        return Viewer._has_gui
+        if Viewer.is_alive():
+            return Viewer._has_gui
+        return False
 
     @staticmethod
     @__must_be_open

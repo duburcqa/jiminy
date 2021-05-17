@@ -8,7 +8,7 @@ from textwrap import dedent
 from itertools import cycle
 from bisect import bisect_right
 from collections import OrderedDict
-from typing import Callable, Tuple, Dict, Optional, Any, Sequence
+from typing import Callable, Tuple, Dict, Optional, Any, Sequence, Union
 
 import h5py
 import numpy as np
@@ -211,7 +211,9 @@ def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
     return traj_data
 
 
-def build_robot_from_log(log_file: str) -> jiminy.Robot:
+def build_robot_from_log(log_file: str,
+                         mesh_package_dirs: Union[str, Sequence[str]] = ()
+                         ) -> jiminy.Robot:
     """Extract log data and build robot from it.
 
     .. note::
@@ -229,6 +231,10 @@ def build_robot_from_log(log_file: str) -> jiminy.Robot:
         archive for now.
 
     :param log_file: Path of the simulation log file, in any format.
+    :param mesh_package_dirs: Prepend custom mesh package seach path
+                              directories to the ones provided by log file. It
+                              may be necessary to specify it to read log
+                              generated on a different environment.
 
     :returns: Reconstructed robot, and parsed log data as returned by
               `jiminy_py.log.read_log` method.
@@ -236,16 +242,17 @@ def build_robot_from_log(log_file: str) -> jiminy.Robot:
     # Parse log file
     log_data, log_constants = read_log(log_file)
 
+    # Make sure provided 'mesh_package_dirs' is a list
+    mesh_package_dirs = list(mesh_package_dirs)
+
     # Extract robot info
     pinocchio_model_str = log_constants[
         "HighLevelController.pinocchio_model"]
     urdf_file = log_constants["HighLevelController.urdf_file"]
     has_freeflyer = int(log_constants["HighLevelController.has_freeflyer"])
     if "HighLevelController.mesh_package_dirs" in log_constants.keys():
-        mesh_package_dirs = log_constants[
+        mesh_package_dirs += log_constants[
             "HighLevelController.mesh_package_dirs"].split(";")
-    else:
-        mesh_package_dirs = []
     all_options = jiminy.load_config_json_string(
         log_constants["HighLevelController.options"])
 
