@@ -156,13 +156,13 @@ def make_cone(num_sides: int = 16) -> Geom:
     # Define vertex format
     vformat = GeomVertexFormat.get_v3n3t2()
     vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
-    vdata.uncleanSetNumRows(num_sides + 2)
+    vdata.uncleanSetNumRows(num_sides + 3)
     vertex = GeomVertexWriter(vdata, 'vertex')
     normal = GeomVertexWriter(vdata, 'normal')
     tcoord = GeomVertexWriter(vdata, 'texcoord')
 
     # Add radial points
-    for u in np.linspace(0.0, 2 * np.pi, num_sides):
+    for u in np.linspace(0.0, 2 * np.pi, num_sides + 1):
         x, y = math.cos(u), math.sin(u)
         vertex.addData3(x, y, 0.0)
         normal.addData3(x, y, 0.0)
@@ -182,9 +182,9 @@ def make_cone(num_sides: int = 16) -> Geom:
     # the triangles. For reference, see:
     # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2
     prim = GeomTriangles(Geom.UH_static)
-    for i in range(num_sides - 1):
-        prim.add_vertices(i, i + 1, num_sides)
-        prim.add_vertices(i + 1, i, num_sides + 1)
+    for i in range(num_sides):
+        prim.add_vertices(i, i + 1, num_sides + 1)
+        prim.add_vertices(i + 1, i, num_sides + 2)
 
     geom = Geom(vdata)
     geom.add_primitive(prim)
@@ -891,8 +891,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Create empty figure with the legend
         color_default = (0.0, 0.0, 0.0, 1.0)
-        handles = [Patch(color=c if c is not None else color_default, label=t)
-                   for t, c in items]
+        handles = [Patch(color=c or color_default, label=t) for t, c in items]
         fig = plt.figure()
         legend = fig.gca().legend(handles=handles, framealpha=1, frameon=True)
         fig.gca().set_axis_off()
@@ -1066,7 +1065,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                   root_path: str,
                   name: str,
                   show: bool,
-                  always_foreground: bool = False) -> None:
+                  always_foreground: Optional[bool] = None) -> None:
         """Turn rendering on or off for a single node.
         """
         node = self._groups[root_path].find(name)
@@ -1078,12 +1077,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             else:
                 node.set_tag("status", "hidden")
                 node.hide()
-            if always_foreground:
-                node.set_bin("fixed", 0)
-            else:
-                node.clear_bin()
-            node.set_depth_test(not always_foreground)
-            node.set_depth_write(not always_foreground)
+            if always_foreground is not None:
+                if always_foreground:
+                    node.set_bin("fixed", 0)
+                else:
+                    node.clear_bin()
+                node.set_depth_test(not always_foreground)
+                node.set_depth_write(not always_foreground)
 
     def set_camera_transform(self,
                              pos: Tuple3FType,
@@ -1306,12 +1306,12 @@ class Panda3dVisualizer(BaseVisualizer):
                 # Extract vertices and faces from geometry
                 if isinstance(geom, hppfcl.Convex):
                     vertices = [geom.points(i) for i in range(geom.num_points)]
-                    faces = [np.array(list(geom.polygons(i)))
+                    faces = [np.array(geom.polygons(i))
                              for i in range(geom.num_polygons)]
                 else:
                     vertices = [geom.vertices(i)
                                 for i in range(geom.num_vertices)]
-                    faces = [np.array(list(geom.tri_indices(i)))
+                    faces = [np.array(geom.tri_indices(i))
                              for i in range(geom.num_tris)]
 
                 # Create primitive triangle geometry

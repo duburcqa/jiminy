@@ -138,13 +138,17 @@ def read_log(fullpath: str,
     return data_dict, const_dict
 
 
-def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
-                                 robot: jiminy.Model) -> TrajectoryDataType:
+def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
+                                     robot: jiminy.Model
+                                     ) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
-    It extracts only the required data for replay, namely the evolution over
-    time of the joints positions.
+    .. note::
+        It extracts the required data for replay, namely temporal evolution of:
+          - robot configuration: to display of the robot on the scene,
+          - robot velocity: to update velocity-dependent markers such as DCM,
+          - external forces: to update force-dependent markers.
 
     :param log_data: Data from the log file, in a dictionnary.
     :param robot: Jiminy robot.
@@ -153,35 +157,55 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
               field "evolution_robot" and it is a list of State object. The
               other fields are additional information.
     """
-    t = log_data["Global.Time"]
+    times = log_data["Global.Time"]
     try:
-        # Extract the joint positions evolution over time
-        qe = np.stack([log_data[".".join(("HighLevelController", s))]
-                       for s in robot.logfile_position_headers], axis=-1)
+        # Extract the joint positions, velocities and external forces over time
+        positions = np.stack([
+            log_data.get(".".join(("HighLevelController", field)), [])
+            for field in robot.logfile_position_headers], axis=-1)
+        velocities = np.stack([
+            log_data.get(".".join(("HighLevelController", field)), [])
+            for field in robot.logfile_velocity_headers], axis=-1)
+        forces = np.stack([
+            log_data.get(".".join(("HighLevelController", field)), [])
+            for field in robot.logfile_f_external_headers], axis=-1)
+
+        # Determine available data
+        has_positions = len(positions) > 0
+        has_velocities = len(velocities) > 0
+        has_forces = len(forces) > 0
 
         # Determine whether to use the theoretical or flexible model
         use_theoretical_model = not robot.is_flexible
 
         # Create state sequence
         evolution_robot = []
-        for t_i, q_i in zip(t, qe):
-            evolution_robot.append(State(t=t_i, q=q_i))
+        q, v, f_ext = None, None, None
+        for i, t in enumerate(times):
+            if has_positions:
+                q = positions[i]
+            if has_velocities:
+                v = velocities[i]
+            if has_forces:
+                f_ext = [forces[i, (6 * (j - 1)):(6 * j)]
+                         for j in range(1, robot.pinocchio_model.njoints)]
+            evolution_robot.append(State(t=t, q=q, v=v, f_ext=f_ext))
 
-        traj_data = {'evolution_robot': evolution_robot,
-                     'robot': robot,
-                     'use_theoretical_model': use_theoretical_model}
+        traj_data = {"evolution_robot": evolution_robot,
+                     "robot": robot,
+                     "use_theoretical_model": use_theoretical_model}
     except KeyError:  # The current options are inconsistent with log data
         # Toggle flexibilities
         model_options = robot.get_model_options()
-        dyn_options = model_options['dynamics']
-        dyn_options['enableFlexibleModel'] = not robot.is_flexible
+        dyn_options = model_options["dynamics"]
+        dyn_options["enableFlexibleModel"] = not robot.is_flexible
         robot.set_model_options(model_options)
 
         # Get viewer data
-        traj_data = extract_viewer_data_from_log(log_data, robot)
+        traj_data = extract_trajectory_data_from_log(log_data, robot)
 
         # Restore back flexibilities
-        dyn_options['enableFlexibleModel'] = not robot.is_flexible
+        dyn_options["enableFlexibleModel"] = not robot.is_flexible
         robot.set_model_options(model_options)
 
     return traj_data
@@ -256,6 +280,9 @@ def emulate_sensors_data_from_log(log_data: Dict[str, np.ndarray],
               Note that it does not through an exception if out-of-range, but
               rather clip to desired time to the available data range.
     """
+    # Extract time from log
+    times = log_data['Global.Time']
+
     # Filter sensors whose data is available
     sensors_set, sensors_log = [], []
     for sensor_type, sensors_names in robot.sensors_names.items():
@@ -269,11 +296,10 @@ def emulate_sensors_data_from_log(log_data: Dict[str, np.ndarray],
                 sensors_set.append(sensor)
                 sensors_log.append(sensor_log)
 
-    def update_hook(t: float) -> None:
-        nonlocal sensors_set, sensors_log
+    def update_hook(t: float, q: np.ndarray, v: np.ndarray) -> None:
+        nonlocal times, sensors_set, sensors_log
 
         # Get current time ratio and surrounding indices in log data
-        times = log_data['Global.Time']
         i = bisect_right(times, t)
         i_prev, i_next = max(i - 1, 0), min(i, len(times) - 1)
         ratio = (t - times[i_prev]) / (times[i_next] - times[i_prev])

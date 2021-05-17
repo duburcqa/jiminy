@@ -142,7 +142,7 @@ class PipelineDesign(unittest.TestCase):
         env.reset()
         action = env.env.get_observation()['targets']['controller_0']
         action['Q'] += 1.0e-3
-        obs, _, _, _ = env.step(action)
+        obs, *_ = env.step(action)
 
         # Observation stacking is skipping the required number of frames
         stack_dt = (self.skip_frames_ratio + 1) * env.observe_dt
@@ -163,7 +163,7 @@ class PipelineDesign(unittest.TestCase):
         # Step until to reach the next stacking breakpoint
         n_steps_breakpoint = int(stack_dt // _gcd(env.step_dt, stack_dt))
         for _ in range(1, n_steps_breakpoint):
-            obs, _, _, _ = env.step(action)
+            obs, *_ = env.step(action)
         for i, t in enumerate(np.flip(obs['t'])):
             self.assertTrue(np.isclose(
                 t, n_steps_breakpoint * env.step_dt - i * stack_dt, 1.0e-6))

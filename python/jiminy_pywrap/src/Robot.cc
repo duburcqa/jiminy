@@ -139,6 +139,8 @@ namespace python
                                                           bp::return_value_policy<result_converter<true> >()))
                 .add_property("logfile_acceleration_headers", bp::make_function(&Model::getAccelerationFieldnames,
                                                               bp::return_value_policy<result_converter<true> >()))
+                .add_property("logfile_f_external_headers", bp::make_function(&Model::getForceExternalFieldnames,
+                                                            bp::return_value_policy<result_converter<true> >()))
                 ;
         }
 

@@ -3,7 +3,7 @@
 from copy import deepcopy
 from functools import reduce
 from collections import deque
-from typing import Tuple, Dict, Sequence, List, Any, Iterator, Union
+from typing import Optional, Tuple, Dict, Sequence, List, Any, Iterator, Union
 
 import numpy as np
 
@@ -26,8 +26,9 @@ class FilteredFrameStack(gym.Wrapper):
     """
     def __init__(self,  # pylint: disable=unused-argument
                  env: gym.Env,
-                 nested_filter_keys: Sequence[Union[Sequence[str], str]],
                  num_stack: int,
+                 nested_filter_keys: Optional[
+                     Sequence[Union[Sequence[str], str]]] = None,
                  **kwargs: Any):
         """
         :param env: Environment to wrap.
@@ -40,9 +41,8 @@ class FilteredFrameStack(gym.Wrapper):
                        wrapper generation.
         """
         # Sanitize user arguments if necessary
-        nested_filter_keys = [
-            [field] if isinstance(field, str) else field
-            for field in nested_filter_keys]
+        if nested_filter_keys is None:
+            nested_filter_keys = self.env.observation_space.spaces.keys()
 
         # Define helper that will be used to determine the leaf fields to stack
         def _get_branches(root: Any) -> Iterator[List[str]]:
@@ -56,7 +56,7 @@ class FilteredFrameStack(gym.Wrapper):
 
         # Backup user arguments
         self.nested_filter_keys: List[List[str]] = list(
-            map(list, nested_filter_keys))  # type: ignore[arg-type]
+            map(list, nested_filter_keys))
         self.num_stack = num_stack
 
         # Initialize base wrapper

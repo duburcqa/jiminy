@@ -665,6 +665,9 @@ namespace jiminy
                 systemDataIt->accelerationFieldnames =
                     addCircumfix(systemIt->robot->getAccelerationFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                systemDataIt->forceExternalFieldnames =
+                    addCircumfix(systemIt->robot->getForceExternalFieldnames(),
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->commandFieldnames =
                     addCircumfix(systemIt->robot->getCommandFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
@@ -701,6 +704,19 @@ namespace jiminy
                         returnCode = telemetrySender_.registerVariable(
                             systemDataIt->accelerationFieldnames,
                             systemDataIt->state.a);
+                    }
+                }
+                if (engineOptions_->telemetry.enableForceExternal)
+                {
+                    for (std::size_t i = 1; i < systemDataIt->state.fExternal.size(); ++i)
+                    {
+                        auto const & fext = systemDataIt->state.fExternal[i].toVector();
+                        for (uint8_t j = 0; j < 6U; ++j)
+                        {
+                            returnCode = telemetrySender_.registerVariable(
+                                systemDataIt->forceExternalFieldnames[(i - 1) * 6U + j],
+                                fext[j]);
+                        }
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -767,7 +783,7 @@ namespace jiminy
                 systemIt->robot->pncModel_,
                 systemIt->robot->pncData_);
 
-            // Update the telemetry internal state
+            // Update telemetry values
             if (engineOptions_->telemetry.enableConfiguration)
             {
                 telemetrySender_.updateValue(systemDataIt->positionFieldnames,
@@ -782,6 +798,19 @@ namespace jiminy
             {
                 telemetrySender_.updateValue(systemDataIt->accelerationFieldnames,
                                              systemDataIt->state.a);
+            }
+            if (engineOptions_->telemetry.enableForceExternal)
+            {
+                for (std::size_t i = 1; i < systemDataIt->state.fExternal.size(); ++i)
+                {
+                    auto const & fext = systemDataIt->state.fExternal[i].toVector();
+                    for (uint8_t j = 0; j < 6U; ++j)
+                    {
+                        telemetrySender_.updateValue(
+                            systemDataIt->forceExternalFieldnames[(i - 1) * 6U + j],
+                            fext[j]);
+                    }
+                }
             }
             if (engineOptions_->telemetry.enableCommand)
             {
@@ -857,6 +886,14 @@ namespace jiminy
     void computeExtraTerms(systemHolder_t           & system,
                            systemDataHolder_t const & systemData)
     {
+        /// This method is optimized to avoid redundant computations.
+        /// See `pinocchio::computeAllTerms` for reference:
+        ///
+        /// Based on https://github.com/stack-of-tasks/pinocchio/blob/a1df23c2f183d84febdc2099e5fbfdbd1fc8018b/src/algorithm/compute-all-terms.hxx
+        ///
+        /// Copyright (c) 2014-2020, CNRS
+        /// Copyright (c) 2018-2020, INRIA
+
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
 
@@ -885,16 +922,6 @@ namespace jiminy
                 }
                 data.oYcrb[parentIdx] += data.oYcrb[i];
             }
-        }
-
-        // Now that Ycrb is available, it is possible to infer directly the subtree center of masses
-        pinocchio::getComFromCrba(model, data);
-        data.Ig.mass() = data.oYcrb[0].mass();
-        data.Ig.lever().setZero();
-        data.Ig.inertia() = data.oYcrb[0].inertia();
-        for (int32_t i = 1; i < model.njoints; ++i)
-        {
-            data.com[i] = data.oMi[i].actInv(data.oYcrb[i].lever());
         }
 
         /* Neither 'aba' nor 'forwardDynamics' are computed the actual joints
@@ -928,7 +955,19 @@ namespace jiminy
             }
         }
 
-         pinocchio_overload::forwardKinematicsAcceleration(model, data, data.ddq);
+        /* Now that `data.oYcrb` and `data.h` are available, one can get directly
+           the position and velocity of the center of mass of each subtrees. */
+        data.Ig.mass() = data.oYcrb[0].mass();
+        data.Ig.lever().setZero();
+        data.Ig.inertia() = data.oYcrb[0].inertia();
+        data.com[0] = data.oYcrb[0].lever();
+        for (int32_t i = 1; i < model.njoints; ++i)
+        {
+            data.com[i] = data.oMi[i].actInv(data.oYcrb[i].lever());
+            data.vcom[i] = data.h[i].linear() / data.mass[i];
+        }
+
+        pinocchio_overload::forwardKinematicsAcceleration(model, data, data.ddq);
     }
 
     void computeAllExtraTerms(std::vector<systemHolder_t>           & systems,
@@ -2216,6 +2255,11 @@ namespace jiminy
     template<typename ...Args>
     std::tuple<bool_t, float64_t> isGcdIncluded(std::vector<systemDataHolder_t> const & systemsDataHolder, Args... values)
     {
+        if (systemsDataHolder.empty())
+        {
+            return isGcdIncluded(std::forward<Args>(values)...);
+        }
+
         float64_t minValue = INF;
         auto lambda = [&minValue, &values...](systemDataHolder_t const & systemData)
         {

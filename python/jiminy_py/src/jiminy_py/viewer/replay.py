@@ -13,11 +13,12 @@ from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 import av
 import numpy as np
 from tqdm import tqdm
+from scipy.interpolate import interp1d
 
 from .. import core as jiminy
 from ..log import (TrajectoryDataType,
                    build_robot_from_log,
-                   extract_viewer_data_from_log,
+                   extract_trajectory_data_from_log,
                    emulate_sensors_data_from_log)
 from .viewer import (
     COLORS, Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
@@ -53,8 +54,11 @@ def play_trajectories(trajs_data: Union[
                       watermark_fullpath: Optional[str] = None,
                       legend: Optional[Union[str, Sequence[str]]] = None,
                       enable_clock: bool = False,
-                      display_com: bool = None,
+                      display_com: Optional[bool] = None,
+                      display_dcm: Optional[bool] = None,
                       display_contacts: Optional[bool] = None,
+                      display_f_external: Optional[
+                          Union[Sequence[bool], bool]] = None,
                       scene_name: str = 'world',
                       record_video_path: Optional[str] = None,
                       start_paused: bool = False,
@@ -119,18 +123,34 @@ def play_trajectories(trajs_data: Union[
                    Optional: No legend if no color by default, the robots names
                    otherwise.
     :param enable_clock: Add clock on bottom right corner of the viewer.
-                         Only available with panda3d rendering backend.
+                         Only available with 'panda3d' rendering backend.
                          Optional: Disable by default.
     :param display_com: Whether or not to display the center of mass. `None`
                         to keep current viewers' settings, if any.
-                        Optional: Enable by default iif `viewers` is `None`.
+                        Optional: Enable by default iif `viewers` is `None`,
+                        and backend is 'panda3d'.
+    :param display_dcm: Whether or not to display the capture point (also
+                        called DCM). `None to keep current viewers' settings.
+                        Optional: Enable by default iif `viewers` is `None`,
+                        and backend is 'panda3d'.
     :param display_contacts: Whether or not to display the contact forces.
                              Note that the user is responsible for updating
-                             sensors data since `Viewer.display` is only
-                             computing kinematic quantities. `None` to keep
-                             current viewers' settings, if any.
+                             sensors data via `update_hooks`. `None` to keep
+                             current viewers' settings.
                              Optional: Enable by default iif `update_hooks` is
-                             specified and `viewers` is `None`.
+                             specified, `viewers` is `None`, and backend is
+                             'panda3d'.
+    :param display_f_external: Whether or not to display the external external
+                               forces applied at the joints on the robot. If a
+                               boolean is provided, the same visibility will be
+                               set for each joint, alternatively one can
+                               provide a boolean list whose ordering is
+                               consistent with `pinocchio_model.names`. Note
+                               that the user is responsible for updating the
+                               force buffer `viewer.f_external` via
+                               `update_hooks`. `None` to keep current viewers'
+                               settings.
+                               Optional: `None` by default.
     :param scene_name: Name of viewer's scene in which to display the robot.
                        Optional: Common default name if omitted.
     :param record_video_path: Fullpath location where to save generated video.
@@ -143,10 +163,10 @@ def play_trajectories(trajs_data: Union[
                          input before starting to play the trajectories.
                          Only available if `record_video_path` is None.
                          Optional: False by default.
-    :param backend: Backend, one of 'meshcat' or 'gepetto-gui'. If None,
-                    'meshcat' is used in notebook environment and 'gepetto-gui'
-                    otherwise.
-                    Optional: None by default.
+    :param backend: Backend, one of 'panda3d', 'meshcat', or 'gepetto-gui'. If
+                    `None`, the most appropriate backend will be selected
+                    automatically, based on hardware and python environment.
+                    Optional: `None` by default.
     :param delete_robot_on_close: Whether or not to delete the robot from the
                                   viewer when closing it.
                                   Optional: True by default.
@@ -166,21 +186,20 @@ def play_trajectories(trajs_data: Union[
 
     :returns: List of viewers used to play the trajectories.
     """
-    # Make sure trajectory data and update hook are list or tuple
+    # Make sure sequence arguments are list or tuple
     if not isinstance(trajs_data, (list, tuple)):
         trajs_data = [trajs_data]
     if update_hooks is None:
         update_hooks = [None] * len(trajs_data)
     if not isinstance(update_hooks, (list, tuple)):
         update_hooks = [update_hooks]
+    if not isinstance(viewers, (list, tuple)):
+        viewers = [viewers]
+    elif not viewers:
+        viewers = None
 
-    # Sanitize user-specified viewers
+    # Make sure the viewers are still running if specified
     if viewers is not None:
-        # Make sure that viewers is a list
-        if not isinstance(viewers, (list, tuple)):
-            viewers = [viewers]
-
-        # Make sure the viewers are still running if specified
         if not Viewer.is_open():
             viewers = None
         else:
@@ -189,15 +208,17 @@ def play_trajectories(trajs_data: Union[
                     viewers = None
                     break
 
-    # Handling of default display of CoM and contact forces
-    if viewers is None:
+    # Handling of default display of CoM, DCM and contact forces
+    if viewers is None and Viewer.backend.startswith('panda3d'):
         if display_com is None:
             display_com = True
+        if display_dcm is None:
+            display_dcm = True
         if display_contacts is None:
             display_contacts = all(func is not None for func in update_hooks)
 
     # Make sure it is possible to display contacts if requested
-    if display_contacts is not False:
+    if display_contacts:
         if any(traj['robot'].is_locked for traj in trajs_data):
             logger.debug(
                 "`display_contacts` is not available if robot is locked. "
@@ -241,16 +262,15 @@ def play_trajectories(trajs_data: Union[
             robot = traj['robot']
             robot_name = f"{uniq_id}_robot_{i}"
             use_theoretical_model = traj['use_theoretical_model']
-            viewer = Viewer(
-                robot,
-                use_theoretical_model=use_theoretical_model,
-                robot_color=color,
-                robot_name=robot_name,
-                lock=lock,
-                backend=backend,
-                scene_name=scene_name,
-                delete_robot_on_close=delete_robot_on_close,
-                open_gui_if_parent=(record_video_path is None))
+            viewer = Viewer(robot,
+                            use_theoretical_model=use_theoretical_model,
+                            robot_color=color,
+                            robot_name=robot_name,
+                            lock=lock,
+                            backend=backend,
+                            scene_name=scene_name,
+                            delete_robot_on_close=delete_robot_on_close,
+                            open_gui_if_parent=(record_video_path is None))
             viewers.append(viewer)
     else:
         # Reset robot model in viewer if requested color has changed
@@ -268,7 +288,7 @@ def play_trajectories(trajs_data: Union[
     viewer = viewers[0]
 
     # Make sure clock is only enabled for panda3d backend
-    if enable_clock and Viewer.backend != 'panda3d':
+    if enable_clock and not Viewer.backend.startswith('panda3d'):
         logger.warn(
             "`enable_clock` is only available with 'panda3d' backend.")
         enable_clock = False
@@ -297,14 +317,19 @@ def play_trajectories(trajs_data: Union[
 
     # Initialize robot configuration is viewer before any further processing
     for viewer_i, traj, offset in zip(viewers, trajs_data, xyz_offsets):
-        evolution_robot = traj['evolution_robot']
-        if evolution_robot:
-            i = bisect_right([s.t for s in evolution_robot], time_interval[0])
-            viewer_i.display(evolution_robot[i].q, offset)
-        if display_com is not None:
-            viewer_i.display_center_of_mass(display_com)
-        if display_contacts is not None:
-            viewer_i.display_contact_forces(display_contacts)
+        data = traj['evolution_robot']
+        if data:
+            i = bisect_right([s.t for s in data], time_interval[0])
+            viewer_i.display(data[i].q, data[i].v, offset)
+        if Viewer.backend.startswith('panda3d'):
+            if display_com is not None:
+                viewer_i.display_center_of_mass(display_com)
+            if display_dcm is not None:
+                viewer_i.display_capture_point(display_dcm)
+            if display_contacts is not None:
+                viewer_i.display_contact_forces(display_contacts)
+            if display_f_external is not None:
+                viewer_i.display_external_forces(display_f_external)
 
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:
@@ -331,7 +356,7 @@ def play_trajectories(trajs_data: Union[
 
         time_global = np.arange(
             time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
-        position_evolutions = []
+        position_evolutions, velocity_evolutions, force_evolutions = [], [], []
         for traj in trajs_data:
             if len(traj['evolution_robot']):
                 data_orig = traj['evolution_robot']
@@ -343,8 +368,28 @@ def play_trajectories(trajs_data: Union[
                 pos_orig = np.stack([s.q for s in data_orig], axis=0)
                 position_evolutions.append(jiminy.interpolate(
                     model, t_orig, pos_orig, time_global))
+                if data_orig[0].v is not None:
+                    vel_orig = np.stack([s.v for s in data_orig], axis=0)
+                    velocity_evolutions.append(
+                        interp1d(t_orig, vel_orig, axis=0)(time_global))
+                else:
+                    velocity_evolutions = (None,) * len(time_global)
+                if data_orig[0].f_ext is not None:
+                    forces = []
+                    for i in range(len(data_orig[0].f_ext)):
+                        f_ext_orig = np.stack([
+                            s.f_ext[i] for s in data_orig], axis=0)
+                        forces.append(interp1d(
+                            t_orig, f_ext_orig, axis=0)(time_global))
+                    force_evolutions.append([
+                        [f_ext[i] for f_ext in forces]
+                        for i in range(len(time_global))])
+                else:
+                    force_evolutions = (None,) * len(time_global)
             else:
                 position_evolutions.append(None)
+                velocity_evolutions.append(None)
+                force_evolutions.append(None)
 
         # Disable framerate limit of Panda3d for efficiency
         if Viewer.backend.startswith('panda3d'):
@@ -376,15 +421,21 @@ def play_trajectories(trajs_data: Union[
         # Add frames to video sequentially
         for i, t_cur in enumerate(tqdm(
                 time_global, desc="Rendering frames", disable=(not verbose))):
-            # Update the configurations of the robots
-            for viewer, positions, xyz_offset, update_hook in zip(
-                    viewers, position_evolutions, xyz_offsets, update_hooks):
-                if positions is not None:
-                    if update_hook is not None:
-                        update_hook_t = partial(update_hook, t_cur)
-                    else:
-                        update_hook_t = None
-                    viewer.display(positions[i], xyz_offset, update_hook_t)
+            # Update 3D view
+            for viewer, pos, vel, forces, xyz_offset, update_hook in zip(
+                    viewers, position_evolutions, velocity_evolutions,
+                    force_evolutions, xyz_offsets, update_hooks):
+                if pos is None:
+                    continue
+                q, v, f_ext = pos[i], vel[i], forces[i]
+                if f_ext is not None:
+                    for i, f_ext in enumerate(f_ext):
+                        viewer.f_external[i].vector[:] = f_ext
+                if update_hook is not None:
+                    update_hook_t = partial(update_hook, t_cur, q, v)
+                else:
+                    update_hook_t = None
+                viewer.display(q, v, xyz_offset, update_hook_t)
 
             # Update clock if enabled
             if enable_clock:
@@ -487,8 +538,18 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
 
     # For each pair (log, robot), extract a trajectory object for
     # `play_trajectories`
-    trajectories = [extract_viewer_data_from_log(log, robot)
+    trajectories = [extract_trajectory_data_from_log(log, robot)
                     for log, robot in zip(logs_data, robots)]
+
+    # Display external forces on root joint, if any
+    if robots[0].has_freeflyer:
+        if "display_f_external" not in kwargs and "viewers" not in kwargs:
+            if kwargs.get("use_theoretical_model", False):
+                njoints = robots[0].pinocchio_model_th.njoints
+            else:
+                njoints = robots[0].pinocchio_model.njoints
+            visibility = [True] + [False] * (njoints - 2)
+            kwargs["display_f_external"] = visibility
 
     # Define `update_hook` to emulate sensor update
     if not any(robot.is_locked for robot in robots):
@@ -543,11 +604,14 @@ def _play_logs_files_entrypoint() -> None:
         '-p', '--start_paused', action='store_true',
         help="Start in pause, waiting for keyboard input.")
     parser.add_argument(
-        '-s', '--speed_ratio', type=float, default=0.5,
+        '-s', '--speed_ratio', type=float, default=1.0,
         help="Real time to simulation time factor.")
     parser.add_argument(
         '-b', '--backend', default='panda3d',
         help="Display backend (panda3d, meshcat, or gepetto-gui).")
+    parser.add_argument(
+        '-v', '--record_video_path', default=None,
+        help="Fullpath location where to save generated video.")
     options, files = parser.parse_known_args()
     kwargs = vars(options)
     kwargs['logs_files'] = files
@@ -556,5 +620,5 @@ def _play_logs_files_entrypoint() -> None:
     play_logs_files(**{"remove_widgets_overlay": False, **kwargs})
 
     # Do not exit method as long as Jiminy viewer is open
-    while Viewer.is_alive():
+    while Viewer.is_alive() and not kwargs['record_video_path']:
         time.sleep(0.5)

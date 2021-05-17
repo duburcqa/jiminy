@@ -172,6 +172,7 @@ namespace jiminy
             config["enableConfiguration"] = true;
             config["enableVelocity"] = true;
             config["enableAcceleration"] = true;
+            config["enableForceExternal"] = false;
             config["enableCommand"] = true;
             config["enableMotorEffort"] = true;
             config["enableEnergy"] = true;
@@ -284,6 +285,7 @@ namespace jiminy
             bool_t const enableConfiguration;
             bool_t const enableVelocity;
             bool_t const enableAcceleration;
+            bool_t const enableForceExternal;
             bool_t const enableCommand;
             bool_t const enableMotorEffort;
             bool_t const enableEnergy;
@@ -293,6 +295,7 @@ namespace jiminy
             enableConfiguration(boost::get<bool_t>(options.at("enableConfiguration"))),
             enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
             enableAcceleration(boost::get<bool_t>(options.at("enableAcceleration"))),
+            enableForceExternal(boost::get<bool_t>(options.at("enableForceExternal"))),
             enableCommand(boost::get<bool_t>(options.at("enableCommand"))),
             enableMotorEffort(boost::get<bool_t>(options.at("enableMotorEffort"))),
             enableEnergy(boost::get<bool_t>(options.at("enableEnergy"))),

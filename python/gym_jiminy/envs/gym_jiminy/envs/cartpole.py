@@ -194,7 +194,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
     def is_done(self) -> bool:
         """ TODO: Write documentation.
         """
-        x, theta, _, _ = self.get_observation()
+        x, theta, *_ = self.get_observation()
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
     def compute_command(self,

@@ -182,6 +182,7 @@ namespace jiminy
     positionFieldnames(),
     velocityFieldnames(),
     accelerationFieldnames(),
+    forceExternalFieldnames(),
     commandFieldnames(),
     motorEffortFieldnames(),
     energyFieldname(),

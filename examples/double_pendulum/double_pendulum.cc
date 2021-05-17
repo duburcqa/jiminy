@@ -91,6 +91,7 @@ int main(int /* argc */, char_t * /* argv */[])
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableConfiguration")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableVelocity")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableAcceleration")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableForceExternal")) = false;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableCommand")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableMotorEffort")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableEnergy")) = true;

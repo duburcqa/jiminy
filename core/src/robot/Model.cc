@@ -26,6 +26,7 @@
 
 #include "urdf_parser/urdf_parser.h"
 
+#include "jiminy/core/robot/BasicSensors.h"
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/JointConstraint.h"
@@ -221,6 +222,7 @@ namespace jiminy
     positionFieldnames_(),
     velocityFieldnames_(),
     accelerationFieldnames_(),
+    forceExternalFieldnames_(),
     pncModelFlexibleOrig_(),
     jointsAcceleration_(),
     nq_(0),
@@ -1239,96 +1241,100 @@ namespace jiminy
             getJointsPositionIdx(pncModel_, rigidJointsNames_, rigidJointsPositionIdx_, false);
             getJointsVelocityIdx(pncModel_, rigidJointsNames_, rigidJointsVelocityIdx_, false);
 
-            /* Generate the fieldnames associated with the configuration,
-               velocity, and acceleration vectors. */
+            /* Generate the fieldnames associated with the configuration vector,
+               velocity, acceleration and external force vectors. */
             positionFieldnames_.clear();
             positionFieldnames_.resize(nq_);
             velocityFieldnames_.clear();
             velocityFieldnames_.resize(nv_);
             accelerationFieldnames_.clear();
             accelerationFieldnames_.resize(nv_);
-            std::vector<std::string> const & jointNames = pncModel_.names;
-            std::vector<std::string> jointShortNames = removeSuffix(jointNames, "Joint");
-            for (std::size_t i = 0; i < jointNames.size(); ++i)
+            forceExternalFieldnames_.clear();
+            forceExternalFieldnames_.resize(6U * (pncModel_.njoints - 1));
+            for (std::size_t i = 1; i < pncModel_.joints.size(); ++i)
             {
-                std::string const & jointName = jointNames[i];
-                jointIndex_t const & jointIdx = pncModel_.getJointId(jointName);
+                // Get joint name without "Joint" suffix, if any
+                std::string jointShortName = removeSuffix(pncModel_.names[i], "Joint");
 
-                int32_t const idx_q = pncModel_.joints[jointIdx].idx_q();
+                // Get joint postion and velocity starting indices
+                int32_t const idx_q = pncModel_.joints[i].idx_q();
+                int32_t const idx_v = pncModel_.joints[i].idx_v();
 
-                if (idx_q >= 0) // Otherwise the joint is not part of the vectorial representation
+                // Get joint prefix depending on its type
+                joint_t jointType;
+                std::string jointPrefix;
+                if (returnCode == hresult_t::SUCCESS)
                 {
-                    int32_t const idx_v = pncModel_.joints[jointIdx].idx_v();
-
-                    joint_t jointType;
-                    std::string jointPrefix;
-                    if (returnCode == hresult_t::SUCCESS)
+                    returnCode = getJointTypeFromIdx(pncModel_, i, jointType);
+                }
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    if (jointType == joint_t::FREE)
                     {
-                        returnCode = getJointTypeFromIdx(pncModel_, jointIdx, jointType);
+                        // Discard the joint name for FREE joint type since it is unique if any
+                        jointPrefix = FREE_FLYER_PREFIX_BASE_NAME;
+                        jointShortName = "";
                     }
-                    if (returnCode == hresult_t::SUCCESS)
+                    else
                     {
-                        if (jointType == joint_t::FREE)
-                        {
-                            // Discard the joint name for FREE joint type since it is unique if any
-                            jointPrefix = FREE_FLYER_PREFIX_BASE_NAME;
-                            jointShortNames[i] = "";
-                        }
-                        else
-                        {
-                            jointPrefix = JOINT_PREFIX_BASE;
-                        }
+                        jointPrefix = JOINT_PREFIX_BASE;
                     }
+                }
 
-                    std::vector<std::string> jointTypePositionSuffixes;
+                // Get joint position and velocity suffices depending on its type
+                std::vector<std::string> jointTypePositionSuffixes;
+                std::vector<std::string> jointTypeVelocitySuffixes;
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    returnCode = getJointTypePositionSuffixes(jointType,
+                                                              jointTypePositionSuffixes);
+                }
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    returnCode = getJointTypeVelocitySuffixes(jointType,
+                                                              jointTypeVelocitySuffixes);
+                }
+
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    // Define complete position fieldnames and backup them
                     std::vector<std::string> jointPositionFieldnames;
-                    if (returnCode == hresult_t::SUCCESS)
+                    for (std::string const & suffix : jointTypePositionSuffixes)
                     {
-                        returnCode = getJointTypePositionSuffixes(jointType,
-                                                                  jointTypePositionSuffixes);
+                        jointPositionFieldnames.emplace_back(
+                            jointPrefix + "Position" + jointShortName + suffix);
                     }
-                    if (returnCode == hresult_t::SUCCESS)
-                    {
-                        for (std::string const & suffix : jointTypePositionSuffixes)
-                        {
-                            jointPositionFieldnames.emplace_back(
-                                jointPrefix + "Position" + jointShortNames[i] + suffix);
-                        }
-                    }
-                    if (returnCode == hresult_t::SUCCESS)
-                    {
-                        std::copy(jointPositionFieldnames.begin(),
-                                  jointPositionFieldnames.end(),
-                                  positionFieldnames_.begin() + idx_q);
-                    }
+                    std::copy(jointPositionFieldnames.begin(),
+                              jointPositionFieldnames.end(),
+                              positionFieldnames_.begin() + idx_q);
 
-                    std::vector<std::string> jointTypeVelocitySuffixes;
+                    // Define complete velocity and acceleration fieldnames and backup them
                     std::vector<std::string> jointVelocityFieldnames;
                     std::vector<std::string> jointAccelerationFieldnames;
-                    if (returnCode == hresult_t::SUCCESS)
+                    for (std::string const & suffix : jointTypeVelocitySuffixes)
                     {
-                        returnCode = getJointTypeVelocitySuffixes(jointType,
-                                                                  jointTypeVelocitySuffixes);
+                        jointVelocityFieldnames.emplace_back(
+                            jointPrefix + "Velocity" + jointShortName + suffix);
+                        jointAccelerationFieldnames.emplace_back(
+                            jointPrefix + "Acceleration" + jointShortName + suffix);
                     }
-                    if (returnCode == hresult_t::SUCCESS)
+                    std::copy(jointVelocityFieldnames.begin(),
+                              jointVelocityFieldnames.end(),
+                              velocityFieldnames_.begin() + idx_v);
+                    std::copy(jointAccelerationFieldnames.begin(),
+                              jointAccelerationFieldnames.end(),
+                              accelerationFieldnames_.begin() + idx_v);
+
+                    // Define complete external force fieldnames and backup them
+                    std::vector<std::string> jointForceExternalFieldnames;
+                    for (std::string const & suffix : ForceSensor::fieldNames_)
                     {
-                        for (std::string const & suffix : jointTypeVelocitySuffixes)
-                        {
-                            jointVelocityFieldnames.emplace_back(
-                                jointPrefix + "Velocity" + jointShortNames[i] + suffix);
-                            jointAccelerationFieldnames.emplace_back(
-                                jointPrefix + "Acceleration" + jointShortNames[i] + suffix);
-                        }
+                        jointForceExternalFieldnames.emplace_back(
+                            jointPrefix + "ForceExternal" + jointShortName + suffix);
                     }
-                    if (returnCode == hresult_t::SUCCESS)
-                    {
-                        std::copy(jointVelocityFieldnames.begin(),
-                                  jointVelocityFieldnames.end(),
-                                  velocityFieldnames_.begin() + idx_v);
-                        std::copy(jointAccelerationFieldnames.begin(),
-                                  jointAccelerationFieldnames.end(),
-                                  accelerationFieldnames_.begin() + idx_v);
-                    }
+                    std::copy(jointForceExternalFieldnames.begin(),
+                              jointForceExternalFieldnames.end(),
+                              forceExternalFieldnames_.begin() + 6U * (i - 1));
                 }
             }
         }
@@ -1458,7 +1464,7 @@ namespace jiminy
 
             // Set the max number of contact points per collision pairs
             // Only a global collisionRequest is available for Pinocchio < 2.4.4, instead of one for each collision pair.
-            # if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4
+            #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 4 || (PINOCCHIO_MINOR_VERSION == 4 && PINOCCHIO_PATCH_VERSION >= 4)))
             for (hpp::fcl::CollisionRequest & collisionRequest : pncGeometryData_->collisionRequests)
             {
                 collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
@@ -1940,6 +1946,11 @@ namespace jiminy
     std::vector<std::string> const & Model::getAccelerationFieldnames(void) const
     {
         return accelerationFieldnames_;
+    }
+
+    std::vector<std::string> const & Model::getForceExternalFieldnames(void) const
+    {
+        return forceExternalFieldnames_;
     }
 
     std::vector<std::string> const & Model::getRigidJointsNames(void) const

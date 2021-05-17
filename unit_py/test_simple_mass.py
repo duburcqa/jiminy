@@ -183,7 +183,7 @@ class SimulateSimpleMass(unittest.TestCase):
                   the friction model is not assessed here.
         """
         # Create the robot
-        robot, _, _, joint_idx, frame_pose = self._setup(ShapeType.POINT)
+        robot, *_, joint_idx, frame_pose = self._setup(ShapeType.POINT)
 
         # Create the engine
         engine = jiminy.Engine()
@@ -226,7 +226,7 @@ class SimulateSimpleMass(unittest.TestCase):
                   also compared to the theoretical model.
         """
         # Create the robot and engine
-        robot, weight, height, _, _ = self._setup(shape)
+        robot, weight, height, *_ = self._setup(shape)
 
         # Create, initialize, and configure the engine
         engine = jiminy.Engine()
