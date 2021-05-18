@@ -378,9 +378,7 @@ namespace python
                      bp::arg("remove_all_forces") = false))
                 .def("start", &PyEngineMultiRobotVisitor::start,
                               (bp::arg("self"), "q_init_list", "v_init_list",
-                               bp::arg("a_init_list") = bp::object(),  // bp::object() means 'None' in Python
-                               bp::arg("reset_random_generator") = false,
-                               bp::arg("remove_all_forces") = false))
+                               bp::arg("a_init_list") = bp::object()))  // bp::object() means 'None' in Python
                 .def("step", &PyEngineMultiRobotVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired") = -1))
                 .def("stop", &EngineMultiRobot::stop, (bp::arg("self")))
@@ -543,9 +541,7 @@ namespace python
         static hresult_t start(EngineMultiRobot       & self,
                                bp::object       const & qInitPy,
                                bp::object       const & vInitPy,
-                               bp::object       const & aInitPy,
-                               bool             const & resetRandomGenerator,
-                               bool             const & removeForces)
+                               bp::object       const & aInitPy)
         {
             boost::optional<std::map<std::string, vectorN_t> > aInit = boost::none;
             if (!aInitPy.is_none())
@@ -554,9 +550,7 @@ namespace python
             }
             return self.start(convertFromPython<std::map<std::string, vectorN_t> >(qInitPy),
                               convertFromPython<std::map<std::string, vectorN_t> >(vInitPy),
-                              aInit,
-                              resetRandomGenerator,
-                              removeForces);
+                              aInit);
         }
 
         static hresult_t step(EngineMultiRobot       & self,
@@ -841,9 +835,7 @@ namespace python
                     &PyEngineVisitor::start,
                     (bp::arg("self"), "q_init", "v_init",
                      bp::arg("a_init") = bp::object(),
-                     bp::arg("is_state_theoretical") = false,
-                     bp::arg("reset_random_generator") = false,
-                     bp::arg("remove_all_forces") = false))
+                     bp::arg("is_state_theoretical") = false))
                 .def("simulate",
                     &PyEngineVisitor::simulate,
                     (bp::arg("self"), "t_end", "q_init", "v_init",
@@ -989,16 +981,14 @@ namespace python
                                vectorN_t  const & qInit,
                                vectorN_t  const & vInit,
                                bp::object const & aInitPy,
-                               bool       const & isStateTheoretical,
-                               bool       const & resetRandomGenerator,
-                               bool       const & removeForces)
+                               bool       const & isStateTheoretical)
         {
             boost::optional<vectorN_t> aInit = boost::none;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<vectorN_t>(aInitPy));
             }
-            return self.start(qInit, vInit, aInit, isStateTheoretical, resetRandomGenerator, removeForces);
+            return self.start(qInit, vInit, aInit, isStateTheoretical);
         }
 
         static hresult_t simulate(Engine           & self,

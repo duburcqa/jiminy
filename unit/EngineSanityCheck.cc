@@ -104,6 +104,7 @@ TEST(EngineSanity, EnergyConservation)
     float64_t tf = 10.0;
 
     // Run simulation
+    engine->reset();
     engine->start(q0, v0);
     Eigen::internal::set_is_malloc_allowed(false);
     engine->step(tf);
@@ -130,6 +131,7 @@ TEST(EngineSanity, EnergyConservation)
     engine->setOptions(simuOptions);
 
     // Run simulation
+    engine->reset();
     engine->start(q0, v0);
     Eigen::internal::set_is_malloc_allowed(false);
     engine->step(tf);

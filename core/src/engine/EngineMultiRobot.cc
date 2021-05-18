@@ -904,24 +904,21 @@ namespace jiminy
            computations here instead of 'computeForwardKinematics', we are
            doing the assumption that it is varying slowly enough to consider
            it constant during one integration step. */
-        if (!system.robot->hasConstraint())
+        data.oYcrb[0].setZero();
+        for (int32_t i = 1; i < model.njoints; ++i)
         {
-            data.oYcrb[0].setZero();
-            for (int32_t i = 1; i < model.njoints; ++i)
+            data.Ycrb[i] = model.inertias[i];
+            data.oYcrb[i] = data.oMi[i].act(model.inertias[i]);
+        }
+        for (int32_t i = model.njoints - 1; i > 0; --i)
+        {
+            jointIndex_t const & jointIdx = model.joints[i].id();
+            jointIndex_t const & parentIdx = model.parents[jointIdx];
+            if (parentIdx > 0)
             {
-                data.Ycrb[i] = model.inertias[i];
-                data.oYcrb[i] = data.oMi[i].act(model.inertias[i]);
+                data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
             }
-            for (int32_t i = model.njoints - 1; i > 0; --i)
-            {
-                jointIndex_t const & jointIdx = model.joints[i].id();
-                jointIndex_t const & parentIdx = model.parents[jointIdx];
-                if (parentIdx > 0)
-                {
-                    data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
-                }
-                data.oYcrb[parentIdx] += data.oYcrb[i];
-            }
+            data.oYcrb[parentIdx] += data.oYcrb[i];
         }
 
         /* Neither 'aba' nor 'forwardDynamics' are computed the actual joints
@@ -961,6 +958,7 @@ namespace jiminy
         data.Ig.lever().setZero();
         data.Ig.inertia() = data.oYcrb[0].inertia();
         data.com[0] = data.oYcrb[0].lever();
+        data.vcom[0] = data.h[0].linear() / data.mass[0];
         for (int32_t i = 1; i < model.njoints; ++i)
         {
             data.com[i] = data.oMi[i].actInv(data.oYcrb[i].lever());
@@ -1007,9 +1005,7 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::start(std::map<std::string, vectorN_t> const & qInit,
                                       std::map<std::string, vectorN_t> const & vInit,
-                                      boost::optional<std::map<std::string, vectorN_t> > const & aInit,
-                                      bool_t const & resetRandomNumbers,
-                                      bool_t const & removeAllForce)
+                                      boost::optional<std::map<std::string, vectorN_t> > const & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1151,9 +1147,6 @@ namespace jiminy
                 }
             }
         }
-
-        // Reset the robot, controller, engine, and registered impulse forces if requested
-        reset(resetRandomNumbers, removeAllForce);
 
         auto systemIt = systems_.begin();
         auto systemDataIt = systemsDataHolder_.begin();
@@ -1527,10 +1520,13 @@ namespace jiminy
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Reset the robot, controller, and engine
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = start(qInit, vInit, aInit, true, false);
+            // Reset the robot, controller, and engine
+            reset(true, false);
+
+            // Start the simulation
+            returnCode = start(qInit, vInit, aInit);
         }
 
         // Now that telemetry has been initialized, check simulation duration.

@@ -373,7 +373,7 @@ def play_trajectories(trajs_data: Union[
                     velocity_evolutions.append(
                         interp1d(t_orig, vel_orig, axis=0)(time_global))
                 else:
-                    velocity_evolutions = (None,) * len(time_global)
+                    velocity_evolutions.append((None,) * len(time_global))
                 if data_orig[0].f_ext is not None:
                     forces = []
                     for i in range(len(data_orig[0].f_ext)):
@@ -385,7 +385,7 @@ def play_trajectories(trajs_data: Union[
                         [f_ext[i] for f_ext in forces]
                         for i in range(len(time_global))])
                 else:
-                    force_evolutions = (None,) * len(time_global)
+                    force_evolutions.append((None,) * len(time_global))
             else:
                 position_evolutions.append(None)
                 velocity_evolutions.append(None)
@@ -563,6 +563,7 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
 
 
 def play_logs_files(logs_files: Union[str, Sequence[str]],
+                    mesh_package_dirs: Union[str, Sequence[str]] = (),
                     **kwargs) -> Sequence[Viewer]:
     """Play the content of a logfile in a viewer.
 
@@ -571,6 +572,10 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 
     :param logs_files: Either a single simulation log files in any format, or
                        a list.
+    :param mesh_package_dirs: Prepend custom mesh package seach path
+                              directories to the ones provided by log file. It
+                              may be necessary to specify it to read log
+                              generated on a different environment.
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
     """
     # Reformat as list
@@ -580,7 +585,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
     # Extract log data and build robot for each log file
     robots, logs_data = [], []
     for log_file in logs_files:
-        robot, (log_data, _) = build_robot_from_log(log_file)
+        robot, (log_data, _) = build_robot_from_log(
+            log_file, mesh_package_dirs)
         logs_data.append(log_data)
         robots.append(robot)
 
@@ -610,15 +616,22 @@ def _play_logs_files_entrypoint() -> None:
         '-b', '--backend', default='panda3d',
         help="Display backend (panda3d, meshcat, or gepetto-gui).")
     parser.add_argument(
+        '-m', '--mesh_package_dir', default=None,
+        help="Fullpath location of mesh package directory.")
+    parser.add_argument(
         '-v', '--record_video_path', default=None,
         help="Fullpath location where to save generated video.")
     options, files = parser.parse_known_args()
     kwargs = vars(options)
     kwargs['logs_files'] = files
 
+    # Convert mesh package dir into a list
+    if kwargs['mesh_package_dir'] is not None:
+        kwargs['mesh_package_dirs'] = [kwargs.pop('mesh_package_dir')]
+
     # Replay trajectories
     play_logs_files(**{"remove_widgets_overlay": False, **kwargs})
 
-    # Do not exit method as long as Jiminy viewer is open
-    while Viewer.is_alive() and not kwargs['record_video_path']:
+    # Do not exit method as long as a graphical window is open
+    while Viewer.has_gui():
         time.sleep(0.5)
