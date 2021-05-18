@@ -130,8 +130,8 @@ def _flatten_dict(dt, delimiter="/", prevent_delimiter=False):
 ray.tune.logger.flatten_dict = _flatten_dict
 
 
-def initialize(num_cpus: int = 0,
-               num_gpus: int = 0,
+def initialize(num_cpus: int,
+               num_gpus: int,
                log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
                debug: bool = False,
@@ -141,29 +141,34 @@ def initialize(num_cpus: int = 0,
     It will be used later for almost everything from dashboard, remote/client
     management, to multithreaded environment.
 
+    .. note:
+        The default Tensorboard port will be used, namely 6006 if available,
+        using 0.0.0.0 (binding to all IPv4 addresses on local machine).
+        Similarly, Ray dashboard port is 8265 if available. In both cases, the
+        port will be increased interatively until to find one available.
+
     :param num_cpus: Maximum number of CPU threads that can be executed in
                      parallel. Note that it does not actually reserve part of
                      the CPU, so that several processes can reserve the number
-                     of threads available on the system at the same time. 0 for
-                     unlimited.
-                     Optional: Unlimited by default.
+                     of threads available on the system at the same time.
     :param num_gpu: Maximum number of GPU unit that can be used, which can be
                     fractional to only allocate part of the resource. Note that
                     contrary to CPU resource, the memory is likely to actually
                     be reserve and allocated by the process, in particular
-                    using Tensorflow backend. 0 for unlimited.
-                    Optional: Unlimited by default.
+                    using Tensorflow backend.
     :param log_root_path: Fullpath of root log directory.
                           Optional: location of this file / log by default.
-    :param log_name: Name of the subdirectory where to save data.
+    :param log_name: Name of the subdirectory where to save data. `None` to
+                     use default name, empty string '' to set it interactively
+                     in command prompt. It must be a valid Python identifier.
                      Optional: full date _ hostname by default.
     :param debug: Whether or not to display debugging trace.
                   Optional: Disable by default.
     :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
 
-    :returns: lambda function to pass Ray Trainers to monitor the learning
-              progress in tensorboard.
+    :returns: lambda function to pass a `ray.Trainer` to monitor learning
+              progress in Tensorboard.
     """
     # Initialize Ray server, if not already running
     if not ray.is_initialized():
@@ -187,10 +192,13 @@ def initialize(num_cpus: int = 0,
             # The host to bind the dashboard server to
             dashboard_host="0.0.0.0")
 
-    # Configure Tensorboard
+    # Handling of default log root directory
     if log_root_path is None:
         log_root_path = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "..", "log")
+    log_root_path = os.path.abspath(log_root_path)
+
+    # Configure Tensorboard
     if 'tb' not in locals().keys():
         tb = TensorBoard()
         tb.configure(host="0.0.0.0", logdir=log_root_path)
@@ -199,10 +207,25 @@ def initialize(num_cpus: int = 0,
             print(f"Started Tensorboard {url}. "
                   f"Root directory: {log_root_path}")
 
-    # Create log directory
-    if log_name is None:
+    # Define log filename interactively if requested
+    if log_name == "":
+        while True:
+            log_name = input(
+                "Enter desired log subdirectory name (empty for default)...")
+            if not log_name or log_name.isidentifier():
+                break
+            else:
+                print("Unvalid name. Only Python identifiers are supported.")
+
+    # Handling of default log name and sanity checks
+    if not log_name:
         log_name = "_".join((datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
                             socket.gethostname().replace('-', '_')))
+    else:
+        assert log_name.isidentifier(), (
+            "Log name must be a valid Python identifier.")
+
+    # Create log directory
     log_path = os.path.join(log_root_path, log_name)
     pathlib.Path(log_path).mkdir(parents=True, exist_ok=True)
     if verbose:
