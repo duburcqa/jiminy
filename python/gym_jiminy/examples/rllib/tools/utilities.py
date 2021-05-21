@@ -12,7 +12,6 @@ from typing import Optional, Callable, Dict, Any, Type
 
 import gym
 import numpy as np
-from gym.wrappers import FlattenObservation
 from tensorboard.program import TensorBoard
 
 import ray
@@ -25,6 +24,7 @@ from ray.rllib.utils.filter import NoFilter
 from ray.rllib.utils.typing import PolicyID
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.models.preprocessors import get_preprocessor
 
 from gym_jiminy.common.utils import clip
 
@@ -52,7 +52,7 @@ PRINT_RESULT_FIELDS_FILTER = [
 logger = logging.getLogger(__name__)
 
 
-class MonitorInfoMixin:
+class MonitorInfoCallback:
     # Base on `rllib/examples/custom_metrics_and_callbacks.py` example.
 
     def on_episode_step(self,
@@ -79,7 +79,7 @@ class MonitorInfoMixin:
             base_env.get_unwrapped()[0].step_dt * episode.length
 
 
-class CurriculumUpdateMixin:
+class CurriculumUpdateCallback:
     def on_train_result(self,
                         *,
                         trainer,
@@ -100,6 +100,8 @@ def build_callbacks(*callback_mixins: Type) -> DefaultCallbacks:
 
     :param callback_mixins: Sequence of callback mixin objects.
     """
+    # TODO: Remove this method after release of ray 1.4.0 and use instead
+    # `ray.rllib.agents.callbacks.MultiCallbacks`.
     return type("UnifiedCallbacks", (*callback_mixins, DefaultCallbacks), {})
 
 
@@ -454,8 +456,21 @@ def evaluate(env: gym.Env,
     if viewer_kwargs is None:
         viewer_kwargs = {}
 
-    # Wrap the environment to flatten the observation space
-    env = FlattenObservation(env)
+    # Wrap the environment to flatten the observation space if necessary
+    class _FlattenObservation(gym.ObservationWrapper):
+        def __init__(self, env):
+            super().__init__(env)
+            preprocessor_class = get_preprocessor(env.observation_space)
+            self._preprocessor = preprocessor_class(env.observation_space)
+            self.observation_space = self._preprocessor.observation_space
+            self._observation = self.observation_space.sample()
+
+        def observation(self, observation):
+            self._preprocessor.write(observation, self._observation, 0)
+            return self._observation
+
+    if not isinstance(env.observation_space, gym.spaces.Box):
+        env = _FlattenObservation(env)
 
     # Extract some proxies for convenience
     observation_space, action_space = env.observation_space, env.action_space
