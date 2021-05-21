@@ -10,11 +10,9 @@ import inspect
 from datetime import datetime
 from typing import Optional, Callable, Dict, Any, Type
 
-import numpy as np
-import torch
 import gym
+import numpy as np
 from gym.wrappers import FlattenObservation
-import tensorflow as tf
 from tensorboard.program import TensorBoard
 
 import ray
@@ -29,6 +27,15 @@ from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
 
 from gym_jiminy.common.utils import clip
+
+try:
+    import torch
+except ModuleNotFoundError:
+    pass
+try:
+    import tensorflow as tf
+except ModuleNotFoundError:
+    pass
 
 
 PRINT_RESULT_FIELDS_FILTER = [

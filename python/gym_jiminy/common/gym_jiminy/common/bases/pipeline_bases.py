@@ -313,7 +313,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         if self.augment_observation:
             self.observation_space = deepcopy(self.env.observation_space)
             self.observation_space.spaces.setdefault(
-                'features', gym.spaces.Dict())[self.observer_name] = \
+                'features', gym.spaces.Dict()).spaces[self.observer_name] = \
                 self.observer.observation_space
         else:
             self.observation_space = self.observer.observation_space
