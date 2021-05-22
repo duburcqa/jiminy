@@ -335,13 +335,14 @@ def train(train_agent: Trainer,
             # Record video and log data of the result if requested
             iter = result["training_iteration"]
             if evaluation_period > 0 and iter % evaluation_period == 0:
-                if record_video:
-                    record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
-                else:
-                    record_video_path = None
-                env, _ = test(train_agent, explore=True, viewer_kwargs={
-                    "record_video_path": record_video_path,
-                    "scene_name": f"iter_{iter}"})
+                record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
+                env, _ = test(train_agent,
+                              explore=True,
+                              enable_replay=record_video,
+                              viewer_kwargs={
+                                  "record_video_path": record_video_path,
+                                  "scene_name": f"iter_{iter}"
+                              })
                 env.write_log(f"{train_agent.logdir}/iter_{iter}.hdf5")
 
             # Check terminal conditions
