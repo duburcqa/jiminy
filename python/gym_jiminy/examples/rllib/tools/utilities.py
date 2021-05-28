@@ -1,5 +1,4 @@
 import os
-import copy
 import math
 import json
 import shutil
@@ -15,6 +14,7 @@ import numpy as np
 from tensorboard.program import TensorBoard
 
 import ray
+from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
 from ray.rllib.env import BaseEnv
@@ -105,12 +105,14 @@ def build_callbacks(*callback_mixins: Type) -> DefaultCallbacks:
     return type("UnifiedCallbacks", (*callback_mixins, DefaultCallbacks), {})
 
 
-def _flatten_dict(dt, delimiter="/", prevent_delimiter=False):
+def _flatten_dict(dt: Dict[str, Any],
+                  delimiter: str = "/",
+                  prevent_delimiter: bool = False) -> Dict[str, Any]:
     """Must be patched to use copy instead of deepcopy to prevent memory
     allocation, significantly impeding computational efficiency of `TBXLogger`,
     and slowing down the optimization by about 25%.
     """
-    dt = copy.copy(dt)
+    dt = dt.copy()
     if prevent_delimiter and any(delimiter in key for key in dt):
         # Raise if delimiter is any of the keys
         raise ValueError(
@@ -143,6 +145,7 @@ def initialize(num_cpus: int,
                num_gpus: int,
                log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
+               logger_cls: type = TBXLogger,
                debug: bool = False,
                verbose: bool = True) -> Callable[[], Logger]:
     """Initialize Ray and Tensorboard daemons.
@@ -179,6 +182,10 @@ def initialize(num_cpus: int,
     :returns: lambda function to pass a `ray.Trainer` to monitor learning
               progress in Tensorboard.
     """
+    # Make sure provided logger class derives from ray.tune.logger.Logger
+    assert issubclass(logger_cls, Logger),(
+        "Logger class must derive from `ray.tune.logger.Logger`")
+
     # Initialize Ray server, if not already running
     if not ray.is_initialized():
         ray.init(
@@ -229,7 +236,7 @@ def initialize(num_cpus: int,
     # Handling of default log name and sanity checks
     if not log_name:
         log_name = "_".join((datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
-                            socket.gethostname().replace('-', '_')))
+                             socket.gethostname().replace('-', '_')))
     else:
         assert log_name.isidentifier(), (
             "Log name must be a valid Python identifier.")
@@ -242,7 +249,7 @@ def initialize(num_cpus: int,
 
     # Define Ray logger
     def logger_creator(config):
-        return TBXLogger(config, log_path)
+        return logger_cls(config, log_path)
 
     return logger_creator
 
@@ -354,7 +361,7 @@ def train(train_agent: Trainer,
                 if verbose:
                     print("Problem solved successfully!")
                 break
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, RayTaskError):
         if verbose:
             print("Interrupting training...")
 
