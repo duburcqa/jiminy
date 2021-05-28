@@ -520,7 +520,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     self.click_mouse_x, self.click_mouse_y = mouseX, mouseY
                 elif (self.click_mouse_x == mouseX and
                         self.click_mouse_y == mouseY):
-                    self.click_on_node()
+                    # Do not enable clicking on node for Qt widget since
+                    # mouse watcher and picker are not properly configured.
+                    if self.picker_ray is not None:
+                        self.click_on_node()
             self.last_mouse_x, self.last_mouse_y = mouseX, mouseY
             self.key_map[key] = value
         elif key in ["wheelup", "wheeldown"]:
@@ -812,9 +815,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
             # Replace non-standard hard drive prefix on Windows
             if sys.platform.startswith('win'):
-                mesh_path = re.sub(r'^/([A-Za-z])',
-                                   lambda m: m.group(1).upper() + ":",
-                                   mesh_path)
+                mesh_path = re.sub(
+                    r'^/([A-Za-z])', lambda m: m[1].upper() + ":", mesh_path)
 
             root, ns = parse_xml(mesh_path)
             if ns:
