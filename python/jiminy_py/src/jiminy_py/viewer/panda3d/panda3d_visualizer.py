@@ -695,7 +695,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     frame: Optional[FrameType] = None) -> None:
         """Must be patched to make sure node's name is valid.
         """
-        assert name.isidentifier(), (
+        assert re.match(r'^[A-Za-z0-9_]+$', name), (
             "Node's name is restricted to case-insensitive ASCII alphanumeric "
             "string (including underscores).")
         super().append_node(root_path, name, node, frame)

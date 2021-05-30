@@ -1,4 +1,5 @@
 import os
+import re
 import math
 import json
 import shutil
@@ -228,17 +229,18 @@ def initialize(num_cpus: int,
         while True:
             log_name = input(
                 "Enter desired log subdirectory name (empty for default)...")
-            if not log_name or log_name.isidentifier():
+            if not log_name or re.match(r'^[A-Za-z0-9_]+$', log_name):
                 break
             else:
                 print("Unvalid name. Only Python identifiers are supported.")
 
     # Handling of default log name and sanity checks
     if not log_name:
-        log_name = "_".join((datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
-                             socket.gethostname().replace('-', '_')))
+        log_name = "_".join((
+            datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
+            re.sub(r'[^A-Za-z0-9_]', "_", socket.gethostname())))
     else:
-        assert log_name.isidentifier(), (
+        assert re.match(r'^[A-Za-z0-9_]+$', log_name), (
             "Log name must be a valid Python identifier.")
 
     # Create log directory
@@ -258,6 +260,7 @@ def train(train_agent: Trainer,
           max_timesteps: int = 0,
           max_iters: int = 0,
           evaluation_period: int = 0,
+          checkpoint_period: int = 0,
           record_video: bool = True,
           verbose: bool = True) -> str:
     """Train a model on a specific environment using a given agent.
@@ -279,6 +282,9 @@ def train(train_agent: Trainer,
                               number of training steps, and save the log file
                               and a video of the result in log folder if
                               requested. 0 to disable.
+                              Optional: Disable by default.
+    :param checkpoint_period: Backup trainer every given number of training
+                              steps in log folder if requested. 0 to disable.
                               Optional: Disable by default.
     :param record_video: Whether or not to enable video recording during
                          evaluation.
@@ -331,16 +337,16 @@ def train(train_agent: Trainer,
         while True:
             # Perform one iteration of training the policy
             result = train_agent.train()
+            iter = result["training_iteration"]
 
-            # Print current training result
+            # Print current training result summary
             msg_data = []
             for field in PRINT_RESULT_FIELDS_FILTER:
                 if field in result.keys():
                     msg_data.append(f"{field}: {result[field]:.5g}")
             print(" - ".join(msg_data))
 
-            # Record video and log data of the result if requested
-            iter = result["training_iteration"]
+            # Record video and log data of the result
             if evaluation_period > 0 and iter % evaluation_period == 0:
                 record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
                 env, _ = test(train_agent,
@@ -352,6 +358,10 @@ def train(train_agent: Trainer,
                               })
                 env.write_log(f"{train_agent.logdir}/iter_{iter}.hdf5")
 
+            # Backup the policy
+            if checkpoint_period > 0 and iter % checkpoint_period == 0:
+                train_agent.save()
+
             # Check terminal conditions
             if max_timesteps > 0 and result["timesteps_total"] > max_timesteps:
                 break
@@ -361,9 +371,11 @@ def train(train_agent: Trainer,
                 if verbose:
                     print("Problem solved successfully!")
                 break
-    except (KeyboardInterrupt, RayTaskError):
+    except KeyboardInterrupt:
         if verbose:
             print("Interrupting training...")
+    except RayTaskError as e:
+        logger.warning(str(e))
 
     # Backup trained agent and return file location
     return train_agent.save()
