@@ -316,6 +316,9 @@ namespace jiminy
         /// \brief Get drift of the constraints.
         constVectorBlock_t getConstraintsDrift(void) const;
 
+        /// \brief Get lambda multipliers of the constraints.
+        constVectorBlock_t getConstraintsLambda(void) const;
+
         /// \brief Returns true if at least one constraint is active on the robot.
         bool_t hasConstraint(void) const;
 
@@ -426,6 +429,7 @@ namespace jiminy
         uint64_t constraintsMask_;                              ///< Mask used to filter out disable constraints from full jacobian and drift
         matrixN_t constraintsJacobian_;                         ///< Matrix holding the jacobian of the constraints
         vectorN_t constraintsDrift_;                            ///< Vector holding the drift of the constraints
+        vectorN_t constraintsLambda_;                           ///< Vector holding the lambda multipliers of the constraints
 
         vectorN_t positionLimitMin_;                            ///< Upper position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
         vectorN_t positionLimitMax_;                            ///< Lower position limit of the whole configuration vector

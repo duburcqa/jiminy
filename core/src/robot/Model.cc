@@ -28,10 +28,10 @@
 
 #include "jiminy/core/robot/BasicSensors.h"
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
-#include "jiminy/core/robot/AbstractConstraint.h"
-#include "jiminy/core/robot/JointConstraint.h"
-#include "jiminy/core/robot/SphereConstraint.h"
-#include "jiminy/core/robot/FixedFrameConstraint.h"
+#include "jiminy/core/constraints/AbstractConstraint.h"
+#include "jiminy/core/constraints/JointConstraint.h"
+#include "jiminy/core/constraints/SphereConstraint.h"
+#include "jiminy/core/constraints/FixedFrameConstraint.h"
 #include "jiminy/core/utilities/Pinocchio.h"
 #include "jiminy/core/utilities/Random.h"
 #include "jiminy/core/utilities/Helpers.h"
@@ -216,6 +216,7 @@ namespace jiminy
     constraintsMask_(0U),
     constraintsJacobian_(),
     constraintsDrift_(),
+    constraintsLambda_(),
     positionLimitMin_(),
     positionLimitMax_(),
     velocityLimit_(),
@@ -250,6 +251,7 @@ namespace jiminy
             constraintsMask_ = 0U;
             constraintsJacobian_.resize(0, 0);
             constraintsDrift_.resize(0);
+            constraintsLambda_.resize(0);
             jointsAcceleration_.clear();
 
             // Initialize URDF info
@@ -1208,11 +1210,14 @@ namespace jiminy
                         Eigen::NoChange);
                     constraintsDrift_.conservativeResize(
                         constraintsDrift_.size() + constraintDim - constraintDimPrev);
+                    constraintsLambda_.conservativeResize(
+                        constraintsLambda_.size() + constraintDim - constraintDimPrev);
                 }
 
                 // Update global jacobian and drift of all constraints
                 constraintsJacobian_.block(constraintsMask_, 0, constraintDim, pncModel_.nv) = constraint->getJacobian();
                 constraintsDrift_.segment(constraintsMask_, constraintDim) = constraint->getDrift();
+                constraintsLambda_.segment(constraintsMask_, constraintDim) = constraint->lambda_;
                 constraintsMask_ += constraintDim;
             });
 
@@ -1572,6 +1577,7 @@ namespace jiminy
             constraintsMask_ = 0U;
             constraintsJacobian_ = matrixN_t::Zero(constraintSize, pncModel_.nv);
             constraintsDrift_ = vectorN_t::Zero(constraintSize);
+            constraintsLambda_ = vectorN_t::Zero(constraintSize);
         }
 
         return returnCode;
@@ -2010,6 +2016,12 @@ namespace jiminy
     constVectorBlock_t Model::getConstraintsDrift(void) const
     {
         return constraintsDrift_.head(constraintsMask_);
+    }
+
+    /// \brief Get drift of the constraints.
+    constVectorBlock_t Model::getConstraintsLambda(void) const
+    {
+        return constraintsLambda_.head(constraintsMask_);
     }
 
     /// \brief Returns true if at least one constraint is active on the robot.

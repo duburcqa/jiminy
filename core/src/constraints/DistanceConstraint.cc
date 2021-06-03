@@ -3,7 +3,7 @@
 #include "jiminy/core/robot/Model.h"
 #include "jiminy/core/utilities/Pinocchio.h"
 
-#include "jiminy/core/robot/DistanceConstraint.h"
+#include "jiminy/core/constraints/DistanceConstraint.h"
 
 
 namespace jiminy
@@ -75,9 +75,10 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Set jacobian / drift to right dimension
+            // Set jacobian, drift and multipliers to right dimension
             jacobian_ = matrixN_t::Zero(1, model->pncModel_.nv);
             drift_ = vectorN_t::Zero(1);
+            lambda_ = vectorN_t::Zero(1);
 
             // Initialize frames jacobians buffers
             firstFrameJacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);

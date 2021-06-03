@@ -3,7 +3,7 @@
 #include "jiminy/core/robot/Model.h"
 #include "jiminy/core/utilities/Pinocchio.h"
 
-#include "jiminy/core/robot/WheelConstraint.h"
+#include "jiminy/core/constraints/WheelConstraint.h"
 
 
 namespace jiminy
@@ -76,10 +76,11 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Set jacobian / drift to right dimension
+            // Initialize jacobian, drift and multipliers
             frameJacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
             jacobian_ = matrixN_t::Zero(3, model->pncModel_.nv);
             drift_ = vectorN_t::Zero(3);
+            lambda_ = vectorN_t::Zero(3);
 
             // Get the current frame position and use it as reference
             transformRef_ = model->pncData_.oMf[frameIdx_];

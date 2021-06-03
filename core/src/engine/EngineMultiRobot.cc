@@ -34,9 +34,9 @@
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
-#include "jiminy/core/robot/AbstractConstraint.h"
-#include "jiminy/core/robot/JointConstraint.h"
-#include "jiminy/core/robot/FixedFrameConstraint.h"
+#include "jiminy/core/constraints/AbstractConstraint.h"
+#include "jiminy/core/constraints/JointConstraint.h"
+#include "jiminy/core/constraints/FixedFrameConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/control/ControllerFunctor.h"
@@ -3696,8 +3696,11 @@ namespace jiminy
 
             // Compute kinematic constraints
             system.robot->computeConstraints(q, v);
+
+            // Extract updated jacobian, drift and multipliers
             auto constraintsJacobian = system.robot->getConstraintsJacobian();
             auto constraintsDrift = system.robot->getConstraintsDrift();
+            data.lambda_c = system.robot->getConstraintsLambda();
 
             // Compute constraints bounds
             lo = vectorN_t::Constant(constraintsDrift.size(), -INF);
@@ -3788,20 +3791,23 @@ namespace jiminy
             systemData.constraintsHolder.foreach(
                 constraintsHolderType_t::BOUNDS_JOINTS,
                 [&constraintIdx,
-                    &lambda_c = const_cast<vectorN_t &>(data.lambda_c),  // std::as_const is not supported by gcc<7.3
-                    &u = systemData.state.u,
-                    &uInternal = systemData.state.uInternal,
-                    &joints = const_cast<pinocchio::Model::JointModelVector &>(model.joints)](
-                    std::shared_ptr<AbstractConstraintBase> const & constraint,
+                 &lambda_c = const_cast<vectorN_t &>(data.lambda_c),  // std::as_const is not supported by gcc<7.3
+                 &u = systemData.state.u,
+                 &uInternal = systemData.state.uInternal,
+                 &joints = const_cast<pinocchio::Model::JointModelVector &>(model.joints)](
+                    std::shared_ptr<AbstractConstraintBase> & constraint,
                     constraintsHolderType_t const & /* holderType */)
                 {
                     if (!constraint->getIsEnabled())
                     {
                         return;
                     }
+
+                    vectorN_t & uJoint = constraint->lambda_;
+                    uJoint = lambda_c.segment(constraintIdx, constraint->getDim());
+
                     auto const & jointConstraint = static_cast<JointConstraint const &>(*constraint.get());
                     auto const & jointModel = joints[jointConstraint.getJointIdx()];
-                    auto uJoint = lambda_c.segment(constraintIdx, constraint->getDim());  // auto to avoid memory allocation
                     jointModel.jointVelocitySelector(uInternal) += uJoint;
                     jointModel.jointVelocitySelector(u) += uJoint;
                     constraintIdx += constraint->getDim();
@@ -3812,7 +3818,7 @@ namespace jiminy
             for ( ; constraintIt != systemData.constraintsHolder.contactFrames.end() ;
                 ++constraintIt, ++forceIt)
             {
-                auto const & constraint = *constraintIt->second.get();
+                auto & constraint = *constraintIt->second.get();
                 if (!constraint.getIsEnabled())
                 {
                     continue;
@@ -3820,8 +3826,9 @@ namespace jiminy
                 auto const & frameConstraint = static_cast<FixedFrameConstraint const &>(constraint);
                 // if (frameConstraint.getIsTranslationFixed())
                 // {
-                    // Extract force from lagrangian multipliers
-                    auto fextWorld = data.lambda_c.segment<3>(constraintIdx);  // auto to avoid memory allocation
+                    // Extract part of the lagrangian multipliers associated with the constraint
+                    vectorN_t & fextWorld = constraint.lambda_;
+                    fextWorld = data.lambda_c.segment<3>(constraintIdx);
 
                     // Convert the force from local world aligned to local frame
                     frameIndex_t const & frameIdx = frameConstraint.getFrameIdx();
@@ -3839,7 +3846,7 @@ namespace jiminy
             systemData.constraintsHolder.foreach(
                 constraintsHolderType_t::COLLISION_BODIES,
                 [&constraintIdx, &fext, &model, &data](
-                    std::shared_ptr<AbstractConstraintBase> const & constraint,
+                    std::shared_ptr<AbstractConstraintBase> & constraint,
                     constraintsHolderType_t const & /* holderType */)
                 {
                     if (!constraint || !constraint->getIsEnabled())
@@ -3850,8 +3857,9 @@ namespace jiminy
                     // auto const & collisionConstraint = static_cast<SphereConstraint const &>(*constraint.get());
                     auto const & collisionConstraint = static_cast<FixedFrameConstraint const &>(*constraint.get());
 
-                    // Extract force from lagrangian multipliers
-                    auto fextWorld = data.lambda_c.segment<3>(constraintIdx);  // auto to avoid memory allocation
+                    // Extract part of the lagrangian multipliers associated with the constraint
+                    vectorN_t & fextWorld = constraint->lambda_;
+                    fextWorld = data.lambda_c.segment<3>(constraintIdx);
 
                     // Convert the force from local world aligned to local parent joint
                     frameIndex_t const & frameIdx = collisionConstraint.getFrameIdx();

@@ -1,6 +1,6 @@
 #include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/robot/AbstractMotor.h"
-#include "jiminy/core/robot/AbstractConstraint.h"
+#include "jiminy/core/constraints/AbstractConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 
 #include <boost/python.hpp>
@@ -64,6 +64,7 @@ namespace python
                 .add_property("constraints", PyModelVisitor::getConstraints)
                 .def("get_constraints_jacobian", &PyModelVisitor::getConstraintsJacobian)
                 .def("get_constraints_drift", &PyModelVisitor::getConstraintsDrift)
+                .def("get_constraints_lambda", &PyModelVisitor::getConstraintsLambda)
 
                 .def("get_flexible_configuration_from_rigid", &PyModelVisitor::getFlexibleConfigurationFromRigid,
                                                               (bp::arg("self"), "rigid_position"))
@@ -199,6 +200,11 @@ namespace python
         static vectorN_t getConstraintsDrift(Model & self)
         {
             return self.getConstraintsDrift();
+        }
+
+        static vectorN_t getConstraintsLambda(Model & self)
+        {
+            return self.getConstraintsLambda();
         }
 
         static vectorN_t getFlexibleConfigurationFromRigid(Model           & self,

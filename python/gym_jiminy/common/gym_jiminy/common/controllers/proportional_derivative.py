@@ -109,11 +109,11 @@ class PDController(BaseControllerBlock):
         vel_low = vel_low[self.motor_to_encoder]
 
         # Set the action space. Note that it is flattened.
-        self.action_space = gym.spaces.Dict(
+        self.action_space = gym.spaces.Dict(OrderedDict(
             Q=gym.spaces.Box(
                 low=pos_low, high=pos_high, dtype=np.float64),
             V=gym.spaces.Box(
-                low=vel_low, high=vel_high, dtype=np.float64))
+                low=vel_low, high=vel_high, dtype=np.float64)))
 
     def get_fieldnames(self) -> FieldDictNested:
         pos_fieldnames = [f"targetPosition{name}"

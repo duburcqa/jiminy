@@ -68,8 +68,14 @@ def sample(low: Union[float, np.ndarray] = -1.0,
         if shape is None:
             shape = dev.shape
         else:
-            raise ValueError(
-                "One cannot specify 'shape' if 'low' and 'high' are vectors.")
+            try:
+                shape = list(shape)
+                np.broadcast(
+                    np.empty(shape, dtype=[]), np.empty(dev.shape, dtype=[]))
+            except ValueError as e:
+                raise ValueError(
+                    f"'shape' {shape} must be broadcastable with 'low' and "
+                    f"'high' {dev.shape} if specified.") from e
 
     # Sample from normalized distribution.
     # Note that some distributions are not normalized by default

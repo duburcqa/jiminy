@@ -61,7 +61,12 @@ def velocityXYZRPYToXYZQuat(xyzrpy: np.ndarray,
 
 def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
                             v: np.ndarray) -> np.ndarray:
-    """Convert the derivative of [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].
+    """Convert the derivative of [X,Y,Z,Qx,Qy,Qz,Qw] to [X,Y,Z,Roll,Pitch,Yaw].
+
+    .. note:
+        No need to estimate yaw angle to get RPY velocity, since
+        `computeRpyJacobianInverse` only depends on Roll and Pitch angles.
+        However, it is not the case for the linear velocity.
 
     .. warning::
         Linear velocity in XYZRPY must be local-world-aligned frame, while

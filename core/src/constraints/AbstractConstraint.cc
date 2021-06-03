@@ -1,12 +1,13 @@
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Macros.h"
 
-#include "jiminy/core/robot/AbstractConstraint.h"
+#include "jiminy/core/constraints/AbstractConstraint.h"
 
 
 namespace jiminy
 {
     AbstractConstraintBase::AbstractConstraintBase(void) :
+    lambda_(),
     model_(),
     isAttached_(false),
     isEnabled_(true),
@@ -63,6 +64,7 @@ namespace jiminy
 
     void AbstractConstraintBase::disable(void)
     {
+        lambda_.setZero();
         isEnabled_ = false;
     }
 
