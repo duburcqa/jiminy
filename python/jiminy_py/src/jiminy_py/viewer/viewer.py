@@ -1996,7 +1996,7 @@ class Viewer:
                 if not self._markers_visibility[marker_name]:
                     continue
                 marker_data = {key: value() if callable(value) else value
-                                for key, value in marker_data.items()}
+                               for key, value in marker_data.items()}
                 (x, y, z), (qx, qy, qz, qw) = marker_data["pose"]
                 pose_dict[marker_name] = ((x, y, z), (qw, qx, qy, qz))
                 r, g, b, a = marker_data["color"]

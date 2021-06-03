@@ -19,10 +19,9 @@ from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
 from ray.rllib.env import BaseEnv
-from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
+from ray.rllib.evaluation import MultiAgentEpisode
 from ray.rllib.policy import Policy
 from ray.rllib.utils.filter import NoFilter
-from ray.rllib.utils.typing import PolicyID
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
 from ray.rllib.models.preprocessors import get_preprocessor
@@ -58,11 +57,9 @@ class MonitorInfoCallback:
 
     def on_episode_step(self,
                         *,
-                        worker: RolloutWorker,
-                        base_env: BaseEnv,
                         episode: MultiAgentEpisode,
-                        env_index: Optional[int] = None,
                         **kwargs) -> None:
+        super().on_episode_step(episode=episode, **kwargs)
         info = episode.last_info_for()
         if info is not None:
             for key, value in info.items():
@@ -70,12 +67,10 @@ class MonitorInfoCallback:
 
     def on_episode_end(self,
                        *,
-                       worker: RolloutWorker,
                        base_env: BaseEnv,
-                       policies: Dict[PolicyID, Policy],
                        episode: MultiAgentEpisode,
-                       env_index: Optional[int] = None,
                        **kwargs) -> None:
+        super().on_episode_end(base_env=base_env, episode=episode, **kwargs)
         episode.custom_metrics["episode_duration"] = \
             base_env.get_unwrapped()[0].step_dt * episode.length
 
@@ -86,6 +81,7 @@ class CurriculumUpdateCallback:
                         trainer,
                         result: dict,
                         **kwargs) -> None:
+        super().on_train_result(trainer=trainer, result=result, **kwargs)
         trainer.workers.foreach_worker(
             lambda worker: worker.foreach_env(
                 lambda env: env.update(result)))
@@ -184,7 +180,7 @@ def initialize(num_cpus: int,
               progress in Tensorboard.
     """
     # Make sure provided logger class derives from ray.tune.logger.Logger
-    assert issubclass(logger_cls, Logger),(
+    assert issubclass(logger_cls, Logger), (
         "Logger class must derive from `ray.tune.logger.Logger`")
 
     # Initialize Ray server, if not already running
@@ -199,7 +195,7 @@ def initialize(num_cpus: int,
             # Enable object eviction in LRU order under memory pressure
             _lru_evict=False,
             # Whether or not to execute the code serially (for debugging)
-            local_mode=False,
+            local_mode=debug,
             # Logging level
             logging_level=logging.DEBUG if debug else logging.ERROR,
             # Whether to redirect the output from every worker to the driver
