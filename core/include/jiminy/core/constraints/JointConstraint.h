@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "jiminy/core/Types.h"
-#include "jiminy/core/robot/AbstractConstraint.h"
+#include "jiminy/core/constraints/AbstractConstraint.h"
 
 
 namespace jiminy

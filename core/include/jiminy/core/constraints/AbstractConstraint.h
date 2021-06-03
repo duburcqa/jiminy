@@ -103,6 +103,9 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         void detach(void);
 
+    public:
+        vectorN_t lambda_;                  ///< Lambda multipliers.
+
     protected:
         std::weak_ptr<Model const> model_;  ///< Model on which the constraint operates.
         bool_t isAttached_;                 ///< Flag to indicate if the constraint has been attached to a model.
