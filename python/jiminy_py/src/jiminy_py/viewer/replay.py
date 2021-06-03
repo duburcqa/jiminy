@@ -6,7 +6,7 @@ import tempfile
 import argparse
 from bisect import bisect_right
 from functools import partial
-from threading import Thread, Lock
+from threading import Thread, RLock
 from itertools import cycle, islice
 from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 
@@ -255,7 +255,7 @@ def play_trajectories(trajs_data: Union[
 
         # Create new viewer instances
         viewers = []
-        lock = Lock()
+        lock = RLock()
         uniq_id = next(tempfile._get_candidate_names())
         for i, (traj, color) in enumerate(zip(trajs_data, robots_colors)):
             # Create a new viewer instance, and load the robot in it

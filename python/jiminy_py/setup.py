@@ -120,7 +120,8 @@ setup(
         "pyppeteer",
         # Used internally by Viewer to send/receive Javascript requests while
         # recording video using Meshcat backend.
-        "requests_html"
+        # `HTMLSession` is available since 0.3.4.
+        "requests_html>=0.3.4"
     ],
     extras_require={
       "dev": [

@@ -1,5 +1,5 @@
 import os
-import copy
+import re
 import math
 import json
 import shutil
@@ -10,25 +10,32 @@ import inspect
 from datetime import datetime
 from typing import Optional, Callable, Dict, Any, Type
 
-import numpy as np
-import torch
 import gym
-from gym.wrappers import FlattenObservation
-import tensorflow as tf
+import numpy as np
 from tensorboard.program import TensorBoard
 
 import ray
+from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
 from ray.rllib.env import BaseEnv
-from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
+from ray.rllib.evaluation import MultiAgentEpisode
 from ray.rllib.policy import Policy
 from ray.rllib.utils.filter import NoFilter
-from ray.rllib.utils.typing import PolicyID
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.models.preprocessors import get_preprocessor
 
 from gym_jiminy.common.utils import clip
+
+try:
+    import torch
+except ModuleNotFoundError:
+    pass
+try:
+    import tensorflow as tf
+except ModuleNotFoundError:
+    pass
 
 
 PRINT_RESULT_FIELDS_FILTER = [
@@ -45,16 +52,14 @@ PRINT_RESULT_FIELDS_FILTER = [
 logger = logging.getLogger(__name__)
 
 
-class MonitorInfoMixin:
+class MonitorInfoCallback:
     # Base on `rllib/examples/custom_metrics_and_callbacks.py` example.
 
     def on_episode_step(self,
                         *,
-                        worker: RolloutWorker,
-                        base_env: BaseEnv,
                         episode: MultiAgentEpisode,
-                        env_index: Optional[int] = None,
                         **kwargs) -> None:
+        super().on_episode_step(episode=episode, **kwargs)
         info = episode.last_info_for()
         if info is not None:
             for key, value in info.items():
@@ -62,22 +67,21 @@ class MonitorInfoMixin:
 
     def on_episode_end(self,
                        *,
-                       worker: RolloutWorker,
                        base_env: BaseEnv,
-                       policies: Dict[PolicyID, Policy],
                        episode: MultiAgentEpisode,
-                       env_index: Optional[int] = None,
                        **kwargs) -> None:
+        super().on_episode_end(base_env=base_env, episode=episode, **kwargs)
         episode.custom_metrics["episode_duration"] = \
             base_env.get_unwrapped()[0].step_dt * episode.length
 
 
-class CurriculumUpdateMixin:
+class CurriculumUpdateCallback:
     def on_train_result(self,
                         *,
                         trainer,
                         result: dict,
                         **kwargs) -> None:
+        super().on_train_result(trainer=trainer, result=result, **kwargs)
         trainer.workers.foreach_worker(
             lambda worker: worker.foreach_env(
                 lambda env: env.update(result)))
@@ -93,15 +97,19 @@ def build_callbacks(*callback_mixins: Type) -> DefaultCallbacks:
 
     :param callback_mixins: Sequence of callback mixin objects.
     """
+    # TODO: Remove this method after release of ray 1.4.0 and use instead
+    # `ray.rllib.agents.callbacks.MultiCallbacks`.
     return type("UnifiedCallbacks", (*callback_mixins, DefaultCallbacks), {})
 
 
-def _flatten_dict(dt, delimiter="/", prevent_delimiter=False):
+def _flatten_dict(dt: Dict[str, Any],
+                  delimiter: str = "/",
+                  prevent_delimiter: bool = False) -> Dict[str, Any]:
     """Must be patched to use copy instead of deepcopy to prevent memory
     allocation, significantly impeding computational efficiency of `TBXLogger`,
     and slowing down the optimization by about 25%.
     """
-    dt = copy.copy(dt)
+    dt = dt.copy()
     if prevent_delimiter and any(delimiter in key for key in dt):
         # Raise if delimiter is any of the keys
         raise ValueError(
@@ -134,6 +142,7 @@ def initialize(num_cpus: int,
                num_gpus: int,
                log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
+               logger_cls: type = TBXLogger,
                debug: bool = False,
                verbose: bool = True) -> Callable[[], Logger]:
     """Initialize Ray and Tensorboard daemons.
@@ -170,6 +179,10 @@ def initialize(num_cpus: int,
     :returns: lambda function to pass a `ray.Trainer` to monitor learning
               progress in Tensorboard.
     """
+    # Make sure provided logger class derives from ray.tune.logger.Logger
+    assert issubclass(logger_cls, Logger), (
+        "Logger class must derive from `ray.tune.logger.Logger`")
+
     # Initialize Ray server, if not already running
     if not ray.is_initialized():
         ray.init(
@@ -182,7 +195,7 @@ def initialize(num_cpus: int,
             # Enable object eviction in LRU order under memory pressure
             _lru_evict=False,
             # Whether or not to execute the code serially (for debugging)
-            local_mode=False,
+            local_mode=debug,
             # Logging level
             logging_level=logging.DEBUG if debug else logging.ERROR,
             # Whether to redirect the output from every worker to the driver
@@ -212,17 +225,18 @@ def initialize(num_cpus: int,
         while True:
             log_name = input(
                 "Enter desired log subdirectory name (empty for default)...")
-            if not log_name or log_name.isidentifier():
+            if not log_name or re.match(r'^[A-Za-z0-9_]+$', log_name):
                 break
             else:
                 print("Unvalid name. Only Python identifiers are supported.")
 
     # Handling of default log name and sanity checks
     if not log_name:
-        log_name = "_".join((datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
-                            socket.gethostname().replace('-', '_')))
+        log_name = "_".join((
+            datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
+            re.sub(r'[^A-Za-z0-9_]', "_", socket.gethostname())))
     else:
-        assert log_name.isidentifier(), (
+        assert re.match(r'^[A-Za-z0-9_]+$', log_name), (
             "Log name must be a valid Python identifier.")
 
     # Create log directory
@@ -233,7 +247,7 @@ def initialize(num_cpus: int,
 
     # Define Ray logger
     def logger_creator(config):
-        return TBXLogger(config, log_path)
+        return logger_cls(config, log_path)
 
     return logger_creator
 
@@ -242,6 +256,7 @@ def train(train_agent: Trainer,
           max_timesteps: int = 0,
           max_iters: int = 0,
           evaluation_period: int = 0,
+          checkpoint_period: int = 0,
           record_video: bool = True,
           verbose: bool = True) -> str:
     """Train a model on a specific environment using a given agent.
@@ -263,6 +278,9 @@ def train(train_agent: Trainer,
                               number of training steps, and save the log file
                               and a video of the result in log folder if
                               requested. 0 to disable.
+                              Optional: Disable by default.
+    :param checkpoint_period: Backup trainer every given number of training
+                              steps in log folder if requested. 0 to disable.
                               Optional: Disable by default.
     :param record_video: Whether or not to enable video recording during
                          evaluation.
@@ -315,25 +333,30 @@ def train(train_agent: Trainer,
         while True:
             # Perform one iteration of training the policy
             result = train_agent.train()
+            iter = result["training_iteration"]
 
-            # Print current training result
+            # Print current training result summary
             msg_data = []
             for field in PRINT_RESULT_FIELDS_FILTER:
                 if field in result.keys():
                     msg_data.append(f"{field}: {result[field]:.5g}")
             print(" - ".join(msg_data))
 
-            # Record video and log data of the result if requested
-            iter = result["training_iteration"]
+            # Record video and log data of the result
             if evaluation_period > 0 and iter % evaluation_period == 0:
-                if record_video:
-                    record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
-                else:
-                    record_video_path = None
-                env, _ = test(train_agent, explore=True, viewer_kwargs={
-                    "record_video_path": record_video_path,
-                    "scene_name": f"iter_{iter}"})
+                record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
+                env, _ = test(train_agent,
+                              explore=True,
+                              enable_replay=record_video,
+                              viewer_kwargs={
+                                  "record_video_path": record_video_path,
+                                  "scene_name": f"iter_{iter}"
+                              })
                 env.write_log(f"{train_agent.logdir}/iter_{iter}.hdf5")
+
+            # Backup the policy
+            if checkpoint_period > 0 and iter % checkpoint_period == 0:
+                train_agent.save()
 
             # Check terminal conditions
             if max_timesteps > 0 and result["timesteps_total"] > max_timesteps:
@@ -347,6 +370,8 @@ def train(train_agent: Trainer,
     except KeyboardInterrupt:
         if verbose:
             print("Interrupting training...")
+    except RayTaskError as e:
+        logger.warning(str(e))
 
     # Backup trained agent and return file location
     return train_agent.save()
@@ -447,8 +472,21 @@ def evaluate(env: gym.Env,
     if viewer_kwargs is None:
         viewer_kwargs = {}
 
-    # Wrap the environment to flatten the observation space
-    env = FlattenObservation(env)
+    # Wrap the environment to flatten the observation space if necessary
+    class _FlattenObservation(gym.ObservationWrapper):
+        def __init__(self, env):
+            super().__init__(env)
+            preprocessor_class = get_preprocessor(env.observation_space)
+            self._preprocessor = preprocessor_class(env.observation_space)
+            self.observation_space = self._preprocessor.observation_space
+            self._observation = self.observation_space.sample()
+
+        def observation(self, observation):
+            self._preprocessor.write(observation, self._observation, 0)
+            return self._observation
+
+    if not isinstance(env.observation_space, gym.spaces.Box):
+        env = _FlattenObservation(env)
 
     # Extract some proxies for convenience
     observation_space, action_space = env.observation_space, env.action_space

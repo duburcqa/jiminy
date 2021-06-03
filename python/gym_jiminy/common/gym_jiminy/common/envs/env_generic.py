@@ -253,12 +253,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             position_limit_upper = position_limit_upper[joints_position_idx]
             velocity_limit = velocity_limit[joints_velocity_idx]
 
-        return spaces.Dict(Q=spaces.Box(low=position_limit_lower,
-                                        high=position_limit_upper,
-                                        dtype=np.float64),
-                           V=spaces.Box(low=-velocity_limit,
-                                        high=velocity_limit,
-                                        dtype=np.float64))
+        return spaces.Dict(OrderedDict(
+            Q=spaces.Box(low=position_limit_lower,
+                         high=position_limit_upper,
+                         dtype=np.float64),
+            V=spaces.Box(low=-velocity_limit,
+                         high=velocity_limit,
+                         dtype=np.float64)))
 
     def _get_sensors_space(self) -> gym.Space:
         """Get sensor space.
