@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ET
 from copy import deepcopy
 from functools import wraps, partial
 from bisect import bisect_right
-from threading import Lock
+from threading import RLock
 from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
 
 import psutil
@@ -282,13 +282,13 @@ class Viewer:
     _camera_motion = None
     _camera_travelling = None
     _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
-    _lock = Lock()  # Unique lock for every viewer in same thread by default
+    _lock = RLock()  # Unique lock for every viewer in same thread by default
 
     def __init__(self,
                  robot: jiminy.Model,
                  use_theoretical_model: bool = False,
                  robot_color: Optional[Union[str, Tuple4FType]] = None,
-                 lock: Optional[Lock] = None,
+                 lock: Optional[RLock] = None,
                  backend: Optional[str] = None,
                  open_gui_if_parent: Optional[bool] = None,
                  delete_robot_on_close: bool = False,
@@ -312,7 +312,7 @@ class Viewer:
                             RGBA codes as a list of 4 floating-point values
                             ranging from 0.0 and 1.0, and a few named colors.
                             Optional: Disable by default.
-        :param lock: Custom threading.Lock. Required for parallel rendering.
+        :param lock: Custom threading.RLock. Required for parallel rendering.
                      It is required since some backends does not support
                      multiple simultaneous connections (e.g. corbasever).
                      `None` to use the unique lock of the current thread.
@@ -520,18 +520,30 @@ class Viewer:
     def __must_be_open(fct: Callable) -> Callable:
         @wraps(fct)
         def fct_safe(*args: Any, **kwargs: Any) -> Any:
-            self = None
+            self = Viewer
             if args and isinstance(args[0], Viewer):
                 self = args[0]
             self = kwargs.get('self', self)
-            if not Viewer.is_open(self):
+            if not self.is_open():
                 raise RuntimeError(
                     "No backend available. Please start one before calling "
                     f"'{fct.__name__}'.")
             return fct(*args, **kwargs)
         return fct_safe
 
+    def __with_lock(fct: Callable) -> Callable:
+        @wraps(fct)
+        def fct_safe(*args: Any, **kwargs: Any) -> Any:
+            self = Viewer
+            if args and isinstance(args[0], Viewer):
+                self = args[0]
+            self = kwargs.get('self', self)
+            with self._lock:
+                return fct(*args, **kwargs)
+        return fct_safe
+
     @__must_be_open
+    @__with_lock
     def _setup(self,
                robot: jiminy.Model,
                robot_color: Optional[Union[str, Tuple4FType]] = None) -> None:
@@ -751,6 +763,7 @@ class Viewer:
             self.display_external_forces(self._display_f_external)
 
     @staticmethod
+    @__with_lock
     def open_gui(start_if_needed: bool = False) -> bool:
         """Open a new viewer graphical interface.
 
@@ -845,6 +858,7 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
+    @__with_lock
     def wait(require_client: bool = False) -> None:
         """Wait for all the meshes to finish loading in every clients.
 
@@ -876,6 +890,7 @@ class Viewer:
             is_open_ = is_open_ and self.__is_open
         return is_open_
 
+    @__with_lock
     def close(self=None) -> None:
         """Close a given viewer instance, or all of them if no instance is
         specified.
@@ -1039,6 +1054,7 @@ class Viewer:
         return colorized_urdf_path
 
     @staticmethod
+    @__with_lock
     def __connect_backend(start_if_needed: bool = False,
                           open_gui: Optional[bool] = None,
                           close_at_exit: bool = True,
@@ -1211,6 +1227,7 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
+    @__with_lock
     def _delete_nodes_viewer(nodes_path: Sequence[str]) -> None:
         """Delete a 'node' in Gepetto-viewer.
 
@@ -1236,6 +1253,7 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
+    @__with_lock
     def set_watermark(img_fullpath: Optional[str] = None,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> None:
@@ -1273,6 +1291,7 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
+    @__with_lock
     def set_legend(labels: Optional[Sequence[str]] = None) -> None:
         """Insert legend on top left corner of the window.
 
@@ -1314,6 +1333,7 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
+    @__with_lock
     def set_clock(time: Optional[float] = None) -> None:
         """Insert clock on bottom right corner of the window.
 
@@ -1329,6 +1349,7 @@ class Viewer:
             logger.warning("Adding clock is only available for Panda3d.")
 
     @__must_be_open
+    @__with_lock
     def set_camera_transform(self,
                              position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
@@ -1482,6 +1503,7 @@ class Viewer:
         Viewer._camera_travelling = None
 
     @__must_be_open
+    @__with_lock
     def set_color(self,
                   color: Optional[Union[str, Tuple4FType]] = None
                   ) -> None:
@@ -1515,6 +1537,7 @@ class Viewer:
             logger.warning("This method is only supported by Panda3d.")
 
     @__must_be_open
+    @__with_lock
     def capture_frame(self,
                       width: int = None,
                       height: int = None,
@@ -1594,6 +1617,7 @@ class Viewer:
             return rgba_array[:, :, :-1]
 
     @__must_be_open
+    @__with_lock
     def save_frame(self,
                    image_path: str,
                    width: int = None,
@@ -1626,6 +1650,7 @@ class Viewer:
                 f.write(img_data)
 
     @__must_be_open
+    @__with_lock
     def display_visuals(self, visibility: bool) -> None:
         """Set the visibility of the visual model of the robot.
 
@@ -1636,6 +1661,7 @@ class Viewer:
         self.refresh()
 
     @__must_be_open
+    @__with_lock
     def display_collisions(self, visibility: bool) -> None:
         """Set the visibility of the collision model of the robot.
 
@@ -1646,6 +1672,7 @@ class Viewer:
         self.refresh()
 
     @__must_be_open
+    @__with_lock
     def add_marker(self,
                    name: str,
                    shape: str,
@@ -1736,6 +1763,7 @@ class Viewer:
         return marker_data
 
     @__must_be_open
+    @__with_lock
     def display_center_of_mass(self, visibility: bool) -> None:
         """Display the position of the center of mass as a sphere.
 
@@ -1758,6 +1786,7 @@ class Viewer:
         self._display_com = visibility
 
     @__must_be_open
+    @__with_lock
     def display_capture_point(self, visibility: bool) -> None:
         """Display the position of the capture point,also called divergent
         component of motion (DCM), as a sphere.
@@ -1786,6 +1815,7 @@ class Viewer:
             self.refresh()
 
     @__must_be_open
+    @__with_lock
     def display_contact_forces(self, visibility: bool) -> None:
         """Display forces associated with the contact sensors attached to the
         robot, as a capsule of variable length depending of Fz.
@@ -1820,6 +1850,7 @@ class Viewer:
             self.refresh()
 
     @__must_be_open
+    @__with_lock
     def display_external_forces(self,
                                 visibility: Union[Sequence[bool], bool]
                                 ) -> None:
@@ -1871,6 +1902,7 @@ class Viewer:
             self.refresh()
 
     @__must_be_open
+    @__with_lock
     def remove_marker(self, name: str) -> None:
         """Remove a marker, based on its name.
 
@@ -1882,6 +1914,7 @@ class Viewer:
         self._gui.remove_node(self._markers_group, name)
 
     @__must_be_open
+    @__with_lock
     def refresh(self,
                 force_update_visual: bool = False,
                 force_update_collision: bool = False,
@@ -1900,89 +1933,88 @@ class Viewer:
         :param force_update_collision: Force update of collision geometries.
         :param wait: Whether or not to wait for rendering to finish.
         """
-        with self._lock:
-            # Extract pinocchio model and data pairs to update
-            model_list, data_list, model_type_list = [], [], []
-            if self._client.display_collisions or force_update_collision:
-                model_list.append(self._client.collision_model)
-                data_list.append(self._client.collision_data)
-                model_type_list.append(pin.GeometryType.COLLISION)
-            if self._client.display_visuals or force_update_visual:
-                model_list.append(self._client.visual_model)
-                data_list.append(self._client.visual_data)
-                model_type_list.append(pin.GeometryType.VISUAL)
+        # Extract pinocchio model and data pairs to update
+        model_list, data_list, model_type_list = [], [], []
+        if self._client.display_collisions or force_update_collision:
+            model_list.append(self._client.collision_model)
+            data_list.append(self._client.collision_data)
+            model_type_list.append(pin.GeometryType.COLLISION)
+        if self._client.display_visuals or force_update_visual:
+            model_list.append(self._client.visual_model)
+            data_list.append(self._client.visual_data)
+            model_type_list.append(pin.GeometryType.VISUAL)
 
-            # Update geometries placements
-            for model, data, in zip(model_list, data_list):
-                pin.updateGeometryPlacements(
-                    self._client.model, self._client.data, model, data)
+        # Update geometries placements
+        for model, data, in zip(model_list, data_list):
+            pin.updateGeometryPlacements(
+                self._client.model, self._client.data, model, data)
 
-            # Render new geometries placements
-            if Viewer.backend == 'gepetto-gui':
-                for geom_model, geom_data, model_type in zip(
-                        model_list, data_list, model_type_list):
-                    self._gui.applyConfigurations(
-                        [self._client.getViewerNodeName(geom, model_type)
-                         for geom in geom_model.geometryObjects],
-                        [SE3ToXYZQUATtuple(geom_data.oMg[i])
-                         for i in range(len(geom_model.geometryObjects))])
-            elif Viewer.backend.startswith('panda3d'):
-                for geom_model, geom_data, model_type in zip(
-                        model_list, data_list, model_type_list):
-                    pose_dict = {}
-                    for i, geom in enumerate(geom_model.geometryObjects):
-                        oMg = geom_data.oMg[i]
-                        x, y, z, qx, qy, qz, qw = SE3ToXYZQUAT(oMg)
-                        group, nodeName = self._client.getViewerNodeName(
-                            geom, model_type)
-                        pose_dict[nodeName] = ((x, y, z), (qw, qx, qy, qz))
-                    self._gui.move_nodes(group, pose_dict)
-            else:
-                for geom_model, geom_data, model_type in zip(
-                        model_list, data_list, model_type_list):
-                    for i, geom in enumerate(geom_model.geometryObjects):
-                        oMg = geom_data.oMg[i]
-                        S = np.diag((*geom.meshScale, 1.0))
-                        T = oMg.homogeneous.dot(S)
-                        nodeName = self._client.getViewerNodeName(
-                            geom, model_type)
-                        self._gui[nodeName].set_transform(T)
+        # Render new geometries placements
+        if Viewer.backend == 'gepetto-gui':
+            for geom_model, geom_data, model_type in zip(
+                    model_list, data_list, model_type_list):
+                self._gui.applyConfigurations(
+                    [self._client.getViewerNodeName(geom, model_type)
+                        for geom in geom_model.geometryObjects],
+                    [SE3ToXYZQUATtuple(geom_data.oMg[i])
+                        for i in range(len(geom_model.geometryObjects))])
+        elif Viewer.backend.startswith('panda3d'):
+            for geom_model, geom_data, model_type in zip(
+                    model_list, data_list, model_type_list):
+                pose_dict = {}
+                for i, geom in enumerate(geom_model.geometryObjects):
+                    oMg = geom_data.oMg[i]
+                    x, y, z, qx, qy, qz, qw = SE3ToXYZQUAT(oMg)
+                    group, nodeName = self._client.getViewerNodeName(
+                        geom, model_type)
+                    pose_dict[nodeName] = ((x, y, z), (qw, qx, qy, qz))
+                self._gui.move_nodes(group, pose_dict)
+        else:
+            for geom_model, geom_data, model_type in zip(
+                    model_list, data_list, model_type_list):
+                for i, geom in enumerate(geom_model.geometryObjects):
+                    oMg = geom_data.oMg[i]
+                    S = np.diag((*geom.meshScale, 1.0))
+                    T = oMg.homogeneous.dot(S)
+                    nodeName = self._client.getViewerNodeName(
+                        geom, model_type)
+                    self._gui[nodeName].set_transform(T)
 
-            # Update the camera placement if necessary
-            if Viewer._camera_travelling is not None:
-                if Viewer._camera_travelling['viewer'] is self:
-                    self.set_camera_transform(
-                        *Viewer._camera_travelling['pose'],
-                        relative=Viewer._camera_travelling['frame'])
-            elif Viewer._camera_motion is not None:
-                self.set_camera_transform()
+        # Update the camera placement if necessary
+        if Viewer._camera_travelling is not None:
+            if Viewer._camera_travelling['viewer'] is self:
+                self.set_camera_transform(
+                    *Viewer._camera_travelling['pose'],
+                    relative=Viewer._camera_travelling['frame'])
+        elif Viewer._camera_motion is not None:
+            self.set_camera_transform()
 
-            # Update pose, color and scale of the markers, if any
-            if Viewer.backend.startswith('panda3d'):
-                pose_dict, material_dict, scale_dict = {}, {}, {}
-                for marker_name, marker_data in self.markers.items():
-                    if not self._markers_visibility[marker_name]:
-                        continue
-                    marker_data = {key: value() if callable(value) else value
-                                   for key, value in marker_data.items()}
-                    (x, y, z), (qx, qy, qz, qw) = marker_data["pose"]
-                    pose_dict[marker_name] = ((x, y, z), (qw, qx, qy, qz))
-                    r, g, b, a = marker_data["color"]
-                    material_dict[marker_name] = (2.0 * r, 2.0 * g, 2.0 * b, a)
-                    scale_dict[marker_name] = marker_data["scale"]
-                self._gui.move_nodes(self._markers_group, pose_dict)
-                self._gui.set_materials(self._markers_group, material_dict)
-                self._gui.set_scales(self._markers_group, scale_dict)
+        # Update pose, color and scale of the markers, if any
+        if Viewer.backend.startswith('panda3d'):
+            pose_dict, material_dict, scale_dict = {}, {}, {}
+            for marker_name, marker_data in self.markers.items():
+                if not self._markers_visibility[marker_name]:
+                    continue
+                marker_data = {key: value() if callable(value) else value
+                                for key, value in marker_data.items()}
+                (x, y, z), (qx, qy, qz, qw) = marker_data["pose"]
+                pose_dict[marker_name] = ((x, y, z), (qw, qx, qy, qz))
+                r, g, b, a = marker_data["color"]
+                material_dict[marker_name] = (2.0 * r, 2.0 * g, 2.0 * b, a)
+                scale_dict[marker_name] = marker_data["scale"]
+            self._gui.move_nodes(self._markers_group, pose_dict)
+            self._gui.set_materials(self._markers_group, material_dict)
+            self._gui.set_scales(self._markers_group, scale_dict)
 
-            # Refreshing viewer backend manually if necessary
-            if Viewer.backend == 'gepetto-gui':
-                self._gui.refresh()
-            elif Viewer.backend.startswith('panda3d'):
-                self._gui._app.step()
+        # Refreshing viewer backend manually if necessary
+        if Viewer.backend == 'gepetto-gui':
+            self._gui.refresh()
+        elif Viewer.backend.startswith('panda3d'):
+            self._gui._app.step()
 
-            # Wait for the backend viewer to finish rendering if requested
-            if wait:
-                Viewer.wait(require_client=False)
+        # Wait for the backend viewer to finish rendering if requested
+        if wait:
+            Viewer.wait(require_client=False)
 
     @__must_be_open
     def display(self,
@@ -2128,12 +2160,10 @@ class Viewer:
         if Viewer.is_alive():
             # Disable clock after replay if enabled
             if enable_clock:
-                with self._lock:
-                    Viewer.set_clock()
+                Viewer.set_clock()
 
             # Restore display if necessary
-            with self._lock:
-                if disable_display_contacts:
-                    self.display_contact_forces(True)
-                if disable_display_dcm:
-                    self.display_capture_point(True)
+            if disable_display_contacts:
+                self.display_contact_forces(True)
+            if disable_display_dcm:
+                self.display_capture_point(True)
