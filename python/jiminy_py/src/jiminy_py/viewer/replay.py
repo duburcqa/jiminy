@@ -20,8 +20,13 @@ from ..log import (TrajectoryDataType,
                    build_robot_from_log,
                    extract_trajectory_data_from_log,
                    emulate_sensors_data_from_log)
-from .viewer import (
-    COLORS, Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
+from .viewer import (COLORS,
+                     DEFAULT_CAMERA_XYZRPY_REL,
+                     Tuple3FType,
+                     Tuple4FType,
+                     CameraPoseType,
+                     CameraMotionType,
+                     Viewer)
 from .meshcat.utilities import interactive_mode
 
 
@@ -297,12 +302,6 @@ def play_trajectories(trajs_data: Union[
     if all(not len(traj['evolution_robot']) for traj in trajs_data):
         return viewers
 
-    # Set camera pose or activate camera travelling if requested
-    if travelling_frame is not None:
-        viewer.attach_camera(travelling_frame, camera_xyzrpy)
-    elif camera_xyzrpy is not None:
-        viewer.set_camera_transform(*camera_xyzrpy)
-
     # Enable camera motion if requested
     if camera_motion is not None:
         Viewer.register_camera_motion(camera_motion)
@@ -330,6 +329,14 @@ def play_trajectories(trajs_data: Union[
                 viewer_i.display_contact_forces(display_contacts)
             if display_f_external is not None:
                 viewer_i.display_external_forces(display_f_external)
+
+    # Set camera pose or activate camera travelling if requested
+    if travelling_frame is not None:
+        if camera_xyzrpy is None:
+            camera_xyzrpy = (None, None)
+        viewer.attach_camera(travelling_frame, camera_xyzrpy)
+    elif camera_xyzrpy is not None and any(camera_xyzrpy):
+        viewer.set_camera_transform(*camera_xyzrpy)
 
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:

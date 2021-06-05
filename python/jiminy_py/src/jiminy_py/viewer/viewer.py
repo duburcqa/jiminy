@@ -959,9 +959,11 @@ class Viewer:
                         self._client.collision_group,
                         self._markers_group])
 
+                # Restore zmq socket timeout, which is disable by default
                 if Viewer.backend == 'meshcat':
                     Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
 
+                # Delete temporary directory
                 if self._tempdir.startswith(tempfile.gettempdir()):
                     try:
                         shutil.rmtree(self._tempdir)
@@ -1382,7 +1384,7 @@ class Viewer:
                              position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
                              relative: Optional[str] = None) -> None:
-        """Apply transform to the camera pose.
+        """Set transform of the camera pose.
 
         .. warning::
             The reference axis is negative z-axis instead of positive x-axis,
@@ -1466,6 +1468,23 @@ class Viewer:
         Viewer._camera_xyzrpy[0] = position.copy()
         Viewer._camera_xyzrpy[1] = rotation.copy()
 
+    @__must_be_open
+    @__with_lock
+    def set_camera_lookat(self, position: Optional[Tuple3FType]) -> None:
+        """Set the camera look-up position.
+
+        .. note::
+            It preserve the relative camera position wrt the lookup position.
+
+        :param position: Position [X, Y, Z] as a list or 1D array.
+        """
+        # Make sure the backend supports this method
+        if not Viewer.backend.startswith('panda3d'):
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
+        return self._gui._app.set_camera_lookat(position)
+
     @staticmethod
     def register_camera_motion(camera_motion: CameraMotionType) -> None:
         """Register camera motion. It will be used later by `replay` to set the
@@ -1511,25 +1530,59 @@ class Viewer:
 
     def attach_camera(self,
                       frame: str,
-                      camera_xyzrpy: Optional[CameraPoseType] = None) -> None:
+                      camera_xyzrpy: Optional[CameraPoseType] = (None, None),
+                      lock_relative_pose: Optional[bool] = None) -> None:
         """Attach the camera to a given robot frame.
 
         Only the position of the frame is taken into account. A custom relative
-        pose of the camera wrt to the frame can be further specified.
+        pose of the camera wrt to the frame can be further specified. If so, then
+        the relative camera pose wrt the frame is locked, otherwise the camera
+        is only constrained to look at the frame.
 
         :param frame: Frame of the robot to follow with the camera.
         :param camera_xyzrpy: Tuple position [X, Y, Z], rotation
                               [Roll, Pitch, Yaw] corresponding to the relative
-                              pose of the camera wrt the tracked frame. None
-                              to use default pose.
-                              Optional: None by default.
+                              pose of the camera wrt the tracked frame. It will
+                              be used to initialize the camera pose if relative
+                              pose is not locked. `None` to disable.
+                              Optional: Disabkle by default.
+        :param lock_relative_pose: Whether or not to lock the relative pose of
+                                   the camera wrt tracked frame.
+                                   Optional: False by default iif Panda3d
+                                   backend is used.
         """
         # Make sure one is not trying to track the camera itself...
         assert frame != 'camera', "Impossible to track the camera itself !"
 
+        # Handle of default camera lock mode
+        if lock_relative_pose is None:
+            lock_relative_pose = not Viewer.backend.startswith('panda3d')
+
+        # Make sure camera lock mode is compatible with viewer backend
+        if not lock_relative_pose and not Viewer.backend.startswith('panda3d'):
+            raise NotImplementedError(
+                "Not locking camera pose is only supported by Panda3d.")
+
+        # Make sure the tracked frame exists
+        if not self._client.model.existFrame(frame):
+            raise ValueError("Trying to attach camera to non-existing frame.")
+
         # Handling of default camera pose
-        if camera_xyzrpy is None:
-            camera_xyzrpy = DEFAULT_CAMERA_XYZRPY_REL
+        if lock_relative_pose and camera_xyzrpy is None:
+            camera_xyzrpy = [None, None]
+
+        # Set default relative camera pose if position/orientation undefined
+        if camera_xyzrpy is not None:
+            camera_xyzrpy = list(camera_xyzrpy)
+            if camera_xyzrpy[0] is None:
+                camera_xyzrpy[0] = deepcopy(DEFAULT_CAMERA_XYZRPY_REL[0])
+            if camera_xyzrpy[1] is None:
+                camera_xyzrpy[1] = deepcopy(DEFAULT_CAMERA_XYZRPY_REL[1])
+
+        # Set camera pose if relative pose is not locked but provided
+        if not lock_relative_pose and camera_xyzrpy is not None:
+            self.set_camera_transform(*camera_xyzrpy, frame)
+            camera_xyzrpy = None
 
         Viewer._camera_travelling = {
             'viewer': self, 'frame': frame, 'pose': camera_xyzrpy}
@@ -2024,10 +2077,17 @@ class Viewer:
         # Update the camera placement if necessary
         if Viewer._camera_travelling is not None:
             if Viewer._camera_travelling['viewer'] is self:
-                self.set_camera_transform(
-                    *Viewer._camera_travelling['pose'],
-                    relative=Viewer._camera_travelling['frame'])
-        elif Viewer._camera_motion is not None:
+                if Viewer._camera_travelling['pose'] is not None:
+                    self.set_camera_transform(
+                        *Viewer._camera_travelling['pose'],
+                        relative=Viewer._camera_travelling['frame'])
+                else:
+                    body_id = self._client.model.getFrameId(
+                        Viewer._camera_travelling['frame'])
+                    body_transform = self._client.data.oMf[body_id]
+                    self.set_camera_lookat(body_transform.translation)
+
+        if Viewer._camera_motion is not None:
             self.set_camera_transform()
 
         # Update pose, color and scale of the markers, if any

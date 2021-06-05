@@ -18,6 +18,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
+from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from jiminy_py.dynamics import (update_quantities,
                                 compute_freeflyer_state_from_fixed_body)
 from jiminy_py.simulator import Simulator
@@ -745,6 +746,18 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             return_rgb_array = True
         else:
             raise ValueError(f"Rendering mode {mode} not supported.")
+
+        # Set default camera pose if viewer not already available.
+        if not self.simulator.is_viewer_available and self.robot.has_freeflyer:
+            # Get root frame name.
+            # The first and second frames are respectively "universe" and
+            # "root_joint", no matter if the robot has a freeflyer or not.
+            root_name = self.robot.pinocchio_model.frames[2].name
+
+            # Set default camera pose options.
+            # Note that the actual signature is hacked to set relative pose.
+            kwargs["camera_xyzrpy"] = (*DEFAULT_CAMERA_XYZRPY_REL, root_name)
+
         return self.simulator.render(**{
             'return_rgb_array': return_rgb_array, **kwargs})
 
@@ -818,10 +831,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # backend viewer instantiation options, such as initial camera pose.
         self.render(**kwargs)
 
+        # Set default travelling options
         if enable_travelling and self.robot.has_freeflyer:
-            # It is worth noting that the first and second frames are
-            # respectively "universe" and "root_joint", no matter if the robot
-            # has a freeflyer or not.
             kwargs['travelling_frame'] = \
                 self.robot.pinocchio_model.frames[2].name
 
