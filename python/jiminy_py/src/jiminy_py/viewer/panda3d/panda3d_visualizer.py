@@ -1095,6 +1095,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.camera_lookat = np.zeros(3)
         self.step()  # Update frame on-the-spot
 
+    def get_camera_transform(self) -> Tuple[np.ndarray, np.ndarray]:
+        return (np.array(self.camera.get_pos()),
+                np.array(self.camera.get_quat()))
+
     def set_window_size(self, width: int, height: int) -> None:
         self.buff.setSize(width, height)
         self._adjust_offscreen_window_aspect_ratio()

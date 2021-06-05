@@ -1357,6 +1357,27 @@ class Viewer:
 
     @__must_be_open
     @__with_lock
+    def get_camera_transform(self) -> Tuple[Tuple3FType, Tuple3FType]:
+        """Get transform of the camera pose.
+
+        .. warning::
+            The reference axis is negative z-axis instead of positive x-axis.
+        """
+        if Viewer.backend == 'gepetto-gui':
+            xyzquat = self._gui.getCameraTransform(self._client.windowID)
+            xyzrpy = XYZQuatToXYZRPY(xyzquat)
+            xyz, rpy = xyzrpy[:3], xyzrpy[3:]
+        elif Viewer.backend.startswith('panda3d'):
+            xyz, quat = self._gui.get_camera_transform()
+            rot = pin.Quaternion(*quat).matrix()
+            rpy = matrixToRpy(rot @ CAMERA_INV_TRANSFORM_PANDA3D.T)
+        else:
+            raise NotImplementedError(
+                "This method is not supported by Meshcat.")
+        return xyz, rpy
+
+    @__must_be_open
+    @__with_lock
     def set_camera_transform(self,
                              position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
@@ -1386,6 +1407,13 @@ class Viewer:
               the rotation (travelling)
         """
         # Handling of position and rotation arguments
+        if position is None or rotation is None:
+            if Viewer.backend.startswith('panda3d'):
+                pos, rot = self.get_camera_transform()
+                if position is None:
+                    position = pos
+                if rotation is None:
+                    rotation = rot
         if position is None:
             position = Viewer._camera_xyzrpy[0]
         if rotation is None:
@@ -1395,10 +1423,10 @@ class Viewer:
         # Compute associated rotation matrix
         rotation_mat = rpyToMatrix(rotation)
 
-        # Compute the relative transformation if applicable
+        # Compute the relative transformation if necessary
         if relative == 'camera':
-            H_orig = SE3(rpyToMatrix(np.asarray(Viewer._camera_xyzrpy[1])),
-                         np.asarray(Viewer._camera_xyzrpy[0]))
+            H_orig = SE3(rpyToMatrix(
+                Viewer._camera_xyzrpy[1]), Viewer._camera_xyzrpy[0])
         elif relative is not None:
             # Get the body position, not taking into account the rotation
             body_id = self._client.model.getFrameId(relative)
