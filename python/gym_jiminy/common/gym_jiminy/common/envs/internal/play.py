@@ -8,6 +8,8 @@ import time
 import threading
 from typing import Optional, Callable, Any
 
+from jiminy_py.viewer import sleep
+
 
 class Getch:
     """Catch a single character from standard input before it echoes to the
@@ -96,16 +98,27 @@ def input_deamon(input_queue: queue.Queue,
     del getch
 
 
-def loop_interactive(press_key_to_start: bool = True,
-                     exit_key: str = 'k') -> Callable:
-    """ TODO: Write documentation.
-    """
-    def wrap(func: Callable[..., None]) -> Callable:
-        def wrapped_func(*args: Any, **kwargs: Any) -> None:
-            not_a_key = "Not a key"
+def loop_interactive(exit_key: str = 'k',
+                     press_key_to_start: bool = True,
+                     max_rate: Optional[float] = None,
+                     verbose: bool = True) -> Callable:
+    """Create a wrapper responsible of calling a method periodically,
+    while forwarding input keys using `key` keyword argument. It
+    loops indefinitely until the forwarded method returns `True`, or the exist
+    key is pressed.
 
+    :param exit_key: Key to press to break the loop.
+    :param press_key_to_start: Whether or not to press a key to start the loop.
+    :param max_rate: Maximum rate of the loop. If slowing down the loop is
+                     necessary, then busy loop is used instead of sleep for
+                     maximum accurary.
+    :param verbose: Whether or not to display status messages.
+    """
+    def wrap(func: Callable[..., bool]) -> Callable[..., None]:
+        def wrapped_func(*args: Any, **kwargs: Any) -> None:
             nonlocal press_key_to_start, exit_key
 
+            # Start keyboard input handling thread
             input_queue: queue.Queue = queue.Queue()
             stop_event = threading.Event()
             input_thread = threading.Thread(
@@ -114,38 +127,65 @@ def loop_interactive(press_key_to_start: bool = True,
                 daemon=True)
             input_thread.start()
 
-            print("Entering keyboard interactive mode.")
-            args[0].render()
+            # Display status messages
+            if verbose:
+                print("Entering keyboard interactive mode. Pressed "
+                      f"'{exit_key}' to exit or close window.")
             if press_key_to_start:
                 print("Press a key to start...")
-            key: Optional[str] = not_a_key
+
+            # Loop infinitly until termination is triggered
+            key = None
+            stop = False
             is_started = not press_key_to_start
-            while True:
-                if not input_queue.empty():
-                    key = input_queue.get()
-                    if not is_started:
-                        print("Go!")
-                        key = not_a_key
-                        is_started = True
-                if key == exit_key:
-                    print("Exiting keyboard interactive mode.")
-                    stop_event.set()
-                    time.sleep(0.01)
-                    break
-                if is_started:
-                    try:
-                        if key == not_a_key:
+            try:
+                while not stop:
+                    # Get current time
+                    t_init = time.time()
+
+                    # Call wrapped function is already started
+                    if is_started:
+                        try:
+                            stop = func(*args, **kwargs, key=key)
+                        except KeyboardInterrupt:
+                            stop = True
+                        except Exception as e:  # pylint: disable=broad-except
+                            print(str(e))
+                            stop = True
+
+                    # Sleep for a while if necessary, using busy loop only if
+                    # already started to avoid unecessary cpu load.
+                    if max_rate is not None and max_rate > 0.0:
+                        dt = max(max_rate - (time.time() - t_init), 0.0)
+                        if is_started:
+                            sleep(dt)
+                        else:
+                            time.sleep(dt)
+
+                    # Look for new key pressed
+                    key = None
+                    while not input_queue.empty():
+                        # Get new key
+                        key = input_queue.get()
+
+                        # Discard key if not already started
+                        if not is_started:
+                            if verbose:
+                                print("Go!")
+                            is_started = True
                             key = None
-                        stop = func(*args, **kwargs, key=key)
-                        key = not_a_key
-                        if stop:
-                            raise KeyboardInterrupt()
-                    except KeyboardInterrupt:
-                        key = exit_key
-                    except Exception as e:  # pylint: disable=broad-except
-                        print(e)
-                        key = exit_key
-                else:
-                    time.sleep(0.1)
+
+                    # Update stop flag if exit key pressed
+                    if key == exit_key:
+                        if verbose:
+                            print("Exiting keyboard interactive mode.")
+                        stop = True
+            except KeyboardInterrupt:
+                pass
+            finally:
+                # Stop keyboard handling loop
+                stop_event.set()
+                time.sleep(max_rate + 0.01 if max_rate is not None else 0.01)
+
         return wrapped_func
     return wrap

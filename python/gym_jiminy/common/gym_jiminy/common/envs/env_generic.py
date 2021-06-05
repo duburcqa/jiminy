@@ -21,7 +21,6 @@ from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from jiminy_py.dynamics import (update_quantities,
                                 compute_freeflyer_state_from_fixed_body)
 from jiminy_py.simulator import Simulator
-from jiminy_py.viewer import sleep
 
 from pinocchio import neutral, normalize
 
@@ -123,6 +122,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._seed: Optional[np.uint32] = None
         self.log_path: Optional[str] = None
         self.logfile_action_headers: Optional[FieldDictNested] = None
+
+        # Whether or not play interactive mode is active
+        self._is_interactive = False
 
         # Information about the learning process
         self._info: Dict[str, Any] = {}
@@ -838,8 +840,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         self.simulator.replay(**{'verbose': False, **kwargs})
 
-    @loop_interactive()
-    def play_interactive(self, key: Optional[str] = None) -> bool:
+    def play_interactive(self,
+                         enable_travelling: Optional[bool] = None,
+                         verbose: bool = True,
+                         **kwargs: Any) -> None:
         """Activate interact mode enabling to control the robot using keyboard.
 
         It stops automatically as soon as 'done' flag is True. One has to press
@@ -848,20 +852,58 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         .. warning::
             This method requires `_key_to_action` method to be implemented by
-            the user by overloading it. Otherwise, calling it will raise an
-            exception.
+            the user by overloading it, otherwise it raises an exception.
 
-        :param key: Key to press to start the interaction.
+        :param enable_travelling: Whether or not enable travelling, following
+                                  the motion of the root frame of the model.
+                                  This parameter is ignored if the model has no
+                                  freeflyer.
+                                  Optional: Enable by default iif 'panda3d'
+                                  viewer backend is used.
+        :param verbose: Whether or not to display status messages.
+        :param kwargs: Extra keyword arguments to forward to `_key_to_action`
+                       method.
         """
-        t_init = time.time()
-        if key is not None:
-            action = self._key_to_action(key)
-        else:
-            action = None
-        *_, done, _ = self.step(action)
-        self.render()
-        sleep(self.step_dt - (time.time() - t_init))
-        return done
+        # Enable play interactive mode flag
+        self._is_interactive = True
+
+        # Make sure viewer gui is open, so that the viewer will shared external
+        # forces with the robot automatically.
+        if not (self.simulator.is_viewer_available and
+                self.simulator.viewer.has_gui()):
+            self.render()
+
+        # Reset the environement
+        obs = self.reset()
+        reward = None
+
+        # Enable travelling
+        if enable_travelling is None:
+            enable_travelling = \
+                self.simulator.viewer.backend.startswith('panda3d')
+        enable_travelling = enable_travelling and self.robot.has_freeflyer
+        if enable_travelling:
+            tracked_frame = self.robot.pinocchio_model.frames[2].name
+            self.simulator.viewer.attach_camera(tracked_frame)
+
+        # Define interactive loop
+        def _interact(key: Optional[str] = None) -> bool:
+            nonlocal obs, reward
+            action = self._key_to_action(
+                key, obs=obs, reward=reward, **{"verbose": verbose, **kwargs})
+            obs, reward, done, _ = self.step(action)
+            self.render()
+            return done
+
+        # Run interactive loop
+        loop_interactive(max_rate=self.step_dt, verbose=verbose)(_interact)()
+
+        # Disable travelling if it enabled
+        if enable_travelling:
+            self.simulator.viewer.detach_camera()
+
+        # Disable play interactive mode flag
+        self._is_interactive = False
 
     # methods to override:
     # ----------------------------
@@ -1068,16 +1110,38 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return not self.observation_space.contains(self._observation)
 
-    @staticmethod
-    def _key_to_action(key: str) -> np.ndarray:
-        """Mapping between keyword keys and actions to send to the robot.
+    def _key_to_action(self,
+                       key: Optional[str],
+                       obs: SpaceDictNested,
+                       reward: Optional[float],
+                       **kwargs: Any) -> SpaceDictNested:
+        """Mapping from input keyboard keys to actions.
+
+        .. note::
+            This method is called before `step` method systematically, even if
+            not key has been pressed, or reward is not defined. In such a case,
+            the value is `None`.
+
+        .. note::
+            The mapping can be state dependent, and the key can be used for
+            something different than computing the action directly. For
+            instance, one can provide as extra argument to this method a
+            custom policy taking user parameters mapped to keyboard in input.
 
         .. warning::
-            Overloading this method is required for using `play_interactive`.
+            Overloading this method is required for calling `play_interactive`
+            method.
 
-        :param key: Key pressed by the user as a string.
+        :param key: Key pressed by the user as a string. `None` if no key has
+                    been pressed since the last step of the environment.
+        :param obs: Previous observation from last step of the environment.
+                    It is always available, included right after `reset`.
+        :param reward: Previous reward from last step of the environment.
+                       Not available before first step right after `reset`.
+        :param kwargs: Extra keyword argument provided by the user when calling
+                       `play_interactive` method.
 
-        :returns: Action to send to the robot.
+        :returns: Action to forward to the environment.
         """
         raise NotImplementedError
 
