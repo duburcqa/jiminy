@@ -21,7 +21,6 @@ from ..log import (TrajectoryDataType,
                    extract_trajectory_data_from_log,
                    emulate_sensors_data_from_log)
 from .viewer import (COLORS,
-                     DEFAULT_CAMERA_XYZRPY_REL,
                      Tuple3FType,
                      Tuple4FType,
                      CameraPoseType,
@@ -54,7 +53,7 @@ def play_trajectories(trajs_data: Union[
                       robots_colors: Optional[Union[
                           ColorType, Sequence[ColorType]]] = None,
                       travelling_frame: Optional[Union[str, int]] = None,
-                      camera_xyzrpy: Optional[CameraPoseType] = None,
+                      camera_xyzrpy: Optional[CameraPoseType] = (None, None),
                       camera_motion: Optional[CameraMotionType] = None,
                       watermark_fullpath: Optional[str] = None,
                       legend: Optional[Union[str, Sequence[str]]] = None,
@@ -333,8 +332,6 @@ def play_trajectories(trajs_data: Union[
 
     # Set camera pose or activate camera travelling if requested
     if travelling_frame is not None:
-        if camera_xyzrpy is None:
-            camera_xyzrpy = (None, None)
         viewer.attach_camera(travelling_frame, camera_xyzrpy)
     elif camera_xyzrpy is not None and any(camera_xyzrpy):
         viewer.set_camera_transform(*camera_xyzrpy)
@@ -352,6 +349,8 @@ def play_trajectories(trajs_data: Union[
     # Handle start-in-pause mode
     if start_paused and record_video_path is None and not interactive_mode():
         input("Press Enter to continue...")
+    if not Viewer.has_gui():
+        return viewers
 
     # Replay the trajectory
     if record_video_path is not None:
@@ -646,7 +645,21 @@ def _play_logs_files_entrypoint() -> None:
         kwargs['travelling_frame'] = 2
 
     # Replay trajectories
-    play_logs_files(**{"remove_widgets_overlay": False, **kwargs})
+    repeat = True
+    viewers = None
+    while repeat:
+        viewers = play_logs_files(**{**dict(
+            remove_widgets_overlay=False,
+            viewers=viewers),
+            **kwargs})
+        kwargs["start_paused"] = False
+        if not hasattr(kwargs, "camera_xyzrpy"):
+            kwargs["camera_xyzrpy"] = None
+        while True:
+            reply = input("Do you really want to repeat (y/[n])?").lower()
+            if not reply or reply in ("y", "n"):
+                break
+        repeat = (reply == "y")
 
     # Do not exit method as long as a graphical window is open
     while Viewer.has_gui():

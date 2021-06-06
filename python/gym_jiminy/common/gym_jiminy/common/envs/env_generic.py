@@ -1,7 +1,6 @@
 """ TODO: Write documentation.
 """
 import os
-import time
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
@@ -747,18 +746,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         else:
             raise ValueError(f"Rendering mode {mode} not supported.")
 
-        # Set default camera pose if viewer not already available.
-        if not self.simulator.is_viewer_available and self.robot.has_freeflyer:
-            # Get root frame name.
-            # The first and second frames are respectively "universe" no matter
-            # if the robot has a freeflyer or not, and the second one is the
-            # freeflyer joint "root_joint" if any.
-            root_name = self.robot.pinocchio_model.frames[2].name
-
-            # Set default camera pose options.
-            # Note that the actual signature is hacked to set relative pose.
-            kwargs["camera_xyzrpy"] = (*DEFAULT_CAMERA_XYZRPY_REL, root_name)
-
         return self.simulator.render(**{
             'return_rgb_array': return_rgb_array, **kwargs})
 
@@ -827,6 +814,18 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.is_done():
                 if not self.viewer or self.viewer._display_contacts:
                     self.simulator.stop()
+
+        # Set default camera pose if viewer not already available
+        if not self.simulator.is_viewer_available and self.robot.has_freeflyer:
+            # Get root frame name.
+            # The first and second frames are respectively "universe" no matter
+            # if the robot has a freeflyer or not, and the second one is the
+            # freeflyer joint "root_joint" if any.
+            root_name = self.robot.pinocchio_model.frames[2].name
+
+            # Set default camera pose options.
+            # Note that the actual signature is hacked to set relative pose.
+            kwargs["camera_xyzrpy"] = (*DEFAULT_CAMERA_XYZRPY_REL, root_name)
 
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose.

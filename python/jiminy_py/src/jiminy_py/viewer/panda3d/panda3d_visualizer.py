@@ -1087,11 +1087,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 node.set_depth_test(not always_foreground)
                 node.set_depth_write(not always_foreground)
 
-    def set_camera_lookat(self, pos: Tuple3FType) -> None:
-        self.camera.set_pos(
-            self.camera.get_pos() + Vec3(*pos) - Vec3(*self.camera_lookat))
-        self.camera_lookat = np.asarray(pos)
-        self.step()  # Update frame on-the-spot
+    def get_camera_transform(self) -> Tuple[np.ndarray, np.ndarray]:
+        return (np.array(self.camera.get_pos()),
+                np.array(self.camera.get_quat()))
 
     def set_camera_transform(self,
                              pos: Tuple3FType,
@@ -1100,16 +1098,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.camera.set_pos(*pos)
         self.camera.set_quat(LQuaternion(quat[-1], *quat[:-1]))
         self.camera_lookat = np.array(lookat)
-        self.step()
 
-    def get_camera_transform(self) -> Tuple[np.ndarray, np.ndarray]:
-        return (np.array(self.camera.get_pos()),
-                np.array(self.camera.get_quat()))
+    def set_camera_lookat(self,
+                          pos: Tuple3FType) -> None:
+        self.camera.set_pos(
+            self.camera.get_pos() + Vec3(*pos) - Vec3(*self.camera_lookat))
+        self.camera_lookat = np.asarray(pos)
 
     def set_window_size(self, width: int, height: int) -> None:
         self.buff.setSize(width, height)
         self._adjust_offscreen_window_aspect_ratio()
-        self.step()
+        self.step()  # Update frame on-the-spot
 
     def set_framerate(self, framerate: Optional[float] = None) -> None:
         """Limit framerate of Panda3d to avoid consuming too much ressources.

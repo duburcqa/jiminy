@@ -869,8 +869,8 @@ class Viewer:
         """Wait for all the meshes to finish loading in every clients.
 
         .. note::
-            It is a non-op for every backend except `meshcat` since synchronous
-            mode is enabled for the other ones.
+            It is a non-op for `gepetto-gui` since it works in synchronous
+            mode.
 
         :param require_client: Wait for at least one client to be available
                                before checking for mesh loading.
@@ -1383,7 +1383,8 @@ class Viewer:
     def set_camera_transform(self,
                              position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
-                             relative: Optional[Union[str, int]] = None) -> None:
+                             relative: Optional[Union[str, int]] = None,
+                             wait: bool = False) -> None:
         """Set transform of the camera pose.
 
         .. warning::
@@ -1408,6 +1409,7 @@ class Viewer:
             - **other:** relative to a robot frame, not accounting for the
               rotation of the frame during travalling. It supports both frame
               name and index in model.
+        :param wait: Whether or not to wait for rendering to finish.
         """
         # Handling of position and rotation arguments
         if position is None or rotation is None:
@@ -1467,14 +1469,18 @@ class Viewer:
                     translate=position_meshcat, angles=rotation_meshcat))
 
         # Backup updated camera pose
-        Viewer._camera_xyzrpy[0] = position.copy()
-        Viewer._camera_xyzrpy[1] = rotation.copy()
+        Viewer._camera_xyzrpy = deepcopy([position, rotation])
+
+        # Wait for the backend viewer to finish rendering if requested
+        if wait:
+            Viewer.wait(require_client=False)
 
     @__must_be_open
     @__with_lock
     def set_camera_lookat(self,
                           position: Tuple3FType,
-                          relative: Optional[Union[str, int]] = None) -> None:
+                          relative: Optional[Union[str, int]] = None,
+                          wait: bool = False) -> None:
         """Set the camera look-up position.
 
         .. note::
@@ -1484,6 +1490,7 @@ class Viewer:
         :param relative: Set the lookat position relative to robot frame if
                          specified, in absolute otherwise. Both frame name and
                          index in model are supported.
+        :param wait: Whether or not to wait for rendering to finish.
         """
         # Make sure the backend supports this method
         if not Viewer.backend.startswith('panda3d'):
@@ -1497,7 +1504,12 @@ class Viewer:
             body_transform = self._client.data.oMf[relative]
             position = body_transform.translation + position
 
+        # Update camera lookat position
         self._gui.set_camera_lookat(position)
+
+        # Wait for the backend viewer to finish rendering if requested
+        if wait:
+            Viewer.wait(require_client=False)
 
     @staticmethod
     def register_camera_motion(camera_motion: CameraMotionType) -> None:
