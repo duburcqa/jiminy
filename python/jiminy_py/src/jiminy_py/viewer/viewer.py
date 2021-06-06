@@ -1383,7 +1383,7 @@ class Viewer:
     def set_camera_transform(self,
                              position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
-                             relative: Optional[str] = None) -> None:
+                             relative: Optional[Union[str, int]] = None) -> None:
         """Set transform of the camera pose.
 
         .. warning::
@@ -1405,8 +1405,9 @@ class Viewer:
 
             - **None:** absolute
             - **'camera':** relative to the current camera pose
-            - **other string:** relative to a robot frame, not accounting for
-              the rotation (travelling)
+            - **other:** relative to a robot frame, not accounting for the
+              rotation of the frame during travalling. It supports both frame
+              name and index in model.
         """
         # Handling of position and rotation arguments
         if position is None or rotation is None:
@@ -1431,9 +1432,10 @@ class Viewer:
                 Viewer._camera_xyzrpy[1]), Viewer._camera_xyzrpy[0])
         elif relative is not None:
             # Get the body position, not taking into account the rotation
-            body_id = self._client.model.getFrameId(relative)
+            if isinstance(relative, str):
+                relative = self._client.model.getFrameId(relative)
             try:
-                body_transform = self._client.data.oMf[body_id]
+                body_transform = self._client.data.oMf[relative]
             except IndexError:
                 raise ValueError("'relative' set to non-existing frame.")
             H_orig = SE3(np.eye(3), body_transform.translation)
@@ -1470,20 +1472,32 @@ class Viewer:
 
     @__must_be_open
     @__with_lock
-    def set_camera_lookat(self, position: Optional[Tuple3FType]) -> None:
+    def set_camera_lookat(self,
+                          position: Tuple3FType,
+                          relative: Optional[Union[str, int]] = None) -> None:
         """Set the camera look-up position.
 
         .. note::
-            It preserve the relative camera position wrt the lookup position.
+            It preserve the relative camera pose wrt the lookup position.
 
-        :param position: Position [X, Y, Z] as a list or 1D array.
+        :param position: Position [X, Y, Z] as a list or 1D array, frame index
+        :param relative: Set the lookat position relative to robot frame if
+                         specified, in absolute otherwise. Both frame name and
+                         index in model are supported.
         """
         # Make sure the backend supports this method
         if not Viewer.backend.startswith('panda3d'):
             raise NotImplementedError(
                 "This method is only supported by Panda3d.")
 
-        return self._gui._app.set_camera_lookat(position)
+        # Compute absolute lookat position using frame and relative position
+        if isinstance(relative, str):
+            relative = self._client.model.getFrameId(relative)
+        if isinstance(relative, int):
+            body_transform = self._client.data.oMf[relative]
+            position = body_transform.translation + position
+
+        self._gui.set_camera_lookat(position)
 
     @staticmethod
     def register_camera_motion(camera_motion: CameraMotionType) -> None:
@@ -1529,17 +1543,18 @@ class Viewer:
         Viewer._camera_motion = None
 
     def attach_camera(self,
-                      frame: str,
+                      frame: Union[str, int],
                       camera_xyzrpy: Optional[CameraPoseType] = (None, None),
                       lock_relative_pose: Optional[bool] = None) -> None:
         """Attach the camera to a given robot frame.
 
         Only the position of the frame is taken into account. A custom relative
-        pose of the camera wrt to the frame can be further specified. If so, then
-        the relative camera pose wrt the frame is locked, otherwise the camera
-        is only constrained to look at the frame.
+        pose of the camera wrt to the frame can be further specified. If so,
+        then the relative camera pose wrt the frame is locked, otherwise the
+        camera is only constrained to look at the frame.
 
-        :param frame: Frame of the robot to follow with the camera.
+        :param frame: Name or index of the frame of the robot to follow with
+                      the camera.
         :param camera_xyzrpy: Tuple position [X, Y, Z], rotation
                               [Roll, Pitch, Yaw] corresponding to the relative
                               pose of the camera wrt the tracked frame. It will
@@ -1551,8 +1566,15 @@ class Viewer:
                                    Optional: False by default iif Panda3d
                                    backend is used.
         """
-        # Make sure one is not trying to track the camera itself...
+        # Make sure one is not trying to track the camera itself
         assert frame != 'camera', "Impossible to track the camera itself !"
+
+        # Make sure the frame exists and it is not the universe itself
+        if isinstance(frame, str):
+            frame = self._client.model.getFrameId(frame)
+        if frame == self._client.model.nframes:
+            raise ValueError("Trying to attach camera to non-existing frame.")
+        assert frame != 0, "Impossible to track the universe !"
 
         # Handle of default camera lock mode
         if lock_relative_pose is None:
@@ -1562,10 +1584,6 @@ class Viewer:
         if not lock_relative_pose and not Viewer.backend.startswith('panda3d'):
             raise NotImplementedError(
                 "Not locking camera pose is only supported by Panda3d.")
-
-        # Make sure the tracked frame exists
-        if not self._client.model.existFrame(frame):
-            raise ValueError("Trying to attach camera to non-existing frame.")
 
         # Handling of default camera pose
         if lock_relative_pose and camera_xyzrpy is None:
@@ -2082,10 +2100,8 @@ class Viewer:
                         *Viewer._camera_travelling['pose'],
                         relative=Viewer._camera_travelling['frame'])
                 else:
-                    body_id = self._client.model.getFrameId(
-                        Viewer._camera_travelling['frame'])
-                    body_transform = self._client.data.oMf[body_id]
-                    self.set_camera_lookat(body_transform.translation)
+                    frame = Viewer._camera_travelling['frame']
+                    self.set_camera_lookat(np.zeros(3), frame)
 
         if Viewer._camera_motion is not None:
             self.set_camera_transform()

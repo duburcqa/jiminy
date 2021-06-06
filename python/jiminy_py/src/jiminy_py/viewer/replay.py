@@ -53,7 +53,7 @@ def play_trajectories(trajs_data: Union[
                           Tuple3FType, Sequence[Tuple3FType]]] = None,
                       robots_colors: Optional[Union[
                           ColorType, Sequence[ColorType]]] = None,
-                      travelling_frame: Optional[str] = None,
+                      travelling_frame: Optional[Union[str, int]] = None,
                       camera_xyzrpy: Optional[CameraPoseType] = None,
                       camera_motion: Optional[CameraMotionType] = None,
                       watermark_fullpath: Optional[str] = None,
@@ -104,9 +104,10 @@ def play_trajectories(trajs_data: Union[
                           None to disable.
                           Optional: Original color if single robot, default
                           color cycle otherwise.
-    :param travelling_frame: Name of the frame of the robot associated with the
-                             first `trajs_data`. The camera will utomatically
-                             follow it. `None` to disable.
+    :param travelling_frame: Name or index of the frame to track. The camera
+                             will automatically follow the frame of the robot
+                             associated with the first `trajs_data`.`None` to
+                             disable.
                              Optional: Disable by default.
     :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
                           corresponding to the absolute pose of the camera
@@ -620,6 +621,10 @@ def _play_logs_files_entrypoint() -> None:
         '-s', '--speed_ratio', type=float, default=1.0,
         help="Real time to simulation time factor.")
     parser.add_argument(
+        '-t', '--travelling', action='store_true',
+        help=("Whether or not to track the root frame of the first robot, "
+              "assuming the robot has a freeflyer."))
+    parser.add_argument(
         '-b', '--backend', default='panda3d',
         help="Display backend (panda3d, meshcat, or gepetto-gui).")
     parser.add_argument(
@@ -635,6 +640,10 @@ def _play_logs_files_entrypoint() -> None:
     # Convert mesh package dir into a list
     if kwargs['mesh_package_dir'] is not None:
         kwargs['mesh_package_dirs'] = [kwargs.pop('mesh_package_dir')]
+
+    # Convert travelling mode into frame index
+    if kwargs.pop('travelling'):
+        kwargs['travelling_frame'] = 2
 
     # Replay trajectories
     play_logs_files(**{"remove_widgets_overlay": False, **kwargs})
