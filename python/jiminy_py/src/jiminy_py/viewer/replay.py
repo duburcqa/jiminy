@@ -349,8 +349,8 @@ def play_trajectories(trajs_data: Union[
     # Handle start-in-pause mode
     if start_paused and record_video_path is None and not interactive_mode():
         input("Press Enter to continue...")
-    if not Viewer.has_gui():
-        return viewers
+        if not Viewer.is_alive():
+            return viewers
 
     # Replay the trajectory
     if record_video_path is not None:
@@ -655,11 +655,14 @@ def _play_logs_files_entrypoint() -> None:
         kwargs["start_paused"] = False
         if not hasattr(kwargs, "camera_xyzrpy"):
             kwargs["camera_xyzrpy"] = None
-        while True:
-            reply = input("Do you really want to repeat (y/[n])?").lower()
-            if not reply or reply in ("y", "n"):
-                break
-        repeat = (reply == "y")
+        if kwargs["record_video_path"] is None:
+            while True:
+                reply = input("Do you want to replay again (y/[n])?").lower()
+                if not reply or reply in ("y", "n"):
+                    break
+            repeat = (reply == "y")
+        else:
+            repeat = False
 
     # Do not exit method as long as a graphical window is open
     while Viewer.has_gui():

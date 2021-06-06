@@ -52,7 +52,7 @@ from .panda3d.panda3d_visualizer import (Tuple3FType,
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 DEFAULT_CAMERA_XYZRPY_ABS = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi/2])
-DEFAULT_CAMERA_XYZRPY_REL = ([4.5, -4.5, 1.5], [1.3, 0.0, 0.8])
+DEFAULT_CAMERA_XYZRPY_REL = ([4.5, -4.5, 0.75], [1.3, 0.0, 0.8])
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
@@ -792,7 +792,7 @@ class Viewer:
             # No instance is considered manager of the unique window
             pass
         elif Viewer.backend == 'panda3d':
-            Viewer._backend_obj._app.open_window()
+            Viewer._backend_obj.gui.open_window()
         elif Viewer.backend == 'meshcat':
             viewer_url = Viewer._backend_obj.gui.url()
 
@@ -878,7 +878,7 @@ class Viewer:
         if Viewer.backend == 'meshcat':
             Viewer._backend_obj.wait(require_client)
         elif Viewer.backend.startswith('panda3d'):
-            Viewer._backend_obj.gui._app.step()
+            Viewer._backend_obj.gui.step()
 
     @staticmethod
     def is_alive() -> bool:
@@ -1291,7 +1291,7 @@ class Viewer:
             logger.warning(
                 "Adding watermark is not available for Gepetto-gui.")
         elif Viewer.backend.startswith('panda3d'):
-            Viewer._backend_obj._app.set_watermark(img_fullpath, width, height)
+            Viewer._backend_obj.gui.set_watermark(img_fullpath, width, height)
         else:
             width = width or DEFAULT_WATERMARK_MAXSIZE[0]
             height = height or DEFAULT_WATERMARK_MAXSIZE[1]
@@ -1327,7 +1327,7 @@ class Viewer:
             else:
                 items = list(zip(
                     labels, Viewer._backend_robot_colors.values()))
-            Viewer._backend_obj._app.set_legend(items)
+            Viewer._backend_obj.gui.set_legend(items)
         else:
             if labels is None:
                 for robot_name in Viewer._backend_robot_colors.keys():
@@ -1353,7 +1353,7 @@ class Viewer:
                      Optional: None by default.
         """
         if Viewer.backend.startswith('panda3d'):
-            Viewer._backend_obj._app.set_clock(time)
+            Viewer._backend_obj.gui.set_clock(time)
         else:
             logger.warning("Adding clock is only available for Panda3d.")
 
@@ -1457,7 +1457,7 @@ class Viewer:
         elif Viewer.backend.startswith('panda3d'):
             rotation_panda3d = pin.Quaternion(
                 rotation_mat @ CAMERA_INV_TRANSFORM_PANDA3D).coeffs()
-            self._gui._app.set_camera_transform(position, rotation_panda3d)
+            self._gui.set_camera_transform(position, rotation_panda3d)
         elif Viewer.backend == 'meshcat':
             # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
             # usual convention in robotics.
@@ -1672,7 +1672,7 @@ class Viewer:
             By default, panda3d framerate of onscreen window is limited to
             reduce computational burden, thereby limiting the speed of this
             method. One is responsible to disable it manually by calling
-            `Viewer._backend_obj._app.set_frame(None)`.
+            `Viewer._backend_obj.gui.set_frame(None)`.
 
         :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
@@ -1703,13 +1703,13 @@ class Viewer:
                 rgba_array = np.array(img_obj)
         elif Viewer.backend.startswith('panda3d'):
             # Resize window if size has changed
-            _width, _height = self._gui._app.getSize()
+            _width, _height = self._gui.getSize()
             if width is None:
                 width = _width
             if height is None:
                 height = _height
             if _width != width or _height != height:
-                self._gui._app.set_window_size(width, height)
+                self._gui.set_window_size(width, height)
 
             # Call low-level `get_screenshot` directly to get raw buffer
             buffer = self._gui._app.get_screenshot(
@@ -1760,13 +1760,13 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             self._gui.captureFrame(self._client.windowID, image_path)
         elif Viewer.backend.startswith('panda3d'):
-            _width, _height = self._gui._app.getSize()
+            _width, _height = self._gui.getSize()
             if width is None:
                 width = _width
             if height is None:
                 height = _height
             if _width != width or _height != height:
-                self._gui._app.set_window_size(width, height)
+                self._gui.set_window_size(width, height)
             self._gui.save_screenshot(image_path)
         else:
             img_data = self.capture_frame(width, height, raw_data=True)
@@ -2138,6 +2138,14 @@ class Viewer:
         # Refreshing viewer backend manually if necessary
         if Viewer.backend == 'gepetto-gui':
             self._gui.refresh()
+        elif Viewer.backend == 'panda3d':
+            # Computation steps must be performed manually in the particular
+            # case of offscreen rendering using 'panda3d'. Although
+            # 'panda3d-qt' is also relying on offscreen buffer, qt task manarer
+            # is responsible for updating the display in background since it is
+            # not intented to be used in synchroneous fashion.
+            if not Viewer.has_gui():
+                self._gui.step()
 
         # Wait for the backend viewer to finish rendering if requested
         if wait:
