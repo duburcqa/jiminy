@@ -38,6 +38,7 @@ from pinocchio.visualize import GepettoVisualizer
 from .. import core as jiminy
 from ..core import ContactSensor as contact
 from ..state import State
+from ..dynamics import XYZQuatToXYZRPY
 from .meshcat.utilities import interactive_mode
 from .meshcat.wrapper import MeshcatWrapper
 from .meshcat.meshcat_visualizer import MeshcatVisualizer
@@ -48,10 +49,10 @@ from .panda3d.panda3d_visualizer import (Tuple3FType,
                                          Panda3dVisualizer)
 
 
-CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
-CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
-DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
-DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
+CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
+CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
+DEFAULT_CAMERA_XYZRPY_ABS = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi/2])
+DEFAULT_CAMERA_XYZRPY_REL = ([4.5, -4.5, 1.5], [1.3, 0.0, 0.8])
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
@@ -281,7 +282,7 @@ class Viewer:
     _backend_robot_colors = {}
     _camera_motion = None
     _camera_travelling = None
-    _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
+    _camera_xyzrpy = list(deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
     _lock = RLock()  # Unique lock for every viewer in same thread by default
 
     def __init__(self,
@@ -760,6 +761,11 @@ class Viewer:
                                 radius=0.015,
                                 length=0.7)
 
+            # Display external forces on freeflyer by default
+            if robot.has_freeflyer:
+                njoints = robot.pinocchio_model.njoints
+                self._display_f_external = [True] + [False] * (njoints - 2)
+
             self.display_external_forces(self._display_f_external)
 
     @staticmethod
@@ -913,7 +919,8 @@ class Viewer:
                 # automatically. One must call `Viewer.close` to do otherwise.
                 Viewer._backend_robot_names.clear()
                 Viewer._backend_robot_colors.clear()
-                Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
+                Viewer._camera_xyzrpy = list(
+                    deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
                 Viewer.detach_camera()
                 Viewer.remove_camera_motion()
                 if Viewer.is_alive():
@@ -1355,6 +1362,12 @@ class Viewer:
                              rotation: Optional[Tuple3FType] = None,
                              relative: Optional[str] = None) -> None:
         """Apply transform to the camera pose.
+
+        .. warning::
+            The reference axis is negative z-axis instead of positive x-axis,
+            which means that position = [0.0, 0.0, 0.0], rotation =
+            [0.0, 0.0, 0.0] moves the camera at the center of scene, looking
+            downward.
 
         :param position: Position [X, Y, Z] as a list or 1D array. None to not
                          update it.
