@@ -750,8 +750,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Set default camera pose if viewer not already available.
         if not self.simulator.is_viewer_available and self.robot.has_freeflyer:
             # Get root frame name.
-            # The first and second frames are respectively "universe" and
-            # "root_joint", no matter if the robot has a freeflyer or not.
+            # The first and second frames are respectively "universe" no matter
+            # if the robot has a freeflyer or not, and the second one is the
+            # freeflyer joint "root_joint" if any.
             root_name = self.robot.pinocchio_model.frames[2].name
 
             # Set default camera pose options.

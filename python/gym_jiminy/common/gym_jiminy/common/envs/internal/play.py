@@ -14,10 +14,12 @@ class Getch:
     screen.
     """
     def __init__(self,
-                 stop_event: Optional[threading.Event] = None) -> None:
+                 stop_event: Optional[threading.Event] = None,
+                 max_rate: Optional[float] = None) -> None:
         """ TODO: Write documentation.
         """
         self.stop_event = stop_event
+        self.max_rate = max_rate
         if os.name != 'nt':
             import sys
             import fcntl
@@ -51,6 +53,8 @@ class Getch:
                 termios.tcflush(self.fd, termios.TCIFLUSH)
                 while self.stop_event is None or \
                         not self.stop_event.is_set():
+                    if self.max_rate is not None:
+                        time.sleep(self.max_rate)
                     try:
                         char += sys.stdin.read(1)
                         if char and (char[:1] != '\x1b' or len(char) > 2):
@@ -64,6 +68,8 @@ class Getch:
             import msvcrt
             while self.stop_event is None or \
                     not self.stop_event.is_set():
+                if self.max_rate is not None:
+                    time.sleep(self.max_rate)
                 if msvcrt.kbhit():  # type: ignore[attr-defined]
                     return msvcrt.getch()  # type: ignore[attr-defined]
             return ''
@@ -71,14 +77,15 @@ class Getch:
 
 def input_deamon(input_queue: queue.Queue,
                  stop_event: threading.Event,
-                 exit_key: str) -> None:
+                 exit_key: str,
+                 max_rate: float) -> None:
     """ TODO: Write documentation.
     """
     char_to_arrow_mapping = {"\x1b[A": "Up",
                              "\x1b[B": "Down",
                              "\x1b[C": "Right",
                              "\x1b[D": "Left"}
-    getch = Getch(stop_event)
+    getch = Getch(stop_event, max_rate)
     while not stop_event.is_set():
         char = getch()
         if char in char_to_arrow_mapping.keys():
@@ -103,7 +110,7 @@ def loop_interactive(press_key_to_start: bool = True,
             stop_event = threading.Event()
             input_thread = threading.Thread(
                 target=input_deamon,
-                args=(input_queue, stop_event, exit_key),
+                args=(input_queue, stop_event, exit_key, max_rate),
                 daemon=True)
             input_thread.start()
 
