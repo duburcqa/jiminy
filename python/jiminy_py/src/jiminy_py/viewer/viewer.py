@@ -2110,8 +2110,6 @@ class Viewer:
         # Refreshing viewer backend manually if necessary
         if Viewer.backend == 'gepetto-gui':
             self._gui.refresh()
-        elif Viewer.backend.startswith('panda3d'):
-            self._gui._app.step()
 
         # Wait for the backend viewer to finish rendering if requested
         if wait:

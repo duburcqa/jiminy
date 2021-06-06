@@ -68,9 +68,6 @@ class Panda3dQWidget(QtWidgets.QWidget):
     def paintEvent(self, event: Any) -> None:
         """Pull the contents of the panda texture to the widget.
         """
-        # Render the scene
-        self._app.step()
-
         # Get raw image and convert it to Qt format.
         # Note that `QImage` apparently does not manage the lifetime of the
         # input data buffer, so it is necessary to keep it is local scope.

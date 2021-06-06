@@ -1130,16 +1130,28 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return self.framerate
 
     def save_screenshot(self, filename: Optional[str] = None) -> bool:
+        # Update frame if not graphical window
+        if any(isinstance(win, GraphicsWindow) for win in self.winList):
+            self.step()
+
+        # Generate filename based on current time if not provided
         if filename is None:
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
             filename = datetime.now().strftime(template)
+
+        # Capture frame as image
         image = PNMImage()
         if not self.buff.get_screenshot(image):
             return False
+
+        # Remove alpha if format does not support it
         if not filename.lower().endswith('.png'):
             image.remove_alpha()
+
+        # Save the image
         if not image.write(filename):
             return False
+
         return True
 
     def get_screenshot(self,
@@ -1155,6 +1167,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             scheduler. The framerate limit must be disable manually to avoid
             such limitation.
         """
+        # Update frame if not graphical window
+        if any(isinstance(win, GraphicsWindow) for win in self.winList):
+            self.step()
+
         # Capture frame as raw texture
         texture = self.buff.get_screenshot()
 
