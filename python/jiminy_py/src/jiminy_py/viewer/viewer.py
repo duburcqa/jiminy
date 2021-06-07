@@ -1375,6 +1375,12 @@ class Viewer:
 
         .. warning::
             The reference axis is negative z-axis instead of positive x-axis.
+
+        .. warning::
+            It returns the previous requested camera transform for meshcat,
+            since it is impossible to get acces to this information. Thus
+            this method is valid as long as the user does not move the
+            camera manually using mouse camera control.
         """
         if Viewer.backend == 'gepetto-gui':
             xyzquat = self._gui.getCameraTransform(self._client.windowID)
@@ -1385,8 +1391,7 @@ class Viewer:
             rot = pin.Quaternion(*quat).matrix()
             rpy = matrixToRpy(rot @ CAMERA_INV_TRANSFORM_PANDA3D.T)
         else:
-            raise NotImplementedError(
-                "This method is not supported by Meshcat.")
+            xyz, rpy = Viewer._camera_xyzrpy
         return xyz, rpy
 
     @__must_be_open
@@ -1415,8 +1420,8 @@ class Viewer:
 
                 How to apply the transform:
 
-            - **None:** absolute
-            - **'camera':** relative to the current camera pose
+            - **None:** absolute.
+            - **'camera':** relative to the current camera pose.
             - **other:** relative to a robot frame, not accounting for the
               rotation of the frame during travalling. It supports both frame
               name and index in model.
@@ -1424,17 +1429,9 @@ class Viewer:
         """
         # Handling of position and rotation arguments
         if position is None or rotation is None:
-            if Viewer.backend.startswith('panda3d'):
-                pos, rot = self.get_camera_transform()
-                if position is None:
-                    position = pos
-                if rotation is None:
-                    rotation = rot
-        if position is None:
-            position = Viewer._camera_xyzrpy[0]
-        if rotation is None:
-            rotation = Viewer._camera_xyzrpy[1]
-        position, rotation = np.asarray(position), np.asarray(rotation)
+            position_current, rotation_current = self.get_camera_transform()
+        position = np.asarray(position or position_current)
+        rotation = np.asarray(rotation or rotation_current)
 
         # Compute associated rotation matrix
         rotation_mat = rpyToMatrix(rotation)
