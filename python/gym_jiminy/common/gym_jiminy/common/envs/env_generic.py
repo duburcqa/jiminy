@@ -4,7 +4,7 @@ import os
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List
+from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List, Union
 
 import numpy as np
 import gym
@@ -128,6 +128,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Information about the learning process
         self._info: Dict[str, Any] = {}
+
+        # Keep track of cumulative reward
+        self.total_reward = 0.0
 
         # Number of simulation steps performed
         self.num_steps = -1
@@ -598,6 +601,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
+        # Reset cumulative reward
+        self.total_reward = 0.0
+
         # Note that the viewer must be reset if available, otherwise it would
         # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
@@ -718,6 +724,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.enable_reward_terminal:
                 # Add terminal reward to current reward
                 reward += self.compute_reward_terminal(info=self._info)
+
+        # Update cumulative reward
+        self.total_reward += reward
 
         # Update number of (successful) steps
         self.num_steps += 1
