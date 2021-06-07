@@ -10,7 +10,7 @@ from pinocchio.rpy import (rpyToMatrix,
                            computeRpyJacobianInverse)
 
 from . import core as jiminy
-from .viewer import TrajectoryDataType
+from .log import TrajectoryDataType
 
 
 logger = logging.getLogger(__name__)
@@ -634,9 +634,9 @@ def compute_efforts_from_fixed_body(
 # ################### State sequence wrappers #########################
 # #####################################################################
 
-def retrieve_freeflyer(trajectory_data: TrajectoryDataType,
-                       freeflyer_continuity: bool = True) -> None:
-    """Retrieves the freeflyer positions and velocities.
+def compute_freeflyer(trajectory_data: TrajectoryDataType,
+                      freeflyer_continuity: bool = True) -> None:
+    """Compute the freeflyer positions and velocities.
 
     .. warning::
         This function modifies the internal robot data.
