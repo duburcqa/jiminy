@@ -236,14 +236,14 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
         return super().render(mode, **kwargs)
 
-    @staticmethod
-    def _key_to_action(key: str) -> np.ndarray:
+    def _key_to_action(self, key: Optional[str], **kwargs: Any) -> np.ndarray:
         """ TODO: Write documentation.
         """
+        if key is None:
+            return None
         if key == "Left":
             return 1
-        elif key == "Right":
+        if key == "Right":
             return 0
-        else:
-            print(f"Key {key} is not bound to any action.")
-            return None
+        print(f"Key '{key}' not bound to any action.")
+        return None

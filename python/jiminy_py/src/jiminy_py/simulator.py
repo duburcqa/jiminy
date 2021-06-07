@@ -364,9 +364,11 @@ class Simulator:
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Failed to start the simulation.")
 
-        # Share the external force buffer of the viewer with the engine
+        # Share the external force buffer of the viewer with the engine.
+        # Note that the force vector must be converted to pain list to avoid
+        # copy with external sub-vector.
         if self.viewer is not None:
-            self.viewer.f_external = self.system_state.f_external[1:]
+            self.viewer.f_external = [*self.system_state.f_external][1:]
 
     def step(self, step_dt: float = -1) -> None:
         """Integrate system dynamics from current state for a given duration.
@@ -536,7 +538,7 @@ class Simulator:
             self.viewer.open_gui()
 
         # Try refreshing the viewer
-        self.viewer.refresh()
+        self.viewer.refresh(wait=True)
 
         # Compute rgb array if needed
         if return_rgb_array:

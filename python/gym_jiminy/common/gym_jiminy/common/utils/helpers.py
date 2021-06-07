@@ -74,8 +74,8 @@ def sample(low: Union[float, np.ndarray] = -1.0,
                     np.empty(shape, dtype=[]), np.empty(dev.shape, dtype=[]))
             except ValueError as e:
                 raise ValueError(
-                    f"'shape' {shape} must be broadcastable with 'low' and "
-                    f"'high' {dev.shape} if specified.") from e
+                    f"'shape' {shape} must be broadcastable with 'low', "
+                    f"'high' and 'scale' {dev.shape} if specified.") from e
 
     # Sample from normalized distribution.
     # Note that some distributions are not normalized by default

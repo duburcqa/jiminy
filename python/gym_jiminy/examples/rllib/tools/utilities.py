@@ -26,7 +26,7 @@ from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
 from ray.rllib.models.preprocessors import get_preprocessor
 
-from gym_jiminy.common.utils import clip
+from gym_jiminy.common.utils import clip, SpaceDictNested
 
 try:
     import torch
@@ -252,6 +252,114 @@ def initialize(num_cpus: int,
     return logger_creator
 
 
+def compute_action(policy: Policy,
+                   input_dict: Dict[str, np.ndarray],
+                   explore: bool) -> Any:
+    """Compute predicted action by the policy.
+
+    .. note::
+        It supports both Pytorch and Tensorflow backends (both eager and
+        compiled graph modes).
+
+    :param policy: `rllib.poli.Policy` to use to predict the action, which is
+                   a thin wrapper around the actual policy model.
+    :param input_dict: Input dictionary for forward as input of the policy.
+    :param explore: Whether or not to enable exploration during sampling of the
+                    action.
+    """
+    if policy.framework == 'torch':
+        with torch.no_grad():
+            input_dict = policy._lazy_tensor_dict(input_dict)
+            action_logits, _ = policy.model(input_dict)
+            action_dist = policy.dist_class(action_logits, policy.model)
+            if explore:
+                action_torch = action_dist.sample()
+            else:
+                action_torch = action_dist.deterministic_sample()
+            action = action_torch.cpu().numpy()
+    elif tf.compat.v1.executing_eagerly():
+        action_logits, _ = policy.model(input_dict)
+        action_dist = policy.dist_class(action_logits, policy.model)
+        if explore:
+            action_tf = action_dist.sample()
+        else:
+            action_tf = action_dist.deterministic_sample()
+        action = action_tf.numpy()
+    else:
+        # This obscure piece of code takes advantage of already existing
+        # placeholders to avoid creating new nodes to evalute computation
+        # graph. It is several order of magnitude more efficient than calling
+        # `action_logits, _ = model(input_dict).eval(session=policy._sess)[0]`
+        # directly, but also significantly trickier.
+        feed_dict = {policy._input_dict[key]: value
+                     for key, value in input_dict.items()
+                     if key in policy._input_dict.keys()}
+        feed_dict[policy._is_exploring] = explore
+        action = policy._sess.run(
+            policy._sampled_action, feed_dict=feed_dict)
+    return action
+
+
+def build_policy_wrapper(policy: Policy,
+                         obs_filter_fn: Optional[
+                             Callable[[np.ndarray], np.ndarray]] = None,
+                         explore: bool = True,
+                         n_frames_stack: int = 1,
+                         clip_action: bool = False) -> Callable[
+                             [np.ndarray, Optional[float]], SpaceDictNested]:
+    """ TODO: Write documentation.
+    """
+    # Extract some proxies for convenience
+    observation_space = policy.observation_space
+    action_space = policy.action_space
+
+    # Build preprocessor to flatten environment observation
+    preprocessor_class = get_preprocessor(observation_space.original_space)
+    preprocessor = preprocessor_class(observation_space.original_space)
+    obs_flat = preprocessor.observation_space.sample()
+
+    # Initialize frame stack
+    input_dict = {
+        "obs": np.zeros([1, *observation_space.shape]),
+        "prev_n_obs": np.zeros([1, n_frames_stack, *observation_space.shape]),
+        "prev_n_act": np.zeros([1, n_frames_stack, *action_space.shape]),
+        "prev_n_rew": np.zeros([1, n_frames_stack])}
+
+    # Run the simulation
+    def forward(obs: SpaceDictNested,
+                reward: Optional[float]) -> SpaceDictNested:
+        nonlocal policy, obs_flat, input_dict, explore, clip_action
+
+        # Compute flat observation
+        preprocessor.write(obs, obs_flat, 0)
+
+        # Filter observation if necessary
+        if obs_filter_fn is not None:
+            obs_flat = obs_filter_fn(obs_flat)
+
+        # Update current observation and previous reward buffers
+        input_dict["obs"][0] = obs_flat
+        if reward is not None:
+            input_dict["prev_n_rew"][0, -1] = reward
+
+        # Compute action
+        action = compute_action(policy, input_dict, explore)
+        if clip_action:
+            action = clip(action_space, action)
+
+        # Update previous observation and action buffers
+        input_dict["prev_n_obs"][0, -1] = input_dict["obs"][0]
+        input_dict["prev_n_act"][0, -1] = action
+
+        # Shift input dict history by one
+        for field in input_dict.values():
+            field[:] = np.roll(field, shift=-1, axis=1)
+
+        return action[0]
+
+    return forward
+
+
 def train(train_agent: Trainer,
           max_timesteps: int = 0,
           max_iters: int = 0,
@@ -377,54 +485,6 @@ def train(train_agent: Trainer,
     return train_agent.save()
 
 
-def compute_action(policy: Policy,
-                   input_dict: Dict[str, np.ndarray],
-                   explore: bool) -> Any:
-    """Compute predicted action by the policy.
-
-    .. note::
-        It supports both Pytorch and Tensorflow backends (both eager and
-        compiled graph modes).
-
-    :param policy: `rllib.poli.Policy` to use to predict the action, which is
-                   a thin wrapper around the actual policy model.
-    :param input_dict: Input dictionary for forward as input of the policy.
-    :param explore: Whether or not to enable exploration during sampling of the
-                    action.
-    """
-    if policy.framework == 'torch':
-        with torch.no_grad():
-            input_dict = policy._lazy_tensor_dict(input_dict)
-            action_logits, _ = policy.model(input_dict)
-            action_dist = policy.dist_class(action_logits, policy.model)
-            if explore:
-                action_torch = action_dist.sample()
-            else:
-                action_torch = action_dist.deterministic_sample()
-            action = action_torch.cpu().numpy()
-    elif tf.compat.v1.executing_eagerly():
-        action_logits, _ = policy.model(input_dict)
-        action_dist = policy.dist_class(action_logits, policy.model)
-        if explore:
-            action_tf = action_dist.sample()
-        else:
-            action_tf = action_dist.deterministic_sample()
-        action = action_tf.numpy()
-    else:
-        # This obscure piece of code takes advantage of already existing
-        # placeholders to avoid creating new nodes to evalute computation
-        # graph. It is several order of magnitude more efficient than calling
-        # `action_logits, _ = model(input_dict).eval(session=policy._sess)[0]`
-        # directly, but also significantly trickier.
-        feed_dict = {policy._input_dict[key]: value
-                     for key, value in input_dict.items()
-                     if key in policy._input_dict.keys()}
-        feed_dict[policy._is_exploring] = explore
-        action = policy._sess.run(
-            policy._sampled_action, feed_dict=feed_dict)
-    return action
-
-
 def evaluate(env: gym.Env,
              policy: Policy,
              obs_filter_fn: Optional[
@@ -472,65 +532,31 @@ def evaluate(env: gym.Env,
     if viewer_kwargs is None:
         viewer_kwargs = {}
 
-    # Wrap the environment to flatten the observation space if necessary
-    class _FlattenObservation(gym.ObservationWrapper):
-        def __init__(self, env):
-            super().__init__(env)
-            preprocessor_class = get_preprocessor(env.observation_space)
-            self._preprocessor = preprocessor_class(env.observation_space)
-            self.observation_space = self._preprocessor.observation_space
-            self._observation = self.observation_space.sample()
-
-        def observation(self, observation):
-            self._preprocessor.write(observation, self._observation, 0)
-            return self._observation
-
-    if not isinstance(env.observation_space, gym.spaces.Box):
-        env = _FlattenObservation(env)
-
-    # Extract some proxies for convenience
-    observation_space, action_space = env.observation_space, env.action_space
-
     # Initialize frame stack
-    input_dict = {
-        "obs": np.zeros([1, *observation_space.shape]),
-        "prev_n_obs": np.zeros([1, n_frames_stack, *observation_space.shape]),
-        "prev_n_act": np.zeros([1, n_frames_stack, *action_space.shape]),
-        "prev_n_rew": np.zeros([1, n_frames_stack])
-    }
+    policy_forward = build_policy_wrapper(
+        policy, obs_filter_fn, explore, n_frames_stack, clip_action)
 
     # Initialize the simulation
     obs = env.reset()
+    reward = None
 
     # Run the simulation
     try:
         info_episode = []
-        tot_reward = 0.0
         done = False
         while not done:
-            if obs_filter_fn is not None:
-                obs = obs_filter_fn(obs)
-            input_dict["obs"][0] = obs
-            action = compute_action(policy, input_dict, explore)
-            if clip_action:
-                action = clip(action_space, action)
-            input_dict["prev_n_obs"][0, -1] = input_dict["obs"][0]
+            action = policy_forward(obs=obs, reward=reward)
             obs, reward, done, info = env.step(action)
-            input_dict["prev_n_act"][0, -1] = action
-            input_dict["prev_n_rew"][0, -1] = reward
             info_episode.append(info)
-            tot_reward += reward
             if done or (horizon is not None and env.num_steps > horizon):
                 break
-            for field in input_dict.values():
-                field[:] = np.roll(field, shift=-1, axis=1)
     except KeyboardInterrupt:
         pass
 
     # Display some statistic if requested
     if enable_stats:
         print("env.num_steps:", env.num_steps)
-        print("cumulative reward:", tot_reward)
+        print("cumulative reward:", env.total_reward)
 
     # Replay the result if requested
     if enable_replay:
@@ -582,6 +608,8 @@ def test(test_agent: Trainer,
 
     # Get policy model
     policy = test_agent.get_policy()
+
+    # Get observation filter if any
     obs_filter = test_agent.workers.local_worker().filters["default_policy"]
     if isinstance(obs_filter, NoFilter):
         obs_filter_fn = None

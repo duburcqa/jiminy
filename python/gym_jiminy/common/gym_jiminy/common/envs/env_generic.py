@@ -1,11 +1,10 @@
 """ TODO: Write documentation.
 """
 import os
-import time
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List
+from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List, Union
 
 import numpy as np
 import gym
@@ -18,10 +17,10 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
+from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from jiminy_py.dynamics import (update_quantities,
                                 compute_freeflyer_state_from_fixed_body)
 from jiminy_py.simulator import Simulator
-from jiminy_py.viewer import sleep
 
 from pinocchio import neutral, normalize
 
@@ -124,8 +123,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.log_path: Optional[str] = None
         self.logfile_action_headers: Optional[FieldDictNested] = None
 
+        # Whether or not play interactive mode is active
+        self._is_interactive = False
+
         # Information about the learning process
         self._info: Dict[str, Any] = {}
+
+        # Keep track of cumulative reward
+        self.total_reward = 0.0
 
         # Number of simulation steps performed
         self.num_steps = -1
@@ -596,6 +601,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
+        # Reset cumulative reward
+        self.total_reward = 0.0
+
         # Note that the viewer must be reset if available, otherwise it would
         # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
@@ -717,6 +725,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 # Add terminal reward to current reward
                 reward += self.compute_reward_terminal(info=self._info)
 
+        # Update cumulative reward
+        self.total_reward += reward
+
         # Update number of (successful) steps
         self.num_steps += 1
 
@@ -745,6 +756,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             return_rgb_array = True
         else:
             raise ValueError(f"Rendering mode {mode} not supported.")
+
         return self.simulator.render(**{
             'return_rgb_array': return_rgb_array, **kwargs})
 
@@ -814,21 +826,34 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 if not self.viewer or self.viewer._display_contacts:
                     self.simulator.stop()
 
+        # Set default camera pose if viewer not already available
+        if not self.simulator.is_viewer_available and self.robot.has_freeflyer:
+            # Get root frame name.
+            # The first and second frames are respectively "universe" no matter
+            # if the robot has a freeflyer or not, and the second one is the
+            # freeflyer joint "root_joint" if any.
+            root_name = self.robot.pinocchio_model.frames[2].name
+
+            # Set default camera pose options.
+            # Note that the actual signature is hacked to set relative pose.
+            kwargs["camera_xyzrpy"] = (*DEFAULT_CAMERA_XYZRPY_REL, root_name)
+
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose.
         self.render(**kwargs)
 
+        # Set default travelling options
         if enable_travelling and self.robot.has_freeflyer:
-            # It is worth noting that the first and second frames are
-            # respectively "universe" and "root_joint", no matter if the robot
-            # has a freeflyer or not.
             kwargs['travelling_frame'] = \
                 self.robot.pinocchio_model.frames[2].name
 
         self.simulator.replay(**{'verbose': False, **kwargs})
 
-    @loop_interactive()
-    def play_interactive(self, key: Optional[str] = None) -> bool:
+    @staticmethod
+    def play_interactive(env: Union["BaseJiminyEnv", gym.Wrapper],
+                         enable_travelling: Optional[bool] = None,
+                         verbose: bool = True,
+                         **kwargs: Any) -> None:
         """Activate interact mode enabling to control the robot using keyboard.
 
         It stops automatically as soon as 'done' flag is True. One has to press
@@ -837,20 +862,79 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         .. warning::
             This method requires `_key_to_action` method to be implemented by
-            the user by overloading it. Otherwise, calling it will raise an
-            exception.
+            the user by overloading it, otherwise it raises an exception.
 
-        :param key: Key to press to start the interaction.
+        :param env: `BaseJiminyEnv` environment instance to play with,
+                    eventually wrapped by composition, typically using
+                    `gym.Wrapper`.
+        :param enable_travelling: Whether or not enable travelling, following
+                                  the motion of the root frame of the model.
+                                  This parameter is ignored if the model has no
+                                  freeflyer.
+                                  Optional: Enable by default iif 'panda3d'
+                                  viewer backend is used.
+        :param verbose: Whether or not to display status messages.
+        :param kwargs: Extra keyword arguments to forward to `_key_to_action`
+                       method.
         """
-        t_init = time.time()
-        if key is not None:
-            action = self._key_to_action(key)
+        # Get unwrapped environment
+        if isinstance(env, gym.Wrapper):
+            self = env.unwrapped
         else:
-            action = None
-        *_, done, _ = self.step(action)
-        self.render()
-        sleep(self.step_dt - (time.time() - t_init))
-        return done
+            self = env
+
+        # Make sure the unwrapped environment derive from this class
+        assert isinstance(self, BaseJiminyEnv), (
+            "Unwrapped environment must derived from `BaseJiminyEnv`.")
+
+        # Enable play interactive mode flag
+        self._is_interactive = True
+
+        # Make sure viewer gui is open, so that the viewer will shared external
+        # forces with the robot automatically.
+        if not (self.simulator.is_viewer_available and
+                self.simulator.viewer.has_gui()):
+            env.render()
+
+        # Reset the environement
+        obs = env.reset()
+        reward = None
+
+        # Enable travelling
+        if enable_travelling is None:
+            enable_travelling = \
+                self.simulator.viewer.backend.startswith('panda3d')
+        enable_travelling = enable_travelling and self.robot.has_freeflyer
+        if enable_travelling:
+            tracked_frame = self.robot.pinocchio_model.frames[2].name
+            self.simulator.viewer.attach_camera(tracked_frame)
+
+        # Refresh the scene once again to update camera placement
+        env.render()
+
+        # Define interactive loop
+        def _interact(key: Optional[str] = None) -> bool:
+            nonlocal obs, reward
+            action = self._key_to_action(
+                key, obs, reward, **{"verbose": verbose, **kwargs})
+            obs, reward, done, _ = env.step(action)
+            env.render()
+            return done
+
+        # Run interactive loop
+        loop_interactive(max_rate=self.step_dt, verbose=verbose)(_interact)()
+
+        # Disable travelling if it enabled
+        if enable_travelling:
+            self.simulator.viewer.detach_camera()
+
+        # Stop the simulation to unlock the robot.
+        # It will enable to display contact forces for replay.
+        if self.simulator.is_simulation_running:
+            self.simulator.stop()
+
+        # Disable play interactive mode flag
+        self._is_interactive = False
 
     # methods to override:
     # ----------------------------
@@ -1057,16 +1141,38 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return not self.observation_space.contains(self._observation)
 
-    @staticmethod
-    def _key_to_action(key: str) -> np.ndarray:
-        """Mapping between keyword keys and actions to send to the robot.
+    def _key_to_action(self,
+                       key: Optional[str],
+                       obs: SpaceDictNested,
+                       reward: Optional[float],
+                       **kwargs: Any) -> SpaceDictNested:
+        """Mapping from input keyboard keys to actions.
+
+        .. note::
+            This method is called before `step` method systematically, even if
+            not key has been pressed, or reward is not defined. In such a case,
+            the value is `None`.
+
+        .. note::
+            The mapping can be state dependent, and the key can be used for
+            something different than computing the action directly. For
+            instance, one can provide as extra argument to this method a
+            custom policy taking user parameters mapped to keyboard in input.
 
         .. warning::
-            Overloading this method is required for using `play_interactive`.
+            Overloading this method is required for calling `play_interactive`
+            method.
 
-        :param key: Key pressed by the user as a string.
+        :param key: Key pressed by the user as a string. `None` if no key has
+                    been pressed since the last step of the environment.
+        :param obs: Previous observation from last step of the environment.
+                    It is always available, included right after `reset`.
+        :param reward: Previous reward from last step of the environment.
+                       Not available before first step right after `reset`.
+        :param kwargs: Extra keyword argument provided by the user when calling
+                       `play_interactive` method.
 
-        :returns: Action to send to the robot.
+        :returns: Action to forward to the environment.
         """
         raise NotImplementedError
 

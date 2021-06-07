@@ -38,6 +38,7 @@ from pinocchio.visualize import GepettoVisualizer
 from .. import core as jiminy
 from ..core import ContactSensor as contact
 from ..state import State
+from ..dynamics import XYZQuatToXYZRPY
 from .meshcat.utilities import interactive_mode
 from .meshcat.wrapper import MeshcatWrapper
 from .meshcat.meshcat_visualizer import MeshcatVisualizer
@@ -48,10 +49,12 @@ from .panda3d.panda3d_visualizer import (Tuple3FType,
                                          Panda3dVisualizer)
 
 
-CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
-CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
-DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
-DEFAULT_CAMERA_XYZRPY_REL = [[4.5, -4.5, 1.5], [1.3, 0.0, 0.8]]
+DISPLAY_FRAMERATE = 30
+
+CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
+CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
+DEFAULT_CAMERA_XYZRPY_ABS = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi/2])
+DEFAULT_CAMERA_XYZRPY_REL = ([4.5, -4.5, 0.75], [1.3, 0.0, 0.8])
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
@@ -148,9 +151,17 @@ def sleep(dt: float) -> None:
 
     :param dt: Sleep duration in seconds.
     """
+    # Estimate of timer jitter depending on the operating system
+    if os.name == 'nt':
+        timer_jitter = 1e-2
+    else:
+        timer_jitter = 1e-3
+
+    # Combine busy loop and timer to release the GIL periodically
     t_end = time.perf_counter() + dt
     while time.perf_counter() < t_end:
-        pass
+        if t_end - time.perf_counter() > timer_jitter:
+            time.sleep(1e-3)
 
 
 def get_color_code(color: Optional[Union[str, Tuple4FType]]) -> Tuple4FType:
@@ -281,7 +292,7 @@ class Viewer:
     _backend_robot_colors = {}
     _camera_motion = None
     _camera_travelling = None
-    _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
+    _camera_xyzrpy = list(deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
     _lock = RLock()  # Unique lock for every viewer in same thread by default
 
     def __init__(self,
@@ -507,7 +518,8 @@ class Viewer:
 
         # Refresh the viewer since the positions of the meshes and their
         # visibility mode are not properly set at this point.
-        self.refresh(force_update_visual=True, force_update_collision=True)
+        self.refresh(
+            force_update_visual=True, force_update_collision=True, wait=True)
 
     def __del__(self) -> None:
         """Destructor.
@@ -760,6 +772,11 @@ class Viewer:
                                 radius=0.015,
                                 length=0.7)
 
+            # Display external forces on freeflyer by default
+            if robot.has_freeflyer:
+                njoints = robot.pinocchio_model.njoints
+                self._display_f_external = [True] + [False] * (njoints - 2)
+
             self.display_external_forces(self._display_f_external)
 
     @staticmethod
@@ -786,7 +803,7 @@ class Viewer:
             # No instance is considered manager of the unique window
             pass
         elif Viewer.backend == 'panda3d':
-            Viewer._backend_obj._app.open_window()
+            Viewer._backend_obj.gui.open_window()
         elif Viewer.backend == 'meshcat':
             viewer_url = Viewer._backend_obj.gui.url()
 
@@ -863,8 +880,8 @@ class Viewer:
         """Wait for all the meshes to finish loading in every clients.
 
         .. note::
-            It is a non-op for every backend except `meshcat` since synchronous
-            mode is enabled for the other ones.
+            It is a non-op for `gepetto-gui` since it works in synchronous
+            mode.
 
         :param require_client: Wait for at least one client to be available
                                before checking for mesh loading.
@@ -872,7 +889,7 @@ class Viewer:
         if Viewer.backend == 'meshcat':
             Viewer._backend_obj.wait(require_client)
         elif Viewer.backend.startswith('panda3d'):
-            Viewer._backend_obj.gui._app.step()
+            Viewer._backend_obj.gui.step()
 
     @staticmethod
     def is_alive() -> bool:
@@ -913,7 +930,8 @@ class Viewer:
                 # automatically. One must call `Viewer.close` to do otherwise.
                 Viewer._backend_robot_names.clear()
                 Viewer._backend_robot_colors.clear()
-                Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
+                Viewer._camera_xyzrpy = list(
+                    deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
                 Viewer.detach_camera()
                 Viewer.remove_camera_motion()
                 if Viewer.is_alive():
@@ -952,9 +970,11 @@ class Viewer:
                         self._client.collision_group,
                         self._markers_group])
 
+                # Restore zmq socket timeout, which is disable by default
                 if Viewer.backend == 'meshcat':
                     Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
 
+                # Delete temporary directory
                 if self._tempdir.startswith(tempfile.gettempdir()):
                     try:
                         shutil.rmtree(self._tempdir)
@@ -1282,7 +1302,7 @@ class Viewer:
             logger.warning(
                 "Adding watermark is not available for Gepetto-gui.")
         elif Viewer.backend.startswith('panda3d'):
-            Viewer._backend_obj._app.set_watermark(img_fullpath, width, height)
+            Viewer._backend_obj.gui.set_watermark(img_fullpath, width, height)
         else:
             width = width or DEFAULT_WATERMARK_MAXSIZE[0]
             height = height or DEFAULT_WATERMARK_MAXSIZE[1]
@@ -1318,7 +1338,7 @@ class Viewer:
             else:
                 items = list(zip(
                     labels, Viewer._backend_robot_colors.values()))
-            Viewer._backend_obj._app.set_legend(items)
+            Viewer._backend_obj.gui.set_legend(items)
         else:
             if labels is None:
                 for robot_name in Viewer._backend_robot_colors.keys():
@@ -1344,17 +1364,50 @@ class Viewer:
                      Optional: None by default.
         """
         if Viewer.backend.startswith('panda3d'):
-            Viewer._backend_obj._app.set_clock(time)
+            Viewer._backend_obj.gui.set_clock(time)
         else:
             logger.warning("Adding clock is only available for Panda3d.")
+
+    @__must_be_open
+    @__with_lock
+    def get_camera_transform(self) -> Tuple[Tuple3FType, Tuple3FType]:
+        """Get transform of the camera pose.
+
+        .. warning::
+            The reference axis is negative z-axis instead of positive x-axis.
+
+        .. warning::
+            It returns the previous requested camera transform for meshcat,
+            since it is impossible to get acces to this information. Thus
+            this method is valid as long as the user does not move the
+            camera manually using mouse camera control.
+        """
+        if Viewer.backend == 'gepetto-gui':
+            xyzquat = self._gui.getCameraTransform(self._client.windowID)
+            xyzrpy = XYZQuatToXYZRPY(xyzquat)
+            xyz, rpy = xyzrpy[:3], xyzrpy[3:]
+        elif Viewer.backend.startswith('panda3d'):
+            xyz, quat = self._gui.get_camera_transform()
+            rot = pin.Quaternion(*quat).matrix()
+            rpy = matrixToRpy(rot @ CAMERA_INV_TRANSFORM_PANDA3D.T)
+        else:
+            xyz, rpy = Viewer._camera_xyzrpy
+        return xyz, rpy
 
     @__must_be_open
     @__with_lock
     def set_camera_transform(self,
                              position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
-                             relative: Optional[str] = None) -> None:
-        """Apply transform to the camera pose.
+                             relative: Optional[Union[str, int]] = None,
+                             wait: bool = False) -> None:
+        """Set transform of the camera pose.
+
+        .. warning::
+            The reference axis is negative z-axis instead of positive x-axis,
+            which means that position = [0.0, 0.0, 0.0], rotation =
+            [0.0, 0.0, 0.0] moves the camera at the center of scene, looking
+            downward.
 
         :param position: Position [X, Y, Z] as a list or 1D array. None to not
                          update it.
@@ -1367,30 +1420,32 @@ class Viewer:
 
                 How to apply the transform:
 
-            - **None:** absolute
-            - **'camera':** relative to the current camera pose
-            - **other string:** relative to a robot frame, not accounting for
-              the rotation (travelling)
+            - **None:** absolute.
+            - **'camera':** relative to the current camera pose.
+            - **other:** relative to a robot frame, not accounting for the
+              rotation of the frame during travalling. It supports both frame
+              name and index in model.
+        :param wait: Whether or not to wait for rendering to finish.
         """
         # Handling of position and rotation arguments
-        if position is None:
-            position = Viewer._camera_xyzrpy[0]
-        if rotation is None:
-            rotation = Viewer._camera_xyzrpy[1]
-        position, rotation = np.asarray(position), np.asarray(rotation)
+        if position is None or rotation is None:
+            position_current, rotation_current = self.get_camera_transform()
+        position = np.asarray(position or position_current)
+        rotation = np.asarray(rotation or rotation_current)
 
         # Compute associated rotation matrix
         rotation_mat = rpyToMatrix(rotation)
 
-        # Compute the relative transformation if applicable
+        # Compute the relative transformation if necessary
         if relative == 'camera':
-            H_orig = SE3(rpyToMatrix(np.asarray(Viewer._camera_xyzrpy[1])),
-                         np.asarray(Viewer._camera_xyzrpy[0]))
+            H_orig = SE3(rpyToMatrix(
+                Viewer._camera_xyzrpy[1]), Viewer._camera_xyzrpy[0])
         elif relative is not None:
             # Get the body position, not taking into account the rotation
-            body_id = self._client.model.getFrameId(relative)
+            if isinstance(relative, str):
+                relative = self._client.model.getFrameId(relative)
             try:
-                body_transform = self._client.data.oMf[body_id]
+                body_transform = self._client.data.oMf[relative]
             except IndexError:
                 raise ValueError("'relative' set to non-existing frame.")
             H_orig = SE3(np.eye(3), body_transform.translation)
@@ -1410,7 +1465,7 @@ class Viewer:
         elif Viewer.backend.startswith('panda3d'):
             rotation_panda3d = pin.Quaternion(
                 rotation_mat @ CAMERA_INV_TRANSFORM_PANDA3D).coeffs()
-            self._gui._app.set_camera_transform(position, rotation_panda3d)
+            self._gui.set_camera_transform(position, rotation_panda3d)
         elif Viewer.backend == 'meshcat':
             # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
             # usual convention in robotics.
@@ -1422,8 +1477,47 @@ class Viewer:
                     translate=position_meshcat, angles=rotation_meshcat))
 
         # Backup updated camera pose
-        Viewer._camera_xyzrpy[0] = position.copy()
-        Viewer._camera_xyzrpy[1] = rotation.copy()
+        Viewer._camera_xyzrpy = deepcopy([position, rotation])
+
+        # Wait for the backend viewer to finish rendering if requested
+        if wait:
+            Viewer.wait(require_client=False)
+
+    @__must_be_open
+    @__with_lock
+    def set_camera_lookat(self,
+                          position: Tuple3FType,
+                          relative: Optional[Union[str, int]] = None,
+                          wait: bool = False) -> None:
+        """Set the camera look-up position.
+
+        .. note::
+            It preserve the relative camera pose wrt the lookup position.
+
+        :param position: Position [X, Y, Z] as a list or 1D array, frame index
+        :param relative: Set the lookat position relative to robot frame if
+                         specified, in absolute otherwise. Both frame name and
+                         index in model are supported.
+        :param wait: Whether or not to wait for rendering to finish.
+        """
+        # Make sure the backend supports this method
+        if not Viewer.backend.startswith('panda3d'):
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
+        # Compute absolute lookat position using frame and relative position
+        if isinstance(relative, str):
+            relative = self._client.model.getFrameId(relative)
+        if isinstance(relative, int):
+            body_transform = self._client.data.oMf[relative]
+            position = body_transform.translation + position
+
+        # Update camera lookat position
+        self._gui.set_camera_lookat(position)
+
+        # Wait for the backend viewer to finish rendering if requested
+        if wait:
+            Viewer.wait(require_client=False)
 
     @staticmethod
     def register_camera_motion(camera_motion: CameraMotionType) -> None:
@@ -1469,26 +1563,64 @@ class Viewer:
         Viewer._camera_motion = None
 
     def attach_camera(self,
-                      frame: str,
-                      camera_xyzrpy: Optional[CameraPoseType] = None) -> None:
+                      frame: Union[str, int],
+                      camera_xyzrpy: Optional[CameraPoseType] = (None, None),
+                      lock_relative_pose: Optional[bool] = None) -> None:
         """Attach the camera to a given robot frame.
 
         Only the position of the frame is taken into account. A custom relative
-        pose of the camera wrt to the frame can be further specified.
+        pose of the camera wrt to the frame can be further specified. If so,
+        then the relative camera pose wrt the frame is locked, otherwise the
+        camera is only constrained to look at the frame.
 
-        :param frame: Frame of the robot to follow with the camera.
+        :param frame: Name or index of the frame of the robot to follow with
+                      the camera.
         :param camera_xyzrpy: Tuple position [X, Y, Z], rotation
                               [Roll, Pitch, Yaw] corresponding to the relative
-                              pose of the camera wrt the tracked frame. None
-                              to use default pose.
-                              Optional: None by default.
+                              pose of the camera wrt the tracked frame. It will
+                              be used to initialize the camera pose if relative
+                              pose is not locked. `None` to disable.
+                              Optional: Disabkle by default.
+        :param lock_relative_pose: Whether or not to lock the relative pose of
+                                   the camera wrt tracked frame.
+                                   Optional: False by default iif Panda3d
+                                   backend is used.
         """
-        # Make sure one is not trying to track the camera itself...
+        # Make sure one is not trying to track the camera itself
         assert frame != 'camera', "Impossible to track the camera itself !"
 
+        # Make sure the frame exists and it is not the universe itself
+        if isinstance(frame, str):
+            frame = self._client.model.getFrameId(frame)
+        if frame == self._client.model.nframes:
+            raise ValueError("Trying to attach camera to non-existing frame.")
+        assert frame != 0, "Impossible to track the universe !"
+
+        # Handle of default camera lock mode
+        if lock_relative_pose is None:
+            lock_relative_pose = not Viewer.backend.startswith('panda3d')
+
+        # Make sure camera lock mode is compatible with viewer backend
+        if not lock_relative_pose and not Viewer.backend.startswith('panda3d'):
+            raise NotImplementedError(
+                "Not locking camera pose is only supported by Panda3d.")
+
         # Handling of default camera pose
-        if camera_xyzrpy is None:
-            camera_xyzrpy = DEFAULT_CAMERA_XYZRPY_REL
+        if lock_relative_pose and camera_xyzrpy is None:
+            camera_xyzrpy = [None, None]
+
+        # Set default relative camera pose if position/orientation undefined
+        if camera_xyzrpy is not None:
+            camera_xyzrpy = list(camera_xyzrpy)
+            if camera_xyzrpy[0] is None:
+                camera_xyzrpy[0] = deepcopy(DEFAULT_CAMERA_XYZRPY_REL[0])
+            if camera_xyzrpy[1] is None:
+                camera_xyzrpy[1] = deepcopy(DEFAULT_CAMERA_XYZRPY_REL[1])
+
+        # Set camera pose if relative pose is not locked but provided
+        if not lock_relative_pose and camera_xyzrpy is not None:
+            self.set_camera_transform(*camera_xyzrpy, frame)
+            camera_xyzrpy = None
 
         Viewer._camera_travelling = {
             'viewer': self, 'frame': frame, 'pose': camera_xyzrpy}
@@ -1544,12 +1676,6 @@ class Viewer:
                       raw_data: bool = False) -> Union[np.ndarray, str]:
         """Take a snapshot and return associated data.
 
-        .. warning::
-            By default, panda3d framerate of onscreen window is limited to
-            reduce computational burden, thereby limiting the speed of this
-            method. One is responsible to disable it manually by calling
-            `Viewer._backend_obj._app.set_frame(None)`.
-
         :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
                       Optional: Kept unchanged by default.
@@ -1579,13 +1705,13 @@ class Viewer:
                 rgba_array = np.array(img_obj)
         elif Viewer.backend.startswith('panda3d'):
             # Resize window if size has changed
-            _width, _height = self._gui._app.getSize()
+            _width, _height = self._gui.getSize()
             if width is None:
                 width = _width
             if height is None:
                 height = _height
             if _width != width or _height != height:
-                self._gui._app.set_window_size(width, height)
+                self._gui.set_window_size(width, height)
 
             # Call low-level `get_screenshot` directly to get raw buffer
             buffer = self._gui._app.get_screenshot(
@@ -1636,13 +1762,13 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             self._gui.captureFrame(self._client.windowID, image_path)
         elif Viewer.backend.startswith('panda3d'):
-            _width, _height = self._gui._app.getSize()
+            _width, _height = self._gui.getSize()
             if width is None:
                 width = _width
             if height is None:
                 height = _height
             if _width != width or _height != height:
-                self._gui._app.set_window_size(width, height)
+                self._gui.set_window_size(width, height)
             self._gui.save_screenshot(image_path)
         else:
             img_data = self.capture_frame(width, height, raw_data=True)
@@ -1983,10 +2109,15 @@ class Viewer:
         # Update the camera placement if necessary
         if Viewer._camera_travelling is not None:
             if Viewer._camera_travelling['viewer'] is self:
-                self.set_camera_transform(
-                    *Viewer._camera_travelling['pose'],
-                    relative=Viewer._camera_travelling['frame'])
-        elif Viewer._camera_motion is not None:
+                if Viewer._camera_travelling['pose'] is not None:
+                    self.set_camera_transform(
+                        *Viewer._camera_travelling['pose'],
+                        relative=Viewer._camera_travelling['frame'])
+                else:
+                    frame = Viewer._camera_travelling['frame']
+                    self.set_camera_lookat(np.zeros(3), frame)
+
+        if Viewer._camera_motion is not None:
             self.set_camera_transform()
 
         # Update pose, color and scale of the markers, if any
@@ -2009,8 +2140,6 @@ class Viewer:
         # Refreshing viewer backend manually if necessary
         if Viewer.backend == 'gepetto-gui':
             self._gui.refresh()
-        elif Viewer.backend.startswith('panda3d'):
-            self._gui._app.step()
 
         # Wait for the backend viewer to finish rendering if requested
         if wait:
@@ -2123,11 +2252,15 @@ class Viewer:
         times = [s.t for s in evolution_robot]
         t_simu = time_interval[0]
         i = bisect_right(times, t_simu)
-        init_time = time.time()
+        time_init = time.time()
+        time_prev = time_init
         while i < len(evolution_robot):
             try:
+                # Update clock if enabled
                 if enable_clock:
                     Viewer.set_clock(t_simu)
+
+                # Compute interpolated data at current time
                 s_next = evolution_robot[min(i, len(times) - 1)]
                 s = evolution_robot[max(i - 1, 0)]
                 ratio = (t_simu - s.t) / (s_next.t - s.t)
@@ -2139,15 +2272,31 @@ class Viewer:
                             s.f_ext, s_next.f_ext)):
                         self.f_external[i].vector[:] = \
                             f_ext + ratio * (f_ext_next - f_ext)
+
+                # Update camera motion
                 if Viewer._camera_motion is not None:
                     Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
+
+                # Update display
                 if update_hook is not None:
                     update_hook_t = partial(update_hook, t_simu, q, v)
                 self.display(q, v, xyz_offset, update_hook_t, wait)
-                t_simu = time_interval[0] + speed_ratio * (
-                    time.time() - init_time)
+
+                # Sleep for a while if computing faster than display framerate
+                sleep(1.0 / DISPLAY_FRAMERATE - (time.time() - time_prev))
+
+                # Update time in simulation, taking into account speed ratio
+                time_prev = time.time()
+                time_elapsed = time_prev - time_init
+                t_simu = time_interval[0] + speed_ratio * time_elapsed
+
+                # Compute corresponding right index from interpolation
                 i = bisect_right(times, t_simu)
-                wait = False  # Waiting for the first timestep is enough
+
+                # Waiting for the first timestep is enough
+                wait = False
+
+                # Stop the simulation if final time is reached
                 if t_simu > time_interval[1]:
                     break
             except Viewer._backend_exceptions:

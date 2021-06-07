@@ -20,8 +20,12 @@ from ..log import (TrajectoryDataType,
                    build_robot_from_log,
                    extract_trajectory_data_from_log,
                    emulate_sensors_data_from_log)
-from .viewer import (
-    COLORS, Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
+from .viewer import (COLORS,
+                     Tuple3FType,
+                     Tuple4FType,
+                     CameraPoseType,
+                     CameraMotionType,
+                     Viewer)
 from .meshcat.utilities import interactive_mode
 
 
@@ -48,8 +52,8 @@ def play_trajectories(trajs_data: Union[
                           Tuple3FType, Sequence[Tuple3FType]]] = None,
                       robots_colors: Optional[Union[
                           ColorType, Sequence[ColorType]]] = None,
-                      travelling_frame: Optional[str] = None,
-                      camera_xyzrpy: Optional[CameraPoseType] = None,
+                      travelling_frame: Optional[Union[str, int]] = None,
+                      camera_xyzrpy: Optional[CameraPoseType] = (None, None),
                       camera_motion: Optional[CameraMotionType] = None,
                       watermark_fullpath: Optional[str] = None,
                       legend: Optional[Union[str, Sequence[str]]] = None,
@@ -99,9 +103,10 @@ def play_trajectories(trajs_data: Union[
                           None to disable.
                           Optional: Original color if single robot, default
                           color cycle otherwise.
-    :param travelling_frame: Name of the frame of the robot associated with the
-                             first `trajs_data`. The camera will utomatically
-                             follow it. `None` to disable.
+    :param travelling_frame: Name or index of the frame to track. The camera
+                             will automatically follow the frame of the robot
+                             associated with the first `trajs_data`.`None` to
+                             disable.
                              Optional: Disable by default.
     :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
                           corresponding to the absolute pose of the camera
@@ -297,12 +302,6 @@ def play_trajectories(trajs_data: Union[
     if all(not len(traj['evolution_robot']) for traj in trajs_data):
         return viewers
 
-    # Set camera pose or activate camera travelling if requested
-    if travelling_frame is not None:
-        viewer.attach_camera(travelling_frame, camera_xyzrpy)
-    elif camera_xyzrpy is not None:
-        viewer.set_camera_transform(*camera_xyzrpy)
-
     # Enable camera motion if requested
     if camera_motion is not None:
         Viewer.register_camera_motion(camera_motion)
@@ -331,6 +330,12 @@ def play_trajectories(trajs_data: Union[
             if display_f_external is not None:
                 viewer_i.display_external_forces(display_f_external)
 
+    # Set camera pose or activate camera travelling if requested
+    if travelling_frame is not None:
+        viewer.attach_camera(travelling_frame, camera_xyzrpy)
+    elif camera_xyzrpy is not None and any(camera_xyzrpy):
+        viewer.set_camera_transform(*camera_xyzrpy)
+
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:
         if Viewer.backend == 'meshcat':
@@ -344,6 +349,8 @@ def play_trajectories(trajs_data: Union[
     # Handle start-in-pause mode
     if start_paused and record_video_path is None and not interactive_mode():
         input("Press Enter to continue...")
+        if not Viewer.is_alive():
+            return viewers
 
     # Replay the trajectory
     if record_video_path is not None:
@@ -556,6 +563,11 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
         update_hooks = [emulate_sensors_data_from_log(log, robot)
                         for log, robot in zip(logs_data, robots)]
     else:
+        logger.warn(
+            "At least one of the robot is locked, which means that a "
+            "simulation using the robot is still running. It will be "
+            "impossible to display sensor data. Call `simulator.stop` to "
+            "unlock the robot before replaying logs data.")
         update_hooks = None
 
     # Finally, play the trajectories
@@ -613,6 +625,10 @@ def _play_logs_files_entrypoint() -> None:
         '-s', '--speed_ratio', type=float, default=1.0,
         help="Real time to simulation time factor.")
     parser.add_argument(
+        '-t', '--travelling', action='store_true',
+        help=("Whether or not to track the root frame of the first robot, "
+              "assuming the robot has a freeflyer."))
+    parser.add_argument(
         '-b', '--backend', default='panda3d',
         help="Display backend (panda3d, meshcat, or gepetto-gui).")
     parser.add_argument(
@@ -629,8 +645,29 @@ def _play_logs_files_entrypoint() -> None:
     if kwargs['mesh_package_dir'] is not None:
         kwargs['mesh_package_dirs'] = [kwargs.pop('mesh_package_dir')]
 
+    # Convert travelling mode into frame index
+    if kwargs.pop('travelling'):
+        kwargs['travelling_frame'] = 2
+
     # Replay trajectories
-    play_logs_files(**{"remove_widgets_overlay": False, **kwargs})
+    repeat = True
+    viewers = None
+    while repeat:
+        viewers = play_logs_files(**{**dict(
+            remove_widgets_overlay=False,
+            viewers=viewers),
+            **kwargs})
+        kwargs["start_paused"] = False
+        if not hasattr(kwargs, "camera_xyzrpy"):
+            kwargs["camera_xyzrpy"] = None
+        if kwargs["record_video_path"] is None:
+            while True:
+                reply = input("Do you want to replay again (y/[n])?").lower()
+                if not reply or reply in ("y", "n"):
+                    break
+            repeat = (reply == "y")
+        else:
+            repeat = False
 
     # Do not exit method as long as a graphical window is open
     while Viewer.has_gui():
