@@ -49,6 +49,8 @@ from .panda3d.panda3d_visualizer import (Tuple3FType,
                                          Panda3dVisualizer)
 
 
+DISPLAY_FRAMERATE = 30
+
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 DEFAULT_CAMERA_XYZRPY_ABS = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi/2])
@@ -149,9 +151,17 @@ def sleep(dt: float) -> None:
 
     :param dt: Sleep duration in seconds.
     """
+    # Estimate of timer jitter depending on the operating system
+    if os.name == 'nt':
+        timer_jitter = 1e-2
+    else:
+        timer_jitter = 1e-3
+
+    # Combine busy loop and timer to release the GIL periodically
     t_end = time.perf_counter() + dt
     while time.perf_counter() < t_end:
-        pass
+        if t_end - time.perf_counter() > timer_jitter:
+            time.sleep(1e-3)
 
 
 def get_color_code(color: Optional[Union[str, Tuple4FType]]) -> Tuple4FType:
@@ -508,7 +518,8 @@ class Viewer:
 
         # Refresh the viewer since the positions of the meshes and their
         # visibility mode are not properly set at this point.
-        self.refresh(force_update_visual=True, force_update_collision=True)
+        self.refresh(
+            force_update_visual=True, force_update_collision=True, wait=True)
 
     def __del__(self) -> None:
         """Destructor.
@@ -1668,12 +1679,6 @@ class Viewer:
                       raw_data: bool = False) -> Union[np.ndarray, str]:
         """Take a snapshot and return associated data.
 
-        .. warning::
-            By default, panda3d framerate of onscreen window is limited to
-            reduce computational burden, thereby limiting the speed of this
-            method. One is responsible to disable it manually by calling
-            `Viewer._backend_obj.gui.set_frame(None)`.
-
         :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
                       Optional: Kept unchanged by default.
@@ -2138,14 +2143,6 @@ class Viewer:
         # Refreshing viewer backend manually if necessary
         if Viewer.backend == 'gepetto-gui':
             self._gui.refresh()
-        elif Viewer.backend == 'panda3d':
-            # Computation steps must be performed manually in the particular
-            # case of offscreen rendering using 'panda3d'. Although
-            # 'panda3d-qt' is also relying on offscreen buffer, qt task manarer
-            # is responsible for updating the display in background since it is
-            # not intented to be used in synchroneous fashion.
-            if not Viewer.has_gui():
-                self._gui.step()
 
         # Wait for the backend viewer to finish rendering if requested
         if wait:
@@ -2258,11 +2255,15 @@ class Viewer:
         times = [s.t for s in evolution_robot]
         t_simu = time_interval[0]
         i = bisect_right(times, t_simu)
-        init_time = time.time()
+        time_init = time.time()
+        time_prev = time_init
         while i < len(evolution_robot):
             try:
+                # Update clock if enabled
                 if enable_clock:
                     Viewer.set_clock(t_simu)
+
+                # Compute interpolated data at current time
                 s_next = evolution_robot[min(i, len(times) - 1)]
                 s = evolution_robot[max(i - 1, 0)]
                 ratio = (t_simu - s.t) / (s_next.t - s.t)
@@ -2274,15 +2275,31 @@ class Viewer:
                             s.f_ext, s_next.f_ext)):
                         self.f_external[i].vector[:] = \
                             f_ext + ratio * (f_ext_next - f_ext)
+
+                # Update camera motion
                 if Viewer._camera_motion is not None:
                     Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
+
+                # Update display
                 if update_hook is not None:
                     update_hook_t = partial(update_hook, t_simu, q, v)
                 self.display(q, v, xyz_offset, update_hook_t, wait)
-                t_simu = time_interval[0] + speed_ratio * (
-                    time.time() - init_time)
+
+                # Sleep for a while if computing faster than display framerate
+                sleep(1.0 / DISPLAY_FRAMERATE - (time.time() - time_prev))
+
+                # Update time in simulation, taking into account speed ratio
+                time_prev = time.time()
+                time_elapsed = time_prev - time_init
+                t_simu = time_interval[0] + speed_ratio * time_elapsed
+
+                # Compute corresponding right index from interpolation
                 i = bisect_right(times, t_simu)
-                wait = False  # Waiting for the first timestep is enough
+
+                # Waiting for the first timestep is enough
+                wait = False
+
+                # Stop the simulation if final time is reached
                 if t_simu > time_interval[1]:
                     break
             except Viewer._backend_exceptions:
