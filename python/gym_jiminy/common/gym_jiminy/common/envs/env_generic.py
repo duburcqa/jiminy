@@ -4,7 +4,7 @@ import os
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List
+from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List, Union
 
 import numpy as np
 import gym
@@ -128,6 +128,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Information about the learning process
         self._info: Dict[str, Any] = {}
+
+        # Keep track of cumulative reward
+        self.total_reward = 0.0
 
         # Number of simulation steps performed
         self.num_steps = -1
@@ -598,6 +601,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
+        # Reset cumulative reward
+        self.total_reward = 0.0
+
         # Note that the viewer must be reset if available, otherwise it would
         # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
@@ -718,6 +724,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.enable_reward_terminal:
                 # Add terminal reward to current reward
                 reward += self.compute_reward_terminal(info=self._info)
+
+        # Update cumulative reward
+        self.total_reward += reward
 
         # Update number of (successful) steps
         self.num_steps += 1
@@ -840,7 +849,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         self.simulator.replay(**{'verbose': False, **kwargs})
 
-    def play_interactive(self,
+    @staticmethod
+    def play_interactive(env: Union["BaseJiminyEnv", gym.Wrapper],
                          enable_travelling: Optional[bool] = None,
                          verbose: bool = True,
                          **kwargs: Any) -> None:
@@ -854,6 +864,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             This method requires `_key_to_action` method to be implemented by
             the user by overloading it, otherwise it raises an exception.
 
+        :param env: `BaseJiminyEnv` environment instance to play with,
+                    eventually wrapped by composition, typically using
+                    `gym.Wrapper`.
         :param enable_travelling: Whether or not enable travelling, following
                                   the motion of the root frame of the model.
                                   This parameter is ignored if the model has no
@@ -864,6 +877,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
                        method.
         """
+        # Get unwrapped environment
+        if isinstance(env, gym.Wrapper):
+            self = env.unwrapped
+        else:
+            self = env
+
+        # Make sure the unwrapped environment derive from this class
+        assert isinstance(self, BaseJiminyEnv), (
+            "Unwrapped environment must derived from `BaseJiminyEnv`.")
+
         # Enable play interactive mode flag
         self._is_interactive = True
 
@@ -871,10 +894,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # forces with the robot automatically.
         if not (self.simulator.is_viewer_available and
                 self.simulator.viewer.has_gui()):
-            self.render()
+            env.render()
 
         # Reset the environement
-        obs = self.reset()
+        obs = env.reset()
         reward = None
 
         # Enable travelling
@@ -886,13 +909,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             tracked_frame = self.robot.pinocchio_model.frames[2].name
             self.simulator.viewer.attach_camera(tracked_frame)
 
+        # Refresh the scene once again to update camera placement
+        env.render()
+
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
             nonlocal obs, reward
             action = self._key_to_action(
-                key, obs=obs, reward=reward, **{"verbose": verbose, **kwargs})
-            obs, reward, done, _ = self.step(action)
-            self.render()
+                key, obs, reward, **{"verbose": verbose, **kwargs})
+            obs, reward, done, _ = env.step(action)
+            env.render()
             return done
 
         # Run interactive loop
@@ -901,6 +927,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Disable travelling if it enabled
         if enable_travelling:
             self.simulator.viewer.detach_camera()
+
+        # Stop the simulation to unlock the robot.
+        # It will enable to display contact forces for replay.
+        if self.simulator.is_simulation_running:
+            self.simulator.stop()
 
         # Disable play interactive mode flag
         self._is_interactive = False

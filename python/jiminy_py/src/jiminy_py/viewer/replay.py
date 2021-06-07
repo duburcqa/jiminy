@@ -563,6 +563,11 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
         update_hooks = [emulate_sensors_data_from_log(log, robot)
                         for log, robot in zip(logs_data, robots)]
     else:
+        logger.warn(
+            "At least one of the robot is locked, which means that a "
+            "simulation using the robot is still running. It will be "
+            "impossible to display sensor data. Call `simulator.stop` to "
+            "unlock the robot before replaying logs data.")
         update_hooks = None
 
     # Finally, play the trajectories

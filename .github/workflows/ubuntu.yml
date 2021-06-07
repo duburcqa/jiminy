@@ -113,7 +113,7 @@ jobs:
         for name in "${gym_modules[@]}"; do
           cd "$RootDir/python/gym_jiminy/$name"
 
-          pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=7 --max-nested-blocks=6 \
+          pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=7 --max-nested-blocks=7 \
                  --good-names=i,j,k,t,q,v,x,e,u,s,v,b,c,M,dt,rg,fd,lo,hi,_ \
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
