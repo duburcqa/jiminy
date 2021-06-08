@@ -1391,7 +1391,7 @@ class Viewer:
             rot = pin.Quaternion(*quat).matrix()
             rpy = matrixToRpy(rot @ CAMERA_INV_TRANSFORM_PANDA3D.T)
         else:
-            xyz, rpy = Viewer._camera_xyzrpy
+            xyz, rpy = deepcopy(Viewer._camera_xyzrpy)
         return xyz, rpy
 
     @__must_be_open
@@ -1421,25 +1421,28 @@ class Viewer:
                 How to apply the transform:
 
             - **None:** absolute.
-            - **'camera':** relative to the current camera pose.
+            - **'camera':** relative to current camera pose.
             - **other:** relative to a robot frame, not accounting for the
               rotation of the frame during travalling. It supports both frame
               name and index in model.
         :param wait: Whether or not to wait for rendering to finish.
         """
         # Handling of position and rotation arguments
-        if position is None or rotation is None:
-            position_current, rotation_current = self.get_camera_transform()
-        position = np.asarray(position or position_current)
-        rotation = np.asarray(rotation or rotation_current)
+        if position is None or rotation is None or relative == 'camera':
+            position_camera, rotation_camera = self.get_camera_transform()
+        if position is None:
+            position = position_camera
+        if rotation is None:
+            rotation = rotation_camera
+        position = np.asarray(position)
+        rotation = np.asarray(rotation)
 
         # Compute associated rotation matrix
         rotation_mat = rpyToMatrix(rotation)
 
         # Compute the relative transformation if necessary
         if relative == 'camera':
-            H_orig = SE3(rpyToMatrix(
-                Viewer._camera_xyzrpy[1]), Viewer._camera_xyzrpy[0])
+            H_orig = SE3(rpyToMatrix(rotation_camera), position_camera)
         elif relative is not None:
             # Get the body position, not taking into account the rotation
             if isinstance(relative, str):
@@ -1477,7 +1480,7 @@ class Viewer:
                     translate=position_meshcat, angles=rotation_meshcat))
 
         # Backup updated camera pose
-        Viewer._camera_xyzrpy = deepcopy([position, rotation])
+        Viewer._camera_xyzrpy = [position, rotation]
 
         # Wait for the backend viewer to finish rendering if requested
         if wait:
@@ -2118,7 +2121,7 @@ class Viewer:
                     self.set_camera_lookat(np.zeros(3), frame)
 
         if Viewer._camera_motion is not None:
-            self.set_camera_transform()
+            self.set_camera_transform(*Viewer._camera_xyzrpy)
 
         # Update pose, color and scale of the markers, if any
         if Viewer.backend.startswith('panda3d'):

@@ -532,13 +532,14 @@ class Simulator:
         # Set the camera pose if requested
         if camera_xyzrpy is not None:
             self.viewer.set_camera_transform(*camera_xyzrpy)
+            self.viewer.wait(require_client=False)
 
         # Make sure the graphical window is open if required
         if not return_rgb_array:
             self.viewer.open_gui()
 
         # Try refreshing the viewer
-        self.viewer.refresh(wait=True)
+        self.viewer.refresh()
 
         # Compute rgb array if needed
         if return_rgb_array:
