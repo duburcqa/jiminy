@@ -1129,6 +1129,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return self.framerate
 
     def save_screenshot(self, filename: Optional[str] = None) -> bool:
+        # Refresh the scene if no graphical window is available
+        if any(isinstance(win, GraphicsWindow) for win in self.winList):
+            self.step()
+
         # Generate filename based on current time if not provided
         if filename is None:
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
@@ -1162,6 +1166,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             scheduler. The framerate limit must be disable manually to avoid
             such limitation.
         """
+        # Refresh the scene if no graphical window is available
+        if any(isinstance(win, GraphicsWindow) for win in self.winList):
+            self.step()
+
         # Capture frame as raw texture
         texture = self.buff.get_screenshot()
 
