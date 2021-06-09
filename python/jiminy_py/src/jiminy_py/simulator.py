@@ -526,13 +526,9 @@ class Simulator:
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
 
-            # Wait for the viewer to finish loading
-            self.viewer.wait(require_client=False)
-
         # Set the camera pose if requested
         if camera_xyzrpy is not None:
             self.viewer.set_camera_transform(*camera_xyzrpy)
-            self.viewer.wait(require_client=False)
 
         # Make sure the graphical window is open if required
         if not return_rgb_array:
