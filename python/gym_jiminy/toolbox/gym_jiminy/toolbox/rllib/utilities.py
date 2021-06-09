@@ -8,7 +8,7 @@ import pathlib
 import logging
 import inspect
 from datetime import datetime
-from typing import Optional, Callable, Dict, Any, Type
+from typing import Optional, Callable, Dict, Any
 
 import gym
 import numpy as np
@@ -18,12 +18,9 @@ import ray
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
-from ray.rllib.env import BaseEnv
-from ray.rllib.evaluation import MultiAgentEpisode
 from ray.rllib.policy import Policy
 from ray.rllib.utils.filter import NoFilter
 from ray.rllib.agents.trainer import Trainer
-from ray.rllib.agents.callbacks import DefaultCallbacks
 from ray.rllib.models.preprocessors import get_preprocessor
 
 from gym_jiminy.common.utils import clip, SpaceDictNested
@@ -37,6 +34,8 @@ try:
 except ModuleNotFoundError:
     pass
 
+logger = logging.getLogger(__name__)
+
 
 PRINT_RESULT_FIELDS_FILTER = [
     "training_iteration",
@@ -47,95 +46,6 @@ PRINT_RESULT_FIELDS_FILTER = [
     "episode_reward_mean",
     "episode_len_mean"
 ]
-
-
-logger = logging.getLogger(__name__)
-
-
-class MonitorInfoCallback:
-    # Base on `rllib/examples/custom_metrics_and_callbacks.py` example.
-
-    def on_episode_step(self,
-                        *,
-                        episode: MultiAgentEpisode,
-                        **kwargs) -> None:
-        super().on_episode_step(episode=episode, **kwargs)
-        info = episode.last_info_for()
-        if info is not None:
-            for key, value in info.items():
-                episode.hist_data.setdefault(key, []).append(value)
-
-    def on_episode_end(self,
-                       *,
-                       base_env: BaseEnv,
-                       episode: MultiAgentEpisode,
-                       **kwargs) -> None:
-        super().on_episode_end(base_env=base_env, episode=episode, **kwargs)
-        episode.custom_metrics["episode_duration"] = \
-            base_env.get_unwrapped()[0].step_dt * episode.length
-
-
-class CurriculumUpdateCallback:
-    def on_train_result(self,
-                        *,
-                        trainer,
-                        result: dict,
-                        **kwargs) -> None:
-        super().on_train_result(trainer=trainer, result=result, **kwargs)
-        trainer.workers.foreach_worker(
-            lambda worker: worker.foreach_env(
-                lambda env: env.update(result)))
-
-
-def build_callbacks(*callback_mixins: Type) -> DefaultCallbacks:
-    """Aggregate several callback mixin together.
-
-    .. note::
-        Note that the order is important if several mixin are implementing the
-        same method. It follows the same precedence roles than usual multiple
-        inheritence, namely ordered from highest to lowest priority.
-
-    :param callback_mixins: Sequence of callback mixin objects.
-    """
-    # TODO: Remove this method after release of ray 1.4.0 and use instead
-    # `ray.rllib.agents.callbacks.MultiCallbacks`.
-    return type("UnifiedCallbacks", (*callback_mixins, DefaultCallbacks), {})
-
-
-def _flatten_dict(dt: Dict[str, Any],
-                  delimiter: str = "/",
-                  prevent_delimiter: bool = False) -> Dict[str, Any]:
-    """Must be patched to use copy instead of deepcopy to prevent memory
-    allocation, significantly impeding computational efficiency of `TBXLogger`,
-    and slowing down the optimization by about 25%.
-    """
-    dt = dt.copy()
-    if prevent_delimiter and any(delimiter in key for key in dt):
-        # Raise if delimiter is any of the keys
-        raise ValueError(
-            "Found delimiter `{}` in key when trying to flatten array."
-            "Please avoid using the delimiter in your specification.")
-    while any(isinstance(v, dict) for v in dt.values()):
-        remove = []
-        add = {}
-        for key, value in dt.items():
-            if isinstance(value, dict):
-                for subkey, v in value.items():
-                    if prevent_delimiter and delimiter in subkey:
-                        # Raise  if delimiter is in any of the subkeys
-                        raise ValueError(
-                            "Found delimiter `{}` in key when trying to "
-                            "flatten array. Please avoid using the delimiter "
-                            "in your specification.")
-                    add[delimiter.join([key, str(subkey)])] = v
-                remove.append(key)
-        dt.update(add)
-        for k in remove:
-            del dt[k]
-    return dt
-
-
-ray.tune.logger.flatten_dict = _flatten_dict
 
 
 def initialize(num_cpus: int,
@@ -303,11 +213,35 @@ def compute_action(policy: Policy,
 def build_policy_wrapper(policy: Policy,
                          obs_filter_fn: Optional[
                              Callable[[np.ndarray], np.ndarray]] = None,
-                         explore: bool = True,
                          n_frames_stack: int = 1,
-                         clip_action: bool = False) -> Callable[
+                         clip_action: bool = False,
+                         explore: bool = True) -> Callable[
                              [np.ndarray, Optional[float]], SpaceDictNested]:
-    """ TODO: Write documentation.
+    """Wrap a policy into a simple callable
+
+    The internal state of the policy, if any, is managed internally.
+
+    .. warning:
+        One is responsible of instantiating a new wrapper to reset the internal
+        state between simulations if necessary, for example for recurrent
+        network or for policy depending on several frames.
+
+    :param policy: Policy to evaluate.
+    :param obs_filter_fn: Observation filter to apply on (flattened)
+                          observation from the environment, usually used
+                          from moving average normalization. `None` to
+                          disable.
+                          Optional: Disable by default.
+    :param n_frames_stack: Number of frames to stack in the input to provide
+                           to the policy. Note that previous observation,
+                           action, and reward will be stacked.
+                           Optional: 1 by default.
+    :param clip_action: Whether or not to clip action to make sure the
+                        prediction by the policy is not out-of-bounds.
+                        Optional: Disable by default.
+    :param explore: Whether or not to enable exploration during sampling of the
+                    actions predicted by the policy.
+                    Optional: Disable by default.
     """
     # Extract some proxies for convenience
     observation_space = policy.observation_space
@@ -490,9 +424,9 @@ def evaluate(env: gym.Env,
              obs_filter_fn: Optional[
                  Callable[[np.ndarray], np.ndarray]] = None,
              n_frames_stack: int = 1,
-             horizon: Optional[int] = None,
              clip_action: bool = False,
              explore: bool = False,
+             horizon: Optional[int] = None,
              enable_stats: bool = True,
              enable_replay: bool = True,
              viewer_kwargs: Optional[Dict[str, Any]] = None) -> gym.Env:
@@ -534,7 +468,7 @@ def evaluate(env: gym.Env,
 
     # Initialize frame stack
     policy_forward = build_policy_wrapper(
-        policy, obs_filter_fn, explore, n_frames_stack, clip_action)
+        policy, obs_filter_fn, n_frames_stack, clip_action, explore)
 
     # Initialize the simulation
     obs = env.reset()
@@ -625,9 +559,17 @@ def test(test_agent: Trainer,
                     policy,
                     obs_filter_fn,
                     n_frames_stack=n_frames_stack,
-                    horizon=test_agent.config["horizon"],
                     clip_action=test_agent.config["clip_actions"],
                     explore=explore,
+                    horizon=test_agent.config["horizon"],
                     enable_stats=enable_stats,
                     enable_replay=enable_replay,
                     viewer_kwargs=kwargs)
+
+
+__all__ = [
+    "initialize",
+    "build_policy_wrapper",
+    "train",
+    "test"
+]

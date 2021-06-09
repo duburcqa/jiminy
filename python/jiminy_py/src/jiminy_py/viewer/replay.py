@@ -6,7 +6,7 @@ import tempfile
 import argparse
 from bisect import bisect_right
 from functools import partial
-from threading import Thread, RLock
+from threading import Thread
 from itertools import cycle, islice
 from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 

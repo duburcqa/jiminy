@@ -573,9 +573,7 @@ class Simulator:
             logs_data.append(log_data)
 
         # Extract trajectory data from pairs (robot, log)
-        trajectories = []
-        update_hooks = []
-        extra_kwargs = {}
+        trajectories, update_hooks, extra_kwargs = [], [], {}
         for robot, log_data in zip(robots, logs_data):
             if log_data is not None:
                 traj, update_hook, _kwargs = extract_replay_data_from_log_data(

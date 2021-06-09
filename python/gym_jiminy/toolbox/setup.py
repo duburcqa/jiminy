@@ -29,7 +29,7 @@ setup(
     packages=find_namespace_packages(),
     install_requires=[
         f"gym_jiminy~={version}",
-        "tensorboard"
+        "ray<=1.4"
     ],
     zip_safe=False
 )
