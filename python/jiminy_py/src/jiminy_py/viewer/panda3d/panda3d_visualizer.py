@@ -891,12 +891,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if items is None or not items:
             return
 
+        # Switch to non-interactive backend to avoid hanging for some reason
+        plt_backend = plt.get_backend()
+        plt.switch_backend("Agg")
+
         # Create empty figure with the legend
         color_default = (0.0, 0.0, 0.0, 1.0)
         handles = [Patch(color=c or color_default, label=t) for t, c in items]
-        fig = plt.figure()
-        legend = fig.gca().legend(handles=handles, framealpha=1, frameon=True)
-        fig.gca().set_axis_off()
+        fig, ax = plt.subplots()
+        legend = ax.legend(handles=handles, framealpha=1, frameon=True)
+        ax.set_axis_off()
 
         # Render the legend
         fig.draw(renderer=fig.canvas.get_renderer())
@@ -922,6 +926,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Delete the legend along with its temporary figure
         plt.close(fig)
+
+        # Restore original backend
+        plt.switch_backend(plt_backend)
 
         # Create texture in which to render the image buffer
         tex = Texture()

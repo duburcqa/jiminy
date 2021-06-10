@@ -1,5 +1,6 @@
 from .viewer import Viewer, sleep
 from .replay import (TrajectoryDataType,
+                     extract_replay_data_from_log_data,
                      play_trajectories,
                      play_logs_data,
                      play_logs_files)
@@ -11,6 +12,7 @@ __all__ = [
     'sleep',
     'Viewer',
     'interactive_mode',
+    'extract_replay_data_from_log_data',
     'play_trajectories',
     'play_logs_data',
     'play_logs_files'

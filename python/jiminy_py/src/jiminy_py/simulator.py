@@ -17,9 +17,15 @@ from .core import (EncoderSensor as encoder,
                    ContactSensor as contact,
                    ForceSensor as force,
                    ImuSensor as imu)
-from .robot import generate_hardware_description_file, BaseJiminyRobot
+from .robot import (generate_hardware_description_file,
+                    BaseJiminyRobot)
 from .plot import TabbedFigure
-from .viewer import interactive_mode, play_logs_data, Viewer
+from .log import read_log, build_robot_from_log_constants
+from .viewer import (TrajectoryDataType,
+                     interactive_mode,
+                     extract_replay_data_from_log_data,
+                     play_trajectories,
+                     Viewer)
 
 if interactive_mode():
     from tqdm.notebook import tqdm
@@ -103,6 +109,7 @@ class Simulator:
 
         # Viewer management
         self.viewer = None
+        self._viewers = []
 
         # Internal buffer for progress bar management
         self.__pbar: Optional[tqdm] = None
@@ -541,26 +548,71 @@ class Simulator:
         if return_rgb_array:
             return self.viewer.capture_frame(width, height)
 
-    def replay(self, **kwargs: Any) -> None:
+    def replay(self,
+               extra_logs_files: Sequence[Dict[str, np.ndarray]] = (),
+               extra_trajectories: Sequence[TrajectoryDataType] = (),
+               **kwargs: Any) -> None:
         """Replay the current episode until now.
 
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
-        if not self.log_data:
+        # Close extra viewer instances if any
+        for viewer in self._viewers[1:]:
+            viewer.delete_robot_on_close = True
+            viewer.close()
+
+        # Extract log data and robot from extra log files
+        robots = [self.robot]
+        logs_data = [self.log_data]
+        for log_file in extra_logs_files:
+            log_data, log_constants = read_log(log_file)
+            robot = build_robot_from_log_constants(
+                log_constants, self.robot.mesh_package_dirs)
+            robots.append(robot)
+            logs_data.append(log_data)
+
+        # Extract trajectory data from pairs (robot, log)
+        trajectories = []
+        update_hooks = []
+        extra_kwargs = {}
+        for robot, log_data in zip(robots, logs_data):
+            if log_data is not None:
+                traj, update_hook, _kwargs = extract_replay_data_from_log_data(
+                    robot, log_data)
+                trajectories.append(traj)
+                update_hooks.append(update_hook)
+                extra_kwargs.update(_kwargs)
+        trajectories += list(extra_trajectories)
+        update_hooks += [None for _ in extra_trajectories]
+
+        # Make sure there is something to replay
+        if not logs_data:
             raise RuntimeError(
                 "Nothing to replay. Please run a simulation before calling "
-                "`replay` method.")
+                "`replay` method, or provided data manually.")
+
+        # Make sure the viewer is instantiated
         self.render(**{
             'return_rgb_array': kwargs.get(
                 'record_video_path', None) is not None,
             **kwargs})
-        play_logs_data([self.robot],
-                       [self.log_data],
-                       viewers=[self.viewer],
-                       **{'verbose': True,
-                          'backend': self.viewer_backend,
-                          **kwargs})
+
+        # Define sequence of viewer instances
+        viewers = [
+            self.viewer,
+            *[None for _ in extra_logs_files],
+            *[None for _ in extra_trajectories]]
+
+        # Replay the trajectories
+        self._viewers = play_trajectories(
+            trajectories,
+            update_hooks,
+            viewers=viewers,
+            **{'verbose': True,
+                'backend': self.viewer_backend,
+                **extra_kwargs,
+                **kwargs})
 
     def close(self) -> None:
         """Close the connection with the renderer.

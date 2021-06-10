@@ -211,10 +211,10 @@ def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
     return traj_data
 
 
-def build_robot_from_log(log_file: str,
-                         mesh_package_dirs: Union[str, Sequence[str]] = ()
-                         ) -> jiminy.Robot:
-    """Extract log data and build robot from it.
+def build_robot_from_log_constants(
+        log_constants: Dict[str, str],
+        mesh_package_dirs: Union[str, Sequence[str]] = ()) -> jiminy.Robot:
+    """Build robot from log constants.
 
     .. note::
         model options and `robot.pinocchio_model` are guarentee to be the same
@@ -239,9 +239,6 @@ def build_robot_from_log(log_file: str,
     :returns: Reconstructed robot, and parsed log data as returned by
               `jiminy_py.log.read_log` method.
     """
-    # Parse log file
-    log_data, log_constants = read_log(log_file)
-
     # Make sure provided 'mesh_package_dirs' is a list
     mesh_package_dirs = list(mesh_package_dirs)
 
@@ -257,8 +254,7 @@ def build_robot_from_log(log_file: str,
         log_constants["HighLevelController.options"])
 
     # Create temporary URDF file
-    fd, urdf_path = tempfile.mkstemp(
-        prefix=f"{pathlib.Path(log_file).stem}_", suffix=".urdf")
+    fd, urdf_path = tempfile.mkstemp(suffix=".urdf")
     os.write(fd, urdf_file.encode())
     os.close(fd)
 
@@ -268,7 +264,7 @@ def build_robot_from_log(log_file: str,
     robot.set_options(all_options["system"]["robot"])
     robot.pinocchio_model.loadFromString(pinocchio_model_str)
 
-    return robot, (log_data, log_constants)
+    return robot
 
 
 def emulate_sensors_data_from_log(log_data: Dict[str, np.ndarray],
