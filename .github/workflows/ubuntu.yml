@@ -50,8 +50,9 @@ jobs:
       run: |
         sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+        "${PYTHON_EXECUTABLE}" -m pip install tensorflow
         "${PYTHON_EXECUTABLE}" -m pip install "torch==1.8.0+cpu" -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.17.3,<0.18.0" "stable_baselines3>=0.10"
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.17.3,<0.18.0" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -114,7 +115,7 @@ jobs:
           cd "$RootDir/python/gym_jiminy/$name"
 
           pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=7 --max-nested-blocks=7 \
-                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,c,M,dt,rg,fd,lo,hi,_ \
+                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,_ \
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \

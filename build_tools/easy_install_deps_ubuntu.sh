@@ -33,7 +33,7 @@ sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade "numpy>=1.16"
 
 # Install Python 3 toolsuite for testing and documentation generation
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade setuptools auditwheel && \
-sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade flake8 pylint mypy && \
+sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade flake8 pylint mypy types-toml && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade \
     pygments colorama sphinx sphinx_rtd_theme recommonmark nbsphinx breathe aafigure
 

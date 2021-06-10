@@ -1,3 +1,5 @@
+""" TODO: Write documentation.
+"""
 import numpy as np
 import gym
 
@@ -6,7 +8,7 @@ class NormalizeAction(gym.ActionWrapper):
     """Normalize action space without clipping, contrary to usual
     implementations.
     """
-    def __init__(self, env):
+    def __init__(self, env: gym.Env) -> None:
         assert (np.all(np.isfinite(env.action_space.low)) and
                 np.all(np.isfinite(env.action_space.high))), \
                "Action space must have finite bounds."
@@ -19,5 +21,5 @@ class NormalizeAction(gym.ActionWrapper):
             low=-1.0, high=1.0, shape=env.action_space.shape,
             dtype=env.action_space.dtype)
 
-    def action(self, action):
+    def action(self, action: np.ndarray) -> np.ndarray:
         return self._action_orig_mean + action * self._action_orig_dev

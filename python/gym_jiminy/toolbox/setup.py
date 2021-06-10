@@ -22,14 +22,13 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9"
+        "Programming Language :: Python :: 3.8"
     ],
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
         f"gym_jiminy~={version}",
-        "ray<=1.4"
+        "ray[default,rllib]<=1.4; python_version < '3.9'"
     ],
     zip_safe=False
 )

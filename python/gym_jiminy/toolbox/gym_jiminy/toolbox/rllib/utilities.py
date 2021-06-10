@@ -1,3 +1,5 @@
+""" TODO: Write documentation.
+"""
 import os
 import re
 import math
@@ -50,11 +52,12 @@ PRINT_RESULT_FIELDS_FILTER = [
 
 def initialize(num_cpus: int,
                num_gpus: int,
-               log_root_path: Optional[str] = None,
+               log_root_path: str,
                log_name: Optional[str] = None,
                logger_cls: type = TBXLogger,
+               launch_tensorboard: bool = True,
                debug: bool = False,
-               verbose: bool = True) -> Callable[[], Logger]:
+               verbose: bool = True) -> Callable[[Dict[str, Any]], Logger]:
     """Initialize Ray and Tensorboard daemons.
 
     It will be used later for almost everything from dashboard, remote/client
@@ -76,11 +79,15 @@ def initialize(num_cpus: int,
                     be reserve and allocated by the process, in particular
                     using Tensorflow backend.
     :param log_root_path: Fullpath of root log directory.
-                          Optional: location of this file / log by default.
     :param log_name: Name of the subdirectory where to save data. `None` to
                      use default name, empty string '' to set it interactively
                      in command prompt. It must be a valid Python identifier.
                      Optional: full date _ hostname by default.
+    :param logger_cls: Custom logger class type deriving from `TBXLogger`.
+                       Optional: `TBXLogger` by default.
+    :param launch_tensorboard: Whether or not to launch tensorboard
+                               automatically.
+                               Optional: Enable by default.
     :param debug: Whether or not to display debugging trace.
                   Optional: Disable by default.
     :param verbose: Whether or not to print information about what is going on.
@@ -115,19 +122,13 @@ def initialize(num_cpus: int,
             # The host to bind the dashboard server to
             dashboard_host="0.0.0.0")
 
-    # Handling of default log root directory
-    if log_root_path is None:
-        log_root_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "..", "log")
-    log_root_path = os.path.abspath(log_root_path)
-
     # Configure Tensorboard
-    if 'tb' not in locals().keys():
+    if launch_tensorboard:
         tb = TensorBoard()
-        tb.configure(host="0.0.0.0", logdir=log_root_path)
+        tb.configure(host="0.0.0.0", logdir=os.path.abspath(log_root_path))
         url = tb.launch()
         if verbose:
-            print(f"Started Tensorboard {url}. "
+            print(f"Started Tensorboard {url}.",
                   f"Root directory: {log_root_path}")
 
     # Define log filename interactively if requested
@@ -137,8 +138,7 @@ def initialize(num_cpus: int,
                 "Enter desired log subdirectory name (empty for default)...")
             if not log_name or re.match(r'^[A-Za-z0-9_]+$', log_name):
                 break
-            else:
-                print("Unvalid name. Only Python identifiers are supported.")
+            print("Unvalid name. Only Python identifiers are supported.")
 
     # Handling of default log name and sanity checks
     if not log_name:
@@ -156,7 +156,7 @@ def initialize(num_cpus: int,
         print(f"Tensorboard logfiles directory: {log_path}")
 
     # Define Ray logger
-    def logger_creator(config):
+    def logger_creator(config: Dict[str, Any]) -> Logger:
         return logger_cls(config, log_path)
 
     return logger_creator
@@ -215,7 +215,7 @@ def build_policy_wrapper(policy: Policy,
                              Callable[[np.ndarray], np.ndarray]] = None,
                          n_frames_stack: int = 1,
                          clip_action: bool = False,
-                         explore: bool = True) -> Callable[
+                         explore: bool = False) -> Callable[
                              [np.ndarray, Optional[float]], SpaceDictNested]:
     """Wrap a policy into a simple callable
 
@@ -352,8 +352,16 @@ def train(train_agent: Trainer,
         env_type, *_ = [val for worker in train_agent.workers.foreach_worker(
             lambda worker: worker.foreach_env(lambda env: type(env.unwrapped)))
             for val in worker]
-        env_file = inspect.getfile(env_type)
-        shutil.copy2(env_file, train_agent.logdir, follow_symlinks=True)
+        while True:
+            try:
+                path = inspect.getfile(env_type)
+                shutil.copy2(path, train_agent.logdir, follow_symlinks=True)
+            except TypeError:
+                pass
+            try:
+                env_type = env_type.__bases__[0]
+            except IndexError:
+                break
 
         # Backup main's source file, if any
         frame = inspect.stack()[1]  # assuming called directly from main script
@@ -363,9 +371,9 @@ def train(train_agent: Trainer,
             shutil.copy2(main_file, main_backup_name, follow_symlinks=True)
 
         # Backup RLlib config
-        with open(f"{train_agent.logdir}/params.json", 'w') as f:
+        with open(f"{train_agent.logdir}/params.json", 'w') as file:
             json.dump(train_agent.config,
-                      f,
+                      file,
                       indent=2,
                       sort_keys=True,
                       cls=SafeFallbackEncoder)
@@ -375,7 +383,7 @@ def train(train_agent: Trainer,
         while True:
             # Perform one iteration of training the policy
             result = train_agent.train()
-            iter = result["training_iteration"]
+            iter_num = result["training_iteration"]
 
             # Print current training result summary
             msg_data = []
@@ -385,27 +393,27 @@ def train(train_agent: Trainer,
             print(" - ".join(msg_data))
 
             # Record video and log data of the result
-            if evaluation_period > 0 and iter % evaluation_period == 0:
-                record_video_path = f"{train_agent.logdir}/iter_{iter}.mp4"
+            if evaluation_period > 0 and iter_num % evaluation_period == 0:
+                record_video_path = f"{train_agent.logdir}/iter_{iter_num}.mp4"
                 env, _ = test(train_agent,
                               explore=True,
                               enable_replay=record_video,
                               viewer_kwargs={
                                   "record_video_path": record_video_path,
-                                  "scene_name": f"iter_{iter}"
+                                  "scene_name": f"iter_{iter_num}"
                               })
-                env.write_log(f"{train_agent.logdir}/iter_{iter}.hdf5")
+                env.write_log(f"{train_agent.logdir}/iter_{iter_num}.hdf5")
 
             # Backup the policy
-            if checkpoint_period > 0 and iter % checkpoint_period == 0:
+            if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
                 train_agent.save()
 
             # Check terminal conditions
-            if max_timesteps > 0 and result["timesteps_total"] > max_timesteps:
+            if 0 < max_timesteps < result["timesteps_total"]:
                 break
-            if max_iters > 0 and iter > max_iters:
+            if 0 < max_iters < iter_num:
                 break
-            if result["episode_reward_mean"] > reward_threshold:
+            if reward_threshold < result["episode_reward_mean"]:
                 if verbose:
                     print("Problem solved successfully!")
                 break
@@ -479,7 +487,7 @@ def evaluate(env: gym.Env,
         info_episode = []
         done = False
         while not done:
-            action = policy_forward(obs=obs, reward=reward)
+            action = policy_forward(obs, reward)
             obs, reward, done, info = env.step(action)
             info_episode.append(info)
             if done or (horizon is not None and env.num_steps > horizon):
@@ -496,7 +504,7 @@ def evaluate(env: gym.Env,
     if enable_replay:
         try:
             env.replay(**{'speed_ratio': 1.0, **viewer_kwargs})
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             # Do not fail because of replay/recording exception
             logger.warning(str(e))
 
