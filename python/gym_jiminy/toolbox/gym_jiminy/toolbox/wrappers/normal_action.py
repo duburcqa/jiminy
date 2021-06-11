@@ -20,6 +20,8 @@ class NormalizeAction(gym.ActionWrapper):
         self.action_space = gym.spaces.Box(
             low=-1.0, high=1.0, shape=env.action_space.shape,
             dtype=env.action_space.dtype)
+        if hasattr(env.action_space, "mirror_mat"):
+            self.action_space.mirror_mat = env.action_space.mirror_mat
 
     def action(self, action: np.ndarray) -> np.ndarray:
         return self._action_orig_mean + action * self._action_orig_dev

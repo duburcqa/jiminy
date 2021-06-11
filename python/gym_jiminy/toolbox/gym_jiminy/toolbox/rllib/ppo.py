@@ -21,6 +21,7 @@ torch, nn = try_import_torch()
 DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
     DEFAULT_CONFIG,
     {
+        "symmetric_policy_reg": 0.0,
         "caps_temporal_reg": 0.0,
         "caps_spatial_reg": 0.0,
         "caps_global_reg": 0.0
@@ -48,7 +49,8 @@ def ppo_init(policy: Policy,
     policy.model.view_requirements.update(caps_view_requirements)
     policy.view_requirements.update(caps_view_requirements)
 
-    # Initialize extra losses
+    # Initialize extra loss
+    policy._mean_symmetric_policy_loss = 0.0
     policy._mean_temporal_caps_loss = 0.0
     policy._mean_spatial_caps_loss = 0.0
     policy._mean_global_caps_loss = 0.0
@@ -99,7 +101,8 @@ def ppo_loss(policy: Policy,
         total_loss += policy.config["caps_temporal_reg"] * \
             policy._mean_temporal_caps_loss
 
-    if policy.config["caps_spatial_reg"] > 0.0:
+    if policy.config["caps_spatial_reg"] > 0.0 or \
+            policy.config["symmetric_policy_reg"] > 0.0:
         # Generate noisy observation based on specified sensivity
         offset = 0
         observation_true = train_batch["obs"]
@@ -142,6 +145,41 @@ def ppo_loss(policy: Policy,
         total_loss += policy.config["caps_global_reg"] * \
             policy._mean_global_caps_loss
 
+    if policy.config["symmetric_policy_reg"] > 0.0:
+        # Compute mirrorred noisy observation
+        offset = 0
+        observation_mirror = torch.empty_like(observation_true)
+        observation_space = policy.observation_space.original_space
+        for mirror_mat in observation_space.mirror_mat.values():
+            mirror_mat = torch.from_numpy(mirror_mat.T.copy()).to(
+                dtype=torch.float32, device=observation_true.device)
+            slice_idx = slice(offset, offset + len(mirror_mat))
+            torch.mm(observation_noisy[..., slice_idx],
+                     mirror_mat,
+                     out=observation_mirror[..., slice_idx])
+            offset += len(mirror_mat)
+
+        # Compute the mirrored mean action corresponding to the mirrored action
+        train_batch_copy["obs"] = observation_mirror
+        action_logits_mirror, _ = model(train_batch_copy)
+        if issubclass(dist_class, TorchDiagGaussian):
+            action_mean_mirror, _ = torch.chunk(action_logits_mirror, 2, dim=1)
+        else:
+            action_dist_mirror = dist_class(action_logits_mirror, model)
+            action_mean_mirror = action_dist_mirror.deterministic_sample()
+        action_mirror_mat = policy.action_space.mirror_mat
+        action_mirror_mat = torch.from_numpy(action_mirror_mat.T.copy()).to(
+            dtype=torch.float32, device=observation_true.device)
+        action_mean_mirror = action_mean_mirror @ action_mirror_mat
+
+        # Minimize the assymetry of policy output
+        policy._mean_symmetric_policy_loss = torch.mean(
+            (action_mean_noisy - action_mean_mirror) ** 2)
+
+        # Add policy symmetry loss to total loss
+        total_loss += policy.config["symmetric_policy_reg"] * \
+            policy._mean_symmetric_policy_loss
+
     return total_loss
 
 
@@ -153,6 +191,8 @@ def ppo_stats(policy: Policy,
     stats_dict = kl_and_loss_stats(policy, train_batch)
 
     # Add spatial CAPS loss to the report
+    if policy.config["symmetric_policy_reg"] > 0.0:
+        stats_dict["symmetry"] = policy._mean_symmetric_policy_loss
     if policy.config["caps_temporal_reg"] > 0.0:
         stats_dict["temporal_smoothness"] = policy._mean_temporal_caps_loss
     if policy.config["caps_spatial_reg"] > 0.0:
