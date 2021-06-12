@@ -27,7 +27,7 @@ import ray
 from ray.tune.registry import register_env
 import ray.rllib.agents.ddpg.td3 as td3
 
-from tools.utilities import initialize, train, test
+from gym_jiminy.toolbox.rllib.utilities import initialize, train, test
 
 # Register learning environment
 register_env("env", lambda env_config: gym.make(GYM_ENV_NAME, **env_config))

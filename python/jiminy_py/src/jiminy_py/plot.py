@@ -170,7 +170,7 @@ class TabbedFigure:
         if refresh_canvas:
             self.refresh()
 
-    def __click(self, event: Event) -> None:
+    def __click(self, event: Event, force_update: bool = False) -> None:
         """Event handler used internally to switch tab when a button is
         pressed.
         """
@@ -182,7 +182,7 @@ class TabbedFigure:
                 break
 
         # Early return if already active
-        if self.tab_active is self.tabs_data[tab_name]:
+        if not force_update and self.tab_active is self.tabs_data[tab_name]:
             return
 
         # Backup navigation history
@@ -256,16 +256,13 @@ class TabbedFigure:
         elif isinstance(plot_method, str):
             plot_method = getattr(Axes, plot_method)
 
-        # Initialize legend data
-        legend_data = ([], [])
-
         if isinstance(data, dict):
             # Compute plot grid arrangement
             n_cols = len(data)
             n_rows = 1
             while n_cols > n_rows + 2:
                 n_rows = n_rows + 1
-                n_cols = int(np.ceil(len(data) / (1.0 * n_rows)))
+                n_cols = int(np.ceil(len(data) / n_rows))
 
             # Initialize axes, and early return if none
             axes = []
@@ -350,7 +347,7 @@ class TabbedFigure:
     def set_active_tab(self, tab_name: str) -> None:
         event = LocationEvent("click", self.figure.canvas, 0, 0)
         event.inaxes = self.tabs_data[tab_name]["button"].ax
-        self.__click(event)
+        self.__click(event, force_update=True)
 
     def remove_tab(self,
                    tab_name: str, *,

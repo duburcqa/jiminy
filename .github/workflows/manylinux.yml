@@ -55,7 +55,7 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_linux.sh
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.17.3,<0.18.0" "stable_baselines3>=0.10"
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.17.3,<0.18.0" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 

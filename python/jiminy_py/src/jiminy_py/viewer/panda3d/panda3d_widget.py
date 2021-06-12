@@ -1,9 +1,9 @@
 """ TODO: Write documentation.
 """
-from typing import Optional, List, Tuple, Any
+from typing import Optional, Tuple, Any
 
 from matplotlib.backends.qt_compat import QtCore, QtWidgets, QtGui
-from .panda3d_visualizer import Panda3dApp
+from .panda3d_visualizer import Panda3dViewer
 
 
 FRAMERATE = 30
@@ -12,20 +12,20 @@ FRAMERATE = 30
 Qt = QtCore.Qt
 
 
-class Panda3dQWidget(QtWidgets.QWidget):
+class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
     """An interactive panda3D QWidget.
     """
     def __init__(self, parent: Optional[Any] = None) -> None:
         """ TODO: Write documentation.
         """
-        # Call base constructor
-        super().__init__(parent)
+        # Initialize Qt widget
+        super(QtWidgets.QWidget, self).__init__(parent=parent)
+
+        # Initialize Panda3D app
+        super(Panda3dViewer, self).__init__(window_type='offscreen')
 
         # Only accept focus by clicking on widget
         self.setFocusPolicy(Qt.ClickFocus)
-
-        # Instantiate Panda3D app
-        self._app = Panda3dApp(window_type='offscreen')
 
         # Enable mouse control
         self.setMouseTracking(True)
@@ -42,28 +42,13 @@ class Panda3dQWidget(QtWidgets.QWidget):
         self.clock.timeout.connect(self.update)
         self.clock.start()
 
-    def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
-
-        It enables to get access to the attribute and methods of the low-level
-        Panda3d app directly, without having to do it through `_app`.
-
-        .. note::
-            This method is not meant to be called manually.
-        """
-        return getattr(self.__getattribute__('_app'), name)
-
-    def __dir__(self) -> List[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return super().__dir__() + self._app.__dir__()
+    def destroy(self):
+        super(Panda3dViewer, self).destroy()
+        super(QtWidgets.QWidget, self).destroy()
 
     def close(self) -> bool:
-        self._app.destroy()
-        return super().close()
+        super(Panda3dViewer, self).destroy()
+        return super(QtWidgets.QWidget, self).close()
 
     def paintEvent(self, event: Any) -> None:
         """Pull the contents of the panda texture to the widget.
@@ -71,7 +56,7 @@ class Panda3dQWidget(QtWidgets.QWidget):
         # Get raw image and convert it to Qt format.
         # Note that `QImage` apparently does not manage the lifetime of the
         # input data buffer, so it is necessary to keep it is local scope.
-        data = self._app.get_screenshot('RGBA', raw=True)
+        data = self.get_screenshot('RGBA', raw=True)
         img = QtGui.QImage(data,
                            *self._app.buff.getSize(),
                            QtGui.QImage.Format_RGBA8888).mirrored()
@@ -84,7 +69,7 @@ class Panda3dQWidget(QtWidgets.QWidget):
     def resizeEvent(self, event: Any) -> None:
         """ TODO: Write documentation.
         """
-        self._app.set_window_size(
+        self.set_window_size(
             event.size().width(), event.size().height())
 
     def getMousePos(self) -> Tuple[int, int]:

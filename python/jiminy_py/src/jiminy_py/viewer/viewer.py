@@ -1168,6 +1168,7 @@ class Viewer:
                                        window_title=Viewer.window_name)
             client.gui = client  # The gui is the client itself for now
 
+            # Extract low-level process to monitor health
             proc = _ProcessWrapper(client._app, close_at_exit)
         else:
             # handle default argument(s)
@@ -1240,6 +1241,10 @@ class Viewer:
         # Update global state
         Viewer._backend_obj = client
         Viewer._backend_proc = proc
+
+        # Make sure the backend process is alive
+        assert Viewer.is_alive(), (
+            "Something went wrong. Impossible to instantiate viewer backend.")
 
         # Open gui if requested
         if open_gui:
@@ -1676,7 +1681,7 @@ class Viewer:
     def capture_frame(self,
                       width: int = None,
                       height: int = None,
-                      raw_data: bool = False) -> Union[np.ndarray, str]:
+                      raw_data: bool = False) -> Union[np.ndarray, bytes]:
         """Take a snapshot and return associated data.
 
         :param width: Width for the image in pixels (not available with
@@ -1716,9 +1721,8 @@ class Viewer:
             if _width != width or _height != height:
                 self._gui.set_window_size(width, height)
 
-            # Call low-level `get_screenshot` directly to get raw buffer
-            buffer = self._gui._app.get_screenshot(
-                requested_format='RGB', raw=True)
+            # Get raw buffer image instead of numpy array for efficiency
+            buffer = self._gui.get_screenshot(requested_format='RGB', raw=True)
 
             # Return raw data if requested
             if raw_data:

@@ -8,7 +8,7 @@ import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import PureWindowsPath
-from typing import Callable, Optional, Dict, Tuple, Union, Sequence, Any
+from typing import Callable, Optional, Dict, Tuple, Union, Sequence, Any, List
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,11 +30,11 @@ from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
 
 import panda3d_viewer
+import panda3d_viewer.viewer
 import panda3d_viewer.viewer_app
 import panda3d_viewer.viewer_proxy
 from panda3d_viewer import geometry
-from panda3d_viewer import (Viewer as Panda3dViewer,
-                            ViewerConfig as Panda3dViewerConfig)
+from panda3d_viewer import ViewerConfig as Panda3dViewerConfig
 from panda3d_viewer.viewer_errors import ViewerClosedError
 
 import hppfcl
@@ -349,12 +349,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_grid(False)
         self.show_floor(True)
 
+    def has_gui(self) -> bool:
+        return any(isinstance(win, GraphicsWindow) for win in self.winList)
+
     def open_window(self) -> None:
         """Open a graphical window, with offscreen buffer attached on it to
         allow for arbitrary size screenshot.
         """
         # Make sure a graphical window is not already open
-        if any(isinstance(win, GraphicsWindow) for win in self.winList):
+        if self.has_gui():
             raise RuntimeError("Only one graphical window can be opened.")
 
         # Replace the original offscreen window by an onscreen one if possible
@@ -494,8 +497,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.offA2dBottomRight.set_pos(a2dRight, 0, a2dBottom)
 
     def getSize(self, win: Optional[Any] = None) -> Tuple[int, int]:
-        """Must be patched to return the size of the window used for capturing
-        frame by default, instead of main window.
+        """Patched to return the size of the window used for capturing frame by
+        default, instead of main window.
         """
         if win is None:
             win = self.buff
@@ -638,7 +641,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return task.cont
 
     def _make_light_ambient(self, color: Tuple3FType) -> NodePath:
-        """Must be patched to fix wrong color alpha.
+        """Patched to fix wrong color alpha.
         """
         node = super()._make_light_ambient(color)
         node.get_node(0).set_color((*color, 1.0))
@@ -650,7 +653,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                            pos: Tuple3FType,
                            target: Tuple3FType = (0.0, 0.0, 0.0)
                            ) -> NodePath:
-        """Must be patched to fix wrong color alpha.
+        """Patched to fix wrong color alpha.
         """
         node = super()._make_light_direct(index, color, pos, target)
         node.get_node(0).set_color((*color, 1.0))
@@ -681,8 +684,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      root_path: str,
                      remove_if_exists: bool = True,
                      scale: float = 1.0) -> None:
-        """Must be patched to avoid adding new group if 'remove_if_exists' is
-        false, otherwise it will be impossible to access to old ones.
+        """Patched to avoid adding new group if 'remove_if_exists' is false,
+        otherwise it will be impossible to access to old ones.
         """
         if not remove_if_exists and root_path in self._groups:
             return
@@ -693,7 +696,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     name: str,
                     node: NodePath,
                     frame: Optional[FrameType] = None) -> None:
-        """Must be patched to make sure node's name is valid.
+        """Patched to make sure node's name is valid.
         """
         assert re.match(r'^[A-Za-z0-9_]+$', name), (
             "Node's name is restricted to case-insensitive ASCII alphanumeric "
@@ -742,7 +745,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                         length: float,
                         anchor_bottom: bool = False,
                         frame: Optional[FrameType] = None) -> None:
-        """Must be patched to add optional to place anchor at the bottom of the
+        """Patched to add optional to place anchor at the bottom of the
         cylinder instead of the middle.
         """
         geom_node = GeomNode('cylinder')
@@ -876,9 +879,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._watermark.set_pos(
             WIDGET_MARGIN_REL + width_rel, 0, WIDGET_MARGIN_REL + height_rel)
 
-        # Refresh frame
-        self.step()
-
     def set_legend(self,
                    items: Optional[Sequence[
                        Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
@@ -891,12 +891,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if items is None or not items:
             return
 
+        # Switch to non-interactive backend to avoid hanging for some reason
+        plt_backend = plt.get_backend()
+        plt.switch_backend("Agg")
+
         # Create empty figure with the legend
         color_default = (0.0, 0.0, 0.0, 1.0)
         handles = [Patch(color=c or color_default, label=t) for t, c in items]
-        fig = plt.figure()
-        legend = fig.gca().legend(handles=handles, framealpha=1, frameon=True)
-        fig.gca().set_axis_off()
+        fig, ax = plt.subplots()
+        legend = ax.legend(handles=handles, framealpha=1, frameon=True)
+        ax.set_axis_off()
 
         # Render the legend
         fig.draw(renderer=fig.canvas.get_renderer())
@@ -922,6 +926,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Delete the legend along with its temporary figure
         plt.close(fig)
+
+        # Restore original backend
+        plt.switch_backend(plt_backend)
 
         # Create texture in which to render the image buffer
         tex = Texture()
@@ -949,9 +956,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Flip the vertical axis and enable transparency
         self._legend.set_transparency(TransparencyAttrib.MAlpha)
         self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
-
-        # Refresh frame
-        self.step()
 
     def set_clock(self, time: Optional[float] = None) -> None:
         # Remove existing watermark, if any
@@ -995,18 +999,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._clock.setText(f"{hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}"
                             f".{milliseconds:03.0f}")
 
-        # Refresh frame
-        self.step()
-
     def set_material(self,
                      root_path: str,
                      name: str,
                      color: Optional[Tuple4FType] = None,
                      texture_path: str = '',
                      disable_material: bool = False) -> None:
-        """Must be patched to avoid raising an exception if node does not
-        exist, and to clear color if not specified. In addition, an optional
-        argument to disable texture and has been added.
+        """Patched to avoid raising an exception if node does not exist, and to
+        clear color if not specified. In addition, an optional argument to
+        disable texture and has been added.
         """
         node = self._groups[root_path].find(name)
         if node:
@@ -1129,10 +1130,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return self.framerate
 
     def save_screenshot(self, filename: Optional[str] = None) -> bool:
-        # Refresh the scene if no graphical window is available
-        if any(isinstance(win, GraphicsWindow) for win in self.winList):
-            self.step()
-
         # Generate filename based on current time if not provided
         if filename is None:
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
@@ -1155,9 +1152,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
     def get_screenshot(self,
                        requested_format: str = 'RGBA',
-                       raw: bool = False) -> np.ndarray:
-        """Must be patched to take screenshot of the last window available
-        instead of the main one, and to add raw data return mode for efficient
+                       raw: bool = False) -> Union[np.ndarray, bytes]:
+        """Patched to take screenshot of the last window available instead of
+        the main one, and to add raw data return mode for efficient
         multiprocessing.
 
         .. warning::
@@ -1166,10 +1163,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             scheduler. The framerate limit must be disable manually to avoid
             such limitation.
         """
-        # Refresh the scene if no graphical window is available
-        if any(isinstance(win, GraphicsWindow) for win in self.winList):
-            self.step()
-
         # Capture frame as raw texture
         texture = self.buff.get_screenshot()
 
@@ -1194,6 +1187,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.render.set_depth_offset(-1 if enable else 0)
         self._shadow_enabled = enable
 
+panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
+
 
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
     def __getstate__(self) -> dict:
@@ -1203,12 +1198,12 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
         return vars(self)
 
     def __setstate__(self, state: dict) -> None:
-        """Must be defined for the same reason than `__getstate__`.
+        """Defined for the same reason than `__getstate__`.
         """
         vars(self).update(state)
 
     def __getattr__(self, name: str) -> Callable:
-        """Must be overloaded to catch closed window to avoid deadlock.
+        """Patched to avoid deadlock when closing window.
         """
         def _send(*args, **kwargs):
             if self._host_conn.closed:
@@ -1225,7 +1220,7 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
         return _send
 
     def run(self) -> None:
-        """Must be patched to use Jiminy ViewerApp instead of the original one.
+        """Patched to use Jiminy ViewerApp instead of the original one.
         """
         panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
         return super().run()
@@ -1233,13 +1228,50 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
 panda3d_viewer.viewer_proxy.ViewerAppProxy = Panda3dProxy  # noqa
 
 
-def delegate(self, name: str) -> Any:
-    return getattr(self.__getattribute__('_app'), name)
+class Panda3dViewer(panda3d_viewer.viewer.Viewer):
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.__getattribute__('_app'), name)
 
+    def __dir__(self) -> List[str]:
+        return super().__dir__() + self._app.__dir__()
 
-Panda3dViewer.__getattr__ = delegate
-delattr(Panda3dViewer, 'set_material')
-delattr(Panda3dViewer, 'append_cylinder')
+    def set_material(self, *args: Any, **kwargs: Any) -> None:
+        self._app.set_material(*args, **kwargs)
+
+    def append_cylinder(self, *args: Any, **kwargs: Any) -> None:
+        self._app.append_cylinder(*args, **kwargs)
+
+    def set_watermark(self, *args: Any, **kwargs: Any) -> None:
+        self._app.set_watermark(*args, **kwargs)
+        self._app.step()  # Add watermark widget on-the-spot
+
+    def set_legend(self, *args: Any, **kwargs: Any) -> None:
+        self._app.set_legend(*args, **kwargs)
+        self._app.step()  # Add legend widget on-the-spot
+
+    def set_clock(self, *args: Any, **kwargs: Any) -> None:
+        self._app.set_clock(*args, **kwargs)
+        self._app.step()  # Add clock widget on-the-spot
+
+    def set_window_size(self, *args: Any, **kwargs: Any) -> None:
+        self._app.set_window_size(*args, **kwargs)
+        self._app.step()  # Update window size on-the-spot
+
+    def save_screenshot(self, *args: Any, **kwargs: Any) -> bool:
+        # Refresh the scene if no graphical window is available
+        if not self._app.has_gui():
+            self._app.step()
+        return self._app.save_screenshot(*args, **kwargs)
+
+    def get_screenshot(self,
+                       requested_format: str = 'RGBA',
+                       raw: bool = False) -> Union[np.ndarray, bytes]:
+        # Refresh the scene if no graphical window is available
+        if not self._app.has_gui():
+            self._app.step()
+        return self._app.get_screenshot(requested_format, raw)
+
+panda3d_viewer.viewer.Viewer = Panda3dViewer  # noqa
 
 
 class Panda3dVisualizer(BaseVisualizer):

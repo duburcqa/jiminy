@@ -6,7 +6,7 @@ import tempfile
 import argparse
 from bisect import bisect_right
 from functools import partial
-from threading import Thread, RLock
+from threading import Thread
 from itertools import cycle, islice
 from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 
@@ -17,7 +17,8 @@ from scipy.interpolate import interp1d
 
 from .. import core as jiminy
 from ..log import (TrajectoryDataType,
-                   build_robot_from_log,
+                   read_log,
+                   build_robot_from_log_constants,
                    extract_trajectory_data_from_log,
                    emulate_sensors_data_from_log)
 from .viewer import (COLORS,
@@ -70,7 +71,7 @@ def play_trajectories(trajs_data: Union[
                       delete_robot_on_close: Optional[bool] = None,
                       remove_widgets_overlay: bool = True,
                       close_backend: bool = False,
-                      viewers: Sequence[Viewer] = None,
+                      viewers: Optional[Sequence[Optional[Viewer]]] = None,
                       verbose: bool = True,
                       **kwargs: Any) -> Sequence[Viewer]:
     """Replay one or several robot trajectories in a viewer.
@@ -200,21 +201,25 @@ def play_trajectories(trajs_data: Union[
         update_hooks = [update_hooks]
     if not isinstance(viewers, (list, tuple)):
         viewers = [viewers]
-    elif not viewers:
+    elif len(viewers) == 0:
         viewers = None
 
     # Make sure the viewers are still running if specified
+    if not Viewer.is_open():
+        viewers = None
     if viewers is not None:
-        if not Viewer.is_open():
-            viewers = None
-        else:
-            for viewer in viewers:
-                if viewer is None or not viewer.is_open():
-                    viewers = None
-                    break
+        for i, viewer in enumerate(viewers):
+            if viewer is not None and not viewer.is_open():
+                viewers[i] = None
+                break
 
-    # Handling of default display of CoM, DCM and contact forces
+    # Handling of default options if no viewer is available
     if viewers is None and Viewer.backend.startswith('panda3d'):
+        # Delete robot by default only if not in notebook
+        if delete_robot_on_close is None:
+            delete_robot_on_close = not interactive_mode()
+
+        # Handling of default display of CoM, DCM and contact forces
         if display_com is None:
             display_com = True
         if display_dcm is None:
@@ -252,38 +257,34 @@ def play_trajectories(trajs_data: Union[
     if legend is not None and not isinstance(legend, (list, tuple)):
         legend = [legend]
 
-    # Instantiate or refresh viewers if necessary
+    # Make sure the viewers instances are consistent with the trajectories
     if viewers is None:
-        # Delete robot by default only if not in notebook
-        if delete_robot_on_close is None:
-            delete_robot_on_close = not interactive_mode()
+        viewers = [None for _ in trajs_data]
+    assert len(viewers) == len(trajs_data)
 
-        # Create new viewer instances
-        viewers = []
-        lock = RLock()
-        uniq_id = next(tempfile._get_candidate_names())
-        for i, (traj, color) in enumerate(zip(trajs_data, robots_colors)):
-            # Create a new viewer instance, and load the robot in it
+    # Instantiate or refresh viewers if necessary
+    for i, (viewer, traj, color) in enumerate(zip(
+            viewers, trajs_data, robots_colors)):
+        # Create new viewer instance if necessary, and load the robot in it
+        if viewer is None:
+            uniq_id = next(tempfile._get_candidate_names())
             robot = traj['robot']
             robot_name = f"{uniq_id}_robot_{i}"
             use_theoretical_model = traj['use_theoretical_model']
-            viewer = Viewer(robot,
-                            use_theoretical_model=use_theoretical_model,
-                            robot_color=color,
-                            robot_name=robot_name,
-                            lock=lock,
-                            backend=backend,
-                            scene_name=scene_name,
-                            delete_robot_on_close=delete_robot_on_close,
-                            open_gui_if_parent=(record_video_path is None))
-            viewers.append(viewer)
-    else:
+            viewer = Viewer(
+                robot,
+                use_theoretical_model=use_theoretical_model,
+                robot_color=color,
+                robot_name=robot_name,
+                backend=backend,
+                scene_name=scene_name,
+                delete_robot_on_close=delete_robot_on_close,
+                open_gui_if_parent=(record_video_path is None))
+            viewers[i] = viewer
+
         # Reset robot model in viewer if requested color has changed
-        for viewer, traj, color in zip(
-                viewers, trajs_data, robots_colors):
-            if color != viewer.robot_color:
-                viewer._setup(traj['robot'], color)
-    assert len(viewers) == len(trajs_data)
+        if color is not None and color != viewer.robot_color:
+            viewer._setup(traj['robot'], color)
 
     # Add default legend with robots names if replaying multiple trajectories
     if all(color is not None for color in robots_colors) and legend is None:
@@ -474,12 +475,12 @@ def play_trajectories(trajs_data: Union[
         if Viewer.backend.startswith('panda3d'):
             viewer._backend_obj._app.set_framerate(framerate)
     else:
+        # Play trajectories with multithreading
         def replay_thread(viewer, *args):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             viewer.replay(*args)
 
-        # Play trajectories with multithreading
         threads = []
         for viewer, traj, xyz_offset, update_hook in zip(
                 viewers, trajs_data, xyz_offsets, update_hooks):
@@ -524,13 +525,55 @@ def play_trajectories(trajs_data: Union[
     return viewers
 
 
+def extract_replay_data_from_log_data(
+        robot: jiminy.Robot,
+        log_data: Dict[str, np.ndarray]) -> Tuple[
+            TrajectoryDataType, Callable[[float], None], Any]:
+    """Extract replay data from log data.
+
+    :param robot: Jiminy robot for which to extract log data.
+    :param log_data: Data from the log file, in a dictionnary.
+
+    :returns: Trajectory data, update hook and extra keyword arguments to
+              forward to `play_trajectories` method to display the trajectory.
+              By default, it enables display of external forces applied on
+              freeflyer if any.
+    """
+    # For each pair (log, robot), extract a trajectory object for
+    # `play_trajectories`
+    trajectory = extract_trajectory_data_from_log(log_data, robot)
+
+    # Display external forces on root joint, if any
+    replay_kwargs = {}
+    if robot.has_freeflyer:
+        if trajectory['use_theoretical_model']:
+            njoints = robot.pinocchio_model_th.njoints
+        else:
+            njoints = robot.pinocchio_model.njoints
+        visibility = [True] + [False] * (njoints - 2)
+        replay_kwargs["display_f_external"] = visibility
+
+    # Define `update_hook` to emulate sensor update
+    if not robot.is_locked:
+        update_hook = emulate_sensors_data_from_log(log_data, robot)
+    else:
+        logger.warn(
+            "At least one of the robot is locked, which means that a "
+            "simulation using the robot is still running. It will be "
+            "impossible to display sensor data. Call `simulator.stop` to "
+            "unlock the robot before replaying logs data.")
+        update_hook = None
+
+    return trajectory, update_hook, replay_kwargs
+
+
 def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
                    logs_data: Union[Sequence[Dict[str, np.ndarray]],
                                     Dict[str, np.ndarray]],
                    **kwargs) -> Sequence[Viewer]:
     """Play log data in a viewer.
 
-    This method simply formats the data then calls play_trajectories.
+    This method simply formats the data then calls `play_trajectories`.
 
     :param robots: Either a single robot, or a list of robot for each log data.
     :param logs_data: Either a single dictionary, or a list of dictionaries of
@@ -541,37 +584,20 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
     if not isinstance(logs_data, (list, tuple)):
         logs_data = [logs_data]
     if not isinstance(robots, (list, tuple)):
-        robots = [robots] * len(logs_data)
+        robots = [robots]
 
-    # For each pair (log, robot), extract a trajectory object for
-    # `play_trajectories`
-    trajectories = [extract_trajectory_data_from_log(log, robot)
-                    for log, robot in zip(logs_data, robots)]
-
-    # Display external forces on root joint, if any
-    if robots[0].has_freeflyer:
-        if "display_f_external" not in kwargs and "viewers" not in kwargs:
-            if kwargs.get("use_theoretical_model", False):
-                njoints = robots[0].pinocchio_model_th.njoints
-            else:
-                njoints = robots[0].pinocchio_model.njoints
-            visibility = [True] + [False] * (njoints - 2)
-            kwargs["display_f_external"] = visibility
-
-    # Define `update_hook` to emulate sensor update
-    if not any(robot.is_locked for robot in robots):
-        update_hooks = [emulate_sensors_data_from_log(log, robot)
-                        for log, robot in zip(logs_data, robots)]
-    else:
-        logger.warn(
-            "At least one of the robot is locked, which means that a "
-            "simulation using the robot is still running. It will be "
-            "impossible to display sensor data. Call `simulator.stop` to "
-            "unlock the robot before replaying logs data.")
-        update_hooks = None
+    # Extract a replay data for `play_trajectories` for each pair (robot, log)
+    trajectories, update_hooks, extra_kwargs = [], [], {}
+    for robot, log in zip(robots, logs_data):
+        traj, update_hook, _kwargs = extract_replay_data_from_log_data(
+            robot, log)
+        trajectories.append(traj)
+        update_hooks.append(update_hook)
+        extra_kwargs.update(_kwargs)
 
     # Finally, play the trajectories
-    return play_trajectories(trajectories, update_hooks, **kwargs)
+    return play_trajectories(
+        trajectories, update_hooks, **{**extra_kwargs, **kwargs})
 
 
 def play_logs_files(logs_files: Union[str, Sequence[str]],
@@ -597,8 +623,9 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
     # Extract log data and build robot for each log file
     robots, logs_data = [], []
     for log_file in logs_files:
-        robot, (log_data, _) = build_robot_from_log(
-            log_file, mesh_package_dirs)
+        log_data, log_constants = read_log(log_file)
+        robot = build_robot_from_log_constants(
+            log_constants, mesh_package_dirs)
         logs_data.append(log_data)
         robots.append(robot)
 

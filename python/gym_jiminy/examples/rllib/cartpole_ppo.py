@@ -35,7 +35,8 @@ from ray.rllib.agents.trainer import COMMON_CONFIG
 from ray.rllib.agents.ppo import (PPOTrainer as Trainer,
                                   DEFAULT_CONFIG as AGENT_DEFAULT_CONFIG)
 
-from tools.utilities import initialize, train, test
+from gym_jiminy.toolbox.rllib.utilities import initialize, train, test
+
 from tools.fcnet import FullyConnectedNetwork
 
 # Register learning environment

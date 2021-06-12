@@ -125,6 +125,8 @@ setup(
     ],
     extras_require={
       "dev": [
+          # Stub for static type checking
+          "types-toml",
           # Check PEP8 conformance of Python native code
           "flake8",
           # Python linter
