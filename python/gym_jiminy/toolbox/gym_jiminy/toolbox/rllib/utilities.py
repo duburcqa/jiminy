@@ -25,7 +25,6 @@ import ray.ray_constants as ray_constants
 from ray._private import services
 from ray._raylet import GlobalStateAccessor
 from ray.exceptions import RayTaskError
-from ray.worker import init, disconnect
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
 from ray.rllib.policy import Policy
@@ -120,8 +119,9 @@ def initialize(num_cpus: int,
             global_state_accessor.connect()
 
             # Get available resources
-            resources = defaultdict(int)
+            resources: Dict[str, int] = defaultdict(int)
             for info in global_state_accessor.get_all_available_resources():
+                # pylint: disable=no-member
                 message = ray.gcs_utils.AvailableResources.FromString(info)
                 for field, capacity in message.resources_available.items():
                     resources[field] += capacity
