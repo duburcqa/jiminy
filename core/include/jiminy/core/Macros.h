@@ -138,6 +138,14 @@ namespace jiminy
         std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> > const *);
         template<typename T, int RowsAtCompileTime>
         std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> const> const *);
+        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime,
+                             int BlockRowsAtCompileTime>
+        std::true_type test(Eigen::VectorBlock<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime>,
+                                               BlockRowsAtCompileTime> const *);
+        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime,
+                             int BlockRowsAtCompileTime>
+        std::true_type test(Eigen::VectorBlock<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const,
+                                               BlockRowsAtCompileTime> const *);
         std::false_type test(...);
     }
 
@@ -161,6 +169,21 @@ namespace jiminy
         std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> > const *);
         template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
         std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const> const *);
+        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime, int BlockRowsAtCompileTime>
+        std::true_type test(Eigen::VectorBlock<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime>,
+                                               BlockRowsAtCompileTime> const *);
+        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime,
+                             int BlockRowsAtCompileTime>
+        std::true_type test(Eigen::VectorBlock<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const,
+                                               BlockRowsAtCompileTime> const *);
+        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime,
+                             int BlockRowsAtCompileTime, int BlockColsAtCompileTime>
+        std::true_type test(Eigen::Block<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime>,
+                                         BlockRowsAtCompileTime, BlockColsAtCompileTime> const *);
+        template<typename T, int RowsAtCompileTime, int ColsAtCompileTime,
+                             int BlockRowsAtCompileTime, int BlockColsAtCompileTime>
+        std::true_type test(Eigen::Block<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const,
+                                         BlockRowsAtCompileTime, BlockColsAtCompileTime> const *);
         std::false_type test(...);
     }
 

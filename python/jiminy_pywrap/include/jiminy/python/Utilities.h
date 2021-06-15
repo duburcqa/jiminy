@@ -171,16 +171,20 @@ namespace python
     PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> & value)
     {
         npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
-        return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
-            PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), const_cast<T*>(value.data()))), NULL);
+        PyObject * array = PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), const_cast<T*>(value.data()));
+        PyObject * arrayT = PyArray_Transpose(reinterpret_cast<PyArrayObject *>(array), NULL);
+        bp::decref(array);
+        return arrayT;
     }
 
     template<typename T>
     PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> > & value)
     {
         npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
-        return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
-            PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), value.data())), NULL);
+        PyObject * array = PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), value.data());
+        PyObject * arrayT = PyArray_Transpose(reinterpret_cast<PyArrayObject *>(array), NULL);
+        bp::decref(array);
+        return arrayT;
     }
 
     template<typename T>
@@ -322,7 +326,9 @@ namespace python
         PyObject * vecPyPtr = getNumpyReference(data);
         if (copy)
         {
-            vecPyPtr = PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY);
+            PyObject * copyVecPyPtr = PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY);
+            bp::decref(vecPyPtr);
+            vecPyPtr = copyVecPyPtr;
         }
         return bp::object(bp::handle<>(vecPyPtr));
     }
@@ -334,7 +340,9 @@ namespace python
         PyObject * vecPyPtr = getNumpyReference(data);
         if (copy)
         {
-            vecPyPtr = PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY);
+            PyObject * copyVecPyPtr = PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY);
+            bp::decref(vecPyPtr);
+            vecPyPtr = copyVecPyPtr;
         }
         return bp::object(bp::handle<>(vecPyPtr));
     }

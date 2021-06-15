@@ -1170,7 +1170,7 @@ namespace jiminy
            this method. */
 
         // Early return if no constraint is enabled
-        if (!hasConstraint())
+        if (!hasConstraints())
         {
             return;
         }
@@ -2025,19 +2025,19 @@ namespace jiminy
     }
 
     /// \brief Returns true if at least one constraint is active on the robot.
-    bool_t Model::hasConstraint(void) const
+    bool_t Model::hasConstraints(void) const
     {
-        bool_t hasConstraintEnabled = false;
+        bool_t hasConstraintsEnabled = false;
         const_cast<constraintsHolder_t &>(constraintsHolder_).foreach(
-            [&hasConstraintEnabled](std::shared_ptr<AbstractConstraintBase> const & constraint,
+            [&hasConstraintsEnabled](std::shared_ptr<AbstractConstraintBase> const & constraint,
                                     constraintsHolderType_t const & /* holderType */)
             {
                 if (constraint && constraint->getIsEnabled())
                 {
-                    hasConstraintEnabled = true;
+                    hasConstraintsEnabled = true;
                 }
             });
-        return hasConstraintEnabled;
+        return hasConstraintsEnabled;
     }
 
     int32_t const & Model::nq(void) const

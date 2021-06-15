@@ -3685,7 +3685,7 @@ namespace jiminy
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
 
-        if (system.robot->hasConstraint())
+        if (system.robot->hasConstraints())
         {
             // Define some proxies for convenience
             matrixN_t & jointJacobian = systemData.jointJacobian;
