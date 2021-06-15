@@ -10,6 +10,7 @@ import socket
 import pathlib
 import logging
 import inspect
+import tracemalloc
 from datetime import datetime
 from collections import defaultdict
 from typing import Optional, Callable, Dict, Any
@@ -376,7 +377,8 @@ def train(train_agent: Trainer,
           evaluation_period: int = 0,
           checkpoint_period: int = 0,
           record_video: bool = True,
-          verbose: bool = True) -> str:
+          verbose: bool = True,
+          debug: bool = True) -> str:
     """Train a model on a specific environment using a given agent.
 
     Note that the agent is associated with a given reinforcement learning
@@ -403,6 +405,9 @@ def train(train_agent: Trainer,
     :param record_video: Whether or not to enable video recording during
                          evaluation.
                          Optional: True by default.
+    :param debug: Whether or not to monitor memory allocation for debugging
+                  memory leaks.
+                  Optional: Disable by default.
     :param verbose: Whether or not to print high-level information after each
                     training iteration.
                     Optional: True by default.
@@ -454,12 +459,28 @@ def train(train_agent: Trainer,
                       sort_keys=True,
                       cls=SafeFallbackEncoder)
 
+    if debug:
+        tracemalloc.start(10)
+        snapshot = tracemalloc.take_snapshot()
+
     # Run several training iterations until terminal condition is reached
     try:
         while True:
             # Perform one iteration of training the policy
             result = train_agent.train()
             iter_num = result["training_iteration"]
+
+            # Monitor memory allocation since the beginning and between iters
+            if debug:
+                snapshot_new = tracemalloc.take_snapshot()
+                top_stats = snapshot_new.compare_to(snapshot, 'lineno')
+                for stat in top_stats[:10]:
+                    print(stat)
+                top_trace = snapshot_new.statistics('traceback')
+                if top_trace:
+                    for line in top_trace[0].traceback.format():
+                        print(line)
+                snapshot = snapshot_new
 
             # Print current training result summary
             msg_data = []

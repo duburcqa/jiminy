@@ -8,7 +8,7 @@ from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
 
 
-class MonitorInfoCallback:
+class MonitorInfoCallback(DefaultCallbacks):
     """ TODO: Write documentation.
     """
     # Base on `rllib/examples/custom_metrics_and_callbacks.py` example.
@@ -19,9 +19,7 @@ class MonitorInfoCallback:
                         **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
-        # pylint: disable=no-member
-        super().on_episode_step(  # type: ignore[misc]
-            episode=episode, **kwargs)
+        super().on_episode_step(episode=episode, **kwargs)
         info = episode.last_info_for()
         if info is not None:
             for key, value in info.items():
@@ -34,14 +32,12 @@ class MonitorInfoCallback:
                        **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
-        # pylint: disable=no-member
-        super().on_episode_end(  # type: ignore[misc]
-            base_env=base_env, episode=episode, **kwargs)
+        super().on_episode_end(base_env=base_env, episode=episode, **kwargs)
         episode.custom_metrics["episode_duration"] = \
             base_env.get_unwrapped()[0].step_dt * episode.length
 
 
-class CurriculumUpdateCallback:
+class CurriculumUpdateCallback(DefaultCallbacks):
     """ TODO: Write documentation.
     """
     def on_train_result(self,
@@ -51,15 +47,13 @@ class CurriculumUpdateCallback:
                         **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
-        # pylint: disable=no-member
-        super().on_train_result(  # type: ignore[misc]
-            trainer=trainer, result=result, **kwargs)
+        super().on_train_result(trainer=trainer, result=result, **kwargs)
         trainer.workers.foreach_worker(
             lambda worker: worker.foreach_env(
                 lambda env: env.update(result)))
 
 
-def build_callbacks(*callback_mixins: Type) -> DefaultCallbacks:
+def build_callbacks(*callbacks: Type) -> DefaultCallbacks:
     """Aggregate several callback mixin together.
 
     .. note::
@@ -67,11 +61,11 @@ def build_callbacks(*callback_mixins: Type) -> DefaultCallbacks:
         same method. It follows the same precedence roles than usual multiple
         inheritence, namely ordered from highest to lowest priority.
 
-    :param callback_mixins: Sequence of callback mixin objects.
+    :param callbacks: Sequence of callback objects.
     """
     # TODO: Remove this method after release of ray 1.4.0 and use instead
     # `ray.rllib.agents.callbacks.MultiCallbacks`.
-    return type("UnifiedCallbacks", (*callback_mixins, DefaultCallbacks), {})
+    return type("UnifiedCallbacks", callbacks, {})
 
 
 __all__ = [
