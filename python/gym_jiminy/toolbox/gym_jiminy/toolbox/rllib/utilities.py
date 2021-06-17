@@ -4,12 +4,15 @@ import os
 import re
 import math
 import json
+import time
 import shutil
 import socket
 import pathlib
 import logging
 import inspect
+import tracemalloc
 from datetime import datetime
+from collections import defaultdict
 from typing import Optional, Callable, Dict, Any
 
 import gym
@@ -17,6 +20,10 @@ import numpy as np
 from tensorboard.program import TensorBoard
 
 import ray
+import ray.cloudpickle as pickle
+import ray.ray_constants as ray_constants
+from ray._private import services
+from ray._raylet import GlobalStateAccessor
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
@@ -100,27 +107,69 @@ def initialize(num_cpus: int,
     assert issubclass(logger_cls, Logger), (
         "Logger class must derive from `ray.tune.logger.Logger`")
 
-    # Initialize Ray server, if not already running
+    # Check if cluster servers are already running, and if requested resources
+    # are available.
+    is_cluster_running = False
+    redis_addresses = services.find_redis_address()
+    if redis_addresses:
+        for redis_address in redis_addresses:
+            # Connect to redis global state accessor
+            global_state_accessor = GlobalStateAccessor(
+                redis_address, ray_constants.REDIS_DEFAULT_PASSWORD)
+            global_state_accessor.connect()
+
+            # Get available resources
+            resources: Dict[str, int] = defaultdict(int)
+            for info in global_state_accessor.get_all_available_resources():
+                # pylint: disable=no-member
+                message = ray.gcs_utils.AvailableResources.FromString(info)
+                for field, capacity in message.resources_available.items():
+                    resources[field] += capacity
+
+            # Disconnect global state accessor
+            time.sleep(0.1)
+            global_state_accessor.disconnect()
+
+            # Check if enough computation resources are available
+            is_cluster_running = (resources["CPU"] >= num_cpus and
+                                  resources["GPU"] >= num_gpus)
+
+            # Stop looking as soon as a cluster with enough resources is found
+            if is_cluster_running:
+                break
+
+    # Connect to Ray server if necessary, starting one if not already running
     if not ray.is_initialized():
-        ray.init(
-            # Address of Ray cluster to connect to, if any
-            address=None,
-            # Number of CPUs assigned to each raylet (None to disable limit)
-            num_cpus=num_cpus,
-            # Number of GPUs assigned to each raylet (None to disable limit)
-            num_gpus=num_gpus,
-            # Enable object eviction in LRU order under memory pressure
-            _lru_evict=False,
-            # Whether or not to execute the code serially (for debugging)
-            local_mode=debug,
-            # Logging level
-            logging_level=logging.DEBUG if debug else logging.ERROR,
-            # Whether to redirect the output from every worker to the driver
-            log_to_driver=debug,
-            # Whether to start Ray dashboard, which displays cluster's status
-            include_dashboard=True,
-            # The host to bind the dashboard server to
-            dashboard_host="0.0.0.0")
+        if not is_cluster_running:
+            # Start new Ray server, if not already running
+            ray.init(
+                # Address of Ray cluster to connect to, if any
+                address=None,
+                # Number of CPUs assigned to each raylet
+                num_cpus=num_cpus,
+                # Number of GPUs assigned to each raylet
+                num_gpus=num_gpus,
+                # Enable object eviction in LRU order under memory pressure
+                _lru_evict=False,
+                # Whether or not to execute the code serially (for debugging)
+                local_mode=debug,
+                # Logging level
+                logging_level=logging.DEBUG if debug else logging.ERROR,
+                # Whether to redirect outputs from every worker to the driver
+                log_to_driver=debug,
+                # Whether to start Ray dashboard, to monitor cluster's status
+                include_dashboard=True,
+                # The host to bind the dashboard server to
+                dashboard_host="0.0.0.0")
+        else:
+            # Connect to existing Ray cluster
+            ray.init(
+                address="auto",
+                _lru_evict=False,
+                local_mode=debug,
+                logging_level=logging.DEBUG if debug else logging.ERROR,
+                log_to_driver=debug,
+                include_dashboard=False)
 
     # Configure Tensorboard
     if launch_tensorboard:
@@ -199,8 +248,7 @@ def compute_action(policy: Policy,
         # This obscure piece of code takes advantage of already existing
         # placeholders to avoid creating new nodes to evalute computation
         # graph. It is several order of magnitude more efficient than calling
-        # `action_logits, _ = model(input_dict).eval(session=policy._sess)[0]`
-        # directly, but also significantly trickier.
+        # `action_logits, _ = model(input_dict).eval(session=policy._sess)`.
         feed_dict = {policy._input_dict[key]: value
                      for key, value in input_dict.items()
                      if key in policy._input_dict.keys()}
@@ -294,13 +342,43 @@ def build_policy_wrapper(policy: Policy,
     return forward
 
 
+def restore_policy_from_checkpoint(
+        policy_class: type,
+        env_creator: Callable[[Dict[str, Any]], gym.Env],
+        checkpoint_path: str,
+        config: Dict[str, Any]) -> Policy:
+    """ TODO: Write documentation
+    """
+    # Load checkpoint policy state
+    with open(checkpoint_path, "rb") as checkpoint_dump:
+        checkpoint_state = pickle.load(checkpoint_dump)
+        worker_dump = checkpoint_state['worker']
+        worker_state = pickle.loads(worker_dump)
+        policy_state = worker_state['state']['default_policy']
+
+    # Initiate temporary environment to get observation and action spaces
+    env = env_creator(config.get("env_config", {}))
+
+    # Get preprocessed observation space
+    preprocessor_class = get_preprocessor(env.observation_space)
+    preprocessor = preprocessor_class(env.observation_space)
+    observation_space = preprocessor.observation_space
+
+    # Instantiate policy and load checkpoint state
+    policy = policy_class(observation_space, env.action_space, config)
+    policy.set_state(policy_state)
+
+    return policy
+
+
 def train(train_agent: Trainer,
           max_timesteps: int = 0,
           max_iters: int = 0,
           evaluation_period: int = 0,
           checkpoint_period: int = 0,
           record_video: bool = True,
-          verbose: bool = True) -> str:
+          verbose: bool = True,
+          debug: bool = True) -> str:
     """Train a model on a specific environment using a given agent.
 
     Note that the agent is associated with a given reinforcement learning
@@ -327,6 +405,9 @@ def train(train_agent: Trainer,
     :param record_video: Whether or not to enable video recording during
                          evaluation.
                          Optional: True by default.
+    :param debug: Whether or not to monitor memory allocation for debugging
+                  memory leaks.
+                  Optional: Disable by default.
     :param verbose: Whether or not to print high-level information after each
                     training iteration.
                     Optional: True by default.
@@ -378,12 +459,28 @@ def train(train_agent: Trainer,
                       sort_keys=True,
                       cls=SafeFallbackEncoder)
 
+    if debug:
+        tracemalloc.start(10)
+        snapshot = tracemalloc.take_snapshot()
+
     # Run several training iterations until terminal condition is reached
     try:
         while True:
             # Perform one iteration of training the policy
             result = train_agent.train()
             iter_num = result["training_iteration"]
+
+            # Monitor memory allocation since the beginning and between iters
+            if debug:
+                snapshot_new = tracemalloc.take_snapshot()
+                top_stats = snapshot_new.compare_to(snapshot, 'lineno')
+                for stat in top_stats[:10]:
+                    print(stat)
+                top_trace = snapshot_new.statistics('traceback')
+                if top_trace:
+                    for line in top_trace[0].traceback.format():
+                        print(line)
+                snapshot = snapshot_new
 
             # Print current training result summary
             msg_data = []
@@ -578,6 +675,7 @@ def test(test_agent: Trainer,
 __all__ = [
     "initialize",
     "build_policy_wrapper",
+    "restore_policy_from_checkpoint",
     "train",
     "test"
 ]

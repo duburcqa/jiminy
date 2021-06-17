@@ -320,7 +320,7 @@ namespace jiminy
         constVectorBlock_t getConstraintsLambda(void) const;
 
         /// \brief Returns true if at least one constraint is active on the robot.
-        bool_t hasConstraint(void) const;
+        bool_t hasConstraints(void) const;
 
         hresult_t setOptions(configHolder_t modelOptions);  // Make a copy
         configHolder_t getOptions(void) const;

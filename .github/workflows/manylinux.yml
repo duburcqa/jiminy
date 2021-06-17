@@ -37,7 +37,7 @@ jobs:
 
     - name: Setup minimal build environment
       run: |
-        pythonLocation=$(find /opt/python -maxdepth 1 -name "$(echo "*${{ matrix.PYTHON_VERSION }}*" | sed -e 's/\.//g')" -print -quit)
+        pythonLocation=$(find /opt/python -maxdepth 1 -name "$(echo "cp${{ matrix.PYTHON_VERSION }}*" | sed -e 's/\.//g')" -print -quit)
 
         echo "export PATH=\"${pythonLocation}/bin:\$PATH\"" >> $HOME/.bashrc
         source $HOME/.bashrc
