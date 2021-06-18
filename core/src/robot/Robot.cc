@@ -8,6 +8,7 @@
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/utilities/Helpers.h"
+#include "jiminy/core/utilities/Pinocchio.h"
 #include "jiminy/core/utilities/Json.h"
 
 #include "jiminy/core/robot/Robot.h"
@@ -159,8 +160,32 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Define robot notification method, responsible for updating the robot if
+            // necessary after changing the motor parameters, for example the armature.
+            auto notifyRobot = [robot_=std::weak_ptr<Robot>(shared_from_this())](AbstractMotorBase & motorIn)
+                {
+                    // Make sure the robot still exists
+                    auto robot = robot_.lock();
+                    if (!robot)
+                    {
+                        PRINT_ERROR("Robot has been deleted. Impossible to notify motor update.");
+                        return hresult_t::ERROR_GENERIC;
+                    }
+
+                    // Update rotor inertia of pinocchio model
+                    float64_t const & armature = motorIn.getArmature();
+                    std::string const & jointName = motorIn.getJointName();
+                    int32_t jointVelocityIdx;
+                    ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName, jointVelocityIdx);
+                    robot->pncModel_.rotorInertia[jointVelocityIdx] = armature;
+                    ::jiminy::getJointVelocityIdx(robot->pncModelRigidOrig_, jointName, jointVelocityIdx);
+                    robot->pncModelRigidOrig_.rotorInertia[jointVelocityIdx] = armature;
+                    return hresult_t::SUCCESS;
+                };
+
             // Attach the motor
             returnCode = motor->attach(shared_from_this(),
+                                       notifyRobot,
                                        motorsSharedHolder_.get());
         }
 
@@ -819,6 +844,10 @@ namespace jiminy
                 }
             }
         }
+
+        // Propagate the user-defined motor inertia at Pinocchio model level
+        pncModelRigidOrig_.rotorInertia = getArmatures();
+        pncModel_.rotorInertia = pncModelRigidOrig_.rotorInertia;
 
         return returnCode;
     }
