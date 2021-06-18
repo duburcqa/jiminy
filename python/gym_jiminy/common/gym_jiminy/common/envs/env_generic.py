@@ -1,4 +1,6 @@
-""" TODO: Write documentation.
+"""Generic gym environment specifically tailored to work with Jiminy Simulator
+as backend physics engine, and Jiminy Viewer as 3D visualizer. It implements
+the official OpenAI Gym API and extended it to add more functionalities.
 """
 import os
 import tempfile
@@ -462,7 +464,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                                 observer/controller handle, or to register
                                 custom variables to the telemetry. Set to
                                 `None` if unused.
-                                Optional: Disable by default.
+                                Optional: Disabled by default.
 
         :returns: Initial observation of the episode.
         """
@@ -871,7 +873,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                                   the motion of the root frame of the model.
                                   This parameter is ignored if the model has no
                                   freeflyer.
-                                  Optional: Enable by default iif 'panda3d'
+                                  Optional: Enabled by default iif 'panda3d'
                                   viewer backend is used.
         :param verbose: Whether or not to display status messages.
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
@@ -1221,7 +1223,11 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         self._desired_goal = zeros(goal_space)
 
     def get_observation(self) -> SpaceDictNested:
-        """ TODO: Write documentation.
+        """Get post-processed observation.
+
+        It gathers the original observation from the environment with the
+        currently achieved and desired goal, as a dictionary. See
+        `ObserverInterface.get_observation` documentation for details.
         """
         return OrderedDict(
             observation=super().get_observation(),

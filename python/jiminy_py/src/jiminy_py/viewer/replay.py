@@ -108,7 +108,7 @@ def play_trajectories(trajs_data: Union[
                              will automatically follow the frame of the robot
                              associated with the first `trajs_data`.`None` to
                              disable.
-                             Optional: Disable by default.
+                             Optional: Disabled by default.
     :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
                           corresponding to the absolute pose of the camera
                           during replay, if travelling is disable, or the
@@ -130,20 +130,20 @@ def play_trajectories(trajs_data: Union[
                    otherwise.
     :param enable_clock: Add clock on bottom right corner of the viewer.
                          Only available with 'panda3d' rendering backend.
-                         Optional: Disable by default.
+                         Optional: Disabled by default.
     :param display_com: Whether or not to display the center of mass. `None`
                         to keep current viewers' settings, if any.
-                        Optional: Enable by default iif `viewers` is `None`,
+                        Optional: Enabled by default iif `viewers` is `None`,
                         and backend is 'panda3d'.
     :param display_dcm: Whether or not to display the capture point (also
                         called DCM). `None to keep current viewers' settings.
-                        Optional: Enable by default iif `viewers` is `None`,
+                        Optional: Enabled by default iif `viewers` is `None`,
                         and backend is 'panda3d'.
     :param display_contacts: Whether or not to display the contact forces.
                              Note that the user is responsible for updating
                              sensors data via `update_hooks`. `None` to keep
                              current viewers' settings.
-                             Optional: Enable by default iif `update_hooks` is
+                             Optional: Enabled by default iif `update_hooks` is
                              specified, `viewers` is `None`, and backend is
                              'panda3d'.
     :param display_f_external: Whether or not to display the external external
@@ -178,10 +178,10 @@ def play_trajectories(trajs_data: Union[
                                   Optional: True by default.
     :param remove_widgets_overlay: Remove overlay (legend, watermark, clock,
                                    ...) automatically before returning.
-                                   Optional: Enable by default.
+                                   Optional: Enabled by default.
     :param close_backend: Whether or not to close backend automatically before
                           returning.
-                          Optional: Disable by default.
+                          Optional: Disabled by default.
     :param viewers: List of already instantiated viewers, associated one by one
                     in order to each trajectory data. None to disable.
                     Optional: None by default.

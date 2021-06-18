@@ -1155,9 +1155,6 @@ namespace jiminy
             // Propagate the user-defined gravity at Pinocchio model level
             systemIt->robot->pncModel_.gravity = engineOptions_->world.gravity;
 
-            // Propage the user-defined motor inertia at Pinocchio model level
-            systemIt->robot->pncModel_.rotorInertia = systemIt->robot->getArmatures();
-
             /* Reinitialize the system state buffers, since the robot kinematic may have changed.
                For example, it may happens if one activates or deactivates the flexibility between
                two successive simulations. */

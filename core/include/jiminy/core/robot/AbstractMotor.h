@@ -284,6 +284,7 @@ namespace jiminy
         /// \details  This method must be called before initializing the sensor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t attach(std::weak_ptr<Robot const> robot,
+                         std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
                          MotorSharedDataHolder_t * sharedHolder);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -295,12 +296,13 @@ namespace jiminy
         std::unique_ptr<abstractMotorOptions_t const> baseMotorOptions_;  ///< Structure with the parameters of the motor
 
     protected:
-        configHolder_t motorOptionsHolder_;         ///< Dictionary with the parameters of the motor
-        bool_t isInitialized_;                      ///< Flag to determine whether the controller has been initialized or not
-        bool_t isAttached_;                         ///< Flag to determine whether the motor is attached to a robot
-        std::weak_ptr<Robot const> robot_;          ///< Robot for which the command and internal dynamics
-        std::string name_;                          ///< Name of the motor
-        int32_t motorIdx_;                          ///< Index of the motor in the measurement buffer
+        configHolder_t motorOptionsHolder_;                          ///< Dictionary with the parameters of the motor
+        bool_t isInitialized_;                                       ///< Flag to determine whether the controller has been initialized or not
+        bool_t isAttached_;                                          ///< Flag to determine whether the motor is attached to a robot
+        std::weak_ptr<Robot const> robot_;                           ///< Robot for which the command and internal dynamics
+        std::function<hresult_t(AbstractMotorBase &)> notifyRobot_;  ///< Notify the robot that the configuration of the sensors have changed
+        std::string name_;                                           ///< Name of the motor
+        int32_t motorIdx_;                                           ///< Index of the motor in the measurement buffer
         std::string jointName_;
         jointIndex_t jointModelIdx_;
         joint_t jointType_;

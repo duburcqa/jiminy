@@ -1,4 +1,5 @@
-""" TODO: Write documentation.
+"""Implementation of basic Proportional-Derivative controller block compatible
+with gym_jiminy reinforcement learning pipeline environment design.
 """
 from collections import OrderedDict
 from typing import Union, Any, List
@@ -45,7 +46,7 @@ class PDController(BaseControllerBlock):
 
     .. warning::
         It must be connected directly to the environment to control without
-        intermediary controllers.
+        any intermediary controllers.
     """
     def __init__(self,
                  env: BaseJiminyEnv,

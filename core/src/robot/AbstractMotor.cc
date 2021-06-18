@@ -13,6 +13,7 @@ namespace jiminy
     isInitialized_(false),
     isAttached_(false),
     robot_(),
+    notifyRobot_(),
     name_(name),
     motorIdx_(-1),
     jointName_(),
@@ -38,6 +39,7 @@ namespace jiminy
     }
 
     hresult_t AbstractMotorBase::attach(std::weak_ptr<Robot const> robot,
+                                        std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
                                         MotorSharedDataHolder_t * sharedHolder)
     {
         // Make sure the motor is not already attached
@@ -54,7 +56,9 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
+        // Copy references to the robot and shared data
         robot_ = robot;
+        notifyRobot_ = notifyRobot;
         sharedHolder_ = sharedHolder;
 
         // Get an index
@@ -105,6 +109,7 @@ namespace jiminy
 
         // Clear the references to the robot and shared data
         robot_.reset();
+        notifyRobot_ = nullptr;
         sharedHolder_ = nullptr;
 
         // Unset the Id
@@ -139,7 +144,7 @@ namespace jiminy
         for (AbstractMotorBase * motor : sharedHolder_->motors_)
         {
             // Refresh proxies that are robot-dependent
-            motor->refreshProxies();  //
+            motor->refreshProxies();
         }
 
         return hresult_t::SUCCESS;
@@ -151,13 +156,23 @@ namespace jiminy
         bool_t internalBuffersMustBeUpdated = false;
         if (isInitialized_)
         {
+            // Check if armature has changed
+            bool_t const & enableArmature = boost::get<bool_t>(motorOptions.at("enableArmature"));
+            internalBuffersMustBeUpdated |= (baseMotorOptions_->enableArmature != enableArmature);
+            if (enableArmature)
+            {
+                float64_t const & armature = boost::get<float64_t>(motorOptions.at("armature"));
+                internalBuffersMustBeUpdated |= std::abs(armature - baseMotorOptions_->armature) > EPS;
+            }
+
+            // Check if command limit has changed
             bool_t const & commandLimitFromUrdf = boost::get<bool_t>(motorOptions.at("commandLimitFromUrdf"));
+            internalBuffersMustBeUpdated |= (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
             if (!commandLimitFromUrdf)
             {
                 float64_t const & commandLimit = boost::get<float64_t>(motorOptions.at("commandLimit"));
                 internalBuffersMustBeUpdated |= std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
-            internalBuffersMustBeUpdated |= (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
         }
 
         // Update the motor's options
@@ -262,6 +277,12 @@ namespace jiminy
             else
             {
                 armature_ = 0.0;
+            }
+
+            // Propagate the user-defined motor inertia at Pinocchio model level
+            if (notifyRobot_)
+            {
+                returnCode = notifyRobot_(*this);
             }
         }
 
