@@ -1,4 +1,10 @@
-""" TODO: Write documentation.
+"""Helper methods to generate learning environment pipeline, consisting in an
+barebone environment inheriting from `BaseJiminyEnv`, wrapped together with
+any number of successive blocks as a unified environment, in Matlab Simulink
+fashion.
+
+It enables to break down a complex control architectures in many submodules,
+making it easier to maintain and avoiding code duplications between usecases.
 """
 import json
 import pathlib
@@ -119,7 +125,7 @@ def build_pipeline(env_config: EnvConfig,
                            generated wrapper.
         :param block_class: Type of block to connect to the environment, if
                             any. `None` to disable.
-                            Optional: Disable by default
+                            Optional: Disabled by default
         :param block_kwargs: Keyword arguments to forward to the constructor of
                              the wrapped block. See 'env_kwargs'.
         :param wrapper_class: Type of wrapper to use to gather the environment
@@ -254,7 +260,9 @@ def build_pipeline(env_config: EnvConfig,
 
 
 def load_pipeline(fullpath: str) -> Type[BasePipelineWrapper]:
-    """ TODO: Write documentation.
+    """Load pipeline from JSON or TOML configuration file.
+
+    :param: Fullpath of the configuration file.
     """
     file_ext = pathlib.Path(fullpath).suffix
     with open(fullpath, 'r') as f:

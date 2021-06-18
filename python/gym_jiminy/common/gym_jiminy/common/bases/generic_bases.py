@@ -1,4 +1,6 @@
-""" TODO: Write documentation.
+"""Controller and observer abstract interfaces from reinforcement learning,
+specifically design for Jiminy engine, and defined as mixin classes. Any
+observer/controller block must inherite and implement those interfaces.
 """
 from typing import Optional, Dict, Any
 

@@ -94,9 +94,9 @@ def initialize(num_cpus: int,
                        Optional: `TBXLogger` by default.
     :param launch_tensorboard: Whether or not to launch tensorboard
                                automatically.
-                               Optional: Enable by default.
+                               Optional: Enabled by default.
     :param debug: Whether or not to display debugging trace.
-                  Optional: Disable by default.
+                  Optional: Disabled by default.
     :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
 
@@ -279,17 +279,17 @@ def build_policy_wrapper(policy: Policy,
                           observation from the environment, usually used
                           from moving average normalization. `None` to
                           disable.
-                          Optional: Disable by default.
+                          Optional: Disabled by default.
     :param n_frames_stack: Number of frames to stack in the input to provide
                            to the policy. Note that previous observation,
                            action, and reward will be stacked.
                            Optional: 1 by default.
     :param clip_action: Whether or not to clip action to make sure the
                         prediction by the policy is not out-of-bounds.
-                        Optional: Disable by default.
+                        Optional: Disabled by default.
     :param explore: Whether or not to enable exploration during sampling of the
                     actions predicted by the policy.
-                    Optional: Disable by default.
+                    Optional: Disabled by default.
     """
     # Extract some proxies for convenience
     observation_space = policy.observation_space
@@ -391,23 +391,23 @@ def train(train_agent: Trainer,
 
     :param train_agent: Training agent.
     :param max_timesteps: Maximum number of training timesteps. 0 to disable.
-                          Optional: Disable by default.
+                          Optional: Disabled by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
-                      Optional: Disable by default.
+                      Optional: Disabled by default.
     :param evaluation_period: Run one simulation (with exploration) every given
                               number of training steps, and save the log file
                               and a video of the result in log folder if
                               requested. 0 to disable.
-                              Optional: Disable by default.
+                              Optional: Disabled by default.
     :param checkpoint_period: Backup trainer every given number of training
                               steps in log folder if requested. 0 to disable.
-                              Optional: Disable by default.
+                              Optional: Disabled by default.
     :param record_video: Whether or not to enable video recording during
                          evaluation.
                          Optional: True by default.
     :param debug: Whether or not to monitor memory allocation for debugging
                   memory leaks.
-                  Optional: Disable by default.
+                  Optional: Disabled by default.
     :param verbose: Whether or not to print high-level information after each
                     training iteration.
                     Optional: True by default.
@@ -544,26 +544,26 @@ def evaluate(env: gym.Env,
                           observation from the environment, usually used
                           from moving average normalization. `None` to
                           disable.
-                          Optional: Disable by default.
+                          Optional: Disabled by default.
     :param n_frames_stack: Number of frames to stack in the input to provide
                            to the policy. Note that previous observation,
                            action, and reward will be stacked.
                            Optional: 1 by default.
     :param horizon: Horizon of the simulation, namely maximum number of steps
                     before termination. `None` to disable.
-                    Optional: Disable by default.
+                    Optional: Disabled by default.
     :param clip_action: Whether or not to clip action to make sure the
                         prediction by the policy is not out-of-bounds.
-                        Optional: Disable by default.
+                        Optional: Disabled by default.
     :param explore: Whether or not to enable exploration during sampling of the
                     actions predicted by the policy.
-                    Optional: Disable by default.
+                    Optional: Disabled by default.
     :param enable_stats: Whether or not to print high-level statistics after
                          simulation.
-                         Optional: Enable by default.
+                         Optional: Enabled by default.
     :param enable_replay: Whether or not to enable replay of the simulation,
                           and eventually recording through `viewer_kwargs`.
-                          Optional: Enable by default.
+                          Optional: Enabled by default.
     :param viewer_kwargs: Extra keyword arguments to forward to the viewer if
                           replay has been requested.
     """
@@ -624,17 +624,17 @@ def test(test_agent: Trainer,
     :param test_agent: Agent to evaluate on a single simulation.
     :param explore: Whether or not to enable exploration during sampling of the
                     actions predicted by the policy.
-                    Optional: Disable by default.
+                    Optional: Disabled by default.
     :param n_frames_stack: Number of frames to stack in the input to provide
                            to the policy. Note that previous observation,
                            action, and reward will be stacked.
                            Optional: 1 by default.
     :param enable_stats: Whether or not to print high-level statistics after
                          simulation.
-                         Optional: Enable by default.
+                         Optional: Enabled by default.
     :param enable_replay: Whether or not to enable replay of the simulation,
                           and eventually recording through `viewer_kwargs`.
-                          Optional: Enable by default.
+                          Optional: Enabled by default.
     :param test_env: Environment on which to evaluate the policy. It must be
                      already instantiated and ready-to-use.
     :param viewer_kwargs: Extra keyword arguments to forward to the viewer if

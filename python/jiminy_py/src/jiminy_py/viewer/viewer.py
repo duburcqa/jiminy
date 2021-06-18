@@ -322,7 +322,7 @@ class Viewer:
                             color of the meshes if not `None`. It supports both
                             RGBA codes as a list of 4 floating-point values
                             ranging from 0.0 and 1.0, and a few named colors.
-                            Optional: Disable by default.
+                            Optional: Disabled by default.
         :param lock: Custom threading.RLock. Required for parallel rendering.
                      It is required since some backends does not support
                      multiple simultaneous connections (e.g. corbasever).
@@ -350,14 +350,14 @@ class Viewer:
                            must differ from the scene name.
                            Optional: 'world' by default.
         :param display_com: Whether or not to display the center of mass.
-                            Optional: Disable by default.
+                            Optional: Disabled by default.
         :param display_dcm: Whether or not to display the capture point / DCM.
-                            Optional: Disable by default.
+                            Optional: Disabled by default.
         :param display_contacts: Whether or not to display the contact forces.
                                  Note that the user is responsible for updating
                                  sensors data since `Viewer.display` is only
                                  computing kinematic quantities.
-                                 Optional: Disable by default.
+                                 Optional: Disabled by default.
         :param display_f_external:
             Whether or not to display the external external forces applied at
             the joints on the robot. If a boolean is provided, the same
@@ -366,7 +366,7 @@ class Viewer:
             `pinocchio_model.names`. Note that the user is responsible for
             updating the force buffer `viewer.f_external` data since
             `Viewer.display` is only computing kinematic quantities.
-            Optional: Disable by default.
+            Optional: Disabled by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
         # Handling of default arguments
@@ -574,7 +574,7 @@ class Viewer:
                             color of the meshes if not `None`. It supports both
                             RGBA codes as a list of 4 floating-point values
                             ranging from 0.0 and 1.0, and a few named colors.
-                            Optional: Disable by default.
+                            Optional: Disabled by default.
         """
         # Delete existing robot, if any
         robot_node_path = '/'.join((self.scene_name, self.robot_name))
@@ -1657,7 +1657,7 @@ class Viewer:
                       of the meshes if not `None`, and restore them otherwise.
                       It supports both RGBA codes as a list of 4 floating-point
                       values ranging from 0.0 and 1.0, and a few named colors.
-                      Optional: Disable by default.
+                      Optional: Disabled by default.
         """
         # Sanitize user-specified color code
         color_ = get_color_code(color)

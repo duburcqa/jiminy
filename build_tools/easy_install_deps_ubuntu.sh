@@ -27,14 +27,14 @@ fi
 # Install Python 3 standard utilities
 apt update && \
 apt install -y sudo python3-setuptools python3-pip python3-tk && \
-sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade pip && \
-sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade wheel && \
-sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade "numpy>=1.16"
+sudo -u $(id -nu "$SUDO_UID") env "PATH=$PATH" python3 -m pip install --upgrade pip && \
+sudo -u $(id -nu "$SUDO_UID") env "PATH=$PATH" python3 -m pip install --upgrade wheel && \
+sudo -u $(id -nu "$SUDO_UID") env "PATH=$PATH" python3 -m pip install --upgrade "numpy>=1.16"
 
 # Install Python 3 toolsuite for testing and documentation generation
-sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade setuptools auditwheel && \
-sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade flake8 pylint mypy types-toml && \
-sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade \
+sudo -u $(id -nu "$SUDO_UID") env "PATH=$PATH" python3 -m pip install --upgrade setuptools auditwheel && \
+sudo -u $(id -nu "$SUDO_UID") env "PATH=$PATH" python3 -m pip install --upgrade flake8 pylint mypy types-toml && \
+sudo -u $(id -nu "$SUDO_UID") env "PATH=$PATH" python3 -m pip install --upgrade \
     pygments colorama sphinx sphinx_rtd_theme recommonmark nbsphinx breathe aafigure
 
 # Install standard linux utilities
