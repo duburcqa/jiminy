@@ -272,7 +272,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
                                     raw observation of the environment. This
                                     option is only available if the observation
                                     space is of type `gym.spaces.Dict`.
-                                    Optional: disable by default.
+                                    Optional: Disabled by default.
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
         """
@@ -451,7 +451,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                                     environment. This option is only available
                                     if the observation space is of type
                                     `gym.spaces.Dict`.
-                                    Optional: disable by default.
+                                    Optional: Disabled by default.
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
         """

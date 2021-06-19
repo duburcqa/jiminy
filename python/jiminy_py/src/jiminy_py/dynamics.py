@@ -108,7 +108,7 @@ def update_quantities(robot: jiminy.Model,
     - center-of-mass velocity,
     - center-of-mass drift,
     - center-of-mass acceleration,
-    (- center-of-mass jacobian : No Python binding available so far),
+    - center-of-mass jacobian,
     - articular inertia matrix,
     - non-linear effects (Coriolis + gravity)
     - collisions and distances
@@ -119,6 +119,14 @@ def update_quantities(robot: jiminy.Model,
 
     .. warning::
         This function modifies the internal robot data.
+
+    .. warning::
+        It does not called overloaded pinocchio methods provided by
+        `jiminy_py.core` but the original pinocchio methods instead. As a
+        result, it does not take into account the rotor inertias / armatures.
+        One is responsible of calling the appropriate methods manually instead
+        of this one if necessary. This behavior is expected to change in the
+        future.
 
     :param robot: Jiminy robot.
     :param position: Robot position vector.
@@ -199,38 +207,6 @@ def update_quantities(robot: jiminy.Model,
                 break
 
 
-def get_body_index_and_fixedness(
-        robot: jiminy.Model,
-        body_name: str,
-        use_theoretical_model: bool = True) -> Tuple[int, bool]:
-    """Retrieve the body index and fixedness from its name.
-
-    :param robot: Jiminy robot.
-    :param body_name: Name of the body.
-    :param use_theoretical_model: Whether the state corresponds to the
-                                  theoretical model when updating and fetching
-                                  the robot's state.
-                                  Optional: True by default.
-
-    :returns: [0] Index of the body. [1] Whether or not it is a fixed body.
-    """
-    if use_theoretical_model:
-        pnc_model = robot.pinocchio_model_th
-    else:
-        pnc_model = robot.pinocchio_model
-
-    frame_id = pnc_model.getFrameId(body_name)
-    parent_frame_id = pnc_model.frames[frame_id].previousFrame
-    parent_frame_type = pnc_model.frames[parent_frame_id].type
-    is_body_fixed = (parent_frame_type == pin.FrameType.FIXED_JOINT)
-    if is_body_fixed:
-        body_id = frame_id
-    else:
-        body_id = pnc_model.frames[frame_id].parent
-
-    return body_id, is_body_fixed
-
-
 def get_body_world_transform(robot: jiminy.Model,
                              body_name: str,
                              use_theoretical_model: bool = True,
@@ -252,6 +228,7 @@ def get_body_world_transform(robot: jiminy.Model,
 
     :returns: Body transform.
     """
+    # Pick the right pinocchio model and data
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
         pnc_data = robot.pinocchio_data_th
@@ -259,9 +236,15 @@ def get_body_world_transform(robot: jiminy.Model,
         pnc_model = robot.pinocchio_model
         pnc_data = robot.pinocchio_data
 
-    transform = pnc_data.oMf[pnc_model.getFrameId(body_name)]
+    # Get frame index and make sure it exists
+    body_id = pnc_model.getFrameId(body_name)
+    assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
+
+    # Get body transform in world frame
+    transform = pnc_data.oMf[body_id]
     if copy:
         transform = transform.copy()
+
     return transform
 
 
@@ -271,7 +254,7 @@ def get_body_world_velocity(robot: jiminy.Model,
     """Get the spatial velocity wrt world in body frame for a given body.
 
     .. warning::
-        It is assumed that `update_quantities` has been called.
+        It is assumed that `update_quantities` has been called beforehand.
 
     :param robot: Jiminy robot.
     :param body_name: Name of the body.
@@ -282,6 +265,7 @@ def get_body_world_velocity(robot: jiminy.Model,
 
     :returns: Spatial velocity.
     """
+    # Pick the right pinocchio model and data
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
         pnc_data = robot.pinocchio_data_th
@@ -289,20 +273,12 @@ def get_body_world_velocity(robot: jiminy.Model,
         pnc_model = robot.pinocchio_model
         pnc_data = robot.pinocchio_data
 
-    body_id, body_is_fixed = get_body_index_and_fixedness(
-        robot, body_name, use_theoretical_model)
-    if body_is_fixed:
-        last_moving_parent_id = pnc_model.frames[body_id].parent
-        parent_transform_in_world = pnc_data.oMi[last_moving_parent_id]
-        parent_velocity_in_parent_frame = pnc_data.v[last_moving_parent_id]
-        spatial_velocity = parent_velocity_in_parent_frame.se3Action(
-            parent_transform_in_world)
-    else:
-        transform = pnc_data.oMi[body_id]
-        velocity_in_body_frame = pnc_data.v[body_id]
-        spatial_velocity = velocity_in_body_frame.se3Action(transform)
+    # Get frame index and make sure it exists
+    body_id = pnc_model.getFrameId(body_name)
+    assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
 
-    return spatial_velocity
+    return pin.getFrameVelocity(
+        pnc_model, pnc_data, body_id, pin.LOCAL_WORLD_ALIGNED)
 
 
 def get_body_world_acceleration(robot: jiminy.Model,
@@ -325,6 +301,7 @@ def get_body_world_acceleration(robot: jiminy.Model,
 
     :returns: Spatial acceleration.
     """
+    # Pick the right pinocchio model and data
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
         pnc_data = robot.pinocchio_data_th
@@ -332,21 +309,12 @@ def get_body_world_acceleration(robot: jiminy.Model,
         pnc_model = robot.pinocchio_model
         pnc_data = robot.pinocchio_data
 
-    body_id, body_is_fixed = get_body_index_and_fixedness(
-        robot, body_name, use_theoretical_model)
+    # Get frame index and make sure it exists
+    body_id = pnc_model.getFrameId(body_name)
+    assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
 
-    if body_is_fixed:
-        last_moving_parent_id = pnc_model.frames[body_id].parent
-        parent_transform_in_world = pnc_data.oMi[last_moving_parent_id]
-        parent_acceleration_in_parent_frame = pnc_data.a[last_moving_parent_id]
-        spatial_acceleration = parent_acceleration_in_parent_frame.se3Action(
-            parent_transform_in_world)
-    else:
-        transform = pnc_data.oMi[body_id]
-        acceleration_in_body_frame = pnc_data.a[body_id]
-        spatial_acceleration = acceleration_in_body_frame.se3Action(transform)
-
-    return spatial_acceleration
+    return pin.getFrameAcceleration(
+        pnc_model, pnc_data, body_id, pin.LOCAL_WORLD_ALIGNED)
 
 
 def compute_transform_contact(
@@ -506,9 +474,8 @@ def compute_freeflyer_state_from_fixed_body(
         for efficiency.
 
     :param robot: Jiminy robot.
-    :param position:
-        Must contain current articular data. The freeflyer data can contain any
-        value, it will be ignored and replaced.
+    :param position: Must contain current articular data. The freeflyer data
+                     can contain any value, it will be ignored and replaced.
     :param velocity: See position.
     :param acceleration: See position.
     :param fixed_body_name: Name of the body frame that is considered fixed
@@ -591,7 +558,7 @@ def compute_efforts_from_fixed_body(
     .. warning::
         This function modifies the internal robot data.
 
-    :param robot: Jiminy robot
+    :param robot: Jiminy robot.
     :param position: Robot configuration vector.
     :param velocity: Robot velocity vector.
     :param acceleration: Robot acceleration vector.
@@ -600,7 +567,10 @@ def compute_efforts_from_fixed_body(
                                   theoretical model when updating and fetching
                                   the robot's state.
                                   Optional: True by default.
+
+    :returns: articular efforts and external forces.
     """
+    # Pick the right pinocchio model and data
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
         pnc_data = robot.pinocchio_data_th
@@ -609,8 +579,10 @@ def compute_efforts_from_fixed_body(
         pnc_data = robot.pinocchio_data
 
     # Apply a first run of rnea without explicit external forces
+    # Note that `computeJointJacobians` also compute the forward kinematics
+    # of the model (position only obviously).
     pin.computeJointJacobians(pnc_model, pnc_data, position)
-    pin.rnea(pnc_model, pnc_data, position, velocity, acceleration)
+    jiminy.rnea(pnc_model, pnc_data, position, velocity, acceleration)
 
     # Initialize vector of exterior forces to zero
     f_ext = pin.StdVec_Force()
@@ -623,11 +595,85 @@ def compute_efforts_from_fixed_body(
         .actInv(pnc_data.oMi[1]).act(pnc_data.f[1])
 
     # Recompute the efforts with RNEA and the correct external forces
-    tau = pin.rnea(
+    tau = jiminy.rnea(
         pnc_model, pnc_data, position, velocity, acceleration, f_ext)
     f_ext = f_ext[support_foot_idx]
 
     return tau, f_ext
+
+
+def compute_inverse_dynamics(robot: jiminy.Model,
+                             position: np.ndarray,
+                             velocity: np.ndarray,
+                             acceleration: np.ndarray,
+                             use_theoretical_model: bool = False
+                             ) -> np.ndarray:
+    """Compute the motor torques through inverse dynamics, assuming to external
+    forces except the one resulting from the anyaltical constraints applied on
+    the model.
+
+    .. warning::
+        This function modifies the internal robot data.
+
+    :param robot: Jiminy robot.
+    :param position: Robot configuration vector.
+    :param velocity: Robot velocity vector.
+    :param acceleration: Robot acceleration vector.
+    :param use_theoretical_model: Whether the position, velocity and
+                                  acceleration are associated with the
+                                  theoretical model instead of the actual one.
+                                  Optional: False by default.
+
+    :returns: motor torques.
+    """
+    # Convert theoretical position, velocity and acceleration if necessary
+    if use_theoretical_model and robot.is_flexible:
+        position = robot.get_flexible_configuration_from_rigid(position)
+        velocity = robot.get_flexible_velocity_from_rigid(velocity)
+        acceleration = robot.get_flexible_velocity_from_rigid(acceleration)
+
+    # Define some proxies for convenience
+    pnc_model = robot.pinocchio_model
+    pnc_data = robot.pinocchio_data
+    motors_velocity_idx = robot.motors_velocity_idx
+
+    # Updating kinematics quantities
+    pin.forwardKinematics(
+        pnc_model, pnc_data, position, velocity, acceleration)
+    pin.updateFramePlacements(pnc_model, pnc_data)
+
+    # Compute inverted inertia matrix, taking into account rotor inertias.
+    # Note that `pin.computeMinverse` must NOT be used, since it does not take
+    # into account those inertias.
+    M = jiminy.crba(pnc_model, pnc_data, position)
+    M_inv = np.linalg.inv(M)
+
+    # Compute non-linear effects
+    pin.nonLinearEffects(pnc_model, pnc_data, position, velocity)
+    nle = robot.pinocchio_data.nle
+
+    # Compute constraint jacobian and drift
+    robot.compute_constraints(position, velocity)
+    J = robot.get_constraints_jacobian()
+    drift = robot.get_constraints_drift()
+
+    # Compute constraint forces
+    inv_term = np.linalg.inv(J @ M_inv @ J.T)
+    a_f = inv_term @ (- drift + J @ M_inv @ nle)
+    B_f = (- inv_term @ (J @ M_inv[:, motors_velocity_idx]))
+
+    # compute feedforward term
+    a_ydd = (M_inv @ (- nle + J.T @ a_f) - acceleration)[motors_velocity_idx]
+    B_ydd = (
+        M_inv[:, motors_velocity_idx] + M_inv @ J.T @ B_f)[motors_velocity_idx]
+
+    # Moore-Penrose pseudo-inverse of B_ydd
+    B_ydd_inverse = np.linalg.pinv(B_ydd)
+
+    # Compute motor torques
+    u = - B_ydd_inverse @ a_ydd
+
+    return u
 
 
 # #####################################################################

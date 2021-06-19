@@ -60,11 +60,13 @@ namespace python
                                       (bp::arg("self"), "constraint_name"))
                 .def("exist_constraint", &Model::existConstraint,
                                          (bp::arg("self"), "constraint_name"))
-                .add_property("has_constraint", &Model::hasConstraint)
+                .add_property("has_constraints", &Model::hasConstraints)
                 .add_property("constraints", PyModelVisitor::getConstraints)
                 .def("get_constraints_jacobian", &PyModelVisitor::getConstraintsJacobian)
                 .def("get_constraints_drift", &PyModelVisitor::getConstraintsDrift)
                 .def("get_constraints_lambda", &PyModelVisitor::getConstraintsLambda)
+                .def("compute_constraints", &Model::computeConstraints,
+                                            (bp::arg("self"), "q", "v"))
 
                 .def("get_flexible_configuration_from_rigid", &PyModelVisitor::getFlexibleConfigurationFromRigid,
                                                               (bp::arg("self"), "rigid_position"))

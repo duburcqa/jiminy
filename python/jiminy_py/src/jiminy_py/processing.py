@@ -93,7 +93,7 @@ def squared_norm_2(array: np.ndarray) -> float:
 
 
 @nb.jit(nopython=True, nogil=True)
-def toeplitz(c: np.ndarray, r: np.ndarray) -> np.ndarray:
+def _toeplitz(c: np.ndarray, r: np.ndarray) -> np.ndarray:
     """Numba-compatible implementation of `scipy.linalg.toeplitz` method.
 
     .. note:
@@ -120,11 +120,13 @@ def _integrate_zoh_impl(state_prev: np.ndarray,
                         dt: float,
                         state_min: np.ndarray,
                         state_max: np.ndarray) -> np.ndarray:
+    """ TODO: Write documentation.
+    """
     # Compute integration matrix
     order = len(state_prev)
     integ_coeffs = np.array([
         pow(dt, k) / FACTORIAL_TABLE[k] for k in range(order)])
-    integ_matrix = toeplitz(integ_coeffs, np.zeros(order)).T
+    integ_matrix = _toeplitz(integ_coeffs, np.zeros(order)).T
     integ_zero = integ_matrix[:, :-1].copy() @ state_prev[:-1]
     integ_drift = np.expand_dims(integ_matrix[:, -1], axis=-1)
 
@@ -287,3 +289,11 @@ def smoothing_filter(
         val_out = np.concatenate(val_out, axis=0)
 
     return val_out
+
+
+__all__ = [
+    "ConvexHull",
+    "squared_norm_2",
+    "integrate_zoh",
+    "smoothing_filter"
+]

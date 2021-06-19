@@ -7,6 +7,7 @@ import ray.tune.logger
 from . import ppo
 from . import utilities
 from . import callbacks
+from . import curriculum
 
 
 # Patch flatten dict method that is deep-copying the input dict in the original
@@ -51,5 +52,6 @@ ray.tune.logger.flatten_dict = _flatten_dict  # noqa
 __all__ = [
     "ppo",
     "utilities",
-    "callbacks"
+    "callbacks",
+    "curriculum"
 ]

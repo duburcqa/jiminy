@@ -1,4 +1,5 @@
-""" TODO: Write documentation.
+"""Generic environment to learn locomotion skills for legged robots using
+Jiminy simulator as physics engine.
 """
 from typing import Optional, Dict, Union, Callable, Any
 
@@ -60,7 +61,7 @@ ForceProfileType = Dict[str, Union[str, ForceProfileFunc]]
 
 
 class WalkerJiminyEnv(BaseJiminyEnv):
-    """Gym environment for learning locomotion task for legged robots using
+    """Gym environment for learning locomotion skills for legged robots using
     torque control directly.
 
     Jiminy Engine is used to perform physics evaluation, and Meshcat is used
