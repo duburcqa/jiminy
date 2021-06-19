@@ -1166,7 +1166,7 @@ namespace jiminy
     {
         /* Note that it is assumed that the kinematic quantities have been
            updated previously to be consistent with (q, v, a, u). If not, one
-           is supposed to call  `pinocchio::forwardKinematics` before calling
+           is supposed to call `pinocchio::forwardKinematics` before calling
            this method. */
 
         // Early return if no constraint is enabled
@@ -1183,7 +1183,7 @@ namespace jiminy
             pncModel_, pncData_, vectorN_t::Zero(pncModel_.nv));
 
         // Compute joint jacobian manually since not done by engine for efficiency
-        pinocchio::computeJointJacobians(pncModel_, pncData_, q);
+        pinocchio::computeJointJacobians(pncModel_, pncData_);
 
         // Compute sequentially the jacobian and drift of each enabled constraint
         constraintsMask_ = 0U;
