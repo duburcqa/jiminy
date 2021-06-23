@@ -251,7 +251,7 @@ def get_body_world_transform(robot: jiminy.Model,
 def get_body_world_velocity(robot: jiminy.Model,
                             body_name: str,
                             use_theoretical_model: bool = True) -> pin.SE3:
-    """Get the spatial velocity wrt world in body frame for a given body.
+    """Get the spatial velocity in world frame.
 
     .. warning::
         It is assumed that `update_quantities` has been called beforehand.
@@ -277,8 +277,7 @@ def get_body_world_velocity(robot: jiminy.Model,
     body_id = pnc_model.getFrameId(body_name)
     assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
 
-    return pin.getFrameVelocity(
-        pnc_model, pnc_data, body_id, pin.LOCAL_WORLD_ALIGNED)
+    return pin.getFrameVelocity(pnc_model, pnc_data, body_id, pin.WORLD)
 
 
 def get_body_world_acceleration(robot: jiminy.Model,
@@ -313,8 +312,7 @@ def get_body_world_acceleration(robot: jiminy.Model,
     body_id = pnc_model.getFrameId(body_name)
     assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
 
-    return pin.getFrameAcceleration(
-        pnc_model, pnc_data, body_id, pin.LOCAL_WORLD_ALIGNED)
+    return pin.getFrameAcceleration(pnc_model, pnc_data, body_id, pin.WORLD)
 
 
 def compute_transform_contact(

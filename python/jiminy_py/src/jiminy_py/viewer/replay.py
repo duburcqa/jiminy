@@ -588,9 +588,9 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
 
     # Extract a replay data for `play_trajectories` for each pair (robot, log)
     trajectories, update_hooks, extra_kwargs = [], [], {}
-    for robot, log in zip(robots, logs_data):
+    for robot, log_data in zip(robots, logs_data):
         traj, update_hook, _kwargs = extract_replay_data_from_log_data(
-            robot, log)
+            robot, log_data)
         trajectories.append(traj)
         update_hooks.append(update_hook)
         extra_kwargs.update(_kwargs)
