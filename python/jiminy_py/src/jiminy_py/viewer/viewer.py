@@ -308,7 +308,8 @@ class Viewer:
                  display_com: bool = False,
                  display_dcm: bool = False,
                  display_contacts: bool = False,
-                 display_f_external: Union[Sequence[bool], bool] = False,
+                 display_f_external: Optional[
+                     Union[Sequence[bool], bool]] = None,
                  **kwargs: Any):
         """
         :param robot: Jiminy.Model to display.
@@ -366,7 +367,7 @@ class Viewer:
             `pinocchio_model.names`. Note that the user is responsible for
             updating the force buffer `viewer.f_external` data since
             `Viewer.display` is only computing kinematic quantities.
-            Optional: Disabled by default.
+            Optional: Root joint for robot with freeflyer by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
         # Handling of default arguments
@@ -772,9 +773,14 @@ class Viewer:
                                 radius=0.015,
                                 length=0.7)
 
+            # Check if external forces visibility is deprecated
+            njoints = robot.pinocchio_model.njoints
+            if isinstance(self._display_f_external, (list, tuple)):
+                if len(self._display_f_external) != njoints - 1:
+                    self._display_f_external = None
+
             # Display external forces on freeflyer by default
-            if robot.has_freeflyer:
-                njoints = robot.pinocchio_model.njoints
+            if robot.has_freeflyer and self._display_f_external is None:
                 self._display_f_external = [True] + [False] * (njoints - 2)
 
             self.display_external_forces(self._display_f_external)

@@ -342,7 +342,7 @@ def build_policy_wrapper(policy: Policy,
     return forward
 
 
-def restore_policy_from_checkpoint(
+def build_policy_from_checkpoint(
         policy_class: type,
         env_creator: Callable[[Dict[str, Any]], gym.Env],
         checkpoint_path: str,
@@ -675,7 +675,7 @@ def test(test_agent: Trainer,
 __all__ = [
     "initialize",
     "build_policy_wrapper",
-    "restore_policy_from_checkpoint",
+    "build_policy_from_checkpoint",
     "train",
     "test"
 ]
