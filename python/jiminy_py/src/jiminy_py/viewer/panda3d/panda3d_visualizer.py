@@ -47,7 +47,7 @@ WINDOW_SIZE_DEFAULT = (500, 500)
 CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
 LEGEND_DPI = 400
-LEGEND_SCALE = 0.3
+LEGEND_SCALE = 0.6
 CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.05
 
@@ -304,11 +304,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             "offA2dTopRight")
         self.offA2dBottomLeft = self.offAspect2d.attach_new_node(
             "offA2dBottomLeft")
+        self.offA2dBottomCenter = self.offAspect2d.attach_new_node(
+            "offA2dBottomCenter")
         self.offA2dBottomRight = self.offAspect2d.attach_new_node(
             "offA2dBottomRight")
         self.offA2dTopLeft.set_pos(self.a2dLeft, 0, self.a2dTop)
         self.offA2dTopRight.set_pos(self.a2dRight, 0, self.a2dTop)
         self.offA2dBottomLeft.set_pos(self.a2dLeft, 0, self.a2dBottom)
+        self.offA2dBottomCenter.set_pos(0, 0, self.a2dBottom)
         self.offA2dBottomRight.set_pos(self.a2dRight, 0, self.a2dBottom)
 
         # Define widget overlay
@@ -899,7 +902,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         color_default = (0.0, 0.0, 0.0, 1.0)
         handles = [Patch(color=c or color_default, label=t) for t, c in items]
         fig, ax = plt.subplots()
-        legend = ax.legend(handles=handles, framealpha=1, frameon=True)
+        legend = ax.legend(handles=handles,
+                           ncol=len(handles),
+                           framealpha=1,
+                           frameon=True)
         ax.set_axis_off()
 
         # Render the legend
@@ -938,20 +944,24 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Compute relative image size
         width_win, height_win = self.getSize()
+        imgAspectRatio = width / height
         width_rel = LEGEND_SCALE * width / width_win
         height_rel = LEGEND_SCALE * height / height_win
+        if height_rel * imgAspectRatio < width_rel:
+            width_rel = height_rel * imgAspectRatio
+        else:
+            height_rel = width_rel / imgAspectRatio
 
         # Create legend on main window
         self._legend = OnscreenImage(image=tex,
-                                     parent=self.a2dTopLeft,
+                                     parent=self.a2dBottomCenter,
                                      scale=(width_rel, 1, height_rel))
 
         # Add it on secondary window
-        self.offA2dTopLeft.node().add_child(self._legend.node())
+        self.offA2dBottomCenter.node().add_child(self._legend.node())
 
         # Move the legend in top left corner
-        self._legend.set_pos(
-            WIDGET_MARGIN_REL + width_rel, 0, - WIDGET_MARGIN_REL - height_rel)
+        self._legend.set_pos(0, 0, WIDGET_MARGIN_REL + height_rel)
 
         # Flip the vertical axis and enable transparency
         self._legend.set_transparency(TransparencyAttrib.MAlpha)
