@@ -60,10 +60,10 @@ FrameType = Union[Tuple[Tuple3FType, Tuple4FType], np.ndarray]
 
 
 def _sanitize_path(path: str) -> str:
-    """Sanitize path on windows to make it compatible with python bindings.
+    r"""Sanitize path on windows to make it compatible with python bindings.
 
-    Assimp bindings used to load meshes and other C++ tools handling path
-    does not support several features on Windows. First, it does not support
+    Assimp bindings used to load meshes and other C++ tools handling path does
+    not support several features on Windows. First, it does not support
     symlinks, then the hard drive prefix must be `/x/` instead of `X:\`,
     folder's name must respect the case, and backslashes must be used as
     delimiter instead of forwardslashes.
