@@ -169,7 +169,7 @@ def update_quantities(robot: jiminy.Model,
 
         if update_com:
             if velocity is None:
-                pin.centerOfMass(pnc_model, pnc_data, position)
+                pin.centerOfMass(pnc_model, pnc_data, position, True)
             elif acceleration is None:
                 pin.centerOfMass(pnc_model, pnc_data, position, velocity)
             else:
@@ -500,15 +500,23 @@ def compute_freeflyer_state_from_fixed_body(
     if use_theoretical_model is None:
         use_theoretical_model = fixed_body_name is not None
 
+    # Clear freeflyer position, velocity and acceleration
     position[:6].fill(0.0)
     position[6] = 1.0
     if velocity is not None:
         velocity[:6].fill(0.0)
     if acceleration is not None:
         acceleration[:6].fill(0.0)
-    update_quantities(
-        robot, position, velocity, acceleration, update_physics=False,
-        use_theoretical_model=use_theoretical_model)
+
+    # Update kinematics, frame placements and collision information
+    update_quantities(robot,
+                      position,
+                      velocity,
+                      acceleration,
+                      update_physics=False,
+                      update_com=False,
+                      update_energy=False,
+                      use_theoretical_model=use_theoretical_model)
 
     if fixed_body_name is None:
         if use_theoretical_model:

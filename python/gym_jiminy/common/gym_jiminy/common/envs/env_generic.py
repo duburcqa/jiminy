@@ -20,11 +20,10 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ForceSensor as force,
                             ImuSensor as imu)
 from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
-from jiminy_py.dynamics import (update_quantities,
-                                compute_freeflyer_state_from_fixed_body)
+from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 
-from pinocchio import neutral, normalize
+from pinocchio import neutral, normalize, framesForwardKinematics
 
 from ..utils import (zeros,
                      fill,
@@ -146,7 +145,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Set robot in neutral configuration for rendering
         qpos = self._neutral()
-        update_quantities(self.robot, qpos, use_theoretical_model=False)
+        framesForwardKinematics(
+            self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
 
         # Refresh the observation and action spaces.
         # Note that it is necessary to refresh the action space before the

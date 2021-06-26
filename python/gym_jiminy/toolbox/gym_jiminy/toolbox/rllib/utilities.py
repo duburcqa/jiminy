@@ -21,7 +21,7 @@ from tensorboard.program import TensorBoard
 
 import ray
 import ray.cloudpickle as pickle
-import ray.ray_constants as ray_constants
+from ray import ray_constants
 from ray._private import services
 from ray._raylet import GlobalStateAccessor
 from ray.exceptions import RayTaskError
