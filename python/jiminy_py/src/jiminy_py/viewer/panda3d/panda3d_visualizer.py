@@ -59,6 +59,26 @@ Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
 FrameType = Union[Tuple[Tuple3FType, Tuple4FType], np.ndarray]
 
 
+def _sanitize_path(path: str) -> str:
+    """Sanitize path on windows to make it compatible with python bindings.
+
+    Assimp bindings used to load meshes and other C++ tools handling path
+    does not support several features on Windows. First, it does not support
+    symlinks, then the hard drive prefix must be `/x/` instead of `X:\`,
+    folder's name must respect the case, and backslashes must be used as
+    delimiter instead of forwardslashes.
+
+    :param path: Path to sanitize.
+    """
+    if sys.platform.startswith('win'):
+        path = os.path.realpath(path)
+        path = PureWindowsPath(path).as_posix()
+        path = re.sub(r'^([A-Za-z]):',
+                      lambda m: "/" + m.group(1).lower(),
+                      path)
+    return path
+
+
 def make_gradient_skybox(sky_color: Tuple3FType,
                          ground_color: Tuple3FType,
                          offset: float = 0.0,
@@ -976,13 +996,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             return
 
         if self._clock is None:
+            # Get path of default matplotlib font
+            fontpath = _sanitize_path(font_manager.findfont(None))
+
             # Create clock on main window.
-            # Note that the default matplotlib font will be used.
             self._clock = OnscreenText(
                 text="00:00:00.000",
                 parent=self.a2dBottomRight,
                 scale=CLOCK_SCALE,
-                font=self.loader.loadFont(font_manager.findfont(None)),
+                font=self.loader.loadFont(fontpath),
                 fg=(1, 0, 0, 1),
                 bg=(1, 1, 1, 1),
                 frame=(0, 0, 0, 1),
@@ -999,6 +1021,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             # Move the clock in bottom right corner
             card_dims = self._clock.textNode.get_card_transformed()
             self._clock.set_pos(-WIDGET_MARGIN_REL-card_dims[1],
+                                0,
                                 WIDGET_MARGIN_REL-card_dims[2])
 
         # Update clock values
@@ -1341,19 +1364,8 @@ class Panda3dVisualizer(BaseVisualizer):
         if '\\' in mesh_path or '/' in mesh_path:
             # Assuming it is an actual path if it has a least on slash. It is
             # way faster than actually checking if the path actually exists.
+            mesh_path = _sanitize_path(geometry_object.meshPath)
 
-            # Assimp backend used to load meshes does not support many things
-            # related to paths on Windows. First, it does not support symlinks,
-            # then the hard drive prefix must be `/x/` instead of `X:\`, and
-            # finally backslashes must be used as delimiter instead of
-            # forwardslashes.
-            mesh_path = geometry_object.meshPath
-            if sys.platform.startswith('win'):
-                mesh_path = os.path.realpath(mesh_path)
-                mesh_path = PureWindowsPath(mesh_path).as_posix()
-                mesh_path = re.sub(r'^([A-Za-z]):',
-                                   lambda m: "/" + m.group(1).lower(),
-                                   mesh_path)
             # append a mesh
             scale = npToTuple(geometry_object.meshScale)
             self.viewer.append_mesh(*node_name, mesh_path, scale)

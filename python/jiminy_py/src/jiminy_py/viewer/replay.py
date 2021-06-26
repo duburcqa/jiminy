@@ -44,8 +44,9 @@ ColorType = Union[Tuple4FType, str]
 def play_trajectories(trajs_data: Union[
                           TrajectoryDataType, Sequence[TrajectoryDataType]],
                       update_hooks: Optional[Union[
-                          Callable[[float], None],
-                          Sequence[Callable[[float], None]]]] = None,
+                          Callable[[float, np.ndarray, np.ndarray], None],
+                          Sequence[Callable[
+                              [float, np.ndarray, np.ndarray], None]]]] = None,
                       time_interval: Optional[Union[
                           np.ndarray, Tuple[float, float]]] = (0.0, np.inf),
                       speed_ratio: float = 1.0,
@@ -88,8 +89,9 @@ def play_trajectories(trajs_data: Union[
     :param update_hooks: Callables associated with each robot that can be used
                          to update non-kinematic robot data, for instance to
                          emulate sensors data from log using the hook provided
-                         by `emulate_sensors_data_from_log` method. None` to
-                         disable.
+                         by `emulate_sensors_data_from_log` method. `None` to
+                         disable, otherwise it must have the signature:
+                             f(t:float, q: ndarray, v: ndarray) -> None
                          Optional: None by default.
     :param time_interval: Replay only timesteps in this interval of time.
                           It does not have to be finite.
