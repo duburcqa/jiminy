@@ -854,6 +854,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     @staticmethod
     def play_interactive(env: Union["BaseJiminyEnv", gym.Wrapper],
                          enable_travelling: Optional[bool] = None,
+                         start_paused: bool = True,
                          verbose: bool = True,
                          **kwargs: Any) -> None:
         """Activate interact mode enabling to control the robot using keyboard.
@@ -875,6 +876,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                                   freeflyer.
                                   Optional: Enabled by default iif 'panda3d'
                                   viewer backend is used.
+        :param start_paused: Whether or not to start in pause.
+                             Optional: Enabled by default.
         :param verbose: Whether or not to display status messages.
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
                        method.
@@ -924,7 +927,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             return done
 
         # Run interactive loop
-        loop_interactive(max_rate=self.step_dt, verbose=verbose)(_interact)()
+        loop_interactive(max_rate=self.step_dt,
+                         start_paused=start_paused,
+                         verbose=verbose)(_interact)()
 
         # Disable travelling if it enabled
         if enable_travelling:
