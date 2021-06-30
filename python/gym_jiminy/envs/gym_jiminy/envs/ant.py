@@ -8,10 +8,13 @@ from typing import Tuple, Dict, Any
 
 import gym
 import numpy as np
-from pinocchio import Quaternion, neutral, normalize, FrameType
+from pinocchio import (Quaternion,
+                       FrameType,
+                       neutral,
+                       normalize,
+                       framesForwardKinematics)
 
 from jiminy_py.simulator import Simulator
-from jiminy_py.dynamics import update_quantities
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample
 
@@ -88,7 +91,8 @@ class AntEnv(BaseJiminyEnv):
         qpos = normalize(self.robot.pinocchio_model, qpos)
 
         # Make sure it does not go through the ground
-        update_quantities(self.robot, qpos, use_theoretical_model=False)
+        framesForwardKinematics(
+            self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
         dist_rlt = self.robot.collision_data.distanceResults
         qpos[2] -= min(0.0, *[dist_req.min_distance for dist_req in dist_rlt])
 

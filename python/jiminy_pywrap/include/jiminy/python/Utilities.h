@@ -524,10 +524,10 @@ namespace python
         }
         else
         {
-            bp::extract<T> get_integral(dataPy);
-            if (get_integral.check())
+            bp::extract<T> getIntegral(dataPy);
+            if (getIntegral.check())
             {
-                return get_integral();
+                return getIntegral();
             }
             if (std::is_unsigned<T>::value)
             {

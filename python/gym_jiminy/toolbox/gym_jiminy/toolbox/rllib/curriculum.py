@@ -135,7 +135,11 @@ def build_curriculum_task_callback(history_length: int,
                     task_scores_mean
                     for task_scores_mean, _ in task_branch_mean.values()])
                 task_probas = np.exp(- softmin_beta * task_scores_mean)
-                task_probas[np.isnan(task_probas)] = np.nanmean(task_probas)
+                task_probas_undef = np.isnan(task_probas)
+                if np.all(task_probas_undef):
+                    task_probas = np.ones_like(task_probas)
+                else:
+                    task_probas[task_probas_undef] = np.nanmean(task_probas)
                 task_probas /= np.sum(task_probas)
 
                 for (task_node, (_, task_branch_next_mean)), task_proba in \

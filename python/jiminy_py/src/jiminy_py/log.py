@@ -302,9 +302,15 @@ def emulate_sensors_data_from_log(log_data: Dict[str, np.ndarray],
     def update_hook(t: float, q: np.ndarray, v: np.ndarray) -> None:
         nonlocal times, sensors_set, sensors_log
 
-        # Get current time ratio and surrounding indices in log data
+        # Get surrounding indices in log data
         i = bisect_right(times, t)
         i_prev, i_next = max(i - 1, 0), min(i, len(times) - 1)
+
+        # Early return if no more data is available
+        if i_next == i_prev:
+            return
+
+        # Compute current time ratio
         ratio = (t - times[i_prev]) / (times[i_next] - times[i_prev])
 
         # Update sensors data

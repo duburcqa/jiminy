@@ -81,10 +81,28 @@ namespace python
         }
 
         static std::shared_ptr<FixedFrameConstraint> fixedFrameConstraintFactory(std::string const & frameName,
-                                                                                 bool_t const & isTranslationFixed,
-                                                                                 bool_t const & isRotationFixed)
+                                                                                 bp::object const & maskFixedPy,
+                                                                                 pinocchio::ReferenceFrame const & frameRef)
         {
-            return std::make_shared<FixedFrameConstraint>(frameName, isTranslationFixed, isRotationFixed);
+            Eigen::Matrix<bool_t, 6, 1> maskFixed;
+            if (maskFixedPy.is_none())
+            {
+                maskFixed = Eigen::Matrix<bool_t, 6, 1>::Constant(true);
+            }
+            else
+            {
+                bp::extract<bp::list> maskFixedPyExtract(maskFixedPy);
+                assert(maskFixedPyExtract.check() && "'maskFixedPy' must be a list.");
+                bp::list maskFixedListPy = maskFixedPyExtract();
+                assert(bp::len(maskFixedListPy) == 6 && "'maskFixedPy' must have length 6.");
+                for (uint32_t i=0; i < 6; ++i)
+                {
+                    bp::extract<bool_t> maskFixedListPyExtract(maskFixedPy[i]);
+                    assert(maskFixedListPyExtract.check() && "'maskFixedPy' elements must be bool.");
+                    maskFixed[i] = maskFixedListPyExtract();
+                }
+            }
+            return std::make_shared<FixedFrameConstraint>(frameName, maskFixed, frameRef);
         }
 
         static void setIsEnable(AbstractConstraintBase & self,
@@ -145,17 +163,17 @@ namespace python
                        boost::noncopyable>("FixedFrameConstraint", bp::no_init)
                 .def("__init__", bp::make_constructor(&PyConstraintVisitor::fixedFrameConstraintFactory,
                                  bp::default_call_policies(), (bp::arg("frame_name"),
-                                                               bp::arg("is_translation_fixed")=true,
-                                                               bp::arg("is_rotation_fixed")=true)))
+                                                               bp::arg("mask_fixed")=bp::object(),
+                                                               bp::arg("reference_frame")=pinocchio::LOCAL_WORLD_ALIGNED)))
                 .def_readonly("type", &FixedFrameConstraint::type_)
                 .add_property("frame_name", bp::make_function(&FixedFrameConstraint::getFrameName,
                                             bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("frame_idx", bp::make_function(&FixedFrameConstraint::getFrameIdx,
                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("is_translation_fixed", bp::make_function(&FixedFrameConstraint::getIsTranslationFixed,
-                                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("is_rotation_fixed", bp::make_function(&FixedFrameConstraint::getIsRotationFixed,
-                                                   bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("dofs_fixed", bp::make_function(&FixedFrameConstraint::getDofsFixed,
+                                            bp::return_value_policy<bp::return_by_value>()))
+                .add_property("reference_frame", bp::make_function(&FixedFrameConstraint::getReferenceFrame,
+                                                 bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("reference_transform", bp::make_function(&FixedFrameConstraint::getReferenceTransform,
                                                      bp::return_internal_reference<>()),
                                                      &FixedFrameConstraint::setReferenceTransform);

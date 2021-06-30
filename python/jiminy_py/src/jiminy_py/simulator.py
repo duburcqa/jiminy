@@ -507,13 +507,15 @@ class Simulator:
             self.viewer.f_external = self.system_state.f_external[1:]
 
             if self.viewer_backend.startswith('panda3d'):
-                # Enable display of COM, DCM and contact markers by default
-                if "display_com" not in kwargs:
-                    self.viewer.display_center_of_mass(True)
-                if "display_dcm" not in kwargs:
-                    self.viewer.display_capture_point(True)
-                if "display_contacts" not in kwargs:
-                    self.viewer.display_contact_forces(True)
+                # Enable display of COM, DCM and contact markers by default if
+                # the robot has freeflyer.
+                if self.robot.has_freeflyer:
+                    if "display_com" not in kwargs:
+                        self.viewer.display_center_of_mass(True)
+                    if "display_dcm" not in kwargs:
+                        self.viewer.display_capture_point(True)
+                    if "display_contacts" not in kwargs:
+                        self.viewer.display_contact_forces(True)
 
                 # Enable display of external forces by default only for
                 # the joints having an external force registered to it.

@@ -169,7 +169,7 @@ def update_quantities(robot: jiminy.Model,
 
         if update_com:
             if velocity is None:
-                pin.centerOfMass(pnc_model, pnc_data, position)
+                pin.centerOfMass(pnc_model, pnc_data, position, True)
             elif acceleration is None:
                 pin.centerOfMass(pnc_model, pnc_data, position, velocity)
             else:
@@ -251,7 +251,7 @@ def get_body_world_transform(robot: jiminy.Model,
 def get_body_world_velocity(robot: jiminy.Model,
                             body_name: str,
                             use_theoretical_model: bool = True) -> pin.SE3:
-    """Get the spatial velocity wrt world in body frame for a given body.
+    """Get the spatial velocity in world frame.
 
     .. warning::
         It is assumed that `update_quantities` has been called beforehand.
@@ -277,8 +277,7 @@ def get_body_world_velocity(robot: jiminy.Model,
     body_id = pnc_model.getFrameId(body_name)
     assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
 
-    return pin.getFrameVelocity(
-        pnc_model, pnc_data, body_id, pin.LOCAL_WORLD_ALIGNED)
+    return pin.getFrameVelocity(pnc_model, pnc_data, body_id, pin.WORLD)
 
 
 def get_body_world_acceleration(robot: jiminy.Model,
@@ -313,8 +312,7 @@ def get_body_world_acceleration(robot: jiminy.Model,
     body_id = pnc_model.getFrameId(body_name)
     assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
 
-    return pin.getFrameAcceleration(
-        pnc_model, pnc_data, body_id, pin.LOCAL_WORLD_ALIGNED)
+    return pin.getFrameAcceleration(pnc_model, pnc_data, body_id, pin.WORLD)
 
 
 def compute_transform_contact(
@@ -500,15 +498,23 @@ def compute_freeflyer_state_from_fixed_body(
     if use_theoretical_model is None:
         use_theoretical_model = fixed_body_name is not None
 
+    # Clear freeflyer position, velocity and acceleration
     position[:6].fill(0.0)
     position[6] = 1.0
     if velocity is not None:
         velocity[:6].fill(0.0)
     if acceleration is not None:
         acceleration[:6].fill(0.0)
-    update_quantities(
-        robot, position, velocity, acceleration, update_physics=False,
-        use_theoretical_model=use_theoretical_model)
+
+    # Update kinematics, frame placements and collision information
+    update_quantities(robot,
+                      position,
+                      velocity,
+                      acceleration,
+                      update_physics=False,
+                      update_com=False,
+                      update_energy=False,
+                      use_theoretical_model=use_theoretical_model)
 
     if fixed_body_name is None:
         if use_theoretical_model:

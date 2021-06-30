@@ -48,8 +48,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_include_directories(${PROJECT_NAME}
         SYSTEM PRIVATE ${Python_NumPy_INCLUDE_DIRS} ${Python_INCLUDE_DIRS}
 )
-target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core "${BOOST_PYTHON_LIB}")
-target_link_libraries_system(${PROJECT_NAME} eigenpy::eigenpy)
+target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core eigenpy::eigenpy "${BOOST_PYTHON_LIB}")
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"

@@ -19,7 +19,7 @@ from .generic_bases import ControllerInterface, ObserverInterface
 
 
 class BlockInterface:
-    r"""Base class for blocks used for pipeline control design.
+    """Base class for blocks used for pipeline control design.
 
     Block can be either observers and controllers. A block can be connected to
     any number of subsequent blocks, or directly to a `BaseJiminyEnv`

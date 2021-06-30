@@ -612,7 +612,7 @@ namespace jiminy
                             // collisionConstraintsMap.emplace_back(geom.name, std::make_shared<SphereConstraint>(
                             //     geom.name, sphere.radius));
                             collisionConstraintsMap.emplace_back(geom.name, std::make_shared<FixedFrameConstraint>(
-                                geom.name, true, false));
+                                geom.name, (Eigen::Matrix<bool_t, 6, 1>() << true, true, true, false, false, false).finished()));
                         }
                         else
                         {
@@ -759,7 +759,7 @@ namespace jiminy
         for (std::string const & frameName : frameNames)
         {
             frameConstraintsMap.emplace_back(frameName, std::make_shared<FixedFrameConstraint>(
-                frameName, true, false));
+                frameName, (Eigen::Matrix<bool_t, 6, 1>() << true, true, true, false, false, false).finished()));
         }
         returnCode = addConstraints(frameConstraintsMap, constraintsHolderType_t::CONTACT_FRAMES);
 
