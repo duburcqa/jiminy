@@ -85,6 +85,8 @@ namespace pinocchio_overload
          Eigen::MatrixBase<ConfigVectorType>                      const & q)
     {
         pinocchio::crba(model, data, q);
+        // data.M.triangularView<Eigen::StrictlyLower>() =
+        //     data.M.transpose().triangularView<Eigen::StrictlyLower>();
         data.M += model.rotorInertia.asDiagonal();
         return data.M;
     }

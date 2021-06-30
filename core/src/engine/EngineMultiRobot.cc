@@ -19,8 +19,7 @@
 #include "pinocchio/algorithm/center-of-mass.hpp"           // `pinocchio::getComFromCrba`
 #include "pinocchio/algorithm/frames.hpp"                   // `pinocchio::getFrameVelocity`
 #include "pinocchio/algorithm/jacobian.hpp"                 // `pinocchio::getJointJacobian`
-#include "pinocchio/algorithm/rnea.hpp"                     // `pinocchio::nonLinearEffects
-#include "pinocchio/algorithm/energy.hpp"                   // `pinocchio::computePotentialEnergy
+#include "pinocchio/algorithm/energy.hpp"                   // `pinocchio::computePotentialEnergy`
 #include "pinocchio/algorithm/joint-configuration.hpp"      // `pinocchio::normalize`
 #include "pinocchio/algorithm/geometry.hpp"                 // `pinocchio::computeCollisions`
 #include "pinocchio/serialization/model.hpp"                // `pinocchio::ModelTpl<T>.serialize`
@@ -3692,7 +3691,7 @@ namespace jiminy
             std::vector<int32_t> & fIdx = systemData.fIdx;
 
             // Compute kinematic constraints
-            system.robot->computeConstraints(q, v);
+            system.robot->computeConstrainedDynamics(q, v);
 
             // Extract updated jacobian, drift and multipliers
             auto constraintsJacobian = system.robot->getConstraintsJacobian();
@@ -3765,12 +3764,6 @@ namespace jiminy
                                             jointJacobian);
                 uAugmented += jointJacobian.transpose() * fext[i].toVector();
             }
-
-            // Compute non-linear effects
-            pinocchio::nonLinearEffects(model, data, q, v);
-
-            // Compute inertia matrix, adding rotor inertia
-            pinocchio_overload::crba(model, data, q);
 
             // Call forward dynamics
             contactSolver_->BoxedForwardDynamics(model,

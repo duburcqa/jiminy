@@ -307,8 +307,8 @@ namespace jiminy
         ///
         /// \param[in] q    Joint position.
         /// \param[in] v    Joint velocity.
-        void computeConstraints(vectorN_t const & q,
-                                vectorN_t const & v);
+        void computeConstrainedDynamics(vectorN_t const & q,
+                                        vectorN_t const & v);
 
         /// \brief Get jacobian of the constraints.
         constMatrixBlock_t getConstraintsJacobian(void) const;

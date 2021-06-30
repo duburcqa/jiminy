@@ -65,8 +65,8 @@ namespace python
                 .def("get_constraints_jacobian", &PyModelVisitor::getConstraintsJacobian)
                 .def("get_constraints_drift", &PyModelVisitor::getConstraintsDrift)
                 .def("get_constraints_lambda", &PyModelVisitor::getConstraintsLambda)
-                .def("compute_constraints", &Model::computeConstraints,
-                                            (bp::arg("self"), "q", "v"))
+                .def("compute_constrained_dynamics", &Model::computeConstrainedDynamics,
+                                                      (bp::arg("self"), "q", "v"))
 
                 .def("get_flexible_configuration_from_rigid", &PyModelVisitor::getFlexibleConfigurationFromRigid,
                                                               (bp::arg("self"), "rigid_position"))
