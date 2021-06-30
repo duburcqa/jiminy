@@ -132,23 +132,9 @@ namespace jiminy
         matrixN_t & A = data.JMinvJt;
         vectorN_t & f = data.lambda_c;
 
-        // Compute the UDUt decomposition of data.M
-        pinocchio::cholesky::decompose(model, data);
-
         // Compute the dynamic drift (control - nle)
         data.torque_residual = tau - data.nle;
         pinocchio::cholesky::solve(model, data, data.torque_residual);
-
-        // Compute U^-1 * J.T
-        data.sDUiJt = J.transpose();
-        pinocchio::cholesky::Uiv(model, data, data.sDUiJt);
-        for(int32_t k=0; k<model.nv; ++k)
-        {
-            data.sDUiJt.row(k) /= sqrt(data.D[k]);
-        }
-
-        // Compute A
-        A.noalias() = data.sDUiJt.transpose() * data.sDUiJt;
 
         /* Add regularization term in case A is not inversible.
            Note that Mujoco defines an impedance function that depends on

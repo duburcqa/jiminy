@@ -2,6 +2,8 @@ import logging
 import numpy as np
 from typing import Optional, Tuple, Callable
 
+from scipy.linalg import ldl
+
 import hppfcl
 import pinocchio as pin
 from pinocchio.rpy import (rpyToMatrix,
@@ -648,23 +650,21 @@ def compute_inverse_dynamics(robot: jiminy.Model,
         pnc_model, pnc_data, position, velocity, acceleration)
     pin.updateFramePlacements(pnc_model, pnc_data)
 
-    # Compute inverted inertia matrix, taking into account rotor inertias.
-    # Note that `pin.computeMinverse` must NOT be used, since it does not take
-    # into account those inertias.
-    M = jiminy.crba(pnc_model, pnc_data, position)
-    M_inv = np.linalg.inv(M)
-
-    # Compute non-linear effects
-    pin.nonLinearEffects(pnc_model, pnc_data, position, velocity)
-    nle = robot.pinocchio_data.nle
-
-    # Compute constraint jacobian and drift
-    robot.compute_constraints(position, velocity)
+    # Compute constraint dynamics, namely the non linear effects, the mass
+    # matrix, its cholesky decomposition, J.M_inv.Jt, the contraints jacobian
+    # and the contraints drift.
+    robot.compute_constrained_dynamics(position, velocity)
+    J_M_inv_J_t = pnc_data.JMinvJt
+    nle = pnc_data.nle
     J = robot.get_constraints_jacobian()
     drift = robot.get_constraints_drift()
 
+    # Compute inverse mass matrix using already computed cholesky decomposition
+    M_inv = pnc_data.U @ (pnc_data.U / np.diag(pnc_data.D)).T
+
     # Compute constraint forces
-    inv_term = np.linalg.inv(J @ M_inv @ J.T)
+    L, D, _ = ldl(J_M_inv_J_t, lower=False, check_finite=False)
+    inv_term = L @ (L / np.diag(D)).T
     a_f = inv_term @ (- drift + J @ M_inv @ nle)
     B_f = (- inv_term @ (J @ M_inv[:, motors_velocity_idx]))
 
@@ -674,7 +674,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
         M_inv[:, motors_velocity_idx] + M_inv @ J.T @ B_f)[motors_velocity_idx]
 
     # Moore-Penrose pseudo-inverse of B_ydd
-    B_ydd_inverse = np.linalg.pinv(B_ydd)
+    B_ydd_inverse = np.linalg.pinv(B_ydd, hermitian=True)
 
     # Compute motor torques
     u = - B_ydd_inverse @ a_ydd

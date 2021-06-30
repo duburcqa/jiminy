@@ -21,6 +21,7 @@
 #include "pinocchio/algorithm/kinematics.hpp"              // `pinocchio::forwardKinematics`
 #include "pinocchio/algorithm/jacobian.hpp"                // `pinocchio::computeJointJacobians`
 #include "pinocchio/algorithm/geometry.hpp"                // `pinocchio::updateGeometryPlacements`
+#include "pinocchio/algorithm/cholesky.hpp"                // `pinocchio::cholesky::`
 
 #include <Eigen/Eigenvalues>
 
@@ -1161,8 +1162,8 @@ namespace jiminy
         return returnCode;
     }
 
-    void Model::computeConstraints(vectorN_t const & q,
-                                   vectorN_t const & v)
+    void Model::computeConstrainedDynamics(vectorN_t const & q,
+                                           vectorN_t const & v)
     {
         /* Note that it is assumed that the kinematic quantities have been
            updated previously to be consistent with (q, v, a, u). If not, one
@@ -1175,15 +1176,15 @@ namespace jiminy
             return;
         }
 
+        // Compute joint jacobian manually since not done by engine for efficiency
+        pinocchio::computeJointJacobians(pncModel_, pncData_);
+
         /* Computing forward kinematics without acceleration to get the drift.
            Note that it will alter the actual joints spatial accelerations, so
            it is necessary to do a backup first to restore it later on. */
         jointsAcceleration_.swap(pncData_.a);
         pinocchio_overload::forwardKinematicsAcceleration(
             pncModel_, pncData_, vectorN_t::Zero(pncModel_.nv));
-
-        // Compute joint jacobian manually since not done by engine for efficiency
-        pinocchio::computeJointJacobians(pncModel_, pncData_);
 
         // Compute sequentially the jacobian and drift of each enabled constraint
         constraintsMask_ = 0U;
@@ -1223,6 +1224,23 @@ namespace jiminy
 
         // Restore true acceleration
         jointsAcceleration_.swap(pncData_.a);
+
+        // Compute non-linear effects
+        pinocchio::nonLinearEffects(pncModel_, pncData_, q, v);
+
+        // Compute inertia matrix, adding rotor inertia
+        pinocchio_overload::crba(pncModel_, pncData_, q);
+
+        // Compute the UDUt decomposition of data.M
+        pinocchio::cholesky::decompose(pncModel_, pncData_);
+
+        // Compute sqrt(D)^-1 * U^-1 * J.T
+        pncData_.sDUiJt = getConstraintsJacobian().transpose();
+        pinocchio::cholesky::Uiv(pncModel_, pncData_, pncData_.sDUiJt);
+        pncData_.sDUiJt.array().colwise() /= pncData_.D.array().sqrt();
+
+        // Compute JMinvJt
+        pncData_.JMinvJt.noalias() = pncData_.sDUiJt.transpose() * pncData_.sDUiJt;
     }
 
     hresult_t Model::refreshProxies(void)
