@@ -633,7 +633,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
 
     :returns: motor torques.
     """
-    if not robot.has_constraints():
+    if not robot.has_constraints:
         raise NotImplementedError(
             "Robot without constraints is not supported for now.")
 
@@ -668,7 +668,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     drift = robot.get_constraints_drift()
 
     # Compute constraint forces
-    jiminy.computeJMinvJt(pnc_model, pnc_data, J)
+    jiminy.computeJMinvJt(pnc_model, pnc_data, J, False)
     a_f = jiminy.solveJMinvJtv(pnc_data, - drift + J @ M_inv @ nle)
     B_f = jiminy.solveJMinvJtv(
         pnc_data, - J @ M_inv[:, motors_velocity_idx], False)

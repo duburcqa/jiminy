@@ -132,11 +132,8 @@ namespace jiminy
         // Define some proxies for convenience
         vectorN_t & f = data.lambda_c;
 
-        // Compute the UDUt decomposition of data.M
-        pinocchio::cholesky::decompose(model, data);
-
-        // Compute JMinvJt
-        matrixN_t & A = pinocchio_overload::computeJMinvJt(model, data, J);
+        // Compute JMinvJt, including cholesky decomposition of inertia matrix
+        matrixN_t & A = pinocchio_overload::computeJMinvJt(model, data, J, true);
 
         // Compute the dynamic drift (control - nle)
         data.torque_residual = tau - data.nle;

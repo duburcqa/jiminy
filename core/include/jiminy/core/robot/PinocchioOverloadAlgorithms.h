@@ -348,8 +348,15 @@ namespace pinocchio_overload
     template<typename JacobianType>
     inline matrixN_t & computeJMinvJt(pinocchio::Model const & model,
                                       pinocchio::Data & data,
-                                      Eigen::MatrixBase<JacobianType> const & J)
+                                      Eigen::MatrixBase<JacobianType> const & J,
+                                      bool_t const & updateDecomposition = true)
     {
+        // Compute Cholesky decomposition of mass matrix M
+        if (updateDecomposition)
+        {
+            pinocchio::cholesky::decompose(model, data);
+        }
+
         // Compute sqrt(D)^-1 * U^-1 * J.T
         data.sDUiJt = J.transpose();
         pinocchio::cholesky::Uiv(model, data, data.sDUiJt);
@@ -364,10 +371,10 @@ namespace pinocchio_overload
     template<typename RhsType>
     inline RhsType solveJMinvJtv(pinocchio::Data & data,
                                  Eigen::MatrixBase<RhsType> const & v,
-                                 bool_t const & computeCholeskyDecomposition = true)
+                                 bool_t const & updateDecomposition = true)
     {
-        // Compute Cholesky decomposition
-        if (computeCholeskyDecomposition)
+        // Compute Cholesky decomposition of JMinvJt
+        if (updateDecomposition)
         {
             data.llt_JMinvJt.compute(data.JMinvJt);
         }

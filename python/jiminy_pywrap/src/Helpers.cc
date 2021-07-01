@@ -182,15 +182,15 @@ namespace python
 
         bp::def("computeJMinvJt",
                 &pinocchio_overload::computeJMinvJt<matrixN_t>,
-                bp::args("pinocchio_model", "pinocchio_data", "J"),
+                 (bp::arg("pinocchio_model", "pinocchio_data", "J", bp::arg("update_decomposition") = true),
                 bp::return_value_policy<result_converter<false> >());
         bp::def("solveJMinvJtv",
                 &pinocchio_overload::solveJMinvJtv<vectorN_t>,
-                (bp::arg("pinocchio_data"), "v", bp::arg("compute_cholesky_decomposition") = true),
+                (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true),
                 bp::return_value_policy<bp::return_by_value>());
         bp::def("solveJMinvJtv",
                 &pinocchio_overload::solveJMinvJtv<matrixN_t>,
-                (bp::arg("pinocchio_data"), "v", bp::arg("compute_cholesky_decomposition") = true),
+                (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true),
                 bp::return_value_policy<bp::return_by_value>());
 
         bp::class_<RandomPerlinProcess,
