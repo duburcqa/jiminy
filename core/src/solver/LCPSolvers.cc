@@ -2,6 +2,7 @@
 #include "pinocchio/multibody/data.hpp"      // `pinocchio::Data`
 #include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
 
+#include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
 #include "jiminy/core/utilities/Random.h"
 #include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/Constants.h"
@@ -121,16 +122,21 @@ namespace jiminy
     bool_t PGSSolver::BoxedForwardDynamics(pinocchio::Model const & model,
                                            pinocchio::Data & data,
                                            vectorN_t const & tau,
-                                           matrixN_t const & J,
-                                           vectorN_t const & gamma,
+                                           Eigen::Ref<matrixN_t const> const & J,
+                                           Eigen::Ref<vectorN_t const> const & gamma,
                                            float64_t const & inv_damping,
                                            vectorN_t const & lo,
                                            vectorN_t const & hi,
                                            std::vector<int32_t> const & fIdx)
     {
         // Define some proxies for convenience
-        matrixN_t & A = data.JMinvJt;
         vectorN_t & f = data.lambda_c;
+
+        // Compute the UDUt decomposition of data.M
+        pinocchio::cholesky::decompose(model, data);
+
+        // Compute JMinvJt
+        matrixN_t & A = pinocchio_overload::computeJMinvJt(model, data, J);
 
         // Compute the dynamic drift (control - nle)
         data.torque_residual = tau - data.nle;
@@ -154,18 +160,15 @@ namespace jiminy
         bool_t isSuccess = false;
         if (lo.array().isInf().all() && hi.array().isInf().all())
         {
-            /* There is no constraint, so the problem can be solved exactly
-            and efficiently using cholesky decomposition.
+            /* There is no inequality constraint, so the problem can be
+               solved exactly and efficiently using cholesky decomposition.
 
-            The implementation of this particular case is based on
-            `pinocchio::forwardDynamics methods` without modification.
-            See https://github.com/stack-of-tasks/pinocchio/blob/master/src/algorithm/contact-dynamics.hxx */
-
-            // Compute Cholesky decomposition
-            data.llt_JMinvJt.compute(A);
+               The implementation of this particular case is based on
+               `pinocchio::forwardDynamics methods` without modification.
+               See https://github.com/stack-of-tasks/pinocchio/blob/master/src/algorithm/contact-dynamics.hxx */
 
             // Compute the Lagrange Multipliers
-            f = data.llt_JMinvJt.solve(b_);
+            f = pinocchio_overload::solveJMinvJtv(data, b_, true);
 
             // Return immediatly
             isSuccess = true;

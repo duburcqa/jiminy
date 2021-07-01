@@ -17,14 +17,15 @@
 
 #include <functional>
 
+#include "pinocchio/spatial/fwd.hpp"               // `Pinocchio::Motion`
+#include "pinocchio/multibody/visitor.hpp"         // `pinocchio::fusion::JointUnaryVisitorBase`
+#include "pinocchio/multibody/fwd.hpp"             // `pinocchio::ModelTpl`, `pinocchio::DataTpl`
+#include "pinocchio/multibody/joint/fwd.hpp"       // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
 #include "pinocchio/algorithm/aba.hpp"             // `pinocchio::aba`
 #include "pinocchio/algorithm/rnea.hpp"            // `pinocchio::rnea`
 #include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crba`
 #include "pinocchio/algorithm/energy.hpp"          // `pinocchio::computeKineticEnergy`
-#include "pinocchio/multibody/visitor.hpp"         // `pinocchio::fusion::JointUnaryVisitorBase`
-#include "pinocchio/multibody/fwd.hpp"             // `pinocchio::ModelTpl`, `pinocchio::DataTpl`
-#include "pinocchio/multibody/joint/fwd.hpp"       // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
-#include "pinocchio/spatial/fwd.hpp"               // `Pinocchio::Motion`
+#include "pinocchio/algorithm/cholesky.hpp"        // `pinocchio::cholesky::`
 
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
@@ -342,6 +343,37 @@ namespace pinocchio_overload
         {
             Pass1::run(model.joints[i], data.joints[i], typename Pass1::ArgsType(model, data, a));
         }
+    }
+
+    template<typename JacobianType>
+    inline matrixN_t & computeJMinvJt(pinocchio::Model const & model,
+                                      pinocchio::Data & data,
+                                      Eigen::MatrixBase<JacobianType> const & J)
+    {
+        // Compute sqrt(D)^-1 * U^-1 * J.T
+        data.sDUiJt = J.transpose();
+        pinocchio::cholesky::Uiv(model, data, data.sDUiJt);
+        data.sDUiJt.array().colwise() /= data.D.array().sqrt();
+
+        // Compute JMinvJt
+        data.JMinvJt.noalias() = data.sDUiJt.transpose() * data.sDUiJt;
+
+        return data.JMinvJt;
+    }
+
+    template<typename RhsType>
+    inline RhsType solveJMinvJtv(pinocchio::Data & data,
+                                 Eigen::MatrixBase<RhsType> const & v,
+                                 bool_t const & computeCholeskyDecomposition = true)
+    {
+        // Compute Cholesky decomposition
+        if (computeCholeskyDecomposition)
+        {
+            data.llt_JMinvJt.compute(data.JMinvJt);
+        }
+
+        // Solve the linear system
+        return data.llt_JMinvJt.solve(v);
     }
 }
 }

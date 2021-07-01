@@ -3691,7 +3691,7 @@ namespace jiminy
             std::vector<int32_t> & fIdx = systemData.fIdx;
 
             // Compute kinematic constraints
-            system.robot->computeConstrainedDynamics(q, v);
+            system.robot->computeConstraints(q, v);
 
             // Extract updated jacobian, drift and multipliers
             auto constraintsJacobian = system.robot->getConstraintsJacobian();
@@ -3764,6 +3764,12 @@ namespace jiminy
                                             jointJacobian);
                 uAugmented += jointJacobian.transpose() * fext[i].toVector();
             }
+
+            // Compute non-linear effects
+            pinocchio::nonLinearEffects(model, data, q, v);
+
+            // Compute inertia matrix, adding rotor inertia
+            pinocchio_overload::crba(model, data, q);
 
             // Call forward dynamics
             contactSolver_->BoxedForwardDynamics(model,

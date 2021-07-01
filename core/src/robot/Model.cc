@@ -1162,8 +1162,8 @@ namespace jiminy
         return returnCode;
     }
 
-    void Model::computeConstrainedDynamics(vectorN_t const & q,
-                                           vectorN_t const & v)
+    void Model::computeConstraints(vectorN_t const & q,
+                                   vectorN_t const & v)
     {
         /* Note that it is assumed that the kinematic quantities have been
            updated previously to be consistent with (q, v, a, u). If not, one
@@ -1224,23 +1224,6 @@ namespace jiminy
 
         // Restore true acceleration
         jointsAcceleration_.swap(pncData_.a);
-
-        // Compute non-linear effects
-        pinocchio::nonLinearEffects(pncModel_, pncData_, q, v);
-
-        // Compute inertia matrix, adding rotor inertia
-        pinocchio_overload::crba(pncModel_, pncData_, q);
-
-        // Compute the UDUt decomposition of data.M
-        pinocchio::cholesky::decompose(pncModel_, pncData_);
-
-        // Compute sqrt(D)^-1 * U^-1 * J.T
-        pncData_.sDUiJt = getConstraintsJacobian().transpose();
-        pinocchio::cholesky::Uiv(pncModel_, pncData_, pncData_.sDUiJt);
-        pncData_.sDUiJt.array().colwise() /= pncData_.D.array().sqrt();
-
-        // Compute JMinvJt
-        pncData_.JMinvJt.noalias() = pncData_.sDUiJt.transpose() * pncData_.sDUiJt;
     }
 
     hresult_t Model::refreshProxies(void)
