@@ -8,6 +8,7 @@ from pinocchio.rpy import (rpyToMatrix,
                            matrixToRpy,
                            computeRpyJacobian,
                            computeRpyJacobianInverse)
+from eigenpy import LDLT
 
 from . import core as jiminy
 from .log import TrajectoryDataType
@@ -632,6 +633,10 @@ def compute_inverse_dynamics(robot: jiminy.Model,
 
     :returns: motor torques.
     """
+    if not robot.has_constraints:
+        raise NotImplementedError(
+            "Robot without constraints is not supported for now.")
+
     # Convert theoretical position, velocity and acceleration if necessary
     if use_theoretical_model and robot.is_flexible:
         position = robot.get_flexible_configuration_from_rigid(position)
@@ -648,15 +653,14 @@ def compute_inverse_dynamics(robot: jiminy.Model,
         pnc_model, pnc_data, position, velocity, acceleration)
     pin.updateFramePlacements(pnc_model, pnc_data)
 
-    # Compute inverted inertia matrix, taking into account rotor inertias.
-    # Note that `pin.computeMinverse` must NOT be used, since it does not take
-    # into account those inertias.
-    M = jiminy.crba(pnc_model, pnc_data, position)
-    M_inv = np.linalg.inv(M)
+    # Compute inverted inertia matrix, taking into account rotor inertias
+    jiminy.crba(pnc_model, pnc_data, position)
+    pin.cholesky.decompose(pnc_model, pnc_data)
+    M_inv = pin.cholesky.computeMinv(pnc_model, pnc_data)
 
     # Compute non-linear effects
     pin.nonLinearEffects(pnc_model, pnc_data, position, velocity)
-    nle = robot.pinocchio_data.nle
+    nle = pnc_data.nle
 
     # Compute constraint jacobian and drift
     robot.compute_constraints(position, velocity)
@@ -664,20 +668,18 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     drift = robot.get_constraints_drift()
 
     # Compute constraint forces
-    inv_term = np.linalg.inv(J @ M_inv @ J.T)
-    a_f = inv_term @ (- drift + J @ M_inv @ nle)
-    B_f = (- inv_term @ (J @ M_inv[:, motors_velocity_idx]))
+    jiminy.computeJMinvJt(pnc_model, pnc_data, J, False)
+    a_f = jiminy.solveJMinvJtv(pnc_data, - drift + J @ M_inv @ nle)
+    B_f = jiminy.solveJMinvJtv(
+        pnc_data, - J @ M_inv[:, motors_velocity_idx], False)
 
     # compute feedforward term
     a_ydd = (M_inv @ (- nle + J.T @ a_f) - acceleration)[motors_velocity_idx]
     B_ydd = (
         M_inv[:, motors_velocity_idx] + M_inv @ J.T @ B_f)[motors_velocity_idx]
 
-    # Moore-Penrose pseudo-inverse of B_ydd
-    B_ydd_inverse = np.linalg.pinv(B_ydd)
-
     # Compute motor torques
-    u = - B_ydd_inverse @ a_ydd
+    u = LDLT(B_ydd).solve(- a_ydd)
 
     return u
 

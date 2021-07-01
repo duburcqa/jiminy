@@ -21,6 +21,7 @@
 #include "pinocchio/algorithm/kinematics.hpp"              // `pinocchio::forwardKinematics`
 #include "pinocchio/algorithm/jacobian.hpp"                // `pinocchio::computeJointJacobians`
 #include "pinocchio/algorithm/geometry.hpp"                // `pinocchio::updateGeometryPlacements`
+#include "pinocchio/algorithm/cholesky.hpp"                // `pinocchio::cholesky::`
 
 #include <Eigen/Eigenvalues>
 
@@ -1175,15 +1176,15 @@ namespace jiminy
             return;
         }
 
+        // Compute joint jacobian manually since not done by engine for efficiency
+        pinocchio::computeJointJacobians(pncModel_, pncData_);
+
         /* Computing forward kinematics without acceleration to get the drift.
            Note that it will alter the actual joints spatial accelerations, so
            it is necessary to do a backup first to restore it later on. */
         jointsAcceleration_.swap(pncData_.a);
         pinocchio_overload::forwardKinematicsAcceleration(
             pncModel_, pncData_, vectorN_t::Zero(pncModel_.nv));
-
-        // Compute joint jacobian manually since not done by engine for efficiency
-        pinocchio::computeJointJacobians(pncModel_, pncData_);
 
         // Compute sequentially the jacobian and drift of each enabled constraint
         constraintsMask_ = 0U;
