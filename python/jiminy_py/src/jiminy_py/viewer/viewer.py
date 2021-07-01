@@ -774,7 +774,7 @@ class Viewer:
                                 length=0.7)
 
             # Check if external forces visibility is deprecated
-            njoints = robot.pinocchio_model.njoints
+            njoints = pinocchio_model.njoints
             if isinstance(self._display_f_external, (list, tuple)):
                 if len(self._display_f_external) != njoints - 1:
                     self._display_f_external = None
