@@ -63,8 +63,9 @@ else()
                     OUTPUT_VARIABLE HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB)
 endif()
 
+set(PYTHON_INSTALL_FLAGS " --prefer-binary ")
 if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
-    set(PYTHON_INSTALL_FLAGS " --user ")
+    set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
     set(Python_SITELIB "${Python_USER_SITELIB}")
     message(STATUS "No right on Python system site-packages: ${Python_SYS_SITELIB}.\n"
                    "--   Installing on user site as fallback.")
