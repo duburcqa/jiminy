@@ -26,6 +26,11 @@ jobs:
       matrix:
         container: ['manylinux2010_x86_64', 'manylinux_2_24_x86_64']
         PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
+        legacy: [false]
+        include:
+          - container: 'manylinux_2_24_x86_64'
+            PYTHON_VERSION: '3.8'
+            legacy: true
 
     #####################################################################################
 
@@ -45,7 +50,11 @@ jobs:
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel auditwheel cmake
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+        if [ "${{ matrix.legacy }}" == true ] ; then
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.20"
+        else
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+        fi
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
 
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
@@ -120,7 +129,7 @@ jobs:
         packages_dir: build/wheelhouse
     - name: Publish on PyPi the wheel of Gym Jiminy (Any platform / Any python3 version)
       if: >-
-        matrix.container == 'manylinux2010_x86_64' && matrix.PYTHON_VERSION == '3.6' && success() &&
+        matrix.container == 'manylinux2010_x86_64' && matrix.PYTHON_VERSION == '3.6' && matrix.legacy == false && success() &&
         github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:

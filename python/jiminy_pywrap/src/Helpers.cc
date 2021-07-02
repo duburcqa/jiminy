@@ -128,6 +128,26 @@ namespace python
         return robotOptions;
     }
 
+    bp::object solveJMinvJtv(pinocchio::Data & data,
+                             np::ndarray const & vPy,
+                             bool_t const & updateDecomposition)
+    {
+        int32_t const nDims = vPy.get_nd();
+        assert(nDims < 3 && "The number of dimensions of 'v' cannot exceed 2.");
+        if (nDims == 1)
+        {
+            vectorN_t const v = convertFromPython<vectorN_t>(vPy);
+            vectorN_t const x = pinocchio_overload::solveJMinvJtv<vectorN_t>(data, v, updateDecomposition);
+            return convertToPython(x, true);
+        }
+        else
+        {
+            matrixN_t const v = convertFromPython<matrixN_t>(vPy);
+            matrixN_t const x = pinocchio_overload::solveJMinvJtv<matrixN_t>(data, v, updateDecomposition);
+            return convertToPython(x, true);
+        }
+    }
+
     void exposeHelpers(void)
     {
         bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed") = bp::object()));
@@ -182,16 +202,10 @@ namespace python
 
         bp::def("computeJMinvJt",
                 &pinocchio_overload::computeJMinvJt<matrixN_t>,
-                 (bp::arg("pinocchio_model"), "pinocchio_data", "J", bp::arg("update_decomposition") = true),
+                (bp::arg("pinocchio_model"), "pinocchio_data", "J", bp::arg("update_decomposition") = true),
                 bp::return_value_policy<result_converter<false> >());
-        bp::def("solveJMinvJtv",
-                &pinocchio_overload::solveJMinvJtv<vectorN_t>,
-                (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true),
-                bp::return_value_policy<bp::return_by_value>());
-        bp::def("solveJMinvJtv",
-                &pinocchio_overload::solveJMinvJtv<matrixN_t>,
-                (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true),
-                bp::return_value_policy<bp::return_by_value>());
+        bp::def("solveJMinvJtv", &solveJMinvJtv,
+                (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true));
 
         bp::class_<RandomPerlinProcess,
                    std::shared_ptr<RandomPerlinProcess>,
