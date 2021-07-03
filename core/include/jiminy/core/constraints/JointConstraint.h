@@ -11,7 +11,7 @@ namespace jiminy
 {
     class Model;
 
-    class JointConstraint: public AbstractConstraintTpl<JointConstraint>
+    class JointConstraint : public AbstractConstraintTpl<JointConstraint>
     {
 
     public:

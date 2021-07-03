@@ -82,7 +82,7 @@ set(jiminy_DEFINITIONS
 )
 if(WIN32)
     set(jiminy_DEFINITIONS ${jiminy_DEFINITIONS} _USE_MATH_DEFINES=1 NOMINMAX)
-    set(jiminy_OPTIONS /EHsc /bigobj /Zc:__cplusplus /permissive- /wd4996 /wd4554)
+    set(jiminy_OPTIONS /EHsc /bigobj /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
 else()
     execute_process(COMMAND readelf --version-info "${jiminy_LIBRARIES}"
                     COMMAND grep -c "Name: CXXABI_1.3.9\\\|Name: GLIBCXX_3.4.21"

@@ -27,18 +27,18 @@ namespace jiminy
     template<>
     Json::Value convertToJson<heatMapFunctor_t>(heatMapFunctor_t const & value);
 
-    template<typename T>
+    template<typename T, typename A>
     constexpr std::enable_if_t<!std::is_same<T, vectorN_t>::value
                             && !std::is_same<T, matrixN_t>::value, const char *>
-    getJsonVectorType(std::vector<T> const & /* value */)
+    getJsonVectorType(std::vector<T, A> const & /* value */)
     {
         return "unknown";
     }
 
-    template<typename T>
+    template<typename T, typename A>
     constexpr std::enable_if_t<std::is_same<T, vectorN_t>::value
                             || std::is_same<T, matrixN_t>::value, const char *>
-    getJsonVectorType(std::vector<T> const & /* value */)
+    getJsonVectorType(std::vector<T, A> const & /* value */)
     {
         return "list(array)";
     }

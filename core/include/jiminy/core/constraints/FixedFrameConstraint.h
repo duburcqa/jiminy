@@ -19,8 +19,10 @@ namespace jiminy
 {
     class Model;
 
-    class FixedFrameConstraint: public AbstractConstraintTpl<FixedFrameConstraint>
+    class FixedFrameConstraint : public AbstractConstraintTpl<FixedFrameConstraint>
     {
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////

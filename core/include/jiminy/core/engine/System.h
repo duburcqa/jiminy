@@ -134,6 +134,9 @@ namespace jiminy
     struct systemDataHolder_t
     {
     public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    public:
         systemDataHolder_t(void);
         systemDataHolder_t(systemDataHolder_t && other) = default;
         systemDataHolder_t & operator = (systemDataHolder_t && other) = default;
@@ -144,19 +147,19 @@ namespace jiminy
 
         forceProfileRegister_t forcesProfile;
         forceImpulseRegister_t forcesImpulse;
-        std::set<float64_t> forcesImpulseBreaks;                          ///< Ordered list (without repetitions) of the start and end time associated with the forces
-        std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;     ///< Iterator related to the time of the next breakpoint associated with the impulse forces
-        std::vector<bool_t> forcesImpulseActive;                          ///< Flag to active the forces. This is used to handle t-, t+ properly. Otherwise, it is impossible to determine at time t if the force is active or not.
+        std::set<float64_t> forcesImpulseBreaks;                       ///< Ordered list (without repetitions) of the start and end time associated with the forces
+        std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;  ///< Iterator related to the time of the next breakpoint associated with the impulse forces
+        std::vector<bool_t> forcesImpulseActive;                       ///< Flag to active the forces. This is used to handle t-, t+ properly. Otherwise, it is impossible to determine at time t if the force is active or not.
 
-        constraintsHolder_t constraintsHolder;                            ///< Store copy of constraints register for fast access.
-        std::vector<int32_t> boundJointsActiveDir;                        ///< Store the active "direction" of the bound (0 for lower, 1 for higher)
-        forceVector_t contactFramesForces;                                ///< Contact forces for each contact frames in local frame
-        std::vector<forceVector_t> collisionBodiesForces;                 ///< Contact forces for each geometries of each collision bodies in local frame
-        matrixN_t jointJacobian;                                          ///< Buffer used for intermediary computation of `uAugmented`
-        vectorN_t uAugmented;                                             ///< Used to store the input effort plus the effect of external forces
-        vectorN_t lo;                                                     ///< Lower bound of LCP problem
-        vectorN_t hi;                                                     ///< Higher bound of LCP problem
-        std::vector<int32_t> fIdx;                                        ///< Used to indicate linear coupling between bounds of LCP and the solution (i.e. friction pyramid: - mu * F_z < F_x/F_y < mu * F_z)
+        constraintsHolder_t constraintsHolder;                         ///< Store copy of constraints register for fast access.
+        std::vector<int32_t> boundJointsActiveDir;                     ///< Store the active "direction" of the bound (0 for lower, 1 for higher)
+        forceVector_t contactFramesForces;                             ///< Contact forces for each contact frames in local frame
+        vector_aligned_t<forceVector_t> collisionBodiesForces;         ///< Contact forces for each geometries of each collision bodies in local frame
+        matrixN_t jointJacobian;                                       ///< Buffer used for intermediary computation of `uAugmented`
+        vectorN_t uAugmented;                                          ///< Used to store the input effort plus the effect of external forces
+        vectorN_t lo;                                                  ///< Lower bound of LCP problem
+        vectorN_t hi;                                                  ///< Higher bound of LCP problem
+        std::vector<int32_t> fIdx;                                     ///< Used to indicate linear coupling between bounds of LCP and the solution (i.e. friction pyramid: - mu * F_z < F_x/F_y < mu * F_z)
 
         std::vector<std::string> positionFieldnames;
         std::vector<std::string> velocityFieldnames;

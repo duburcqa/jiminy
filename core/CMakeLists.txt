@@ -35,6 +35,9 @@ if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom versi
 endif()
 add_definitions("${COMPILE_FLAGS}")
 
+# Enable all warnings
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")
+
 # Add sources
 set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Constants.cc"

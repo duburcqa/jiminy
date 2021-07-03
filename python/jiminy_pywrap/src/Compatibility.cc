@@ -1,5 +1,5 @@
-#define NO_IMPORT_ARRAY
-#include "eigenpy/numpy.hpp"
+#define BOOST_PYTHON_NUMPY_INTERNAL
+#include "eigenpy/fwd.hpp"
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
 
@@ -11,6 +11,7 @@ namespace jiminy
 namespace python
 {
     namespace bp = boost::python;
+    namespace np = boost::python::numpy;
 
     template<typename T>
     class arrayScalarFromPython
@@ -19,15 +20,15 @@ namespace python
         static void * convertible(PyObject * obj)
         {
             PyTypeObject const * pytype = reinterpret_cast<PyArray_Descr*>(
-                bp::numpy::dtype::get_builtin<T>().ptr())->typeobj;
+                np::dtype::get_builtin<T>().ptr())->typeobj;
             if (obj->ob_type == pytype)
             {
                 return obj;
             }
             else
             {
-                bp::numpy::dtype dt(bp::detail::borrowed_reference(obj->ob_type));
-                if (equivalent(dt, bp::numpy::dtype::get_builtin<T>()))
+                np::dtype dt(bp::detail::borrowed_reference(obj->ob_type));
+                if (equivalent(dt, np::dtype::get_builtin<T>()))
                 {
                     return obj;
                 }

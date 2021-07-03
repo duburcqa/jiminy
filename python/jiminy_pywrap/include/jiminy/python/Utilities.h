@@ -10,9 +10,9 @@
 
 /* Define Python C API, consistent with eigenpy, but do NOT import
    it to avoid "multiple definitions" error. Note that eigenpy must
-   be imported after boost python to avoid compilation failure. */
-#define NO_IMPORT_ARRAY
-#include "eigenpy/numpy.hpp"
+   be imported before boost python to avoid compilation failure. */
+#define BOOST_PYTHON_NUMPY_INTERNAL
+#include "eigenpy/fwd.hpp"
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
 #include <boost/python/object/function_doc_signature.hpp>

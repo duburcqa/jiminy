@@ -44,7 +44,7 @@ namespace pinocchio_overload
                          Eigen::MatrixBase<TangentVectorType>                     const & v)
     {
         pinocchio::computeKineticEnergy(model, data, q, v);
-        data.kinetic_energy += 0.5 * (model.rotorInertia.array() * Eigen::pow(v.array(), 2)).sum();
+        data.kinetic_energy += 0.5 * (model.rotorInertia.array() * v.array().pow(2)).sum();
         return data.kinetic_energy;
     }
 

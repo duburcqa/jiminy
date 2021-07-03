@@ -967,8 +967,8 @@ namespace jiminy
         pinocchio_overload::forwardKinematicsAcceleration(model, data, data.ddq);
     }
 
-    void computeAllExtraTerms(std::vector<systemHolder_t>           & systems,
-                              std::vector<systemDataHolder_t> const & systemsDataHolder)
+    void computeAllExtraTerms(std::vector<systemHolder_t> & systems,
+                              vector_aligned_t<systemDataHolder_t> const & systemsDataHolder)
     {
         auto systemIt = systems.begin();
         auto systemDataIt = systemsDataHolder.begin();
@@ -990,8 +990,8 @@ namespace jiminy
     }
 
     void syncAllAccelerationsAndForces(std::vector<systemHolder_t> const & systems,
-                                       std::vector<forceVector_t> & f,
-                                       std::vector<motionVector_t> & a)
+                                       vector_aligned_t<forceVector_t> & f,
+                                       vector_aligned_t<motionVector_t> & a)
     {
         std::vector<systemHolder_t>::const_iterator systemIt = systems.begin();
         auto fPrevIt = f.begin();
@@ -2245,7 +2245,8 @@ namespace jiminy
     }
 
     template<typename ...Args>
-    std::tuple<bool_t, float64_t> isGcdIncluded(std::vector<systemDataHolder_t> const & systemsDataHolder, Args... values)
+    std::tuple<bool_t, float64_t> isGcdIncluded(vector_aligned_t<systemDataHolder_t> const & systemsDataHolder,
+                                                Args... values)
     {
         if (systemsDataHolder.empty())
         {

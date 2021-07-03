@@ -11,7 +11,7 @@ namespace jiminy
 {
     class Model;
 
-    class DistanceConstraint: public AbstractConstraintTpl<DistanceConstraint>
+    class DistanceConstraint : public AbstractConstraintTpl<DistanceConstraint>
     {
 
     public:

@@ -58,7 +58,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                 Sequence[np.ndarray], Tuple[np.ndarray, np.ndarray]]:
         """
         @brief Simulate the dynamics of the system and retrieve the imu
-            sensor evolution over time.
+               sensor evolution over time.
 
         @param engine  List of time instant at which to evaluate the solution.
         @param tf  Duration of the simulation.
@@ -97,7 +97,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
     def test_armature(self):
         """
-        @brief Verify the dynamics of the system when adding  rotor inertia.
+        @brief Verify the dynamics of the system when adding rotor inertia.
         """
         # Configure the robot: set rotor inertia
         J = 0.1
@@ -107,9 +107,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.robot.set_motors_options(motor_options)
 
         # Dynamics: simulate a spring of stiffness k
-        k_spring = 500
+        k_spring = 500.0
         def spring_force(t, q, v, sensors_data, u_custom):
-            u_custom[:] = - k_spring * q.flatten()
+            u_custom[:] = - k_spring * q
 
         # Initialize the controller and setup the engine
         engine = jiminy.Engine()
@@ -132,8 +132,8 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Analytical solution: a simple mass on a spring
         I_eq = self.I + J
-        A = np.array([[               0, 1],
-                      [-k_spring / I_eq, 0]])
+        A = np.array([[             0.0, 1.0],
+                      [-k_spring / I_eq, 0.0]])
         x_analytical = np.stack([
             scipy.linalg.expm(A * t).dot(x0) for t in time], axis=0)
 
