@@ -90,8 +90,8 @@ namespace jiminy
     template<typename T>
     struct is_vector : std::false_type {};
 
-    template<typename T>
-    struct is_vector<std::vector<T> > : std::true_type {};
+    template<typename T, typename A>
+    struct is_vector<std::vector<T, A> > : std::true_type {};
 
     template<typename T>
     constexpr bool is_vector_v = is_vector<std::decay_t<T> >::value;  // `inline` variables are not supported by gcc<7.3
@@ -100,10 +100,10 @@ namespace jiminy
 
     namespace isMapDetail
     {
-        template<typename K, typename T>
-        std::true_type test(std::map<K, T> const *);
-        template<typename K, typename T>
-        std::true_type test(std::unordered_map<K, T> const *);
+        template<typename K, typename T, typename C, typename A>
+        std::true_type test(std::map<K, T, C, A> const *);
+        template<typename K, typename T, typename H, typename C, typename A>
+        std::true_type test(std::unordered_map<K, T, H, C, A> const *);
         std::false_type test(...);
     }
 

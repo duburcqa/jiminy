@@ -72,16 +72,18 @@ jobs:
       run: |
         unset Boost_ROOT
 
+        # gcc flag '-s' removes all symbol table and relocation information
         mkdir "$RootDir/build"
         cd "$RootDir/build"
         export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DEIGEN_HAS_STD_INVOKE_RESULT=0 \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="-s" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"  # gcc flag '-s' removes all symbol table and relocation information
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -s" \
+              -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"

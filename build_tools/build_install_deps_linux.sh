@@ -6,7 +6,15 @@ set -eo
 ### Set the build type to "Release" if undefined
 if [ -z ${BUILD_TYPE} ]; then
   BUILD_TYPE="Release"
-  echo "BUILD_TYPE is unset. Defaulting to 'Release'."
+  echo "BUILD_TYPE is unset. Defaulting to '${BUILD_TYPE}'."
+fi
+
+### Set common CMAKE_C/CXX_FLAGS
+CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -fPIC -s"
+if [ "${BUILD_TYPE}" == "Release" ]; then
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
+else
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
 fi
 
 ### Get the fullpath of Jiminy project
@@ -49,7 +57,7 @@ if [ ! -d "$RootDir/eigen3" ]; then
 fi
 cd "$RootDir/eigen3"
 git reset --hard
-git checkout --force "3.4"
+git checkout --force "3.3.9"
 
 ### Checkout eigenpy and its submodules
 if [ ! -d "$RootDir/eigenpy" ]; then
@@ -160,12 +168,14 @@ mkdir -p "$RootDir/boost/build"
      --with-filesystem --with-atomic --with-serialization --with-thread \
      --build-type=minimal architecture=x86 address-model=64 threading=single \
      --layout=system --lto=off link=static runtime-link=static debug-symbols=off \
-     toolset=gcc cxxflags="-std=c++17 -fPIC -s" variant="$BuildTypeB2" install -q -d0 -j2
+     toolset=gcc cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" \
+     variant="$BuildTypeB2" install -q -d0 -j2
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-python \
      --build-type=minimal architecture=x86 address-model=64 threading=single \
      --layout=system --lto=off link=shared runtime-link=shared debug-symbols=off \
-     toolset=gcc cxxflags="-std=c++17 -fPIC -s" variant="$BuildTypeB2" install -q -d0 -j2
+     toolset=gcc cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" \
+     variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 
@@ -186,7 +196,8 @@ cmake "$RootDir/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-aliasing" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################## Build and install tinyxml ###########################################
@@ -194,7 +205,8 @@ make install -j2
 mkdir -p "$RootDir/tinyxml/build"
 cd "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-DNDEBUG -O3 -fPIC -s -DTIXML_USE_STL" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DTIXML_USE_STL" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################## Build and install console_bridge ########################################
@@ -202,14 +214,14 @@ make install -j2
 mkdir -p "$RootDir/console_bridge/build"
 cd "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-DNDEBUG -O3 -fPIC -s" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################### Build and install urdfdom_headers ######################################
 
 mkdir -p "$RootDir/urdfdom_headers/build"
 cd "$RootDir/urdfdom_headers/build"
-cmake "$RootDir/urdfdom_headers" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/urdfdom_headers" -Wno-dev -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
@@ -219,7 +231,7 @@ mkdir -p "$RootDir/urdfdom/build"
 cd "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DBUILD_TESTING=OFF \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-DNDEBUG -O3 -fPIC -s" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ###################################### Build and install assimp ########################################
@@ -230,7 +242,8 @@ cmake "$RootDir/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX=
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-DNDEBUG -O3 -fPIC -s -Wno-strict-overflow -Wno-class-memaccess" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-class-memaccess" \
+      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################# Build and install qhull and hpp-fcl ######################################
@@ -238,7 +251,8 @@ make install -j2
 mkdir -p "$RootDir/hpp-fcl/third-parties/qhull/build"
 cd "$RootDir/hpp-fcl/third-parties/qhull/build"
 cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_CXX_FLAGS="-DNDEBUG -O3 -fPIC -s" -DCMAKE_C_FLAGS="-fPIC -s" \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-conversion" -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
@@ -251,7 +265,8 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON \
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s -Wno-unused-parameter -Wno-ignored-qualifiers" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-ignored-qualifiers" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################# Build and install Pinocchio ##########################################
@@ -264,7 +279,9 @@ cmake "$RootDir/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREF
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
-      -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
+      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
+      -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF \
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s -Wno-unused-local-typedefs -Wno-uninitialized" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs -Wno-uninitialized" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2

@@ -135,20 +135,20 @@ namespace jiminy
 
     // ********************* Std::vector helpers **********************
 
-    template<typename T>
-    bool_t checkDuplicates(std::vector<T> const & vect);
+    template<typename T, typename A>
+    bool_t checkDuplicates(std::vector<T, A> const & vect);
 
-    template<typename T>
-    bool_t checkIntersection(std::vector<T> const & vect1,
-                             std::vector<T> const & vect2);
+    template<typename T, typename A>
+    bool_t checkIntersection(std::vector<T, A> const & vect1,
+                             std::vector<T, A> const & vect2);
 
-    template<typename T>
-    bool_t checkInclusion(std::vector<T> const & vect1,
-                          std::vector<T> const & vect2);
+    template<typename T, typename A>
+    bool_t checkInclusion(std::vector<T, A> const & vect1,
+                          std::vector<T, A> const & vect2);
 
-    template<typename T>
-    void eraseVector(std::vector<T>       & vect1,
-                     std::vector<T> const & vect2);
+    template<typename T, typename A>
+    void eraseVector(std::vector<T, A>       & vect1,
+                     std::vector<T, A> const & vect2);
 
     // *********************** Miscellaneous **************************
 

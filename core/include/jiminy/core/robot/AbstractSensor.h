@@ -64,7 +64,7 @@ namespace jiminy
         float64_t delayMax_;                                      ///< Maximum delay over all the sensors
     };
 
-    class AbstractSensorBase: public std::enable_shared_from_this<AbstractSensorBase>
+    class AbstractSensorBase : public std::enable_shared_from_this<AbstractSensorBase>
     {
         /* Using friend to avoid double delegation, which would make public
            the attach whereas only robot is able to call it.

@@ -24,7 +24,7 @@ namespace jiminy
 {
     class Model;
 
-    class AbstractConstraintBase: public std::enable_shared_from_this<AbstractConstraintBase>
+    class AbstractConstraintBase : public std::enable_shared_from_this<AbstractConstraintBase>
     {
         // See AbstractSensor for comment on this.
         friend Model;

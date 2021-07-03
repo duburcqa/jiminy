@@ -122,6 +122,9 @@ namespace jiminy
     class Model: public std::enable_shared_from_this<Model>
     {
     public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    public:
         virtual configHolder_t getDefaultJointOptions()
         {
             configHolder_t config;

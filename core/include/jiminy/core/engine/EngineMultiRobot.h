@@ -108,6 +108,9 @@ namespace jiminy
     class EngineMultiRobot
     {
     public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    public:
         configHolder_t getDefaultContactOptions()
         {
             configHolder_t config;
@@ -653,10 +656,10 @@ namespace jiminy
         std::unique_ptr<AbstractStepper> stepper_;
         float64_t stepperUpdatePeriod_;
         stepperState_t stepperState_;
-        std::vector<systemDataHolder_t> systemsDataHolder_;
+        vector_aligned_t<systemDataHolder_t> systemsDataHolder_;
         forceCouplingRegister_t forcesCoupling_;
-        std::vector<forceVector_t> fPrev_;
-        std::vector<motionVector_t> aPrev_;
+        vector_aligned_t<forceVector_t> fPrev_;
+        vector_aligned_t<motionVector_t> aPrev_;
         std::shared_ptr<logData_t> logData_;
     };
 }

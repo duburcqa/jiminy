@@ -20,8 +20,10 @@ namespace jiminy
 {
     class Model;
 
-    class SphereConstraint: public AbstractConstraintTpl<SphereConstraint>
+    class SphereConstraint : public AbstractConstraintTpl<SphereConstraint>
     {
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////

@@ -12,6 +12,9 @@ namespace jiminy
     class ImuSensor : public AbstractSensorTpl<ImuSensor>
     {
     public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    public:
         ImuSensor(std::string const & name);
         ~ImuSensor(void) = default;
 
