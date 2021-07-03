@@ -175,10 +175,9 @@ namespace Eigen
             typedef typename StateDerivativeBase<Derived>::RealScalar RealScalar;
             static inline RealScalar run(StateDerivativeBase<Derived> const & velocity)
             {
-                EIGEN_USING_STD_MATH(pow)
-                return pow(velocity.v().cwiseAbs().array().pow(p).sum() +
-                           velocity.a().cwiseAbs().array().pow(p).sum(),
-                           RealScalar(1)/p);
+                return std::pow(velocity.v().cwiseAbs().array().pow(p).sum() +
+                                velocity.a().cwiseAbs().array().pow(p).sum(),
+                                RealScalar(1)/p);
             }
         };
 
@@ -474,10 +473,9 @@ namespace Eigen
             typedef typename StateBase<Derived>::RealScalar RealScalar;
             static inline RealScalar run(StateBase<Derived> const & velocity)
             {
-                EIGEN_USING_STD_MATH(pow)
-                return pow(velocity.q().cwiseAbs().array().pow(p).sum() +
-                           velocity.v().cwiseAbs().array().pow(p).sum(),
-                           RealScalar(1)/p);
+                return std::pow(velocity.q().cwiseAbs().array().pow(p).sum() +
+                                velocity.v().cwiseAbs().array().pow(p).sum(),
+                                RealScalar(1)/p);
             }
         };
 
@@ -810,13 +808,12 @@ namespace Eigen
             typedef typename VectorContainerBase<Derived>::RealScalar RealScalar;
             static inline RealScalar run(VectorContainerBase<Derived> const & container)
             {
-                EIGEN_USING_STD_MATH(pow)
                 RealScalar total = 0.0;
                 for (typename internal::traits<Derived>::ValueType const & element : container.vector())
                 {
-                    total += pow(element.template lpNorm<p>(), p);
+                    total += std::pow(element.template lpNorm<p>(), p);
                 }
-                return pow(total, RealScalar(1)/p);
+                return std::pow(total, RealScalar(1)/p);
             }
         };
 

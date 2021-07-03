@@ -48,7 +48,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {
   git clone https://gitlab.com/libeigen/eigen.git "$RootDir/eigen3"
 }
 Set-Location -Path "$RootDir/eigen3"
-git checkout --force "3.3.9"
+git checkout --force "3.4"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
@@ -56,7 +56,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 }
 Set-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git checkout --force "v2.6.2"
+git checkout --force "v2.6.4"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
@@ -112,7 +112,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 }
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
-git checkout --force "v1.7.1"
+git checkout --force "v1.7.4"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
