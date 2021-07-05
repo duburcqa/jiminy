@@ -882,8 +882,7 @@ namespace jiminy
         }
     }
 
-    void computeExtraTerms(systemHolder_t           & system,
-                           systemDataHolder_t const & systemData)
+    void computeExtraTerms(systemHolder_t & system)
     {
         /// This method is optimized to avoid redundant computations.
         /// See `pinocchio::computeAllTerms` for reference:
@@ -920,35 +919,25 @@ namespace jiminy
             data.oYcrb[parentIdx] += data.oYcrb[i];
         }
 
-        /* Neither 'aba' nor 'forwardDynamics' are computed the actual joints
-           acceleration and forces, so it must be done separately:
+        /* Neither 'aba' nor 'forwardDynamics' are computing simultaneously the actual
+           joint accelerations and forces, so it must be done separately:
            - 1st step: computing the forces based on rnea algorithm
            - 2nd step: computing the accelerations based on ForwardKinematic algorithm */
+        pinocchio_overload::forwardKinematicsAcceleration(model, data, data.ddq);
+
+        // Compute the spatial momenta and the sum of external forces acting on each body
         data.h[0].setZero();
         data.f[0].setZero();
         for (int32_t i = 1; i < model.njoints; ++i)
         {
             data.h[i] = model.inertias[i] * data.v[i];
-            #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 5 || (PINOCCHIO_MINOR_VERSION == 5 && PINOCCHIO_PATCH_VERSION >= 6)))
-            data.f[i] = model.inertias[i] * data.a_gf[i] + data.v[i].cross(data.h[i]);
-            #else
             data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
-            #endif
-            data.f[i] -= systemData.state.fExternal[i];
         }
         for (int32_t i = model.njoints - 1; i > 0; --i)
         {
             jointIndex_t const & parentIdx = model.parents[i];
             data.h[parentIdx] += data.liMi[i].act(data.h[i]);
-            if (parentIdx > 0)
-            {
-                data.f[parentIdx] += data.liMi[i].act(data.f[i]);
-            }
-            else
-            {
-                // Using action-reaction law to compute the ground reaction force
-                data.f[0] += data.oMi[i].act(data.f[i]);
-            }
+            data.f[parentIdx] += data.liMi[i].act(data.f[i]);
         }
 
         /* Now that `data.oYcrb` and `data.h` are available, one can get directly
@@ -957,24 +946,25 @@ namespace jiminy
         data.Ig.lever().setZero();
         data.Ig.inertia() = data.oYcrb[0].inertia();
         data.com[0] = data.oYcrb[0].lever();
-        data.vcom[0] = data.h[0].linear() / data.mass[0];
+        data.vcom[0].noalias() = data.h[0].linear() / data.mass[0];
         for (int32_t i = 1; i < model.njoints; ++i)
         {
             data.com[i] = data.oMi[i].actInv(data.oYcrb[i].lever());
-            data.vcom[i] = data.h[i].linear() / data.mass[i];
+            data.vcom[i].noalias() = data.h[i].linear() / data.mass[i];
         }
 
-        pinocchio_overload::forwardKinematicsAcceleration(model, data, data.ddq);
+        // Compute centrodial dynamics and its derivative
+        data.hg = data.h[0];
+        data.hg.angular() += data.hg.linear().cross(data.com[0]);
+        data.dhg = data.f[0];
+        data.dhg.angular() += data.dhg.linear().cross(data.com[0]);
     }
 
-    void computeAllExtraTerms(std::vector<systemHolder_t> & systems,
-                              vector_aligned_t<systemDataHolder_t> const & systemsDataHolder)
+    void computeAllExtraTerms(std::vector<systemHolder_t> & systems)
     {
-        auto systemIt = systems.begin();
-        auto systemDataIt = systemsDataHolder.begin();
-        for ( ; systemIt != systems.end(); ++systemIt, ++systemDataIt)
+        for (auto & system : systems)
         {
-            computeExtraTerms(*systemIt, *systemDataIt);
+            computeExtraTerms(system);
         }
     }
 
@@ -1410,7 +1400,7 @@ namespace jiminy
                 a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext);
 
                 // Compute joints accelerations and forces
-                computeExtraTerms(*systemIt, *systemDataIt);
+                computeExtraTerms(*systemIt);
                 syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
 
                 // Update the sensor data once again, with the updated effort and acceleration
@@ -1852,7 +1842,7 @@ namespace jiminy
             if (!std::isfinite(stepperUpdatePeriod_) && hasDynamicsChanged)
             {
                 computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                computeAllExtraTerms(systems_, systemsDataHolder_);
+                computeAllExtraTerms(systems_);
                 syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                 syncSystemsStateWithStepper(true);
                 hasDynamicsChanged = false;
@@ -1901,7 +1891,7 @@ namespace jiminy
                     if (hasDynamicsChanged)
                     {
                         computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                        computeAllExtraTerms(systems_, systemsDataHolder_);
+                        computeAllExtraTerms(systems_);
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper(true);
                         hasDynamicsChanged = false;
@@ -1966,7 +1956,7 @@ namespace jiminy
 
                         /* Compute the actual joint acceleration and forces, based on
                            up-to-date pinocchio::Data. */
-                        computeAllExtraTerms(systems_, systemsDataHolder_);
+                        computeAllExtraTerms(systems_);
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
@@ -2057,7 +2047,7 @@ namespace jiminy
 
                         /* Compute the actual joint acceleration and forces, based on
                            up-to-date pinocchio::Data. */
-                        computeAllExtraTerms(systems_, systemsDataHolder_);
+                        computeAllExtraTerms(systems_);
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);

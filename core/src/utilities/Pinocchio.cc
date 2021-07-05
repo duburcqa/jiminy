@@ -897,7 +897,7 @@ namespace jiminy
 
     pinocchio::Force convertForceGlobalFrameToJoint(pinocchio::Model const & model,
                                                     pinocchio::Data  const & data,
-                                                    frameIndex_t       const & frameIdx,
+                                                    frameIndex_t     const & frameIdx,
                                                     pinocchio::Force const & fextInGlobal)
     {
         // Compute transform from global frame to local joint frame.

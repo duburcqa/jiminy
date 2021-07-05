@@ -1470,15 +1470,10 @@ namespace jiminy
                                                 *pncGeometryData_);
 
             // Set the max number of contact points per collision pairs
-            // Only a global collisionRequest is available for Pinocchio < 2.4.4, instead of one for each collision pair.
-            #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 4 || (PINOCCHIO_MINOR_VERSION == 4 && PINOCCHIO_PATCH_VERSION >= 4)))
             for (hpp::fcl::CollisionRequest & collisionRequest : pncGeometryData_->collisionRequests)
             {
                 collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
             }
-            #else
-            pncGeometryData_->collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
-            #endif
 
             // Extract the indices of the collision pairs associated with each body
             collisionPairsIdx_.clear();
