@@ -108,7 +108,7 @@ jobs:
       if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
-        name: jiminy_py${{ matrix.python-version }}-wheel
+        name: jiminy_py${{ matrix.PYTHON_VERSION }}-wheel-${{ matrix.legacy }}
         path: build/wheelhouse
 
     #####################################################################################
