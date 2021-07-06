@@ -163,7 +163,7 @@ def ppo_loss(policy: Policy,
                       torch.chunk(values_all, len(train_batches), dim=0)))
 
     # Compute original ppo loss.
-    #pylint: disable=unused-argument,missing-function-docstring
+    # pylint: disable=unused-argument,missing-function-docstring
     class FakeModel:
         """Fake model enabling doing all forward passes at once.
         """

@@ -7,12 +7,12 @@ Set-PSDebug -Trace 1
 ### Set the build type to "Release" if undefined
 if (-not (Test-Path env:BUILD_TYPE)) {
   $env:BUILD_TYPE = "Release"
-  Write-Host "BUILD_TYPE is unset. Defaulting to '${BUILD_TYPE}'."
+  Write-Output "BUILD_TYPE is unset. Defaulting to '${BUILD_TYPE}'."
 }
 
 ### Set common CMAKE_C/CXX_FLAGS
 $env:CMAKE_CXX_FLAGS = "$env:CMAKE_CXX_FLAGS /EHsc /bigobj /Zc:__cplusplus /permissive- -D_USE_MATH_DEFINES -DNOMINMAX"
-if (${env:BUILD_TYPE} == "Release") {
+if (${env:BUILD_TYPE} -eq "Release") {
   $env:CMAKE_CXX_FLAGS = "$env:CMAKE_CXX_FLAGS /O2 /Ob3 -DNDEBUG"
 } else {
   $env:CMAKE_CXX_FLAGS = "$env:CMAKE_CXX_FLAGS /Od -g"
