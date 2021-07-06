@@ -16,6 +16,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <Eigen/StdVector>
 
 // std::optional is not vailable for gcc<=7.3, so using boost instead
 #include <boost/optional.hpp>
@@ -50,6 +51,17 @@ namespace jiminy
 
     template<typename K, typename M>
     using static_map_t = std::vector<std::pair<K, M> >;
+
+    template<typename K, typename M>
+    using static_map_aligned_t = std::vector<std::pair<K, M>,
+        Eigen::aligned_allocator<std::pair<K, M> > >;
+
+    template<typename K, typename M>
+    using map_aligned_t = std::map<K, M, std::less<K>,
+        Eigen::aligned_allocator<std::pair<const K, M> > >;
+
+    template<typename M>
+    using vector_aligned_t = std::vector<M, Eigen::aligned_allocator<M> >;
 
     // Eigen types
     using matrixN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic>;
@@ -148,8 +160,8 @@ namespace jiminy
     // Configuration/option holder
     using configField_t = boost::make_recursive_variant<
         bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, heatMapFunctor_t,
-        std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>, flexibilityConfig_t,
-        std::unordered_map<std::string, boost::recursive_variant_>
+        std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>,
+        flexibilityConfig_t, std::unordered_map<std::string, boost::recursive_variant_>
     >::type;
 
     using configHolder_t = std::unordered_map<std::string, configField_t>;

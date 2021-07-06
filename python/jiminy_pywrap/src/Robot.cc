@@ -62,7 +62,8 @@ namespace python
                                          (bp::arg("self"), "constraint_name"))
                 .add_property("has_constraints", &Model::hasConstraints)
                 .add_property("constraints", PyModelVisitor::getConstraints)
-                .def("get_constraints_jacobian", &PyModelVisitor::getConstraintsJacobian)
+                .def("get_constraints_jacobian", &PyModelVisitor::getConstraintsJacobian,
+                                                 bp::return_value_policy<result_converter<true> >())
                 .def("get_constraints_drift", &PyModelVisitor::getConstraintsDrift)
                 .def("get_constraints_lambda", &PyModelVisitor::getConstraintsLambda)
                 .def("compute_constraints", &Model::computeConstraints,

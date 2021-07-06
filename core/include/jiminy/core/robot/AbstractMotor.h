@@ -47,7 +47,7 @@ namespace jiminy
         int32_t num_;                              ///< Number of motors
     };
 
-    class AbstractMotorBase: public std::enable_shared_from_this<AbstractMotorBase>
+    class AbstractMotorBase : public std::enable_shared_from_this<AbstractMotorBase>
     {
         /* AKA AbstractSensorBase */
         friend Robot;

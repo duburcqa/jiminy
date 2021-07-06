@@ -19,7 +19,7 @@ if(urdfdom_VERSION)
 else()
     message(STATUS "Found urdfdom")
 endif()
-find_package(pinocchio 2.5.2 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio v2.5.2 introduces 'isNormalized' method
+find_package(pinocchio 2.5.6 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio v2.5.6 fixes 'aba' overwritting 'data.a_gf'
 find_package(hpp-fcl 1.5.4 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # hpp-fcl >= 1.5.4 adds support of collision of primitives with halfspace
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eigen
 
@@ -34,6 +34,9 @@ if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom versi
     endif()
 endif()
 add_definitions("${COMPILE_FLAGS}")
+
+# Enable all warnings
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")
 
 # Add sources
 set(SRC

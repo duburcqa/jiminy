@@ -36,6 +36,7 @@ namespace jiminy
 namespace python
 {
     namespace bp = boost::python;
+    namespace np = boost::python::numpy;
 
     template<typename T>
     using TimeStateFct = typename std::function<T (float64_t const &, vectorN_t const &, vectorN_t const &)>;
@@ -62,7 +63,7 @@ namespace python
            It is required to handle boost::python::numpy::ndarray object directly.
            Note that numpy scalar to native type automatic converters are disabled
            because they are messing up with the docstring. */
-        bp::numpy::initialize(false);
+        np::initialize(false);
         // Initialized EigenPy, enabling PyArrays<->Eigen automatic converters
         eigenpy::enableEigenPy();
 

@@ -44,7 +44,7 @@ namespace pinocchio_overload
                          Eigen::MatrixBase<TangentVectorType>                     const & v)
     {
         pinocchio::computeKineticEnergy(model, data, q, v);
-        data.kinetic_energy += 0.5 * (model.rotorInertia.array() * Eigen::pow(v.array(), 2)).sum();
+        data.kinetic_energy += 0.5 * (model.rotorInertia.array() * v.array().pow(2)).sum();
         return data.kinetic_energy;
     }
 
@@ -126,11 +126,7 @@ namespace pinocchio_overload
             if (parent > 0)
             {
                 Force & pa = data.f[i];
-                #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 5 || (PINOCCHIO_MINOR_VERSION == 5 && PINOCCHIO_PATCH_VERSION >= 6)))
                 pa.toVector() += Ia * data.a_gf[i].toVector() + jdata.UDinv() * jmodel.jointVelocitySelector(data.u);
-                #else
-                pa.toVector() += Ia * data.a[i].toVector() + jdata.UDinv() * jmodel.jointVelocitySelector(data.u);
-                #endif
                 data.Yaba[parent] += pinocchio::internal::SE3actOn<Scalar>::run(data.liMi[i], Ia);
                 data.f[parent] += data.liMi[i].act(pa);
             }
@@ -271,11 +267,7 @@ namespace pinocchio_overload
         assert(tau.size() == model.nv && "The joint acceleration vector is not of right size");
 
         data.v[0].setZero();
-        #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 5 || (PINOCCHIO_MINOR_VERSION == 5 && PINOCCHIO_PATCH_VERSION >= 6)))
         data.a_gf[0] = -model.gravity;
-        #else
-        data.a[0] = -model.gravity;
-        #endif
         data.u = tau;
 
         typedef pinocchio::AbaForwardStep1<Scalar, Options, JointCollectionTpl,

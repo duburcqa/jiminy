@@ -20,8 +20,10 @@ namespace jiminy
 {
     class Model;
 
-    class WheelConstraint: public AbstractConstraintTpl<WheelConstraint>
+    class WheelConstraint : public AbstractConstraintTpl<WheelConstraint>
     {
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////

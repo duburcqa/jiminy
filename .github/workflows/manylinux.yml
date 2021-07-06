@@ -26,6 +26,11 @@ jobs:
       matrix:
         container: ['manylinux2010_x86_64', 'manylinux_2_24_x86_64']
         PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
+        legacy: [false]
+        include:
+          - container: 'manylinux_2_24_x86_64'
+            PYTHON_VERSION: '3.8'
+            legacy: true
 
     #####################################################################################
 
@@ -45,7 +50,11 @@ jobs:
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel auditwheel cmake
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+        if [ "${{ matrix.legacy }}" == true ] ; then
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.20"
+        else
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+        fi
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
 
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
@@ -63,6 +72,7 @@ jobs:
       run: |
         unset Boost_ROOT
 
+        # gcc flag '-s' removes all symbol table and relocation information
         mkdir "$RootDir/build"
         cd "$RootDir/build"
         export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
@@ -72,7 +82,8 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="-s" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"  # gcc flag '-s' removes all symbol table and relocation information
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -s" \
+              -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
@@ -97,7 +108,7 @@ jobs:
       if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
-        name: jiminy_py${{ matrix.python-version }}-wheel
+        name: jiminy_py${{ matrix.PYTHON_VERSION }}-wheel-${{ matrix.legacy }}
         path: build/wheelhouse
 
     #####################################################################################
@@ -120,7 +131,7 @@ jobs:
         packages_dir: build/wheelhouse
     - name: Publish on PyPi the wheel of Gym Jiminy (Any platform / Any python3 version)
       if: >-
-        matrix.container == 'manylinux2010_x86_64' && matrix.PYTHON_VERSION == '3.6' && success() &&
+        matrix.container == 'manylinux2010_x86_64' && matrix.PYTHON_VERSION == '3.6' && matrix.legacy == false && success() &&
         github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
