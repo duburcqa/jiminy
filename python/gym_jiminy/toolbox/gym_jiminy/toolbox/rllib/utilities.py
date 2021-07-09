@@ -13,7 +13,7 @@ import inspect
 import tracemalloc
 from datetime import datetime
 from collections import defaultdict
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable, Dict, Any, Tuple
 
 import gym
 import numpy as np
@@ -213,31 +213,42 @@ def initialize(num_cpus: int,
 
 def compute_action(policy: Policy,
                    input_dict: Dict[str, np.ndarray],
-                   explore: bool) -> Any:
+                   explore: bool) -> Tuple[Any, Any]:
     """Compute predicted action by the policy.
 
     .. note::
         It supports both Pytorch and Tensorflow backends (both eager and
         compiled graph modes).
 
-    :param policy: `rllib.poli.Policy` to use to predict the action, which is
+    :param policy: `rllib.policy.Policy` to use to predict the action, which is
                    a thin wrapper around the actual policy model.
     :param input_dict: Input dictionary for forward as input of the policy.
     :param explore: Whether or not to enable exploration during sampling of the
                     action.
     """
     if policy.framework == 'torch':
+        input_dict = policy._lazy_tensor_dict(input_dict)
         with torch.no_grad():
-            input_dict = policy._lazy_tensor_dict(input_dict)
-            action_logits, _ = policy.model(input_dict)
-            action_dist = policy.dist_class(action_logits, policy.model)
+            policy.model.eval()
+            if policy.action_distribution_fn is not None:
+                action_logits, dist_class, state = \
+                    policy.action_distribution_fn(
+                        policy=policy,
+                        model=policy.model,
+                        obs_batch=input_dict["obs"],
+                        explore=explore,
+                        is_training=False)
+            else:
+                action_logits, state = policy.model(input_dict)
+                dist_class = policy.dist_class
+            action_dist = dist_class(action_logits, policy.model)
             if explore:
                 action_torch = action_dist.sample()
             else:
                 action_torch = action_dist.deterministic_sample()
             action = action_torch.cpu().numpy()
     elif tf.compat.v1.executing_eagerly():
-        action_logits, _ = policy.model(input_dict)
+        action_logits, state = policy.model(input_dict)
         action_dist = policy.dist_class(action_logits, policy.model)
         if explore:
             action_tf = action_dist.sample()
@@ -253,9 +264,10 @@ def compute_action(policy: Policy,
                      for key, value in input_dict.items()
                      if key in policy._input_dict.keys()}
         feed_dict[policy._is_exploring] = explore
-        action = policy._sess.run(
-            policy._sampled_action, feed_dict=feed_dict)
-    return action
+        action, *state = policy._sess.run(
+            [policy._sampled_action] + policy._state_outputs,
+            feed_dict=feed_dict)
+    return action, state
 
 
 def build_policy_wrapper(policy: Policy,
@@ -325,7 +337,7 @@ def build_policy_wrapper(policy: Policy,
             input_dict["prev_n_rew"][0, -1] = reward
 
         # Compute action
-        action = compute_action(policy, input_dict, explore)
+        action, _ = compute_action(policy, input_dict, explore)
         if clip_action:
             action = clip(action_space, action)
 
@@ -337,7 +349,7 @@ def build_policy_wrapper(policy: Policy,
         for field in input_dict.values():
             field[:] = np.roll(field, shift=-1, axis=1)
 
-        return action[0]
+        return action.squeeze(0)
 
     return forward
 
