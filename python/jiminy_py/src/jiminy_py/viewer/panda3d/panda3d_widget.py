@@ -19,10 +19,10 @@ class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
         """ TODO: Write documentation.
         """
         # Initialize Qt widget
-        super(QtWidgets.QWidget, self).__init__(parent=parent)
+        QtWidgets.QWidget.__init__(self, parent=parent)
 
         # Initialize Panda3D app
-        super(Panda3dViewer, self).__init__(window_type='offscreen')
+        Panda3dViewer.__init__(self, window_type='offscreen')
 
         # Only accept focus by clicking on widget
         self.setFocusPolicy(Qt.ClickFocus)
