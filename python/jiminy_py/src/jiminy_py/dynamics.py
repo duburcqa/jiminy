@@ -586,9 +586,6 @@ def compute_efforts_from_fixed_body(
         pnc_data = robot.pinocchio_data
 
     # Apply a first run of rnea without explicit external forces
-    # Note that `computeJointJacobians` also compute the forward kinematics
-    # of the model (position only obviously).
-    pin.computeJointJacobians(pnc_model, pnc_data, position)
     jiminy.rnea(pnc_model, pnc_data, position, velocity, acceleration)
 
     # Initialize vector of exterior forces to zero
@@ -596,6 +593,7 @@ def compute_efforts_from_fixed_body(
     f_ext.extend(len(pnc_model.names) * (pin.Force.Zero(),))
 
     # Compute the force at the contact frame
+    pin.forwardKinematics(pnc_model, pnc_data, position)
     support_foot_idx = pnc_model.frames[
         pnc_model.getBodyId(fixed_body_name)].parent
     f_ext[support_foot_idx] = pnc_data.oMi[support_foot_idx] \

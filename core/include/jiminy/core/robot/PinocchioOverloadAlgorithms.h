@@ -43,7 +43,7 @@ namespace pinocchio_overload
                          Eigen::MatrixBase<ConfigVectorType>                      const & q,
                          Eigen::MatrixBase<TangentVectorType>                     const & v)
     {
-        pinocchio::computeKineticEnergy(model, data, q, v);
+        (void) pinocchio::computeKineticEnergy(model, data, q, v);
         data.kinetic_energy += 0.5 * (model.rotorInertia.array() * v.array().pow(2)).sum();
         return data.kinetic_energy;
     }
@@ -59,7 +59,7 @@ namespace pinocchio_overload
          Eigen::MatrixBase<TangentVectorType2>                  const & a,
          pinocchio::container::aligned_vector<ForceDerived>     const & fext)
     {
-        pinocchio::rnea(model, data, q, v, a, fext);
+        (void) pinocchio::rnea(model, data, q, v, a, fext);
         data.tau += model.rotorInertia.asDiagonal() * a;
         return data.tau;
     }
@@ -73,7 +73,7 @@ namespace pinocchio_overload
          Eigen::MatrixBase<TangentVectorType1>                    const & v,
          Eigen::MatrixBase<TangentVectorType2>                    const & a)
     {
-        pinocchio::rnea(model, data, q, v, a);
+        (void) pinocchio::rnea(model, data, q, v, a);
         data.tau += model.rotorInertia.asDiagonal() * a;
         return data.tau;
     }
@@ -85,7 +85,7 @@ namespace pinocchio_overload
          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
          Eigen::MatrixBase<ConfigVectorType>                      const & q)
     {
-        pinocchio::crba(model, data, q);
+        (void) pinocchio::crba(model, data, q);
         // data.M.triangularView<Eigen::StrictlyLower>() =
         //     data.M.transpose().triangularView<Eigen::StrictlyLower>();
         data.M += model.rotorInertia.asDiagonal();
