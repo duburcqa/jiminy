@@ -104,6 +104,7 @@ namespace python
         // Enable some automatic C++ to Python converters
         bp::to_python_converter<std::vector<std::string>, converterToPython<std::vector<std::string> >, true>();
         bp::to_python_converter<std::vector<std::vector<int32_t> >, converterToPython<std::vector<std::vector<int32_t> > >, true>();
+        bp::to_python_converter<std::vector<uint32_t>, converterToPython<std::vector<uint32_t> >, true>();
         bp::to_python_converter<std::vector<int32_t>, converterToPython<std::vector<int32_t> >, true>();
         bp::to_python_converter<std::vector<vectorN_t>, converterToPython<std::vector<vectorN_t> >, true>();
         bp::to_python_converter<std::vector<matrixN_t>, converterToPython<std::vector<matrixN_t> >, true>();
