@@ -10,7 +10,7 @@ import gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..utils import SpaceDictNested, copy
+from ..utils import SpaceDictNested, is_breakpoint, copy
 
 
 class ObserverInterface:
@@ -30,7 +30,7 @@ class ObserverInterface:
         :param kwargs: Extra keyword arguments. See 'args'.
         """
         # Define some attributes
-        self.observe_dt = 0.0
+        self.observe_dt = -1
         self.observation_space = None
         self._observation = None
 
@@ -95,7 +95,7 @@ class ControllerInterface:
         :param kwargs: Extra keyword arguments. See 'args'.
         """
         # Define some attributes
-        self.control_dt = 0.0
+        self.control_dt = -1
         self.action_space = None
         self._action = None
 
@@ -188,8 +188,26 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
         self.system_state = None
         self.sensors_data = None
 
+        # Define some internal buffers
+        self._dt_eps: Optional[float] = None
+
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
+
+    def _setup(self) -> None:
+        """Configure the observer-controller.
+
+        .. note::
+            This method must be called once, after the environment has been
+            reset. This is done automatically when calling `reset` method.
+        """
+        # Reset the control and observation update periods
+        self.observe_dt = -1
+        self.control_dt = -1
+
+        # Get the temporal resolution of simulator steps
+        engine_options = self.simulator.engine.get_options()
+        self._dt_eps = 1.0 / engine_options["telemetry"]["timeUnit"]
 
     def _observer_handle(self,
                          t: float,
@@ -199,8 +217,8 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
         """TODO Write documentation.
         """
         # pylint: disable=unused-argument
-
-        self.refresh_observation()
+        if is_breakpoint(t, self.observe_dt, self._dt_eps):
+            self.refresh_observation()
 
     def _controller_handle(self,
                            t: float,

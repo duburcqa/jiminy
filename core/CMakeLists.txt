@@ -150,7 +150,7 @@ foreach(target "${PROJECT_NAME}" "${LIBRARY_NAME}")
     target_link_libraries(${target} ${Boost_LIBRARIES})
     # Link some libraries that are not automatically linked with HDF5 and assimp (through hppfcl) respectively
     if(NOT WIN32)
-        target_link_libraries(${target} -ldl -lrt)
+        target_link_libraries(${target} ${CMAKE_DL_LIBS} -lrt)
     endif()
 endforeach()
 

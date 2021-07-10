@@ -94,6 +94,7 @@ class BlockInterface:
             example to register some extra variables to monitor the internal
             state of the block.
         """
+        pass
 
     def _refresh_observation_space(self) -> None:
         """Configure the observation of the block.

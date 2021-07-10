@@ -27,8 +27,7 @@ from ..utils import (SpaceDictNested,
                      fill,
                      set_value,
                      register_variables)
-from ..envs import BaseJiminyEnv
-from ..envs.internal import ObserverHandleType, ControllerHandleType
+from ..envs import ObserverHandleType, ControllerHandleType, BaseJiminyEnv
 
 from .block_bases import BaseControllerBlock, BaseObserverBlock
 from .generic_bases import ObserverControllerInterface
@@ -67,7 +66,6 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         self.sensors_data: jiminy.sensorsData = self.env.sensors_data
 
         # Define some internal buffers
-        self._dt_eps: Optional[float] = None
         self._command = zeros(self.env.unwrapped.action_space)
 
     def __dir__(self) -> List[str]:
@@ -84,8 +82,13 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                            v: np.ndarray,
                            sensors_data: jiminy.sensorsData,
                            command: np.ndarray) -> None:
+        """Thin wrapper around user-specified `compute_command` method.
+
+        .. warning::
+            This method is not supposed to be called manually nor overloaded.
+        """
         command[:] = self.compute_command(
-            self.env.get_observation(), deepcopy(self._action))
+            self.env.get_observation(), self._action)
 
     def _get_block_index(self) -> int:
         """Get the index of the block. It corresponds the "deepness" of the
@@ -130,10 +133,6 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             the low-level simulator and just before performing the first step.
             """
             nonlocal self, controller_hook
-
-            # Get the temporal resolution of simulator steps
-            engine_options = self.simulator.engine.get_options()
-            self._dt_eps = 1.0 / engine_options["telemetry"]["timeUnit"]
 
             # Initialize the pipeline wrapper
             self._setup()
@@ -194,6 +193,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             This method must be called once, after the environment has been
             reset. This is done automatically when calling `reset` method.
         """
+        # Call base implementation
+        super()._setup()
+
         # Reset some internal buffers
         fill(self._action, 0.0)
         fill(self._command, 0.0)
