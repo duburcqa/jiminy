@@ -4,6 +4,7 @@ from pkg_resources import resource_filename
 from typing import Optional, Tuple, Dict, Any
 
 import gym
+from gym.spaces import flatten_space
 
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
@@ -130,13 +131,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
         """
-        # TODO: `gym.spaces.flatten_space` does not properly handle dtype
-        # before gym>=0.18.0, which is not compatible with Python 3.9...
-        state_subspaces = self._get_state_space().spaces.values()
-        self.observation_space = gym.spaces.Box(
-            low=np.concatenate([s.low for s in state_subspaces]),
-            high=np.concatenate([s.high for s in state_subspaces]),
-            dtype=np.result_type(*[s.dtype for s in state_subspaces]))
+        self.observation_space = flatten_space(self._get_state_space())
 
     def refresh_observation(self, *args: Any, **kwargs: Any) -> None:
         """Update the observation based on the current simulation state.

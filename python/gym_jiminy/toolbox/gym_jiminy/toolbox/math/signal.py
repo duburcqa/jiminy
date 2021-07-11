@@ -1,99 +1,18 @@
-from typing import Optional, Dict, Union, Sequence
+""" TODO: Write documentation.
+"""
+from typing import Optional, Union, Dict, Sequence
 
 import numba as nb
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 from scipy.interpolate import UnivariateSpline
-from scipy.spatial.qhull import _Qhull
 
 
 FACTORIAL_TABLE = (1, 1, 2, 6, 24, 120, 720)
 
 
-class ConvexHull:
-    def __init__(self, points: np.ndarray) -> None:
-        """Compute the convex hull defined by a set of points.
-
-        :param points: N-D points whose to computed the associated convex hull,
-                       as a 2D array whose first dimension corresponds to the
-                       number of points, and the second to the N-D coordinates.
-        """
-        assert len(points) > 0, "The length of 'points' must be at least 1."
-
-        # Backup user argument(s)
-        self._points = points
-
-        # Create convex full if possible
-        if len(self._points) > 2:
-            self._hull = _Qhull(points=self._points,
-                                options=b"",
-                                mode_option=b"i",
-                                required_options=b"Qt",
-                                furthest_site=False,
-                                incremental=False,
-                                interior_point=None)
-        else:
-            self._hull = None
-
-        # Buffer to cache center computation
-        self._center = None
-
-    @property
-    def center(self) -> np.ndarray:
-        """Get the center of the convex hull.
-
-        .. note::
-            Degenerated convex hulls corresponding to len(points) == 1 or 2 are
-            handled separately.
-
-        :returns: 1D float vector with N-D coordinates of the center.
-        """
-        if self._center is None:
-            if len(self._points) > 3:
-                vertices = self._points[self._hull.get_extremes_2d()]
-            else:
-                vertices = self._points
-            self._center = np.mean(vertices, axis=0)
-        return self._center
-
-    def get_distance(self, queries: np.ndarray) -> np.ndarray:
-        """Compute the signed distance of query points from the convex hull.
-
-        Positive distance corresponds to a query point lying outside the convex
-        hull.
-
-        .. note::
-            Degenerated convex hulls corresponding to len(points) == 1 or 2 are
-            handled separately. The distance from a point and a segment is used
-            respectevely.
-
-        :param queries: N-D query points for which to compute distance from the
-                        convex hull, as a 2D array.
-
-        :returns: 1D float vector of the same length than `queries`.
-        """
-        if len(self._points) > 2:
-            equations = self._hull.get_simplex_facet_array()[2].T
-            return np.max(queries @ equations[:-1] + equations[-1], axis=1)
-        elif len(self._points) == 2:
-            vec = self._points[1] - self._points[0]
-            ratio = (queries - self._points[0]) @ vec / squared_norm_2(vec)
-            proj = self._points[0] + np.outer(np.clip(ratio, 0.0, 1.0), vec)
-            return np.linalg.norm(queries - proj, 2, axis=1)
-        else:
-            return np.linalg.norm(queries - self._points, 2, axis=1)
-
-
 @nb.jit(nopython=True, nogil=True)
-def squared_norm_2(array: np.ndarray) -> float:
-    """Fast implementation of the sum of squared arrray elements, optimized for
-    small to medium size 1D arrays.
-    """
-    return np.sum(np.square(array))
-
-
-@nb.jit(nopython=True, nogil=True)
-def _toeplitz(c: np.ndarray, r: np.ndarray) -> np.ndarray:
+def _toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
     """Numba-compatible implementation of `scipy.linalg.toeplitz` method.
 
     .. note:
@@ -103,16 +22,17 @@ def _toeplitz(c: np.ndarray, r: np.ndarray) -> np.ndarray:
     .. warning:
         It returns a strided matrix instead of contiguous copy for efficiency.
 
-    :param c: First column of the matrix.
-    :param r: First row of the matrix.
+    :param col: First column of the matrix.
+    :param row: First row of the matrix.
 
     see::
         https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.toeplitz.html
     """
-    vals = np.concatenate((c[::-1], r[1:]))
-    n = vals.strides[0]
-    return as_strided(
-        vals[len(c)-1:], shape=(len(c), len(r)), strides=(-n, n))
+    vals = np.concatenate((col[::-1], row[1:]))
+    stride = vals.strides[0]  # pylint: disable=E1136
+    return as_strided(vals[len(col)-1:],
+                      shape=(len(col), len(row)),
+                      strides=(-stride, stride))
 
 
 @nb.jit(nopython=True, nogil=True)
@@ -191,14 +111,11 @@ def smoothing_filter(
         params: Optional[Dict[str, Union[float, Sequence[float]]]] = None
         ) -> np.ndarray:
     """Smoothing filter with relabeling and resampling features.
-
     It supports evenly sampled multidimensional input signal. Relabeling can be
     used to infer the value of samples at time steps before and after the
     explicitly provided samples.
-
     .. note::
         As a reminder, relabeling is a generalization of periodicity.
-
     :param time_in: Time steps of the input signal.
     :param val_in: Sampled values of the input signal.
                    (2D numpy array: row = sample, column = time)
@@ -207,9 +124,7 @@ def smoothing_filter(
                     Optional: Disable if omitted.
     :param params:
         .. raw:: html
-
             Parameters of the filter. Dictionary with keys:
-
         - **'mixing_ratio_1':** Relative time at the begining of the signal
           during the output signal corresponds to a linear mixing over time of
           the filtered and original signal (only used if relabel is omitted).
@@ -222,7 +137,6 @@ def smoothing_filter(
           (only used if relabel is omitted).
         - **'smoothness'[2]:** Smoothing factor to filter the middle part of
           the signal.
-
     :returns: Filtered signal (2D numpy array: row = sample, column = time).
     """
     if time_out is None:
@@ -289,11 +203,3 @@ def smoothing_filter(
         val_out = np.concatenate(val_out, axis=0)
 
     return val_out
-
-
-__all__ = [
-    "ConvexHull",
-    "squared_norm_2",
-    "integrate_zoh",
-    "smoothing_filter"
-]
