@@ -1,9 +1,9 @@
 *.pyc
 *egg-info*
+**/__pycache__
+venv/
 .vscode
 docs/html
 install
 build
 **/log
-venv/
-
