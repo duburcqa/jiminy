@@ -10,7 +10,7 @@ import gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..utils import SpaceDictNested, is_breakpoint, copy
+from ..utils import SpaceDictNested, is_breakpoint
 
 
 class ObserverInterface:
@@ -50,7 +50,7 @@ class ObserverInterface:
             In most cases, it is not necessary to overloaded this method, and
             doing so may lead to unexpected behavior if not done carefully.
         """
-        return copy(self._observation)
+        return self._observation
 
     # methods to override:
     # ----------------------------
@@ -201,6 +201,9 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
             This method must be called once, after the environment has been
             reset. This is done automatically when calling `reset` method.
         """
+        # Assertion(s) for type checker
+        assert isinstance(self.simulator, Simulator)
+
         # Reset the control and observation update periods
         self.observe_dt = -1
         self.control_dt = -1
@@ -247,7 +250,7 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
                              which means that it is not an actual dictionary
                              but it behaves similarly.
         :param command: Output argument to update by reference using `[:]` or
-                        `np.core.multiarray.copyto` in order to apply motors
-                        torques on the robot.
+                        `np.copyto` in order to apply motors torques on the
+                        robot.
         """
         raise NotImplementedError

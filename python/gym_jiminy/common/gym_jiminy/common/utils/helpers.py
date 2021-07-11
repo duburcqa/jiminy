@@ -83,7 +83,7 @@ def register_variables(controller: jiminy.AbstractController,
     :param data: Data from `Gym.spaces.Space` to register. Note that the
                  telemetry stores pointers to the underlying memory, so it
                  only supports np.float64, and make sure to reassign data
-                 using `np.core.multiarray.copyto` for `[:]` operator.
+                 using `np.copyto` or `[:]` operator (faster).
     :param namespace: Namespace used to prepend fields, using '.' delimiter.
                       Empty string to disable.
                       Optional: Disabled by default.

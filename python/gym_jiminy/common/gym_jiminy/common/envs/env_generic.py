@@ -1088,7 +1088,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             This method is called by `step` method, right after
             `refresh_observation`, so it is the right place to update .
         """
-        pass
 
     def refresh_observation(self) -> None:  # type: ignore[override]
         """Compute the observation based on the current state of the robot.

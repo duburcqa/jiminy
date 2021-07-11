@@ -25,6 +25,7 @@ from ..utils import (SpaceDictNested,
                      is_breakpoint,
                      zeros,
                      fill,
+                     copy,
                      set_value,
                      register_variables)
 from ..envs import ObserverHandleType, ControllerHandleType, BaseJiminyEnv
@@ -104,6 +105,16 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             i += isinstance(block, self.__class__)
             block = block.env
         return i
+
+    def get_observation(self) -> SpaceDictNested:
+        """Get post-processed observation.
+
+        It performs a recursive shallow copy of the observation.
+
+        .. warning::
+            This method is not supposed to be called manually nor overloaded.
+        """
+        return copy(self._observation)
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
