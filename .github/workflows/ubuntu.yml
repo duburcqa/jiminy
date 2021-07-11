@@ -52,7 +52,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
         "${PYTHON_EXECUTABLE}" -m pip install tensorflow
         "${PYTHON_EXECUTABLE}" -m pip install "torch==1.8.0+cpu" -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.17.3,<0.18.0" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -110,6 +110,7 @@ jobs:
         gym_modules=(
           "common"
           "toolbox"
+          "rllib"
         )
         for name in "${gym_modules[@]}"; do
           cd "$RootDir/python/gym_jiminy/$name"

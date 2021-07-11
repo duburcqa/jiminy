@@ -86,7 +86,9 @@ deployPythonPackage("${LIBRARY_NAME}_py")
 buildPythonWheel("python/gym_${LIBRARY_NAME}/common"
                  "python/gym_${LIBRARY_NAME}/envs"
                  "python/gym_${LIBRARY_NAME}/toolbox"
+                 "python/gym_${LIBRARY_NAME}/rllib"
                  "${CMAKE_BINARY_DIR}/pypi/dist/gym_${LIBRARY_NAME}")
 deployPythonPackageDevelop("python/gym_${LIBRARY_NAME}/common"
                            "python/gym_${LIBRARY_NAME}/envs"
-                           "python/gym_${LIBRARY_NAME}/toolbox")
+                           "python/gym_${LIBRARY_NAME}/toolbox"
+                           "python/gym_${LIBRARY_NAME}/rllib")

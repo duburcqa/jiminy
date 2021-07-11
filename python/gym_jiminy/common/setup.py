@@ -11,6 +11,9 @@ extras = {
     ],
     "toolbox": [
         f"gym_jiminy_toolbox~={version_required}"
+    ],
+    "rllib": [
+        f"gym_jiminy_rllib~={version_required}"
     ]
 }
 extras["all"] = list(set(chain.from_iterable(extras.values())))
@@ -43,22 +46,23 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        # Standard interface library for reinforcement learning.
-        # 0.17.3 introduces iterable space dict, and 0.18.0 requires Pillow<8.0
-        # to work, which is not compatible with Python 3.9. Note that proper
-        # dtype handling of flatten space requires gym>=0.18.0.
-        "gym>=0.17.3,<0.18.0",
+        f"jiminy-py~={version_required}",
+        # Use to perform linear algebra computation.
+        # 1.16 introduces new array function dispatcher which had significant
+        # overhead if not handle carefully.
+        "numpy>=1.16",
         # Use internally to speedup computation of simple methods.
         # Disable automatic forward compatibility with newer versions because
         # numba relies on llvmlite, for which wheels take some time before
         # being available on Pypi, making the whole installation process fail.
         # Version >=0.53 is required to support Python 3.9.
-        "numba<0.54",
-        # Use to perform linear algebra computation.
-        # 1.16 introduces new array function dispatcher which had significant
-        # overhead if not handle carefully.
-        "numpy>=1.16",
-        f"jiminy-py~={version_required}"
+        "numba==0.53.1",
+        # Standard interface library for reinforcement learning.
+        # - 0.17.3 introduces iterable space dict
+        # - 0.18.0: dtype handling of flatten space
+        # - >=0.18.0,<0.18.3 requires Pillow<8.0 to work, not compatible with
+        #   Python 3.9.
+        "gym>=0.18.3"
     ],
     extras_require=extras,
     zip_safe=False

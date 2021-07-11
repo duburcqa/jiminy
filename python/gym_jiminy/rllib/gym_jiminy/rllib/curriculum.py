@@ -13,14 +13,14 @@ from ray.rllib.evaluation import MultiAgentEpisode
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
 
-from ..wrappers.meta_envs import DataTreeT
+from gym_jiminy.toolbox.wrappers.meta_envs import DataTreeT
 
 
-def build_curriculum_task_callback(history_length: int,
+def build_task_scheduling_callback(history_length: int,
                                    softmin_beta: float) -> type:
     """ TODO: Write documentation.
     """
-    class CurriculumTaskSamplingCallback(DefaultCallbacks):
+    class TaskSchedulingSamplingCallback(DefaultCallbacks):
         """ TODO: Write documentation.
         """
         def __init__(self) -> None:
@@ -201,7 +201,7 @@ def build_curriculum_task_callback(history_length: int,
                 lambda worker: worker.foreach_env(
                     lambda env: env.task_tree_probas.update(task_tree_probas)))
 
-    return CurriculumTaskSamplingCallback
+    return TaskSchedulingSamplingCallback
 
 
 class TBXLoggerLayout(TBXLogger):
@@ -243,6 +243,6 @@ class TBXLoggerLayout(TBXLogger):
 
 
 __all__ = [
-    "build_curriculum_task_callback",
+    "build_task_scheduling_callback",
     "TBXLoggerLayout"
 ]

@@ -5,10 +5,10 @@ from setuptools import setup, find_namespace_packages
 version = get_distribution('gym_jiminy').version
 
 setup(
-    name="gym_jiminy_toolbox",
+    name="gym_jiminy_rllib",
     version=version,
     description=(
-        "Reinforcement learning toolbox based on Pytorch for Gym Jiminy."),
+        "Reinforcement learning toolbox based on Ray RLlib for Gym Jiminy."),
     author="Alexis Duburcq",
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
@@ -28,7 +28,8 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        f"gym_jiminy~={version}"
+        f"gym_jiminy~={version}",
+        "ray[default,rllib]<=1.4.1"
     ],
     zip_safe=False
 )
