@@ -38,9 +38,11 @@ unset Boost_ROOT
 
 ################################## Checkout the dependencies ###########################################
 
-### Checkout boost and its submodules
-#   Note that boost python must be patched for boost < 3 Fev. 2021 to fix error handling at import.
 #   Patches can be generated using `git diff --submodule=diff` command.
+
+### Checkout boost and its submodules
+#   Note that boost python must be patched to fix error handling at import (boost < 1.76),
+#   and fix support of PyPy (boost < 1.75).
 if [ ! -d "$RootDir/boost" ]; then
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
@@ -49,7 +51,8 @@ git reset --hard
 git checkout --force "boost-1.71.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/boost.patch"
+cd "libs/python"
+git checkout --force "boost-1.76.0"
 
 ### Checkout eigen3
 if [ ! -d "$RootDir/eigen3" ]; then
@@ -153,7 +156,7 @@ cd "$RootDir/boost"
 ### File "project-config.jam" create by bootstrap must be edited manually
 #   to specify Python included dir manually, since it is not detected
 #   successfully in some cases.
-PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sys; print (\"%d.%d\" % (sys.version_info[0], sys.version_info[1]))")"
+PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
 PYTHON_ROOT="$(${PYTHON_EXECUTABLE} -c "import sys; print(sys.prefix)")"
 PYTHON_INCLUDE_DIRS="$(${PYTHON_EXECUTABLE} -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())")"
 PYTHON_CONFIG_JAM="using python : ${PYTHON_VERSION} : ${PYTHON_ROOT} : ${PYTHON_INCLUDE_DIRS} ;"
@@ -242,7 +245,8 @@ cmake "$RootDir/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX=
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-class-memaccess" \
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow $(
+      ) -Wno-class-memaccess -Wno-stringop-truncation -Wno-tautological-compare" \
       -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
@@ -265,7 +269,8 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON \
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-ignored-qualifiers" \
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter $(
+      ) -Wno-unused-but-set-variable -Wno-ignored-qualifiers -Wno-class-memaccess" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
