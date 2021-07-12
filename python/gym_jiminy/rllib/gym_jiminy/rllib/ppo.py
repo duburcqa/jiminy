@@ -91,7 +91,7 @@ def ppo_loss(policy: Policy,
     train_batches = {"original": train_batch}
 
     if policy.config["caps_temporal_reg"] > 0.0:
-        # Shadow copy the original training batch.
+        # Shallow copy the original training batch.
         # Be careful accessing fields using the original batch to properly
         # keep track of acessed keys, which will be used to discard useless
         # components of policy's view requirements.
@@ -105,7 +105,7 @@ def ppo_loss(policy: Policy,
         train_batches["prev"] = train_batch_copy
 
     if policy.config["caps_spatial_reg"] > 0.0:
-        # Shadow copy the original training batch
+        # Shallow copy the original training batch
         train_batch_copy = train_batch.copy(shallow=True)
 
         # Generate noisy observation based on specified sensivity
@@ -128,7 +128,7 @@ def ppo_loss(policy: Policy,
         train_batches["noisy"] = train_batch_copy
 
     if policy.config["symmetric_policy_reg"] > 0.0:
-        # Shadow copy the original training batch
+        # Shallow copy the original training batch
         train_batch_copy = train_batch.copy(shallow=True)
 
         # Compute mirrorred observation

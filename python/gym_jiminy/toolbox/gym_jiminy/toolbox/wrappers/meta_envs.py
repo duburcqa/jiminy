@@ -8,7 +8,6 @@ import numpy as np
 
 import gym
 from gym import spaces
-from ray.rllib.env.meta_env import MetaEnv
 
 from gym_jiminy.common.utils.helpers import SpaceDictNested
 
@@ -16,23 +15,32 @@ from gym_jiminy.common.utils.helpers import SpaceDictNested
 DataTreeT = Dict[Any, Tuple[Any, "DataTreeT"]]  # type: ignore[misc]
 
 
-class HierarchicalTaskSettableEnv(MetaEnv):
-    """ TODO: Write documentation.
+class HierarchicalTaskSettableEnv(gym.Env):
+    """Extension of gym.Env to define a task-settable Env.
+
+    .. note::
+        This class extends the API of Ray RLlib `TaskSettableEnv`. See:
+        https://github.com/ray-project/ray/blob/master/rllib/env/apis/task_settable_env.py
     """
     task_space: Optional[spaces.Tuple] = None
 
     def get_task(self) -> Tuple[Any, ...]:
-        """ TODO: Write documentation.
+        """Gets the task that the agent is performing in the current
+        environment.
         """
         raise NotImplementedError
 
     def set_task(self, task: Tuple[Any, ...]) -> None:
-        """ TODO: Write documentation.
+        """Sets the specified task to the current environment.
+
+        :param task: task of the meta-learning environment.
         """
         raise NotImplementedError
 
     def sample_tasks(self, n_tasks: int) -> List[Tuple[Any, ...]]:
-        """ TODO: Write documentation.
+        """Samples task of the meta-environment.
+
+        :param n_tasks: number of different meta-tasks needed.
         """
         raise NotImplementedError
 
@@ -42,7 +50,7 @@ class HierarchicalTaskSettableEnv(MetaEnv):
         raise NotImplementedError
 
 
-class CurriculumTaskWrapper(gym.Wrapper):
+class TaskSchedulingWrapper(gym.Wrapper):
     """ TODO: Write documentation.
     """
     def __init__(self,

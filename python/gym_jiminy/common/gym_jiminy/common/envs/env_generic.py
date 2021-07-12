@@ -196,8 +196,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                            v: np.ndarray,
                            sensors_data: jiminy.sensorsData,
                            command: np.ndarray) -> None:
+        """Thin wrapper around user-specified `compute_command` method.
+
+        .. warning::
+            This method is not supposed to be called manually nor overloaded.
+        """
         command[:] = self.compute_command(
-            self.get_observation(), deepcopy(self._action))
+            self.get_observation(), self._action)
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
@@ -525,12 +530,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             os.close(fd)
 
         # Extract the observer/controller update period.
-        # There is no actual observer by default, apart from the robot's state
-        # and raw sensors data. Similarly, there is no actual controller by
-        # default, apart from forwarding the command torque to the motors.
+        # The controller update period is used by default for the observer if
+        # it was not specify by the user in `_setup`.
         engine_options = self.simulator.engine.get_options()
-        self.control_dt = self.observe_dt = float(
+        self.control_dt = float(
             engine_options['stepper']['controllerUpdatePeriod'])
+        if self.observe_dt < 0.0:
+            self.observe_dt = self.control_dt
 
         # Run controller hook and set the observer and controller handles
         observer_handle, controller_handle = None, None
@@ -587,6 +593,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.system_state.q,
             self.system_state.v,
             self.sensors_data)
+
+        # Update shared buffers
+        self._refresh_internal()
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
@@ -679,6 +688,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 self.system_state.q,
                 self.system_state.v,
                 self.sensors_data)
+
+            # Update shared buffers
+            self._refresh_internal()
 
             # Update some internal buffers
             is_step_failed = False
@@ -953,8 +965,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         By default, it enforces some options of the engine.
 
         .. note::
+            The user must overload this method to enforce custom observer
+            update period, otherwise it will be the same of the controller.
+
+        .. note::
             This method is called internally by `reset` methods.
         """
+        # Call base implementation
+        super()._setup()
+
         # Get options
         robot_options = self.robot.get_options()
         engine_options = self.simulator.engine.get_options()
@@ -970,10 +989,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 engine_options["telemetry"][field] = self.debug
         engine_options['telemetry']['enableConfiguration'] = True
         engine_options['telemetry']['enableVelocity'] = True
-
-        # Enable the friction model
-        for motor_name in robot_options["motors"].keys():
-            robot_options["motors"][motor_name]["enableFriction"] = True
 
         # Configure the stepper
         engine_options["stepper"]["iterMax"] = 0
@@ -1066,13 +1081,19 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return qpos, qvel
 
+    def _refresh_internal(self) -> None:
+        """Refresh internal buffers.
+
+        .. note::
+            This method is called by `step` method, right after
+            `refresh_observation`, so it is the right place to update .
+        """
+
     def refresh_observation(self) -> None:  # type: ignore[override]
         """Compute the observation based on the current state of the robot.
 
         .. note::
-            This method is called right after step, so it is the right place to
-            update shared data between `refresh_observation`, `is_done`, and
-            `compute_reward` methods.
+            This method is called and the end of every low-level `Engine.step`.
 
         .. warning::
             In practice, it updates the internal buffer directly for the sake
@@ -1083,9 +1104,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             next one. The workaround is to check if the simulation already
             started. Even though it is not the same rigorously speaking, it
             does the job here since it is only about preserving efficiency.
-
-        :param full_refresh: Whether or not to do a full refresh. This is
-                             usually done once, when calling `reset` method.
         """
         # pylint: disable=arguments-differ
 

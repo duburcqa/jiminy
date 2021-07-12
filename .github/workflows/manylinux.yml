@@ -10,10 +10,22 @@ on:
 jobs:
   build-test-and-publish-pypi-manylinux:
     name: >-
-      (${{ matrix.container }}) (${{ matrix.PYTHON_VERSION }})
+      (${{ matrix.container }}) (${{ matrix.PYTHON_VERSION }}) (${{ matrix.legacy }})
       Build and run the unit tests. Then generate and publish the wheels on PyPi.
+
+    strategy:
+      matrix:
+        container: ['quay.io/pypa/manylinux2010_x86_64',
+                    'quay.io/pypa/manylinux_2_24_x86_64']
+        PYTHON_VERSION: ['cp36', 'cp37', 'cp38', 'cp39']
+        legacy: [false]
+        include:
+          - container: 'quay.io/pypa/manylinux_2_24_x86_64'
+            PYTHON_VERSION: 'cp38'
+            legacy: true
+
     runs-on: ubuntu-20.04
-    container: quay.io/pypa/${{ matrix.container }}
+    container: ${{ matrix.container }}
 
     defaults:
       run:
@@ -21,16 +33,6 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
-
-    strategy:
-      matrix:
-        container: ['manylinux2010_x86_64', 'manylinux_2_24_x86_64']
-        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
-        legacy: [false]
-        include:
-          - container: 'manylinux_2_24_x86_64'
-            PYTHON_VERSION: '3.8'
-            legacy: true
 
     #####################################################################################
 
@@ -42,12 +44,12 @@ jobs:
 
     - name: Setup minimal build environment
       run: |
-        pythonLocation=$(find /opt/python -maxdepth 1 -name "$(echo "cp${{ matrix.PYTHON_VERSION }}*" | sed -e 's/\.//g')" -print -quit)
+        pythonLocation=$(find /opt/python -maxdepth 1 -name "$(echo "${{ matrix.PYTHON_VERSION }}*" | sed -e 's/\.//g')" -print -quit)
 
         echo "export PATH=\"${pythonLocation}/bin:\$PATH\"" >> $HOME/.bashrc
         source $HOME/.bashrc
 
-        PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
+        PYTHON_EXECUTABLE="${pythonLocation}/bin/python"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel auditwheel cmake
         if [ "${{ matrix.legacy }}" == true ] ; then
@@ -64,7 +66,7 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_linux.sh
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.17.3,<0.18.0" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -87,7 +89,8 @@ jobs:
         make -j2
 
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
-        cp -r -H "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
+        cp -r -H "$InstallDir/lib/python${PYTHON_VERSION}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         find "$RootDir/build/pypi/" -name "*.so*" -exec strip --strip-unneeded -v {} +
 
         make install
@@ -108,7 +111,7 @@ jobs:
       if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
-        name: jiminy_py${{ matrix.PYTHON_VERSION }}-wheel-${{ matrix.legacy }}
+        name: jiminy_py-${{ matrix.PYTHON_VERSION }}-wheel-${{ matrix.legacy }}
         path: build/wheelhouse
 
     #####################################################################################

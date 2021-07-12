@@ -189,18 +189,16 @@ def set_value(data: SpaceDictNested,
 
 
 def copy(data: SpaceDictNested) -> SpaceDictNested:
-    """Shadow copy recursively 'data' from `Gym.Space`, so that only leaves
+    """Shallow copy recursively 'data' from `Gym.Space`, so that only leaves
     are still references.
 
     :param data: Hierarchical data structure to copy without allocation.
     """
     if isinstance(data, dict):
-        value = OrderedDict()
-        for field, subdata in dict.items(data):
-            value[field] = copy(subdata)
-        return value
+        return data.__class__(zip(
+            dict.keys(data), map(copy, dict.values(data))))
     if isinstance(data, (tuple, list)):
-        return data.__class__(copy(subdata) for subdata in data)
+        return data.__class__(map(copy, data))
     return data
 
 

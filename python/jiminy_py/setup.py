@@ -90,13 +90,19 @@ setup(
         # Standard library for matrix algebra.
         "numpy",
         # Used internally for interpolation and filtering.
+        # No wheel is distributed for PyPy on pypi, and pip is only able to
+        # build from source after install `libatlas-base-dev` system depdency.
         "scipy",
         # Standard library to generate figures.
         f"matplotlib{matplotlib_spec}",
         # Used internally to read HDF5 format log files.
+        # No wheel is distributed for PyPy on pypi, but pip is able to build
+        # from source without additionnal dependencies.
         "h5py",
         # Used internally by Robot to replace meshes by associated minimal
         # volume bounding box.
+        # No wheel is distributed for PyPy on pypi, and pip is only able to
+        # build from source after install `hdf5-dev` system depdency.
         "trimesh",
         # Parser for Jiminy's hardware description file.
         "toml",
@@ -106,7 +112,9 @@ setup(
         # collision bodies.
         "meshcat>=0.0.19",
         # Standalone mesh visualizer used as Viewer's backend.
-        # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
+        # Panda3d>1.10.9 adds support of Nvidia EGL rendering without X11
+        # server.
+        # Panda3d is NOT supported by PyPy and cannot be built from source.
         "panda3d_viewer",
         # Used internally by Viewer to record video programmatically when
         # Meshcat is not used as rendering backend.
