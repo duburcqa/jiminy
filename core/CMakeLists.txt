@@ -20,7 +20,7 @@ else()
     message(STATUS "Found urdfdom")
 endif()
 find_package(pinocchio 2.5.6 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio v2.5.6 fixes 'aba' overwritting 'data.a_gf'
-find_package(hpp-fcl 1.5.4 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # hpp-fcl >= 1.5.4 adds support of collision of primitives with halfspace
+find_package(hpp-fcl 1.7.1 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # hpp-fcl >= 1.7.1 adds collision geometry pointers
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eigen
 
 # Pinocchio-specific stuffs
