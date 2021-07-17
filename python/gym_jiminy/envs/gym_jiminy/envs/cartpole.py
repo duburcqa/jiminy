@@ -126,8 +126,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         super().__init__(simulator, step_dt=STEP_DT, debug=debug)
 
         # Create some proxies for fast access
-        self.__state_view = (self._observation[:self.robot.nq],
-                             self._observation[-self.robot.nv:])
+        self.__state_view = (
+            self._observation[:self.robot.nq],
+            self._observation[self.robot.nq:(self.robot.nq+self.robot.nv)])
 
     def _setup(self) -> None:
         """ TODO: Write documentation.
@@ -135,7 +136,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # Call base implementation
         super()._setup()
 
-        # Increase stepper accuracy for time-continuous control
+        # OpenAI Gym implementation uses euler explicit integration scheme
         engine_options = self.simulator.engine.get_options()
         engine_options["stepper"]["solver"] = "euler_explicit"
         engine_options["stepper"]["dtMax"] = CONTROL_DT
@@ -194,7 +195,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
     def is_done(self) -> bool:
         """ TODO: Write documentation.
         """
-        x, theta, *_ = self.get_observation()
+        x, theta, *_ = self._observation
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
     def compute_command(self,

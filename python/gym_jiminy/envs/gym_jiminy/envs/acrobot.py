@@ -110,8 +110,9 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         super().__init__(simulator, step_dt=STEP_DT, debug=debug)
 
         # Create some proxies for fast access
-        self.__state_view = (self._observation[:self.robot.nq],
-                             self._observation[-self.robot.nv:])
+        self.__state_view = (
+            self._observation[:self.robot.nq],
+            self._observation[self.robot.nq:(self.robot.nq+self.robot.nv)])
 
     def _setup(self) -> None:
         """ TODO: Write documentation.
