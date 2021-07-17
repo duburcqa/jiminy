@@ -135,8 +135,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Number of simulation steps performed
         self.num_steps = -1
-        self.max_steps = int(
-            self.simulator.simulation_duration_max // self.step_dt)
+        self.max_steps = 0
         self._num_steps_beyond_done: Optional[int] = None
 
         # Initialize the seed of the environment.
@@ -553,6 +552,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.controller.set_controller_handle(
             controller_handle, unsafe=True)
 
+        # Configure the maximum number of steps
+        self.max_steps = int(
+            self.simulator.simulation_duration_max / self.step_dt)
+
         # Register the action to the telemetry
         if isinstance(self._action, np.ndarray) and (
                 self._action.size == self.robot.nmotors):
@@ -704,7 +707,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
         done = is_step_failed or (self.num_steps + 1 > self.max_steps) or \
-            not self.is_simulation_running or self.is_done()
+            not self.simulator.is_simulation_running or self.is_done()
         self._info = {}
 
         # Check if stepping after done and if it is an undefined behavior
@@ -833,12 +836,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             kwargs['mode'] = 'rgb_array'
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
-        # Stop any running simulation before replay if `is_done` is True.
-        # It will enable to display contact forces.
-        if self.simulator.is_simulation_running:
-            if self.is_done():
-                if not self.viewer or self.viewer._display_contacts:
-                    self.simulator.stop()
+        # Stop any running simulation before replay if `is_done` is True
+        if self.simulator.is_simulation_running and self.is_done():
+            self.simulator.stop()
 
         # Set default camera pose if viewer not already available
         if not self.simulator.is_viewer_available and self.robot.has_freeflyer:

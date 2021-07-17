@@ -308,9 +308,12 @@ def build_policy_wrapper(policy: Policy,
     action_space = policy.action_space
 
     # Build preprocessor to flatten environment observation
-    preprocessor_class = get_preprocessor(observation_space.original_space)
-    preprocessor = preprocessor_class(observation_space.original_space)
-    obs_flat = preprocessor.observation_space.sample()
+    observation_space_orig = policy.observation_space
+    if hasattr(observation_space_orig, "original_space"):
+        observation_space_orig = observation_space.original_space
+    preprocessor_class = get_preprocessor(observation_space_orig)
+    preprocessor = preprocessor_class(observation_space_orig)
+    obs_flat = observation_space.sample()
 
     # Initialize frame stack
     input_dict = {
