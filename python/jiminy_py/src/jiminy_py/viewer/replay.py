@@ -573,11 +573,12 @@ def extract_replay_data_from_log_data(
     if not robot.is_locked:
         update_hook = emulate_sensors_data_from_log(log_data, robot)
     else:
-        logger.warn(
-            "At least one of the robot is locked, which means that a "
-            "simulation using the robot is still running. It will be "
-            "impossible to display sensor data. Call `simulator.stop` to "
-            "unlock the robot before replaying logs data.")
+        if robot.sensors_names:
+            logger.warn(
+                "At least one of the robot is locked, which means that a "
+                "simulation using the robot is still running. It will be "
+                "impossible to display sensor data. Call `simulator.stop` to "
+                "unlock the robot before replaying logs data.")
         update_hook = None
 
     return trajectory, update_hook, replay_kwargs

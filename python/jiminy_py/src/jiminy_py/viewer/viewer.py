@@ -779,9 +779,10 @@ class Viewer:
                 if len(self._display_f_external) != njoints - 1:
                     self._display_f_external = None
 
-            # Display external forces on freeflyer by default
-            if robot.has_freeflyer and self._display_f_external is None:
-                self._display_f_external = [True] + [False] * (njoints - 2)
+            # Display external forces only on freeflyer by default
+            if self._display_f_external is None:
+                self._display_f_external = [
+                    robot.has_freeflyer] + [False] * (njoints - 2)
 
             self.display_external_forces(self._display_f_external)
 
