@@ -48,7 +48,7 @@ jobs:
         echo "/home/runner/.local/bin" >> $GITHUB_PATH
     - name: Installing requirements
       run: |
-        sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
+        sudo env "PATH=$PATH" "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
         "${PYTHON_EXECUTABLE}" -m pip install tensorflow
         "${PYTHON_EXECUTABLE}" -m pip install "torch==1.8.0+cpu" -f https://download.pytorch.org/whl/torch_stable.html
