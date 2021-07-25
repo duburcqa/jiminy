@@ -142,7 +142,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Note that reseting the seed also reset robot internal state.
         self.seed()
 
-        # Set robot in neutral configuration for rendering
+        # Set robot in neutral configuration
         qpos = self._neutral()
         framesForwardKinematics(
             self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
@@ -588,6 +588,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.start(
             qpos, qvel, None, self.simulator.use_theoretical_model)
 
+        # Update shared buffers
+        self._refresh_internal()
+
         # Initialize the observer.
         # Note that it is responsible of refreshing the environment's
         # observation before anything else, so no need to do it twice.
@@ -596,9 +599,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.system_state.q,
             self.system_state.v,
             self.sensors_data)
-
-        # Update shared buffers
-        self._refresh_internal()
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
@@ -683,6 +683,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             # Do a single step
             self.simulator.step(self.step_dt)
 
+            # Update shared buffers
+            self._refresh_internal()
+
             # Update the observer at the end of the step. Indeed, internally,
             # it is called at the beginning of the every integration steps,
             # during the controller update.
@@ -691,9 +694,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 self.system_state.q,
                 self.system_state.v,
                 self.sensors_data)
-
-            # Update shared buffers
-            self._refresh_internal()
 
             # Update some internal buffers
             is_step_failed = False
@@ -1000,6 +1000,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
 
+        # Set robot in neutral configuration
+        qpos = self._neutral()
+        framesForwardKinematics(
+            self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
+
     def _refresh_observation_space(self) -> None:
         """Configure the observation of the environment.
 
@@ -1085,8 +1090,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """Refresh internal buffers.
 
         .. note::
-            This method is called by `step` method, right after
-            `refresh_observation`, so it is the right place to update .
+            This method is called right after every internal `engine.step`, so
+            it is the right place to update shared data between `is_done` and
+            `compute_reward`. Be careful when using it to share data with
+            `refresh_observation`, but the later is called at `self.observe_dt`
+            update period, which the others are called at `self.step_dt` update
+            period. `self.observe_dt` is likely to different from `self.step`,
+            unless configured otherwise by overloading `_setup` method.
         """
 
     def refresh_observation(self) -> None:  # type: ignore[override]
@@ -1145,15 +1155,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """Determine whether the episode is over.
 
         By default, it returns True if the observation reaches or exceeds the
-        lower or upper limit.
+        lower or upper limit. It must be overloaded to implement a custom
+        termination condition for the simulation.
 
         .. note::
-            This method is called right after calling `refresh_observation`, so
-            that the internal buffer '_observation' is up-to-date. It can be
-            overloaded to implement a custom termination condition for the
-            simulation. Moreover, as it is called before `compute_reward`, it
-            can be used to update some share intermediary computations to avoid
-            redundant calculus and thus improve efficiency.
+            This method is called after `refresh_observation`, so that the
+            internal buffer '_observation' is up-to-date.
 
         :param args: Extra arguments that may be useful for derived
                      environments, for example `Gym.GoalEnv`.
