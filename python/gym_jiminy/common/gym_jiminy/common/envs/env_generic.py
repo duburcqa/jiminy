@@ -974,30 +974,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Call base implementation
         super()._setup()
 
-        # Get options
-        robot_options = self.robot.get_options()
+        # Configure the low-level integrator
         engine_options = self.simulator.engine.get_options()
-
-        # Disable part of the telemetry in non debug mode, to speed up the
-        # simulation. Only the required data for log replay are enabled. It is
-        # up to the user to overload this method if logging more data is
-        # necessary for computating the terminal reward.
-        for field in robot_options["telemetry"].keys():
-            robot_options["telemetry"][field] = self.debug
-        for field in engine_options["telemetry"].keys():
-            if field.startswith('enable'):
-                engine_options["telemetry"][field] = self.debug
-        engine_options['telemetry']['enableConfiguration'] = True
-        engine_options['telemetry']['enableVelocity'] = True
-
-        # Configure the stepper
         engine_options["stepper"]["iterMax"] = 0
         engine_options["stepper"]["timeout"] = 0.0
         engine_options["stepper"]["logInternalStepperSteps"] = False
         engine_options["stepper"]["randomSeed"] = self._seed
-
-        # Set options
-        self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
 
         # Set robot in neutral configuration

@@ -319,11 +319,16 @@ def play_trajectories(trajs_data: Union[
     if watermark_fullpath is not None:
         Viewer.set_watermark(watermark_fullpath)
 
+    # Make sure the time interval is valid
+    if time_interval[1] < time_interval[0]:
+        raise ValueError("Time interval must be non-empty and positive.")
+
     # Initialize robot configuration is viewer before any further processing
     for viewer_i, traj, offset in zip(viewers, trajs_data, xyz_offsets):
         data = traj['evolution_robot']
         if data:
-            i = bisect_right([s.t for s in data], time_interval[0])
+            i = bisect_right(
+                [s.t for s in data], time_interval[0], hi=len(data)-1)
             viewer_i.display(data[i].q, data[i].v, offset)
         if Viewer.backend.startswith('panda3d'):
             if display_com is not None:

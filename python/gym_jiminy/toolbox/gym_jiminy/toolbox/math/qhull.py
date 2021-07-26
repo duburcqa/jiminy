@@ -1,9 +1,60 @@
 """ TODO: Write documentation.
 """
 import numpy as np
+import numba as nb
 from scipy.spatial.qhull import _Qhull
 
 from .generic import squared_norm_2
+
+
+@nb.jit("float64[:](float64[:, :])")
+def _amin_last_axis(array: np.ndarray) -> np.ndarray:
+    res = np.empty(array.shape[0])
+    for i in range(array.shape[0]):
+        res[i] = np.min(array[i])
+    return res
+
+
+@nb.jit("boolean[:](boolean[:, :])")
+def _all_last_axis(array: np.ndarray) -> np.ndarray:
+    res = np.empty(array.shape[0], dtype=np.bool_)
+    for i in range(array.shape[0]):
+        res[i] = np.all(array[i])
+    return res
+
+
+@nb.jit
+def compute_distance_convex_to_point(points: np.ndarray,
+                                     vertex_indices: np.ndarray,
+                                     queries: np.ndarray) -> np.ndarray:
+    # Compute the equations of the edges
+    points_1 = points[np.roll(vertex_indices, 1)].T
+    points_0 = points[vertex_indices].T
+    vectors = points_1 - points_0
+    normals = np.stack((-vectors[1], vectors[0]), axis=0)
+    normals /= np.sqrt(np.sum(np.square(normals), axis=0))
+    offsets = - np.sum(normals * points_0, axis=0)
+    equations = np.concatenate((normals, np.expand_dims(offsets, 0)))
+
+    # Determine for each query point if it lies inside or outside
+    queries = np.ascontiguousarray(queries)
+    sign_dist = 1.0 - 2.0 * _all_last_axis(
+        queries @ equations[:-1] + equations[-1] < 0.0)
+
+    # Compute the distance from the convex hull, as the min distance
+    # from every segment of the convex hull.
+    ratio = np.sum(
+        (np.expand_dims(queries, -1) - points_0) * vectors, axis=1
+        ) / np.sum(np.square(vectors), axis=0)
+    ratio = np.minimum(np.maximum(ratio, 0.0), 1.0)
+    proj = np.expand_dims(ratio, 1) * vectors + points_0
+    dist = np.sqrt(_amin_last_axis(np.sum(np.square(
+        np.expand_dims(queries, -1) - proj), axis=1)))
+
+    # Compute the resulting signed distance (negative if inside)
+    signed_dist = sign_dist * dist
+
+    return signed_dist
 
 
 class ConvexHull:
@@ -30,6 +81,7 @@ class ConvexHull:
                                 furthest_site=False,
                                 incremental=False,
                                 interior_point=None)
+            self._vertex_indices = self._hull.get_extremes_2d()
         else:
             self._hull = None
 
@@ -48,7 +100,7 @@ class ConvexHull:
         """
         if self._center is None:
             if len(self._points) > 3:
-                vertices = self._points[self._hull.get_extremes_2d()]
+                vertices = self._points[self._vertex_indices]
             else:
                 vertices = self._points
             self._center = np.mean(vertices, axis=0)
@@ -71,11 +123,16 @@ class ConvexHull:
         :returns: 1D float vector of the same length than `queries`.
         """
         if len(self._points) > 2:
-            equations = self._hull.get_simplex_facet_array()[2].T
-            return np.max(queries @ equations[:-1] + equations[-1], axis=1)
+            # Compute the signed distance between query points and convex hull
+            return compute_distance_convex_to_point(
+                self._points, self._vertex_indices, queries)
+
         if len(self._points) == 2:
+            # Compute the distance between query points and segment
             vec = self._points[1] - self._points[0]
             ratio = (queries - self._points[0]) @ vec / squared_norm_2(vec)
             proj = self._points[0] + np.outer(np.clip(ratio, 0.0, 1.0), vec)
             return np.linalg.norm(queries - proj, 2, axis=1)
+
+        # Compute the distance between query points and point
         return np.linalg.norm(queries - self._points, 2, axis=1)
