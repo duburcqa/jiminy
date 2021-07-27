@@ -1645,8 +1645,7 @@ namespace jiminy
             }
 
             // Check if the flexible model and its proxies must be regenerated
-            configHolder_t & dynOptionsHolder =
-                boost::get<configHolder_t>(modelOptions.at("dynamics"));
+            configHolder_t & dynOptionsHolder = boost::get<configHolder_t>(modelOptions.at("dynamics"));
             bool_t const & enableFlexibleModel = boost::get<bool_t>(dynOptionsHolder.at("enableFlexibleModel"));
             flexibilityConfig_t const & flexibilityConfig =
                 boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
@@ -1663,19 +1662,34 @@ namespace jiminy
             {
                 isCurrentModelInvalid = true;
             }
+        }
 
-            // Check that the collisions options are valid
-            configHolder_t & collisionOptionsHolder =
-                boost::get<configHolder_t>(modelOptions.at("collisions"));
-            uint32_t const & maxContactPointsPerBody = boost::get<uint32_t>(collisionOptionsHolder.at("maxContactPointsPerBody"));
-            if (maxContactPointsPerBody < 1)
+        // Check that the collisions options are valid
+        configHolder_t & collisionOptionsHolder = boost::get<configHolder_t>(modelOptions.at("collisions"));
+        uint32_t const & maxContactPointsPerBody = boost::get<uint32_t>(collisionOptionsHolder.at("maxContactPointsPerBody"));
+        if (maxContactPointsPerBody < 1)
+        {
+            PRINT_ERROR("The number of contact points by collision pair 'maxContactPointsPerBody' must be at least 1.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        if (mdlOptions_ && maxContactPointsPerBody != mdlOptions_->collisions.maxContactPointsPerBody)
+        {
+            isCollisionDataInvalid = true;
+        }
+
+        // Check that the model randomization parameters are valid
+        configHolder_t & dynOptionsHolder = boost::get<configHolder_t>(modelOptions.at("dynamics"));
+        for (std::string const & field : std::vector<std::string>{
+                 "inertiaBodiesBiasStd",
+                 "massBodiesBiasStd",
+                 "centerOfMassPositionBodiesBiasStd",
+                 "relativePositionBodiesBiasStd"})
+        {
+            float64_t const & value = boost::get<float64_t>(dynOptionsHolder.at(field));
+            if (0.9 < value || value < 0.0)
             {
-                PRINT_ERROR("The number of contact points by collision pair 'maxContactPointsPerBody' must be at least 1.");
+                PRINT_ERROR("'" + field + "' must be positive, and lower than 0.9 to avoid physics issues.");
                 return hresult_t::ERROR_BAD_INPUT;
-            }
-            if (mdlOptions_ && maxContactPointsPerBody != mdlOptions_->collisions.maxContactPointsPerBody)
-            {
-                isCollisionDataInvalid = true;
             }
         }
 
