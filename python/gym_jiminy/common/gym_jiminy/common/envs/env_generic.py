@@ -703,12 +703,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Get clipped observation
         obs = clip(self.observation_space, self.get_observation())
 
+        # Reset the extra information buffer
+        self._info = {}
+
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
-        done = is_step_failed or (self.num_steps + 1 > self.max_steps) or \
-            not self.simulator.is_simulation_running or self.is_done()
-        self._info = {}
+        done = is_step_failed or not self.simulator.is_simulation_running or \
+            self.num_steps >= self.max_steps or self.is_done()
 
         # Check if stepping after done and if it is an undefined behavior
         if self._num_steps_beyond_done is None:
