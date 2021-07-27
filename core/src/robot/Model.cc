@@ -1103,7 +1103,7 @@ namespace jiminy
                 if (comBiasStd > EPS)
                 {
                     vector3_t & comRelativePositionBody = pncModel_.inertias[jointIdx].lever();
-                    comRelativePositionBody.array() *= randVectorNormal(3U, comBiasStd).array();
+                    comRelativePositionBody.array() *= 1.0 + randVectorNormal(3U, comBiasStd).array();
                 }
 
                 /* Add bias to body mass.
@@ -1132,7 +1132,7 @@ namespace jiminy
                     matrix3_t inertiaBodyAxes = solver.eigenvectors();
                     vector3_t const randAxis = randVectorNormal(3U, inertiaBiasStd);
                     inertiaBodyAxes = inertiaBodyAxes * quaternion_t(pinocchio::exp3(randAxis));
-                    inertiaBodyMoments.array() *= randVectorNormal(3U, inertiaBiasStd).array();
+                    inertiaBodyMoments.array() *= 1.0 + randVectorNormal(3U, inertiaBiasStd).array();
                     inertiaBody = pinocchio::Symmetric3((
                         inertiaBodyAxes * inertiaBodyMoments.asDiagonal() * inertiaBodyAxes.transpose()).eval());
                 }
@@ -1142,7 +1142,7 @@ namespace jiminy
                 if (relativeBodyPosBiasStd > EPS)
                 {
                     vector3_t & relativePositionBody = pncModel_.jointPlacements[jointIdx].translation();
-                    relativePositionBody.array() *= randVectorNormal(3U, relativeBodyPosBiasStd).array();
+                    relativePositionBody.array() *= 1.0 + randVectorNormal(3U, relativeBodyPosBiasStd).array();
                 }
             }
 
