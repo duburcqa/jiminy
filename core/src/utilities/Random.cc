@@ -174,7 +174,7 @@ namespace jiminy
     vectorN_t randVectorNormal(uint32_t  const & size,
                                float64_t const & std)
     {
-        return randVectorNormal(size, 0, std);
+        return randVectorNormal(size, 0.0, std);
     }
 
     vectorN_t randVectorNormal(vectorN_t const & mean,
