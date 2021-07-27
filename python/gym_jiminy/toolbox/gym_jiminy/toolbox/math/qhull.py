@@ -9,6 +9,8 @@ from .generic import squared_norm_2
 
 @nb.jit("float64[:](float64[:, :])")
 def _amin_last_axis(array: np.ndarray) -> np.ndarray:
+    """ TODO: Write documentation.
+    """
     res = np.empty(array.shape[0])
     for i in range(array.shape[0]):
         res[i] = np.min(array[i])
@@ -17,6 +19,8 @@ def _amin_last_axis(array: np.ndarray) -> np.ndarray:
 
 @nb.jit("boolean[:](boolean[:, :])")
 def _all_last_axis(array: np.ndarray) -> np.ndarray:
+    """ TODO: Write documentation.
+    """
     res = np.empty(array.shape[0], dtype=np.bool_)
     for i in range(array.shape[0]):
         res[i] = np.all(array[i])
@@ -27,6 +31,8 @@ def _all_last_axis(array: np.ndarray) -> np.ndarray:
 def compute_distance_convex_to_point(points: np.ndarray,
                                      vertex_indices: np.ndarray,
                                      queries: np.ndarray) -> np.ndarray:
+    """ TODO: Write documentation.
+    """
     # Compute the equations of the edges
     points_1 = points[np.roll(vertex_indices, 1)].T
     points_0 = points[vertex_indices].T
