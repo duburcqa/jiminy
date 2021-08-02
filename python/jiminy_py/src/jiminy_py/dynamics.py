@@ -170,7 +170,7 @@ def update_quantities(robot: jiminy.Model,
 
         if update_com:
             if velocity is None:
-                pin.centerOfMass(pnc_model, pnc_data, position, True)
+                pin.centerOfMass(pnc_model, pnc_data, position)
             elif acceleration is None:
                 pin.centerOfMass(pnc_model, pnc_data, position, velocity)
             else:

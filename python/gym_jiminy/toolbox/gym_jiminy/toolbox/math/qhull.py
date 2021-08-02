@@ -72,6 +72,8 @@ def compute_distance_convex_to_ray(
         query_origin: np.ndarray) -> np.ndarray:
     """ TODO: Write documentation.
     """
+    # pylint: disable=misplaced-comparison-constant
+
     # Compute the direction vectors of the edges
     points_1 = points[np.roll(vertex_indices, 1)]
     points_0 = points[vertex_indices]
@@ -81,14 +83,17 @@ def compute_distance_convex_to_ray(
     # with the oriented line.
     ratios = cross2d(query_origin - points_0, query_vector) / \
         cross2d(vectors, query_vector)
+
     if np.sum(np.logical_and(0.0 <= ratios, ratios < 1.0)) != 2:
         raise ValueError("Query point origin not lying inside convex hull.")
 
     for j, ratio in enumerate(ratios):
-        if 0.0 <= ratio and ratio < 1.0:
+        if 0.0 <= ratio < 1.0:
             proj = ratio * vectors[j] + points_0[j] - query_origin
             if proj.dot(query_vector) > 0.0:
                 return np.linalg.norm(proj)
+
+    return None  # This case cannot happens because for the explicit check
 
 
 class ConvexHull:
