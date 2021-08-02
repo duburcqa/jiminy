@@ -21,7 +21,8 @@ def sample(low: Union[float, np.ndarray] = -1.0,
            scale: Union[float, np.ndarray] = 1.0,
            enable_log_scale: bool = False,
            shape: Optional[Sequence[int]] = None,
-           rg: Optional[np.random.RandomState] = None
+           rg: Optional[Union[
+               np.random.Generator, np.random.RandomState]] = None
            ) -> Union[float, np.ndarray]:
     """Randomly sample values from a given distribution.
 
@@ -56,8 +57,8 @@ def sample(low: Union[float, np.ndarray] = -1.0,
             f"'{dist}' distribution type is not supported for now.")
 
     # Extract mean and deviation from min/max
-    mean = (low + high) / 2
-    dev = scale * (high - low) / 2
+    mean = 0.5 * (low + high)
+    dev = 0.5 * scale * (high - low)
 
     # Get sample shape.
     # Better use dev than mean since it works even if only scale is array.
@@ -67,8 +68,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
         else:
             try:
                 shape = list(shape)
-                np.broadcast(
-                    np.empty(shape, dtype=[]), np.empty(dev.shape, dtype=[]))
+                np.broadcast(np.empty(shape, dtype=[]), dev)
             except ValueError as e:
                 raise ValueError(
                     f"'shape' {shape} must be broadcastable with 'low', "
@@ -79,9 +79,10 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     if rg is None:
         rg = np.random
     distrib_fn = getattr(rg, dist)
-    val = distrib_fn(size=shape)
     if dist == 'uniform':
-        val = 2.0 * (val - 0.5)
+        val = distrib_fn(low=-1.0, high=1.0, size=shape)
+    else:
+        val = distrib_fn(size=shape)
 
     # Set mean and deviation
     val = mean + dev * val
@@ -209,7 +210,7 @@ def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     :param value: Value to clamp.
     """
     if isinstance(space, spaces.Box):
-        return np.core.multiarray.clip(value, space.low, space.high)
+        return np.minimum(np.maximum(value, space.low), space.high)
     if isinstance(space, spaces.Dict):
         out = OrderedDict()
         for field, subspace in dict.items(space.spaces):
