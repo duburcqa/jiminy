@@ -736,6 +736,7 @@ namespace jiminy
     void RandomPerlinProcess::initialize(void)
     {
         // Add desired perlin noise octaves
+        octaves_.clear();
         octaves_.reserve(numOctaves_);
         float64_t octaveWavelength = wavelength_;
         float64_t octaveScale = 1.0;
@@ -764,6 +765,7 @@ namespace jiminy
     void PeriodicPerlinProcess::initialize(void)
     {
         // Add desired perlin noise octaves
+        octaves_.clear();
         octaves_.reserve(numOctaves_);
         float64_t octaveWavelength = wavelength_;
         float64_t octaveScale = 1.0;
