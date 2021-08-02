@@ -54,6 +54,12 @@ def ppo_init(policy: Policy,
     policy._mean_spatial_caps_loss = 0.0
     policy._mean_global_caps_loss = 0.0
 
+    # Convert to torch.Tensor observation bounds
+    policy._observation_space_low = \
+        torch.from_numpy(policy.observation_space.low).to(dtype=torch.float32)
+    policy._observation_space_high = \
+        torch.from_numpy(policy.observation_space.high).to(dtype=torch.float32)
+
     # Convert to torch.Tensor observation sensitivity data
     observation_space = policy.observation_space.original_space
     for field, scale in observation_space.sensitivity.items():
@@ -120,6 +126,12 @@ def ppo_loss(policy: Policy,
             slice_idx = slice(offset, offset + len(scale))
             observation_noisy[..., slice_idx].addcmul_(scale, unit_noise)
             offset += len(scale)
+        torch.min(torch.max(
+            observation_noisy,
+            policy._observation_space_low.to(device),
+            out=observation_noisy),
+            policy._observation_space_high.to(device),
+            out=observation_noisy)
 
         # Replace current observation by the noisy one
         train_batch_copy["obs"] = observation_noisy

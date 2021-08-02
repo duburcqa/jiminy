@@ -2,6 +2,7 @@
 """
 import numpy as np
 import numba as nb
+from numba.np.extensions import cross2d
 from scipy.spatial.qhull import _Qhull
 
 from .generic import squared_norm_2
@@ -49,18 +50,45 @@ def compute_distance_convex_to_point(points: np.ndarray,
 
     # Compute the distance from the convex hull, as the min distance
     # from every segment of the convex hull.
-    ratio = np.sum(
+    ratios = np.sum(
         (np.expand_dims(queries, -1) - points_0) * vectors, axis=1
         ) / np.sum(np.square(vectors), axis=0)
-    ratio = np.minimum(np.maximum(ratio, 0.0), 1.0)
-    proj = np.expand_dims(ratio, 1) * vectors + points_0
+    ratios = np.minimum(np.maximum(ratios, 0.0), 1.0)
+    projs = np.expand_dims(ratios, 1) * vectors + points_0
     dist = np.sqrt(_amin_last_axis(np.sum(np.square(
-        np.expand_dims(queries, -1) - proj), axis=1)))
+        np.expand_dims(queries, -1) - projs), axis=1)))
 
     # Compute the resulting signed distance (negative if inside)
     signed_dist = sign_dist * dist
 
     return signed_dist
+
+
+@nb.jit
+def compute_distance_convex_to_ray(
+        points: np.ndarray,
+        vertex_indices: np.ndarray,
+        query_vector: np.ndarray,
+        query_origin: np.ndarray) -> np.ndarray:
+    """ TODO: Write documentation.
+    """
+    # Compute the direction vectors of the edges
+    points_1 = points[np.roll(vertex_indices, 1)]
+    points_0 = points[vertex_indices]
+    vectors = points_1 - points_0
+
+    # Compute the distance from the convex hull, as the only edge intersecting
+    # with the oriented line.
+    ratios = cross2d(query_origin - points_0, query_vector) / \
+        cross2d(vectors, query_vector)
+    if np.sum(np.logical_and(0.0 <= ratios, ratios < 1.0)) != 2:
+        raise ValueError("Query point origin not lying inside convex hull.")
+
+    for j, ratio in enumerate(ratios):
+        if 0.0 <= ratio and ratio < 1.0:
+            proj = ratio * vectors[j] + points_0[j] - query_origin
+            if proj.dot(query_vector) > 0.0:
+                return np.linalg.norm(proj)
 
 
 class ConvexHull:
@@ -112,7 +140,7 @@ class ConvexHull:
             self._center = np.mean(vertices, axis=0)
         return self._center
 
-    def get_distance(self, queries: np.ndarray) -> np.ndarray:
+    def get_distance_to_point(self, queries: np.ndarray) -> np.ndarray:
         """Compute the signed distance of query points from the convex hull.
 
         Positive distance corresponds to a query point lying outside the convex
@@ -123,6 +151,9 @@ class ConvexHull:
             handled separately. The distance from a point and a segment is used
             respectevely.
 
+        ..warning::
+            This method only supports 2D space for the non-degenerated case.
+
         :param queries: N-D query points for which to compute distance from the
                         convex hull, as a 2D array.
 
@@ -130,6 +161,8 @@ class ConvexHull:
         """
         if len(self._points) > 2:
             # Compute the signed distance between query points and convex hull
+            if self._points.shape[1] != 2:
+                raise NotImplementedError
             return compute_distance_convex_to_point(
                 self._points, self._vertex_indices, queries)
 
@@ -142,3 +175,29 @@ class ConvexHull:
 
         # Compute the distance between query points and point
         return np.linalg.norm(queries - self._points, 2, axis=1)
+
+    def get_distance_to_ray(self,
+                            query_vector: np.ndarray,
+                            query_origin: np.ndarray) -> np.ndarray:
+        """Compute the distance of single ray from the convex hull.
+
+        .. warning::
+            It is assumed that the query origins are lying inside the convex
+            hull.
+
+        ..warning::
+            This method only supports 2D space.
+
+        .. warning::
+            Degenerated convex hulls corresponding to len(points) == 1 or 2 are
+            not supported.
+
+        :param query_vector: Direction of the ray.
+        :param query_origin: Origin of the ray.
+        """
+        if len(self._points) < 3:
+            raise NotImplementedError
+        if self._points.shape[1] != 2:
+            raise NotImplementedError
+        return compute_distance_convex_to_ray(
+            self._points, self._vertex_indices, query_vector, query_origin)

@@ -393,7 +393,7 @@ def train(train_agent: Trainer,
           checkpoint_period: int = 0,
           record_video: bool = True,
           verbose: bool = True,
-          debug: bool = True) -> str:
+          debug: bool = False) -> str:
     """Train a model on a specific environment using a given agent.
 
     Note that the agent is associated with a given reinforcement learning
