@@ -11,7 +11,7 @@ from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List, Union
 import numpy as np
 import gym
 from gym import logger, spaces
-from gym.utils import seeding
+from gym.utils.seeding import create_seed, _int_list_from_bigint, hash_seed
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
@@ -23,7 +23,7 @@ from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 
-from pinocchio import neutral, normalize, framesForwardKinematics
+from pinocchio import neutral, framesForwardKinematics
 
 from ..utils import (zeros,
                      fill,
@@ -119,7 +119,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.sensors_data: jiminy.sensorsData = dict(self.robot.sensors_data)
 
         # Internal buffers for physics computations
-        self.rg = np.random.RandomState()
+        self.rg = np.random.Generator(np.random.Philox())
         self._seed: Optional[np.uint32] = None
         self.log_path: Optional[str] = None
         self.logfile_action_headers: Optional[FieldDictNested] = None
@@ -639,14 +639,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         :returns: Updated seed of the environment
         """
-        # Generate a 8 bytes (uint64) seed using gym utils
-        self.rg, self._seed = seeding.np_random(seed)
-
-        # Convert it into a 4 bytes uint32 seed.
+        # Generate a 8 bytes (uint64) seed using gym utils, then convert it
+        # into sequence of 4 bytes uint32 seeds. Backup only the first one.
         # Note that hashing is used to get rid off possible correlation in the
         # presence of concurrency.
-        self._seed = np.uint32(
-            seeding._int_list_from_bigint(seeding.hash_seed(self._seed))[0])
+        seed_ints = _int_list_from_bigint(hash_seed(create_seed(seed)))
+        self._seed = np.uint32(seed_ints[0])
+
+        # Instantiate a new random number generator based on the provided seed
+        self.rg = np.random.Generator(np.random.Philox(seed_ints))
 
         # Reset the seed of Jiminy Engine
         self.simulator.seed(self._seed)
@@ -1028,14 +1029,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         qpos = neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds
-        for i in range(len(qpos)):  # pylint: disable=consider-using-enumerate
-            lo = self.robot.position_limit_lower[i]
-            hi = self.robot.position_limit_upper[i]
-            if hi < qpos[i] or qpos[i] < lo:
-                qpos[i] = np.mean([lo, hi])
-
-        # Make sure the configuration is valid
-        qpos = normalize(self.robot.pinocchio_model, qpos)
+        position_limit_lower = self.robot.position_limit_lower
+        position_limit_upper = self.robot.position_limit_upper
+        for idx, val in enumerate(qpos):
+            lo, hi = position_limit_lower[idx], position_limit_upper[idx]
+            if hi < val or val < lo:
+                qpos[idx] = 0.5 * (lo + hi)
 
         # Return rigid/flexible configuration
         if self.simulator.use_theoretical_model:
