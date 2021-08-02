@@ -143,8 +143,6 @@ def initialize(num_cpus: int,
         if not is_cluster_running:
             # Start new Ray server, if not already running
             ray.init(
-                # Address of Ray cluster to connect to, if any
-                address=None,
                 # Number of CPUs assigned to each raylet
                 num_cpus=num_cpus,
                 # Number of GPUs assigned to each raylet
@@ -164,12 +162,9 @@ def initialize(num_cpus: int,
         else:
             # Connect to existing Ray cluster
             ray.init(
-                address="auto",
-                _lru_evict=False,
-                local_mode=debug,
-                logging_level=logging.DEBUG if debug else logging.ERROR,
-                log_to_driver=debug,
-                include_dashboard=False)
+                # Address of Ray cluster to connect to
+                address=redis_addresses,
+                _node_ip_address=next(iter(redis_addresses)).split(":", 1)[0])
 
     # Configure Tensorboard
     if launch_tensorboard:
