@@ -578,8 +578,8 @@ class Simulator:
         trajectories, update_hooks, extra_kwargs = [], [], {}
         for robot, log_data in zip(robots, logs_data):
             if log_data is not None:
-                traj, update_hook, _kwargs = extract_replay_data_from_log_data(
-                    robot, log_data)
+                traj, update_hook, _kwargs = \
+                    extract_replay_data_from_log_data(robot, log_data)
                 trajectories.append(traj)
                 update_hooks.append(update_hook)
                 extra_kwargs.update(_kwargs)
@@ -610,9 +610,10 @@ class Simulator:
             update_hooks,
             viewers=viewers,
             **{'verbose': True,
-                'backend': self.viewer_backend,
-                **extra_kwargs,
-                **kwargs})
+               'backend': self.viewer_backend,
+               **extra_kwargs,
+               'display_f_external': None,
+               **kwargs})
 
     def close(self) -> None:
         """Close the connection with the renderer.

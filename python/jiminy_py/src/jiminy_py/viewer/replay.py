@@ -319,11 +319,16 @@ def play_trajectories(trajs_data: Union[
     if watermark_fullpath is not None:
         Viewer.set_watermark(watermark_fullpath)
 
+    # Make sure the time interval is valid
+    if time_interval[1] < time_interval[0]:
+        raise ValueError("Time interval must be non-empty and positive.")
+
     # Initialize robot configuration is viewer before any further processing
     for viewer_i, traj, offset in zip(viewers, trajs_data, xyz_offsets):
         data = traj['evolution_robot']
         if data:
-            i = bisect_right([s.t for s in data], time_interval[0])
+            i = bisect_right(
+                [s.t for s in data], time_interval[0], hi=len(data)-1)
             viewer_i.display(data[i].q, data[i].v, offset)
         if Viewer.backend.startswith('panda3d'):
             if display_com is not None:
@@ -573,11 +578,12 @@ def extract_replay_data_from_log_data(
     if not robot.is_locked:
         update_hook = emulate_sensors_data_from_log(log_data, robot)
     else:
-        logger.warn(
-            "At least one of the robot is locked, which means that a "
-            "simulation using the robot is still running. It will be "
-            "impossible to display sensor data. Call `simulator.stop` to "
-            "unlock the robot before replaying logs data.")
+        if robot.sensors_names:
+            logger.warn(
+                "At least one of the robot is locked, which means that a "
+                "simulation using the robot is still running. It will be "
+                "impossible to display sensor data. Call `simulator.stop` to "
+                "unlock the robot before replaying logs data.")
         update_hook = None
 
     return trajectory, update_hook, replay_kwargs

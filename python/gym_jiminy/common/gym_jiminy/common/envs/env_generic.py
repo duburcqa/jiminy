@@ -11,7 +11,7 @@ from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List, Union
 import numpy as np
 import gym
 from gym import logger, spaces
-from gym.utils import seeding
+from gym.utils.seeding import create_seed, _int_list_from_bigint, hash_seed
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
@@ -23,7 +23,7 @@ from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 
-from pinocchio import neutral, normalize, framesForwardKinematics
+from pinocchio import neutral, framesForwardKinematics
 
 from ..utils import (zeros,
                      fill,
@@ -119,7 +119,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.sensors_data: jiminy.sensorsData = dict(self.robot.sensors_data)
 
         # Internal buffers for physics computations
-        self.rg = np.random.RandomState()
+        self.rg = np.random.Generator(np.random.Philox())
         self._seed: Optional[np.uint32] = None
         self.log_path: Optional[str] = None
         self.logfile_action_headers: Optional[FieldDictNested] = None
@@ -135,15 +135,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Number of simulation steps performed
         self.num_steps = -1
-        self.max_steps = int(
-            self.simulator.simulation_duration_max // self.step_dt)
+        self.max_steps = 0
         self._num_steps_beyond_done: Optional[int] = None
 
         # Initialize the seed of the environment.
         # Note that reseting the seed also reset robot internal state.
         self.seed()
 
-        # Set robot in neutral configuration for rendering
+        # Set robot in neutral configuration
         qpos = self._neutral()
         framesForwardKinematics(
             self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
@@ -553,6 +552,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.controller.set_controller_handle(
             controller_handle, unsafe=True)
 
+        # Configure the maximum number of steps
+        self.max_steps = int(
+            self.simulator.simulation_duration_max / self.step_dt)
+
         # Register the action to the telemetry
         if isinstance(self._action, np.ndarray) and (
                 self._action.size == self.robot.nmotors):
@@ -585,6 +588,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.start(
             qpos, qvel, None, self.simulator.use_theoretical_model)
 
+        # Update shared buffers
+        self._refresh_internal()
+
         # Initialize the observer.
         # Note that it is responsible of refreshing the environment's
         # observation before anything else, so no need to do it twice.
@@ -593,9 +599,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.system_state.q,
             self.system_state.v,
             self.sensors_data)
-
-        # Update shared buffers
-        self._refresh_internal()
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
@@ -636,14 +639,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         :returns: Updated seed of the environment
         """
-        # Generate a 8 bytes (uint64) seed using gym utils
-        self.rg, self._seed = seeding.np_random(seed)
-
-        # Convert it into a 4 bytes uint32 seed.
+        # Generate a 8 bytes (uint64) seed using gym utils, then convert it
+        # into sequence of 4 bytes uint32 seeds. Backup only the first one.
         # Note that hashing is used to get rid off possible correlation in the
         # presence of concurrency.
-        self._seed = np.uint32(
-            seeding._int_list_from_bigint(seeding.hash_seed(self._seed))[0])
+        seed_ints = _int_list_from_bigint(hash_seed(create_seed(seed)))
+        self._seed = np.uint32(seed_ints[0])
+
+        # Instantiate a new random number generator based on the provided seed
+        self.rg = np.random.Generator(np.random.Philox(seed_ints))
 
         # Reset the seed of Jiminy Engine
         self.simulator.seed(self._seed)
@@ -680,6 +684,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             # Do a single step
             self.simulator.step(self.step_dt)
 
+            # Update shared buffers
+            self._refresh_internal()
+
             # Update the observer at the end of the step. Indeed, internally,
             # it is called at the beginning of the every integration steps,
             # during the controller update.
@@ -689,9 +696,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 self.system_state.v,
                 self.sensors_data)
 
-            # Update shared buffers
-            self._refresh_internal()
-
             # Update some internal buffers
             is_step_failed = False
         except RuntimeError as e:
@@ -700,12 +704,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Get clipped observation
         obs = clip(self.observation_space, self.get_observation())
 
+        # Reset the extra information buffer
+        self._info = {}
+
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
-        done = is_step_failed or (self.num_steps + 1 > self.max_steps) or \
-            not self.is_simulation_running or self.is_done()
-        self._info = {}
+        done = is_step_failed or not self.simulator.is_simulation_running or \
+            self.num_steps >= self.max_steps or self.is_done()
 
         # Check if stepping after done and if it is an undefined behavior
         if self._num_steps_beyond_done is None:
@@ -833,12 +839,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             kwargs['mode'] = 'rgb_array'
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
-        # Stop any running simulation before replay if `is_done` is True.
-        # It will enable to display contact forces.
-        if self.simulator.is_simulation_running:
-            if self.is_done():
-                if not self.viewer or self.viewer._display_contacts:
-                    self.simulator.stop()
+        # Stop any running simulation before replay if `is_done` is True
+        if self.simulator.is_simulation_running and self.is_done():
+            self.simulator.stop()
 
         # Set default camera pose if viewer not already available
         if not self.simulator.is_viewer_available and self.robot.has_freeflyer:
@@ -974,31 +977,18 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Call base implementation
         super()._setup()
 
-        # Get options
-        robot_options = self.robot.get_options()
+        # Configure the low-level integrator
         engine_options = self.simulator.engine.get_options()
-
-        # Disable part of the telemetry in non debug mode, to speed up the
-        # simulation. Only the required data for log replay are enabled. It is
-        # up to the user to overload this method if logging more data is
-        # necessary for computating the terminal reward.
-        for field in robot_options["telemetry"].keys():
-            robot_options["telemetry"][field] = self.debug
-        for field in engine_options["telemetry"].keys():
-            if field.startswith('enable'):
-                engine_options["telemetry"][field] = self.debug
-        engine_options['telemetry']['enableConfiguration'] = True
-        engine_options['telemetry']['enableVelocity'] = True
-
-        # Configure the stepper
         engine_options["stepper"]["iterMax"] = 0
         engine_options["stepper"]["timeout"] = 0.0
         engine_options["stepper"]["logInternalStepperSteps"] = False
         engine_options["stepper"]["randomSeed"] = self._seed
-
-        # Set options
-        self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
+
+        # Set robot in neutral configuration
+        qpos = self._neutral()
+        framesForwardKinematics(
+            self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
 
     def _refresh_observation_space(self) -> None:
         """Configure the observation of the environment.
@@ -1039,14 +1029,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         qpos = neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds
-        for i in range(len(qpos)):  # pylint: disable=consider-using-enumerate
-            lo = self.robot.position_limit_lower[i]
-            hi = self.robot.position_limit_upper[i]
-            if hi < qpos[i] or qpos[i] < lo:
-                qpos[i] = np.mean([lo, hi])
-
-        # Make sure the configuration is valid
-        qpos = normalize(self.robot.pinocchio_model, qpos)
+        position_limit_lower = self.robot.position_limit_lower
+        position_limit_upper = self.robot.position_limit_upper
+        for idx, val in enumerate(qpos):
+            lo, hi = position_limit_lower[idx], position_limit_upper[idx]
+            if hi < val or val < lo:
+                qpos[idx] = 0.5 * (lo + hi)
 
         # Return rigid/flexible configuration
         if self.simulator.use_theoretical_model:
@@ -1085,8 +1073,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """Refresh internal buffers.
 
         .. note::
-            This method is called by `step` method, right after
-            `refresh_observation`, so it is the right place to update .
+            This method is called right after every internal `engine.step`, so
+            it is the right place to update shared data between `is_done` and
+            `compute_reward`. Be careful when using it to share data with
+            `refresh_observation`, but the later is called at `self.observe_dt`
+            update period, which the others are called at `self.step_dt` update
+            period. `self.observe_dt` is likely to different from `self.step`,
+            unless configured otherwise by overloading `_setup` method.
         """
 
     def refresh_observation(self) -> None:  # type: ignore[override]
@@ -1145,15 +1138,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """Determine whether the episode is over.
 
         By default, it returns True if the observation reaches or exceeds the
-        lower or upper limit.
+        lower or upper limit. It must be overloaded to implement a custom
+        termination condition for the simulation.
 
         .. note::
-            This method is called right after calling `refresh_observation`, so
-            that the internal buffer '_observation' is up-to-date. It can be
-            overloaded to implement a custom termination condition for the
-            simulation. Moreover, as it is called before `compute_reward`, it
-            can be used to update some share intermediary computations to avoid
-            redundant calculus and thus improve efficiency.
+            This method is called after `refresh_observation`, so that the
+            internal buffer '_observation' is up-to-date.
 
         :param args: Extra arguments that may be useful for derived
                      environments, for example `Gym.GoalEnv`.

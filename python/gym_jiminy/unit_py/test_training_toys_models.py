@@ -110,7 +110,7 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         """
         is_success = self._ppo_training(
             "gym_jiminy.envs:acrobot-v0", {'continuous': True},
-            {'learning_rate': 1.0e-4})
+            {'learning_rate': 2.0e-4})
         self.assertTrue(is_success)
         is_success = self._ppo_training(
             "gym_jiminy.envs:acrobot-v0", {'continuous': False},

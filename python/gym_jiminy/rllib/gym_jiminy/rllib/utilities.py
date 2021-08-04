@@ -143,8 +143,6 @@ def initialize(num_cpus: int,
         if not is_cluster_running:
             # Start new Ray server, if not already running
             ray.init(
-                # Address of Ray cluster to connect to, if any
-                address=None,
                 # Number of CPUs assigned to each raylet
                 num_cpus=num_cpus,
                 # Number of GPUs assigned to each raylet
@@ -164,12 +162,9 @@ def initialize(num_cpus: int,
         else:
             # Connect to existing Ray cluster
             ray.init(
-                address="auto",
-                _lru_evict=False,
-                local_mode=debug,
-                logging_level=logging.DEBUG if debug else logging.ERROR,
-                log_to_driver=debug,
-                include_dashboard=False)
+                # Address of Ray cluster to connect to
+                address=redis_addresses,
+                _node_ip_address=next(iter(redis_addresses)).split(":", 1)[0])
 
     # Configure Tensorboard
     if launch_tensorboard:
@@ -308,9 +303,12 @@ def build_policy_wrapper(policy: Policy,
     action_space = policy.action_space
 
     # Build preprocessor to flatten environment observation
-    preprocessor_class = get_preprocessor(observation_space.original_space)
-    preprocessor = preprocessor_class(observation_space.original_space)
-    obs_flat = preprocessor.observation_space.sample()
+    observation_space_orig = policy.observation_space
+    if hasattr(observation_space_orig, "original_space"):
+        observation_space_orig = observation_space.original_space
+    preprocessor_class = get_preprocessor(observation_space_orig)
+    preprocessor = preprocessor_class(observation_space_orig)
+    obs_flat = observation_space.sample()
 
     # Initialize frame stack
     input_dict = {
@@ -390,7 +388,7 @@ def train(train_agent: Trainer,
           checkpoint_period: int = 0,
           record_video: bool = True,
           verbose: bool = True,
-          debug: bool = True) -> str:
+          debug: bool = False) -> str:
     """Train a model on a specific environment using a given agent.
 
     Note that the agent is associated with a given reinforcement learning

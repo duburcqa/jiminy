@@ -29,7 +29,7 @@ endif()
 
 # Get Python version
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                        "import sys ; print(';'.join([str(x) for x in sys.version_info[:3]]), end='')"
+                        "import sys ; print(';'.join(map(str, sys.version_info[:3])), end='')"
                 OUTPUT_VARIABLE _VERSION)
 list(GET _VERSION 0 Python_VERSION_MAJOR)
 list(GET _VERSION 1 Python_VERSION_MINOR)
@@ -43,7 +43,7 @@ endif()
 
 # Get Python system and user site-packages
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                        "import sysconfig; print(sysconfig.get_paths()['purelib'], end='')"
+                        "import sysconfig; print(sysconfig.get_path('purelib'), end='')"
                 OUTPUT_VARIABLE Python_SYS_SITELIB)
 message(STATUS "Python system site-packages: ${Python_SYS_SITELIB}")
 execute_process(COMMAND "${Python_EXECUTABLE}" -m site --user-site

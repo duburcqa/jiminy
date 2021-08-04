@@ -174,7 +174,7 @@ namespace jiminy
     vectorN_t randVectorNormal(uint32_t  const & size,
                                float64_t const & std)
     {
-        return randVectorNormal(size, 0, std);
+        return randVectorNormal(size, 0.0, std);
     }
 
     vectorN_t randVectorNormal(vectorN_t const & mean,
@@ -736,6 +736,7 @@ namespace jiminy
     void RandomPerlinProcess::initialize(void)
     {
         // Add desired perlin noise octaves
+        octaves_.clear();
         octaves_.reserve(numOctaves_);
         float64_t octaveWavelength = wavelength_;
         float64_t octaveScale = 1.0;
@@ -764,6 +765,7 @@ namespace jiminy
     void PeriodicPerlinProcess::initialize(void)
     {
         // Add desired perlin noise octaves
+        octaves_.clear();
         octaves_.reserve(numOctaves_);
         float64_t octaveWavelength = wavelength_;
         float64_t octaveScale = 1.0;
