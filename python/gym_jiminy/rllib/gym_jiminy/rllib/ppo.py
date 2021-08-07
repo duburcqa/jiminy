@@ -285,7 +285,7 @@ def ppo_loss(policy: Policy,
     if policy.config["l2_reg"] > 0.0:
         # Add actor l2-regularization loss
         l2_reg_loss = 0.0
-        for name, params in model.policy_variables(as_dict=True).items():
+        for name, params in model.state_dict().items():
             if "bias" not in name:
                 l2_reg_loss += l2_loss(params)
         policy._l2_reg_loss = l2_reg_loss
