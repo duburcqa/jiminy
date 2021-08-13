@@ -321,6 +321,9 @@ class Simulator:
         """
         assert isinstance(seed, np.uint32), "'seed' must have type np.uint32."
 
+        # Make sure no simulation is running before setting the seed
+        self.engine.stop()
+
         # Set the seed through the engine instead of using
         # `jiminy.reset_random_generator` to keep track of the seed in options,
         # and thereby to log it in the telemetry as constant.
