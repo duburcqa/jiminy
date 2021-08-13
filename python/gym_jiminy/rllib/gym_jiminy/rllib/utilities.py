@@ -11,12 +11,14 @@ import pathlib
 import logging
 import inspect
 import tracemalloc
+from tempfile import mkstemp
 from datetime import datetime
 from collections import defaultdict
 from typing import Optional, Callable, Dict, Any, Tuple
 
 import gym
 import numpy as np
+import plotext as plt
 from tensorboard.program import TensorBoard
 
 import ray
@@ -32,6 +34,7 @@ from ray.rllib.utils.filter import NoFilter
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.models.preprocessors import get_preprocessor
 
+from jiminy_py.viewer import play_logs_files
 from gym_jiminy.common.utils import clip, SpaceDictNested
 
 try:
@@ -43,8 +46,11 @@ try:
 except ModuleNotFoundError:
     pass
 
+
 logger = logging.getLogger(__name__)
 
+
+HISTOGRAM_BINS = 20
 
 PRINT_RESULT_FIELDS_FILTER = [
     "training_iteration",
@@ -384,6 +390,7 @@ def build_policy_from_checkpoint(
 def train(train_agent: Trainer,
           max_timesteps: int = 0,
           max_iters: int = 0,
+          evaluation_num: int = 10,
           evaluation_period: int = 0,
           checkpoint_period: int = 0,
           record_video: bool = True,
@@ -404,6 +411,10 @@ def train(train_agent: Trainer,
                           Optional: Disabled by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
                       Optional: Disabled by default.
+    :param evaluation_num: How any evaluation to run. The log files of the best
+                           and worst performing trials will be exported, and
+                           some statistics will be reported if 'verbose' is
+                           enabled.
     :param evaluation_period: Run one simulation (with exploration) every given
                               number of training steps, and save the log file
                               and a video of the result in log folder if
@@ -413,7 +424,8 @@ def train(train_agent: Trainer,
                               steps in log folder if requested. 0 to disable.
                               Optional: Disabled by default.
     :param record_video: Whether or not to enable video recording during
-                         evaluation.
+                         evaluation. Video will be recorded for best and worst
+                         trials.
                          Optional: True by default.
     :param debug: Whether or not to monitor memory allocation for debugging
                   memory leaks.
@@ -501,15 +513,55 @@ def train(train_agent: Trainer,
 
             # Record video and log data of the result
             if evaluation_period > 0 and iter_num % evaluation_period == 0:
-                record_video_path = f"{train_agent.logdir}/iter_{iter_num}.mp4"
-                env, _ = test(train_agent,
-                              explore=True,
-                              enable_replay=record_video,
-                              viewer_kwargs={
-                                  "record_video_path": record_video_path,
-                                  "scene_name": f"iter_{iter_num}"
-                              })
-                env.write_log(f"{train_agent.logdir}/iter_{iter_num}.hdf5")
+                duration = []
+                total_rewards = []
+                log_files_tmp = []
+                test_env = train_agent.env_creator(
+                    train_agent.config["env_config"])
+                seed = train_agent.config["seed"] or 0
+                for i in range(evaluation_num):
+                    # Evaluate the policy once
+                    test(train_agent,
+                         explore=True,
+                         seed=seed+i,
+                         test_env=test_env,
+                         enable_stats=False,
+                         enable_replay=False)
+
+                    # Export temporary log file
+                    fd, log_path = mkstemp(prefix="log_", suffix=".hdf5")
+                    os.close(fd)
+                    test_env.write_log(log_path)
+
+                    # Monitor some statistics
+                    duration.append(test_env.num_steps * test_env.step_dt)
+                    total_rewards.append(test_env.total_reward)
+                    log_files_tmp.append(log_path)
+
+                # Backup log file of best trial
+                trial_best_idx = np.argmax(duration)
+                log_path = f"{train_agent.logdir}/iter_{iter_num}.hdf5"
+                os.rename(log_files_tmp[trial_best_idx], log_path)
+
+                # Record video of best trial if requested
+                if record_video:
+                    video_path = f"{train_agent.logdir}/iter_{iter_num}.mp4"
+                    play_logs_files(log_path,
+                                    record_video_path=video_path,
+                                    scene_name=f"iter_{iter_num}")
+
+                # Ascii histogram if requested
+                if verbose:
+                    plt.clp()
+                    plt.subplots(1, 2)
+                    for i, (title, data) in enumerate(zip(
+                            ("Episode duration", "Total reward"),
+                            (duration, total_rewards))):
+                        plt.subplot(1, i)
+                        plt.hist(data, HISTOGRAM_BINS)
+                        plt.plotsize(50, 20)
+                        plt.title(title)
+                    plt.show()
 
             # Backup the policy
             if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
@@ -678,7 +730,7 @@ def test(test_agent: Trainer,
 
     return evaluate(test_env,
                     policy,
-                    seed or test_env.config["seed"] or 0,
+                    seed or test_agent.config["seed"] or 0,
                     obs_filter_fn,
                     n_frames_stack=n_frames_stack,
                     clip_action=test_agent.config["clip_actions"],
