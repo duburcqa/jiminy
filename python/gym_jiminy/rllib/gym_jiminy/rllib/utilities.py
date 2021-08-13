@@ -536,6 +536,7 @@ def train(train_agent: Trainer,
 
 def evaluate(env: gym.Env,
              policy: Policy,
+             seed: int,
              obs_filter_fn: Optional[
                  Callable[[np.ndarray], np.ndarray]] = None,
              n_frames_stack: int = 1,
@@ -585,6 +586,10 @@ def evaluate(env: gym.Env,
     policy_forward = build_policy_wrapper(
         policy, obs_filter_fn, n_frames_stack, clip_action, explore)
 
+    # Reset the seed and make sure evaluation mode is enabled
+    env.seed(seed)
+    env.eval()
+
     # Initialize the simulation
     obs = env.reset()
     reward = None
@@ -620,6 +625,7 @@ def evaluate(env: gym.Env,
 
 def test(test_agent: Trainer,
          explore: bool = True,
+         seed: Optional[int] = None,
          n_frames_stack: int = 1,
          enable_stats: bool = True,
          enable_replay: bool = True,
@@ -672,6 +678,7 @@ def test(test_agent: Trainer,
 
     return evaluate(test_env,
                     policy,
+                    seed or test_env.config["seed"] or 0,
                     obs_filter_fn,
                     n_frames_stack=n_frames_stack,
                     clip_action=test_agent.config["clip_actions"],
