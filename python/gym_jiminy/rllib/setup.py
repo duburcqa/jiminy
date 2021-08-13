@@ -29,7 +29,7 @@ setup(
     packages=find_namespace_packages(),
     install_requires=[
         f"gym_jiminy~={version}",
-        "ray[default,rllib]<=1.4.1",
+        "ray[default,rllib]<=1.5.1",
         "plotext"
     ],
     zip_safe=False
