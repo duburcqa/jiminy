@@ -2162,6 +2162,9 @@ namespace jiminy
         // Log current buffer content as final point of the log data
         updateTelemetry();
 
+        // Clear log data buffer one last time, now that the final point has been added
+        logData_ = nullptr;
+
         /* Reset the telemetry.
            Note that calling ``stop` or  `reset` does NOT clear
            the internal data buffer of telemetryRecorder_.
