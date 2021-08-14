@@ -638,9 +638,13 @@ def evaluate(env: gym.Env,
     policy_forward = build_policy_wrapper(
         policy, obs_filter_fn, n_frames_stack, clip_action, explore)
 
-    # Reset the seed and make sure evaluation mode is enabled
+    # Make sure evaluation mode is enabled
+    is_training = env.is_training
+    if is_training:
+        env.eval()
+
+    # Reset the seed of the environment
     env.seed(seed)
-    env.eval()
 
     # Initialize the simulation
     obs = env.reset()
@@ -658,6 +662,10 @@ def evaluate(env: gym.Env,
                 break
     except KeyboardInterrupt:
         pass
+
+    # Restore training mode if it was enabled
+    if is_training:
+        env.train()
 
     # Display some statistic if requested
     if enable_stats:
