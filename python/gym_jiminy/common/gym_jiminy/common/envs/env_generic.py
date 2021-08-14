@@ -125,7 +125,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.logfile_action_headers: Optional[FieldDictNested] = None
 
         # Whether or not evaluation mode is active
-        self._is_training = False
+        self.is_training = True
 
         # Whether or not play interactive mode is active
         self._is_interactive = False
@@ -967,7 +967,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This mode is enabled by default.
         """
-        self._is_training = False
+        self.is_training = True
 
     def eval(self) -> None:
         """Sets the environment in evaluation mode.
@@ -977,7 +977,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         evaluation modes, if they are affected. It can be used to activate
         clipping or some filtering of the action specifical at evaluation time.
         """
-        self._is_training = False
+        self.is_training = False
 
     # methods to override:
     # ----------------------------
