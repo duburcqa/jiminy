@@ -115,9 +115,9 @@ def register_variables(controller: jiminy.AbstractController,
     # Fallback to looping over fields and data iterators
     is_success = True
     if isinstance(fields, dict):
-        fields = list(fields.values())
+        fields = fields.values()
     if isinstance(data, dict):
-        data = list(data.values())
+        data = data.values()
     for subfields, value in zip(fields, data):
         assert isinstance(subfields, (dict, list))
         is_success = register_variables(

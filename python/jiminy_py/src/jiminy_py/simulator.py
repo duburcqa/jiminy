@@ -580,7 +580,7 @@ class Simulator:
         # Extract trajectory data from pairs (robot, log)
         trajectories, update_hooks, extra_kwargs = [], [], {}
         for robot, log_data in zip(robots, logs_data):
-            if log_data is not None:
+            if log_data:
                 traj, update_hook, _kwargs = \
                     extract_replay_data_from_log_data(robot, log_data)
                 trajectories.append(traj)
@@ -590,7 +590,7 @@ class Simulator:
         update_hooks += [None for _ in extra_trajectories]
 
         # Make sure there is something to replay
-        if not logs_data:
+        if not trajectories:
             raise RuntimeError(
                 "Nothing to replay. Please run a simulation before calling "
                 "`replay` method, or provided data manually.")
@@ -602,10 +602,7 @@ class Simulator:
             **kwargs})
 
         # Define sequence of viewer instances
-        viewers = [
-            self.viewer,
-            *[None for _ in extra_logs_files],
-            *[None for _ in extra_trajectories]]
+        viewers = [self.viewer, *[None for _ in trajectories[:-1]]]
 
         # Replay the trajectories
         self._viewers = play_trajectories(

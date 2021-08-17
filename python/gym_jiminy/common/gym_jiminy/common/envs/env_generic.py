@@ -11,7 +11,7 @@ from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List, Union
 import numpy as np
 import gym
 from gym import logger, spaces
-from gym.utils.seeding import create_seed, _int_list_from_bigint, hash_seed
+from gym.utils.seeding import _int_list_from_bigint, hash_seed
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
@@ -646,16 +646,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # into sequence of 4 bytes uint32 seeds. Backup only the first one.
         # Note that hashing is used to get rid off possible correlation in the
         # presence of concurrency.
-        seed_ints = _int_list_from_bigint(hash_seed(create_seed(seed)))
-        self._seed = np.uint32(seed_ints[0])
+        seed = hash_seed(seed)
+        self._seed = list(map(np.uint32, _int_list_from_bigint(seed)))
 
         # Instantiate a new random number generator based on the provided seed
-        self.rg = np.random.Generator(np.random.Philox(seed_ints))
+        self.rg = np.random.Generator(np.random.Philox(self._seed))
 
         # Reset the seed of Jiminy Engine
-        self.simulator.seed(self._seed)
+        self.simulator.seed(self._seed[0])
 
-        return [self._seed]
+        return self._seed
 
     def close(self) -> None:
         """Terminate the Python Jiminy engine.
@@ -1003,7 +1003,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         engine_options["stepper"]["iterMax"] = 0
         engine_options["stepper"]["timeout"] = 0.0
         engine_options["stepper"]["logInternalStepperSteps"] = False
-        engine_options["stepper"]["randomSeed"] = self._seed
+        engine_options["stepper"]["randomSeed"] = self._seed[0]
         self.simulator.engine.set_options(engine_options)
 
         # Set robot in neutral configuration

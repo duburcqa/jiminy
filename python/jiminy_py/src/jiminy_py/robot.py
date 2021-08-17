@@ -166,7 +166,7 @@ def generate_hardware_description_file(
         root_link = next(iter(parent_links.difference(child_links)))
     else:
         root_link = None
-    leaf_links = list(child_links.difference(parent_links))
+    leaf_links = sorted(list(child_links.difference(parent_links)))
 
     # Parse the gazebo plugins, if any.
     # Note that it is only useful to extract "advanced" hardware, not basic
@@ -289,7 +289,7 @@ def generate_hardware_description_file(
 
     # Specify collision bodies and ground model in global config options
     hardware_info['Global']['collisionBodiesNames'] = \
-        list(collision_bodies_names)
+        sorted(list(collision_bodies_names))
     if gazebo_ground_stiffness is not None:
         hardware_info['Global']['groundStiffness'] = gazebo_ground_stiffness
     if gazebo_ground_damping is not None:
@@ -745,9 +745,16 @@ class BaseJiminyRobot(jiminy.Robot):
         # Note that it must be done before adding the sensors because
         # Contact sensors requires contact points to be defined.
         # Mesh collisions is not numerically stable for now, so disabling it.
+        # Note: Be careful, the order of the contact points is important, it
+        # changes the computation of the external forces, which is an iterative
+        # algorithm for impulse model, resulting in different simulation
+        # results. The order of the element of the set depends of the `hash`
+        # method of python, whose seed is randomly generated when starting the
+        # interpreter for security reason. As a result, the set must be sorted
+        # manually to ensure consistent results.
         self.add_collision_bodies(
             collision_bodies_names, ignore_meshes=avoid_instable_collisions)
-        self.add_contact_points(list(set(contact_frames_names)))
+        self.add_contact_points(sorted(list(set(contact_frames_names))))
 
         # Add the motors to the robot
         for motor_type, motors_descr in motors_info.items():
