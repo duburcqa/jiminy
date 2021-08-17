@@ -6,7 +6,7 @@ import os
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List, Union
+from typing import Optional, Tuple, Dict, Any, Callable, List, Union
 
 import numpy as np
 import gym
@@ -120,7 +120,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Internal buffers for physics computations
         self.rg = np.random.Generator(np.random.Philox())
-        self._seed: Optional[np.uint32] = None
+        self._seed: List[np.uint32] = []
         self.log_path: Optional[str] = None
         self.logfile_action_headers: Optional[FieldDictNested] = None
 
@@ -142,7 +142,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._num_steps_beyond_done: Optional[int] = None
 
         # Initialize the seed of the environment.
-        # Note that reseting the seed also reset robot internal state.
+        # Note that resetting the seed also reset robot internal state.
         self.seed()
 
         # Set robot in neutral configuration
@@ -629,7 +629,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return obs
 
-    def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
+    def seed(self, seed: Optional[int] = None) -> List[np.uint32]:
         """Specify the seed of the environment.
 
         .. warning::
@@ -1003,7 +1003,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         engine_options["stepper"]["iterMax"] = 0
         engine_options["stepper"]["timeout"] = 0.0
         engine_options["stepper"]["logInternalStepperSteps"] = False
-        engine_options["stepper"]["randomSeed"] = self._seed[0]
         self.simulator.engine.set_options(engine_options)
 
         # Set robot in neutral configuration
