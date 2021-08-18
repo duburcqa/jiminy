@@ -432,15 +432,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     command_limit[motor.joint_velocity_idx] = \
                         MOTOR_EFFORT_MAX
 
-        # Set the action space.
-        # Note that float32 is used instead of float64, because otherwise it
-        # would requires the neural network to perform float64 computations
-        # or cast the output for no really advantage since the action is
-        # directly forwarded to the motors, without intermediary computations.
+        # Set the action space
         action_scale = command_limit[self.robot.motors_velocity_idx]
-        self.action_space = spaces.Box(low=-action_scale.astype(np.float32),
-                                       high=action_scale.astype(np.float32),
-                                       dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=-action_scale, high=action_scale, dtype=np.float64)
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
@@ -569,14 +564,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             # Fallback: Get generic fieldnames otherwise
             self.logfile_action_headers = get_fieldnames(
                 self.action_space, "action")
-        is_success = register_variables(self.simulator.controller,
-                                        self.logfile_action_headers,
-                                        self._action)
-        if not is_success:
-            self.logfile_action_headers = None
-            logger.warn(
-                "Action must have dtype np.float64 to be registered to the "
-                "telemetry.")
+        register_variables(self.simulator.controller,
+                           self.logfile_action_headers,
+                           self._action)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()

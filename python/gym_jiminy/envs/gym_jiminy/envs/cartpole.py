@@ -214,7 +214,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # Compute the actual torque to apply
         if not self.continuous:
-            action = self.AVAIL_CTRL[action]
+            action = self.AVAIL_CTRL[round(action[()])]
 
         return action
 

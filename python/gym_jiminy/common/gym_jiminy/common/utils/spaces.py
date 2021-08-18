@@ -129,9 +129,10 @@ def zeros(space: gym.Space,
     if isinstance(space, spaces.Tuple):
         return tuple(zeros(subspace, dtype=dtype) for subspace in space.spaces)
     if isinstance(space, (spaces.Discrete, spaces.MultiDiscrete)):
-        return np.array(0)  # Using np.array of 0 dim to be mutable
+        # Note that np.array of 0 dim is returned in order to be mutable
+        return np.array(0, dtype=dtype or np.int64)
     if isinstance(space, spaces.MultiBinary):
-        return np.zeros(space.n, dtype=np.int8)
+        return np.zeros(space.n, dtype=dtype or np.int8)
     raise NotImplementedError(
         f"Space of type {type(space)} is not supported.")
 
