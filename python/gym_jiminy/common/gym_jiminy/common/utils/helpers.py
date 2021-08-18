@@ -1,6 +1,6 @@
 """ TODO: Write documentation.
 """
-from typing import Union, Dict, List
+from typing import Union, Dict, List, ValuesView
 
 import numpy as np
 import numba as nb
@@ -64,7 +64,8 @@ def get_fieldnames(space: spaces.Space,
 
 
 def register_variables(controller: jiminy.AbstractController,
-                       fields: FieldDictNested,
+                       fields: Union[
+                           ValuesView[FieldDictNested], FieldDictNested],
                        data: SpaceDictNested,
                        namespace: str = "") -> bool:
     """Register data from `Gym.Space` to the telemetry of a controller.
@@ -101,8 +102,8 @@ def register_variables(controller: jiminy.AbstractController,
     # Default case: data is already a numpy array. Can be registered directly.
     if isinstance(data, np.ndarray):
         if np.issubsctype(data, np.float64):
+            assert isinstance(fields, list)
             for i, field in enumerate(fields):
-                assert not isinstance(fields, dict)
                 if isinstance(fields[i], list):
                     fields[i] = [".".join(filter(None, (namespace, subfield)))
                                  for subfield in field]
@@ -115,10 +116,8 @@ def register_variables(controller: jiminy.AbstractController,
     # Fallback to looping over fields and data iterators
     is_success = True
     if isinstance(fields, dict):
-        fields = list(fields.values())
-    if isinstance(data, dict):
-        data = list(data.values())
-    for subfields, value in zip(fields, data):
+        fields = fields.values()
+    for subfields, value in zip(fields, data.values()):
         assert isinstance(subfields, (dict, list))
         is_success = register_variables(
             controller, subfields, value, namespace)

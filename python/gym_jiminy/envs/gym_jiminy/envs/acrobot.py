@@ -214,7 +214,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
 
         # Compute the actual torque to apply
         if not self.continuous:
-            action = self.AVAIL_CTRL[action]
+            action = self.AVAIL_CTRL[round(action[()])]
         if ACTION_NOISE > 0.0:
             action += sample(scale=ACTION_NOISE, rg=self.rg)
 

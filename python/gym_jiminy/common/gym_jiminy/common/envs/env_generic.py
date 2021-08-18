@@ -6,12 +6,12 @@ import os
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List, Union
+from typing import Optional, Tuple, Dict, Any, Callable, List, Union
 
 import numpy as np
 import gym
 from gym import logger, spaces
-from gym.utils.seeding import create_seed, _int_list_from_bigint, hash_seed
+from gym.utils.seeding import _int_list_from_bigint, hash_seed
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
@@ -120,9 +120,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Internal buffers for physics computations
         self.rg = np.random.Generator(np.random.Philox())
-        self._seed: Optional[np.uint32] = None
+        self._seed: List[np.uint32] = []
         self.log_path: Optional[str] = None
         self.logfile_action_headers: Optional[FieldDictNested] = None
+
+        # Whether or not evaluation mode is active
+        self.is_training = True
 
         # Whether or not play interactive mode is active
         self._is_interactive = False
@@ -139,7 +142,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._num_steps_beyond_done: Optional[int] = None
 
         # Initialize the seed of the environment.
-        # Note that reseting the seed also reset robot internal state.
+        # Note that resetting the seed also reset robot internal state.
         self.seed()
 
         # Set robot in neutral configuration
@@ -429,15 +432,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     command_limit[motor.joint_velocity_idx] = \
                         MOTOR_EFFORT_MAX
 
-        # Set the action space.
-        # Note that float32 is used instead of float64, because otherwise it
-        # would requires the neural network to perform float64 computations
-        # or cast the output for no really advantage since the action is
-        # directly forwarded to the motors, without intermediary computations.
+        # Set the action space
         action_scale = command_limit[self.robot.motors_velocity_idx]
-        self.action_space = spaces.Box(low=-action_scale.astype(np.float32),
-                                       high=action_scale.astype(np.float32),
-                                       dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=-action_scale, high=action_scale, dtype=np.float64)
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
@@ -566,14 +564,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             # Fallback: Get generic fieldnames otherwise
             self.logfile_action_headers = get_fieldnames(
                 self.action_space, "action")
-        is_success = register_variables(self.simulator.controller,
-                                        self.logfile_action_headers,
-                                        self._action)
-        if not is_success:
-            self.logfile_action_headers = None
-            logger.warn(
-                "Action must have dtype np.float64 to be registered to the "
-                "telemetry.")
+        register_variables(self.simulator.controller,
+                           self.logfile_action_headers,
+                           self._action)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -626,7 +619,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return obs
 
-    def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
+    def seed(self, seed: Optional[int] = None) -> List[np.uint32]:
         """Specify the seed of the environment.
 
         .. warning::
@@ -643,16 +636,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # into sequence of 4 bytes uint32 seeds. Backup only the first one.
         # Note that hashing is used to get rid off possible correlation in the
         # presence of concurrency.
-        seed_ints = _int_list_from_bigint(hash_seed(create_seed(seed)))
-        self._seed = np.uint32(seed_ints[0])
+        seed = hash_seed(seed)
+        self._seed = list(map(np.uint32, _int_list_from_bigint(seed)))
 
         # Instantiate a new random number generator based on the provided seed
-        self.rg = np.random.Generator(np.random.Philox(seed_ints))
+        self.rg = np.random.Generator(np.random.Philox(self._seed))
 
         # Reset the seed of Jiminy Engine
-        self.simulator.seed(self._seed)
+        self.simulator.seed(self._seed[0])
 
-        return [self._seed]
+        return self._seed
 
     def close(self) -> None:
         """Terminate the Python Jiminy engine.
@@ -958,6 +951,24 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Disable play interactive mode flag
         self._is_interactive = False
 
+    def train(self) -> None:
+        """Sets the environment in training mode.
+
+        .. note::
+            This mode is enabled by default.
+        """
+        self.is_training = True
+
+    def eval(self) -> None:
+        """Sets the environment in evaluation mode.
+
+        This has any effect only on certain environment. See documentations of
+        particular environment for details of their behaviors in training and
+        evaluation modes, if they are affected. It can be used to activate
+        clipping or some filtering of the action specifical at evaluation time.
+        """
+        self.is_training = False
+
     # methods to override:
     # ----------------------------
 
@@ -982,7 +993,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         engine_options["stepper"]["iterMax"] = 0
         engine_options["stepper"]["timeout"] = 0.0
         engine_options["stepper"]["logInternalStepperSteps"] = False
-        engine_options["stepper"]["randomSeed"] = self._seed
         self.simulator.engine.set_options(engine_options)
 
         # Set robot in neutral configuration

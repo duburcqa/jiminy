@@ -12,6 +12,7 @@ from ray.rllib.policy.policy import Policy
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.utils.typing import TensorType, TrainerConfigDict
+from ray.rllib.utils.torch_ops import l2_loss
 from ray.rllib.agents.ppo import DEFAULT_CONFIG, PPOTrainer
 from ray.rllib.agents.ppo.ppo_torch_policy import (
     ppo_surrogate_loss, kl_and_loss_stats, setup_mixins, PPOTorchPolicy)
@@ -23,7 +24,8 @@ DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
         "symmetric_policy_reg": 0.0,
         "caps_temporal_reg": 0.0,
         "caps_spatial_reg": 0.0,
-        "caps_global_reg": 0.0
+        "caps_global_reg": 0.0,
+        "l2_reg": 0.0
     },
     _allow_unknown_configs=True)
 
@@ -53,6 +55,7 @@ def ppo_init(policy: Policy,
     policy._mean_temporal_caps_loss = 0.0
     policy._mean_spatial_caps_loss = 0.0
     policy._mean_global_caps_loss = 0.0
+    policy._l2_reg_loss = 0.0
 
     # Convert to torch.Tensor observation bounds
     policy._observation_space_low = \
@@ -110,7 +113,8 @@ def ppo_loss(policy: Policy,
         # Append the training batches to the set
         train_batches["prev"] = train_batch_copy
 
-    if policy.config["caps_spatial_reg"] > 0.0:
+    if policy.config["caps_spatial_reg"] > 0.0 or \
+            policy.config["caps_global_reg"] > 0.0:
         # Shallow copy the original training batch
         train_batch_copy = train_batch.copy(shallow=True)
 
@@ -211,8 +215,8 @@ def ppo_loss(policy: Policy,
         action_dist = dist_class(action_logits, model)
         action_mean_true = action_dist.deterministic_sample()
 
+    # Compute the mean action corresponding to the previous observation
     if policy.config["caps_temporal_reg"] > 0.0:
-        # Compute the mean action corresponding to the previous observation
         action_logits_prev = logits["prev"]
         if issubclass(dist_class, TorchDiagGaussian):
             action_mean_prev, _ = torch.chunk(action_logits_prev, 2, dim=1)
@@ -220,6 +224,29 @@ def ppo_loss(policy: Policy,
             action_dist_prev = dist_class(action_logits_prev, model)
             action_mean_prev = action_dist_prev.deterministic_sample()
 
+    # Compute the mean action corresponding to the noisy observation
+    if policy.config["caps_spatial_reg"] > 0.0 or \
+            policy.config["caps_global_reg"] > 0.0:
+        action_logits_noisy = logits["noisy"]
+        if issubclass(dist_class, TorchDiagGaussian):
+            action_mean_noisy, _ = torch.chunk(action_logits_noisy, 2, dim=1)
+        else:
+            action_dist_noisy = dist_class(action_logits_noisy, model)
+            action_mean_noisy = action_dist_noisy.deterministic_sample()
+
+    # Compute the mirrored mean action corresponding to the mirrored action
+    if policy.config["symmetric_policy_reg"] > 0.0:
+        action_logits_mirror = logits["mirrored"]
+        if issubclass(dist_class, TorchDiagGaussian):
+            action_mean_mirror, _ = torch.chunk(action_logits_mirror, 2, dim=1)
+        else:
+            action_dist_mirror = dist_class(action_logits_mirror, model)
+            action_mean_mirror = action_dist_mirror.deterministic_sample()
+        action_mirror_mat = policy.action_space.mirror_mat.to(device)
+        policy.action_space.mirror_mat = action_mirror_mat
+        action_mean_mirror = action_mean_mirror @ action_mirror_mat
+
+    if policy.config["caps_temporal_reg"] > 0.0:
         # Minimize the difference between the successive action mean
         policy._mean_temporal_caps_loss = torch.mean(
             (action_mean_prev - action_mean_true) ** 2)
@@ -229,14 +256,6 @@ def ppo_loss(policy: Policy,
             policy._mean_temporal_caps_loss
 
     if policy.config["caps_spatial_reg"] > 0.0:
-        # Compute the mean action corresponding to the noisy observation
-        action_logits_noisy = logits["noisy"]
-        if issubclass(dist_class, TorchDiagGaussian):
-            action_mean_noisy, _ = torch.chunk(action_logits_noisy, 2, dim=1)
-        else:
-            action_dist_noisy = dist_class(action_logits_noisy, model)
-            action_mean_noisy = action_dist_noisy.deterministic_sample()
-
         # Minimize the difference between the original action mean and the
         # one corresponding to the noisy observation.
         policy._mean_spatial_caps_loss = torch.mean(
@@ -248,24 +267,13 @@ def ppo_loss(policy: Policy,
 
     if policy.config["caps_global_reg"] > 0.0:
         # Minimize the magnitude of action mean
-        policy._mean_global_caps_loss = torch.mean(action_mean_true ** 2)
+        policy._mean_global_caps_loss = torch.mean(action_mean_noisy ** 2)
 
         # Add global smoothness loss to total loss
         total_loss += policy.config["caps_global_reg"] * \
             policy._mean_global_caps_loss
 
     if policy.config["symmetric_policy_reg"] > 0.0:
-        # Compute the mirrored mean action corresponding to the mirrored action
-        action_logits_mirror = logits["mirrored"]
-        if issubclass(dist_class, TorchDiagGaussian):
-            action_mean_mirror, _ = torch.chunk(action_logits_mirror, 2, dim=1)
-        else:
-            action_dist_mirror = dist_class(action_logits_mirror, model)
-            action_mean_mirror = action_dist_mirror.deterministic_sample()
-        action_mirror_mat = policy.action_space.mirror_mat.to(device)
-        policy.action_space.mirror_mat = action_mirror_mat
-        action_mean_mirror = action_mean_mirror @ action_mirror_mat
-
         # Minimize the assymetry of policy output
         policy._mean_symmetric_policy_loss = torch.mean(
             (action_mean_mirror - action_mean_true) ** 2)
@@ -273,6 +281,17 @@ def ppo_loss(policy: Policy,
         # Add policy symmetry loss to total loss
         total_loss += policy.config["symmetric_policy_reg"] * \
             policy._mean_symmetric_policy_loss
+
+    if policy.config["l2_reg"] > 0.0:
+        # Add actor l2-regularization loss
+        l2_reg_loss = 0.0
+        for name, params in model.state_dict().items():
+            if "bias" not in name:
+                l2_reg_loss += l2_loss(params)
+        policy._l2_reg_loss = l2_reg_loss
+
+        # Add l2-regularization loss to total loss
+        total_loss += policy.config["l2_reg"] * policy._l2_reg_loss
 
     return total_loss
 
@@ -293,6 +312,8 @@ def ppo_stats(policy: Policy,
         stats_dict["spatial_smoothness"] = policy._mean_spatial_caps_loss
     if policy.config["caps_global_reg"] > 0.0:
         stats_dict["global_smoothness"] = policy._mean_global_caps_loss
+    if policy.config["l2_reg"] > 0.0:
+        stats_dict["l2_reg"] = policy._l2_reg_loss
 
     return stats_dict
 
