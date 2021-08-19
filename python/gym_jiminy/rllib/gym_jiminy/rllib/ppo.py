@@ -21,7 +21,7 @@ from ray.rllib.agents.ppo.ppo_torch_policy import (
 DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
     DEFAULT_CONFIG,
     {
-        "sensitivity_scale": 1.0,
+        "noise_scale": 1.0,
         "symmetric_policy_reg": 0.0,
         "caps_temporal_reg": 0.0,
         "caps_spatial_reg": 0.0,
@@ -69,9 +69,15 @@ def ppo_init(policy: Policy,
         raise NotImplementedError(
             "Only 'NoFilter' and 'MeanStdFilter' are supported.")
 
+    # Extract original observation space
+    try:
+        observation_space = policy.observation_space.original_space
+    except AttributeError:
+        raise NotImplementedError(
+            "Only 'Dict' original observation space is supported.")
+
     # Convert to torch.Tensor observation sensitivity data if necessary
     if not policy._is_obs_normalized:
-        observation_space = policy.observation_space.original_space
         for field, scale in observation_space.sensitivity.items():
             if not isinstance(scale, torch.Tensor):
                 scale = torch.from_numpy(scale).to(dtype=torch.float32)
@@ -294,10 +300,10 @@ def ppo_loss(policy: Policy,
 
     if policy.config["l2_reg"] > 0.0:
         # Add actor l2-regularization loss
-        l2_reg_loss = torch.tensor(0.0, requires_grad=True)
-        for name, params in model.state_dict().items():
-            if "bias" not in name:
-                l2_reg_loss = l2_reg_loss + l2_loss(params)
+        l2_reg_loss = 0.0
+        for name, params in model.named_parameters():
+            if not name.endswith("bias"):
+                l2_reg_loss += l2_loss(params)
         policy._l2_reg_loss = l2_reg_loss
 
         # Add l2-regularization loss to total loss
