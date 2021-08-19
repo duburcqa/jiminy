@@ -266,7 +266,10 @@ def ppo_loss(policy: Policy,
         # Minimize the difference between the original action mean and the
         # one corresponding to the noisy observation.
         policy._mean_spatial_caps_loss = torch.mean(
-            (action_mean_noisy - action_mean_true) ** 2)
+            torch.sum((
+                action_mean_noisy - action_mean_true) ** 2, dim=-1) /
+            torch.sum((
+                observation_noisy - observation_true) ** 2, dim=-1))
 
         # Add spatial smoothness loss to total loss
         total_loss += policy.config["caps_spatial_reg"] * \
