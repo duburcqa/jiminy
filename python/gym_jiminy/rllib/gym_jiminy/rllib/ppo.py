@@ -21,6 +21,7 @@ from ray.rllib.agents.ppo.ppo_torch_policy import (
 DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
     DEFAULT_CONFIG,
     {
+        "sensitivity_scale": 1.0,
         "symmetric_policy_reg": 0.0,
         "caps_temporal_reg": 0.0,
         "caps_spatial_reg": 0.0,
@@ -57,18 +58,24 @@ def ppo_init(policy: Policy,
     policy._mean_global_caps_loss = 0.0
     policy._l2_reg_loss = 0.0
 
-    # Convert to torch.Tensor observation bounds
-    policy._observation_space_low = \
-        torch.from_numpy(policy.observation_space.low).to(dtype=torch.float32)
-    policy._observation_space_high = \
-        torch.from_numpy(policy.observation_space.high).to(dtype=torch.float32)
+    # Check if the policy has observation filter. If so, disable element-wise
+    # observation sensitivity.
+    obs_filter = policy.config["observation_filter"]
+    if obs_filter == "NoFilter":
+        policy._is_obs_normalized = False
+    elif obs_filter == "MeanStdFilter":
+        policy._is_obs_normalized = True
+    else:
+        raise NotImplementedError(
+            "Only 'NoFilter' and 'MeanStdFilter' are supported.")
 
-    # Convert to torch.Tensor observation sensitivity data
-    observation_space = policy.observation_space.original_space
-    for field, scale in observation_space.sensitivity.items():
-        if not isinstance(scale, torch.Tensor):
-            scale = torch.from_numpy(scale).to(dtype=torch.float32)
-            observation_space.sensitivity[field] = scale
+    # Convert to torch.Tensor observation sensitivity data if necessary
+    if not policy._is_obs_normalized:
+        observation_space = policy.observation_space.original_space
+        for field, scale in observation_space.sensitivity.items():
+            if not isinstance(scale, torch.Tensor):
+                scale = torch.from_numpy(scale).to(dtype=torch.float32)
+                observation_space.sensitivity[field] = scale
 
     # Transpose and convert to torch.Tensor the observation mirroring data
     for field, mirror_mat in observation_space.mirror_mat.items():
@@ -119,23 +126,23 @@ def ppo_loss(policy: Policy,
         train_batch_copy = train_batch.copy(shallow=True)
 
         # Generate noisy observation based on specified sensivity
-        offset = 0
-        observation_noisy = observation_true.clone()
-        batch_dim = observation_true.shape[:-1]
-        observation_space = policy.observation_space.original_space
-        for field, scale in observation_space.sensitivity.items():
-            scale = scale.to(device)
-            observation_space.sensitivity[field] = scale
-            unit_noise = torch.randn((*batch_dim, len(scale)), device=device)
-            slice_idx = slice(offset, offset + len(scale))
-            observation_noisy[..., slice_idx].addcmul_(scale, unit_noise)
-            offset += len(scale)
-        torch.min(torch.max(
-            observation_noisy,
-            policy._observation_space_low.to(device),
-            out=observation_noisy),
-            policy._observation_space_high.to(device),
-            out=observation_noisy)
+        if policy._is_obs_normalized:
+            observation_noisy = torch.normal(
+                observation_true, policy.config["noise_scale"])
+        else:
+            offset = 0
+            observation_noisy = observation_true.clone()
+            batch_dim = observation_true.shape[:-1]
+            observation_space = policy.observation_space.original_space
+            for field, scale in observation_space.sensitivity.items():
+                scale = scale.to(device)
+                observation_space.sensitivity[field] = scale
+                unit_noise = torch.randn(
+                    (*batch_dim, len(scale)), device=device)
+                slice_idx = slice(offset, offset + len(scale))
+                observation_noisy[..., slice_idx].addcmul_(
+                    policy.config["noise_scale"] * scale, unit_noise)
+                offset += len(scale)
 
         # Replace current observation by the noisy one
         train_batch_copy["obs"] = observation_noisy
@@ -284,10 +291,10 @@ def ppo_loss(policy: Policy,
 
     if policy.config["l2_reg"] > 0.0:
         # Add actor l2-regularization loss
-        l2_reg_loss = 0.0
+        l2_reg_loss = torch.tensor(0.0, requires_grad=True)
         for name, params in model.state_dict().items():
             if "bias" not in name:
-                l2_reg_loss += l2_loss(params)
+                l2_reg_loss = l2_reg_loss + l2_loss(params)
         policy._l2_reg_loss = l2_reg_loss
 
         # Add l2-regularization loss to total loss
