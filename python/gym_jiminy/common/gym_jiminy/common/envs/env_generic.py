@@ -784,11 +784,17 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Call base implementation
         self.simulator.plot(**kwargs)
 
+        # Extract log data
+        log_data = self.simulator.log_data
+        if not log_data:
+            raise RuntimeError(
+                "Nothing to plot. Please run a simulation before calling "
+                "`plot` method.")
+
         # Extract action.
         # If telemetry action fieldnames is a dictionary, it cannot be nested.
         # In such a case, keys corresponds to subplots, and values are
         # individual scalar data over time to be displayed to the same subplot.
-        log_data = self.simulator.log_data
         t = log_data["Global.Time"]
         tab_data = {}
         if self.logfile_action_headers is None:
