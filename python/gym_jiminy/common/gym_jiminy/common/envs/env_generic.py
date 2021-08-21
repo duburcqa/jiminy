@@ -906,8 +906,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         assert isinstance(self, BaseJiminyEnv), (
             "Unwrapped environment must derived from `BaseJiminyEnv`.")
 
-        # Enable play interactive mode flag
+        # Enable play interactive flag and make sure training flag is disabled
+        is_training = self.is_training
         self._is_interactive = True
+        self.is_training = False
 
         # Make sure viewer gui is open, so that the viewer will shared external
         # forces with the robot automatically.
@@ -954,8 +956,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if self.simulator.is_simulation_running:
             self.simulator.stop()
 
-        # Disable play interactive mode flag
+        # Disable play interactive mode flag and restore training flag
         self._is_interactive = False
+        self.is_training = is_training
 
     def train(self) -> None:
         """Sets the environment in training mode.
