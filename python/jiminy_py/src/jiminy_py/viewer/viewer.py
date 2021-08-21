@@ -510,6 +510,7 @@ class Viewer:
             Viewer._backend_robot_colors.update({
                 self.robot_name: self.robot_color})
         except Exception as e:
+            self.close()
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
 
