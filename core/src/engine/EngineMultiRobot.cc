@@ -1171,9 +1171,9 @@ namespace jiminy
         {
             stepper_ = std::unique_ptr<AbstractStepper>(
                 new RungeKuttaDOPRIStepper(systemOde,
-                                            robots,
-                                            engineOptions_->stepper.tolAbs,
-                                            engineOptions_->stepper.tolRel));
+                                           robots,
+                                           engineOptions_->stepper.tolAbs,
+                                           engineOptions_->stepper.tolRel));
         }
         else if (engineOptions_->stepper.odeSolver == "runge_kutta_4")
         {
@@ -3378,7 +3378,7 @@ namespace jiminy
             vectorN_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
             vectorN_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
-            quaternion_t const quat(q.segment<4>(positionIdx).data());  // Only way to initialize with [x,y,z,w] order
+            quaternion_t const quat(q.segment<4>(positionIdx));  // Only way to initialize with [x,y,z,w] order
             vectorN_t const axis = pinocchio::quaternion::log3(quat);
             uInternal.segment<3>(velocityIdx).array() +=
                 - stiffness.array() * axis.array()
@@ -3756,7 +3756,7 @@ namespace jiminy
                                             i,
                                             pinocchio::LOCAL,
                                             jointJacobian);
-                uAugmented += jointJacobian.transpose() * fext[i].toVector();
+                uAugmented.noalias() += jointJacobian.transpose() * fext[i].toVector();
             }
 
             // Compute non-linear effects
@@ -3823,7 +3823,7 @@ namespace jiminy
                     // Convert the force from local world aligned to local frame
                     frameIndex_t const & frameIdx = frameConstraint.getFrameIdx();
                     pinocchio::SE3 const & transformContactInWorld = data.oMf[frameIdx];
-                    forceIt->linear() = transformContactInWorld.rotation().transpose() * fextWorld;
+                    forceIt->linear().noalias() = transformContactInWorld.rotation().transpose() * fextWorld;
 
                     // Convert the force from local world aligned to local parent joint
                     jointIndex_t const & jointIdx = model.frames[frameIdx].parent;
