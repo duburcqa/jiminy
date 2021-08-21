@@ -9,13 +9,18 @@ from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.models.torch.torch_action_dist import (
     TorchDistributionWrapper, TorchDiagGaussian)
 from ray.rllib.policy.policy import Policy
+from ray.rllib.policy.torch_policy import (
+    EntropyCoeffSchedule, LearningRateSchedule)
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.view_requirement import ViewRequirement
-from ray.rllib.utils.typing import TensorType, TrainerConfigDict
 from ray.rllib.utils.torch_ops import l2_loss
+from ray.rllib.utils.schedules import PiecewiseSchedule
+from ray.rllib.utils.typing import TensorType, TrainerConfigDict
+
 from ray.rllib.agents.ppo import DEFAULT_CONFIG, PPOTrainer
 from ray.rllib.agents.ppo.ppo_torch_policy import (
-    ppo_surrogate_loss, kl_and_loss_stats, setup_mixins, PPOTorchPolicy)
+    ppo_surrogate_loss, kl_and_loss_stats, setup_mixins, PPOTorchPolicy,
+    KLCoeffMixin, ValueNetworkMixin)
 
 
 DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
@@ -25,10 +30,35 @@ DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
         "symmetric_policy_reg": 0.0,
         "caps_temporal_reg": 0.0,
         "caps_spatial_reg": 0.0,
+        "caps_spatial_reg_schedule": None,
         "caps_global_reg": 0.0,
         "l2_reg": 0.0
     },
     _allow_unknown_configs=True)
+
+
+class RegularizationSchedules:
+    """Mixin for TFPolicy that adds regularization schedules.
+    """
+    def __init__(self,
+                 caps_spatial_reg,
+                 caps_spatial_reg_schedule,
+                 **kwargs):
+        self._spatial_reg_schedule = None
+        if caps_spatial_reg_schedule is None:
+            self._spatial_reg = caps_spatial_reg
+        else:
+            self._spatial_reg_schedule = PiecewiseSchedule(
+                caps_spatial_reg_schedule,
+                outside_value=caps_spatial_reg_schedule[-1][-1],
+                framework=None)
+            self._spatial_reg = self._spatial_reg_schedule.value(0)
+
+    def on_global_var_update(self, global_vars):
+        super().on_global_var_update(global_vars)
+        if self._spatial_reg_schedule:
+            self._spatial_reg = self._spatial_reg_schedule.value(
+                global_vars["timestep"])
 
 
 def ppo_init(policy: Policy,
@@ -39,6 +69,9 @@ def ppo_init(policy: Policy,
     """
     # Call base implementation
     setup_mixins(policy, obs_space, action_space, config)
+
+    # Initialize regulaization scheduling
+    RegularizationSchedules.__init__(policy, config)
 
     # Add previous observation in viewer requirements for CAPS loss computation
     # TODO: Remove update of `policy.model.view_requirements` after ray fix
@@ -126,8 +159,7 @@ def ppo_loss(policy: Policy,
         # Append the training batches to the set
         train_batches["prev"] = train_batch_copy
 
-    if policy.config["caps_spatial_reg"] > 0.0 or \
-            policy.config["caps_global_reg"] > 0.0:
+    if policy._spatial_reg > 0.0 or policy.config["caps_global_reg"] > 0.0:
         # Shallow copy the original training batch
         train_batch_copy = train_batch.copy(shallow=True)
 
@@ -238,8 +270,7 @@ def ppo_loss(policy: Policy,
             action_mean_prev = action_dist_prev.deterministic_sample()
 
     # Compute the mean action corresponding to the noisy observation
-    if policy.config["caps_spatial_reg"] > 0.0 or \
-            policy.config["caps_global_reg"] > 0.0:
+    if policy._spatial_reg > 0.0 or policy.config["caps_global_reg"] > 0.0:
         action_logits_noisy = logits["noisy"]
         if issubclass(dist_class, TorchDiagGaussian):
             action_mean_noisy, _ = torch.chunk(action_logits_noisy, 2, dim=1)
@@ -268,7 +299,7 @@ def ppo_loss(policy: Policy,
         total_loss += policy.config["caps_temporal_reg"] * \
             policy._mean_temporal_caps_loss
 
-    if policy.config["caps_spatial_reg"] > 0.0:
+    if policy._spatial_reg > 0.0:
         # Minimize the difference between the original action mean and the
         # one corresponding to the noisy observation.
         policy._mean_spatial_caps_loss = torch.mean(
@@ -278,8 +309,7 @@ def ppo_loss(policy: Policy,
                 observation_noisy - observation_true) ** 2, dim=-1))
 
         # Add spatial smoothness loss to total loss
-        total_loss += policy.config["caps_spatial_reg"] * \
-            policy._mean_spatial_caps_loss
+        total_loss += policy._spatial_reg * policy._mean_spatial_caps_loss
 
     if policy.config["caps_global_reg"] > 0.0:
         # Minimize the magnitude of action mean
@@ -324,7 +354,7 @@ def ppo_stats(policy: Policy,
         stats_dict["symmetry"] = policy._mean_symmetric_policy_loss
     if policy.config["caps_temporal_reg"] > 0.0:
         stats_dict["temporal_smoothness"] = policy._mean_temporal_caps_loss
-    if policy.config["caps_spatial_reg"] > 0.0:
+    if policy._spatial_reg > 0.0:
         stats_dict["spatial_smoothness"] = policy._mean_spatial_caps_loss
     if policy.config["caps_global_reg"] > 0.0:
         stats_dict["global_smoothness"] = policy._mean_global_caps_loss
@@ -353,7 +383,11 @@ def get_policy_class(
 
 PPOTrainer = PPOTrainer.with_updates(
     default_config=DEFAULT_CONFIG,
-    get_policy_class=get_policy_class
+    get_policy_class=get_policy_class,
+    mixins=[
+        LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
+        ValueNetworkMixin, RegularizationSchedules
+    ],
 )
 
 __all__ = [
