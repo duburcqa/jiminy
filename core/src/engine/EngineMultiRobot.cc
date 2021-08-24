@@ -2920,6 +2920,9 @@ namespace jiminy
                 {
                     constraint->reset(q, v);
                     constraint->enable();
+                    auto & frameConstraint = static_cast<FixedFrameConstraint &>(*constraint.get());
+                    vector3_t & positionRef = frameConstraint.getReferenceTransform().translation();
+                    positionRef.noalias() -= depth * nGround;
                 }
             }
         }
@@ -2996,11 +2999,15 @@ namespace jiminy
             }
             else
             {
-                // Enable fixed frame constraint and reset it if it was disable
+                // Enable fixed frame constraint and reset it if it was disable,
+                // then move the reference position at the surface of the ground.
                 if (!constraint->getIsEnabled())
                 {
                     constraint->reset(q, v);
                     constraint->enable();
+                    auto & frameConstraint = static_cast<FixedFrameConstraint &>(*constraint.get());
+                    vector3_t & positionRef = frameConstraint.getReferenceTransform().translation();
+                    positionRef.noalias() -= depth * nGround;
                 }
             }
         }
