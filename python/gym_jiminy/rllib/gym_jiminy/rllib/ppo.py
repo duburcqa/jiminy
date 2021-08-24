@@ -293,7 +293,7 @@ def ppo_loss(policy: Policy,
     if policy.config["caps_temporal_reg"] > 0.0:
         # Minimize the difference between the successive action mean
         policy._mean_temporal_caps_loss = torch.mean(
-            (action_mean_prev - action_mean_true) ** 2)
+            (action_mean_prev - action_mean_true).abs())
 
         # Add temporal smoothness loss to total loss
         total_loss += policy.config["caps_temporal_reg"] * \

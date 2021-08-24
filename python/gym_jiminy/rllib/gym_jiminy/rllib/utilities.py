@@ -309,7 +309,7 @@ def build_policy_wrapper(policy: Policy,
     action_space = policy.action_space
 
     # Build preprocessor to flatten environment observation
-    observation_space_orig = policy.observation_space
+    observation_space_orig = observation_space
     if hasattr(observation_space_orig, "original_space"):
         observation_space_orig = observation_space.original_space
     preprocessor_class = get_preprocessor(observation_space_orig)
