@@ -391,7 +391,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         if 'energy' in reward_mixture_keys:
             v_mot = self.robot.sensors_data[encoder.type][1]
             command = self.system_state.command
-            power_consumption = sum(np.maximum(command * v_mot, 0.0))
+            power_consumption = np.sum(np.maximum(command * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max
             reward_dict['energy'] = - power_consumption_rel
