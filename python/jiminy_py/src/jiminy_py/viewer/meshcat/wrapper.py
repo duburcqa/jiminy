@@ -21,15 +21,6 @@ from .server import start_meshcat_server
 from .recorder import MeshcatRecorder
 
 
-if interactive_mode() == 1:
-    # The IO message rate limit has already been increased to 1e6 on Google
-    # Colab, so no need to throw this warning.
-    logging.warning(
-        "You may experience some lags while replaying a simulation.\n"
-        "Consider increasing the IO message rate limit by adding the "
-        "extra argument '--NotebookApp.iopub_msg_rate_limit=100000' when "
-        "executing 'jupyter notebook'.")
-
 if interactive_mode():
     # Google colab is using an older version of ipykernel (4.10), which is
     # not compatible with >= 5.0. The new API is more flexible and enable
@@ -130,19 +121,19 @@ if interactive_mode():
                         msg['header']['msg_type'].startswith('comm_'):
                     # Comm message. Analyzing message content to determine if
                     # it is related to meshcat or not.
-                    if not msg['header']['msg_type'] == 'comm_close':
-                        content = self.__kernel.session.unpack(msg['content'])
-                        data = content['data']
-                    else:
+                    if msg['header']['msg_type'] == 'comm_close':
                         # All comm_close messages are processed because Google
                         # Colab API does not support sending data on close.
-                        data = "'meshcat:close"
+                        data = "meshcat:close"
+                    else:
+                        content = self.__kernel.session.unpack(msg['content'])
+                        data = content.get('data', '')
                     if isinstance(data, str) and data.startswith('meshcat:'):
                         # Comm message related to meshcat. Processing it right
                         # now and moving to the next message without puting it
                         # back into the queue.
                         tornado.gen.maybe_future(dispatch(*args))
-                    continue
+                        continue
 
                 # The message is not related to meshcat comm, so putting it
                 # back in the queue after lowering its priority so that it is
@@ -153,10 +144,10 @@ if interactive_mode():
                 # SHELL_PRIORITY by default.
                 self.__kernel.msg_queue.put_nowait(
                     (SHELL_PRIORITY + 1, t, dispatch, args))
-
-                # Ensure the eventloop wakes up
-                self.__kernel.io_loop.add_callback(lambda: None)
             self.qsize_old = self.__kernel.msg_queue.qsize()
+
+            # Ensure the eventloop wakes up
+            self.__kernel.io_loop.add_callback(lambda: None)
 
     process_kernel_comm = CommProcessor()
 
