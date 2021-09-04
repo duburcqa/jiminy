@@ -14,8 +14,7 @@ from PIL import Image
 from jiminy_py.core import EncoderSensor as encoder
 from jiminy_py.viewer import Viewer
 
-from gym_jiminy.envs import AtlasPDControlJiminyEnv
-from gym_jiminy.envs import CassiePDControlJiminyEnv
+from gym_jiminy.envs import AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv
 
 
 class PipelineControl(unittest.TestCase):

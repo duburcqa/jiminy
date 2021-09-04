@@ -869,6 +869,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def play_interactive(env: Union["BaseJiminyEnv", gym.Wrapper],
                          enable_travelling: Optional[bool] = None,
                          start_paused: bool = True,
+                         enable_is_done: bool = True,
                          verbose: bool = True,
                          **kwargs: Any) -> None:
         """Activate interact mode enabling to control the robot using keyboard.
@@ -935,11 +936,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
-            nonlocal obs, reward
+            nonlocal obs, reward, enable_is_done
             action = self._key_to_action(
                 key, obs, reward, **{"verbose": verbose, **kwargs})
             obs, reward, done, _ = env.step(action)
             env.render()
+            if not enable_is_done and env.robot.has_freeflyer:
+                return env.system_state.q[2] < 0.0
             return done
 
         # Run interactive loop
@@ -1106,6 +1109,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         .. note::
             This method is called and the end of every low-level `Engine.step`.
+
+        .. note::
+            Note that `np.nan` values will be automatically clipped to 0.0 by
+            `get_observation` method before return it, so it is valid.
 
         .. warning::
             In practice, it updates the internal buffer directly for the sake

@@ -309,7 +309,7 @@ def build_policy_wrapper(policy: Policy,
     action_space = policy.action_space
 
     # Build preprocessor to flatten environment observation
-    observation_space_orig = policy.observation_space
+    observation_space_orig = observation_space
     if hasattr(observation_space_orig, "original_space"):
         observation_space_orig = observation_space.original_space
     preprocessor_class = get_preprocessor(observation_space_orig)
@@ -552,16 +552,19 @@ def train(train_agent: Trainer,
 
                 # Ascii histogram if requested
                 if verbose:
-                    plt.clp()
-                    plt.subplots(1, 2)
-                    for i, (title, data) in enumerate(zip(
-                            ("Episode duration", "Total reward"),
-                            (duration, total_rewards))):
-                        plt.subplot(1, i)
-                        plt.hist(data, HISTOGRAM_BINS)
-                        plt.plotsize(50, 20)
-                        plt.title(title)
-                    plt.show()
+                    try:
+                        plt.clp()
+                        plt.subplots(1, 2)
+                        for i, (title, data) in enumerate(zip(
+                                ("Episode duration", "Total reward"),
+                                (duration, total_rewards))):
+                            plt.subplot(1, i)
+                            plt.hist(data, HISTOGRAM_BINS)
+                            plt.plotsize(50, 20)
+                            plt.title(title)
+                        plt.show()
+                    except IndexError as e:
+                        logger.warning(f"Rendering statistics failed: {e}")
 
             # Backup the policy
             if checkpoint_period > 0 and iter_num % checkpoint_period == 0:

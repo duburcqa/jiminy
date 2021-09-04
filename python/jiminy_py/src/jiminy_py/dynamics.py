@@ -70,8 +70,8 @@ def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
         However, it is not the case for the linear velocity.
 
     .. warning::
-        Linear velocity in XYZRPY must be local-world-aligned frame, while
-        returned linear velocity in XYZQuat is in local frame.
+        Linear velocity in XYZQuat must be local frame, while returned linear
+        velocity in XYZRPY is in local-world-aligned frame.
     """
     quat = pin.Quaternion(xyzquat[3:])
     rpy = matrixToRpy(quat.matrix())

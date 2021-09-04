@@ -9,18 +9,14 @@ from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.models.torch.torch_action_dist import (
     TorchDistributionWrapper, TorchDiagGaussian)
 from ray.rllib.policy.policy import Policy
-from ray.rllib.policy.torch_policy import (
-    EntropyCoeffSchedule, LearningRateSchedule)
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.utils.torch_ops import l2_loss
-from ray.rllib.utils.schedules import PiecewiseSchedule
 from ray.rllib.utils.typing import TensorType, TrainerConfigDict
 
 from ray.rllib.agents.ppo import DEFAULT_CONFIG, PPOTrainer
 from ray.rllib.agents.ppo.ppo_torch_policy import (
-    ppo_surrogate_loss, kl_and_loss_stats, setup_mixins, PPOTorchPolicy,
-    KLCoeffMixin, ValueNetworkMixin)
+    ppo_surrogate_loss, kl_and_loss_stats, setup_mixins, PPOTorchPolicy)
 
 
 DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
@@ -37,30 +33,6 @@ DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
     _allow_unknown_configs=True)
 
 
-class RegularizationSchedules:
-    """Mixin for TFPolicy that adds regularization schedules.
-    """
-    def __init__(self,
-                 caps_spatial_reg,
-                 caps_spatial_reg_schedule,
-                 **kwargs):
-        self._spatial_reg_schedule = None
-        if caps_spatial_reg_schedule is None:
-            self._spatial_reg = caps_spatial_reg
-        else:
-            self._spatial_reg_schedule = PiecewiseSchedule(
-                caps_spatial_reg_schedule,
-                outside_value=caps_spatial_reg_schedule[-1][-1],
-                framework=None)
-            self._spatial_reg = self._spatial_reg_schedule.value(0)
-
-    def on_global_var_update(self, global_vars):
-        super().on_global_var_update(global_vars)
-        if self._spatial_reg_schedule:
-            self._spatial_reg = self._spatial_reg_schedule.value(
-                global_vars["timestep"])
-
-
 def ppo_init(policy: Policy,
              obs_space: gym.spaces.Space,
              action_space: gym.spaces.Space,
@@ -69,9 +41,6 @@ def ppo_init(policy: Policy,
     """
     # Call base implementation
     setup_mixins(policy, obs_space, action_space, config)
-
-    # Initialize regulaization scheduling
-    RegularizationSchedules.__init__(policy, **config)
 
     # Add previous observation in viewer requirements for CAPS loss computation
     # TODO: Remove update of `policy.model.view_requirements` after ray fix
@@ -105,9 +74,9 @@ def ppo_init(policy: Policy,
     # Extract original observation space
     try:
         observation_space = policy.observation_space.original_space
-    except AttributeError:
+    except AttributeError as e:
         raise NotImplementedError(
-            "Only 'Dict' original observation space is supported.")
+            "Only 'Dict' original observation space is supported.") from e
 
     # Convert to torch.Tensor observation sensitivity data if necessary
     if not policy._is_obs_normalized:
@@ -293,7 +262,7 @@ def ppo_loss(policy: Policy,
     if policy.config["caps_temporal_reg"] > 0.0:
         # Minimize the difference between the successive action mean
         policy._mean_temporal_caps_loss = torch.mean(
-            (action_mean_prev - action_mean_true) ** 2)
+            (action_mean_prev - action_mean_true).abs())
 
         # Add temporal smoothness loss to total loss
         total_loss += policy.config["caps_temporal_reg"] * \
@@ -368,11 +337,7 @@ PPOTorchPolicy = PPOTorchPolicy.with_updates(
     before_loss_init=ppo_init,
     loss_fn=ppo_loss,
     stats_fn=ppo_stats,
-    get_default_config=lambda: DEFAULT_CONFIG,
-    mixins=[
-        LearningRateSchedule, RegularizationSchedules, EntropyCoeffSchedule,
-        KLCoeffMixin, ValueNetworkMixin,
-    ]
+    get_default_config=lambda: DEFAULT_CONFIG
 )
 
 
