@@ -72,20 +72,25 @@
             // Replace the mesh grid by a filled checkerboard, similar to
             // the one of Gepetto-gui. The paving size is 1m by 1m.
             var segments = 20;
-            var geometry = new MeshCat.THREE.PlaneGeometry(20, 20, segments, segments);
-            var materialEven = new MeshCat.THREE.MeshBasicMaterial(
-                {color: 0x222233, side: MeshCat.THREE.DoubleSide});
-            var materialOdd = new MeshCat.THREE.MeshBasicMaterial(
-                {color: 0xf2f2fe, side: MeshCat.THREE.DoubleSide});
-            var materials = [materialEven, materialOdd]
-            for (x of [...Array(segments).keys()]) {
-                for (y of [...Array(segments).keys()]) {
-                    i = x * segments + y;
-                    j = 2 * i;
-                    geometry.faces[j].materialIndex = geometry.faces[j + 1].materialIndex = (x + y) % 2;
+            var cmap = [new MeshCat.THREE.Color(0x222233), new MeshCat.THREE.Color(0xf2f2fe)];
+            var geometry = new MeshCat.THREE.PlaneBufferGeometry(
+                segments, segments, segments, segments).toNonIndexed();
+            var material = new MeshCat.THREE.MeshBasicMaterial(
+                {vertexColors: true, side: MeshCat.THREE.DoubleSide});
+            var colors = [];
+            for (var x of [...Array(segments).keys()]) {
+                for (var y of [...Array(segments).keys()]) {
+                    var color = cmap[(x + y) % 2];
+                    colors.push(color.r, color.g, color.b);
+                    colors.push(color.r, color.g, color.b);
+                    colors.push(color.r, color.g, color.b);
+                    colors.push(color.r, color.g, color.b);
+                    colors.push(color.r, color.g, color.b);
+                    colors.push(color.r, color.g, color.b);
                 }
             }
-            var checkerboard = new MeshCat.THREE.Mesh(geometry, materials);
+            geometry.setAttribute('color', new MeshCat.THREE.Float32BufferAttribute(colors, 3));
+            var checkerboard = new MeshCat.THREE.Mesh(geometry, material);
             viewer.scene_tree.find(["Grid"]).set_object(checkerboard)
 
             viewer.scene_tree.find(["Axes", "<object>"]).object.material.linewidth = 2.5
