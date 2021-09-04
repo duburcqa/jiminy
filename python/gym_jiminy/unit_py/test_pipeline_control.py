@@ -17,6 +17,9 @@ from jiminy_py.viewer import Viewer
 from gym_jiminy.envs import AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv
 
 
+IMAGE_DIFF_THRESHOLD = 0.3
+
+
 class PipelineControl(unittest.TestCase):
     """ TODO: Write documentation
     """
@@ -59,16 +62,16 @@ class PipelineControl(unittest.TestCase):
             rgb_array_abs_orig = (
                 rgba_array_rel_orig[..., :3] * 255).astype(np.uint8)
             img_diff = np.mean(np.abs(rgb_array - rgb_array_abs_orig))
-            if img_diff < 0.1:
+            if img_diff < IMAGE_DIFF_THRESHOLD:
                 break
-        if img_diff > 0.1:
+        if img_diff > IMAGE_DIFF_THRESHOLD:
             img_obj = Image.fromarray(rgb_array)
             raw_bytes = io.BytesIO()
             img_obj.save(raw_bytes, "PNG")
             raw_bytes.seek(0)
             print(f"{self.env.robot.name} - {self.env.viewer.backend}:",
                   base64.b64encode(raw_bytes.read()))
-        self.assertTrue(img_diff < 0.1)
+        self.assertTrue(img_diff < IMAGE_DIFF_THRESHOLD)
 
         # Get the simulation log
         log_data = self.env.log_data
