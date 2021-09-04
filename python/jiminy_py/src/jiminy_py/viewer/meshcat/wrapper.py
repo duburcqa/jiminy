@@ -181,6 +181,10 @@ class CommManager:
         self.n_comm = 0
         self.n_message = 0
 
+        self.__ioloop = None
+        self.__comm_socket = None
+        self.__comm_stream = None
+
         def forward_comm_thread():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -191,6 +195,10 @@ class CommManager:
             self.__comm_stream = ZMQStream(self.__comm_socket, self.__ioloop)
             self.__comm_stream.on_recv(self.__forward_to_ipython)
             self.__ioloop.start()
+            self.__ioloop.close()
+            self.__ioloop = None
+            self.__comm_socket = None
+            self.__comm_stream = None
 
         self.__thread = threading.Thread(target=forward_comm_thread)
         self.__thread.daemon = True
@@ -208,9 +216,11 @@ class CommManager:
         self.n_message = 0
         self.__kernel.comm_manager.unregister_target(
             'meshcat', self.__comm_register)
-        self.__thread._stop()
         self.__comm_stream.close(linger=5)
         self.__comm_socket.close(linger=5)
+        self.__ioloop.add_callback(lambda: self.__ioloop.stop())
+        self.__thread.join()
+        self.__thread = None
 
     def __forward_to_ipython(self, frames: Sequence[bytes]) -> None:
         comm_id, cmd = frames  # There must be always two parts each messages
@@ -438,7 +448,9 @@ class MeshcatWrapper:
     def capture_frame(self,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> str:
-        if not self.recorder.is_open:
+        if self.recorder.is_open:
+            self.wait(require_client=False)
+        else:
             self.recorder.open()
             self.wait(require_client=True)
         return self.recorder.capture_frame(width, height)
