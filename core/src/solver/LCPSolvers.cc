@@ -89,14 +89,38 @@ namespace jiminy
            https://github.com/dartsim/dart/blob/master/dart/constraint/PgsBoxedLcpSolver.cpp */
         assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
 
-        /* Reset shuffling counter.
+        /* Adapt shuffling indices if the number of indices has changed.
            Note that it may converge faster to enforce constraints in reverse order,
            since usually constraints bounds dependending on others have lower indices
            by design. For instance, for friction, x and y  */
-        indices_.resize(b.size());
-        std::generate(indices_.begin(), indices_.end(),
-                      [n = static_cast<int64_t>(indices_.size() - 1)]() mutable { return n--; });
-        lastShuffle_ = 0U;  // Do NOT shuffle indices right after initialization
+        size_t const nIndicesOrig = indices_.size();
+        size_t const nIndices = b.size();
+        if (nIndicesOrig < nIndices)
+        {
+            indices_.resize(nIndices);
+            std::generate(indices_.begin() + nIndicesOrig, indices_.end(),
+                          [n = static_cast<uint32_t>(nIndices - 1)]() mutable { return n--; });
+        }
+        else if (nIndicesOrig > nIndices)
+        {
+            size_t shiftIdx = nIndices;
+            for (size_t i = 0; i < nIndices; ++i)
+            {
+                if (static_cast<size_t>(indices_[i]) >= nIndices)
+                {
+                    for (size_t j = shiftIdx; j < nIndicesOrig; ++j)
+                    {
+                        ++shiftIdx;
+                        if (static_cast<size_t>(indices_[j]) < nIndices)
+                        {
+                            indices_[i] = indices_[j];
+                            break;
+                        }
+                    }
+                }
+            }
+            indices_.resize(nIndices);
+        }
 
         // Normalizing
         for (Eigen::Index i = 0; i < b.size(); ++i)
@@ -111,6 +135,8 @@ namespace jiminy
             bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, false, true, x);
             if (isSuccess)
             {
+                // Do NOT shuffle indices unless necessary to avoid discontinuities
+                lastShuffle_ = 0U;
                 return true;
             }
         }
