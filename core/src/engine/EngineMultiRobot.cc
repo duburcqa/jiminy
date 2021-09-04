@@ -3047,19 +3047,19 @@ namespace jiminy
             // Compute normal force
             float64_t const fextNormal = - std::min(contactOptions_.stiffness * depth +
                                                     contactOptions_.damping * vDepth, 0.0);
-            fextInWorld = fextNormal * nGround;
+            fextInWorld.noalias() = fextNormal * nGround;
 
             // Compute friction forces
             vector3_t const vTangential = vContactInWorld - vDepth * nGround;
             float64_t const vRatio = std::min(vTangential.norm() / contactOptions_.transitionVelocity, 1.0);
             float64_t const fextTangential = contactOptions_.friction * vRatio * fextNormal;
-            fextInWorld -= fextTangential * vTangential;
+            fextInWorld.noalias() -= fextTangential * vTangential;
 
             // Add blending factor
             if (contactOptions_.transitionEps > EPS)
             {
-                float64_t const blendingFactor = -depth / contactOptions_.transitionEps;
-                float64_t const blendingLaw = std::tanh(2 * blendingFactor);
+                float64_t const blendingFactor = - depth / contactOptions_.transitionEps;
+                float64_t const blendingLaw = std::tanh(2.0 * blendingFactor);
                 fextInWorld *= blendingLaw;
             }
         }
