@@ -298,6 +298,7 @@ class TabbedFigure:
             plot_method(ax, time, data)
             if self.tabs_data:
                 self.figure.delaxes(ax)
+            ax.grid()
             axes = [ax]
 
         # Get unique legend for every subplots
