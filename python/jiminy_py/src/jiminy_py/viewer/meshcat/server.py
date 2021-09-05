@@ -138,11 +138,11 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             if not self.websocket_pool and not self.comm_pool:
                 self.zmq_socket.send(b"")
             msg = umsgpack.packb({"type": "ready"})
+            self.is_waiting_ready_msg = True
             for websocket in self.websocket_pool:
                 websocket.write_message(msg, binary=True)
             for comm_id in self.comm_pool:
                 self.forward_to_comm(comm_id, msg)
-            self.is_waiting_ready_msg = True
         else:
             super().handle_zmq(frames)
 

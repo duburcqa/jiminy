@@ -7,7 +7,9 @@ import logging
 import pathlib
 import umsgpack
 import threading
+import tornado.gen
 import tornado.ioloop
+from pkg_resources import parse_version as version
 from contextlib import redirect_stdout, redirect_stderr
 from typing import Optional, Sequence, Dict, Any
 
@@ -33,15 +35,18 @@ if interactive_mode():
     # is tricky to do it properly, so instead every message is process
     # without distinction.
     import ipykernel
-    from pkg_resources import parse_version as version
-    if version(ipykernel.__version__) >= version("5.0"):
-        import tornado.gen
+    ipykernel_version_major = version(ipykernel.__version__).major
+    if ipykernel_version_major == 5:
         from ipykernel.kernelbase import SHELL_PRIORITY
+    elif ipykernel_version_major > 5:
+        logging.warning(
+            "ipykernel version 6.X.Y detected. The viewer works optimally "
+            "with ipykernel 5.X.Y. Revert to old version in case of issues.")
     else:
         logging.warning(
             "Old ipykernel version < 5.0 detected. Please do not schedule "
             "other cells for execution while the viewer is busy otherwise "
-            "it will be not executed properly.\nUpdate to a newer version "
+            "it will be not executed properly. Update to a newer version "
             "if possible to avoid such limitation.")
 
     class CommProcessor:
@@ -54,11 +59,10 @@ if interactive_mode():
         kernel state. This method only processes comm messages to avoid such
         side effects.
         """
-
         def __init__(self):
             from IPython import get_ipython
             self.__kernel = get_ipython().kernel
-            self.__old_api = version(ipykernel.__version__) < version("5.0")
+            self.__old_api = version(ipykernel.__version__).major < 5
             if self.__old_api:
                 logging.warning(
                     "Pre/post kernel handler hooks must be disable for the "
@@ -104,9 +108,9 @@ if interactive_mode():
 
             # One must go through all the messages to keep them in order
             for _ in range(qsize):
-                priority, t, dispatch, args = \
+                *priority, t, dispatch, args = \
                     self.__kernel.msg_queue.get_nowait()
-                if priority <= SHELL_PRIORITY:
+                if not priority or priority[0] <= SHELL_PRIORITY:
                     # New message: reading message without deserializing its
                     # content at this point for efficiency.
                     _, msg = self.__kernel.session.feed_identities(
@@ -136,14 +140,19 @@ if interactive_mode():
                         continue
 
                 # The message is not related to meshcat comm, so putting it
-                # back in the queue after lowering its priority so that it is
-                # send at the "end of the queue", ie just at the right place:
-                # after the next unchecked messages, after the other messages
-                # already put back in the queue, but before the next one to go
-                # the same way. Note that every shell messages have
-                # SHELL_PRIORITY by default.
-                self.__kernel.msg_queue.put_nowait(
-                    (SHELL_PRIORITY + 1, t, dispatch, args))
+                # back in the queue at the "end of the queue", ie just at the
+                # right place: after the next unchecked messages, after the
+                # other messages already put back in the queue, but before the
+                # next one to go the same way.
+                # Note that its priority is also lowered, so that the next time
+                # it can be directly forwarded without analyzing its content,
+                # since every shell messages have SHELL_PRIORITY by default.
+                # Note that ipykernel 6 removed priority feature.
+                if priority:
+                    self.__kernel.msg_queue.put_nowait(
+                        (SHELL_PRIORITY + 1, t, dispatch, args))
+                else:
+                    self.__kernel.msg_queue.put_nowait((t, dispatch, args))
             self.qsize_old = self.__kernel.msg_queue.qsize()
 
             # Ensure the eventloop wakes up
