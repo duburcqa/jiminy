@@ -55,7 +55,7 @@ setup(
         # Disable automatic forward compatibility with newer versions because
         # numba relies on llvmlite, for which wheels take some time before
         # being available on Pypi, making the whole installation process fail.
-        # Version >=0.53 is required to support Python 3.9.
+        # >=0.53 is required to support Python 3.9.
         "numba==0.53.1",
         # Standard interface library for reinforcement learning.
         # - 0.17.3 introduces iterable space dict

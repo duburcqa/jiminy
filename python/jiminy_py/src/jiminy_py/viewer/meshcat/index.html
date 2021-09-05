@@ -63,7 +63,8 @@
                     });
                 }
                 else {
-                    viewer.connect();
+                    var ws_url = undefined;
+                    viewer.connect(ws_url);
                 }
             } catch (e) {
                 console.info("Not connected to MeshCat server: ", e);
