@@ -4,7 +4,6 @@ import io
 import sys
 import time
 import math
-import urllib
 import shutil
 import base64
 import atexit
@@ -16,6 +15,8 @@ import webbrowser
 import multiprocessing
 import xml.etree.ElementTree as ET
 from copy import deepcopy
+from urllib.parse import urlparse
+from urllib.request import urlopen
 from functools import wraps, partial
 from bisect import bisect_right
 from threading import RLock
@@ -822,18 +823,23 @@ class Viewer:
 
                 # Scrap the viewer html content, including javascript
                 # dependencies
-                html_content = urllib.request.urlopen(
-                    viewer_url).read().decode()
+                html_content = urlopen(viewer_url).read().decode()
                 pattern = '<script type="text/javascript" src="%s"></script>'
                 scripts_js = re.findall(pattern % '(.*)', html_content)
                 for file in scripts_js:
                     file_path = os.path.join(viewer_url, file)
-                    js_content = urllib.request.urlopen(
-                        file_path).read().decode()
+                    js_content = urlopen(file_path).read().decode()
                     html_content = html_content.replace(pattern % file, f"""
                     <script type="text/javascript">
                     {js_content}
                     </script>""")
+
+                # Provide websocket URL as fallback if needed. It would be
+                # the case if the environment is not jupyter-notebook nor
+                # colab but rather japyterlab or vscode for instance.
+                web_url = f"ws://{urlparse(viewer_url).netloc}"
+                html_content = html_content.replace(
+                    "var ws_url = undefined;", f'var ws_url = "{web_url}";')
 
                 if interactive_mode() == 1:
                     # Embed HTML in iframe on Jupyter, since it is not
@@ -883,8 +889,9 @@ class Viewer:
             if Viewer.backend == 'meshcat':
                 comm_manager = Viewer._backend_obj.comm_manager
                 if comm_manager is not None:
-                    Viewer.wait(require_client=False)
-                    Viewer._has_gui = comm_manager.n_comm > 0
+                    ack = Viewer._backend_obj.wait(require_client=False)
+                    Viewer._has_gui = any([
+                        msg == "meshcat:ok" for msg in ack.split(",")])
             return Viewer._has_gui
         return False
 

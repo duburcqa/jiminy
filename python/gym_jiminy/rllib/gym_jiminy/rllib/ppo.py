@@ -26,7 +26,6 @@ DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
         "symmetric_policy_reg": 0.0,
         "caps_temporal_reg": 0.0,
         "caps_spatial_reg": 0.0,
-        "caps_spatial_reg_schedule": None,
         "caps_global_reg": 0.0,
         "l2_reg": 0.0
     },

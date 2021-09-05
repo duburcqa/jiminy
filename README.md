@@ -24,7 +24,7 @@ Beside a strong focus on performance to answer machine learning's need for runni
 - C++ core with full python bindings, providing frontend API parity between both languages.
 - Designed with machine learning in mind, with seemless wrapping of robots as [OpenAI Gym](https://github.com/openai/gym) environments using one-liners. Jiminy provides both the physical engine and the robot model (including sensors) required for learning.
 - Easy to install: `pip` is all that is needed to [get you started](#getting-started) !
-- Dedicated integration in jupyter notebook working out-of-the-box - including 3D rendering using [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnement such as machine learning clusters.
+- Dedicated integration in Google Colab, Jupyter Lab, and VSCode working out-of-the-box - including interactive 3D viewer based on [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnement such as machine learning clusters.
 - Cross-platform offscreen rendering capability, without requiring X-server, based on [Panda3d](https://github.com/panda3d/panda3d).
 - Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported in raw binary, CSV or [HDF5](https://portal.hdfgroup.org/display/HDF5/Introduction+to+HDF5) format.
 - Available for both Linux and Windows platforms.
