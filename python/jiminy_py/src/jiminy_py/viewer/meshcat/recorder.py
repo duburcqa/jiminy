@@ -68,7 +68,6 @@ async def launch(self) -> Browser:
     cmd = self.cmd + [
         "--enable-webgl",
         "--use-gl=egl",
-        "--disable-frame-rate-limit",
         "--disable-gpu-vsync",
         "--ignore-gpu-blacklist",
         "--ignore-certificate-errors",
@@ -77,9 +76,10 @@ async def launch(self) -> Browser:
         "--disable-setuid-sandbox",
         "--proxy-server='direct://'",
         "--proxy-bypass-list=*"]
+    if "--disable-gpu" in cmd:
+        cmd.remove("--disable-gpu")
 
     if not self.dumpio:
-        options['stdout'] = subprocess.DEVNULL
         options['stderr'] = subprocess.DEVNULL
     if sys.platform.startswith('win'):
         startupflags = subprocess.CREATE_NEW_PROCESS_GROUP

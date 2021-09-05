@@ -4,6 +4,7 @@ import io
 import sys
 import time
 import math
+import urllib
 import shutil
 import base64
 import atexit
@@ -478,8 +479,9 @@ class Viewer:
                         # no other display cell already opened. The user is
                         # probably expecting a display cell to open in such
                         # cases, but there is no fixed rule.
-                        open_gui_if_parent = interactive_mode() and \
-                            not Viewer._backend_obj.comm_manager.n_comm
+                        open_gui_if_parent = interactive_mode() and (
+                            Viewer._backend_obj is None or
+                            not Viewer._backend_obj.comm_manager.n_comm)
                     elif Viewer.backend.startswith('panda3d'):
                         open_gui_if_parent = not interactive_mode()
                     else:
@@ -804,7 +806,7 @@ class Viewer:
             Viewer.__connect_backend(start_if_needed)
 
         # If a graphical window is already open, do nothing
-        if Viewer._has_gui:
+        if Viewer.has_gui():
             return
 
         if Viewer.backend in ['gepetto-gui', 'panda3d-qt']:
@@ -816,7 +818,6 @@ class Viewer:
             viewer_url = Viewer._backend_obj.gui.url()
 
             if interactive_mode():
-                import urllib
                 from IPython.core.display import HTML, display
 
                 # Scrap the viewer html content, including javascript
@@ -878,6 +879,12 @@ class Viewer:
     @staticmethod
     def has_gui() -> bool:
         if Viewer.is_alive():
+            # Make sure the viewer still has gui if necessary
+            if Viewer.backend == 'meshcat':
+                comm_manager = Viewer._backend_obj.comm_manager
+                if comm_manager is not None:
+                    Viewer.wait(require_client=False)
+                    Viewer._has_gui = comm_manager.n_comm > 0
             return Viewer._has_gui
         return False
 
