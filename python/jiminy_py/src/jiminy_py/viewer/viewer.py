@@ -15,6 +15,8 @@ import webbrowser
 import multiprocessing
 import xml.etree.ElementTree as ET
 from copy import deepcopy
+from urllib.parse import urlparse
+from urllib.request import urlopen
 from functools import wraps, partial
 from bisect import bisect_right
 from threading import RLock
@@ -478,8 +480,9 @@ class Viewer:
                         # no other display cell already opened. The user is
                         # probably expecting a display cell to open in such
                         # cases, but there is no fixed rule.
-                        open_gui_if_parent = interactive_mode() and \
-                            not Viewer._backend_obj.comm_manager.n_comm
+                        open_gui_if_parent = interactive_mode() and (
+                            Viewer._backend_obj is None or
+                            not Viewer._backend_obj.comm_manager.n_comm)
                     elif Viewer.backend.startswith('panda3d'):
                         open_gui_if_parent = not interactive_mode()
                     else:
@@ -510,6 +513,7 @@ class Viewer:
             Viewer._backend_robot_colors.update({
                 self.robot_name: self.robot_color})
         except Exception as e:
+            self.close()
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
 
@@ -803,7 +807,7 @@ class Viewer:
             Viewer.__connect_backend(start_if_needed)
 
         # If a graphical window is already open, do nothing
-        if Viewer._has_gui:
+        if Viewer.has_gui():
             return
 
         if Viewer.backend in ['gepetto-gui', 'panda3d-qt']:
@@ -815,23 +819,27 @@ class Viewer:
             viewer_url = Viewer._backend_obj.gui.url()
 
             if interactive_mode():
-                import urllib
                 from IPython.core.display import HTML, display
 
                 # Scrap the viewer html content, including javascript
                 # dependencies
-                html_content = urllib.request.urlopen(
-                    viewer_url).read().decode()
+                html_content = urlopen(viewer_url).read().decode()
                 pattern = '<script type="text/javascript" src="%s"></script>'
                 scripts_js = re.findall(pattern % '(.*)', html_content)
                 for file in scripts_js:
                     file_path = os.path.join(viewer_url, file)
-                    js_content = urllib.request.urlopen(
-                        file_path).read().decode()
+                    js_content = urlopen(file_path).read().decode()
                     html_content = html_content.replace(pattern % file, f"""
                     <script type="text/javascript">
                     {js_content}
                     </script>""")
+
+                # Provide websocket URL as fallback if needed. It would be
+                # the case if the environment is not jupyter-notebook nor
+                # colab but rather japyterlab or vscode for instance.
+                web_url = f"ws://{urlparse(viewer_url).netloc}"
+                html_content = html_content.replace(
+                    "var ws_url = undefined;", f'var ws_url = "{web_url}";')
 
                 if interactive_mode() == 1:
                     # Embed HTML in iframe on Jupyter, since it is not
@@ -877,6 +885,13 @@ class Viewer:
     @staticmethod
     def has_gui() -> bool:
         if Viewer.is_alive():
+            # Make sure the viewer still has gui if necessary
+            if Viewer.backend == 'meshcat':
+                comm_manager = Viewer._backend_obj.comm_manager
+                if comm_manager is not None:
+                    ack = Viewer._backend_obj.wait(require_client=False)
+                    Viewer._has_gui = any([
+                        msg == "meshcat:ok" for msg in ack.split(",")])
             return Viewer._has_gui
         return False
 

@@ -11,8 +11,9 @@ from ray.rllib.models.torch.torch_action_dist import (
 from ray.rllib.policy.policy import Policy
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.view_requirement import ViewRequirement
-from ray.rllib.utils.typing import TensorType, TrainerConfigDict
 from ray.rllib.utils.torch_ops import l2_loss
+from ray.rllib.utils.typing import TensorType, TrainerConfigDict
+
 from ray.rllib.agents.ppo import DEFAULT_CONFIG, PPOTrainer
 from ray.rllib.agents.ppo.ppo_torch_policy import (
     ppo_surrogate_loss, kl_and_loss_stats, setup_mixins, PPOTorchPolicy)
@@ -21,6 +22,7 @@ from ray.rllib.agents.ppo.ppo_torch_policy import (
 DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
     DEFAULT_CONFIG,
     {
+        "noise_scale": 1.0,
         "symmetric_policy_reg": 0.0,
         "caps_temporal_reg": 0.0,
         "caps_spatial_reg": 0.0,
@@ -57,18 +59,30 @@ def ppo_init(policy: Policy,
     policy._mean_global_caps_loss = 0.0
     policy._l2_reg_loss = 0.0
 
-    # Convert to torch.Tensor observation bounds
-    policy._observation_space_low = \
-        torch.from_numpy(policy.observation_space.low).to(dtype=torch.float32)
-    policy._observation_space_high = \
-        torch.from_numpy(policy.observation_space.high).to(dtype=torch.float32)
+    # Check if the policy has observation filter. If so, disable element-wise
+    # observation sensitivity.
+    obs_filter = policy.config["observation_filter"]
+    if obs_filter == "NoFilter":
+        policy._is_obs_normalized = False
+    elif obs_filter == "MeanStdFilter":
+        policy._is_obs_normalized = True
+    else:
+        raise NotImplementedError(
+            "Only 'NoFilter' and 'MeanStdFilter' are supported.")
 
-    # Convert to torch.Tensor observation sensitivity data
-    observation_space = policy.observation_space.original_space
-    for field, scale in observation_space.sensitivity.items():
-        if not isinstance(scale, torch.Tensor):
-            scale = torch.from_numpy(scale).to(dtype=torch.float32)
-            observation_space.sensitivity[field] = scale
+    # Extract original observation space
+    try:
+        observation_space = policy.observation_space.original_space
+    except AttributeError as e:
+        raise NotImplementedError(
+            "Only 'Dict' original observation space is supported.") from e
+
+    # Convert to torch.Tensor observation sensitivity data if necessary
+    if not policy._is_obs_normalized:
+        for field, scale in observation_space.sensitivity.items():
+            if not isinstance(scale, torch.Tensor):
+                scale = torch.from_numpy(scale).to(dtype=torch.float32)
+                observation_space.sensitivity[field] = scale
 
     # Transpose and convert to torch.Tensor the observation mirroring data
     for field, mirror_mat in observation_space.mirror_mat.items():
@@ -113,29 +127,28 @@ def ppo_loss(policy: Policy,
         # Append the training batches to the set
         train_batches["prev"] = train_batch_copy
 
-    if policy.config["caps_spatial_reg"] > 0.0 or \
-            policy.config["caps_global_reg"] > 0.0:
+    if policy._spatial_reg > 0.0 or policy.config["caps_global_reg"] > 0.0:
         # Shallow copy the original training batch
         train_batch_copy = train_batch.copy(shallow=True)
 
         # Generate noisy observation based on specified sensivity
-        offset = 0
-        observation_noisy = observation_true.clone()
-        batch_dim = observation_true.shape[:-1]
-        observation_space = policy.observation_space.original_space
-        for field, scale in observation_space.sensitivity.items():
-            scale = scale.to(device)
-            observation_space.sensitivity[field] = scale
-            unit_noise = torch.randn((*batch_dim, len(scale)), device=device)
-            slice_idx = slice(offset, offset + len(scale))
-            observation_noisy[..., slice_idx].addcmul_(scale, unit_noise)
-            offset += len(scale)
-        torch.min(torch.max(
-            observation_noisy,
-            policy._observation_space_low.to(device),
-            out=observation_noisy),
-            policy._observation_space_high.to(device),
-            out=observation_noisy)
+        if policy._is_obs_normalized:
+            observation_noisy = torch.normal(
+                observation_true, policy.config["noise_scale"])
+        else:
+            offset = 0
+            observation_noisy = observation_true.clone()
+            batch_dim = observation_true.shape[:-1]
+            observation_space = policy.observation_space.original_space
+            for field, scale in observation_space.sensitivity.items():
+                scale = scale.to(device)
+                observation_space.sensitivity[field] = scale
+                unit_noise = torch.randn(
+                    (*batch_dim, len(scale)), device=device)
+                slice_idx = slice(offset, offset + len(scale))
+                observation_noisy[..., slice_idx].addcmul_(
+                    policy.config["noise_scale"] * scale, unit_noise)
+                offset += len(scale)
 
         # Replace current observation by the noisy one
         train_batch_copy["obs"] = observation_noisy
@@ -225,8 +238,7 @@ def ppo_loss(policy: Policy,
             action_mean_prev = action_dist_prev.deterministic_sample()
 
     # Compute the mean action corresponding to the noisy observation
-    if policy.config["caps_spatial_reg"] > 0.0 or \
-            policy.config["caps_global_reg"] > 0.0:
+    if policy._spatial_reg > 0.0 or policy.config["caps_global_reg"] > 0.0:
         action_logits_noisy = logits["noisy"]
         if issubclass(dist_class, TorchDiagGaussian):
             action_mean_noisy, _ = torch.chunk(action_logits_noisy, 2, dim=1)
@@ -249,21 +261,23 @@ def ppo_loss(policy: Policy,
     if policy.config["caps_temporal_reg"] > 0.0:
         # Minimize the difference between the successive action mean
         policy._mean_temporal_caps_loss = torch.mean(
-            (action_mean_prev - action_mean_true) ** 2)
+            (action_mean_prev - action_mean_true).abs())
 
         # Add temporal smoothness loss to total loss
         total_loss += policy.config["caps_temporal_reg"] * \
             policy._mean_temporal_caps_loss
 
-    if policy.config["caps_spatial_reg"] > 0.0:
+    if policy._spatial_reg > 0.0:
         # Minimize the difference between the original action mean and the
         # one corresponding to the noisy observation.
         policy._mean_spatial_caps_loss = torch.mean(
-            (action_mean_noisy - action_mean_true) ** 2)
+            torch.sum((
+                action_mean_noisy - action_mean_true) ** 2, dim=-1) /
+            torch.sum((
+                observation_noisy - observation_true) ** 2, dim=-1))
 
         # Add spatial smoothness loss to total loss
-        total_loss += policy.config["caps_spatial_reg"] * \
-            policy._mean_spatial_caps_loss
+        total_loss += policy._spatial_reg * policy._mean_spatial_caps_loss
 
     if policy.config["caps_global_reg"] > 0.0:
         # Minimize the magnitude of action mean
@@ -285,8 +299,8 @@ def ppo_loss(policy: Policy,
     if policy.config["l2_reg"] > 0.0:
         # Add actor l2-regularization loss
         l2_reg_loss = 0.0
-        for name, params in model.state_dict().items():
-            if "bias" not in name:
+        for name, params in model.named_parameters():
+            if not name.endswith("bias"):
                 l2_reg_loss += l2_loss(params)
         policy._l2_reg_loss = l2_reg_loss
 
@@ -308,7 +322,7 @@ def ppo_stats(policy: Policy,
         stats_dict["symmetry"] = policy._mean_symmetric_policy_loss
     if policy.config["caps_temporal_reg"] > 0.0:
         stats_dict["temporal_smoothness"] = policy._mean_temporal_caps_loss
-    if policy.config["caps_spatial_reg"] > 0.0:
+    if policy._spatial_reg > 0.0:
         stats_dict["spatial_smoothness"] = policy._mean_spatial_caps_loss
     if policy.config["caps_global_reg"] > 0.0:
         stats_dict["global_smoothness"] = policy._mean_global_caps_loss
@@ -322,7 +336,7 @@ PPOTorchPolicy = PPOTorchPolicy.with_updates(
     before_loss_init=ppo_init,
     loss_fn=ppo_loss,
     stats_fn=ppo_stats,
-    get_default_config=lambda: DEFAULT_CONFIG,
+    get_default_config=lambda: DEFAULT_CONFIG
 )
 
 
@@ -339,6 +353,7 @@ PPOTrainer = PPOTrainer.with_updates(
     default_config=DEFAULT_CONFIG,
     get_policy_class=get_policy_class
 )
+
 
 __all__ = [
     "DEFAULT_CONFIG",

@@ -1171,9 +1171,9 @@ namespace jiminy
         {
             stepper_ = std::unique_ptr<AbstractStepper>(
                 new RungeKuttaDOPRIStepper(systemOde,
-                                            robots,
-                                            engineOptions_->stepper.tolAbs,
-                                            engineOptions_->stepper.tolRel));
+                                           robots,
+                                           engineOptions_->stepper.tolAbs,
+                                           engineOptions_->stepper.tolRel));
         }
         else if (engineOptions_->stepper.odeSolver == "runge_kutta_4")
         {
@@ -2920,6 +2920,9 @@ namespace jiminy
                 {
                     constraint->reset(q, v);
                     constraint->enable();
+                    auto & frameConstraint = static_cast<FixedFrameConstraint &>(*constraint.get());
+                    vector3_t & positionRef = frameConstraint.getReferenceTransform().translation();
+                    positionRef.noalias() -= depth * nGround;
                 }
             }
         }
@@ -2996,11 +2999,15 @@ namespace jiminy
             }
             else
             {
-                // Enable fixed frame constraint and reset it if it was disable
+                // Enable fixed frame constraint and reset it if it was disable,
+                // then move the reference position at the surface of the ground.
                 if (!constraint->getIsEnabled())
                 {
                     constraint->reset(q, v);
                     constraint->enable();
+                    auto & frameConstraint = static_cast<FixedFrameConstraint &>(*constraint.get());
+                    vector3_t & positionRef = frameConstraint.getReferenceTransform().translation();
+                    positionRef.noalias() -= depth * nGround;
                 }
             }
         }
@@ -3047,19 +3054,19 @@ namespace jiminy
             // Compute normal force
             float64_t const fextNormal = - std::min(contactOptions_.stiffness * depth +
                                                     contactOptions_.damping * vDepth, 0.0);
-            fextInWorld = fextNormal * nGround;
+            fextInWorld.noalias() = fextNormal * nGround;
 
             // Compute friction forces
             vector3_t const vTangential = vContactInWorld - vDepth * nGround;
             float64_t const vRatio = std::min(vTangential.norm() / contactOptions_.transitionVelocity, 1.0);
             float64_t const fextTangential = contactOptions_.friction * vRatio * fextNormal;
-            fextInWorld -= fextTangential * vTangential;
+            fextInWorld.noalias() -= fextTangential * vTangential;
 
             // Add blending factor
             if (contactOptions_.transitionEps > EPS)
             {
-                float64_t const blendingFactor = -depth / contactOptions_.transitionEps;
-                float64_t const blendingLaw = std::tanh(2 * blendingFactor);
+                float64_t const blendingFactor = - depth / contactOptions_.transitionEps;
+                float64_t const blendingLaw = std::tanh(2.0 * blendingFactor);
                 fextInWorld *= blendingLaw;
             }
         }
@@ -3378,7 +3385,7 @@ namespace jiminy
             vectorN_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
             vectorN_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
-            quaternion_t const quat(q.segment<4>(positionIdx).data());  // Only way to initialize with [x,y,z,w] order
+            quaternion_t const quat(q.segment<4>(positionIdx));  // Only way to initialize with [x,y,z,w] order
             vectorN_t const axis = pinocchio::quaternion::log3(quat);
             uInternal.segment<3>(velocityIdx).array() +=
                 - stiffness.array() * axis.array()
@@ -3756,7 +3763,7 @@ namespace jiminy
                                             i,
                                             pinocchio::LOCAL,
                                             jointJacobian);
-                uAugmented += jointJacobian.transpose() * fext[i].toVector();
+                uAugmented.noalias() += jointJacobian.transpose() * fext[i].toVector();
             }
 
             // Compute non-linear effects
@@ -3823,7 +3830,7 @@ namespace jiminy
                     // Convert the force from local world aligned to local frame
                     frameIndex_t const & frameIdx = frameConstraint.getFrameIdx();
                     pinocchio::SE3 const & transformContactInWorld = data.oMf[frameIdx];
-                    forceIt->linear() = transformContactInWorld.rotation().transpose() * fextWorld;
+                    forceIt->linear().noalias() = transformContactInWorld.rotation().transpose() * fextWorld;
 
                     // Convert the force from local world aligned to local parent joint
                     jointIndex_t const & jointIdx = model.frames[frameIdx].parent;

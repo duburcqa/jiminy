@@ -73,12 +73,13 @@ def handle_web(self, message: str) -> None:
     self.bridge.websocket_msg.append(message)
     if len(self.bridge.websocket_msg) == len(self.bridge.websocket_pool) and \
             len(self.bridge.comm_msg) == len(self.bridge.comm_pool):
+        self.is_waiting_ready_msg = False
         gathered_msg = ",".join(
-            self.bridge.websocket_msg + self.bridge.comm_msg)
+            self.bridge.websocket_msg + list(self.bridge.comm_msg.values()))
         self.bridge.zmq_socket.send(gathered_msg.encode("utf-8"))
         self.bridge.zmq_stream.flush()
-        self.bridge.websocket_msg, self.bridge.comm_msg = [], []
-        self.is_waiting_ready_msg = False
+        self.bridge.comm_msg = {}
+        self.bridge.websocket_msg = []
 WebSocketHandler.on_message = handle_web  # noqa
 
 
@@ -103,7 +104,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
 
         # Extra buffers for: comm ids and messages
         self.comm_pool = set()
-        self.comm_msg = []
+        self.comm_msg = {}
         self.websocket_msg = []
         self.is_waiting_ready_msg = False
 
@@ -133,21 +134,22 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
     def handle_zmq(self, frames: Sequence[bytes]) -> None:
         cmd = frames[0].decode("utf-8")
         if cmd == "ready":
+            self.comm_stream.flush()
             if not self.websocket_pool and not self.comm_pool:
                 self.zmq_socket.send(b"")
             msg = umsgpack.packb({"type": "ready"})
-            self.is_waiting_ready_msg = True
             for websocket in self.websocket_pool:
                 websocket.write_message(msg, binary=True)
             for comm_id in self.comm_pool:
                 self.forward_to_comm(comm_id, msg)
+            self.is_waiting_ready_msg = True
         else:
             super().handle_zmq(frames)
 
     def handle_comm(self, frames: Sequence[bytes]) -> None:
         cmd = frames[0].decode("utf-8")
+        comm_id = f"{cmd.split(':', 1)[1]}".encode()
         if cmd.startswith("open:"):
-            comm_id = f"{cmd.split(':', 1)[1]}".encode()
             self.send_scene(comm_id=comm_id)
             self.comm_pool.add(comm_id)
             if self.is_waiting_ready_msg:
@@ -157,19 +159,21 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             # Using `discard` over `remove` to avoid raising exception if
             # 'comm_id' is not found. It may happend if an old comm is closed
             # after Jupyter-notebook reset for instance.
-            comm_id = f"{cmd.split(':', 1)[1]}".encode()
             self.comm_pool.discard(comm_id)
+            self.comm_msg.pop(comm_id, None)
         elif cmd.startswith("data:"):
             message = f"{cmd.split(':', 2)[2]}"
-            self.comm_msg.append(message)
-            if (len(self.websocket_msg) == len(self.websocket_pool) and
-                    len(self.comm_msg) == len(self.comm_pool)):
-                gathered_msg = ",".join(
-                    self.websocket_msg + self.comm_msg)
-                self.zmq_socket.send(gathered_msg.encode("utf-8"))
-                self.zmq_stream.flush()
-                self.websocket_msg, self.comm_msg = [], []
-                self.is_waiting_ready_msg = False
+            self.comm_msg[comm_id] = message
+        if self.is_waiting_ready_msg and \
+                len(self.websocket_msg) == len(self.websocket_pool) and \
+                len(self.comm_msg) == len(self.comm_pool):
+            self.is_waiting_ready_msg = False
+            gathered_msg = ",".join(
+                self.websocket_msg + list(self.comm_msg.values()))
+            self.zmq_socket.send(gathered_msg.encode("utf-8"))
+            self.zmq_stream.flush()
+            self.comm_msg = {}
+            self.websocket_msg = []
 
     def forward_to_websockets(self, frames: Sequence[bytes]) -> None:
         super().forward_to_websockets(frames)

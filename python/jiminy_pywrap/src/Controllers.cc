@@ -271,8 +271,10 @@ namespace python
                        boost::noncopyable>("BaseController")
                 .def("reset", &AbstractController::reset, &AbstractControllerWrapper::default_reset,
                               (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
-                .def("compute_command", bp::pure_virtual(&AbstractController::computeCommand))
-                .def("internal_dynamics", bp::pure_virtual(&AbstractController::internalDynamics));
+                .def("compute_command", bp::pure_virtual(&AbstractController::computeCommand),
+                                        (bp::arg("self"), "t", "q", "v", "command"))
+                .def("internal_dynamics", bp::pure_virtual(&AbstractController::internalDynamics),
+                                          (bp::arg("self"), "t", "q", "v", "u_custom"));
         }
     };
 

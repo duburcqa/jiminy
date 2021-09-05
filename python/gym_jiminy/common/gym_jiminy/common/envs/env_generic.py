@@ -784,11 +784,17 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Call base implementation
         self.simulator.plot(**kwargs)
 
+        # Extract log data
+        log_data = self.simulator.log_data
+        if not log_data:
+            raise RuntimeError(
+                "Nothing to plot. Please run a simulation before calling "
+                "`plot` method.")
+
         # Extract action.
         # If telemetry action fieldnames is a dictionary, it cannot be nested.
         # In such a case, keys corresponds to subplots, and values are
         # individual scalar data over time to be displayed to the same subplot.
-        log_data = self.simulator.log_data
         t = log_data["Global.Time"]
         tab_data = {}
         if self.logfile_action_headers is None:
@@ -863,6 +869,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def play_interactive(env: Union["BaseJiminyEnv", gym.Wrapper],
                          enable_travelling: Optional[bool] = None,
                          start_paused: bool = True,
+                         enable_is_done: bool = True,
                          verbose: bool = True,
                          **kwargs: Any) -> None:
         """Activate interact mode enabling to control the robot using keyboard.
@@ -900,8 +907,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         assert isinstance(self, BaseJiminyEnv), (
             "Unwrapped environment must derived from `BaseJiminyEnv`.")
 
-        # Enable play interactive mode flag
+        # Enable play interactive flag and make sure training flag is disabled
+        is_training = self.is_training
         self._is_interactive = True
+        self.is_training = False
 
         # Make sure viewer gui is open, so that the viewer will shared external
         # forces with the robot automatically.
@@ -927,11 +936,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
-            nonlocal obs, reward
+            nonlocal obs, reward, enable_is_done
             action = self._key_to_action(
                 key, obs, reward, **{"verbose": verbose, **kwargs})
             obs, reward, done, _ = env.step(action)
             env.render()
+            if not enable_is_done and env.robot.has_freeflyer:
+                return env.system_state.q[2] < 0.0
             return done
 
         # Run interactive loop
@@ -948,8 +959,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if self.simulator.is_simulation_running:
             self.simulator.stop()
 
-        # Disable play interactive mode flag
+        # Disable play interactive mode flag and restore training flag
         self._is_interactive = False
+        self.is_training = is_training
 
     def train(self) -> None:
         """Sets the environment in training mode.
@@ -1097,6 +1109,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         .. note::
             This method is called and the end of every low-level `Engine.step`.
+
+        .. note::
+            Note that `np.nan` values will be automatically clipped to 0.0 by
+            `get_observation` method before return it, so it is valid.
 
         .. warning::
             In practice, it updates the internal buffer directly for the sake

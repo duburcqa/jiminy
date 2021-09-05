@@ -107,9 +107,12 @@ setup(
         # Parser for Jiminy's hardware description file.
         "toml",
         # Web-based mesh visualizer used as Viewer's backend.
-        # 0.19.0 introduces many new features, including loading generic
+        # 0.0.19 introduces many new features, including loading generic
         # geometries and jiminy_py viewer releases on it for rendering
         # collision bodies.
+        # 0.3.1 updates threejs from 122 to 132, breakin compatibility with the
+        # old, now deprecated, geometry class used to internally to display
+        # tile floor.
         "meshcat>=0.0.19",
         # Standalone mesh visualizer used as Viewer's backend.
         # Panda3d>1.10.9 adds support of Nvidia EGL rendering without X11

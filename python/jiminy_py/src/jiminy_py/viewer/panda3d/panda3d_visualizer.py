@@ -4,6 +4,7 @@ import re
 import sys
 import math
 import array
+import pickle
 import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -170,7 +171,7 @@ def make_cone(num_sides: int = 16) -> Geom:
     """Create a close shaped cone, approximate by a pyramid with regular
     convex n-sided polygon base.
 
-    For reference about refular polygon:
+    For reference about regular polygon:
     https://en.wikipedia.org/wiki/Regular_polygon
     """
     # Define vertex format
@@ -206,8 +207,53 @@ def make_cone(num_sides: int = 16) -> Geom:
         prim.add_vertices(i, i + 1, num_sides + 1)
         prim.add_vertices(i + 1, i, num_sides + 2)
 
+    # Create geometry object
     geom = Geom(vdata)
     geom.add_primitive(prim)
+
+    return geom
+
+
+def make_height_map(height_map: Callable[
+                        [np.ndarray], Tuple[float, np.ndarray]],
+                    grid_size: float,
+                    grid_unit: float) -> Geom:
+    """Create height map.
+    """
+    # Compute grid size and number of vertices
+    grid_dim = int(np.ceil(grid_size / grid_unit)) + 1
+    num_vertices = grid_dim ** 2
+
+    # Define vertex format
+    vformat = GeomVertexFormat.get_v3n3t2()
+    vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
+    vdata.uncleanSetNumRows(num_vertices)
+    vertex = GeomVertexWriter(vdata, 'vertex')
+    normal = GeomVertexWriter(vdata, 'normal')
+    tcoord = GeomVertexWriter(vdata, 'texcoord')
+
+    # # Add grid points
+    for x in np.arange(grid_dim) * grid_unit - grid_size / 2.0:
+        for y in np.arange(grid_dim) * grid_unit - grid_size / 2.0:
+            height, normal_i = height_map(np.array([x, y, 0.0]))
+            vertex.addData3(x, y, height)
+            normal.addData3(*normal_i)
+            tcoord.addData2(x, y)
+
+    # Make triangles
+    prim = GeomTriangles(Geom.UH_static)
+    for j in range(grid_dim):
+        for i in range(grid_dim - 1):
+            k = j * grid_dim + i
+            if j < grid_dim - 1:
+                prim.add_vertices(k + 1, k, k + grid_dim)
+            if j > 0:
+                prim.add_vertices(k, k + 1, k + 1 - grid_dim)
+
+    # Create geometry object
+    geom = Geom(vdata)
+    geom.add_primitive(prim)
+
     return geom
 
 
@@ -687,21 +733,47 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_scale(0.3)
         return node
 
-    def _make_floor(self) -> NodePath:
+    def _make_floor(self,
+                    height_map: Optional[Callable[
+                        [np.ndarray], Tuple[float, np.ndarray]]] = None,
+                    grid_unit: float = 0.2) -> NodePath:
         model = GeomNode('floor')
         node = self.render.attach_new_node(model)
-        for xi in range(-10, 11):
-            for yi in range(-10, 11):
-                tile = GeomNode(f"tile-{xi}.{yi}")
-                tile.add_geom(geometry.make_plane(size=(1.0, 1.0)))
-                tile_path = node.attach_new_node(tile)
-                tile_path.set_pos((xi, yi, 0.0))
-                if (xi + yi) % 2:
-                    tile_path.set_color((0.95, 0.95, 1.0, 1))
-                else:
-                    tile_path.set_color((0.13, 0.13, 0.2, 1))
+
+        if height_map is None:
+            for xi in range(-10, 11):
+                for yi in range(-10, 11):
+                    tile = GeomNode(f"tile-{xi}.{yi}")
+                    tile.add_geom(geometry.make_plane(size=(1.0, 1.0)))
+                    tile_path = node.attach_new_node(tile)
+                    tile_path.set_pos((xi, yi, 0.0))
+                    if (xi + yi) % 2:
+                        tile_path.set_color((0.95, 0.95, 1.0, 1))
+                    else:
+                        tile_path.set_color((0.13, 0.13, 0.2, 1))
+        else:
+            model.add_geom(make_height_map(height_map, 20.0, grid_unit))
+            render_attrib = node.get_state().get_attrib_def(
+                RenderModeAttrib.get_class_slot())
+            node.set_attrib(RenderModeAttrib.make(
+                RenderModeAttrib.M_filled_wireframe,
+                0.5,  # thickness
+                render_attrib.perspective,
+                (0.7, 0.7, 0.7, 1.0)  # wireframe_color
+            ))
+
         node.set_two_sided(True)
+
         return node
+
+    def update_floor(self,
+                     height_map: Optional[Callable[
+                        [np.ndarray], Tuple[float, np.ndarray]]] = None,
+                     grid_unit: float = 0.2) -> NodePath:
+        if height_map is not None and not callable(height_map):
+            height_map = pickle.loads(height_map)
+        self._floor.remove_node()
+        self._floor = self._make_floor(height_map, grid_unit)
 
     def append_group(self,
                      root_path: str,
