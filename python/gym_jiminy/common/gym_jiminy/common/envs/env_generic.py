@@ -19,7 +19,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
+from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL, Viewer
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 
@@ -843,7 +843,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.simulator.stop()
 
         # Set default camera pose if viewer not already available
-        if not self.simulator.is_viewer_available and self.robot.has_freeflyer:
+        if not self.simulator.is_viewer_available and \
+                self.robot.has_freeflyer and not Viewer.has_gui():
             # Get root frame name.
             # The first and second frames are respectively "universe" no matter
             # if the robot has a freeflyer or not, and the second one is the
