@@ -1,5 +1,6 @@
 """ TODO: Write documentation.
 """
+import math
 from typing import Dict, List, Type, Union, Optional, Any, Tuple
 
 import gym
@@ -23,6 +24,9 @@ DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
     DEFAULT_CONFIG,
     {
         "noise_scale": 1.0,
+        "temporal_barrier_scale": 1.0,
+        "temporal_barrier_threshold": math.inf,
+        "temporal_barrier_reg": 0.0,
         "symmetric_policy_reg": 0.0,
         "caps_temporal_reg": 0.0,
         "caps_spatial_reg": 0.0,
@@ -53,6 +57,7 @@ def ppo_init(policy: Policy,
     policy.view_requirements.update(caps_view_requirements)
 
     # Initialize extra loss
+    policy._mean_temporal_barrier_loss = 0.0
     policy._mean_symmetric_policy_loss = 0.0
     policy._mean_temporal_caps_loss = 0.0
     policy._mean_spatial_caps_loss = 0.0
@@ -113,7 +118,8 @@ def ppo_loss(policy: Policy,
     # Initialize the set of training batches to forward to the model
     train_batches = {"original": train_batch}
 
-    if policy.config["caps_temporal_reg"] > 0.0:
+    if policy.config["caps_temporal_reg"] > 0.0 or \
+            policy.config["temporal_barrier_reg"] > 0.0:
         # Shallow copy the original training batch.
         # Be careful accessing fields using the original batch to properly
         # keep track of acessed keys, which will be used to discard useless
@@ -127,7 +133,8 @@ def ppo_loss(policy: Policy,
         # Append the training batches to the set
         train_batches["prev"] = train_batch_copy
 
-    if policy._spatial_reg > 0.0 or policy.config["caps_global_reg"] > 0.0:
+    if policy.config["caps_spatial_reg"] > 0.0 or \
+            policy.config["caps_global_reg"] > 0.0:
         # Shallow copy the original training batch
         train_batch_copy = train_batch.copy(shallow=True)
 
@@ -229,7 +236,8 @@ def ppo_loss(policy: Policy,
         action_mean_true = action_dist.deterministic_sample()
 
     # Compute the mean action corresponding to the previous observation
-    if policy.config["caps_temporal_reg"] > 0.0:
+    if policy.config["caps_temporal_reg"] > 0.0 or \
+            policy.config["temporal_barrier_reg"] > 0.0:
         action_logits_prev = logits["prev"]
         if issubclass(dist_class, TorchDiagGaussian):
             action_mean_prev, _ = torch.chunk(action_logits_prev, 2, dim=1)
@@ -238,7 +246,8 @@ def ppo_loss(policy: Policy,
             action_mean_prev = action_dist_prev.deterministic_sample()
 
     # Compute the mean action corresponding to the noisy observation
-    if policy._spatial_reg > 0.0 or policy.config["caps_global_reg"] > 0.0:
+    if policy.config["caps_spatial_reg"] > 0.0 or \
+            policy.config["caps_global_reg"] > 0.0:
         action_logits_noisy = logits["noisy"]
         if issubclass(dist_class, TorchDiagGaussian):
             action_mean_noisy, _ = torch.chunk(action_logits_noisy, 2, dim=1)
@@ -258,16 +267,34 @@ def ppo_loss(policy: Policy,
         policy.action_space.mirror_mat = action_mirror_mat
         action_mean_mirror = action_mean_mirror @ action_mirror_mat
 
-    if policy.config["caps_temporal_reg"] > 0.0:
+    if policy.config["caps_temporal_reg"] > 0.0 or \
+            policy.config["temporal_barrier_reg"] > 0.0:
+        # Compute action delta
+        action_delta = (action_mean_prev - action_mean_true).abs()
+
         # Minimize the difference between the successive action mean
-        policy._mean_temporal_caps_loss = torch.mean(
-            (action_mean_prev - action_mean_true).abs())
+        if policy.config["caps_temporal_reg"] > 0.0:
+            policy._mean_temporal_caps_loss = torch.mean(action_delta)
 
         # Add temporal smoothness loss to total loss
         total_loss += policy.config["caps_temporal_reg"] * \
             policy._mean_temporal_caps_loss
 
-    if policy._spatial_reg > 0.0:
+        # Add temporal barrier loss to total loss:
+        # exp(scale * (err - thr)) - 1.0 if err > thr else 0.0
+        if policy.config["temporal_barrier_reg"] > 0.0:
+            scale = policy.config["temporal_barrier_scale"]
+            threshold = policy.config["temporal_barrier_threshold"]
+            policy._mean_temporal_barrier_loss = torch.mean(torch.exp(
+                torch.clamp(
+                    scale * (action_delta - threshold), min=0.0, max=5.0
+                    )) - 1.0)
+
+        # Add spatial smoothness loss to total loss
+        total_loss += policy.config["temporal_barrier_reg"] * \
+            policy._mean_temporal_barrier_loss
+
+    if policy.config["caps_spatial_reg"] > 0.0:
         # Minimize the difference between the original action mean and the
         # one corresponding to the noisy observation.
         policy._mean_spatial_caps_loss = torch.mean(
@@ -277,7 +304,8 @@ def ppo_loss(policy: Policy,
                 observation_noisy - observation_true) ** 2, dim=-1))
 
         # Add spatial smoothness loss to total loss
-        total_loss += policy._spatial_reg * policy._mean_spatial_caps_loss
+        total_loss += policy.config["caps_spatial_reg"] * \
+            policy._mean_spatial_caps_loss
 
     if policy.config["caps_global_reg"] > 0.0:
         # Minimize the magnitude of action mean
@@ -320,9 +348,11 @@ def ppo_stats(policy: Policy,
     # Add spatial CAPS loss to the report
     if policy.config["symmetric_policy_reg"] > 0.0:
         stats_dict["symmetry"] = policy._mean_symmetric_policy_loss
+    if policy.config["temporal_barrier_reg"] > 0.0:
+        stats_dict["temporal_barrier"] = policy._mean_temporal_barrier_loss
     if policy.config["caps_temporal_reg"] > 0.0:
         stats_dict["temporal_smoothness"] = policy._mean_temporal_caps_loss
-    if policy._spatial_reg > 0.0:
+    if policy.config["caps_spatial_reg"] > 0.0:
         stats_dict["spatial_smoothness"] = policy._mean_spatial_caps_loss
     if policy.config["caps_global_reg"] > 0.0:
         stats_dict["global_smoothness"] = policy._mean_global_caps_loss
