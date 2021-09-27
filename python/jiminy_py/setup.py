@@ -84,7 +84,8 @@ setup(
         # >= 8.0 is required to support Python3.9.
         "pillow",
         # Add support of TypedDict to any Python 3 version.
-        "typing_extensions",
+        # 3.10.0 adds 'ParamSpec' that is required for pylint>=2.11.1.
+        "typing_extensions>=3.10.0",
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
