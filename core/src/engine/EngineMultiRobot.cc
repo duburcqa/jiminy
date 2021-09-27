@@ -880,6 +880,17 @@ namespace jiminy
             systemData.state.clear();
             systemData.statePrev.clear();
         }
+
+        // Instantiate desired LCP solver
+        std::string const & contactSolver = engineOptions_->contacts.solver;
+        if (CONTACT_SOLVERS_MAP.at(contactSolver) == contactSolver_t::PGS)
+        {
+            contactSolver_ = std::make_unique<PGSSolver>(
+                PGS_MAX_ITERATIONS,
+                PGS_RANDOM_PERMUTATION_PERIOD,
+                engineOptions_->stepper.tolAbs,
+                engineOptions_->stepper.tolRel);
+        }
     }
 
     void computeExtraTerms(systemHolder_t & system)
@@ -2609,16 +2620,6 @@ namespace jiminy
 
         // Backup contact model as enum for fast check
         contactModel_ = contactModelIt->second;
-
-        // Instantiate desired LCP solver
-        if (contactSolverIt->second == contactSolver_t::PGS)
-        {
-            contactSolver_ = std::make_unique<PGSSolver>(
-                PGS_MAX_ITERATIONS,
-                PGS_RANDOM_PERMUTATION_PERIOD,
-                engineOptions_->stepper.tolAbs,
-                engineOptions_->stepper.tolRel);
-        }
 
         // Set breakpoint period during the integration loop
         stepperUpdatePeriod_ = minUpdatePeriod;
