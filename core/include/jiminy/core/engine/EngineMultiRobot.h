@@ -122,6 +122,7 @@ namespace jiminy
             config["damping"] = 2.0e3;
             config["transitionEps"] = 1.0e-3;  // [m]
             config["friction"] = 1.0;
+            config["torsion"] = 0.0;
             config["transitionVelocity"] = 1.0e-2;  // [m.s-1]
 
             return config;
@@ -205,6 +206,7 @@ namespace jiminy
             float64_t const damping;
             float64_t const transitionEps;
             float64_t const friction;
+            float64_t const torsion;
             float64_t const transitionVelocity;
 
             contactOptions_t(configHolder_t const & options) :
@@ -216,6 +218,7 @@ namespace jiminy
             damping(boost::get<float64_t>(options.at("damping"))),
             transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
             friction(boost::get<float64_t>(options.at("friction"))),
+            torsion(boost::get<float64_t>(options.at("torsion"))),
             transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity")))
             {
                 // Empty.
@@ -515,8 +518,6 @@ namespace jiminy
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtBody(systemHolder_t const & system,
                                           pairIndex_t const & collisionPairIdx,
-                                          vectorN_t const & q,
-                                          vectorN_t const & v,
                                           std::shared_ptr<AbstractConstraintBase> & contactConstraint,
                                           pinocchio::Force & fextLocal) const;
 
@@ -527,8 +528,6 @@ namespace jiminy
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtFrame(systemHolder_t const & system,
                                            frameIndex_t const & frameIdx,
-                                           vectorN_t const & q,
-                                           vectorN_t const & v,
                                            std::shared_ptr<AbstractConstraintBase> & collisionConstraint,
                                            pinocchio::Force & fextLocal) const;
 
@@ -550,8 +549,6 @@ namespace jiminy
                                      vectorN_t                & uInternal) const;
         void computeCollisionForces(systemHolder_t     const & system,
                                     systemDataHolder_t       & systemData,
-                                    vectorN_t          const & q,
-                                    vectorN_t          const & v,
                                     forceVector_t            & fext) const;
         void computeExternalForces(systemHolder_t     const & system,
                                    systemDataHolder_t       & systemData,

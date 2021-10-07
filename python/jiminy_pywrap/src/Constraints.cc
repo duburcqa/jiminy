@@ -81,8 +81,7 @@ namespace python
         }
 
         static std::shared_ptr<FixedFrameConstraint> fixedFrameConstraintFactory(std::string const & frameName,
-                                                                                 bp::object const & maskFixedPy,
-                                                                                 pinocchio::ReferenceFrame const & frameRef)
+                                                                                 bp::object const & maskFixedPy)
         {
             Eigen::Matrix<bool_t, 6, 1> maskFixed;
             if (maskFixedPy.is_none())
@@ -102,7 +101,7 @@ namespace python
                     maskFixed[i] = maskFixedListPyExtract();
                 }
             }
-            return std::make_shared<FixedFrameConstraint>(frameName, maskFixed, frameRef);
+            return std::make_shared<FixedFrameConstraint>(frameName, maskFixed);
         }
 
         static void setIsEnable(AbstractConstraintBase & self,
@@ -163,8 +162,7 @@ namespace python
                        boost::noncopyable>("FixedFrameConstraint", bp::no_init)
                 .def("__init__", bp::make_constructor(&PyConstraintVisitor::fixedFrameConstraintFactory,
                                  bp::default_call_policies(), (bp::arg("frame_name"),
-                                                               bp::arg("mask_fixed")=bp::object(),
-                                                               bp::arg("reference_frame")=pinocchio::LOCAL_WORLD_ALIGNED)))
+                                                               bp::arg("mask_fixed")=bp::object())))
                 .def_readonly("type", &FixedFrameConstraint::type_)
                 .add_property("frame_name", bp::make_function(&FixedFrameConstraint::getFrameName,
                                             bp::return_value_policy<bp::copy_const_reference>()))
@@ -172,11 +170,12 @@ namespace python
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("dofs_fixed", bp::make_function(&FixedFrameConstraint::getDofsFixed,
                                             bp::return_value_policy<bp::return_by_value>()))
-                .add_property("reference_frame", bp::make_function(&FixedFrameConstraint::getReferenceFrame,
-                                                 bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("reference_transform", bp::make_function(&FixedFrameConstraint::getReferenceTransform,
                                                      bp::return_internal_reference<>()),
-                                                     &FixedFrameConstraint::setReferenceTransform);
+                                                     &FixedFrameConstraint::setReferenceTransform)
+                .add_property("local_rotation", bp::make_function(&FixedFrameConstraint::getLocalFrame,
+                                                bp::return_value_policy<result_converter<false> >()),
+                                                &FixedFrameConstraint::setLocalFrame);
 
             bp::class_<DistanceConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<DistanceConstraint>,
