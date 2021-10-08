@@ -38,7 +38,7 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
 from .. import core as jiminy
-from ..core import ContactSensor as contact
+from ..core import ContactSensor as contact, HeatMapFunctor
 from ..state import State
 from ..dynamics import XYZQuatToXYZRPY
 from .meshcat.utilities import interactive_mode
@@ -309,7 +309,8 @@ class Viewer:
                  scene_name: str = 'world',
                  display_com: bool = False,
                  display_dcm: bool = False,
-                 display_contacts: bool = False,
+                 display_contact_frames: bool = False,
+                 display_contact_forces: bool = False,
                  display_f_external: Optional[
                      Union[Sequence[bool], bool]] = None,
                  **kwargs: Any):
@@ -356,11 +357,14 @@ class Viewer:
                             Optional: Disabled by default.
         :param display_dcm: Whether or not to display the capture point / DCM.
                             Optional: Disabled by default.
-        :param display_contacts: Whether or not to display the contact forces.
-                                 Note that the user is responsible for updating
-                                 sensors data since `Viewer.display` is only
-                                 computing kinematic quantities.
-                                 Optional: Disabled by default.
+        :param display_contact_frames:
+            Whether or not to display the contact frames.
+            Optional: Disabled by default.
+        :param display_contact_forces:
+            Whether or not to display the contact forces. Note that the user is
+            responsible for updating sensors data since `Viewer.display` is
+            only computing kinematic quantities.
+            Optional: Disabled by default.
         :param display_f_external:
             Whether or not to display the external external forces applied at
             the joints on the robot. If a boolean is provided, the same
@@ -379,11 +383,15 @@ class Viewer:
 
         # Make sure user arguments are valid
         if not Viewer.backend.startswith('panda3d'):
-            if display_com or display_dcm or display_contacts:
+            if display_com or display_dcm or display_contact_frames or \
+                    display_contact_forces:
                 logger.warning(
                     "Panda3d backend is required to display markers, e.g. "
                     "CoM, DCM or Contact.")
-            display_com, display_dcm, display_contacts = False, False, False
+            display_com = False
+            display_dcm = False
+            display_contact_frames = False
+            display_contact_forces = False
 
         # Backup some user arguments
         self.robot_color = get_color_code(robot_color)
@@ -394,7 +402,8 @@ class Viewer:
         self._lock = lock or Viewer._lock
         self._display_com = display_com
         self._display_dcm = display_dcm
-        self._display_contacts = display_contacts
+        self._display_contact_frames = display_contact_frames
+        self._display_contact_forces = display_contact_forces
         self._display_f_external = display_f_external
 
         # Initialize marker register
@@ -715,6 +724,20 @@ class Viewer:
 
             self.display_capture_point(self._display_dcm)
 
+            # Add contact frame markers
+            for frame_name, frame_idx in zip(
+                    robot.contact_frames_names, robot.contact_frames_idx):
+                frame_pose = robot.pinocchio_data.oMf[frame_idx]
+                self.add_marker(name='_'.join(("ContactFrame", frame_name)),
+                                shape="sphere",
+                                color="yellow",
+                                pose=[frame_pose.translation, None],
+                                remove_if_exists=True,
+                                auto_refresh=False,
+                                radius=0.02)
+
+            self.display_contact_frames(self._display_contact_frames)
+
             # Add contact sensor markers
             def get_contact_pose(
                     sensor: contact) -> Tuple[Tuple3FType, Tuple4FType]:
@@ -740,7 +763,7 @@ class Viewer:
                                     length=0.5,
                                     anchor_bottom=True)
 
-            self.display_contact_forces(self._display_contacts)
+            self.display_contact_forces(self._display_contact_forces)
 
             # Add external forces
             def get_force_pose(
@@ -1700,6 +1723,37 @@ class Viewer:
 
     @__must_be_open
     @__with_lock
+    def update_floor(self,
+                     height_map: Optional[HeatMapFunctor] = None,
+                     grid_size: float = 20.0,
+                     grid_unit: float = 0.2) -> None:
+        """Display a custom ground profile as a height map or the original tile
+        ground floor.
+
+        .. note::
+            This method is only supported by Panda3d for now.
+
+        :param height_map: `jiminy_py.core.HeatMapFunctor` associated with the
+                           ground profile. It renders a flat tile  ground if
+                           not specified.
+                           Optional: None by default.
+        """
+        if Viewer.backend.startswith('panda3d'):
+            # Generate discrete grid
+            grid_dim = int(np.ceil(grid_size / grid_unit)) + 1
+            height_grid = np.empty((grid_dim, grid_dim, 3))
+            for i in range(grid_dim):
+                for j in range(grid_dim):
+                    x = i * grid_unit - grid_size / 2.0
+                    y = j * grid_unit - grid_size / 2.0
+                    height, _ = height_map(np.array([x, y, 0.0]))
+                    height_grid[i, j] = x, y, height
+            self._gui.update_floor(height_grid)
+        else:
+            logger.warning("This method is only supported by Panda3d.")
+
+    @__must_be_open
+    @__with_lock
     def capture_frame(self,
                       width: int = None,
                       height: int = None,
@@ -1944,7 +1998,7 @@ class Viewer:
     @__with_lock
     def display_capture_point(self, visibility: bool) -> None:
         """Display the position of the capture point,also called divergent
-        component of motion (DCM), as a sphere.
+        component of motion (DCM) as a sphere.
 
         .. note::
             Calling `Viewer.display` will update it automatically, while
@@ -1971,9 +2025,41 @@ class Viewer:
 
     @__must_be_open
     @__with_lock
+    def display_contact_frames(self, visibility: bool) -> None:
+        """Display the contact frames of the robot as spheres.
+
+        .. note::
+            The frames to display are specified by the attribute
+            `contact_frames_names` of the provided `robot`. Calling
+            `Viewer.display` will update it automatically, while
+            `Viewer.refresh` will not.
+
+        .. warning::
+            This method is only supported by Panda3d.
+
+        :param visibility: Whether or not to display the contact frames.
+        """
+        # Make sure the current backend is supported by this method
+        if not Viewer.backend.startswith('panda3d'):
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
+        # Update visibility
+        for name in self.markers:
+            if name.startswith("ContactFrame"):
+                self._gui.show_node(self._markers_group, name, visibility)
+                self._markers_visibility[name] = visibility
+        self._display_contact_frames = visibility
+
+        # Must refresh the scene
+        if visibility:
+            self.refresh()
+
+    @__must_be_open
+    @__with_lock
     def display_contact_forces(self, visibility: bool) -> None:
         """Display forces associated with the contact sensors attached to the
-        robot, as a capsule of variable length depending of Fz.
+        robot, as cylinders of variable length depending of Fz.
 
         .. note::
             Fz can be signed. It will affect the orientation of the capsule.
@@ -1998,7 +2084,7 @@ class Viewer:
             if name.startswith(contact.type):
                 self._gui.show_node(self._markers_group, name, visibility)
                 self._markers_visibility[name] = visibility
-        self._display_contacts = visibility
+        self._display_contact_forces = visibility
 
         # Must refresh the scene
         if visibility:
@@ -2009,8 +2095,8 @@ class Viewer:
     def display_external_forces(self,
                                 visibility: Union[Sequence[bool], bool]
                                 ) -> None:
-        """Display external forces applied on the joints the robot, as an
-        arrow of variable length depending of magnitude of the force.
+        """Display external forces applied on the joints the robot, as arrows
+        of variable length depending of magnitude of the force.
 
         .. warning::
             It only display the linear component of the force, while ignoring
@@ -2260,9 +2346,9 @@ class Viewer:
         :param wait: Whether or not to wait for rendering to finish.
         """
         # Disable display of sensor data if no update hook is provided
-        disable_display_contacts = False
-        if update_hook is None and self._display_contacts:
-            disable_display_contacts = True
+        disable_display_contact_forces = False
+        if update_hook is None and self._display_contact_forces:
+            disable_display_contact_forces = True
             self.display_contact_forces(False)
 
         # Disable display of DCM if no velocity data provided
@@ -2341,7 +2427,7 @@ class Viewer:
                 Viewer.set_clock()
 
             # Restore display if necessary
-            if disable_display_contacts:
+            if disable_display_contact_forces:
                 self.display_contact_forces(True)
             if disable_display_dcm:
                 self.display_capture_point(True)
