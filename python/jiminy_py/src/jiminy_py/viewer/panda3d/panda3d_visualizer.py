@@ -4,7 +4,6 @@ import re
 import sys
 import math
 import array
-import pickle
 import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -214,41 +213,32 @@ def make_cone(num_sides: int = 16) -> Geom:
     return geom
 
 
-def make_height_map(height_map: Callable[
-                        [np.ndarray], Tuple[float, np.ndarray]],
-                    grid_size: float,
-                    grid_unit: float) -> Geom:
+def make_height_map(height_map: np.ndarray) -> Geom:
     """Create height map.
     """
-    # Compute grid size and number of vertices
-    grid_dim = int(np.ceil(grid_size / grid_unit)) + 1
-    num_vertices = grid_dim ** 2
+    # Compute the number of vertices
+    num_vertices = int(np.prod(height_map.shape[:2]))
 
     # Define vertex format
-    vformat = GeomVertexFormat.get_v3n3t2()
+    vformat = GeomVertexFormat.get_v3()
     vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
     vdata.uncleanSetNumRows(num_vertices)
     vertex = GeomVertexWriter(vdata, 'vertex')
-    normal = GeomVertexWriter(vdata, 'normal')
-    tcoord = GeomVertexWriter(vdata, 'texcoord')
 
     # # Add grid points
-    for x in np.arange(grid_dim) * grid_unit - grid_size / 2.0:
-        for y in np.arange(grid_dim) * grid_unit - grid_size / 2.0:
-            height, normal_i = height_map(np.array([x, y, 0.0]))
-            vertex.addData3(x, y, height)
-            normal.addData3(*normal_i)
-            tcoord.addData2(x, y)
+    for i in range(height_map.shape[0]):
+        for j in range(height_map.shape[1]):
+            vertex.addData3(*height_map[i, j])
 
     # Make triangles
     prim = GeomTriangles(Geom.UH_static)
-    for j in range(grid_dim):
-        for i in range(grid_dim - 1):
-            k = j * grid_dim + i
-            if j < grid_dim - 1:
-                prim.add_vertices(k + 1, k, k + grid_dim)
+    for j in range(height_map.shape[1]):
+        for i in range(height_map.shape[0] - 1):
+            k = j * height_map.shape[0] + i
+            if j < height_map.shape[1] - 1:
+                prim.add_vertices(k + 1, k, k + height_map.shape[0])
             if j > 0:
-                prim.add_vertices(k, k + 1, k + 1 - grid_dim)
+                prim.add_vertices(k, k + 1, k + 1 - height_map.shape[0])
 
     # Create geometry object
     geom = Geom(vdata)
@@ -733,10 +723,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_scale(0.3)
         return node
 
-    def _make_floor(self,
-                    height_map: Optional[Callable[
-                        [np.ndarray], Tuple[float, np.ndarray]]] = None,
-                    grid_unit: float = 0.2) -> NodePath:
+    def _make_floor(self, height_map: Optional[np.ndarray] = None) -> NodePath:
         model = GeomNode('floor')
         node = self.render.attach_new_node(model)
 
@@ -752,7 +739,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     else:
                         tile_path.set_color((0.13, 0.13, 0.2, 1))
         else:
-            model.add_geom(make_height_map(height_map, 20.0, grid_unit))
+            model.add_geom(make_height_map(height_map))
             render_attrib = node.get_state().get_attrib_def(
                 RenderModeAttrib.get_class_slot())
             node.set_attrib(RenderModeAttrib.make(
@@ -767,13 +754,19 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return node
 
     def update_floor(self,
-                     height_map: Optional[Callable[
-                        [np.ndarray], Tuple[float, np.ndarray]]] = None,
-                     grid_unit: float = 0.2) -> NodePath:
-        if height_map is not None and not callable(height_map):
-            height_map = pickle.loads(height_map)
+                     height_map: Optional[np.ndarray] = None) -> NodePath:
+        """Update the floor.
+
+        :param height_map: Height map of the ground, as a 3D nd.array of shape
+                           [N_X, N_Y, 3], where N_X, N_Y are the number of
+                           points on x and y axes respectively, while the last
+                           dimension corresponds to the position (x, y, z) of
+                           the point in space. It renders a flat tile ground if
+                           not specified.
+                           Optional: None by default.
+        """
         self._floor.remove_node()
-        self._floor = self._make_floor(height_map, grid_unit)
+        self._floor = self._make_floor(height_map)
 
     def append_group(self,
                      root_path: str,
