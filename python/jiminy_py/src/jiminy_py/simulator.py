@@ -601,6 +601,12 @@ class Simulator:
                 'record_video_path', None) is not None,
             **kwargs})
 
+        # Enable the ground profile if possible
+        if self.viewer_backend.startswith('panda3d'):
+            engine_options = self.engine.get_options()
+            ground_profile = engine_options["world"]["groundProfile"]
+            self.viewer.update_floor(ground_profile, False)
+
         # Define sequence of viewer instances
         viewers = [self.viewer, *[None for _ in trajectories[:-1]]]
 
