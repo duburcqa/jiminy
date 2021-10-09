@@ -117,7 +117,7 @@ namespace jiminy
             config["model"] = std::string("spring_damper");   // ["spring_damper", "impulse"]
             config["solver"] = std::string("PGS");   // ["PGS",]
             config["regularization"] = 0.0;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
-            config["stabilizationFreq"] = 0.0;  // [s-1]: 0.0 to disable
+            config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
             config["transitionEps"] = 1.0e-3;  // [m]
