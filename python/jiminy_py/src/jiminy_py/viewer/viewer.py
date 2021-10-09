@@ -1725,6 +1725,7 @@ class Viewer:
     @__with_lock
     def update_floor(self,
                      height_map: Optional[HeatMapFunctor] = None,
+                     show_mesh: bool = False,
                      grid_size: float = 20.0,
                      grid_unit: float = 0.2) -> None:
         """Display a custom ground profile as a height map or the original tile
@@ -1748,7 +1749,7 @@ class Viewer:
                     y = j * grid_unit - grid_size / 2.0
                     height, _ = height_map(np.array([x, y, 0.0]))
                     height_grid[i, j] = x, y, height
-            self._gui.update_floor(height_grid)
+            self._gui.update_floor(height_grid, show_mesh)
         else:
             logger.warning("This method is only supported by Panda3d.")
 

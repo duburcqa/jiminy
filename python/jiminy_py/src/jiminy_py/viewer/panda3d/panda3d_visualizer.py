@@ -723,7 +723,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_scale(0.3)
         return node
 
-    def _make_floor(self, height_map: Optional[np.ndarray] = None) -> NodePath:
+    def _make_floor(self,
+                    height_map: Optional[np.ndarray] = None,
+                    show_mesh: bool = False) -> NodePath:
         model = GeomNode('floor')
         node = self.render.attach_new_node(model)
 
@@ -740,21 +742,23 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                         tile_path.set_color((0.13, 0.13, 0.2, 1))
         else:
             model.add_geom(make_height_map(height_map))
-            render_attrib = node.get_state().get_attrib_def(
-                RenderModeAttrib.get_class_slot())
-            node.set_attrib(RenderModeAttrib.make(
-                RenderModeAttrib.M_filled_wireframe,
-                0.5,  # thickness
-                render_attrib.perspective,
-                (0.7, 0.7, 0.7, 1.0)  # wireframe_color
-            ))
+            if show_mesh:
+                render_attrib = node.get_state().get_attrib_def(
+                    RenderModeAttrib.get_class_slot())
+                node.set_attrib(RenderModeAttrib.make(
+                    RenderModeAttrib.M_filled_wireframe,
+                    0.5,  # thickness
+                    render_attrib.perspective,
+                    (0.7, 0.7, 0.7, 1.0)  # wireframe_color
+                ))
 
         node.set_two_sided(True)
 
         return node
 
     def update_floor(self,
-                     height_map: Optional[np.ndarray] = None) -> NodePath:
+                     height_map: Optional[np.ndarray] = None,
+                     show_mesh: bool = False) -> NodePath:
         """Update the floor.
 
         :param height_map: Height map of the ground, as a 3D nd.array of shape
@@ -766,7 +770,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                            Optional: None by default.
         """
         self._floor.remove_node()
-        self._floor = self._make_floor(height_map)
+        self._floor = self._make_floor(height_map, show_mesh)
 
     def append_group(self,
                      root_path: str,
