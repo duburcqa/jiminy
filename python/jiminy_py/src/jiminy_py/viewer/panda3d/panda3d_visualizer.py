@@ -16,15 +16,15 @@ from matplotlib import font_manager
 from matplotlib.patches import Patch
 
 from panda3d.core import (
-    NodePath, Point3, Vec3, Mat4, Quat, LQuaternion, Geom, GeomEnums, GeomNode,
-    GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
-    GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
-    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
-    Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
-    TransparencyAttrib, OrthographicLens, ClockObject, GraphicsPipe,
-    WindowProperties, FrameBufferProperties, loadPrcFileData, AntialiasAttrib,
-    CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
-    RenderModeAttrib)
+    NodePath, Point3, Vec3, Vec4, Mat4, Quat, LQuaternion, Material, Geom,
+    GeomEnums, GeomNode, GeomVertexData, GeomTriangles, GeomVertexArrayFormat,
+    GeomVertexFormat, GeomVertexWriter, CullFaceAttrib, GraphicsWindow,
+    PNMImage, InternalName, OmniBoundingVolume, CompassEffect, BillboardEffect,
+    Filename, TextNode, Texture, TextureStage, PNMImageHeader, PGTop, Camera,
+    PerspectiveLens, TransparencyAttrib, OrthographicLens, ClockObject,
+    GraphicsPipe, WindowProperties, FrameBufferProperties, loadPrcFileData,
+    AntialiasAttrib, CollisionNode, CollisionRay, CollisionTraverser,
+    CollisionHandlerQueue, RenderModeAttrib)
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
@@ -220,15 +220,17 @@ def make_height_map(height_map: np.ndarray) -> Geom:
     num_vertices = int(np.prod(height_map.shape[:2]))
 
     # Define vertex format
-    vformat = GeomVertexFormat.get_v3()
+    vformat = GeomVertexFormat.get_v3n3()
     vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
     vdata.uncleanSetNumRows(num_vertices)
     vertex = GeomVertexWriter(vdata, 'vertex')
+    normal = GeomVertexWriter(vdata, 'normal')
 
     # # Add grid points
     for i in range(height_map.shape[0]):
         for j in range(height_map.shape[1]):
-            vertex.addData3(*height_map[i, j])
+            vertex.addData3(*height_map[i, j][:3])
+            normal.addData3(*height_map[i, j][3:])
 
     # Make triangles
     prim = GeomTriangles(Geom.UH_static)
@@ -737,11 +739,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     tile_path = node.attach_new_node(tile)
                     tile_path.set_pos((xi, yi, 0.0))
                     if (xi + yi) % 2:
-                        tile_path.set_color((0.95, 0.95, 1.0, 1))
+                        tile_path.set_color((0.95, 0.95, 1.0, 1.0))
                     else:
-                        tile_path.set_color((0.13, 0.13, 0.2, 1))
+                        tile_path.set_color((0.13, 0.13, 0.2, 1.0))
         else:
             model.add_geom(make_height_map(height_map))
+            material = Material()
+            material.set_ambient(Vec4(0.95, 0.95, 1.0, 1.0))
+            material.set_diffuse(Vec4(0.95, 0.95, 1.0, 1.0))
+            material.set_specular(Vec3(1.0, 1.0, 1.0))
+            material.set_roughness(0.4)
+            node.set_material(material, 1)
+            # node.set_color((0.95, 0.95, 1.0, 1.0))
             if show_mesh:
                 render_attrib = node.get_state().get_attrib_def(
                     RenderModeAttrib.get_class_slot())
@@ -762,11 +771,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """Update the floor.
 
         :param height_map: Height map of the ground, as a 3D nd.array of shape
-                           [N_X, N_Y, 3], where N_X, N_Y are the number of
-                           points on x and y axes respectively, while the last
-                           dimension corresponds to the position (x, y, z) of
-                           the point in space. It renders a flat tile ground if
-                           not specified.
+                           [N_X, N_Y, 6], where N_X, N_Y are the number of
+                           vertices on x and y axes respectively, while the last
+                           dimension corresponds to the position (x, y, z) and
+                           normal (n_x, n_y, nz) of the vertex in space. It
+                           renders a flat tile ground if not specified.
                            Optional: None by default.
         """
         self._floor.remove_node()

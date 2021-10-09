@@ -1727,7 +1727,7 @@ class Viewer:
                      height_map: Optional[HeatMapFunctor] = None,
                      show_mesh: bool = False,
                      grid_size: float = 20.0,
-                     grid_unit: float = 0.2) -> None:
+                     grid_unit: float = 0.05) -> None:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
 
@@ -1742,13 +1742,14 @@ class Viewer:
         if Viewer.backend.startswith('panda3d'):
             # Generate discrete grid
             grid_dim = int(np.ceil(grid_size / grid_unit)) + 1
-            height_grid = np.empty((grid_dim, grid_dim, 3))
+            height_grid = np.empty((grid_dim, grid_dim, 6))
+            height_grid[..., 0], height_grid[..., 1] = np.meshgrid(
+                *(2 * (np.arange(grid_dim) * grid_unit - grid_size / 2.0,)),
+                copy=False)
             for i in range(grid_dim):
                 for j in range(grid_dim):
-                    x = i * grid_unit - grid_size / 2.0
-                    y = j * grid_unit - grid_size / 2.0
-                    height, _ = height_map(np.array([x, y, 0.0]))
-                    height_grid[i, j] = x, y, height
+                    height_grid[i, j][2], height_grid[i, j][3:] = height_map(
+                        height_grid[i, j][:3])
             self._gui.update_floor(height_grid, show_mesh)
         else:
             logger.warning("This method is only supported by Panda3d.")
