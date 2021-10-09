@@ -1294,17 +1294,24 @@ namespace jiminy
                     collisionPairsIdx[i].size(), pinocchio::Force::Zero());
             }
 
-            // Set Baumgarte stabilization natural frequency for every constraints
-            systemDataIt->constraintsHolder.foreach(
-                [freq = engineOptions_->contacts.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
-                    std::shared_ptr<AbstractConstraintBase> const & constraint,
-                    constraintsHolderType_t const & /* holderType */)
-                {
-                    if (constraint)
+            // Set Baumgarte stabilization natural frequency for contact constraints
+            std::array<constraintsHolderType_t, 3> holderTypes {{
+                constraintsHolderType_t::BOUNDS_JOINTS,
+                constraintsHolderType_t::CONTACT_FRAMES,
+                constraintsHolderType_t::COLLISION_BODIES}};
+            for (constraintsHolderType_t holderType : holderTypes)
+            {
+                systemDataIt->constraintsHolder.foreach(holderType,
+                    [freq = engineOptions_->contacts.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
+                        std::shared_ptr<AbstractConstraintBase> const & constraint,
+                        constraintsHolderType_t const & /* holderType */)
                     {
-                        constraint->setBaumgarteFreq(freq);  // It cannot fail at this point
-                    }
-                });
+                        if (constraint)
+                        {
+                            constraint->setBaumgarteFreq(freq);  // It cannot fail at this point
+                        }
+                    });
+            }
 
             // Initialize some addition buffers used by impulse contact solver
             systemDataIt->jointJacobian = matrixN_t::Zero(6, systemIt->robot->pncModel_.nv);
