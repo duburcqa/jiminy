@@ -1,6 +1,6 @@
 """ TODO: Write documentation.
 """
-from typing import Union, Dict, List, ValuesView
+from typing import Union, Dict, List, ValuesView, Tuple, Iterable
 
 import numpy as np
 import numba as nb
@@ -54,7 +54,8 @@ def get_fieldnames(space: gym.spaces.Space,
     if isinstance(space, (gym.spaces.Dict, gym.spaces.Tuple)):
         assert space.spaces, "Dict and Tuple spaces cannot be empty."
         if isinstance(space, gym.spaces.Tuple):
-            spaces = ((i, value) for i, value in enumerate(space.spaces))
+            spaces: Iterable[Tuple[str, gym.spaces.Space]] = (
+                (str(i), value) for i, value in enumerate(space.spaces))
         else:
             spaces = dict.items(space.spaces)
         out: List[Union[Dict[str, FieldDictNested], str]] = []

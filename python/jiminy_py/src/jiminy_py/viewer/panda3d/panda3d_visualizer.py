@@ -772,9 +772,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         :param height_map: Height map of the ground, as a 3D nd.array of shape
                            [N_X, N_Y, 6], where N_X, N_Y are the number of
-                           vertices on x and y axes respectively, while the last
-                           dimension corresponds to the position (x, y, z) and
-                           normal (n_x, n_y, nz) of the vertex in space. It
+                           vertices on x and y axes respectively, while the
+                           last dimension corresponds to the position (x, y, z)
+                           and normal (n_x, n_y, nz) of the vertex in space. It
                            renders a flat tile ground if not specified.
                            Optional: None by default.
         """
