@@ -117,11 +117,6 @@ namespace python
             }
         }
 
-        static void setReferenceConfiguration(JointConstraint & self, vectorN_t const & value)
-        {
-            self.setReferenceConfiguration(value);
-        }
-
     public:
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose.
@@ -155,7 +150,7 @@ namespace python
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("reference_configuration", bp::make_function(&JointConstraint::getReferenceConfiguration,
                                                          bp::return_value_policy<result_converter<false> >()),
-                                                         &PyConstraintVisitor::setReferenceConfiguration);
+                                                         &JointConstraint::setReferenceConfiguration);
 
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<FixedFrameConstraint>,

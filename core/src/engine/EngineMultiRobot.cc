@@ -3192,8 +3192,9 @@ namespace jiminy
                     // Enable fixed joint constraint and reset it if it was disable
                     if (!constraint->getIsEnabled())
                     {
-                        constraint->reset(q, v);
                         constraint->enable();
+                        auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
+                        jointConstraint.setReferenceConfiguration(joint.jointConfigSelector(q));
                     }
                 }
                 else /* if (qJoint < qJointMax - engineOptions_->contacts.transitionEps */
