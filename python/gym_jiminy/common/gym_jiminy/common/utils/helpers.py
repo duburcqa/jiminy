@@ -1,10 +1,10 @@
 """ TODO: Write documentation.
 """
-from typing import Union, Dict, List, ValuesView
+from typing import Union, Dict, List, ValuesView, Tuple, Iterable
 
 import numpy as np
 import numba as nb
-from gym import spaces
+import gym
 
 import jiminy_py.core as jiminy
 
@@ -29,7 +29,7 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     return False
 
 
-def get_fieldnames(space: spaces.Space,
+def get_fieldnames(space: gym.spaces.Space,
                    namespace: str = "") -> FieldDictNested:
     """Get generic fieldnames from `gym.spaces.Space`, so that it can be used
     in conjunction with `register_variables`, to register any value from gym
@@ -40,25 +40,32 @@ def get_fieldnames(space: spaces.Space,
                       Empty string to disable.
                       Optional: Disabled by default.
     """
-    # Fancy action space: Trying to be clever and infer meaningful
-    # telemetry names based on action space
-    if isinstance(space, (spaces.Box, spaces.Tuple, spaces.MultiBinary)):
-        # No information: fallback to basic numbering
-        return [".".join(filter(None, (namespace, str(i))))
-                for i in range(len(space))]
-    if isinstance(space, (
-            spaces.Discrete, spaces.MultiDiscrete)):
-        # The space is already scalar. Namespace alone as fieldname is enough.
+    # Scalar scape: namespace alone as fieldname is enough
+    if isinstance(space, gym.spaces.Discrete):
         return [namespace]
-    if isinstance(space, spaces.Dict):
-        assert space.spaces, "Dict space cannot be empty."
+
+    # Vector space: basic numbering
+    if isinstance(space, (gym.spaces.Box, gym.spaces.MultiBinary)):
+        return [".".join(filter(None, (namespace, str(i))))
+                for i in range(np.prod(space.shape))]
+
+    # Fancy action spaces: trying to be clever and infer meaningful telemetry
+    # names based on action space.
+    if isinstance(space, (gym.spaces.Dict, gym.spaces.Tuple)):
+        assert space.spaces, "Dict and Tuple spaces cannot be empty."
+        if isinstance(space, gym.spaces.Tuple):
+            spaces: Iterable[Tuple[str, gym.spaces.Space]] = (
+                (str(i), value) for i, value in enumerate(space.spaces))
+        else:
+            spaces = dict.items(space.spaces)
         out: List[Union[Dict[str, FieldDictNested], str]] = []
-        for field, subspace in dict.items(space.spaces):
-            if isinstance(subspace, spaces.Dict):
+        for field, subspace in spaces:
+            if isinstance(subspace, (gym.spaces.Dict, gym.spaces.Tuple)):
                 out.append({field: get_fieldnames(subspace, namespace)})
             else:
                 out.append(field)
         return out
+
     raise NotImplementedError(
         f"Gym.Space of type {type(space)} is not supported.")
 
@@ -81,7 +88,7 @@ def register_variables(controller: jiminy.AbstractController,
     :param field: Nested variable names, as returned by `get_fieldnames`
                   method. It can be a nested list or/and dict. The leaf are
                   str corresponding to the name of each scalar data.
-    :param data: Data from `Gym.spaces.Space` to register. Note that the
+    :param data: Data from `gym.spaces.Space` to register. Note that the
                  telemetry stores pointers to the underlying memory, so it
                  only supports np.float64, and make sure to reassign data
                  using `np.copyto` or `[:]` operator (faster).

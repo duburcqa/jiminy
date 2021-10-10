@@ -39,8 +39,7 @@ namespace jiminy
         /// \param[in]  frameName   Name of the frame on which the constraint is to be applied.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         FixedFrameConstraint(std::string const & frameName,
-                             Eigen::Matrix<bool_t, 6, 1> const & maskFixed = Eigen::Matrix<bool_t, 6, 1>::Constant(true),
-                             pinocchio::ReferenceFrame const & frameRef = pinocchio::LOCAL_WORLD_ALIGNED);
+                             Eigen::Matrix<bool_t, 6, 1> const & maskFixed = Eigen::Matrix<bool_t, 6, 1>::Constant(true));
         virtual ~FixedFrameConstraint(void);
 
         std::string const & getFrameName(void) const;
@@ -48,10 +47,11 @@ namespace jiminy
 
         std::vector<uint32_t> const & getDofsFixed(void) const;
 
-        pinocchio::ReferenceFrame const & getReferenceFrame(void) const;
-
         void setReferenceTransform(pinocchio::SE3 const & transformRef);
-        pinocchio::SE3 & getReferenceTransform(void);
+        pinocchio::SE3 const & getReferenceTransform(void) const;
+
+        void setLocalFrame(matrix3_t const & frameRot);
+        matrix3_t const & getLocalFrame(void) const;
 
         virtual hresult_t reset(vectorN_t const & q,
                                 vectorN_t const & v) override final;
@@ -62,11 +62,11 @@ namespace jiminy
     private:
         std::string const frameName_;         ///< Name of the frame on which the constraint operates.
         frameIndex_t frameIdx_;               ///< Corresponding frame index.
-        pinocchio::ReferenceFrame frameRef_;  ///< Reference frame.
         std::vector<uint32_t> dofsFixed_;     ///< Degrees of freedom to fix.
         pinocchio::SE3 transformRef_;         ///< Reference pose of the frame to enforce.
-        matrixN_t frameJacobian_;             ///< Stores full frame jacobian in reference frame.
-        vector6_t frameDrift_;                ///< Stores full frame drift in reference frame.
+        matrix3_t rotationLocal_;             ///< Rotation matrix of the local frame in which to apply masking
+        matrix6N_t frameJacobian_;            ///< Stores full frame jacobian in reference frame.
+        pinocchio::Motion frameDrift_;        ///< Stores full frame drift in reference frame.
     };
 }
 

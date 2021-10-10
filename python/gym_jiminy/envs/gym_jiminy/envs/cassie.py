@@ -78,6 +78,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             "right_pushrod_hip", "hip_flexion_right", M_pushrod_hip_right)
         pushrod_right = DistanceConstraint(
             "right_pushrod_tarsus", "right_pushrod_hip", 0.5012)
+        pushrod_right.baumgarte_freq = 20.0
         self.robot.add_constraint("pushrod_right", pushrod_right)
         M_pushrod_tarsus_left = SE3(
             np.eye(3), np.array([-0.12, 0.03, 0.005]))
@@ -89,13 +90,16 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             "left_pushrod_hip", "hip_flexion_left", M_pushrod_hip_left)
         pushrod_left = DistanceConstraint(
             "left_pushrod_tarsus", "left_pushrod_hip", 0.5012)
+        pushrod_left.baumgarte_freq = 20.0
         self.robot.add_constraint("pushrod_left", pushrod_left)
 
         # Replace knee to shin spring by fixed joint constraint
         right_spring_knee_to_shin = JointConstraint("knee_to_shin_right")
+        right_spring_knee_to_shin.baumgarte_freq = 20.0
         self.robot.add_constraint(
             "right_spring_knee_to_shin", right_spring_knee_to_shin)
         left_spring_knee_to_shin = JointConstraint("knee_to_shin_left")
+        left_spring_knee_to_shin.baumgarte_freq = 20.0
         self.robot.add_constraint(
             "left_spring_knee_to_shin", left_spring_knee_to_shin)
 

@@ -148,25 +148,32 @@ def generate_hardware_description_file(
         Sensor=OrderedDict()
     )
 
+    # Extract the root link. It is the one having no parent at all.
+    links = set()
+    for link_descr in root.findall('./link'):
+        links.add(link_descr.attrib["name"])
+    for joint_descr in root.findall('./joint'):
+        links.remove(joint_descr.find('./child').get('link'))
+    link_root = next(iter(links))
+
     # Extract the list of parent and child links, excluding the one related
     # to fixed link not having collision geometry, because they are likely not
     # "real" joint.
-    parent_links = set()
-    child_links = set()
+    links_parent = set()
+    links_child = set()
     for joint_descr in root.findall('./joint'):
         parent_link = joint_descr.find('./parent').get('link')
         child_link = joint_descr.find('./child').get('link')
         if joint_descr.get('type').casefold() != 'fixed' or root.find(
                 f"./link[@name='{child_link}']/collision") is not None:
-            parent_links.add(parent_link)
-            child_links.add(child_link)
+            links_parent.add(parent_link)
+            links_child.add(child_link)
 
-    # Compute the root link and the leaf ones
-    if parent_links:
-        root_link = next(iter(parent_links.difference(child_links)))
+    # Determine leaf links. If there is no parent, then use root link instead.
+    if links_parent:
+        links_leaf = sorted(list(links_child.difference(links_parent)))
     else:
-        root_link = None
-    leaf_links = sorted(list(child_links.difference(parent_links)))
+        links_leaf = [link_root]
 
     # Parse the gazebo plugins, if any.
     # Note that it is only useful to extract "advanced" hardware, not basic
@@ -266,26 +273,26 @@ def generate_hardware_description_file(
                 logger.warning(f"Unsupported Gazebo plugin '{plugin}'")
 
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
-    if root_link and imu.type not in hardware_info['Sensor'].keys():
+    if link_root and imu.type not in hardware_info['Sensor'].keys():
         hardware_info['Sensor'].setdefault(imu.type, {}).update({
-            root_link: OrderedDict(
-                body_name=root_link,
+            link_root: OrderedDict(
+                body_name=link_root,
                 frame_pose=6*[0.0])
         })
 
     # Add force sensors and collision bodies if no Gazebo plugin is available
     if not gazebo_plugins_found:
-        for leaf_link in leaf_links:
+        for link_leaf in links_leaf:
             # Add a force sensor
             hardware_info['Sensor'].setdefault(force.type, {}).update({
-                leaf_link: OrderedDict(
-                    body_name=leaf_link,
+                link_leaf: OrderedDict(
+                    body_name=link_leaf,
                     frame_pose=6*[0.0])
             })
 
             # Add the related body to the collision set if possible
-            if root.find(f"./link[@name='{leaf_link}']/collision") is not None:
-                collision_bodies_names.add(leaf_link)
+            if root.find(f"./link[@name='{link_leaf}']/collision") is not None:
+                collision_bodies_names.add(link_leaf)
 
     # Specify collision bodies and ground model in global config options
     hardware_info['Global']['collisionBodiesNames'] = \
