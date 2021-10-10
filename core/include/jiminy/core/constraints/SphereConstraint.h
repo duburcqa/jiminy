@@ -50,7 +50,7 @@ namespace jiminy
         frameIndex_t const & getFrameIdx(void) const;
 
         void setReferenceTransform(pinocchio::SE3 const & transformRef);
-        pinocchio::SE3 & getReferenceTransform(void);
+        pinocchio::SE3 const & getReferenceTransform(void) const;
 
         virtual hresult_t reset(vectorN_t const & /* q */,
                                 vectorN_t const & /* v */) override final;

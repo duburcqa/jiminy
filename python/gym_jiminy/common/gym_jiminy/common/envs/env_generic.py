@@ -564,9 +564,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             # Fallback: Get generic fieldnames otherwise
             self.logfile_action_headers = get_fieldnames(
                 self.action_space, "action")
-        register_variables(self.simulator.controller,
-                           self.logfile_action_headers,
-                           self._action)
+        if self.logfile_action_headers:
+            # Only register the variable to the telemetry if not empty
+            register_variables(self.simulator.controller,
+                               self.logfile_action_headers,
+                               self._action)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()

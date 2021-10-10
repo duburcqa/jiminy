@@ -46,7 +46,7 @@ namespace jiminy
         transformRef_ = transformRef;
     }
 
-    pinocchio::SE3 & SphereConstraint::getReferenceTransform(void)
+    pinocchio::SE3 const & SphereConstraint::getReferenceTransform(void) const
     {
         return transformRef_;
     }

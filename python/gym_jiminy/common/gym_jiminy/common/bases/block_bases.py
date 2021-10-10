@@ -316,5 +316,5 @@ BaseControllerBlock.compute_command.__doc__ = \
     :param measure: Observation of the environment.
     :param action: Target to achieve.
 
-    :returns: Action to perform
+    :returns: Action to perform.
     """

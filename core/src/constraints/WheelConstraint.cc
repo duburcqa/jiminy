@@ -50,7 +50,7 @@ namespace jiminy
         transformRef_ = transformRef;
     }
 
-    pinocchio::SE3 & WheelConstraint::getReferenceTransform(void)
+    pinocchio::SE3 const & WheelConstraint::getReferenceTransform(void) const
     {
         return transformRef_;
     }

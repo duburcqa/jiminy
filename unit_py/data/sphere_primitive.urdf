@@ -15,6 +15,9 @@ The force sensor is mounted with an offset rotation to verify frame computations
             <geometry>
                 <sphere radius="0.5"/>
             </geometry>
+            <material name="">
+                <color rgba="0.65 0.65 0.65 1.0"/>
+            </material>
         </visual>
         <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>

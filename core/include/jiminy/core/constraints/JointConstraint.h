@@ -34,12 +34,8 @@ namespace jiminy
         std::string const & getJointName(void) const;
         jointIndex_t const & getJointIdx(void) const;
 
-        template<typename DerivedType>
-        void setReferenceConfiguration(Eigen::MatrixBase<DerivedType> const & configurationRef)
-        {
-            configurationRef_ = configurationRef;
-        }
-        vectorN_t & getReferenceConfiguration(void);
+        void setReferenceConfiguration(vectorN_t const & configurationRef);
+        vectorN_t const & getReferenceConfiguration(void) const;
 
         virtual hresult_t reset(vectorN_t const & q,
                                 vectorN_t const & v) override final;
