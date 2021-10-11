@@ -6,6 +6,7 @@ from typing import Callable, Union, Tuple
 
 import numpy as np
 import numba as nb
+from numpy.lib.stride_tricks import as_strided
 from numba.extending import get_cython_function_address
 
 from .core import HeightMapFunctor, heightMapType_t
@@ -18,7 +19,7 @@ murmurhash3_32_functype = ctypes.CFUNCTYPE(
 murmurhash3_32_ptr = murmurhash3_32_functype(murmurhash3_32_addr)
 
 
-@nb.generated_jit(nopython=True)
+@nb.generated_jit(nopython=True, nogil=True)
 def murmurhash3_32(key: int, seed: np.uint32) -> Union[int, float]:
     """Compute the 32 bit murmurhash3 encoding of key at seed.
 
@@ -43,7 +44,7 @@ def murmurhash3_32(key: int, seed: np.uint32) -> Union[int, float]:
     return _murmurhash3_32_impl
 
 
-@nb.jit
+@nb.jit(nopython=True, nogil=True)
 def _random_height(key: int,
                    proba_inv: int,
                    seed: np.uint32) -> Union[int, float]:
@@ -57,7 +58,7 @@ def _random_height(key: int,
     return encoding
 
 
-@nb.jit
+@nb.jit(nopython=True, nogil=True)
 def _tile_2d_interp_1d(p_idx: np.ndarray,
                        p_rel: np.ndarray,
                        dim: int,
@@ -108,7 +109,7 @@ def get_random_tile_ground(tile_size: np.ndarray,
     # Compute some proxies
     tile_interp_threshold = tile_interp_delta / tile_size
 
-    @nb.jit
+    @nb.jit(nopython=True, nogil=True)
     def _random_tile_ground_impl(x: float,
                                  y: float,
                                  height: np.ndarray,
@@ -170,3 +171,58 @@ def get_random_tile_ground(tile_size: np.ndarray,
         normal /= math.sqrt(dheight_x ** 2 + dheight_y ** 2 + 1.0)
 
     return HeightMapFunctor(_random_tile_ground_impl, heightMapType_t.GENERIC)
+
+
+@nb.jit(nopython=True, nogil=True)
+def _discretize_heightmap_impl(heightmap: nb.core.dispatcher.Dispatcher,
+                               grid_size: float,
+                               grid_unit: float) -> np.ndarray:
+    """ TODO: Write documentation.
+    """
+    # Allocate empty discrete grid
+    grid_dim = int(np.ceil(grid_size / grid_unit)) + 1
+    height_grid = np.empty((grid_dim, grid_dim, 6))
+
+    # Set X and Y coordinates
+    values = np.arange(grid_dim) * grid_unit - (grid_dim - 1) * grid_unit / 2
+    height_grid[..., 0] = as_strided(
+        values, shape=(grid_dim, grid_dim), strides=(0, values.itemsize))
+    height_grid[..., 1] = height_grid[..., 0].T
+
+    # Fill discrete grid
+    height = np.array(0.0)
+    for i in range(grid_dim):
+        for j in range(grid_dim):
+            x, y = height_grid[i, j][:2]
+            normal = height_grid[i, j][3:]
+            heightmap(x, y, height, normal)
+            height_grid[i, j][2] = height[()]
+
+    return height_grid
+
+
+def discretize_heightmap(heightmap: HeightMapFunctor,
+                         grid_size: float,
+                         grid_unit: float) -> np.ndarray:
+    """ TODO: Write documentation.
+    """
+    # Try to unwrap python method for fast access if possible.
+    heightmap_py = heightmap.py_function
+    if heightmap_py is not None and isinstance(
+            heightmap_py, nb.core.dispatcher.Dispatcher):
+        return _discretize_heightmap_impl(heightmap_py, grid_size, grid_unit)
+
+    # Allocate empty discrete grid
+    grid_dim = int(np.ceil(grid_size / grid_unit)) + 1
+    values = np.arange(grid_dim) * grid_unit - (grid_dim - 1) * grid_unit / 2
+    height_grid = np.empty((grid_dim, grid_dim, 6))
+    height_grid[..., 0], height_grid[..., 1] = np.meshgrid(
+        values, values, copy=False)
+
+    # Fill discrete grid
+    for i in range(grid_dim):
+        for j in range(grid_dim):
+            height_grid[i, j][2], height_grid[i, j][3:] = \
+                heightmap(height_grid[i, j][:3])
+
+    return height_grid

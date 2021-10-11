@@ -38,7 +38,8 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
 from .. import core as jiminy
-from ..core import ContactSensor as contact, HeightMapFunctor, heightMapType_t
+from ..core import ContactSensor as contact, HeightMapFunctor
+from ..generator import discretize_heightmap
 from ..state import State
 from ..dynamics import XYZQuatToXYZRPY
 from .meshcat.utilities import interactive_mode
@@ -1724,47 +1725,24 @@ class Viewer:
     @__must_be_open
     @__with_lock
     def update_floor(self,
-                     height_map: Optional[HeightMapFunctor] = None,
-                     show_mesh: bool = False,
+                     heightmap: Optional[HeightMapFunctor] = None,
                      grid_size: float = 20.0,
-                     grid_unit: float = 0.05) -> None:
+                     grid_unit: float = 0.04,
+                     show_meshes: bool = False) -> None:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
 
         .. note::
             This method is only supported by Panda3d for now.
 
-        :param height_map: `jiminy_py.core.HeightMapFunctor` associated with
+        :param heightmap: `jiminy_py.core.HeightMapFunctor` associated with
                            the ground profile. It renders a flat tile  ground
                            if not specified.
                            Optional: None by default.
         """
         if Viewer.backend.startswith('panda3d'):
-            # Allocate empty discrete grid
-            grid_dim = int(np.ceil(grid_size / grid_unit)) + 1
-            height_grid = np.empty((grid_dim, grid_dim, 6))
-            height_grid[..., 0], height_grid[..., 1] = np.meshgrid(
-                *(2 * (np.arange(grid_dim) * grid_unit - grid_size / 2.0,)),
-                copy=False)
-
-            # Full discrete grid.
-            # Try to unwrap python method for fast access if possible.
-            height_map_py = height_map.py_function
-            if False and height_map_py is not None:
-                height = np.array(0.0)
-                for i in range(grid_dim):
-                    for j in range(grid_dim):
-                        x, y = height_grid[i, j][:2]
-                        normal = height_grid[i, j][3:]
-                        height_map_py(x, y, height, normal)
-                        height_grid[i, j][2] = height
-            else:
-                for i in range(grid_dim):
-                    for j in range(grid_dim):
-                        height_grid[i, j][2], height_grid[i, j][3:] = \
-                            height_map(height_grid[i, j][:3])
-
-            self._gui.update_floor(height_grid, show_mesh)
+            height_grid = discretize_heightmap(heightmap, grid_size, grid_unit)
+            self._gui.update_floor(height_grid, show_meshes)
         else:
             logger.warning("This method is only supported by Panda3d.")
 

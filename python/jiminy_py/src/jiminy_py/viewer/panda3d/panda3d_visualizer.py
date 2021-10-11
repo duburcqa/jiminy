@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import PureWindowsPath
 from typing import Callable, Optional, Dict, Tuple, Union, Sequence, Any, List
 
+import numba as nb
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
@@ -22,9 +23,9 @@ from panda3d.core import (
     PNMImage, InternalName, OmniBoundingVolume, CompassEffect, BillboardEffect,
     Filename, TextNode, Texture, TextureStage, PNMImageHeader, PGTop, Camera,
     PerspectiveLens, TransparencyAttrib, OrthographicLens, ClockObject,
-    GraphicsPipe, WindowProperties, FrameBufferProperties, loadPrcFileData,
-    AntialiasAttrib, CollisionNode, CollisionRay, CollisionTraverser,
-    CollisionHandlerQueue, RenderModeAttrib)
+    GraphicsPipe, WindowProperties, FrameBufferProperties, AntialiasAttrib,
+    CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
+    RenderModeAttrib, loadPrcFileData)
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
@@ -176,7 +177,7 @@ def make_cone(num_sides: int = 16) -> Geom:
     # Define vertex format
     vformat = GeomVertexFormat.get_v3n3t2()
     vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
-    vdata.uncleanSetNumRows(num_sides + 3)
+    vdata.unclean_set_num_rows(num_sides + 3)
     vertex = GeomVertexWriter(vdata, 'vertex')
     normal = GeomVertexWriter(vdata, 'normal')
     tcoord = GeomVertexWriter(vdata, 'texcoord')
@@ -213,34 +214,50 @@ def make_cone(num_sides: int = 16) -> Geom:
     return geom
 
 
-def make_height_map(height_map: np.ndarray) -> Geom:
+@nb.jit(nopython=True, nogil=True)
+def _make_heightmap_triangles(x_dim: int, y_dim: int) -> np.ndarray:
+    """ TODO: Write documentation.
+    """
+    num_triangles = int(2 * (x_dim - 1) * (y_dim - 1))
+    indices = np.empty((num_triangles, 3), dtype=np.uint32)
+    l = 0
+    for i in range(x_dim - 1):
+        for j in range(1, y_dim - 1):
+            k = j * x_dim + i
+            indices[l] = k + 1, k, k + x_dim
+            indices[l + 1] = k, k + 1, k + 1 - x_dim
+            l += 2
+        k = (y_dim - 1) * x_dim + i
+        indices[l] = i + 1, i, i + x_dim
+        indices[l + 1] = k, k + 1, k + 1 - x_dim
+        l += 2
+    return indices
+
+
+def make_heightmap(heightmap: np.ndarray) -> Geom:
     """Create height map.
     """
     # Compute the number of vertices
-    num_vertices = int(np.prod(height_map.shape[:2]))
+    x_dim, y_dim, _ = heightmap.shape
+    num_vertices = int(x_dim * y_dim)
 
-    # Define vertex format
+    # Allocation vertex
     vformat = GeomVertexFormat.get_v3n3()
     vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
-    vdata.uncleanSetNumRows(num_vertices)
-    vertex = GeomVertexWriter(vdata, 'vertex')
-    normal = GeomVertexWriter(vdata, 'normal')
+    vdata.unclean_set_num_rows(num_vertices)
 
-    # # Add grid points
-    for i in range(height_map.shape[0]):
-        for j in range(height_map.shape[1]):
-            vertex.addData3(*height_map[i, j][:3])
-            normal.addData3(*height_map[i, j][3:])
+    # Set vertex data
+    vdata_view = memoryview(vdata.modify_array(0)).cast("B")
+    vdata_view[:] = array.array("f", heightmap.reshape((-1,))).tobytes()
 
     # Make triangles
     prim = GeomTriangles(Geom.UH_static)
-    for j in range(height_map.shape[1]):
-        for i in range(height_map.shape[0] - 1):
-            k = j * height_map.shape[0] + i
-            if j < height_map.shape[1] - 1:
-                prim.add_vertices(k + 1, k, k + height_map.shape[0])
-            if j > 0:
-                prim.add_vertices(k, k + 1, k + 1 - height_map.shape[0])
+    prim.set_index_type(Geom.NT_uint32)
+    tris_array = prim.modify_vertices()
+    indices = _make_heightmap_triangles(x_dim, y_dim)
+    tris_array.unclean_set_num_rows(indices.size)
+    memview = memoryview(tris_array)
+    memview[:] = array.array("I", indices.reshape((-1,)))
 
     # Create geometry object
     geom = Geom(vdata)
@@ -726,12 +743,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return node
 
     def _make_floor(self,
-                    height_map: Optional[np.ndarray] = None,
-                    show_mesh: bool = False) -> NodePath:
+                    heightmap: Optional[np.ndarray] = None,
+                    show_meshes: bool = False) -> NodePath:
         model = GeomNode('floor')
         node = self.render.attach_new_node(model)
 
-        if height_map is None:
+        if heightmap is None:
             for xi in range(-10, 11):
                 for yi in range(-10, 11):
                     tile = GeomNode(f"tile-{xi}.{yi}")
@@ -743,7 +760,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     else:
                         tile_path.set_color((0.13, 0.13, 0.2, 1.0))
         else:
-            model.add_geom(make_height_map(height_map))
+            model.add_geom(make_heightmap(heightmap))
             material = Material()
             material.set_ambient(Vec4(0.95, 0.95, 1.0, 1.0))
             material.set_diffuse(Vec4(0.95, 0.95, 1.0, 1.0))
@@ -751,7 +768,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             material.set_roughness(0.4)
             node.set_material(material, 1)
             # node.set_color((0.95, 0.95, 1.0, 1.0))
-            if show_mesh:
+            if show_meshes:
                 render_attrib = node.get_state().get_attrib_def(
                     RenderModeAttrib.get_class_slot())
                 node.set_attrib(RenderModeAttrib.make(
@@ -766,20 +783,20 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return node
 
     def update_floor(self,
-                     height_map: Optional[np.ndarray] = None,
-                     show_mesh: bool = False) -> NodePath:
+                     heightmap: Optional[np.ndarray] = None,
+                     show_meshes: bool = False) -> NodePath:
         """Update the floor.
 
-        :param height_map: Height map of the ground, as a 3D nd.array of shape
-                           [N_X, N_Y, 6], where N_X, N_Y are the number of
-                           vertices on x and y axes respectively, while the
-                           last dimension corresponds to the position (x, y, z)
-                           and normal (n_x, n_y, nz) of the vertex in space. It
-                           renders a flat tile ground if not specified.
-                           Optional: None by default.
+        :param heightmap: Height map of the ground, as a 3D nd.array of shape
+                          [N_X, N_Y, 6], where N_X, N_Y are the number of
+                          vertices on x and y axes respectively, while the
+                          last dimension corresponds to the position (x, y, z)
+                          and normal (n_x, n_y, nz) of the vertex in space. It
+                          renders a flat tile ground if not specified.
+                          Optional: None by default.
         """
         self._floor.remove_node()
-        self._floor = self._make_floor(height_map, show_mesh)
+        self._floor = self._make_floor(heightmap, show_meshes)
 
     def append_group(self,
                      root_path: str,
@@ -1477,7 +1494,7 @@ class Panda3dVisualizer(BaseVisualizer):
                 # Create primitive triangle geometry
                 vformat = GeomVertexFormat.get_v3()
                 vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
-                vdata.uncleanSetNumRows(geom.num_points)
+                vdata.unclean_set_num_rows(geom.num_points)
                 vwriter = GeomVertexWriter(vdata, 'vertex')
                 for vertex in vertices:
                     vwriter.addData3(*vertex)
