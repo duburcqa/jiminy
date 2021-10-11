@@ -45,6 +45,8 @@ namespace python
                                  bp::arg("heightmap_type")=heightMapType_t::GENERIC)))
                 .def("__call__", &PyHeightMapFunctorVisitor::eval,
                                  (bp::args("self", "position")))
+                .add_property("py_function", bp::make_function(&PyHeightMapFunctorVisitor::getPyFun,
+                                             bp::return_value_policy<bp::return_by_value>()));
                 ;
         }
 
@@ -53,6 +55,16 @@ namespace python
         {
             std::pair<float64_t, vector3_t> ground = self(posFrame);
             return bp::make_tuple(std::get<0>(ground), std::get<1>(ground));
+        }
+
+        static std::shared_ptr<HeightMapFunctorPyWrapper> getPyFun(heightMapFunctor_t & self)
+        {
+            HeightMapFunctorPyWrapper * pyWrapper(self.target<HeightMapFunctorPyWrapper>());
+            if (!pyWrapper || pyWrapper->heightMapType_ != heightMapType_t::GENERIC)
+            {
+                return {};
+            }
+            return pyWrapper->handlePyPtr_;
         }
 
         static std::shared_ptr<heightMapFunctor_t> factory(bp::object            & objPy,

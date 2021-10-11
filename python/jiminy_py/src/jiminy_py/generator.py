@@ -1,5 +1,6 @@
 """ TODO: Write documentation.
 """
+import math
 import ctypes
 from typing import Callable, Union, Tuple
 
@@ -7,7 +8,7 @@ import numpy as np
 import numba as nb
 from numba.extending import get_cython_function_address
 
-from .core import HeightMapFunctor, heightMapType_t
+from .core import HeightMapFunctorPyWrapper, heightMapType_t
 
 
 murmurhash3_32_addr = get_cython_function_address(
@@ -94,13 +95,13 @@ def _tile_2d_interp_1d(p_idx: np.ndarray,
 def get_random_tile_ground(tile_size: np.ndarray,
                            tile_proba_inv: float,
                            tile_height_max: float,
-                           tile_interp_delta: float,
+                           tile_interp_delta: np.ndarray,
                            seed: np.uint32) -> Callable[
                                [float, float], Tuple[float, np.ndarray]]:
     """ TODO: Write documentation.
     """
     # Make sure the arguments are valid
-    assert (0.01 <= tile_interp_delta and np.all(
+    assert (np.all(0.01 <= tile_interp_delta) and np.all(
         tile_interp_delta <= tile_size / 2.0)), (
             "'tile_interp_delta' must be in range [0.01, 'tile_size'/2.0].")
 
@@ -166,6 +167,7 @@ def get_random_tile_ground(tile_size: np.ndarray,
         # Compute the resulting normal to the surface
         # normal = (-d.height/d.x, -d.height/d.y, 1.0)
         normal[:] = -dheight_x, -dheight_y, 1.0
-        normal /= np.linalg.norm(normal)
+        normal /= math.sqrt(dheight_x ** 2 + dheight_y ** 2 + 1.0)
 
-    return HeightMapFunctor(_random_tile_ground_impl, heightMapType_t.GENERIC)
+    return HeightMapFunctorPyWrapper(
+        _random_tile_ground_impl, heightMapType_t.GENERIC)

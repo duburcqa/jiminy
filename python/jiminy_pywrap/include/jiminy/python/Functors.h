@@ -208,14 +208,15 @@ namespace python
         GENERIC  = 0x03,
     };
 
-    struct HeightMapFunctorPyWrapper {
+    struct HeightMapFunctorPyWrapper
+    {
     public:
         // Disable the copy of the class
         HeightMapFunctorPyWrapper & operator = (HeightMapFunctorPyWrapper const & other) = delete;
 
     public:
-        HeightMapFunctorPyWrapper(bp::object    const & objPy,
-                                heightMapType_t const & objType) :
+        HeightMapFunctorPyWrapper(bp::object      const & objPy,
+                                  heightMapType_t const & objType) :
         heightMapType_(objType),
         handlePyPtr_(objPy),
         out1Ptr_(new float64_t),
@@ -318,9 +319,11 @@ namespace python
             return {*out1Ptr_, *out2Ptr_};
         }
 
-    private:
+    public:
         heightMapType_t heightMapType_;
         bp::object handlePyPtr_;
+
+    private:
         float64_t * out1Ptr_;
         vector3_t * out2Ptr_;
         PyObject * out1PyPtr_;
