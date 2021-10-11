@@ -120,7 +120,7 @@ namespace jiminy
 
     /* Ground profile signature.
        Note that it is impossible to use function pointer since it does not support functors. */
-    using heatMapFunctor_t = std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)>;
+    using heightMapFunctor_t = std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)>;
 
     // Flexible joints
     struct flexibleJointData_t
@@ -159,7 +159,7 @@ namespace jiminy
 
     // Configuration/option holder
     using configField_t = boost::make_recursive_variant<
-        bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, heatMapFunctor_t,
+        bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, heightMapFunctor_t,
         std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>,
         flexibilityConfig_t, std::unordered_map<std::string, boost::recursive_variant_>
     >::type;

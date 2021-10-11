@@ -91,11 +91,11 @@ namespace python
         .value("SPHERICAL", joint_t::SPHERICAL)
         .value("FREE", joint_t::FREE);
 
-        // Interfaces for heatMapType_t enum
-        bp::enum_<heatMapType_t>("heatMapType_t")
-        .value("CONSTANT", heatMapType_t::CONSTANT)
-        .value("STAIRS", heatMapType_t::STAIRS)
-        .value("GENERIC", heatMapType_t::GENERIC);
+        // Interfaces for heightMapType_t enum
+        bp::enum_<heightMapType_t>("heightMapType_t")
+        .value("CONSTANT", heightMapType_t::CONSTANT)
+        .value("STAIRS", heightMapType_t::STAIRS)
+        .value("GENERIC", heightMapType_t::GENERIC);
 
         // Disable CPP docstring
         bp::docstring_options doc_options;
@@ -113,7 +113,7 @@ namespace python
         // Expose functors
         TIME_STATE_FCT_EXPOSE(bool_t, Bool)
         TIME_STATE_FCT_EXPOSE(pinocchio::Force, PinocchioForce)
-        exposeHeatMapFunctor();
+        exposeHeightMapFunctor();
 
         /* Expose compatibility layer, to support both new and old C++ ABI, and to
            restore automatic converters of numpy scalars without altering python

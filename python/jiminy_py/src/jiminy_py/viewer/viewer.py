@@ -38,7 +38,7 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
 from .. import core as jiminy
-from ..core import ContactSensor as contact, HeatMapFunctor
+from ..core import ContactSensor as contact, HeightMapFunctor
 from ..state import State
 from ..dynamics import XYZQuatToXYZRPY
 from .meshcat.utilities import interactive_mode
@@ -1724,19 +1724,19 @@ class Viewer:
     @__must_be_open
     @__with_lock
     def update_floor(self,
-                     height_map: Optional[HeatMapFunctor] = None,
+                     height_map: Optional[HeightMapFunctor] = None,
                      show_mesh: bool = False,
-                     grid_size: float = 20.0,
-                     grid_unit: float = 0.05) -> None:
+                     grid_size: float = 2.0,
+                     grid_unit: float = 0.005) -> None:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
 
         .. note::
             This method is only supported by Panda3d for now.
 
-        :param height_map: `jiminy_py.core.HeatMapFunctor` associated with the
-                           ground profile. It renders a flat tile  ground if
-                           not specified.
+        :param height_map: `jiminy_py.core.HeightMapFunctor` associated with
+                           the ground profile. It renders a flat tile  ground
+                           if not specified.
                            Optional: None by default.
         """
         if Viewer.backend.startswith('panda3d'):
