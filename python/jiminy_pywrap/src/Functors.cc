@@ -57,7 +57,7 @@ namespace python
             return bp::make_tuple(std::get<0>(ground), std::get<1>(ground));
         }
 
-        static std::shared_ptr<HeightMapFunctorPyWrapper> getPyFun(heightMapFunctor_t & self)
+        static bp::object getPyFun(heightMapFunctor_t & self)
         {
             HeightMapFunctorPyWrapper * pyWrapper(self.target<HeightMapFunctorPyWrapper>());
             if (!pyWrapper || pyWrapper->heightMapType_ != heightMapType_t::GENERIC)

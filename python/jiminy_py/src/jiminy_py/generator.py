@@ -8,7 +8,7 @@ import numpy as np
 import numba as nb
 from numba.extending import get_cython_function_address
 
-from .core import HeightMapFunctorPyWrapper, heightMapType_t
+from .core import HeightMapFunctor, heightMapType_t
 
 
 murmurhash3_32_addr = get_cython_function_address(
@@ -169,5 +169,4 @@ def get_random_tile_ground(tile_size: np.ndarray,
         normal[:] = -dheight_x, -dheight_y, 1.0
         normal /= math.sqrt(dheight_x ** 2 + dheight_y ** 2 + 1.0)
 
-    return HeightMapFunctorPyWrapper(
-        _random_tile_ground_impl, heightMapType_t.GENERIC)
+    return HeightMapFunctor(_random_tile_ground_impl, heightMapType_t.GENERIC)
