@@ -69,6 +69,7 @@ namespace jiminy
     using matrix3_t = Eigen::Matrix<float64_t, 3, 3>;
     using matrix6N_t = Eigen::Matrix<float64_t, 6, Eigen::Dynamic>;
     using vectorN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, 1>;
+    using vector2_t = Eigen::Matrix<float64_t, 2, 1>;
     using vector3_t = Eigen::Matrix<float64_t, 3, 1>;
     using vector6_t = Eigen::Matrix<float64_t, 6, 1>;
 

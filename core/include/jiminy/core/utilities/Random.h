@@ -33,6 +33,8 @@ namespace jiminy
 
     void shuffleIndices(std::vector<uint32_t> & vector);
 
+    // ************ Continuous 1D Perlin processes ***************
+
     class PeriodicGaussianProcess
     {
     public:
@@ -185,11 +187,11 @@ namespace jiminy
     /* \brief  Sum of Perlin noise octaves.
 
         \details  The original implementation uses fixed size permutation table to generate
-                    random gradient directions. As a result, the generated process is inherently
-                    periodic, which must be avoided. To circumvent this limitation, MurmurHash3
-                    algorithm is used to get random gradients at every point in time, without any
-                    periodicity, but deterministically for a given seed. It is computationally more
-                    depending but not critically slower.
+                  random gradient directions. As a result, the generated process is inherently
+                  periodic, which must be avoided. To circumvent this limitation, MurmurHash3
+                  algorithm is used to get random gradients at every point in time, without any
+                  periodicity, but deterministically for a given seed. It is computationally more
+                  depending but not critically slower.
 
         /sa  For technical references:
             - https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2
@@ -262,6 +264,20 @@ namespace jiminy
     private:
         float64_t const period_;
     };
+
+    // ************ Random terrain generators ***************
+
+    heightMapFunctor_t randomTileGround(vector2_t const & tileSize,
+                                        int64_t   const & sparsity,
+                                        float64_t const & tileHeightMax,
+                                        vector2_t const & tileInterpDelta,
+                                        uint32_t  const & seed);
+
+    heightMapFunctor_t mergeHeightMap(std::vector<heightMapFunctor_t> const & heightMaps);
+
+    matrixN_t discretizeHeightmap(heightMapFunctor_t const & heightMap,
+                                  float64_t          const & gridSize,
+                                  float64_t          const & gridUnit);
 }
 
 #endif  // JIMINY_RANDOM_H

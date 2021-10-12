@@ -90,12 +90,6 @@ setup(
         "tqdm",
         # Standard library for matrix algebra.
         "numpy",
-        # Use internally to speedup computation of math methods.
-        # Disable automatic forward compatibility with newer versions because
-        # numba relies on llvmlite, for which wheels take some time before
-        # being available on Pypi, making the whole installation process fail.
-        # >=0.53 is required to support Python 3.9.
-        "numba==0.53.1",
         # Used internally for interpolation and filtering.
         # No wheel is distributed for PyPy on pypi, and pip is only able to
         # build from source after install `libatlas-base-dev` system

@@ -23,6 +23,7 @@
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Helpers.h"
 #include "jiminy/python/Functors.h"
+#include "jiminy/python/Generators.h"
 #include "jiminy/python/Engine.h"
 #include "jiminy/python/Constraints.h"
 #include "jiminy/python/Controllers.h"
@@ -120,8 +121,9 @@ namespace python
            docstring signature. */
         exposeCompatibility();
 
-        // Expose helpers
+        // Expose helpers and generators
         exposeHelpers();
+        exposeGenerators();
 
         // Expose structs and classes
         exposeSensorsDataMap();

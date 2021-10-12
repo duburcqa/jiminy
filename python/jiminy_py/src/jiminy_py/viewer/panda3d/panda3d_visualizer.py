@@ -213,32 +213,13 @@ def make_cone(num_sides: int = 16) -> Geom:
     return geom
 
 
-@nb.jit(nopython=True, nogil=True)
-def _make_heightmap_triangles(x_dim: int, y_dim: int) -> np.ndarray:
-    """ TODO: Write documentation.
-    """
-    num_triangles = int(2 * (x_dim - 1) * (y_dim - 1))
-    indices = np.empty((num_triangles, 3), dtype=np.uint32)
-    tri_idx = 0
-    for i in range(x_dim - 1):
-        for j in range(1, y_dim - 1):
-            k = j * x_dim + i
-            indices[tri_idx] = k + 1, k, k + x_dim
-            indices[tri_idx + 1] = k, k + 1, k + 1 - x_dim
-            tri_idx += 2
-        k = (y_dim - 1) * x_dim + i
-        indices[tri_idx] = i + 1, i, i + x_dim
-        indices[tri_idx + 1] = k, k + 1, k + 1 - x_dim
-        tri_idx += 2
-    return indices
-
-
 def make_heightmap(heightmap: np.ndarray) -> Geom:
     """Create height map.
     """
-    # Compute the number of vertices
-    x_dim, y_dim, _ = heightmap.shape
-    num_vertices = int(x_dim * y_dim)
+    # Compute the number of vertices and triangles, assuming it is square
+    dim = int(math.sqrt(heightmap.shape[0]))
+    num_vertices = int(dim * dim)
+    num_triangles = int(2 * (dim - 1) ** 2)
 
     # Allocation vertex
     vformat = GeomVertexFormat.get_v3n3()
@@ -253,7 +234,18 @@ def make_heightmap(heightmap: np.ndarray) -> Geom:
     prim = GeomTriangles(Geom.UH_static)
     prim.set_index_type(Geom.NT_uint32)
     tris_array = prim.modify_vertices()
-    indices = _make_heightmap_triangles(x_dim, y_dim)
+    indices = np.empty((num_triangles, 3), dtype=np.uint32)
+    tri_idx = 0
+    for i in range(dim - 1):
+        for j in range(1, dim - 1):
+            k = j * dim + i
+            indices[tri_idx] = k + 1, k, k + dim
+            indices[tri_idx + 1] = k, k + 1, k + 1 - dim
+            tri_idx += 2
+        k = (dim - 1) * dim + i
+        indices[tri_idx] = i + 1, i, i + dim
+        indices[tri_idx + 1] = k, k + 1, k + 1 - dim
+        tri_idx += 2
     tris_array.unclean_set_num_rows(indices.size)
     memview = memoryview(tris_array)
     memview[:] = array.array("I", indices.reshape((-1,)))
@@ -786,8 +778,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      show_meshes: bool = False) -> NodePath:
         """Update the floor.
 
-        :param heightmap: Height map of the ground, as a 3D nd.array of shape
-                          [N_X, N_Y, 6], where N_X, N_Y are the number of
+        :param heightmap: Height map of the ground, as a 2D nd.array of shape
+                          [N_X * N_Y, 6], where N_X, N_Y are the number of
                           vertices on x and y axes respectively, while the
                           last dimension corresponds to the position (x, y, z)
                           and normal (n_x, n_y, nz) of the vertex in space. It

@@ -205,7 +205,7 @@ namespace jiminy
     {
         return {
             heightMapFunctor_t(
-                [](vector3_t const & /* pos */) -> std::pair <float64_t, vector3_t>
+                [](vector3_t const & /* pos */) -> std::pair<float64_t, vector3_t>
                 {
                     return {0.0, vector3_t::UnitZ()};
                 })
