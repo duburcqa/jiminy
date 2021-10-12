@@ -10,7 +10,6 @@ from datetime import datetime
 from pathlib import PureWindowsPath
 from typing import Callable, Optional, Dict, Tuple, Union, Sequence, Any, List
 
-import numba as nb
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
@@ -220,17 +219,17 @@ def _make_heightmap_triangles(x_dim: int, y_dim: int) -> np.ndarray:
     """
     num_triangles = int(2 * (x_dim - 1) * (y_dim - 1))
     indices = np.empty((num_triangles, 3), dtype=np.uint32)
-    l = 0
+    tri_idx = 0
     for i in range(x_dim - 1):
         for j in range(1, y_dim - 1):
             k = j * x_dim + i
-            indices[l] = k + 1, k, k + x_dim
-            indices[l + 1] = k, k + 1, k + 1 - x_dim
-            l += 2
+            indices[tri_idx] = k + 1, k, k + x_dim
+            indices[tri_idx + 1] = k, k + 1, k + 1 - x_dim
+            tri_idx += 2
         k = (y_dim - 1) * x_dim + i
-        indices[l] = i + 1, i, i + x_dim
-        indices[l + 1] = k, k + 1, k + 1 - x_dim
-        l += 2
+        indices[tri_idx] = i + 1, i, i + x_dim
+        indices[tri_idx + 1] = k, k + 1, k + 1 - x_dim
+        tri_idx += 2
     return indices
 
 
