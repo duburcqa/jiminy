@@ -68,9 +68,9 @@ namespace jiminy
             /// \param[in] solution Current solution computed by the main Runge-Kutta step.
             /// \param[in, out] dt  Timestep to be scaled.
             /// \return True on step success, false otherwise. dt is updated in place.
-            virtual bool adjustStep(state_t   const & initialState,
-                                    state_t   const & solution,
-                                    float64_t       & dt) override final;
+            virtual bool_t adjustStep(state_t   const & initialState,
+                                      state_t   const & solution,
+                                      float64_t       & dt) override final;
 
         private:
             /// \brief Run error computation algorithm to return normalized error.

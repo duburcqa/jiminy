@@ -981,7 +981,7 @@ namespace python
                                vectorN_t  const & qInit,
                                vectorN_t  const & vInit,
                                bp::object const & aInitPy,
-                               bool       const & isStateTheoretical)
+                               bool_t     const & isStateTheoretical)
         {
             boost::optional<vectorN_t> aInit = boost::none;
             if (!aInitPy.is_none())
@@ -996,7 +996,7 @@ namespace python
                                   vectorN_t  const & qInit,
                                   vectorN_t  const & vInit,
                                   bp::object const & aInitPy,
-                                  bool       const & isStateTheoretical)
+                                  bool_t     const & isStateTheoretical)
         {
             boost::optional<vectorN_t> aInit = boost::none;
             if (!aInitPy.is_none())

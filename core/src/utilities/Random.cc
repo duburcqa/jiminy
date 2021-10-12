@@ -797,7 +797,6 @@ namespace jiminy
         return period_;
     }
 
-
     template<typename VectorLike>
     std::enable_if_t<is_eigen_vector_v<VectorLike>, float64_t>
     randomHeight(Eigen::MatrixBase<VectorLike> const & key,
@@ -816,7 +815,6 @@ namespace jiminy
         }
         return 0.0;
     }
-
 
     std::pair<float64_t, float64_t> tile2dInterp1d(Eigen::Matrix<int32_t, 2, 1> & posIdx,
                                                    vector2_t const & posRel,
@@ -857,7 +855,6 @@ namespace jiminy
 
         return {height, dheight};
     }
-
 
     heightMapFunctor_t randomTileGround(vector2_t const & tileSize,
                                         int64_t   const & sparsity,
@@ -958,8 +955,7 @@ namespace jiminy
         };
     }
 
-
-    heightMapFunctor_t mergeHeightMap(std::vector<heightMapFunctor_t> const & heightMaps)
+    heightMapFunctor_t sumHeightMap(std::vector<heightMapFunctor_t> const & heightMaps)
     {
         return [heightMaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
         {
@@ -973,6 +969,31 @@ namespace jiminy
             }
             normal.normalize();
             return {height, normal};
+        };
+    }
+
+    heightMapFunctor_t mergeHeightMap(std::vector<heightMapFunctor_t> const & heightMaps)
+    {
+        return [heightMaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
+        {
+            float64_t heightMax = -INF;
+            vector3_t normal = vector3_t::UnitZ();
+            for (heightMapFunctor_t const & heightMap : heightMaps)
+            {
+                auto result = heightMap(pos3);
+                float64_t height = std::get<float64_t>(result);
+                if (std::abs(height - heightMax) < EPS)
+                {
+                    normal += std::get<vector3_t>(result);
+                }
+                else if (height > heightMax)
+                {
+                    heightMax = height;
+                    normal = std::get<vector3_t>(result);
+                }
+            }
+            normal.normalize();
+            return {heightMax, normal};
         };
     }
 
@@ -991,7 +1012,6 @@ namespace jiminy
         Eigen::Map<matrixN_t>(heightGrid.col(0).data(), gridDim, gridDim).colwise() = values;
         Eigen::Map<matrixN_t>(heightGrid.col(1).data(), gridDim, gridDim).rowwise() = values.transpose();
 
-
         // Fill discrete grid
         for (uint32_t i=0; i < heightGrid.rows(); ++i)
         {
@@ -1002,8 +1022,4 @@ namespace jiminy
 
         return heightGrid;
     }
-
-
-
-
 }

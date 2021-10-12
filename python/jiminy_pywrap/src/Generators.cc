@@ -10,6 +10,12 @@ namespace python
 {
     namespace bp = boost::python;
 
+    heightMapFunctor_t sumHeightMap(bp::list const & heightMapsPy)
+    {
+        auto heightMaps = convertFromPython<std::vector<heightMapFunctor_t> >(heightMapsPy);
+        return ::jiminy::sumHeightMap(heightMaps);
+    }
+
     heightMapFunctor_t mergeHeightMap(bp::list const & heightMapsPy)
     {
         auto heightMaps = convertFromPython<std::vector<heightMapFunctor_t> >(heightMapsPy);
@@ -83,6 +89,7 @@ namespace python
         bp::def("random_tile_ground", &randomTileGround,
                                       bp::args("tile_size", "sparsity", "tile_height_max", "tile_interp_delta", "seed"));
 
+        bp::def("sum_heightmap", &sumHeightMap, bp::args("heightmaps"));
         bp::def("merge_heightmap", &mergeHeightMap, bp::args("heightmaps"));
 
         bp::def("discretize_heightmap", &discretizeHeightmap, bp::args("heightmap", "grid_size", "grid_unit"));

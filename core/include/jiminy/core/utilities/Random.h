@@ -273,6 +273,7 @@ namespace jiminy
                                         vector2_t const & tileInterpDelta,
                                         uint32_t  const & seed);
 
+    heightMapFunctor_t sumHeightMap(std::vector<heightMapFunctor_t> const & heightMaps);
     heightMapFunctor_t mergeHeightMap(std::vector<heightMapFunctor_t> const & heightMaps);
 
     matrixN_t discretizeHeightmap(heightMapFunctor_t const & heightMap,
