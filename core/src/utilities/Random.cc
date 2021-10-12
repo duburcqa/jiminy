@@ -799,9 +799,9 @@ namespace jiminy
 
     template<typename VectorLike>
     std::enable_if_t<is_eigen_vector_v<VectorLike>, float64_t>
-    randomHeight(Eigen::MatrixBase<VectorLike> const & key,
+    randomDouble(Eigen::MatrixBase<VectorLike> const & key,
                  int64_t   const & sparsity,
-                 float64_t const & tileHeightScale,
+                 float64_t const & scale,
                  uint32_t  const & seed)
     {
         int32_t const keyLen = static_cast<int32_t>(sizeof(typename VectorLike::Scalar)) *
@@ -811,7 +811,7 @@ namespace jiminy
         {
             float64_t encoding(hash);
             encoding /= std::numeric_limits<uint32_t>::max();
-            return tileHeightScale * encoding;
+            return scale * encoding;
         }
         return 0.0;
     }
@@ -825,12 +825,12 @@ namespace jiminy
                                                    vector2_t const & tileInterpThreshold,
                                                    uint32_t  const & seed)
     {
-        float64_t const z = randomHeight(posIdx, sparsity, tileHeightMax, seed);
+        float64_t const z = randomDouble(posIdx, sparsity, tileHeightMax, seed);
         float64_t height, dheight;
         if (posRel[dim] < tileInterpThreshold[dim])
         {
             posIdx[dim] -= 1;
-            float64_t const z_m = randomHeight(posIdx, sparsity, tileHeightMax, seed);
+            float64_t const z_m = randomDouble(posIdx, sparsity, tileHeightMax, seed);
             posIdx[dim] += 1;
 
             float64_t const ratio = (1.0 - posRel[dim] / tileInterpThreshold[dim]) / 2.0;
@@ -840,7 +840,7 @@ namespace jiminy
         else if (1.0 - posRel[dim] < tileInterpThreshold[dim])
         {
             posIdx[dim] += 1;
-            float64_t const z_p = randomHeight(posIdx, sparsity, tileHeightMax, seed);
+            float64_t const z_p = randomDouble(posIdx, sparsity, tileHeightMax, seed);
             posIdx[dim] -= 1;
 
             float64_t const ratio = (1.0 + (posRel[dim] - 1.0) / tileInterpThreshold[dim]) / 2.0;
@@ -871,11 +871,19 @@ namespace jiminy
         vector2_t tileInterpThreshold = tileInterpDelta.cwiseMax(0.01).cwiseMin(tileSize / 2.0);
         tileInterpThreshold.array() /= tileSize.array();
 
-        return [tileSize, sparsity, tileHeightMax, tileInterpThreshold, seed](
+        vector2_t const tileOffset = vector2_t::NullaryExpr(
+            [&tileSize, &seed] (vectorN_t::Index const & i) -> float64_t
+            {
+                Eigen::Matrix<vectorN_t::Index, 1, 1> key;
+                key << i;
+                return randomDouble(key, 1, tileSize[i], seed);
+            });
+
+        return [tileSize, tileOffset, sparsity, tileHeightMax, tileInterpThreshold, seed](
             vector3_t const & pos3) -> std::pair <float64_t, vector3_t>
         {
             // Compute the tile index and relative coordinate
-            vector2_t pos = pos3.head<2>() + tileSize / 2.0;
+            vector2_t pos = pos3.head<2>() + tileOffset;
             vector2_t posRel = pos.array() / tileSize.array();
             Eigen::Matrix<int32_t, 2, 1> posIdx = posRel.array().floor().cast<int32_t>();
             posRel -= posIdx.cast<float64_t>();
@@ -941,7 +949,7 @@ namespace jiminy
             }
             else
             {
-                height = randomHeight(posIdx, sparsity, tileHeightMax, seed);
+                height = randomDouble(posIdx, sparsity, tileHeightMax, seed);
                 dheight_x = 0.0;
                 dheight_y = 0.0;
             }
