@@ -141,7 +141,7 @@ namespace jiminy
         {
             configHolder_t config;
             config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
-            config["groundProfile"] = heightMapFunctor_t(
+            config["groundProfile"] = heightmapFunctor_t(
                 [](vector3_t const & /* pos */) -> std::pair <float64_t, vector3_t>
                 {
                     return {0.0, vector3_t::UnitZ()};
@@ -241,11 +241,11 @@ namespace jiminy
         struct worldOptions_t
         {
             vectorN_t const gravity;
-            heightMapFunctor_t const groundProfile;
+            heightmapFunctor_t const groundProfile;
 
             worldOptions_t(configHolder_t const & options) :
             gravity(boost::get<vectorN_t>(options.at("gravity"))),
-            groundProfile(boost::get<heightMapFunctor_t>(options.at("groundProfile")))
+            groundProfile(boost::get<heightmapFunctor_t>(options.at("groundProfile")))
             {
                 // Empty.
             }

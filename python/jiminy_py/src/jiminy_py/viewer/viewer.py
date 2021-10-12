@@ -1725,7 +1725,7 @@ class Viewer:
     @__must_be_open
     @__with_lock
     def update_floor(self,
-                     heightmap: Optional[jiminy.HeightMapFunctor] = None,
+                     heightmap: Optional[jiminy.HeightmapFunctor] = None,
                      grid_size: float = 20.0,
                      grid_unit: float = 0.04,
                      show_meshes: bool = False) -> None:
@@ -1735,7 +1735,7 @@ class Viewer:
         .. note::
             This method is only supported by Panda3d for now.
 
-        :param heightmap: `jiminy_py.core.HeightMapFunctor` associated with
+        :param heightmap: `jiminy_py.core.HeightmapFunctor` associated with
                            the ground profile. It renders a flat tile  ground
                            if not specified.
                            Optional: None by default.

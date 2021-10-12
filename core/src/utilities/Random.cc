@@ -856,7 +856,7 @@ namespace jiminy
         return {height, dheight};
     }
 
-    heightMapFunctor_t randomTileGround(vector2_t const & tileSize,
+    heightmapFunctor_t randomTileGround(vector2_t const & tileSize,
                                         int64_t   const & sparsity,
                                         float64_t const & tileHeightMax,
                                         vector2_t const & tileInterpDelta,
@@ -963,15 +963,15 @@ namespace jiminy
         };
     }
 
-    heightMapFunctor_t sumHeightMap(std::vector<heightMapFunctor_t> const & heightMaps)
+    heightmapFunctor_t sumHeightmap(std::vector<heightmapFunctor_t> const & heightmaps)
     {
-        return [heightMaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
+        return [heightmaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
         {
             float64_t height = 0.0;
             vector3_t normal = vector3_t::Zero();
-            for (heightMapFunctor_t const & heightMap : heightMaps)
+            for (heightmapFunctor_t const & heightmap : heightmaps)
             {
-                auto result = heightMap(pos3);
+                auto result = heightmap(pos3);
                 height += std::get<float64_t>(result);
                 normal += std::get<vector3_t>(result);
             }
@@ -980,32 +980,32 @@ namespace jiminy
         };
     }
 
-    heightMapFunctor_t mergeHeightMap(std::vector<heightMapFunctor_t> const & heightMaps)
+    heightmapFunctor_t mergeHeightmap(std::vector<heightmapFunctor_t> const & heightmaps)
     {
-        return [heightMaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
+        return [heightmaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
         {
-            float64_t heightMax = -INF;
+            float64_t heightmax = -INF;
             vector3_t normal = vector3_t::UnitZ();
-            for (heightMapFunctor_t const & heightMap : heightMaps)
+            for (heightmapFunctor_t const & heightmap : heightmaps)
             {
-                auto result = heightMap(pos3);
+                auto result = heightmap(pos3);
                 float64_t height = std::get<float64_t>(result);
-                if (std::abs(height - heightMax) < EPS)
+                if (std::abs(height - heightmax) < EPS)
                 {
                     normal += std::get<vector3_t>(result);
                 }
-                else if (height > heightMax)
+                else if (height > heightmax)
                 {
-                    heightMax = height;
+                    heightmax = height;
                     normal = std::get<vector3_t>(result);
                 }
             }
             normal.normalize();
-            return {heightMax, normal};
+            return {heightmax, normal};
         };
     }
 
-    matrixN_t discretizeHeightmap(heightMapFunctor_t const & heightMap,
+    matrixN_t discretizeHeightmap(heightmapFunctor_t const & heightmap,
                                   float64_t          const & gridSize,
                                   float64_t          const & gridUnit)
     {
@@ -1023,7 +1023,7 @@ namespace jiminy
         // Fill discrete grid
         for (uint32_t i=0; i < heightGrid.rows(); ++i)
         {
-            auto result = heightMap(heightGrid.block<1, 3>(i, 0));
+            auto result = heightmap(heightGrid.block<1, 3>(i, 0));
             heightGrid(i, 2) = std::get<float64_t>(result);
             heightGrid.block<1, 3>(i, 3) = std::get<vector3_t>(result);
         }

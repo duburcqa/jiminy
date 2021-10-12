@@ -267,16 +267,16 @@ namespace jiminy
 
     // ************ Random terrain generators ***************
 
-    heightMapFunctor_t randomTileGround(vector2_t const & tileSize,
+    heightmapFunctor_t randomTileGround(vector2_t const & tileSize,
                                         int64_t   const & sparsity,
                                         float64_t const & tileHeightMax,
                                         vector2_t const & tileInterpDelta,
                                         uint32_t  const & seed);
 
-    heightMapFunctor_t sumHeightMap(std::vector<heightMapFunctor_t> const & heightMaps);
-    heightMapFunctor_t mergeHeightMap(std::vector<heightMapFunctor_t> const & heightMaps);
+    heightmapFunctor_t sumHeightmap(std::vector<heightmapFunctor_t> const & heightmaps);
+    heightmapFunctor_t mergeHeightmap(std::vector<heightmapFunctor_t> const & heightmaps);
 
-    matrixN_t discretizeHeightmap(heightMapFunctor_t const & heightMap,
+    matrixN_t discretizeHeightmap(heightmapFunctor_t const & heightmap,
                                   float64_t          const & gridSize,
                                   float64_t          const & gridUnit);
 }

@@ -26,10 +26,10 @@ namespace python
         return (new pinocchio::Force(vector6_t::Zero()));
     }
 
-    // **************************** PyHeightMapFunctorVisitor *****************************
+    // **************************** PyHeightmapFunctorVisitor *****************************
 
-    struct PyHeightMapFunctorVisitor
-        : public bp::def_visitor<PyHeightMapFunctorVisitor>
+    struct PyHeightmapFunctorVisitor
+        : public bp::def_visitor<PyHeightmapFunctorVisitor>
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -39,38 +39,38 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .def("__init__", bp::make_constructor(&PyHeightMapFunctorVisitor::factory,
+                .def("__init__", bp::make_constructor(&PyHeightmapFunctorVisitor::factory,
                                  bp::default_call_policies(),
                                 (bp::arg("heightmap_function"),
-                                 bp::arg("heightmap_type")=heightMapType_t::GENERIC)))
-                .def("__call__", &PyHeightMapFunctorVisitor::eval,
+                                 bp::arg("heightmap_type")=heightmapType_t::GENERIC)))
+                .def("__call__", &PyHeightmapFunctorVisitor::eval,
                                  (bp::args("self", "position")))
-                .add_property("py_function", bp::make_function(&PyHeightMapFunctorVisitor::getPyFun,
+                .add_property("py_function", bp::make_function(&PyHeightmapFunctorVisitor::getPyFun,
                                              bp::return_value_policy<bp::return_by_value>()));
                 ;
         }
 
-        static bp::tuple eval(heightMapFunctor_t       & self,
+        static bp::tuple eval(heightmapFunctor_t       & self,
                               vector3_t          const & posFrame)
         {
             std::pair<float64_t, vector3_t> ground = self(posFrame);
             return bp::make_tuple(std::get<0>(ground), std::get<1>(ground));
         }
 
-        static bp::object getPyFun(heightMapFunctor_t & self)
+        static bp::object getPyFun(heightmapFunctor_t & self)
         {
-            HeightMapFunctorPyWrapper * pyWrapper(self.target<HeightMapFunctorPyWrapper>());
-            if (!pyWrapper || pyWrapper->heightMapType_ != heightMapType_t::GENERIC)
+            HeightmapFunctorPyWrapper * pyWrapper(self.target<HeightmapFunctorPyWrapper>());
+            if (!pyWrapper || pyWrapper->heightmapType_ != heightmapType_t::GENERIC)
             {
                 return {};
             }
             return pyWrapper->handlePyPtr_;
         }
 
-        static std::shared_ptr<heightMapFunctor_t> factory(bp::object            & objPy,
-                                                           heightMapType_t const & objType)
+        static std::shared_ptr<heightmapFunctor_t> factory(bp::object            & objPy,
+                                                           heightmapType_t const & objType)
         {
-            return std::make_shared<heightMapFunctor_t>(HeightMapFunctorPyWrapper(objPy, objType));
+            return std::make_shared<heightmapFunctor_t>(HeightmapFunctorPyWrapper(objPy, objType));
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -78,12 +78,12 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<heightMapFunctor_t,
-                       std::shared_ptr<heightMapFunctor_t> >("HeightMapFunctor", bp::no_init)
-                .def(PyHeightMapFunctorVisitor());
+            bp::class_<heightmapFunctor_t,
+                       std::shared_ptr<heightmapFunctor_t> >("HeightmapFunctor", bp::no_init)
+                .def(PyHeightmapFunctorVisitor());
         }
     };
 
-    BOOST_PYTHON_VISITOR_EXPOSE(HeightMapFunctor)
+    BOOST_PYTHON_VISITOR_EXPOSE(HeightmapFunctor)
 }  // End of namespace python.
 }  // End of namespace jiminy.

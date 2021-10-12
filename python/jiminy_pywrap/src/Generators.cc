@@ -10,16 +10,16 @@ namespace python
 {
     namespace bp = boost::python;
 
-    heightMapFunctor_t sumHeightMap(bp::list const & heightMapsPy)
+    heightmapFunctor_t sumHeightmap(bp::list const & heightmapsPy)
     {
-        auto heightMaps = convertFromPython<std::vector<heightMapFunctor_t> >(heightMapsPy);
-        return ::jiminy::sumHeightMap(heightMaps);
+        auto heightmaps = convertFromPython<std::vector<heightmapFunctor_t> >(heightmapsPy);
+        return ::jiminy::sumHeightmap(heightmaps);
     }
 
-    heightMapFunctor_t mergeHeightMap(bp::list const & heightMapsPy)
+    heightmapFunctor_t mergeHeightmap(bp::list const & heightmapsPy)
     {
-        auto heightMaps = convertFromPython<std::vector<heightMapFunctor_t> >(heightMapsPy);
-        return ::jiminy::mergeHeightMap(heightMaps);
+        auto heightmaps = convertFromPython<std::vector<heightmapFunctor_t> >(heightmapsPy);
+        return ::jiminy::mergeHeightmap(heightmaps);
     }
 
     void exposeGenerators(void)
@@ -89,8 +89,8 @@ namespace python
         bp::def("random_tile_ground", &randomTileGround,
                                       bp::args("tile_size", "sparsity", "tile_height_max", "tile_interp_delta", "seed"));
 
-        bp::def("sum_heightmap", &sumHeightMap, bp::args("heightmaps"));
-        bp::def("merge_heightmap", &mergeHeightMap, bp::args("heightmaps"));
+        bp::def("sum_heightmap", &sumHeightmap, bp::args("heightmaps"));
+        bp::def("merge_heightmap", &mergeHeightmap, bp::args("heightmaps"));
 
         bp::def("discretize_heightmap", &discretizeHeightmap, bp::args("heightmap", "grid_size", "grid_unit"));
     }

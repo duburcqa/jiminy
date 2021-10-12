@@ -58,7 +58,7 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<heightMapFunctor_t>(heightMapFunctor_t const & /* value */)
+    Json::Value convertToJson<heightmapFunctor_t>(heightmapFunctor_t const & /* value */)
     {
         return {"not supported"};
     }
@@ -201,10 +201,10 @@ namespace jiminy
     }
 
     template<>
-    heightMapFunctor_t convertFromJson<heightMapFunctor_t>(Json::Value const & /* value */)
+    heightmapFunctor_t convertFromJson<heightmapFunctor_t>(Json::Value const & /* value */)
     {
         return {
-            heightMapFunctor_t(
+            heightmapFunctor_t(
                 [](vector3_t const & /* pos */) -> std::pair<float64_t, vector3_t>
                 {
                     return {0.0, vector3_t::UnitZ()};

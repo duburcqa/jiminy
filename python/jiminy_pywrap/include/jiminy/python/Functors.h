@@ -199,42 +199,42 @@ namespace python
                                              sensorsDataMap_t const & /* sensorsData */,
                                              vectorN_t              & /* command */)>;
 
-    // ************************** HeightMapFunctorPyWrapper ******************************
+    // ************************** HeightmapFunctorPyWrapper ******************************
 
-    enum class heightMapType_t : uint8_t
+    enum class heightmapType_t : uint8_t
     {
         CONSTANT = 0x01,
         STAIRS   = 0x02,
         GENERIC  = 0x03,
     };
 
-    struct HeightMapFunctorPyWrapper
+    struct HeightmapFunctorPyWrapper
     {
     public:
         // Disable the copy of the class
-        HeightMapFunctorPyWrapper & operator = (HeightMapFunctorPyWrapper const & other) = delete;
+        HeightmapFunctorPyWrapper & operator = (HeightmapFunctorPyWrapper const & other) = delete;
 
     public:
-        HeightMapFunctorPyWrapper(bp::object      const & objPy,
-                                  heightMapType_t const & objType) :
-        heightMapType_(objType),
+        HeightmapFunctorPyWrapper(bp::object      const & objPy,
+                                  heightmapType_t const & objType) :
+        heightmapType_(objType),
         handlePyPtr_(objPy),
         out1Ptr_(new float64_t),
         out2Ptr_(new vector3_t),
         out1PyPtr_(),
         out2PyPtr_()
         {
-            if (heightMapType_ == heightMapType_t::CONSTANT)
+            if (heightmapType_ == heightmapType_t::CONSTANT)
             {
                 *out1Ptr_ = bp::extract<float64_t>(handlePyPtr_);
                 *out2Ptr_ = vector3_t::UnitZ();
             }
-            else if (heightMapType_ == heightMapType_t::STAIRS)
+            else if (heightmapType_ == heightmapType_t::STAIRS)
             {
                 out1PyPtr_ = getNumpyReference(*out1Ptr_);
                 *out2Ptr_ = vector3_t::UnitZ();
             }
-            else if (heightMapType_ == heightMapType_t::GENERIC)
+            else if (heightmapType_ == heightmapType_t::GENERIC)
             {
                 out1PyPtr_ = getNumpyReference(*out1Ptr_);
                 out2PyPtr_ = getNumpyReference(*out2Ptr_);
@@ -242,8 +242,8 @@ namespace python
         }
 
         // Copy constructor, same as the normal constructor
-        HeightMapFunctorPyWrapper(HeightMapFunctorPyWrapper const & other) :
-        heightMapType_(other.heightMapType_),
+        HeightmapFunctorPyWrapper(HeightmapFunctorPyWrapper const & other) :
+        heightmapType_(other.heightmapType_),
         handlePyPtr_(other.handlePyPtr_),
         out1Ptr_(new float64_t),
         out2Ptr_(new vector3_t),
@@ -257,8 +257,8 @@ namespace python
         }
 
         // Move constructor, takes a rvalue reference &&
-        HeightMapFunctorPyWrapper(HeightMapFunctorPyWrapper && other) :
-        heightMapType_(other.heightMapType_),
+        HeightmapFunctorPyWrapper(HeightmapFunctorPyWrapper && other) :
+        heightmapType_(other.heightmapType_),
         handlePyPtr_(other.handlePyPtr_),
         out1Ptr_(nullptr),
         out2Ptr_(nullptr),
@@ -280,7 +280,7 @@ namespace python
         }
 
         // Destructor
-        ~HeightMapFunctorPyWrapper()
+        ~HeightmapFunctorPyWrapper()
         {
             Py_XDECREF(out1PyPtr_);
             Py_XDECREF(out2PyPtr_);
@@ -289,11 +289,11 @@ namespace python
         }
 
         // Move assignment, takes a rvalue reference &&
-        HeightMapFunctorPyWrapper& operator = (HeightMapFunctorPyWrapper&& other)
+        HeightmapFunctorPyWrapper& operator = (HeightmapFunctorPyWrapper&& other)
         {
             /* "other" is soon going to be destroyed, so we let it destroy our current resource
                instead and we take "other"'s current resource via swapping */
-            std::swap(heightMapType_, other.heightMapType_);
+            std::swap(heightmapType_, other.heightmapType_);
             std::swap(handlePyPtr_, other.handlePyPtr_);
             std::swap(out1Ptr_, other.out1Ptr_);
             std::swap(out2Ptr_, other.out2Ptr_);
@@ -304,12 +304,12 @@ namespace python
 
         std::pair<float64_t, vector3_t> operator() (vector3_t const & posFrame)
         {
-            if (heightMapType_ == heightMapType_t::STAIRS)
+            if (heightmapType_ == heightmapType_t::STAIRS)
             {
                 bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
                 handlePyPtr_(posFrame[0], posFrame[1], out1Py);
             }
-            else if (heightMapType_ == heightMapType_t::GENERIC)
+            else if (heightmapType_ == heightmapType_t::GENERIC)
             {
                 bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
                 bp::handle<> out2Py(bp::borrowed(out2PyPtr_));
@@ -320,7 +320,7 @@ namespace python
         }
 
     public:
-        heightMapType_t heightMapType_;
+        heightmapType_t heightmapType_;
         bp::object handlePyPtr_;
 
     private:
@@ -330,9 +330,9 @@ namespace python
         PyObject * out2PyPtr_;
     };
 
-    // **************************** HeightMapFunctorVisitor *****************************
+    // **************************** HeightmapFunctorVisitor *****************************
 
-    void exposeHeightMapFunctor(void);
+    void exposeHeightmapFunctor(void);
 }  // End of namespace python.
 }  // End of namespace jiminy.
 
