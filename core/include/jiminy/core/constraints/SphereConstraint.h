@@ -43,7 +43,7 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         SphereConstraint(std::string const & frameName,
                          float64_t   const & sphereRadius,
-                         vector3_t   const & groundNormal = (vector3_t() << 0.0, 0.0, 1.0).finished());
+                         vector3_t   const & groundNormal = vector3_t::UnitZ());
         virtual ~SphereConstraint(void);
 
         std::string const & getFrameName(void) const;

@@ -5,4 +5,4 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_examples VERSION ${BUILD_VERSION})
 
 # Sub-projects
-add_subdirectory(double_pendulum)
+add_subdirectory("cpp/double_pendulum")

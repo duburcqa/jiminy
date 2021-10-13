@@ -69,6 +69,7 @@ namespace jiminy
     using matrix3_t = Eigen::Matrix<float64_t, 3, 3>;
     using matrix6N_t = Eigen::Matrix<float64_t, 6, Eigen::Dynamic>;
     using vectorN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, 1>;
+    using vector2_t = Eigen::Matrix<float64_t, 2, 1>;
     using vector3_t = Eigen::Matrix<float64_t, 3, 1>;
     using vector6_t = Eigen::Matrix<float64_t, 6, 1>;
 
@@ -120,7 +121,7 @@ namespace jiminy
 
     /* Ground profile signature.
        Note that it is impossible to use function pointer since it does not support functors. */
-    using heatMapFunctor_t = std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)>;
+    using heightmapFunctor_t = std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)>;
 
     // Flexible joints
     struct flexibleJointData_t
@@ -159,7 +160,7 @@ namespace jiminy
 
     // Configuration/option holder
     using configField_t = boost::make_recursive_variant<
-        bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, heatMapFunctor_t,
+        bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, heightmapFunctor_t,
         std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>,
         flexibilityConfig_t, std::unordered_map<std::string, boost::recursive_variant_>
     >::type;

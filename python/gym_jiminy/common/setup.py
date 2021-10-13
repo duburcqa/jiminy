@@ -51,7 +51,7 @@ setup(
         # 1.16 introduces new array function dispatcher which had significant
         # overhead if not handle carefully.
         "numpy>=1.16",
-        # Use internally to speedup computation of simple methods.
+        # Use internally to speedup computation of math methods.
         # Disable automatic forward compatibility with newer versions because
         # numba relies on llvmlite, for which wheels take some time before
         # being available on Pypi, making the whole installation process fail.
