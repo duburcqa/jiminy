@@ -26,8 +26,7 @@ from ..utils import (SpaceDictNested,
                      zeros,
                      fill,
                      copy,
-                     set_value,
-                     register_variables)
+                     set_value)
 from ..envs import ObserverHandleType, ControllerHandleType, BaseJiminyEnv
 
 from .block_bases import BaseControllerBlock, BaseObserverBlock
@@ -512,6 +511,12 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         self._target = zeros(self.env.action_space, dtype=np.float64)
         self._observation = zeros(self.observation_space)
 
+        # Register the controller target to the telemetry
+        self.env.register_variable("action",
+                                   self._action,
+                                   self.controller.get_fieldnames(),
+                                   self.controller_name)
+
     def _setup(self) -> None:
         """Configure the wrapper.
 
@@ -530,13 +535,6 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # Compute the observe and control update periods
         self.observe_dt = self.env.observe_dt
         self.control_dt = self.controller.control_dt
-
-        # Register the controller target to the telemetry.
-        # It may be useful for computing the terminal reward or debugging.
-        register_variables(self.simulator.controller,
-                           self.controller.get_fieldnames(),
-                           self._action,
-                           self.controller_name)
 
     def compute_command(self,
                         measure: SpaceDictNested,

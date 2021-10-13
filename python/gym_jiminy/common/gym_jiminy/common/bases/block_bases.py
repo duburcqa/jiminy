@@ -12,7 +12,7 @@ from typing import Optional, Any, List
 
 import gym
 
-from ..utils import FieldDictNested, SpaceDictNested, get_fieldnames
+from ..utils import FieldDictNested, SpaceDictNested, get_fieldnames, zeros
 from ..envs import BaseJiminyEnv
 
 from .generic_bases import ControllerInterface, ObserverInterface
@@ -272,7 +272,7 @@ class BaseControllerBlock(ControllerInterface, BlockInterface):
             This method is not supposed to be called before `reset`, so that
             the controller should be already initialized at this point.
         """
-        return get_fieldnames(self.action_space)
+        return get_fieldnames(zeros(self.action_space))
 
 
 BaseControllerBlock._setup.__doc__ = \

@@ -5,8 +5,10 @@ the official OpenAI Gym API and extended it to add more functionalities.
 import os
 import tempfile
 from copy import deepcopy
-from collections import OrderedDict
-from typing import Optional, Tuple, Dict, Any, Callable, List, Union
+from collections import OrderedDict, Mapping
+from typing import (
+    Optional, Tuple, Dict, Any, Callable, List, Union, Iterator,
+    Mapping as MappingT)
 
 import numpy as np
 import gym
@@ -53,6 +55,23 @@ SENSOR_FORCE_MAX = 100000.0
 SENSOR_MOMENT_MAX = 10000.0
 SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
+
+
+class _LazyDictItemFilter(Mapping):
+    def __init__(self,
+                 dict_packed: Dict[str, Tuple[Any, ...]],
+                 item_index: int) -> None:
+        self.dict_packed = dict_packed
+        self.item_index = item_index
+
+    def __getitem__(self, name: str) -> Any:
+        return self.dict_packed[name][self.item_index]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.dict_packed)
+
+    def __len__(self) -> int:
+        return len(self.dict_packed)
 
 
 class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
@@ -118,11 +137,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.system_state: jiminy.SystemState = self.engine.system_state
         self.sensors_data: jiminy.sensorsData = dict(self.robot.sensors_data)
 
+        # Store references to the variables to register to the telemetry
+        self._registered_variables: Dict[
+            str, Tuple[FieldDictNested, SpaceDictNested]] = {}
+        self.log_headers: MappingT[str, FieldDictNested] = _LazyDictItemFilter(
+            self._registered_variables, 0)
+
         # Internal buffers for physics computations
-        self.rg = np.random.Generator(np.random.Philox())
         self._seed: List[np.uint32] = []
+        self.rg = np.random.Generator(np.random.Philox())
         self.log_path: Optional[str] = None
-        self.logfile_action_headers: Optional[FieldDictNested] = None
 
         # Whether or not evaluation mode is active
         self.is_training = True
@@ -165,6 +189,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # it would be impossible to register action to controller's telemetry.
         self._action = zeros(self.action_space, dtype=np.float64)
         self._observation = zeros(self.observation_space)
+
+        # Register the action to the telemetry
+        if isinstance(self._action, np.ndarray) and (
+                self._action.size == self.robot.nmotors):
+            # Default case: assuming there is one scalar action per motor
+            action_headers = [
+                ".".join(("action", e)) for e in self.robot.motors_names]
+        self.register_variable("action", self._action, action_headers)
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -437,6 +469,46 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.action_space = spaces.Box(
             low=-action_scale, high=action_scale, dtype=np.float64)
 
+    def register_variable(self,
+                          name: str,
+                          value: SpaceDictNested,
+                          fieldnames: Optional[
+                              Union[str, FieldDictNested]] = None,
+                          namespace: Optional[str] = None) -> None:
+        # Make sure fieldnames are stored in a list
+        if isinstance(fieldnames, str):
+            fieldnames = [fieldnames]
+
+        # Combine namespace and variable name if provided
+        name = ".".join(filter(None, (namespace, name)))
+
+        # Create default fieldnames if not specified
+        if fieldnames is None:
+            fieldnames = get_fieldnames(value, name)
+        elif namespace:
+            for i, field in enumerate(fieldnames):
+                if isinstance(fieldnames[i], list):
+                    fieldnames[i] = [
+                        ".".join(filter(None, (namespace, subfield)))
+                        for subfield in field]
+                else:
+                    fieldnames[i] = ".".join(filter(None, (namespace, field)))
+
+        # Early return with a warning is fieldnames is empty
+        if not fieldnames:
+            logger.warn("'value' or 'fieldnames' cannot be empty.")
+            return
+
+        # Check if variable can be registered successfully to the telemetry.
+        # Note that a dummy controller must be created to avoid using the
+        # actual one to keep control of when registering will take place.
+        is_success = register_variables(
+            jiminy.BaseController(), fieldnames, value)
+
+        # Store the header and a reference to the variable if successful
+        if is_success:
+            self._registered_variables[name] = (fieldnames, value)
+
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
@@ -454,19 +526,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             possible to change the robot (included options), nor to register
             log variable. The only way to do so is via 'controller_hook'.
 
-        :param controller_hook: Custom controller hook. It will be executed
-                                right after initialization of the environment,
-                                and just before actually starting the
-                                simulation. It is a callable that optionally
-                                returns observer and/or controller handles. If
-                                defined, it will be used to initialize the
-                                low-level jiminy controller. It is useful to
-                                override partially the configuration of the
-                                low-level engine, set a custom low-level
-                                observer/controller handle, or to register
-                                custom variables to the telemetry. Set to
-                                `None` if unused.
-                                Optional: Disabled by default.
+        :param controller_hook: Used internally for chaining multiple
+                                `BasePipelineWrapper`. It is not meant to be
+                                defined manually.
+                                Optional: None by default.
 
         :returns: Initial observation of the episode.
         """
@@ -491,23 +554,24 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The memory address of the low-level has changed.")
 
         # Enforce the low-level controller.
-        # The robot may have changed, for example if it is randomly generated
-        # based on different URDF files. As a result, it is necessary to
-        # instantiate a new low-level controller.
-        # Note that `BaseJiminyObserverController` is used in place of
-        # `jiminy.BaseControllerFunctor`. Although it is less efficient because
-        # it adds an extra layer of indirection, it makes it possible to update
-        # the controller handle without instantiating a new controller, which
-        # is necessary to allow registering telemetry variables before knowing
-        # the controller handle in advance.
+        # The robot may have changed, for example it could be randomly
+        # generated, which would corrupt the old controller. As a result, it is
+        # necessary to either instantiate a new low-level controller and to
+        # re-initialize the existing one by calling `controller.initialize`
+        # method BEFORE calling `reset` method because otherwise it would
+        # cause a segfault. In practice, `BaseJiminyObserverController` must be
+        # used because it enables to define observer and controller handles
+        # seperately, while dealing with all the logics internally. This extra
+        # layer of indirection makes it computionally less efficient than
+        # `jiminy.BaseControllerFunctor` but it is a small price to pay.
         controller = BaseJiminyObserverController()
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
 
         # Reset the simulator.
-        # Note that the controller must be set BEFORE calling 'reset', because
-        # otherwise the controller would be corrupted if the robot has changed.
-        self.simulator.reset()
+        # Do NOT remove all forces since it has already been done before, and
+        # because it would make it impossible to register forces in  `_setup`.
+        self.simulator.reset(remove_all_forces=False)
 
         # Re-initialize some shared memories.
         # It must be done because the robot may have changed.
@@ -554,21 +618,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.max_steps = int(
             self.simulator.simulation_duration_max / self.step_dt)
 
-        # Register the action to the telemetry
-        if isinstance(self._action, np.ndarray) and (
-                self._action.size == self.robot.nmotors):
-            # Default case: assuming there is one scalar action per motor
-            self.logfile_action_headers = [
-                ".".join(("action", e)) for e in self.robot.motors_names]
-        else:
-            # Fallback: Get generic fieldnames otherwise
-            self.logfile_action_headers = get_fieldnames(
-                self.action_space, "action")
-        if self.logfile_action_headers:
-            # Only register the variable to the telemetry if not empty
-            register_variables(self.simulator.controller,
-                               self.logfile_action_headers,
-                               self._action)
+        # Register user-specified variables to the telemetry
+        for header, value in self._registered_variables.values():
+            register_variables(self.simulator.controller, header, value)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -799,12 +851,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # individual scalar data over time to be displayed to the same subplot.
         t = log_data["Global.Time"]
         tab_data = {}
-        if self.logfile_action_headers is None:
+        action_headers = self.log_headers.get("action", None)
+        if action_headers is None:
             # It was impossible to register the action to the telemetry, likely
             # because of incompatible dtype. Early return without adding tab.
             return
-        if isinstance(self.logfile_action_headers, dict):
-            for field, subfields in self.logfile_action_headers.items():
+        if isinstance(action_headers, dict):
+            for field, subfields in action_headers.items():
                 if not isinstance(subfields, list):
                     logger.error("Action space not supported.")
                     return
@@ -812,11 +865,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     field.split(".", 1)[1]: log_data[
                         ".".join(("HighLevelController", field))]
                     for field in subfields}
-        elif isinstance(self.logfile_action_headers, list):
+        elif isinstance(action_headers, list):
             tab_data.update({
                 field.split(".", 1)[1]: log_data[
                     ".".join(("HighLevelController", field))]
-                for field in self.logfile_action_headers})
+                for field in action_headers})
 
         # Add action tab
         self.figure.add_tab("Action", t, tab_data)

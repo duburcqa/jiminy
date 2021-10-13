@@ -82,7 +82,7 @@ namespace jiminy
         catch (std::exception const & e)
         {
             isInitialized_ = false;
-            robot_.clear();
+            robot_.reset();
             sensorsData_.clear();
             PRINT_ERROR("Something is wrong, probably because of 'commandFct'.\n"
                         "Raised from exception: ", e.what());
