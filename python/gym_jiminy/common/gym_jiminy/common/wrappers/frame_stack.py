@@ -9,7 +9,7 @@ import numpy as np
 
 import gym
 
-from ..utils import SpaceDictNested, is_breakpoint, zeros
+from ..utils import DataNested, is_breakpoint, zeros
 from ..bases import BasePipelineWrapper
 
 
@@ -102,7 +102,7 @@ class FilteredFrameStack(gym.Wrapper):
             for _ in range(self.num_stack):
                 frames.append(zeros(leaf_space))
 
-    def observation(self, observation: SpaceDictNested) -> SpaceDictNested:
+    def observation(self, observation: DataNested) -> DataNested:
         """ TODO: Write documentation.
         """
         # Replace nested fields of original observation by the stacked ones
@@ -114,7 +114,7 @@ class FilteredFrameStack(gym.Wrapper):
         # Return the stacked observation
         return observation
 
-    def compute_observation(self, measure: SpaceDictNested) -> SpaceDictNested:
+    def compute_observation(self, measure: DataNested) -> DataNested:
         """ TODO: Write documentation.
         """
         # Backup the nested observation fields to stack
@@ -126,12 +126,12 @@ class FilteredFrameStack(gym.Wrapper):
         return self.observation(measure)
 
     def step(self,
-             action: SpaceDictNested
-             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
+             action: DataNested
+             ) -> Tuple[DataNested, float, bool, Dict[str, Any]]:
         observation, reward, done, info = self.env.step(action)
         return self.compute_observation(observation), reward, done, info
 
-    def reset(self, **kwargs: Any) -> SpaceDictNested:
+    def reset(self, **kwargs: Any) -> DataNested:
         observation = self.env.reset(**kwargs)
         self._setup()
         return self.compute_observation(observation)

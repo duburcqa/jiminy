@@ -11,6 +11,7 @@ from collections import OrderedDict
 from typing import Callable, Tuple, Dict, Optional, Any, Sequence, Union
 
 import h5py
+import tree
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -18,6 +19,10 @@ from typing_extensions import TypedDict
 
 from . import core as jiminy
 from .state import State
+
+
+FieldNested = Union[  # type: ignore
+    Dict[str, 'DataNested'], Sequence['DataNested'], str]  # type: ignore
 
 
 class TrajectoryDataType(TypedDict, total=False):
@@ -128,7 +133,7 @@ def read_log(fullpath: str,
                 const_dict[key] = parse_constant(key, value)
 
             # Extract time
-            time = f['Global.Time'][()] / f['Global.Time'].attrs["unit"]
+            time = f['Global.Time'][()] / f['Global.Time'].attrs['unit']
 
             # Load variables (1D time-series)
             data_dict = {'Global.Time': time}
@@ -136,6 +141,50 @@ def read_log(fullpath: str,
                 data_dict[key] = value['value'][()]
 
     return data_dict, const_dict
+
+
+def extract_data_from_log(log_data: Dict[str, np.ndarray],
+                          fieldnames: FieldNested,
+                          namespace: Optional[str] = 'HighLevelController',
+                          *,
+                          as_dict: bool = False) -> Optional[Union[
+                              Tuple[Optional[np.ndarray],
+                              Dict[str, Optional[np.ndarray]]]]]:
+    """Extract values associated with a set of fieldnames in a specific
+    namespace.
+
+    :param log_data: Data from the log file, in a dictionnary.
+    :param fieldnames: Structured fieldnames.
+    :param namespace: Namespace of the fieldnames. None to disable.
+                      Optional: 'HighLevelController' by default.
+    :param keep_structure: Whether or not to return a dictionary mapping
+                           flattened fieldnames to values.
+                           Optional: True by default.
+
+    :returns:
+        `np.ndarray` or None for each fieldname individually depending if it is
+        found or not. It
+    """
+    # Key are the concatenation of the path and value
+    keys = [
+        ".".join(map(str, filter(
+            lambda key: isinstance(key, str), (*fieldname_path, fieldname))))
+        for fieldname_path, fieldname in tree.flatten_with_path(fieldnames)]
+
+    # Extract value from log if it exists
+    values = [
+        log_data.get(".".join(filter(None, (namespace, key))), None)
+        for key in keys]
+
+    # Return None if no value was found
+    if not values or all(elem is None for elem in values):
+        return None
+
+    if as_dict:
+        # Return flat mapping from fieldnameswithout prefix  to scalar values
+        values = OrderedDict(zip(keys, values))
+
+    return values
 
 
 def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
@@ -211,7 +260,7 @@ def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
     return traj_data
 
 
-def build_robot_from_log_constants(
+def build_robot_from_log(
         log_constants: Dict[str, str],
         mesh_package_dirs: Union[str, Sequence[str]] = ()) -> jiminy.Robot:
     """Build robot from log constants.

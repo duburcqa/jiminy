@@ -21,7 +21,7 @@ import gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..utils import (SpaceDictNested,
+from ..utils import (DataNested,
                      is_breakpoint,
                      zeros,
                      fill,
@@ -105,7 +105,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             block = block.env
         return i
 
-    def get_observation(self) -> SpaceDictNested:
+    def get_observation(self) -> DataNested:
         """Get post-processed observation.
 
         It performs a recursive shallow copy of the observation.
@@ -119,7 +119,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
               controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
                   Optional[ControllerHandleType]]]]] = None,
-              **kwargs: Any) -> SpaceDictNested:
+              **kwargs: Any) -> DataNested:
         """Reset the unified environment.
 
         In practice, it resets the environment and initializes the generic
@@ -167,8 +167,8 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         return self.get_observation()
 
     def step(self,
-             action: Optional[SpaceDictNested] = None
-             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
+             action: Optional[DataNested] = None
+             ) -> Tuple[DataNested, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
         :param action: Next action to perform. `None` to not update it.
@@ -225,8 +225,8 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         self.env.refresh_observation()
 
     def compute_command(self,
-                        measure: SpaceDictNested,
-                        action: SpaceDictNested) -> SpaceDictNested:
+                        measure: DataNested,
+                        action: DataNested) -> DataNested:
         """Compute the motors efforts to apply on the robot.
 
         By default, it forwards the command computed by the environment.
@@ -537,9 +537,9 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         self.control_dt = self.controller.control_dt
 
     def compute_command(self,
-                        measure: SpaceDictNested,
-                        action: SpaceDictNested
-                        ) -> SpaceDictNested:
+                        measure: DataNested,
+                        action: DataNested
+                        ) -> DataNested:
         """Compute the motors efforts to apply on the robot.
 
         In practice, it updates, whenever it is necessary:

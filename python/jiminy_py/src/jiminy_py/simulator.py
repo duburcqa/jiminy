@@ -20,7 +20,7 @@ from .core import (EncoderSensor as encoder,
 from .robot import (generate_hardware_description_file,
                     BaseJiminyRobot)
 from .plot import TabbedFigure
-from .log import read_log, build_robot_from_log_constants
+from .log import read_log, build_robot_from_log, extract_data_from_log
 from .viewer import (TrajectoryDataType,
                      interactive_mode,
                      extract_replay_data_from_log_data,
@@ -572,7 +572,7 @@ class Simulator:
         logs_data = [self.log_data]
         for log_file in extra_logs_files:
             log_data, log_constants = read_log(log_file)
-            robot = build_robot_from_log_constants(
+            robot = build_robot_from_log(
                 log_constants, self.robot.mesh_package_dirs)
             robots.append(robot)
             logs_data.append(log_data)
@@ -650,26 +650,6 @@ class Simulator:
             Optional: False by default.
         :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
         """
-        # Define some internal helper functions
-        def extract_fields(log_data: Dict[str, np.ndarray],
-                           namespace: Optional[str],
-                           fieldnames: Sequence[str],
-                           ) -> Optional[Sequence[np.ndarray]]:
-            """Extract value associated with a set of fieldnames in a specific
-            namespace.
-
-            :param log_data: Log file, as returned by `log_data` property.
-            :param namespace: Namespace of the fieldnames. None to disable.
-            :param fieldnames: Sequence of fieldnames.
-            """
-            field_values = [log_data.get(
-                    '.'.join((filter(None, (namespace, field)))), None)
-                for field in fieldnames]
-            if not field_values or all(v is None for v in field_values):
-                return None
-            else:
-                return field_values
-
         # Extract log data
         log_data, log_constants = self.log_data, self.log_constants
         if not log_constants:
@@ -714,25 +694,23 @@ class Simulator:
                         name in field
                         for name in self.robot.flexible_joints_names),
                     fieldnames))
-            values = extract_fields(
-                log_data, 'HighLevelController', fieldnames)
+            values = extract_data_from_log(
+                log_data, fieldnames, as_dict=True)
             if values is not None:
                 tabs_data[' '.join(("State", fields_type))] = OrderedDict(
-                    (field[len("current"):].replace(fields_type, ""), val)
-                    for field, val in zip(fieldnames, values))
+                    (field[len("current"):].replace(fields_type, ""), elem)
+                    for field, elem in values.items())
 
         # Get motors efforts information
-        motor_effort = extract_fields(
-            log_data, 'HighLevelController',
-            self.robot.logfile_motor_effort_headers)
+        motor_effort = extract_data_from_log(
+            log_data, self.robot.logfile_motor_effort_headers)
         if motor_effort is not None:
             tabs_data['MotorEffort'] = OrderedDict(
                 zip(self.robot.motors_names, motor_effort))
 
         # Get command information
-        command = extract_fields(
-            log_data, 'HighLevelController',
-            self.robot.logfile_command_headers)
+        command = extract_data_from_log(
+            log_data, self.robot.logfile_command_headers)
         if command is not None:
             tabs_data['Command'] = OrderedDict(
                 zip(self.robot.motors_names, command))
@@ -744,9 +722,11 @@ class Simulator:
             namespace = sensors_type if sensors_class.has_prefix else None
             if isinstance(sensors_fields, dict):
                 for fields_prefix, fieldnames in sensors_fields.items():
-                    sensors_data = [extract_fields(log_data, namespace, [
-                        '.'.join((name, fields_prefix + field))
-                        for name in sensors_names]) for field in fieldnames]
+                    sensors_data = [
+                        extract_data_from_log(log_data, [
+                            '.'.join((name, fields_prefix + field))
+                            for name in sensors_names], namespace)
+                        for field in fieldnames]
                     if sensors_data[0] is not None:
                         type_name = ' '.join((sensors_type, fields_prefix))
                         tabs_data[type_name] = OrderedDict(
@@ -754,9 +734,10 @@ class Simulator:
                             for field, values in zip(fieldnames, sensors_data))
             else:
                 for field in sensors_fields:
-                    sensors_data = extract_fields(
-                        log_data, namespace,
-                        ['.'.join((name, field)) for name in sensors_names])
+                    sensors_data = extract_data_from_log(
+                        log_data,
+                        ['.'.join((name, field)) for name in sensors_names],
+                        namespace)
                     if sensors_data is not None:
                         tabs_data[' '.join((sensors_type, field))] = \
                             OrderedDict(zip(sensors_names, sensors_data))

@@ -10,6 +10,7 @@ from typing import (
     Optional, Tuple, Dict, Any, Callable, List, Union, Iterator,
     Mapping as MappingT)
 
+import tree
 import numpy as np
 import gym
 from gym import logger, spaces
@@ -24,6 +25,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
 from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL, Viewer
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
+from jiminy_py.log import extract_data_from_log
 
 from pinocchio import neutral, framesForwardKinematics
 
@@ -33,8 +35,8 @@ from ..utils import (zeros,
                      clip,
                      get_fieldnames,
                      register_variables,
-                     FieldDictNested,
-                     SpaceDictNested)
+                     FieldNested,
+                     DataNested)
 from ..bases import ObserverControllerInterface
 
 from .internal import (ObserverHandleType,
@@ -139,8 +141,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Store references to the variables to register to the telemetry
         self._registered_variables: Dict[
-            str, Tuple[FieldDictNested, SpaceDictNested]] = {}
-        self.log_headers: MappingT[str, FieldDictNested] = _LazyDictItemFilter(
+            str, Tuple[FieldNested, DataNested]] = {}
+        self.log_headers: MappingT[str, FieldNested] = _LazyDictItemFilter(
             self._registered_variables, 0)
 
         # Internal buffers for physics computations
@@ -471,28 +473,30 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
     def register_variable(self,
                           name: str,
-                          value: SpaceDictNested,
+                          value: DataNested,
                           fieldnames: Optional[
-                              Union[str, FieldDictNested]] = None,
+                              Union[str, FieldNested]] = None,
                           namespace: Optional[str] = None) -> None:
-        # Make sure fieldnames are stored in a list
-        if isinstance(fieldnames, str):
-            fieldnames = [fieldnames]
-
-        # Combine namespace and variable name if provided
-        name = ".".join(filter(None, (namespace, name)))
-
+        """ TODO: Write documentation.
+        """
         # Create default fieldnames if not specified
         if fieldnames is None:
             fieldnames = get_fieldnames(value, name)
-        elif namespace:
-            for i, field in enumerate(fieldnames):
-                if isinstance(fieldnames[i], list):
-                    fieldnames[i] = [
-                        ".".join(filter(None, (namespace, subfield)))
-                        for subfield in field]
-                else:
-                    fieldnames[i] = ".".join(filter(None, (namespace, field)))
+
+        # Store string in a list
+        if isinstance(fieldnames, str):
+            fieldnames = [fieldnames]
+
+        # Prepend with namespace if requested
+        if namespace:
+            fieldnames = tree.traverse(
+                lambda fieldname: (
+                    ".".join(filter(None, (namespace, fieldname)))
+                    if isinstance(fieldname, str) else
+                    {".".join(filter(None, (namespace, key))): value
+                     for key, value in fieldname.items()}
+                    if isinstance(fieldname, dict) else None),
+                fieldnames, top_down=True)
 
         # Early return with a warning is fieldnames is empty
         if not fieldnames:
@@ -505,6 +509,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         is_success = register_variables(
             jiminy.BaseController(), fieldnames, value)
 
+        # Combine namespace and variable name if provided
+        name = ".".join(filter(None, (namespace, name)))
+
         # Store the header and a reference to the variable if successful
         if is_success:
             self._registered_variables[name] = (fieldnames, value)
@@ -513,7 +520,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
               controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
                   Optional[ControllerHandleType]]]]] = None
-              ) -> SpaceDictNested:
+              ) -> DataNested:
         """Reset the environment.
 
         In practice, it resets the backend simulator and set the initial state
@@ -707,8 +714,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.close()
 
     def step(self,
-             action: Optional[SpaceDictNested] = None
-             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
+             action: Optional[DataNested] = None
+             ) -> Tuple[DataNested, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
         :param action: Action to perform. `None` to not update the action.
@@ -857,19 +864,19 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             # because of incompatible dtype. Early return without adding tab.
             return
         if isinstance(action_headers, dict):
-            for field, subfields in action_headers.items():
-                if not isinstance(subfields, list):
-                    logger.error("Action space not supported.")
+            for group, fieldnames in action_headers.items():
+                if not isinstance(fieldnames, list):
+                    logger.error("Action space not supported by this method.")
                     return
-                tab_data[field] = {
-                    field.split(".", 1)[1]: log_data[
-                        ".".join(("HighLevelController", field))]
-                    for field in subfields}
+                tab_data[group] = {
+                    ".".join(key.split(".")[1:]): value
+                    for key, value in extract_data_from_log(
+                        log_data, fieldnames, as_dict=True).items()}
         elif isinstance(action_headers, list):
             tab_data.update({
-                field.split(".", 1)[1]: log_data[
-                    ".".join(("HighLevelController", field))]
-                for field in action_headers})
+                ".".join(key.split(".")[1:]): value
+                for key, value in extract_data_from_log(
+                    log_data, action_headers, as_dict=True).items()})
 
         # Add action tab
         self.figure.add_tab("Action", t, tab_data)
@@ -1198,7 +1205,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 self._observation['state']['V'][:] = velocity
 
     def compute_command(self,
-                        measure: SpaceDictNested,
+                        measure: DataNested,
                         action: np.ndarray
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -1240,9 +1247,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
     def _key_to_action(self,
                        key: Optional[str],
-                       obs: SpaceDictNested,
+                       obs: DataNested,
                        reward: Optional[float],
-                       **kwargs: Any) -> SpaceDictNested:
+                       **kwargs: Any) -> DataNested:
         """Mapping from input keyboard keys to actions.
 
         .. note::
@@ -1317,7 +1324,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         # Define some internal buffers
         self._desired_goal = zeros(goal_space)
 
-    def get_observation(self) -> SpaceDictNested:
+    def get_observation(self) -> DataNested:
         """Get post-processed observation.
 
         It gathers the original observation from the environment with the
@@ -1333,7 +1340,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
               controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
                   Optional[ControllerHandleType]]]]] = None
-              ) -> SpaceDictNested:
+              ) -> DataNested:
         self._desired_goal = self._sample_goal()
         return super().reset(controller_hook)
 
@@ -1351,7 +1358,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         """
         raise NotImplementedError
 
-    def _sample_goal(self) -> SpaceDictNested:
+    def _sample_goal(self) -> DataNested:
         """Sample a goal randomly.
 
         .. note::
@@ -1363,7 +1370,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         """
         raise NotImplementedError
 
-    def _get_achieved_goal(self) -> SpaceDictNested:
+    def _get_achieved_goal(self) -> DataNested:
         """Compute the achieved goal based on current state of the robot.
 
         .. note::
@@ -1376,8 +1383,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         raise NotImplementedError
 
     def is_done(self,  # type: ignore[override]
-                achieved_goal: Optional[SpaceDictNested] = None,
-                desired_goal: Optional[SpaceDictNested] = None) -> bool:
+                achieved_goal: Optional[DataNested] = None,
+                desired_goal: Optional[DataNested] = None) -> bool:
         """Determine whether a termination condition has been reached.
 
         By default, it uses the termination condition inherited from normal
@@ -1400,8 +1407,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         raise NotImplementedError
 
     def compute_reward(self,  # type: ignore[override]
-                       achieved_goal: Optional[SpaceDictNested] = None,
-                       desired_goal: Optional[SpaceDictNested] = None,
+                       achieved_goal: Optional[DataNested] = None,
+                       desired_goal: Optional[DataNested] = None,
                        *, info: Dict[str, Any]) -> float:
         """Compute the reward for any given episode state.
 
