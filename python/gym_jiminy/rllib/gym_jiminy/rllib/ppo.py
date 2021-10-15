@@ -1,6 +1,8 @@
 """ TODO: Write documentation.
 """
 import math
+import operator
+from functools import reduce
 from typing import Dict, List, Type, Union, Optional, Any, Tuple
 
 import gym
@@ -23,7 +25,10 @@ from ray.rllib.agents.ppo.ppo_torch_policy import (
 DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
     DEFAULT_CONFIG,
     {
-        "noise_scale": 1.0,
+        "enable_adversarial_noise": False,
+        "spatial_noise_scale": 1.0,
+        "sgld_beta_inv": 1.0e-8,
+        "sgld_n_steps": 10,
         "temporal_barrier_scale": 1.0,
         "temporal_barrier_threshold": math.inf,
         "temporal_barrier_reg": 0.0,
@@ -34,6 +39,94 @@ DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
         "l2_reg": 0.0
     },
     _allow_unknown_configs=True)
+
+
+def get_action_mean(model: ModelV2,
+                    dist_class: Type[TorchDistributionWrapper],
+                    action_logits: torch.Tensor) -> torch.Tensor:
+    if issubclass(dist_class, TorchDiagGaussian):
+        action_mean, _ = torch.chunk(action_logits, 2, dim=1)
+    else:
+        action_dist = dist_class(action_logits, model)
+        action_mean = action_dist.deterministic_sample()
+    return action_mean
+
+
+def get_adversarial_observation_sgld(
+        model: ModelV2,
+        dist_class: Type[TorchDistributionWrapper],
+        train_batch: SampleBatch,
+        noise_scale: float,
+        beta_inv: float,
+        n_steps: int,
+        action_true_mean: Optional[torch.Tensor] = None
+        ) -> torch.Tensor:
+    # Compute mean field action for true observation if not provided
+    if action_true_mean is None:
+        with torch.no_grad():
+            action_true_logits, _ = model(train_batch)
+            action_true_mean = get_action_mean(
+                model, dist_class, action_true_logits)
+    else:
+        action_true_mean = action_true_mean.detach()
+
+    # Shallow copy the original training batch.
+    # Be careful accessing fields using the original batch to properly keep
+    # track of accessed keys, which will be used to automatically discard
+    # useless components of policy's view requirements.
+    train_batch_copy = train_batch.copy(shallow=True)
+
+    # Extract original observation
+    observation_true = train_batch["obs"]
+
+    # Define observation upper and lower bounds for clipping
+    obs_lb_flat = observation_true - noise_scale
+    obs_ub_flat = observation_true + noise_scale
+
+    # Adjust the step size based on noise scale and number of steps
+    step_eps = noise_scale / n_steps
+
+    # Use Stochastic gradient Langevin dynamics (SGLD) to compute adversary
+    # observation perturbation. It consists in find nearby observations that
+    # maximize the mean action difference.
+    observation_noisy = observation_true + step_eps * 2.0 * (
+        torch.empty_like(observation_true).bernoulli_(p=0.5) - 0.5)
+    for i in range(n_steps):
+        # Make sure gradient computation is required
+        observation_noisy.requires_grad_(True)
+
+        # Compute mean field action for noisy observation
+        train_batch_copy["obs"] = observation_noisy
+        action_noisy_logits, _ = model(train_batch_copy)
+        action_noisy_mean = get_action_mean(
+            model, dist_class, action_noisy_logits)
+
+        # Compute action different and associated gradient
+        loss = torch.mean(torch.sum(
+            (action_noisy_mean - action_true_mean) ** 2, dim=-1))
+        loss.backward()
+
+        # compute the noisy gradient for observation update
+        noise_factor = math.sqrt(2.0 * step_eps * beta_inv) / (i + 2)
+        observation_update = observation_noisy.grad + \
+            noise_factor * torch.randn_like(observation_true)
+
+        # Need to clear gradients before the backward() for policy_loss
+        observation_noisy.detach_()
+
+        # Project gradient to step boundary.
+        # Note that `sign` is used to be agnostic to the norm of the gradient,
+        # which would require to tune the learning rate or use an adaptive step
+        # method. Alternatively, the normalized gradient could be used, but it
+        # takes more iterations to converge in practice.
+        # TODO: The update step should be `step_eps` but it was found that
+        # using `noise_scale` converges faster.
+        observation_noisy += observation_update.sign() * noise_scale
+
+        # clip into the upper and lower bounds
+        observation_noisy.clamp_(obs_lb_flat, obs_ub_flat)
+
+    return observation_noisy
 
 
 def ppo_init(policy: Policy,
@@ -57,23 +150,12 @@ def ppo_init(policy: Policy,
     policy.view_requirements.update(caps_view_requirements)
 
     # Initialize extra loss
-    policy._mean_temporal_barrier_loss = 0.0
-    policy._mean_symmetric_policy_loss = 0.0
-    policy._mean_temporal_caps_loss = 0.0
-    policy._mean_spatial_caps_loss = 0.0
-    policy._mean_global_caps_loss = 0.0
-    policy._l2_reg_loss = 0.0
-
-    # Check if the policy has observation filter. If so, disable element-wise
-    # observation sensitivity.
-    obs_filter = policy.config["observation_filter"]
-    if obs_filter == "NoFilter":
-        policy._is_obs_normalized = False
-    elif obs_filter == "MeanStdFilter":
-        policy._is_obs_normalized = True
-    else:
-        raise NotImplementedError(
-            "Only 'NoFilter' and 'MeanStdFilter' are supported.")
+    policy._loss_temporal_barrier_reg = 0.0
+    policy._loss_symmetric_policy_reg = 0.0
+    policy._loss_caps_temporal_reg = 0.0
+    policy._loss_caps_spatial_reg = 0.0
+    policy._loss_caps_global_reg = 0.0
+    policy._loss_l2_reg = 0.0
 
     # Extract original observation space
     try:
@@ -81,13 +163,6 @@ def ppo_init(policy: Policy,
     except AttributeError as e:
         raise NotImplementedError(
             "Only 'Dict' original observation space is supported.") from e
-
-    # Convert to torch.Tensor observation sensitivity data if necessary
-    if not policy._is_obs_normalized:
-        for field, scale in observation_space.sensitivity.items():
-            if not isinstance(scale, torch.Tensor):
-                scale = torch.from_numpy(scale).to(dtype=torch.float32)
-                observation_space.sensitivity[field] = scale
 
     # Transpose and convert to torch.Tensor the observation mirroring data
     for field, mirror_mat in observation_space.mirror_mat.items():
@@ -116,14 +191,11 @@ def ppo_loss(policy: Policy,
     device = observation_true.device
 
     # Initialize the set of training batches to forward to the model
-    train_batches = {"original": train_batch}
+    train_batches = {"true": train_batch}
 
     if policy.config["caps_temporal_reg"] > 0.0 or \
             policy.config["temporal_barrier_reg"] > 0.0:
-        # Shallow copy the original training batch.
-        # Be careful accessing fields using the original batch to properly
-        # keep track of acessed keys, which will be used to discard useless
-        # components of policy's view requirements.
+        # Shallow copy the original training batch
         train_batch_copy = train_batch.copy(shallow=True)
 
         # Replace current observation by the previous one
@@ -133,29 +205,32 @@ def ppo_loss(policy: Policy,
         # Append the training batches to the set
         train_batches["prev"] = train_batch_copy
 
-    if policy.config["caps_spatial_reg"] > 0.0 or \
-            policy.config["caps_global_reg"] > 0.0:
+    if policy.config["caps_spatial_reg"] > 0.0 and \
+            policy.config["enable_adversarial_noise"]:
         # Shallow copy the original training batch
         train_batch_copy = train_batch.copy(shallow=True)
 
-        # Generate noisy observation based on specified sensivity
-        if policy._is_obs_normalized:
-            observation_noisy = torch.normal(
-                observation_true, policy.config["noise_scale"])
-        else:
-            offset = 0
-            observation_noisy = observation_true.clone()
-            batch_dim = observation_true.shape[:-1]
-            observation_space = policy.observation_space.original_space
-            for field, scale in observation_space.sensitivity.items():
-                scale = scale.to(device)
-                observation_space.sensitivity[field] = scale
-                unit_noise = torch.randn(
-                    (*batch_dim, len(scale)), device=device)
-                slice_idx = slice(offset, offset + len(scale))
-                observation_noisy[..., slice_idx].addcmul_(
-                    policy.config["noise_scale"] * scale, unit_noise)
-                offset += len(scale)
+        # Compute adversarial observation maximizing action difference
+        observation_worst = get_adversarial_observation_sgld(
+            model, dist_class, train_batch,
+            policy.config["spatial_noise_scale"],
+            policy.config["sgld_beta_inv"],
+            policy.config["sgld_n_steps"])
+
+        # Replace current observation by the adversarial one
+        train_batch_copy["obs"] = observation_worst
+
+        # Append the training batches to the set
+        train_batches["worst"] = train_batch_copy
+
+    if policy.config["caps_global_reg"] > 0.0 or \
+            not policy.config["enable_adversarial_noise"]:
+        # Shallow copy the original training batch
+        train_batch_copy = train_batch.copy(shallow=True)
+
+        # Generate noisy observation
+        observation_noisy = torch.normal(
+            observation_true, policy.config["spatial_noise_scale"])
 
         # Replace current observation by the noisy one
         train_batch_copy["obs"] = observation_noisy
@@ -172,13 +247,29 @@ def ppo_loss(policy: Policy,
         observation_mirror = torch.empty_like(observation_true)
         observation_space = policy.observation_space.original_space
         for field, mirror_mat in observation_space.mirror_mat.items():
+            field_shape = observation_space[field].shape
+            field_size = reduce(operator.mul, field_shape)
+            slice_idx = slice(offset, offset + field_size)
+
             mirror_mat = mirror_mat.to(device)
             observation_space.mirror_mat[field] = mirror_mat
-            slice_idx = slice(offset, offset + len(mirror_mat))
-            torch.mm(observation_true[..., slice_idx],
-                     mirror_mat,
-                     out=observation_mirror[..., slice_idx])
-            offset += len(mirror_mat)
+
+            if len(field_shape) > 1:
+                observation_true_slice = observation_true[:, slice_idx] \
+                    .reshape((-1, field_shape[0], field_shape[1])) \
+                    .swapaxes(1, 0) \
+                    .reshape((field_shape[0], -1))
+                observation_mirror_slice = mirror_mat @ observation_true_slice
+                observation_mirror[:, slice_idx] = observation_mirror_slice \
+                    .reshape((field_shape[0], -1, field_shape[1])) \
+                    .swapaxes(1, 0) \
+                    .reshape((-1, field_size))
+            else:
+                torch.mm(observation_true[..., slice_idx],
+                         mirror_mat,
+                         out=observation_mirror[..., slice_idx])
+
+            offset += field_size
 
         # Replace current observation by the mirrored one
         train_batch_copy["obs"] = observation_mirror
@@ -186,17 +277,17 @@ def ppo_loss(policy: Policy,
         # Append the training batches to the set
         train_batches["mirrored"] = train_batch_copy
 
-    # Compute the logits for all training batches at onces
+    # Compute the action_logits for all training batches at onces
     train_batch_all = {}
-    for k in ['obs']:
+    for k in ["obs"]:
         train_batch_all[k] = torch.cat([
             s[k] for s in train_batches.values()], dim=0)
-    logits_all, _ = model(train_batch_all)
+    action_logits_all, _ = model(train_batch_all)
     values_all = model.value_function()
-    logits = dict(zip(train_batches.keys(),
-                      torch.chunk(logits_all, len(train_batches), dim=0)))
-    values = dict(zip(train_batches.keys(),
-                      torch.chunk(values_all, len(train_batches), dim=0)))
+    action_logits = dict(zip(train_batches.keys(), torch.chunk(
+        action_logits_all, len(train_batches), dim=0)))
+    values = dict(zip(train_batches.keys(), torch.chunk(
+        values_all, len(train_batches), dim=0)))
 
     # Compute original ppo loss.
     # pylint: disable=unused-argument,missing-function-docstring
@@ -205,9 +296,9 @@ def ppo_loss(policy: Policy,
         """
         def __init__(self,
                      model: ModelV2,
-                     logits: torch.Tensor,
+                     action_logits: torch.Tensor,
                      value: torch.Tensor) -> None:
-            self._logits = logits
+            self._action_logits = action_logits
             self._value = value
             self._model = model
 
@@ -216,113 +307,107 @@ def ppo_loss(policy: Policy,
 
         def __call__(self, *args: Any, **kwargs: Any
                      ) -> Tuple[torch.Tensor, List[torch.Tensor]]:
-            return self._logits, []
+            return self._action_logits, []
 
         def value_function(self, *args: Any, **kwargs: Any) -> torch.Tensor:
             return self._value
 
-    fake_model = FakeModel(model, logits["original"], values["original"])
+    fake_model = FakeModel(model, action_logits["true"], values["true"])
     total_loss = ppo_surrogate_loss(
         policy, fake_model, dist_class, train_batch)
 
-    # Extract mean of predicted action from logits.
+    # Extract mean of predicted action from action_logits.
     # No need to compute the perform model forward pass since the original
     # PPO loss is already doing it, so just getting back the last ouput.
-    action_logits = logits["original"]
-    if issubclass(dist_class, TorchDiagGaussian):
-        action_mean_true, _ = torch.chunk(action_logits, 2, dim=1)
-    else:
-        action_dist = dist_class(action_logits, model)
-        action_mean_true = action_dist.deterministic_sample()
+    action_true_logits = action_logits["true"]
+    action_true_mean = get_action_mean(model, dist_class, action_true_logits)
 
     # Compute the mean action corresponding to the previous observation
     if policy.config["caps_temporal_reg"] > 0.0 or \
             policy.config["temporal_barrier_reg"] > 0.0:
-        action_logits_prev = logits["prev"]
-        if issubclass(dist_class, TorchDiagGaussian):
-            action_mean_prev, _ = torch.chunk(action_logits_prev, 2, dim=1)
-        else:
-            action_dist_prev = dist_class(action_logits_prev, model)
-            action_mean_prev = action_dist_prev.deterministic_sample()
+        action_prev_logits = action_logits["prev"]
+        action_prev_mean = get_action_mean(
+            model, dist_class, action_prev_logits)
 
     # Compute the mean action corresponding to the noisy observation
-    if policy.config["caps_spatial_reg"] > 0.0 or \
-            policy.config["caps_global_reg"] > 0.0:
-        action_logits_noisy = logits["noisy"]
-        if issubclass(dist_class, TorchDiagGaussian):
-            action_mean_noisy, _ = torch.chunk(action_logits_noisy, 2, dim=1)
-        else:
-            action_dist_noisy = dist_class(action_logits_noisy, model)
-            action_mean_noisy = action_dist_noisy.deterministic_sample()
+    if policy.config["caps_global_reg"] > 0.0:
+        action_noisy_logits = action_logits["noisy"]
+        action_noisy_mean = get_action_mean(
+            model, dist_class, action_noisy_logits)
+
+    # Compute the mean action corresponding to the worst observation
+    if policy.config["caps_spatial_reg"] > 0.0 and \
+            policy.config["enable_adversarial_noise"]:
+        action_worst_logits = action_logits["worst"]
+        action_worst_mean = get_action_mean(
+            model, dist_class, action_worst_logits)
 
     # Compute the mirrored mean action corresponding to the mirrored action
     if policy.config["symmetric_policy_reg"] > 0.0:
-        action_logits_mirror = logits["mirrored"]
-        if issubclass(dist_class, TorchDiagGaussian):
-            action_mean_mirror, _ = torch.chunk(action_logits_mirror, 2, dim=1)
-        else:
-            action_dist_mirror = dist_class(action_logits_mirror, model)
-            action_mean_mirror = action_dist_mirror.deterministic_sample()
+        action_mirror_logits = action_logits["mirrored"]
+        action_mirror_mean = get_action_mean(
+            model, dist_class, action_mirror_logits)
         action_mirror_mat = policy.action_space.mirror_mat.to(device)
         policy.action_space.mirror_mat = action_mirror_mat
-        action_mean_mirror = action_mean_mirror @ action_mirror_mat
+        action_mirror_mean = action_mirror_mean @ action_mirror_mat
 
     if policy.config["caps_temporal_reg"] > 0.0 or \
             policy.config["temporal_barrier_reg"] > 0.0:
-        # Compute action delta
-        action_delta = (action_mean_prev - action_mean_true).abs()
+        # Compute action temporal delta
+        action_delta = (action_prev_mean - action_true_mean).abs()
 
         # Minimize the difference between the successive action mean
         if policy.config["caps_temporal_reg"] > 0.0:
-            policy._mean_temporal_caps_loss = torch.mean(action_delta)
+            policy._loss_caps_temporal_reg = torch.mean(action_delta)
 
         # Add temporal smoothness loss to total loss
         total_loss += policy.config["caps_temporal_reg"] * \
-            policy._mean_temporal_caps_loss
+            policy._loss_caps_temporal_reg
 
         # Add temporal barrier loss to total loss:
         # exp(scale * (err - thr)) - 1.0 if err > thr else 0.0
         if policy.config["temporal_barrier_reg"] > 0.0:
             scale = policy.config["temporal_barrier_scale"]
             threshold = policy.config["temporal_barrier_threshold"]
-            policy._mean_temporal_barrier_loss = torch.mean(torch.exp(
+            policy._loss_temporal_barrier_reg = torch.mean(torch.exp(
                 torch.clamp(
                     scale * (action_delta - threshold), min=0.0, max=5.0
                     )) - 1.0)
 
         # Add spatial smoothness loss to total loss
         total_loss += policy.config["temporal_barrier_reg"] * \
-            policy._mean_temporal_barrier_loss
+            policy._loss_temporal_barrier_reg
 
     if policy.config["caps_spatial_reg"] > 0.0:
         # Minimize the difference between the original action mean and the
-        # one corresponding to the noisy observation.
-        policy._mean_spatial_caps_loss = torch.mean(
-            torch.sum((
-                action_mean_noisy - action_mean_true) ** 2, dim=-1) /
-            torch.sum((
-                observation_noisy - observation_true) ** 2, dim=-1))
+        # perturbed one.
+        if policy.config["enable_adversarial_noise"]:
+            policy._loss_caps_spatial_reg = torch.mean(
+                torch.sum((action_worst_mean - action_true_mean) ** 2, dim=1))
+        else:
+            policy._loss_caps_spatial_reg = torch.mean(
+                torch.sum((action_noisy_mean - action_true_mean) ** 2, dim=1))
 
         # Add spatial smoothness loss to total loss
         total_loss += policy.config["caps_spatial_reg"] * \
-            policy._mean_spatial_caps_loss
+            policy._loss_caps_spatial_reg
 
     if policy.config["caps_global_reg"] > 0.0:
         # Minimize the magnitude of action mean
-        policy._mean_global_caps_loss = torch.mean(action_mean_noisy ** 2)
+        policy._loss_caps_global_reg = torch.mean(action_noisy_mean ** 2)
 
         # Add global smoothness loss to total loss
         total_loss += policy.config["caps_global_reg"] * \
-            policy._mean_global_caps_loss
+            policy._loss_caps_global_reg
 
     if policy.config["symmetric_policy_reg"] > 0.0:
         # Minimize the assymetry of policy output
-        policy._mean_symmetric_policy_loss = torch.mean(
-            (action_mean_mirror - action_mean_true) ** 2)
+        policy._loss_symmetric_policy_reg = torch.mean(
+            (action_mirror_mean - action_true_mean) ** 2)
 
         # Add policy symmetry loss to total loss
         total_loss += policy.config["symmetric_policy_reg"] * \
-            policy._mean_symmetric_policy_loss
+            policy._loss_symmetric_policy_reg
 
     if policy.config["l2_reg"] > 0.0:
         # Add actor l2-regularization loss
@@ -330,10 +415,10 @@ def ppo_loss(policy: Policy,
         for name, params in model.named_parameters():
             if not name.endswith("bias"):
                 l2_reg_loss += l2_loss(params)
-        policy._l2_reg_loss = l2_reg_loss
+        policy._loss_l2_reg = l2_reg_loss
 
         # Add l2-regularization loss to total loss
-        total_loss += policy.config["l2_reg"] * policy._l2_reg_loss
+        total_loss += policy.config["l2_reg"] * policy._loss_l2_reg
 
     return total_loss
 
@@ -347,17 +432,17 @@ def ppo_stats(policy: Policy,
 
     # Add spatial CAPS loss to the report
     if policy.config["symmetric_policy_reg"] > 0.0:
-        stats_dict["symmetry"] = policy._mean_symmetric_policy_loss
+        stats_dict["symmetry"] = policy._loss_symmetric_policy_reg
     if policy.config["temporal_barrier_reg"] > 0.0:
-        stats_dict["temporal_barrier"] = policy._mean_temporal_barrier_loss
+        stats_dict["temporal_barrier"] = policy._loss_temporal_barrier_reg
     if policy.config["caps_temporal_reg"] > 0.0:
-        stats_dict["temporal_smoothness"] = policy._mean_temporal_caps_loss
+        stats_dict["temporal_smoothness"] = policy._loss_caps_temporal_reg
     if policy.config["caps_spatial_reg"] > 0.0:
-        stats_dict["spatial_smoothness"] = policy._mean_spatial_caps_loss
+        stats_dict["spatial_smoothness"] = policy._loss_caps_spatial_reg
     if policy.config["caps_global_reg"] > 0.0:
-        stats_dict["global_smoothness"] = policy._mean_global_caps_loss
+        stats_dict["global_smoothness"] = policy._loss_caps_global_reg
     if policy.config["l2_reg"] > 0.0:
-        stats_dict["l2_reg"] = policy._l2_reg_loss
+        stats_dict["l2_reg"] = policy._loss_l2_reg
 
     return stats_dict
 
