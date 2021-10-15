@@ -44,6 +44,8 @@ DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
 def get_action_mean(model: ModelV2,
                     dist_class: Type[TorchDistributionWrapper],
                     action_logits: torch.Tensor) -> torch.Tensor:
+    """ TODO: Write documentation.
+    """
     if issubclass(dist_class, TorchDiagGaussian):
         action_mean, _ = torch.chunk(action_logits, 2, dim=1)
     else:
@@ -61,6 +63,8 @@ def get_adversarial_observation_sgld(
         n_steps: int,
         action_true_mean: Optional[torch.Tensor] = None
         ) -> torch.Tensor:
+    """ TODO: Write documentation.
+    """
     # Compute mean field action for true observation if not provided
     if action_true_mean is None:
         with torch.no_grad():
