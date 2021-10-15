@@ -1,7 +1,7 @@
 """ TODO: Write documentation.
 """
 import logging
-from typing import Union, Dict, List, ValuesView, Tuple, Iterable
+from typing import Union, ValuesView
 
 import gym
 import tree
@@ -34,7 +34,8 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     return False
 
 
-def get_fieldnames(structure, namespace: str = ""):
+def get_fieldnames(structure: Union[FieldNested, DataNested],
+                   namespace: str = "") -> FieldNested:
     """Generate generic fieldnames from `gym..Space`, so that it can be used
     in conjunction with `register_variables`, to register any value from gym
     Space to the telemetry conveniently.
@@ -54,15 +55,16 @@ def get_fieldnames(structure, namespace: str = ""):
             "'structure' ({structure}) must have leaves of type `np.ndarray`.")
         if data.size < 1:
             # Empty: return empty list
-            fieldnames.append([])
+            fieldname = []
         elif data.size == 1:
             # Scalar: namespace alone as fieldname is enough
-            fieldnames.append([namespace])
+            fieldname = [namespace]
         else:
             # Tensor: basic numbering
-            fieldnames.append(np.array([
+            fieldname = np.array([
                 ".".join(filter(None, (namespace, str(i))))
-                for i in range(data.size)]).reshape(data.shape).tolist())
+                for i in range(data.size)]).reshape(data.shape).tolist()
+        fieldnames.append(fieldname)
 
     return tree.unflatten_as(structure, fieldnames)
 
@@ -91,10 +93,11 @@ def register_variables(controller: jiminy.AbstractController,
 
     :returns: Whether or not the registration has been successful.
     """
+    # pylint: disable=cell-var-from-loop
     for (fieldname_path, fieldname), value in zip(
             tree.flatten_with_path_up_to(data, fieldnames),
             tree.flatten(data)):
-        if np.issubsctype(data, np.float64):
+        if np.issubsctype(value, np.float64):
             assert isinstance(fieldname, list), (
                 "'fieldname' ({fieldname}) should be a list of strings.")
             namespace = ".".join(map(str, filter(None, fieldname_path)))
@@ -105,7 +108,7 @@ def register_variables(controller: jiminy.AbstractController,
                 return False
         else:
             logger.warning(
-                f"Variable of dtype '{data.dtype}' cannot be registered to "
+                f"Variable of dtype '{value.dtype}' cannot be registered to "
                 "the telemetry and must have dtype 'np.float64' instead.")
             return False
     return True

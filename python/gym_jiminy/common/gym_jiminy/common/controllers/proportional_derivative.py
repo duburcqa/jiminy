@@ -125,7 +125,7 @@ class PDController(BaseControllerBlock):
 
     def compute_command(self,
                         measure: DataNested,
-                        action: DataNested
+                        action: gym.spaces.Dict
                         ) -> np.ndarray:
         """Compute the motor torques using a PD controller.
 
@@ -137,6 +137,6 @@ class PDController(BaseControllerBlock):
         """
         return _compute_command_impl(
             q_target=action['Q'], v_target=action['V'],
-            encoders_data=measure['sensors'][encoder.type],
+            encoders_data=self.env.sensors_data[encoder.type],
             motor_to_encoder=self.motor_to_encoder,
             pid_kp=self.pid_kp, pid_kd=self.pid_kd)

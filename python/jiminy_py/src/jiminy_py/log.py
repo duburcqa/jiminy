@@ -22,7 +22,7 @@ from .state import State
 
 
 FieldNested = Union[  # type: ignore
-    Dict[str, 'DataNested'], Sequence['DataNested'], str]  # type: ignore
+    Dict[str, 'FieldNested'], Sequence['FieldNested'], str]  # type: ignore
 
 
 class TrajectoryDataType(TypedDict, total=False):
@@ -148,8 +148,8 @@ def extract_data_from_log(log_data: Dict[str, np.ndarray],
                           namespace: Optional[str] = 'HighLevelController',
                           *,
                           as_dict: bool = False) -> Optional[Union[
-                              Tuple[Optional[np.ndarray],
-                              Dict[str, Optional[np.ndarray]]]]]:
+                              Tuple[Optional[np.ndarray], ...],
+                              Dict[str, Optional[np.ndarray]]]]:
     """Extract values associated with a set of fieldnames in a specific
     namespace.
 

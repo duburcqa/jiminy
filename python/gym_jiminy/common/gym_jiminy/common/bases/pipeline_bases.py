@@ -324,9 +324,12 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # Update the observation space
         if self.augment_observation:
             self.observation_space = deepcopy(self.env.observation_space)
+            if not isinstance(self.observation_space, gym.Space.Dict):
+                self.observation_space = gym.Space.Dict(OrderedDict(
+                    measures=self.observation_space))
             self.observation_space.spaces.setdefault(
-                'features', gym.spaces.Dict()).spaces[self.observer_name] = \
-                self.observer.observation_space
+                'features', gym.spaces.Dict()).spaces[
+                    self.observer_name] = self.observer.observation_space
         else:
             self.observation_space = self.observer.observation_space
 
@@ -377,7 +380,13 @@ class ObservedJiminyEnv(BasePipelineWrapper):
             if not self.simulator.is_simulation_running:
                 features = self.observer.get_observation()
                 if self.augment_observation:
-                    self._observation = obs
+                    # Assertion for type checker
+                    assert isinstance(self._observation, dict)
+                    # Make sure to store references
+                    if isinstance(obs, gym.spaces.Dict):
+                        self._observation = obs
+                    else:
+                        self._observation['measures'] = obs
                     self._observation.setdefault('features', OrderedDict())[
                         self.observer_name] = features
                 else:
@@ -502,9 +511,12 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # Append the controller's target to the observation if requested
         self.observation_space = deepcopy(self.env.observation_space)
         if self.augment_observation:
+            if not isinstance(self.observation_space, gym.Space.Dict):
+                self.observation_space = gym.Space.Dict(OrderedDict(
+                    measures=self.observation_space))
             self.observation_space.spaces.setdefault(
-                'targets', gym.spaces.Dict()).spaces[self.controller_name] = \
-                    self.controller.action_space
+                'targets', gym.spaces.Dict()).spaces[
+                    self.controller_name] = self.controller.action_space
 
         # Initialize some internal buffers
         self._action = zeros(self.action_space, dtype=np.float64)
@@ -595,10 +607,19 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         # Add target to observation if requested
         if not self.simulator.is_simulation_running:
-            self._observation = self.env.get_observation()
+            obs = self.env.get_observation()
             if self.augment_observation:
+                # Assertion for type checker
+                assert isinstance(self._observation, dict)
+                # Make sure to store references
+                if isinstance(obs, gym.spaces.Dict):
+                    self._observation = obs
+                else:
+                    self._observation['measures'] = obs
                 self._observation.setdefault('targets', OrderedDict())[
                     self.controller_name] = self._action
+            else:
+                self._observation = obs
 
     def compute_reward(self, *args: Any, **kwargs: Any) -> float:
         return self.controller.compute_reward(*args, **kwargs)

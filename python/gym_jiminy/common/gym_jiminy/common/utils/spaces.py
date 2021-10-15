@@ -1,20 +1,21 @@
 """ TODO: Write documentation.
 """
-from copy import deepcopy
-from typing import Optional, Union, Dict, Sequence
+from typing import Optional, Union, Dict, Sequence, TypeVar
 
 import numpy as np
 import tree
 import gym
 
 
-FieldNested = Union[  # type: ignore
-    Dict[str, 'FieldNested'], Sequence['FieldNested'], str]  # type: ignore
-DataNested = Union[  # type: ignore
-    Dict[str, 'DataNested'], Sequence['DataNested'], np.ndarray]  # type: ignore
+ValueType = TypeVar('ValueType')
+StructNested = Union[Dict[str, 'StructNested'],  # type: ignore
+                     Sequence['StructNested'],  # type: ignore
+                     ValueType]
+FieldNested = StructNested[str]  # type: ignore
+DataNested = StructNested[np.ndarray]  # type: ignore
 
 
-def _space_nested_raw(space_nested: gym.Space):
+def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:
     """Replace any `gym.spaces.Dict` by the raw `OrderedDict` dict it contains.
 
     .. note::
@@ -93,18 +94,18 @@ def sample(low: Union[float, np.ndarray] = -1.0,
         rg = np.random
     distrib_fn = getattr(rg, dist)
     if dist == 'uniform':
-        val = distrib_fn(low=-1.0, high=1.0, size=shape)
+        value = distrib_fn(low=-1.0, high=1.0, size=shape)
     else:
-        val = distrib_fn(size=shape)
+        value = distrib_fn(size=shape)
 
     # Set mean and deviation
-    val = mean + dev * val
+    value = mean + dev * value
 
     # Revert log scale if appropriate
     if enable_log_scale:
-        val = 10 ** val
+        value = 10 ** value
 
-    return val
+    return value
 
 
 def is_bounded(space_nested: gym.Space) -> bool:
@@ -154,9 +155,10 @@ def fill(data: DataNested, fill_value: float) -> None:
     for value in tree.flatten(data):
         try:
             value.fill(fill_value)
-        except AttributeError:
+        except AttributeError as e:
             raise ValueError(
-                "Leaves of 'data' structure must have type `np.ndarray`.")
+                "Leaves of 'data' structure must have type `np.ndarray`."
+                ) from e
 
 
 def set_value(data: DataNested, value: DataNested) -> None:
@@ -176,9 +178,10 @@ def set_value(data: DataNested, value: DataNested) -> None:
     for data_i, value_i in zip(tree.flatten(data), tree.flatten(value)):
         try:
             data_i.flat[:] = value_i
-        except AttributeError:
+        except AttributeError as e:
             raise ValueError(
-                "Leaves of 'data' structure must have type `np.ndarray`.")
+                "Leaves of 'data' structure must have type `np.ndarray`."
+                ) from e
 
 
 def copy(data: DataNested) -> DataNested:
@@ -191,19 +194,14 @@ def copy(data: DataNested) -> DataNested:
 
 
 def clip(space_nested: gym.Space,
-         data: DataNested,
-         copy: bool = True) -> DataNested:
+         data: DataNested) -> DataNested:
     """Clamp value from Gym.Space to make sure it is within bounds.
 
     :param space: Gym.Space on which to operate.
-    :param value: Value to clamp.
-    :param copy: Whether or not to clip in place or return a copy.
+    :param data: Data to clamp.
     """
-    if copy:
-        data = deepcopy(data)
-    for space, value in zip(
-            tree.flatten(_space_nested_raw(space_nested)), tree.flatten(data)):
-        # Assuming only `gym.spaces.Box` data can be out-of-bounds
-        if isinstance(space, gym.spaces.Box):
-            value[:] = np.minimum(np.maximum(value, space.low), space.high)
-    return data
+    return tree.map_structure(
+        lambda space, value:
+            np.minimum(np.maximum(value, space.low), space.high)
+        if isinstance(space, gym.spaces.Box) else value,
+        _space_nested_raw(space_nested), data)

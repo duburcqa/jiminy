@@ -107,8 +107,8 @@ class FilteredFrameStack(gym.Wrapper):
         """
         # Replace nested fields of original observation by the stacked ones
         for fields, frames in zip(self.leaf_fields_list, self._frames):
-            root_obs = reduce(lambda d, key: d[key], fields[:-1],
-                              observation)
+            root_obs = reduce(lambda d, key: d[key], fields[:-1], observation)
+            assert isinstance(root_obs, dict)  # Assert for type checker
             root_obs[fields[-1]] = np.stack(frames)
 
         # Return the stacked observation
@@ -120,6 +120,7 @@ class FilteredFrameStack(gym.Wrapper):
         # Backup the nested observation fields to stack
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             leaf_obs = reduce(lambda d, key: d[key], fields, measure)
+            assert isinstance(leaf_obs, np.ndarray)  # Assert for type checker
             frames.append(leaf_obs.copy())  # Copy to make sure not altered
 
         # Return the stacked observation

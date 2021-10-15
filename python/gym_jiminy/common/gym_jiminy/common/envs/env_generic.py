@@ -5,10 +5,11 @@ the official OpenAI Gym API and extended it to add more functionalities.
 import os
 import tempfile
 from copy import deepcopy
-from collections import OrderedDict, Mapping
+from collections import OrderedDict
+from collections.abc import Mapping
 from typing import (
     Optional, Tuple, Dict, Any, Callable, List, Union, Iterator,
-    Mapping as MappingT)
+    Mapping as MappingT, MutableMapping as MutableMappingT)
 
 import tree
 import numpy as np
@@ -61,7 +62,7 @@ SENSOR_ACCEL_MAX = 10000.0
 
 class _LazyDictItemFilter(Mapping):
     def __init__(self,
-                 dict_packed: Dict[str, Tuple[Any, ...]],
+                 dict_packed: MappingT[str, Tuple[Any, ...]],
                  item_index: int) -> None:
         self.dict_packed = dict_packed
         self.item_index = item_index
@@ -140,7 +141,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.sensors_data: jiminy.sensorsData = dict(self.robot.sensors_data)
 
         # Store references to the variables to register to the telemetry
-        self._registered_variables: Dict[
+        self._registered_variables: MutableMappingT[
             str, Tuple[FieldNested, DataNested]] = {}
         self.log_headers: MappingT[str, FieldNested] = _LazyDictItemFilter(
             self._registered_variables, 0)
