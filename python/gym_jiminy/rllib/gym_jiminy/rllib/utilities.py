@@ -35,7 +35,7 @@ from ray.rllib.agents.trainer import Trainer
 from ray.rllib.models.preprocessors import get_preprocessor
 
 from jiminy_py.viewer import play_logs_files
-from gym_jiminy.common.utils import clip, SpaceDictNested
+from gym_jiminy.common.utils import clip, DataNested
 
 try:
     import torch
@@ -277,7 +277,7 @@ def build_policy_wrapper(policy: Policy,
                          n_frames_stack: int = 1,
                          clip_action: bool = False,
                          explore: bool = False) -> Callable[
-                             [np.ndarray, Optional[float]], SpaceDictNested]:
+                             [np.ndarray, Optional[float]], DataNested]:
     """Wrap a policy into a simple callable
 
     The internal state of the policy, if any, is managed internally.
@@ -324,8 +324,8 @@ def build_policy_wrapper(policy: Policy,
         "prev_n_rew": np.zeros([1, n_frames_stack])}
 
     # Run the simulation
-    def forward(obs: SpaceDictNested,
-                reward: Optional[float]) -> SpaceDictNested:
+    def forward(obs: DataNested,
+                reward: Optional[float]) -> DataNested:
         nonlocal policy, obs_flat, input_dict, explore, clip_action
 
         # Compute flat observation

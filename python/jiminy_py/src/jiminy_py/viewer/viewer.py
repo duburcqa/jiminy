@@ -1725,7 +1725,7 @@ class Viewer:
     @__must_be_open
     @__with_lock
     def update_floor(self,
-                     heightmap: Optional[jiminy.HeightmapFunctor] = None,
+                     ground_profile: Optional[jiminy.HeightmapFunctor] = None,
                      grid_size: float = 20.0,
                      grid_unit: float = 0.04,
                      show_meshes: bool = False) -> None:
@@ -1735,14 +1735,33 @@ class Viewer:
         .. note::
             This method is only supported by Panda3d for now.
 
-        :param heightmap: `jiminy_py.core.HeightmapFunctor` associated with
-                           the ground profile. It renders a flat tile  ground
-                           if not specified.
-                           Optional: None by default.
+        :param ground_profile: `jiminy_py.core.HeightmapFunctor` associated
+                               with the ground profile. It renders a flat tile
+                               ground if not specified.
+                               Optional: None by default.
+        :param grid_size: X and Y dimension of the ground profile to render.
+                          Optional: 20m by default.
+        :param grid_unit: X and Y discretization step of the ground profile.
+                          Optional: 4cm by default.
+        :param show_meshes: Whether or not to highlight the meshes.
+                            Optional: disabled by default.
         """
         if Viewer.backend.startswith('panda3d'):
-            height_grid = discretize_heightmap(heightmap, grid_size, grid_unit)
-            self._gui.update_floor(height_grid, show_meshes)
+            # Restore tile ground if heightmap is not specified
+            if ground_profile is None:
+                self._gui.update_floor()
+                return
+
+            # Discretize heightmap
+            grid = discretize_heightmap(ground_profile, grid_size, grid_unit)
+
+            # Make sure it is not flat ground
+            if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
+                    np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
+                self._gui.update_floor()
+                return
+
+            self._gui.update_floor(grid, show_meshes)
         else:
             logger.warning("This method is only supported by Panda3d.")
 

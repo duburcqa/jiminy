@@ -9,7 +9,7 @@ from gym.spaces import flatten_space
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from gym_jiminy.common.utils import sample, SpaceDictNested
+from gym_jiminy.common.utils import sample, DataNested
 from gym_jiminy.common.envs import BaseJiminyEnv, BaseJiminyGoalEnv
 
 
@@ -198,7 +198,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         return bool(achieved_goal > desired_goal)
 
     def compute_command(self,
-                        measure: SpaceDictNested,
+                        measure: DataNested,
                         action: np.ndarray
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.

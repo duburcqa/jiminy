@@ -10,7 +10,7 @@ import gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..utils import SpaceDictNested, is_breakpoint
+from ..utils import DataNested, is_breakpoint
 
 
 class ObserverInterface:
@@ -18,7 +18,7 @@ class ObserverInterface:
     """
     observe_dt: float
     observation_space: Optional[gym.Space]
-    _observation: Optional[SpaceDictNested]
+    _observation: Optional[DataNested]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observation interface.
@@ -37,7 +37,7 @@ class ObserverInterface:
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)  # type: ignore[call-arg]
 
-    def get_observation(self) -> SpaceDictNested:
+    def get_observation(self) -> DataNested:
         """Get post-processed observation.
 
         By default, it does not perform any post-processing. One is responsible
@@ -83,7 +83,7 @@ class ControllerInterface:
     """
     control_dt: float
     action_space: Optional[gym.Space]
-    _action: Optional[SpaceDictNested]
+    _action: Optional[DataNested]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the control interface.
@@ -115,8 +115,8 @@ class ControllerInterface:
         raise NotImplementedError
 
     def compute_command(self,
-                        measure: SpaceDictNested,
-                        action: SpaceDictNested) -> SpaceDictNested:
+                        measure: DataNested,
+                        action: DataNested) -> DataNested:
         """Compute the command to send to the subsequent block, based on the
         current target and observation of the environment.
 

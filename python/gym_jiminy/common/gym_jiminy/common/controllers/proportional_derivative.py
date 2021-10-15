@@ -12,7 +12,7 @@ from jiminy_py.core import EncoderSensor as encoder
 
 from ..bases import BaseControllerBlock
 from ..envs import BaseJiminyEnv
-from ..utils import SpaceDictNested, FieldDictNested
+from ..utils import DataNested, FieldNested
 
 
 @nb.jit(nopython=True, nogil=True)
@@ -116,7 +116,7 @@ class PDController(BaseControllerBlock):
             V=gym.spaces.Box(
                 low=vel_low, high=vel_high, dtype=np.float64)))
 
-    def get_fieldnames(self) -> FieldDictNested:
+    def get_fieldnames(self) -> FieldNested:
         pos_fieldnames = [f"targetPosition{name}"
                           for name in self.robot.motors_names]
         vel_fieldnames = [f"targetVelocity{name}"
@@ -124,8 +124,8 @@ class PDController(BaseControllerBlock):
         return OrderedDict(Q=pos_fieldnames, V=vel_fieldnames)
 
     def compute_command(self,
-                        measure: SpaceDictNested,
-                        action: SpaceDictNested
+                        measure: DataNested,
+                        action: gym.spaces.Dict
                         ) -> np.ndarray:
         """Compute the motor torques using a PD controller.
 
@@ -137,6 +137,6 @@ class PDController(BaseControllerBlock):
         """
         return _compute_command_impl(
             q_target=action['Q'], v_target=action['V'],
-            encoders_data=measure['sensors'][encoder.type],
+            encoders_data=self.env.sensors_data[encoder.type],
             motor_to_encoder=self.motor_to_encoder,
             pid_kp=self.pid_kp, pid_kd=self.pid_kd)

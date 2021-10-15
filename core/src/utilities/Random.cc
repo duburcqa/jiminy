@@ -880,7 +880,7 @@ namespace jiminy
             });
 
         return [tileSize, tileOffset, sparsity, tileHeightMax, tileInterpThreshold, seed](
-            vector3_t const & pos3) -> std::pair <float64_t, vector3_t>
+            vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
         {
             // Compute the tile index and relative coordinate
             vector2_t pos = pos3.head<2>() + tileOffset;

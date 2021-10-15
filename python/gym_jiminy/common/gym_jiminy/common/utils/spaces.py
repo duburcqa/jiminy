@@ -1,18 +1,34 @@
 """ TODO: Write documentation.
 """
-from collections import OrderedDict
-from typing import Optional, Union, Dict, Sequence, List
+from typing import Optional, Union, Dict, Sequence, TypeVar
 
 import numpy as np
+import tree
 import gym
-from gym import spaces
 
 
-SpaceDictNested = Union[  # type: ignore
-    Dict[str, 'SpaceDictNested'], np.ndarray]  # type: ignore
-ListStrRecursive = List[Union[str, 'ListStrRecursive']]  # type: ignore
-FieldDictNested = Union[  # type: ignore
-    Dict[str, 'FieldDictNested'], ListStrRecursive]  # type: ignore
+ValueType = TypeVar('ValueType')
+StructNested = Union[Dict[str, 'StructNested'],  # type: ignore
+                     Sequence['StructNested'],  # type: ignore
+                     ValueType]
+FieldNested = StructNested[str]  # type: ignore
+DataNested = StructNested[np.ndarray]  # type: ignore
+
+
+def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:
+    """Replace any `gym.spaces.Dict` by the raw `OrderedDict` dict it contains.
+
+    .. note::
+        It is necessary because it does not inherit from
+        `collection.abc.Mapping`, which is necessary for `dm-tree` to operate
+        properly on it.
+        # TODO: remove this patch after release of gym==0.22.0 (hopefully)
+    """
+    return tree.traverse(
+        lambda space:
+            _space_nested_raw(space.spaces)
+            if isinstance(space, gym.spaces.Dict) else None,
+        space_nested)
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,
@@ -80,87 +96,74 @@ def sample(low: Union[float, np.ndarray] = -1.0,
         rg = np.random
     distrib_fn = getattr(rg, dist)
     if dist == 'uniform':
-        val = distrib_fn(low=-1.0, high=1.0, size=shape)
+        value = distrib_fn(low=-1.0, high=1.0, size=shape)
     else:
-        val = distrib_fn(size=shape)
+        value = distrib_fn(size=shape)
 
     # Set mean and deviation
-    val = mean + dev * val
+    value = mean + dev * value
 
     # Revert log scale if appropriate
     if enable_log_scale:
-        val = 10 ** val
+        value = 10 ** value
 
-    return val
+    return value
 
 
-def is_bounded(space: gym.Space) -> bool:
+def is_bounded(space_nested: gym.Space) -> bool:
     """Check wether `gym.spaces.Space` has finite bounds.
 
     :param space: Gym.Space on which to operate.
     """
-    if isinstance(space, spaces.Box):
-        return space.is_bounded()
-    if isinstance(space, spaces.Dict):
-        return any(not is_bounded(subspace) for subspace in space.values())
-    if isinstance(space, spaces.Tuple):
-        return any(not is_bounded(subspace) for subspace in space)
-    if isinstance(space, (
-            spaces.Discrete, spaces.MultiDiscrete, spaces.MultiBinary)):
-        return True
-    raise NotImplementedError(
-        f"Space of type {type(space)} is not supported.")
+    for space in tree.flatten(_space_nested_raw(space_nested)):
+        is_bounded_fn = getattr(space, "is_bounded", None)
+        if is_bounded_fn is not None and not is_bounded_fn():
+            return False
+    return True
 
 
-def zeros(space: gym.Space,
-          dtype: Optional[type] = None) -> Union[SpaceDictNested, int]:
+def zeros(space_nested: gym.Space,
+          dtype: Optional[type] = None) -> Union[DataNested, int]:
     """Allocate data structure from `gym.space.Space` and initialize it to zero.
 
     :param space: Gym.Space on which to operate.
     :param dtype: Must be specified to overwrite original space dtype.
     """
-    if isinstance(space, spaces.Box):
-        return np.zeros(space.shape, dtype=dtype or space.dtype)
-    if isinstance(space, spaces.Dict):
-        value = OrderedDict()
-        for field, subspace in dict.items(space.spaces):
-            value[field] = zeros(subspace, dtype=dtype)
-        return value
-    if isinstance(space, spaces.Tuple):
-        return tuple(zeros(subspace, dtype=dtype) for subspace in space.spaces)
-    if isinstance(space, (spaces.Discrete, spaces.MultiDiscrete)):
-        # Note that np.array of 0 dim is returned in order to be mutable
-        return np.array(0, dtype=dtype or np.int64)
-    if isinstance(space, spaces.MultiBinary):
-        return np.zeros(space.n, dtype=dtype or np.int8)
-    raise NotImplementedError(
-        f"Space of type {type(space)} is not supported.")
+    space_nested_raw = _space_nested_raw(space_nested)
+    values = []
+    for space in tree.flatten(space_nested_raw):
+        if isinstance(space, gym.spaces.Box):
+            value = np.zeros(space.shape, dtype=dtype or space.dtype)
+        elif isinstance(space, gym.spaces.Discrete):
+            # Note that np.array of 0 dim is returned in order to be mutable
+            value = np.array(0, dtype=dtype or np.int64)
+        elif isinstance(space, gym.spaces.MultiDiscrete):
+            value = np.zeros_like(space.nvec, dtype=dtype or np.int64)
+        elif isinstance(space, gym.spaces.MultiBinary):
+            value = np.zeros(space.n, dtype=dtype or np.int8)
+        else:
+            raise NotImplementedError(
+                f"Space of type {type(space)} is not supported.")
+        values.append(value)
+    return tree.unflatten_as(space_nested_raw, values)
 
 
-def fill(data: SpaceDictNested,
-         fill_value: float) -> None:
+def fill(data: DataNested, fill_value: float) -> None:
     """Set every element of 'data' from `Gym.Space` to scalar 'fill_value'.
 
     :param data: Data structure to update.
     :param fill_value: Value used to fill any scalar from the leaves.
     """
-    if isinstance(data, np.ndarray):
-        data.fill(fill_value)
-    elif isinstance(data, dict):
-        for subdata in dict.values(data):
-            fill(subdata, fill_value)
-    elif isinstance(data, (tuple, list)):
-        for subdata in data:
-            fill(subdata, fill_value)
-    else:
-        if hasattr(data, '__dict__') or hasattr(data, '__slots__'):
-            raise NotImplementedError(
-                f"Data of type {type(data)} is not supported.")
-        raise ValueError("Data of immutable type is not supported.")
+    for value in tree.flatten(data):
+        try:
+            value.fill(fill_value)
+        except AttributeError as e:
+            raise ValueError(
+                "Leaves of 'data' structure must have type `np.ndarray`."
+                ) from e
 
 
-def set_value(data: SpaceDictNested,
-              value: SpaceDictNested) -> None:
+def set_value(data: DataNested, value: DataNested) -> None:
     """Partially set 'data' from `Gym.Space` to 'value'.
 
     It avoids memory allocation, so that memory pointers of 'data' remains
@@ -169,59 +172,38 @@ def set_value(data: SpaceDictNested,
 
     .. note::
         If 'data' is a dictionary, 'value' must be a subtree of 'data',
-        whose leaf values must be broadcastable with the ones of 'data'.
+        whose leaves must be broadcastable with the ones of 'data'.
 
     :param data: Data structure to partially update.
     :param value: Unset of data only containing fields to update.
     """
-    if isinstance(data, np.ndarray):
+    for data_i, value_i in zip(tree.flatten(data), tree.flatten(value)):
         try:
-            data.flat[:] = value
-        except TypeError as e:
-            raise TypeError(f"Cannot cast '{data}' to '{value}'.") from e
-    elif isinstance(data, dict):
-        for field, subval in dict.items(value):
-            set_value(data[field], subval)
-    elif isinstance(data, (tuple, list)):
-        for subdata, subval in zip(data, value):
-            fill(subdata, subval)
-    else:
-        raise NotImplementedError(
-            f"Data of type {type(data)} is not supported.")
+            data_i.flat[:] = value_i
+        except AttributeError as e:
+            raise ValueError(
+                "Leaves of 'data' structure must have type `np.ndarray`."
+                ) from e
 
 
-def copy(data: SpaceDictNested) -> SpaceDictNested:
+def copy(data: DataNested) -> DataNested:
     """Shallow copy recursively 'data' from `Gym.Space`, so that only leaves
     are still references.
 
     :param data: Hierarchical data structure to copy without allocation.
     """
-    if isinstance(data, dict):
-        return data.__class__(zip(
-            dict.keys(data), map(copy, dict.values(data))))
-    if isinstance(data, (tuple, list)):
-        return data.__class__(map(copy, data))
-    return data
+    return tree.unflatten_as(data, tree.flatten(data))
 
 
-def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
+def clip(space_nested: gym.Space,
+         data: DataNested) -> DataNested:
     """Clamp value from Gym.Space to make sure it is within bounds.
 
     :param space: Gym.Space on which to operate.
-    :param value: Value to clamp.
+    :param data: Data to clamp.
     """
-    if isinstance(space, spaces.Box):
-        return np.minimum(np.maximum(value, space.low), space.high)
-    if isinstance(space, spaces.Dict):
-        out = OrderedDict()
-        for field, subspace in dict.items(space.spaces):
-            out[field] = clip(subspace, value[field])
-        return out
-    if isinstance(space, spaces.Tuple):
-        return (clip(subspace, subvalue)
-                for subspace, subvalue in zip(space, value))
-    if isinstance(space, (
-            spaces.Discrete, spaces.MultiDiscrete, spaces.MultiBinary)):
-        return value  # No need to clip those spaces.
-    raise NotImplementedError(
-        f"Gym.Space of type {type(space)} is not supported.")
+    return tree.map_structure(
+        lambda space, value:
+            np.minimum(np.maximum(value, space.low), space.high)
+        if isinstance(space, gym.spaces.Box) else value,
+        _space_nested_raw(space_nested), data)

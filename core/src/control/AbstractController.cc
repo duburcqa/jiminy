@@ -47,13 +47,15 @@ namespace jiminy
         // Backup robot
         robot_ = robotIn;
 
+        /* Set initialization flag to true temporarily to enable calling
+           'reset', 'computeCommand' and 'internalDynamics' methods. */
+        isInitialized_ = true;
+
         // Reset the controller completely
-        reset(true);
+        reset(true);  // It cannot fail at this point
 
         try
         {
-            // isInitialized_ must be true to execute the 'computeCommand' and 'internalDynamics' methods
-            isInitialized_ = true;
             float64_t t = 0.0;
             vectorN_t q = pinocchio::neutral(robot->pncModel_);
             vectorN_t v = vectorN_t::Zero(robot->nv());
@@ -80,6 +82,8 @@ namespace jiminy
         catch (std::exception const & e)
         {
             isInitialized_ = false;
+            robot_.reset();
+            sensorsData_.clear();
             PRINT_ERROR("Something is wrong, probably because of 'commandFct'.\n"
                         "Raised from exception: ", e.what());
             return hresult_t::ERROR_GENERIC;
@@ -90,6 +94,12 @@ namespace jiminy
 
     hresult_t AbstractController::reset(bool_t const & resetDynamicTelemetry)
     {
+        if (!isInitialized_)
+        {
+            PRINT_ERROR("The controller is not initialized.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
         // Reset the telemetry buffer of dynamically registered quantities
         if (resetDynamicTelemetry)
         {

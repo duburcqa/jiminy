@@ -90,6 +90,11 @@ setup(
         "tqdm",
         # Standard library for matrix algebra.
         "numpy",
+        # Use to operate on nested data structure conveniently
+        # - 0.1.5 introduces `tree.traverse` method that it used to operate on
+        # `gym.spaces.Dict`.
+        # - 0.1.6 adds support of Python 3.9 and unifies API method naming.
+        "dm-tree>=0.1.6",
         # Used internally for interpolation and filtering.
         # No wheel is distributed for PyPy on pypi, and pip is only able to
         # build from source after install `libatlas-base-dev` system

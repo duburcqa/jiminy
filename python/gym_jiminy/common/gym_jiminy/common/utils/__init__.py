@@ -1,7 +1,7 @@
 # pylint: disable=missing-module-docstring
 
-from .spaces import (SpaceDictNested,
-                     FieldDictNested,
+from .spaces import (DataNested,
+                     FieldNested,
                      sample,
                      zeros,
                      fill,
@@ -14,8 +14,8 @@ from .helpers import (is_breakpoint,
 
 
 __all__ = [
-    'SpaceDictNested',
-    'FieldDictNested',
+    'DataNested',
+    'FieldNested',
     'sample',
     'zeros',
     'fill',
