@@ -24,9 +24,11 @@ def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:
         properly on it.
         # TODO: remove this patch after release of gym==0.22.0 (hopefully)
     """
-    return tree.traverse(lambda space: getattr(space, "spaces", None),
-                         space_nested,
-                         top_down=False)
+    return tree.traverse(
+        lambda space:
+            _space_nested_raw(space.spaces)
+            if isinstance(space, gym.spaces.Dict) else None,
+        space_nested)
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,

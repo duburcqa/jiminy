@@ -53,8 +53,8 @@ namespace python
         static bp::tuple eval(heightmapFunctor_t       & self,
                               vector3_t          const & posFrame)
         {
-            std::pair<float64_t, vector3_t> ground = self(posFrame);
-            return bp::make_tuple(std::get<0>(ground), std::get<1>(ground));
+            std::pair<float64_t, vector3_t> const ground = self(posFrame);
+            return bp::make_tuple(std::get<float64_t>(ground), std::get<vector3_t>(ground));
         }
 
         static bp::object getPyFun(heightmapFunctor_t & self)

@@ -490,14 +490,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Prepend with namespace if requested
         if namespace:
-            fieldnames = tree.traverse(
-                lambda fieldname: (
-                    ".".join(filter(None, (namespace, fieldname)))
-                    if isinstance(fieldname, str) else
-                    {".".join(filter(None, (namespace, key))): value
-                     for key, value in fieldname.items()}
-                    if isinstance(fieldname, dict) else None),
-                fieldnames, top_down=True)
+            fieldnames = tree.map_structure(
+                lambda key: ".".join(filter(None, (namespace, key))),
+                fieldnames)
 
         # Early return with a warning is fieldnames is empty
         if not fieldnames:
@@ -507,8 +502,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Check if variable can be registered successfully to the telemetry.
         # Note that a dummy controller must be created to avoid using the
         # actual one to keep control of when registering will take place.
-        is_success = register_variables(
-            jiminy.BaseController(), fieldnames, value)
+        try:
+            is_success = register_variables(
+                jiminy.BaseController(), fieldnames, value)
+        except ValueError as e:
+            raise ValueError(
+                f"'fieldnames' ({fieldnames})' if not consistent with the "
+                f"'value' ({value})") from e
 
         # Combine namespace and variable name if provided
         name = ".".join(filter(None, (namespace, name)))

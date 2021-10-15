@@ -142,7 +142,7 @@ namespace jiminy
             configHolder_t config;
             config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
             config["groundProfile"] = heightmapFunctor_t(
-                [](vector3_t const & /* pos */) -> std::pair <float64_t, vector3_t>
+                [](vector3_t const & /* pos */) -> std::pair<float64_t, vector3_t>
                 {
                     return {0.0, vector3_t::UnitZ()};
                 });

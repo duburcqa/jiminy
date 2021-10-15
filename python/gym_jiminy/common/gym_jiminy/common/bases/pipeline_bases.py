@@ -324,8 +324,8 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # Update the observation space
         if self.augment_observation:
             self.observation_space = deepcopy(self.env.observation_space)
-            if not isinstance(self.observation_space, gym.Space.Dict):
-                self.observation_space = gym.Space.Dict(OrderedDict(
+            if not isinstance(self.observation_space, gym.spaces.Dict):
+                self.observation_space = gym.spaces.Dict(OrderedDict(
                     measures=self.observation_space))
             self.observation_space.spaces.setdefault(
                 'features', gym.spaces.Dict()).spaces[
@@ -511,8 +511,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # Append the controller's target to the observation if requested
         self.observation_space = deepcopy(self.env.observation_space)
         if self.augment_observation:
-            if not isinstance(self.observation_space, gym.Space.Dict):
-                self.observation_space = gym.Space.Dict(OrderedDict(
+            if not isinstance(self.observation_space, gym.spaces.Dict):
+                self.observation_space = gym.spaces.Dict(OrderedDict(
                     measures=self.observation_space))
             self.observation_space.spaces.setdefault(
                 'targets', gym.spaces.Dict()).spaces[
@@ -582,7 +582,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             # action is undefined at this point
             set_value(self.env._action, self._target)
             set_value(self._command, self.env.compute_command(
-                self._observation, deepcopy(self._target)))
+                self._observation, self._target))
 
         return self._command
 
@@ -612,8 +612,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                 # Assertion for type checker
                 assert isinstance(self._observation, dict)
                 # Make sure to store references
-                if isinstance(obs, gym.spaces.Dict):
-                    self._observation = obs
+                if isinstance(obs, dict):
+                    self._observation = copy(obs)
                 else:
                     self._observation['measures'] = obs
                 self._observation.setdefault('targets', OrderedDict())[

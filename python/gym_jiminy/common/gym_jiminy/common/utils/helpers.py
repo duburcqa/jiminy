@@ -50,19 +50,19 @@ def get_fieldnames(structure: Union[FieldNested, DataNested],
         structure = zeros(structure)
 
     fieldnames = []
-    for data in tree.flatten(structure):
+    for fieldname_path, data in tree.flatten_with_path(structure):
         assert isinstance(data, np.ndarray), (
             "'structure' ({structure}) must have leaves of type `np.ndarray`.")
         if data.size < 1:
             # Empty: return empty list
             fieldname = []
         elif data.size == 1:
-            # Scalar: namespace alone as fieldname is enough
-            fieldname = [namespace]
+            # Scalar: fieldname path is enough
+            fieldname = [".".join(filter(None, (namespace, *fieldname_path)))]
         else:
             # Tensor: basic numbering
             fieldname = np.array([
-                ".".join(filter(None, (namespace, str(i))))
+                ".".join(filter(None, (namespace, *fieldname_path, str(i))))
                 for i in range(data.size)]).reshape(data.shape).tolist()
         fieldnames.append(fieldname)
 
@@ -94,16 +94,13 @@ def register_variables(controller: jiminy.AbstractController,
     :returns: Whether or not the registration has been successful.
     """
     # pylint: disable=cell-var-from-loop
-    for (fieldname_path, fieldname), value in zip(
-            tree.flatten_with_path_up_to(data, fieldnames),
+    for fieldname, value in zip(
+            tree.flatten_up_to(data, fieldnames),
             tree.flatten(data)):
         if np.issubsctype(value, np.float64):
             assert isinstance(fieldname, list), (
                 "'fieldname' ({fieldname}) should be a list of strings.")
-            namespace = ".".join(map(str, filter(None, fieldname_path)))
-            fieldname_full = tree.map_structure(
-                lambda key: "".join(filter(None, (namespace, key))), fieldname)
-            hresult = controller.register_variables(fieldname_full, value)
+            hresult = controller.register_variables(fieldname, value)
             if hresult != jiminy.hresult_t.SUCCESS:
                 return False
         else:
