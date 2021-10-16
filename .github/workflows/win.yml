@@ -136,13 +136,13 @@ jobs:
 
         & "$InstallDir/bin/jiminy_double_pendulum.exe"
 
-        mkdir -p "$RootDir/examples/pip_extension/build"
-        cd "$RootDir/examples/pip_extension/build"
+        mkdir -p "$RootDir/examples/cpp/pip_extension/build"
+        cd "$RootDir/examples/cpp/pip_extension/build"
 
         $JIMINY_LIB_DIR = (python -c "import os, jiminy_py ; print(os.path.dirname(jiminy_py.get_libraries()))")
         $env:Path += ";$JIMINY_LIB_DIR"
 
-        cmake "$RootDir/examples/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+        cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" `
               -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"

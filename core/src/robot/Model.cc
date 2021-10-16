@@ -279,7 +279,7 @@ namespace jiminy
                 // Its parent frame and parent joint are the universe. It is aligned with world frame,
                 // and the top face is the actual ground surface.
                 pinocchio::SE3 groundPose = pinocchio::SE3::Identity();
-                groundPose.translation() = (vector3_t() << 0.0, 0.0, -1.0).finished();
+                groundPose.translation() = - vector3_t::UnitZ();
                 pinocchio::GeometryObject groundPlane("ground", 0, 0, groudBox, groundPose);
 
                 // Add the ground plane pinocchio to the robot model

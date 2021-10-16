@@ -21,13 +21,12 @@ import gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..utils import (SpaceDictNested,
+from ..utils import (DataNested,
                      is_breakpoint,
                      zeros,
                      fill,
                      copy,
-                     set_value,
-                     register_variables)
+                     set_value)
 from ..envs import ObserverHandleType, ControllerHandleType, BaseJiminyEnv
 
 from .block_bases import BaseControllerBlock, BaseObserverBlock
@@ -106,7 +105,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             block = block.env
         return i
 
-    def get_observation(self) -> SpaceDictNested:
+    def get_observation(self) -> DataNested:
         """Get post-processed observation.
 
         It performs a recursive shallow copy of the observation.
@@ -120,7 +119,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
               controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
                   Optional[ControllerHandleType]]]]] = None,
-              **kwargs: Any) -> SpaceDictNested:
+              **kwargs: Any) -> DataNested:
         """Reset the unified environment.
 
         In practice, it resets the environment and initializes the generic
@@ -168,8 +167,8 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         return self.get_observation()
 
     def step(self,
-             action: Optional[SpaceDictNested] = None
-             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
+             action: Optional[DataNested] = None
+             ) -> Tuple[DataNested, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
         :param action: Next action to perform. `None` to not update it.
@@ -226,8 +225,8 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         self.env.refresh_observation()
 
     def compute_command(self,
-                        measure: SpaceDictNested,
-                        action: SpaceDictNested) -> SpaceDictNested:
+                        measure: DataNested,
+                        action: DataNested) -> DataNested:
         """Compute the motors efforts to apply on the robot.
 
         By default, it forwards the command computed by the environment.
@@ -325,9 +324,12 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # Update the observation space
         if self.augment_observation:
             self.observation_space = deepcopy(self.env.observation_space)
+            if not isinstance(self.observation_space, gym.spaces.Dict):
+                self.observation_space = gym.spaces.Dict(OrderedDict(
+                    measures=self.observation_space))
             self.observation_space.spaces.setdefault(
-                'features', gym.spaces.Dict()).spaces[self.observer_name] = \
-                self.observer.observation_space
+                'features', gym.spaces.Dict()).spaces[
+                    self.observer_name] = self.observer.observation_space
         else:
             self.observation_space = self.observer.observation_space
 
@@ -378,7 +380,13 @@ class ObservedJiminyEnv(BasePipelineWrapper):
             if not self.simulator.is_simulation_running:
                 features = self.observer.get_observation()
                 if self.augment_observation:
-                    self._observation = obs
+                    # Assertion for type checker
+                    assert isinstance(self._observation, dict)
+                    # Make sure to store references
+                    if isinstance(obs, gym.spaces.Dict):
+                        self._observation = obs
+                    else:
+                        self._observation['measures'] = obs
                     self._observation.setdefault('features', OrderedDict())[
                         self.observer_name] = features
                 else:
@@ -503,14 +511,23 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # Append the controller's target to the observation if requested
         self.observation_space = deepcopy(self.env.observation_space)
         if self.augment_observation:
+            if not isinstance(self.observation_space, gym.spaces.Dict):
+                self.observation_space = gym.spaces.Dict(OrderedDict(
+                    measures=self.observation_space))
             self.observation_space.spaces.setdefault(
-                'targets', gym.spaces.Dict()).spaces[self.controller_name] = \
-                    self.controller.action_space
+                'targets', gym.spaces.Dict()).spaces[
+                    self.controller_name] = self.controller.action_space
 
         # Initialize some internal buffers
         self._action = zeros(self.action_space, dtype=np.float64)
         self._target = zeros(self.env.action_space, dtype=np.float64)
         self._observation = zeros(self.observation_space)
+
+        # Register the controller target to the telemetry
+        self.env.register_variable("action",
+                                   self._action,
+                                   self.controller.get_fieldnames(),
+                                   self.controller_name)
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -531,17 +548,10 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         self.observe_dt = self.env.observe_dt
         self.control_dt = self.controller.control_dt
 
-        # Register the controller target to the telemetry.
-        # It may be useful for computing the terminal reward or debugging.
-        register_variables(self.simulator.controller,
-                           self.controller.get_fieldnames(),
-                           self._action,
-                           self.controller_name)
-
     def compute_command(self,
-                        measure: SpaceDictNested,
-                        action: SpaceDictNested
-                        ) -> SpaceDictNested:
+                        measure: DataNested,
+                        action: DataNested
+                        ) -> DataNested:
         """Compute the motors efforts to apply on the robot.
 
         In practice, it updates, whenever it is necessary:
@@ -572,7 +582,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             # action is undefined at this point
             set_value(self.env._action, self._target)
             set_value(self._command, self.env.compute_command(
-                self._observation, deepcopy(self._target)))
+                self._observation, self._target))
 
         return self._command
 
@@ -597,10 +607,19 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         # Add target to observation if requested
         if not self.simulator.is_simulation_running:
-            self._observation = self.env.get_observation()
+            obs = self.env.get_observation()
             if self.augment_observation:
+                # Assertion for type checker
+                assert isinstance(self._observation, dict)
+                # Make sure to store references
+                if isinstance(obs, dict):
+                    self._observation = copy(obs)
+                else:
+                    self._observation['measures'] = obs
                 self._observation.setdefault('targets', OrderedDict())[
                     self.controller_name] = self._action
+            else:
+                self._observation = obs
 
     def compute_reward(self, *args: Any, **kwargs: Any) -> float:
         return self.controller.compute_reward(*args, **kwargs)

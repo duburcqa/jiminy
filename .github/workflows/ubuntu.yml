@@ -82,9 +82,9 @@ jobs:
       run: |
         "$InstallDir/bin/jiminy_double_pendulum"
 
-        mkdir -p "$RootDir/examples/pip_extension/build"
-        cd "$RootDir/examples/pip_extension/build"
-        cmake "$RootDir/examples/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+        mkdir -p "$RootDir/examples/cpp/pip_extension/build"
+        cd "$RootDir/examples/cpp/pip_extension/build"
+        cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 

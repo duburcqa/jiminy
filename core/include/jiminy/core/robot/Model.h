@@ -251,9 +251,6 @@ namespace jiminy
         Model(void);
         ~Model(void) = default;
 
-        auto shared_from_this() { return shared_from(this); }
-        auto shared_from_this() const { return shared_from(this); }
-
         hresult_t initialize(std::string              const & urdfPath,
                              bool_t                   const & hasFreeflyer = true,
                              std::vector<std::string> const & meshPackageDirs = {});

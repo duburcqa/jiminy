@@ -25,7 +25,7 @@ namespace jiminy
     Json::Value convertToJson<flexibleJointData_t>(flexibleJointData_t const & value);
 
     template<>
-    Json::Value convertToJson<heatMapFunctor_t>(heatMapFunctor_t const & value);
+    Json::Value convertToJson<heightmapFunctor_t>(heightmapFunctor_t const & value);
 
     template<typename T, typename A>
     constexpr std::enable_if_t<!std::is_same<T, vectorN_t>::value
@@ -107,7 +107,7 @@ namespace jiminy
     flexibleJointData_t convertFromJson<flexibleJointData_t>(Json::Value const & value);
 
     template<>
-    heatMapFunctor_t convertFromJson<heatMapFunctor_t>(Json::Value const & value);
+    heightmapFunctor_t convertFromJson<heightmapFunctor_t>(Json::Value const & value);
 
     template<typename T>
     std::enable_if_t<is_vector_v<T>, T>

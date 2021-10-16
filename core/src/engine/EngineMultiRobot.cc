@@ -1843,7 +1843,7 @@ namespace jiminy
                */
             if (!std::isfinite(stepperUpdatePeriod_) || !engineOptions_->stepper.logInternalStepperSteps)
             {
-                bool mustUpdateTelemetry = !std::isfinite(stepperUpdatePeriod_);
+                bool_t mustUpdateTelemetry = !std::isfinite(stepperUpdatePeriod_);
                 if (!mustUpdateTelemetry)
                 {
                     float64_t dtNextStepperUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
@@ -2107,7 +2107,7 @@ namespace jiminy
 
             // Update sensors data if necessary, namely if time-continuous or breakpoint
             float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-            bool mustUpdateSensors = sensorsUpdatePeriod < EPS;
+            bool_t mustUpdateSensors = sensorsUpdatePeriod < EPS;
             float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
             if (!mustUpdateSensors)
             {

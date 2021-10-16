@@ -50,7 +50,7 @@ int main(int /* argc */, char_t * /* argv */[])
 
     // Set URDF and log output.
     boost::filesystem::path const filePath(__FILE__);
-    auto const jiminySrcPath = filePath.parent_path().parent_path().parent_path();
+    auto const jiminySrcPath = filePath.parent_path().parent_path().parent_path().parent_path();
     auto const dataPath = jiminySrcPath / "data/toys_models";
     auto const urdfPath = dataPath / "double_pendulum/double_pendulum.urdf";
     auto const outputDirPath = boost::filesystem::temp_directory_path();

@@ -18,7 +18,7 @@ from scipy.interpolate import interp1d
 from .. import core as jiminy
 from ..log import (TrajectoryDataType,
                    read_log,
-                   build_robot_from_log_constants,
+                   build_robot_from_log,
                    extract_trajectory_data_from_log,
                    emulate_sensors_data_from_log)
 from .viewer import (COLORS,
@@ -650,7 +650,7 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
     robots, logs_data = [], []
     for log_file in logs_files:
         log_data, log_constants = read_log(log_file)
-        robot = build_robot_from_log_constants(
+        robot = build_robot_from_log(
             log_constants, mesh_package_dirs)
         logs_data.append(log_data)
         robots.append(robot)

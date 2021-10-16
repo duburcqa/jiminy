@@ -38,7 +38,8 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
 from .. import core as jiminy
-from ..core import ContactSensor as contact, HeatMapFunctor
+from ..core import (ContactSensor as contact,
+                    discretize_heightmap)
 from ..state import State
 from ..dynamics import XYZQuatToXYZRPY
 from .meshcat.utilities import interactive_mode
@@ -1724,33 +1725,43 @@ class Viewer:
     @__must_be_open
     @__with_lock
     def update_floor(self,
-                     height_map: Optional[HeatMapFunctor] = None,
-                     show_mesh: bool = False,
+                     ground_profile: Optional[jiminy.HeightmapFunctor] = None,
                      grid_size: float = 20.0,
-                     grid_unit: float = 0.05) -> None:
+                     grid_unit: float = 0.04,
+                     show_meshes: bool = False) -> None:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
 
         .. note::
             This method is only supported by Panda3d for now.
 
-        :param height_map: `jiminy_py.core.HeatMapFunctor` associated with the
-                           ground profile. It renders a flat tile  ground if
-                           not specified.
-                           Optional: None by default.
+        :param ground_profile: `jiminy_py.core.HeightmapFunctor` associated
+                               with the ground profile. It renders a flat tile
+                               ground if not specified.
+                               Optional: None by default.
+        :param grid_size: X and Y dimension of the ground profile to render.
+                          Optional: 20m by default.
+        :param grid_unit: X and Y discretization step of the ground profile.
+                          Optional: 4cm by default.
+        :param show_meshes: Whether or not to highlight the meshes.
+                            Optional: disabled by default.
         """
         if Viewer.backend.startswith('panda3d'):
-            # Generate discrete grid
-            grid_dim = int(np.ceil(grid_size / grid_unit)) + 1
-            height_grid = np.empty((grid_dim, grid_dim, 6))
-            height_grid[..., 0], height_grid[..., 1] = np.meshgrid(
-                *(2 * (np.arange(grid_dim) * grid_unit - grid_size / 2.0,)),
-                copy=False)
-            for i in range(grid_dim):
-                for j in range(grid_dim):
-                    height_grid[i, j][2], height_grid[i, j][3:] = height_map(
-                        height_grid[i, j][:3])
-            self._gui.update_floor(height_grid, show_mesh)
+            # Restore tile ground if heightmap is not specified
+            if ground_profile is None:
+                self._gui.update_floor()
+                return
+
+            # Discretize heightmap
+            grid = discretize_heightmap(ground_profile, grid_size, grid_unit)
+
+            # Make sure it is not flat ground
+            if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
+                    np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
+                self._gui.update_floor()
+                return
+
+            self._gui.update_floor(grid, show_meshes)
         else:
             logger.warning("This method is only supported by Panda3d.")
 
