@@ -22,6 +22,16 @@ namespace python
         return ::jiminy::mergeHeightmap(heightmaps);
     }
 
+    void resetRandomGenerators(bp::object const & seedPy)
+    {
+        boost::optional<uint32_t> seed = boost::none;
+        if (!seedPy.is_none())
+        {
+            seed = bp::extract<uint32_t>(seedPy);
+        }
+        ::jiminy::resetRandomGenerators(seed);
+    }
+
     void exposeGenerators(void)
     {
         bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed") = bp::object()));

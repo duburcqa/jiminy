@@ -55,16 +55,6 @@ namespace python
         return positionOut;
     }
 
-    void resetRandomGenerators(bp::object const & seedPy)
-    {
-        boost::optional<uint32_t> seed = boost::none;
-        if (!seedPy.is_none())
-        {
-            seed = bp::extract<uint32_t>(seedPy);
-        }
-        ::jiminy::resetRandomGenerators(seed);
-    }
-
     pinocchio::GeometryModel buildGeomFromUrdf(pinocchio::Model const & model,
                                                std::string const & filename,
                                                bp::object const & typePy,
