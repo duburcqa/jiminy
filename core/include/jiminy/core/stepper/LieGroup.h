@@ -443,7 +443,7 @@ namespace Eigen
                                     StateBase<OutDerived>                   & out) const
         {
             // 'Sum' q = q + v, remember q is part of a Lie group (dim(q) != dim(v))
-            assert(robot() == velocity.robot() == out.robot());
+            assert(robot() == velocity.robot() && robot() == out.robot());
             pinocchio::integrate(robot()->pncModel_, q(), velocity.v(), out.q());
             out.v() = v() + velocity.a();
             return out;
@@ -459,7 +459,7 @@ namespace Eigen
         StateDerivativeBase<OutDerived> & difference(StateBase<OtherDerived>         const & position,
                                                      StateDerivativeBase<OutDerived>       & out) const
         {
-            assert(robot() == position.robot() == out.robot());
+            assert(robot() == position.robot() && robot() == out.robot());
             pinocchio::difference(robot()->pncModel_, q(), position.q(), out.v());
             out.a() = v() - position.v();
             return out;
@@ -1257,7 +1257,7 @@ namespace Eigen
     { \
         std::vector<typename internal::traits<Derived>::ValueType> const & \
             vectorIn = other.vector(); \
-        assert(vector_.size() == vectorOut.size()); \
+        assert(vector_.size() == vectorIn.size()); \
         for (std::size_t i = 0; i < vector_.size(); ++i) \
         { \
             vector_[i] += scale * vectorIn[i]; \
@@ -1305,7 +1305,7 @@ namespace Eigen
     { \
         std::vector<typename internal::traits<Derived>::ValueType> const & \
             vectorIn = other.vector(); \
-        assert(vector_.size() == vectorOut.size()); \
+        assert(vector_.size() == vectorIn.size()); \
         for (std::size_t i = 0; i < vector_.size(); ++i) \
         { \
             vector_[i].sumInPlace(scale * vectorIn[i]); \

@@ -97,8 +97,7 @@ namespace python
                                            bp::return_value_policy<bp::copy_const_reference>()));
 
         bp::def("random_tile_ground", &randomTileGround,
-                                      bp::args("tile_size", "sparsity", "tile_height_max", "tile_interp_delta", "seed"));
-
+                                      bp::args("size", "height_max", "interp_delta", "sparsity", "orientation", "seed"));
         bp::def("sum_heightmap", &sumHeightmap, bp::args("heightmaps"));
         bp::def("merge_heightmap", &mergeHeightmap, bp::args("heightmaps"));
 
