@@ -986,7 +986,11 @@ class Viewer:
                     if Viewer.backend == 'meshcat':
                         recorder_proc = Viewer._backend_obj.recorder.proc
                         _ProcessWrapper(recorder_proc).kill()
+                    if Viewer.backend == 'panda3d':
+                        Viewer._backend_obj._app.stop()
+                        Viewer._backend_proc.wait(timeout=0.1)
                     Viewer._backend_proc.kill()
+                atexit.unregister(Viewer.close)
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
                 Viewer._has_gui = False
@@ -1287,6 +1291,10 @@ class Viewer:
         # Update global state
         Viewer._backend_obj = client
         Viewer._backend_proc = proc
+
+        # Make sure to close cleanly the viewer at exit
+        if close_at_exit:
+            atexit.register(Viewer.close)
 
         # Make sure the backend process is alive
         assert Viewer.is_alive(), (

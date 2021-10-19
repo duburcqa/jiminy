@@ -986,6 +986,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         obs = env.reset()
         reward = None
 
+        # Refresh the ground profile
+        engine_options = self.engine.get_options()
+        ground_profile = engine_options["world"]["groundProfile"]
+        self.viewer.update_floor(ground_profile, show_meshes=False)
+
         # Enable travelling
         if enable_travelling is None:
             enable_travelling = \
