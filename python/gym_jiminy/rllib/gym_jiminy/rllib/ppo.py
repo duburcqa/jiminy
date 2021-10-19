@@ -334,7 +334,8 @@ def ppo_loss(policy: Policy,
             model, dist_class, action_prev_logits)
 
     # Compute the mean action corresponding to the noisy observation
-    if policy.config["caps_global_reg"] > 0.0:
+    if policy.config["caps_global_reg"] > 0.0 or \
+            not policy.config["enable_adversarial_noise"]:
         action_noisy_logits = action_logits["noisy"]
         action_noisy_mean = get_action_mean(
             model, dist_class, action_noisy_logits)

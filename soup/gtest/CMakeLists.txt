@@ -67,21 +67,25 @@ string(REPLACE "<BINARY_DIR>" "${BINARY_DIR}" gmock_main_PATH_Debug "${gmock_mai
 # Import the generated libraries as targets
 add_library(gtest::gtest STATIC IMPORTED GLOBAL)
 set_target_properties(gtest::gtest PROPERTIES
+     IMPORTED_CONFIGURATIONS "Debug;Release"
      IMPORTED_LOCATION ${gtest_PATH_Release}
      IMPORTED_LOCATION_DEBUG ${gtest_PATH_Debug}
 )
 add_library(gtest::gtest_main STATIC IMPORTED GLOBAL)
 set_target_properties(gtest::gtest_main PROPERTIES
+     IMPORTED_CONFIGURATIONS "Debug;Release"
      IMPORTED_LOCATION ${gtest_main_PATH_Release}
      IMPORTED_LOCATION_DEBUG ${gtest_main_PATH_Debug}
 )
 add_library(gtest::gmock STATIC IMPORTED GLOBAL)
 set_target_properties(gtest::gmock PROPERTIES
+     IMPORTED_CONFIGURATIONS "Debug;Release"
      IMPORTED_LOCATION ${gmock_PATH_Release}
      IMPORTED_LOCATION_DEBUG ${gmock_PATH_Debug}
 )
 add_library(gtest::gmock_main STATIC IMPORTED GLOBAL)
 set_target_properties(gtest::gmock_main PROPERTIES
+     IMPORTED_CONFIGURATIONS "Debug;Release"
      IMPORTED_LOCATION ${gmock_main_PATH_Release}
      IMPORTED_LOCATION_DEBUG ${gmock_main_PATH_Debug}
 )

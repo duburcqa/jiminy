@@ -22,9 +22,6 @@ jobs:
       run:
         shell: bash -ieo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
 
-    env:
-      BUILD_TYPE: "Release"
-
     #####################################################################################
 
     steps:
@@ -49,8 +46,8 @@ jobs:
     - name: Installing requirements
       run: |
         sudo env "PATH=$PATH" "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
         "${PYTHON_EXECUTABLE}" -m pip install tensorflow
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
         "${PYTHON_EXECUTABLE}" -m pip install "torch==1.8.0+cpu" -f https://download.pytorch.org/whl/torch_stable.html
         "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
         "${PYTHON_EXECUTABLE}" -m pip install "ray[default,rllib]<=1.4.0"  # Type checking is not working with 1.4.1
@@ -73,7 +70,9 @@ jobs:
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
               -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DCMAKE_BUILD_TYPE="Debug"
+        make install -j2
+        cmake -DCMAKE_BUILD_TYPE="Release" .
         make install -j2
 
     #####################################################################################
@@ -85,7 +84,7 @@ jobs:
         mkdir -p "$RootDir/examples/cpp/pip_extension/build"
         cd "$RootDir/examples/cpp/pip_extension/build"
         cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="Release"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"

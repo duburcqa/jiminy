@@ -62,7 +62,7 @@ namespace python
            consists in adding the expected tags as function doc. It works for now but
            it is not really reliable and may break in the future too. */
         bp::converter::registration const * r = bp::converter::registry::query(typeid(WrappedClassT));
-        assert(r && ("Class " + typeid(WrappedClassT).name() + " not registered to Boost Python."));
+        assert((std::string("Class ") + typeid(WrappedClassT).name() + " not registered to Boost Python.", r != nullptr));
         PyTypeObject * nsPtr = r->get_class_object();
         bp::object nsName(bp::handle<>(PyObject_GetAttrString(reinterpret_cast<PyObject *>(nsPtr), "__name__")));
         bp::objects::function * funcPtr = bp::downcast<bp::objects::function>(func.ptr());

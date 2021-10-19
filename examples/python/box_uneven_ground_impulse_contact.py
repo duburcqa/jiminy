@@ -11,11 +11,12 @@ from gym_jiminy.common.envs import BaseJiminyEnv
 TILE_SIZE = [np.array([4.0, 4.0]),
              np.array([100.0, 0.05]),
              np.array([0.05, 100.0])]
-TILE_SPARSITY = [1, 8, 8]
 TILE_HEIGHT_MAX = [1.0, 0.05, 0.05]
 TILE_INTERP_DELTA = [np.array([0.5, 1.0]),
                      np.array([0.01, 0.01]),
                      np.array([0.01, 0.01])]
+TILE_SPARSITY = [1, 8, 8]
+TILE_ORIENTATION = [0.0, np.pi / 4.0, 0.0]
 TILE_SEED = [np.random.randint(0, 2 ** 32, dtype=np.uint32) for _ in range(3)]
 
 
@@ -31,7 +32,8 @@ env.engine.set_options(engine_options)
 
 # Generate random ground profile
 ground_params = list(starmap(random_tile_ground, zip(
-    TILE_SIZE, TILE_SPARSITY, TILE_HEIGHT_MAX, TILE_INTERP_DELTA, TILE_SEED)))
+    TILE_SIZE, TILE_HEIGHT_MAX, TILE_INTERP_DELTA, TILE_SPARSITY,
+    TILE_ORIENTATION, TILE_SEED)))
 engine_options["world"]["groundProfile"] = sum_heightmap([
     ground_params[0], merge_heightmap(ground_params[1:])])
 env.engine.set_options(engine_options)
