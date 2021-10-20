@@ -364,36 +364,43 @@ def compute_transform_contact(
         contact_frames_pos_rel.append(transform_rel.translation)
 
     # Order the contact points by depth
-    contact_frames_pos_rel = [contact_frames_pos_rel[i] for i in np.argsort(
-        [pos[2] for pos in contact_frames_pos_rel])]
+    contact_frames_order = np.argsort([
+        pos[2] for pos in contact_frames_pos_rel])
+    contact_frames_pos_rel = [
+        contact_frames_pos_rel[i] for i in contact_frames_order]
 
     # Compute the contact plane normal
     if len(contact_frames_pos_rel) > 2:
+        # Try to compute a valid normal using three deepest points
         contact_edge_ref = \
             contact_frames_pos_rel[0] - contact_frames_pos_rel[1]
         contact_edge_ref /= np.linalg.norm(contact_edge_ref)
-        for i in range(2, len(contact_frames_pos_rel)):
-            contact_edge_alt = \
-                contact_frames_pos_rel[0] - contact_frames_pos_rel[i]
-            contact_edge_alt /= np.linalg.norm(contact_edge_alt)
-            normal_offset = np.cross(contact_edge_ref, contact_edge_alt)
-            if np.linalg.norm(normal_offset) > 0.2:  # At least 11 degrees
-                break
+        contact_edge_alt = \
+            contact_frames_pos_rel[0] - contact_frames_pos_rel[2]
+        contact_edge_alt /= np.linalg.norm(contact_edge_alt)
+        normal_offset = np.cross(contact_edge_ref, contact_edge_alt)
+
+        # Make sure that the normal is valid, otherwise use the default one
+        if np.linalg.norm(normal_offset) < 0.5:
+            normal_offset = np.array([0.0, 0.0, 1.0])
+
+        # Make sure the normal is pointing upward
         if normal_offset[2] < 0.0:
             normal_offset *= -1.0
     else:
-        normal_offset = np.array([0.0, 0.0, 1.0])
-
-    # Make sure that the normal is valid, otherwise use the default one
-    if np.linalg.norm(normal_offset) < 0.2:
+        # Fallback to world aligned if no reference can be computed
         normal_offset = np.array([0.0, 0.0, 1.0])
 
     # Compute the translation and rotation to apply the touch the ground
     rot_offset = pin.Quaternion.FromTwoVectors(
         normal_offset, np.array([0.0, 0.0, 1.0])).matrix()
     if contact_frames_pos_rel:
+        contact_frame_pos = contact_frames_transform[
+            contact_frames_order[0]].translation
+        pos_shift = (
+            rot_offset @ contact_frame_pos)[2] - contact_frame_pos[2]
         pos_offset = np.array([
-            0.0, 0.0, -(rot_offset.T @ contact_frames_pos_rel[0])[2]])
+            0.0, 0.0, - pos_shift - contact_frames_pos_rel[0][2]])
     else:
         pos_offset = np.zeros(3)
     transform_offset = pin.SE3(rot_offset, pos_offset)
