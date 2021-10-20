@@ -255,7 +255,7 @@ namespace jiminy
             constraintsLambda_.resize(0);
             jointsAcceleration_.clear();
 
-            // Initialize URDF info
+            // Reset URDF info
             joint_t rootJointType;
             getJointTypeFromIdx(pncModel, 1, rootJointType);  // It cannot fail.
             urdfPath_ = "";

@@ -281,6 +281,8 @@ namespace python
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false,
                                     bp::arg("mesh_package_dirs") = bp::list()))
+                .def("initialize", &PyRobotVisitor::initialize,
+                                   (bp::arg("self"), "pinocchio_model", "collision_model"))
 
                 .add_property("is_locked", bp::make_function(&Robot::getIsLocked,
                                            bp::return_value_policy<bp::copy_const_reference>()))
