@@ -28,11 +28,11 @@ HLC_TO_LLC_RATIO = 1
 STEP_DT = 0.01
 
 # PID proportional gains (one per actuated joint)
-PID_KP = np.array([50.0, 50.0, 50.0, 100.0, 10.0,
-                   50.0, 50.0, 50.0, 100.0, 10.0])
+PID_KP = np.array([50.0, 50.0, 50.0, 50.0, 8.0,
+                   50.0, 50.0, 50.0, 50.0, 8.0])
 # PID derivative gains (one per actuated joint)
-PID_KD = np.array([0.01, 0.02, 0.02, 0.05, 0.08,
-                   0.01, 0.02, 0.02, 0.05, 0.08])
+PID_KD = np.array([0.01, 0.015, 0.02, 0.02, 0.01,
+                   0.01, 0.015, 0.02, 0.02, 0.01])
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
@@ -67,6 +67,11 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=False,
             debug=debug), **kwargs})
 
+        # Remove unrelevant contact points
+        self.robot.remove_contact_points([
+            name for name in self.robot.contact_frames_names
+            if int(name.split("_")[-1]) in (0, 1, 4, 5)])
+
         # Add missing pushrod close kinematic chain constraint
         M_pushrod_tarsus_right = SE3(
             np.eye(3), np.array([-0.12, 0.03, -0.005]))
@@ -77,8 +82,8 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         self.robot.add_frame(
             "right_pushrod_hip", "hip_flexion_right", M_pushrod_hip_right)
         pushrod_right = DistanceConstraint(
-            "right_pushrod_tarsus", "right_pushrod_hip", 0.5012)
-        pushrod_right.baumgarte_freq = 20.0
+            "right_pushrod_tarsus", "right_pushrod_hip", 0.5)
+        pushrod_right.baumgarte_freq = 2.0
         self.robot.add_constraint("pushrod_right", pushrod_right)
         M_pushrod_tarsus_left = SE3(
             np.eye(3), np.array([-0.12, 0.03, 0.005]))
@@ -89,8 +94,8 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         self.robot.add_frame(
             "left_pushrod_hip", "hip_flexion_left", M_pushrod_hip_left)
         pushrod_left = DistanceConstraint(
-            "left_pushrod_tarsus", "left_pushrod_hip", 0.5012)
-        pushrod_left.baumgarte_freq = 20.0
+            "left_pushrod_tarsus", "left_pushrod_hip", 0.5)
+        pushrod_left.baumgarte_freq = 2.0
         self.robot.add_constraint("pushrod_left", pushrod_left)
 
         # Replace knee to shin spring by fixed joint constraint
