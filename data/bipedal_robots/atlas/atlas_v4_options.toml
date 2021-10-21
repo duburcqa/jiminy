@@ -27,8 +27,8 @@ model = "impulse"
 solver = "PGS"
 regularization = 2.0e-3
 stabilizationFreq = 20.0
-transitionEps = 2.0e-3
-friction = 0.5
+transitionEps = 5.0e-3
+friction = 1.0
 
 # ======== Model dynamic configuration =========
 

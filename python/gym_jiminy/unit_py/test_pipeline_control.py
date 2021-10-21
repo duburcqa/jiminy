@@ -41,8 +41,8 @@ class PipelineControl(unittest.TestCase):
         action_init['Q'], action_init['V'] = encoder_data[
             :, self.env.controller.motor_to_encoder]
 
-        # Run the simulation during 5s
-        while self.env.stepper_state.t < 5.0:
+        # Run the simulation during 12s
+        while self.env.stepper_state.t < 12.0:
             self.env.step(action_init)
 
         # Get the final posture of the robot as an RGB array
@@ -82,13 +82,15 @@ class PipelineControl(unittest.TestCase):
             log_data['.'.join((
                 'HighLevelController', self.env.controller_name, name))]
             for name in self.env.controller.get_fieldnames()['V']], axis=-1)
-        self.assertTrue(np.all(np.abs(velocity_target[time > 4.0]) < 1e-9))
+        self.assertTrue(np.all(
+            np.abs(velocity_target[time > time[-1] - 1.0]) < 1.0e-9))
 
         # Check that the whole-body robot velocity is close to zero at the end
         velocity_mes = np.stack([
             log_data['.'.join(('HighLevelController', name))]
             for name in self.env.robot.logfile_velocity_headers], axis=-1)
-        self.assertTrue(np.all(np.abs(velocity_mes[time > 4.0]) < 1e-3))
+        self.assertTrue(np.all(
+            np.abs(velocity_mes[time > time[-1] - 1.0]) < 1.0e-3))
 
     def test_pid_standing(self):
         for backend in ['meshcat', 'panda3d']:

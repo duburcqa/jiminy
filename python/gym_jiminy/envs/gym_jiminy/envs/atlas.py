@@ -37,9 +37,9 @@ PID_REDUCED_KP = np.array([
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0])
 PID_REDUCED_KD = np.array([
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.0125, 0.01,
+    0.02, 0.01, 0.015, 0.01, 0.02, 0.01,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.0125, 0.01])
+    0.02, 0.01, 0.015, 0.01, 0.02, 0.01])
 
 PID_FULL_KP = np.array([
     # Neck: [Y]
@@ -203,11 +203,6 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
         self.robot.remove_contact_points([
             name for name in self.robot.contact_frames_names
             if int(name.split("_")[-1]) in (1, 3, 5, 7)])
-
-    def _neutral(self):
-        qpos = neutral(self.robot.pinocchio_model)
-
-        return qpos
 
 
 AtlasPDControlJiminyEnv = build_pipeline(**{

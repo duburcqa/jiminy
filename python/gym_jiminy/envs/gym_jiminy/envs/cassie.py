@@ -33,8 +33,8 @@ STEP_DT = 0.04
 PID_KP = np.array([50.0, 50.0, 50.0, 80.0, 8.0,
                    50.0, 50.0, 50.0, 80.0, 8.0])
 # PID derivative gains (one per actuated joint)
-PID_KD = np.array([0.01, 0.02, 0.02, 0.03, 0.0125,
-                   0.01, 0.02, 0.02, 0.03, 0.0125])
+PID_KD = np.array([0.01, 0.02, 0.02, 0.03, 0.02,
+                   0.01, 0.02, 0.02, 0.03, 0.02])
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
