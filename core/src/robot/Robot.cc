@@ -56,7 +56,8 @@ namespace jiminy
     }
 
     hresult_t Robot::initialize(pinocchio::Model         const & pncModel,
-                                pinocchio::GeometryModel const & collisionModel)
+                                pinocchio::GeometryModel const & collisionModel,
+                                pinocchio::GeometryModel const & visualModel)
     {
         // Detach all the motors and sensors
         detachSensors({});
@@ -64,7 +65,7 @@ namespace jiminy
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
-        return Model::initialize(pncModel, collisionModel);
+        return Model::initialize(pncModel, collisionModel, visualModel);
     }
 
     void Robot::reset(void)

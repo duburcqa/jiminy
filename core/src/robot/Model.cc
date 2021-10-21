@@ -130,8 +130,8 @@ namespace jiminy
         return false;
     }
 
-    std::shared_ptr<AbstractConstraintBase> constraintsHolder_t::get(std::string const & key,
-                                                                 constraintsHolderType_t const & holderType)
+    std::shared_ptr<AbstractConstraintBase> constraintsHolder_t::get(std::string             const & key,
+                                                                     constraintsHolderType_t const & holderType)
     {
         constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
         std::tie(constraintsMapPtr, constraintIt) = find(key, holderType);
@@ -156,7 +156,7 @@ namespace jiminy
         return {};
     }
 
-    void constraintsHolder_t::insert(constraintsMap_t const & constraintsMap,
+    void constraintsHolder_t::insert(constraintsMap_t        const & constraintsMap,
                                      constraintsHolderType_t const & holderType)
     {
         switch (holderType)
@@ -176,7 +176,7 @@ namespace jiminy
         }
     }
 
-    constraintsMap_t::iterator constraintsHolder_t::erase(std::string const & key,
+    constraintsMap_t::iterator constraintsHolder_t::erase(std::string             const & key,
                                                           constraintsHolderType_t const & holderType)
     {
         constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
@@ -189,12 +189,13 @@ namespace jiminy
     }
 
     Model::Model(void) :
-    pncModel_(),
-    pncData_(),
-    collisionModel_(),
-    pncGeometryData_(nullptr),
     pncModelRigidOrig_(),
+    pncModel_(),
+    collisionModel_(),
+    visualModel_(),
     pncDataRigidOrig_(),
+    pncData_(),
+    pncCollisionData_(nullptr),
     mdlOptions_(nullptr),
     contactForces_(),
     isInitialized_(false),
@@ -235,7 +236,8 @@ namespace jiminy
     }
 
     hresult_t Model::initialize(pinocchio::Model         const & pncModel,
-                                pinocchio::GeometryModel const & collisionModel)
+                                pinocchio::GeometryModel const & collisionModel,
+                                pinocchio::GeometryModel const & visualModel)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -265,6 +267,7 @@ namespace jiminy
             // Set the models
             pncModelRigidOrig_ = pncModel;
             collisionModel_ = collisionModel;
+            visualModel_ = visualModel;
 
             // Add ground geometry object to collision model is not already available
             if (!collisionModel_.existGeometryName("ground"))
@@ -352,14 +355,15 @@ namespace jiminy
 
         // Load new robot and collision models
         pinocchio::Model pncModel;
-        pinocchio::GeometryModel pncGeometryModel;
+        pinocchio::GeometryModel pncCollisionModel;
+        pinocchio::GeometryModel pncVisualModel;
         returnCode = buildModelsFromUrdf(
-            urdfPath, hasFreeflyer, meshPackageDirs, pncModel, pncGeometryModel);
+            urdfPath, hasFreeflyer, meshPackageDirs, pncModel, pncCollisionModel, pncVisualModel);
 
         // Initialize jiminy model
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = initialize(pncModel, pncGeometryModel);
+            returnCode = initialize(pncModel, pncCollisionModel, pncVisualModel);
         }
 
         // Backup URDF info
@@ -1453,24 +1457,24 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Update geometry data object after changing the collision pairs
-            if (pncGeometryData_.get())
+            if (pncCollisionData_.get())
             {
                 // No object stored at this point, so created a new one
-                *pncGeometryData_ = pinocchio::GeometryData(collisionModel_);
+                *pncCollisionData_ = pinocchio::GeometryData(collisionModel_);
             }
             else
             {
                 /* Use copy assignment to avoid changing memory pointers, to
                    avoid dangling reference at Python-side. */
-                pncGeometryData_ = std::make_unique<pinocchio::GeometryData>(collisionModel_);
+                pncCollisionData_ = std::make_unique<pinocchio::GeometryData>(collisionModel_);
             }
             pinocchio::updateGeometryPlacements(pncModel_,
                                                 pncData_,
                                                 collisionModel_,
-                                                *pncGeometryData_);
+                                                *pncCollisionData_);
 
             // Set the max number of contact points per collision pairs
-            for (hpp::fcl::CollisionRequest & collisionRequest : pncGeometryData_->collisionRequests)
+            for (hpp::fcl::CollisionRequest & collisionRequest : pncCollisionData_->collisionRequests)
             {
                 collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
             }

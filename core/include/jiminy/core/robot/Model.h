@@ -369,7 +369,8 @@ namespace jiminy
 
     protected:
         hresult_t initialize(pinocchio::Model         const & pncModel,
-                             pinocchio::GeometryModel const & collisionModel);
+                             pinocchio::GeometryModel const & collisionModel,
+                             pinocchio::GeometryModel const & visualModel);
 
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
@@ -397,12 +398,13 @@ namespace jiminy
         virtual hresult_t refreshProxies(void);
 
     public:
-        pinocchio::Model pncModel_;
-        mutable pinocchio::Data pncData_;
-        pinocchio::GeometryModel collisionModel_;
-        mutable std::unique_ptr<pinocchio::GeometryData> pncGeometryData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes Pinocchio segfault at least up to v2.5.6
         pinocchio::Model pncModelRigidOrig_;
+        pinocchio::Model pncModel_;
+        pinocchio::GeometryModel collisionModel_;
+        pinocchio::GeometryModel visualModel_;
         pinocchio::Data pncDataRigidOrig_;
+        mutable pinocchio::Data pncData_;
+        mutable std::unique_ptr<pinocchio::GeometryData> pncCollisionData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes Pinocchio segfault at least up to v2.5.6
         std::unique_ptr<modelOptions_t const> mdlOptions_;
         forceVector_t contactForces_;                       ///< Buffer storing the contact forces
 
