@@ -1,12 +1,19 @@
 import os
 import numpy as np
+from pathlib import Path
 from pkg_resources import resource_filename
+from typing import Any
 
-from pinocchio import neutral
-
-from gym_jiminy.common.envs import WalkerJiminyEnv
+import jiminy_py.core as jiminy
+from jiminy_py.robot import load_hardware_description_file
+from jiminy_py.simulator import Simulator
+from gym_jiminy.common.envs import BaseJiminyEnv, WalkerJiminyEnv
+from gym_jiminy.common.envs.env_locomotion import (
+    F_PROFILE_WAVELENGTH, F_PROFILE_PERIOD)
 from gym_jiminy.common.controllers import PDController
 from gym_jiminy.common.pipeline import build_pipeline
+
+from pinocchio import neutral
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])
@@ -14,41 +21,48 @@ DEFAULT_SAGITTAL_HIP_ANGLE = 0.2
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
+
 # Ratio between the High-level neural network PID target update and Low-level
 # PID torque update (:int [NA])
 HLC_TO_LLC_RATIO = 1
+
 # Stepper update period (:float [s])
-STEP_DT = 1.0e-3
+STEP_DT = 0.04
 
 # PID proportional gains (one per actuated joint)
-PID_KP = np.array([
-    # Back: [X, Y, Z]
-    4000.0, 12000.0, 1000.0,
-    # Left arm: [ElX, ElY, ShX, ShZ, WrX, WrY, WrY2]
-    200.0, 100.0, 100.0, 500.0, 100.0, 10.0, 10.0,
-    # Left leg: [AkX, AkY, HpZ, HpX, HpY, KnY]
-    1500.0, 10000.0, 4000.0, 4000.0, 1000.0, 1000.0,
+PID_REDUCED_KP = np.array([
+    # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0,
+    # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0])
+PID_REDUCED_KD = np.array([
+    # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    0.02, 0.01, 0.015, 0.01, 0.0125, 0.01,
+    # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    0.02, 0.01, 0.015, 0.01, 0.0125, 0.01])
+
+PID_FULL_KP = np.array([
     # Neck: [Y]
     1000.0,
-    # Right arm: [ElX, ElY, ShX, ShZ, WrX, WrY, WrY2]
-    200.0, 100.0, 100.0, 500.0, 100.0, 10.0, 10.0,
-    # Right leg: [AkX, AkY, HpZ, HpX, HpY, KnY]
-    1500.0, 10000.0, 4000.0, 4000.0, 1000.0, 1000.0])
-# PID derivative gains (one per actuated joint)
-PID_KD = np.array([
-    # Back: [X, Y, Z]
-    0.08, 0.02, 0.01,
-    # Left arm: [ElX, ElY, ShX, ShZ, WrX, WrY, WrY2]
-    0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
-    # Left leg: [AkX, AkY, HpZ, HpX, HpY, KnY]
-    0.002, 0.02, 0.002, 0.002, 0.01, 0.01,
+    # Back: [Z, Y, X]
+    5000.0, 8000.0, 5000.0,
+    # Left arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
+    500.0, 100.0, 200.0, 500.0, 10.0, 100.0, 10.0,
+    # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
+    500.0, 100.0, 200.0, 500.0, 10.0, 100.0, 10.0,
+    # Lower body motors
+    *PID_REDUCED_KP])
+PID_FULL_KD = np.array([
     # Neck: [Y]
     0.01,
-    # Right arm: [ElX, ElY, ShX, ShZ, WrX, WrY, WrY2]
-    0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
-    # Right leg: [AkX, AkY, HpZ, HpX, HpY, KnY]
-    0.002, 0.02, 0.002, 0.002, 0.01, 0.01])
-
+    # Back: [Z, Y, X]
+    0.01, 0.015, 0.02,
+    # Left arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
+    0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.02,
+    # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
+    0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.02,
+    # Lower body motors
+    *PID_REDUCED_KD])
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
@@ -66,13 +80,13 @@ STD_RATIO = {
 
 
 class AtlasJiminyEnv(WalkerJiminyEnv):
-    def __init__(self, debug: bool = False, **kwargs):
+    def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         # Get the urdf and mesh paths
         data_root_dir = resource_filename(
             "gym_jiminy.envs", "data/bipedal_robots/atlas")
         urdf_path = os.path.join(data_root_dir, "atlas_v4.urdf")
 
-        # Initialize the walker environment
+        # Initialize the walker environment directly
         super().__init__(**{**dict(
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
@@ -83,6 +97,11 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=True,
             debug=debug), **kwargs})
 
+        # Remove unrelevant contact points
+        self.robot.remove_contact_points([
+            name for name in self.robot.contact_frames_names
+            if int(name.split("_")[-1]) in (1, 3, 5, 7)])
+
     def _neutral(self):
         def joint_position_idx(joint_name):
             joint_idx = self.robot.pinocchio_model.getJointId(joint_name)
@@ -91,13 +110,102 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         qpos = neutral(self.robot.pinocchio_model)
         qpos[joint_position_idx('back_bky')] = DEFAULT_SAGITTAL_HIP_ANGLE
         qpos[joint_position_idx('l_arm_elx')] = DEFAULT_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('l_arm_shx')] = - np.pi / 2 + 1e-6
-        qpos[joint_position_idx('l_arm_shz')] = np.pi / 4 - 1e-6
-        qpos[joint_position_idx('l_arm_ely')] = np.pi / 4 + np.pi / 2
+        qpos[joint_position_idx('l_arm_shx')] = - np.pi / 2.0
+        qpos[joint_position_idx('l_arm_shz')] = np.pi / 4.0
+        qpos[joint_position_idx('l_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
         qpos[joint_position_idx('r_arm_elx')] = - DEFAULT_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('r_arm_shx')] = np.pi / 2 - 1e-6
-        qpos[joint_position_idx('r_arm_shz')] = - np.pi / 4 + 1e-6
-        qpos[joint_position_idx('r_arm_ely')] = np.pi / 4 + np.pi / 2
+        qpos[joint_position_idx('r_arm_shx')] = np.pi / 2.0
+        qpos[joint_position_idx('r_arm_shz')] = - np.pi / 4.0
+        qpos[joint_position_idx('r_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
+
+        return qpos
+
+
+class AtlasReducedJiminyEnv(WalkerJiminyEnv):
+    def __init__(self, debug: bool = False, **kwargs: Any) -> None:
+        # Get the urdf and mesh paths
+        data_root_dir = resource_filename(
+            "gym_jiminy.envs", "data/bipedal_robots/atlas")
+        urdf_path = os.path.join(data_root_dir, "atlas_v4.urdf")
+
+        # Load the full models
+        pinocchio_model, collision_model, visual_model = \
+            jiminy.build_models_from_urdf(urdf_path,
+                                          has_freeflyer=True,
+                                          build_visual_model=True,
+                                          mesh_package_dirs=[data_root_dir])
+
+        # Generate the reference configuration
+        def joint_position_idx(joint_name):
+            joint_idx = pinocchio_model.getJointId(joint_name)
+            return pinocchio_model.joints[joint_idx].idx_q
+
+        qpos = neutral(pinocchio_model)
+        qpos[joint_position_idx('back_bky')] = DEFAULT_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_idx('l_arm_elx')] = DEFAULT_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_idx('l_arm_shx')] = - np.pi / 2.0
+        qpos[joint_position_idx('l_arm_shz')] = np.pi / 4.0
+        qpos[joint_position_idx('l_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
+        qpos[joint_position_idx('r_arm_elx')] = - DEFAULT_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_idx('r_arm_shx')] = np.pi / 2.0
+        qpos[joint_position_idx('r_arm_shz')] = - np.pi / 4.0
+        qpos[joint_position_idx('r_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
+
+        # Build the reduced models
+        joint_locked_indices = [
+            pinocchio_model.getJointId(joint_name)
+            for joint_name in pinocchio_model.names[2:]
+            if "_leg_" not in joint_name]
+        pinocchio_model, collision_model, visual_model = \
+            jiminy.build_reduced_models(pinocchio_model,
+                                        collision_model,
+                                        visual_model,
+                                        joint_locked_indices,
+                                        qpos)
+
+        # Build the robot and load the hardware
+        robot = jiminy.Robot()
+        robot.initialize(pinocchio_model, collision_model, visual_model)
+        hardware_path = str(
+            Path(urdf_path).with_suffix('')) + '_hardware.toml'
+        config_path = str(
+            Path(urdf_path).with_suffix('')) + '_options.toml'
+        load_hardware_description_file(robot, hardware_path, True, False)
+
+        # Instantiate a simulator and load the options
+        simulator = Simulator(robot)
+        simulator.import_options(config_path)
+
+        # Set base class attributes manually
+        self.simu_duration_max = SIMULATION_DURATION
+        self.reward_mixture = {
+            k: v for k, v in REWARD_MIXTURE.items() if v > 0.0}
+        self.urdf_path = urdf_path
+        self.mesh_path = data_root_dir
+        self.hardware_path = hardware_path
+        self.config_path = config_path
+        self.std_ratio = {
+            k: v for k, v in STD_RATIO.items() if v > 0.0}
+        self.avoid_instable_collisions = True
+        self._f_xy_profile = [
+            jiminy.PeriodicGaussianProcess(
+                F_PROFILE_WAVELENGTH, F_PROFILE_PERIOD),
+            jiminy.PeriodicGaussianProcess(
+                F_PROFILE_PERIOD, F_PROFILE_PERIOD)]
+        self._power_consumption_max = 0.0
+        self._height_neutral = 0.0
+
+        # Initialize base environment
+        BaseJiminyEnv.__init__(self, simulator, **{**dict(
+            step_dt=STEP_DT, debug=debug), **kwargs})
+
+        # Remove unrelevant contact points
+        self.robot.remove_contact_points([
+            name for name in self.robot.contact_frames_names
+            if int(name.split("_")[-1]) in (1, 3, 5, 7)])
+
+    def _neutral(self):
+        qpos = neutral(self.robot.pinocchio_model)
 
         return qpos
 
@@ -110,8 +218,26 @@ AtlasPDControlJiminyEnv = build_pipeline(**{
         'block_class': PDController,
         'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
-            'pid_kp': PID_KP,
-            'pid_kd': PID_KD
+            'pid_kp': PID_FULL_KP,
+            'pid_kd': PID_FULL_KD
+        },
+        'wrapper_kwargs': {
+            'augment_observation': False
+        }}
+    ]
+})
+
+
+AtlasReducedPDControlJiminyEnv = build_pipeline(**{
+    'env_config': {
+        'env_class': AtlasReducedJiminyEnv
+    },
+    'blocks_config': [{
+        'block_class': PDController,
+        'block_kwargs': {
+            'update_ratio': HLC_TO_LLC_RATIO,
+            'pid_kp': PID_REDUCED_KP,
+            'pid_kd': PID_REDUCED_KD
         },
         'wrapper_kwargs': {
             'augment_observation': False

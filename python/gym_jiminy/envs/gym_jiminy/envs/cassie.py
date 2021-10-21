@@ -21,18 +21,20 @@ DEFAULT_TOE_ANGLE = -95.0 / 180.0 * math.pi
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
+
 # Ratio between the High-level neural network PID target update and Low-level
 # PID torque update (:int [NA])
 HLC_TO_LLC_RATIO = 1
+
 # Stepper update period (:float [s])
-STEP_DT = 0.01
+STEP_DT = 0.04
 
 # PID proportional gains (one per actuated joint)
-PID_KP = np.array([50.0, 50.0, 50.0, 50.0, 8.0,
-                   50.0, 50.0, 50.0, 50.0, 8.0])
+PID_KP = np.array([50.0, 50.0, 50.0, 80.0, 8.0,
+                   50.0, 50.0, 50.0, 80.0, 8.0])
 # PID derivative gains (one per actuated joint)
-PID_KD = np.array([0.01, 0.015, 0.02, 0.02, 0.01,
-                   0.01, 0.015, 0.02, 0.02, 0.01])
+PID_KD = np.array([0.01, 0.02, 0.02, 0.03, 0.0125,
+                   0.01, 0.02, 0.02, 0.03, 0.0125])
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
