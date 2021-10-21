@@ -329,6 +329,7 @@ namespace jiminy
         virtual void reset(void);
 
         bool_t const & getIsInitialized(void) const;
+        std::string const & getName(void) const;
         std::string const & getUrdfPath(void) const;
         std::vector<std::string> const & getMeshPackageDirs(void) const;
         bool_t const & getHasFreeflyer(void) const;

@@ -1738,6 +1738,11 @@ namespace jiminy
         return isInitialized_;
     }
 
+    std::string const & Model::getName(void) const
+    {
+        return pncModelRigidOrig_.name;
+    }
+
     std::string const & Model::getUrdfPath(void) const
     {
         return urdfPath_;

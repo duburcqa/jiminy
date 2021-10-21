@@ -97,6 +97,8 @@ namespace python
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("mesh_package_dirs", bp::make_function(&Model::getMeshPackageDirs,
                                                    bp::return_value_policy<result_converter<true> >()))
+                .add_property("name", bp::make_function(&Model::getName,
+                                      bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
