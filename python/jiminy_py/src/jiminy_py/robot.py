@@ -362,8 +362,8 @@ def generate_hardware_description_file(
     # URDF standard, so it should be available on any URDF file.
     transmission_found = root.find('transmission') is not None
     for transmission_descr in root.iterfind('transmission'):
-        motor_info = OrderedDict()
-        sensor_info = OrderedDict()
+        # Initialize motor and sensor info
+        motor_info, sensor_info = OrderedDict(), OrderedDict()
 
         # Check that the transmission type is supported
         transmission_name = transmission_descr.get('name')
@@ -491,8 +491,7 @@ def load_hardware_description_file(
     :param avoid_instable_collisions: Prevent numerical instabilities by
                                       replacing collision mesh by vertices of
                                       associated minimal volume bounding box,
-                                      primitive box by its vertices, and
-                                      primitive sphere by its center.
+                                      and primitive box by its vertices.
     :param verbose: Whether or not to print warnings.
 
     :returns: Unused information available in hardware configuration file.
@@ -667,12 +666,18 @@ def load_hardware_description_file(
     # Add the motors to the robot
     for motor_type, motors_descr in motors_info.items():
         for motor_name, motor_descr in motors_descr.items():
-            # Create the sensor and attach it
+            # Make sure the motor can be instantiated
+            joint_name = motor_descr.pop('joint_name')
+            if not robot.pinocchio_model.existJointName(joint_name):
+                logger.warning(
+                    f"'{joint_name}' is not a valid joint name.")
+                continue
+
+            # Create the motor and attach it
             motor = getattr(jiminy, motor_type)(motor_name)
             robot.attach_motor(motor)
 
             # Initialize the motor
-            joint_name = motor_descr.pop('joint_name')
             motor.initialize(joint_name)
 
             # Set the motor options
@@ -690,16 +695,28 @@ def load_hardware_description_file(
     # Add the sensors to the robot
     for sensor_type, sensors_descr in sensors_info.items():
         for sensor_name, sensor_descr in sensors_descr.items():
+            # Make sure the sensor can be instantiated
+            if sensor_type == encoder.type:
+                joint_name = sensor_descr.pop('joint_name')
+                if not robot.pinocchio_model.existJointName(joint_name):
+                    logger.warning(
+                        f"'{joint_name}' is not a valid joint name.")
+                    continue
+            elif sensor_type == effort.type:
+                motor_name = sensor_descr.pop('motor_name')
+                if motor_name not in robot.motors_names:
+                    logger.warning(
+                        f"'{motor_name}' is not a valid motor name.")
+                    continue
+
             # Create the sensor and attach it
             sensor = getattr(jiminy, sensor_type)(sensor_name)
             robot.attach_sensor(sensor)
 
             # Initialize the sensor
             if sensor_type == encoder.type:
-                joint_name = sensor_descr.pop('joint_name')
                 sensor.initialize(joint_name)
             elif sensor_type == effort.type:
-                motor_name = sensor_descr.pop('motor_name')
                 sensor.initialize(motor_name)
             elif sensor_type == contact.type:
                 frame_name = sensor_descr.pop('frame_name')
