@@ -7,52 +7,52 @@ contactFramesNames = []
 [Motor.SimpleMotor.hip_abduction_motor_left]
 joint_name = "hip_abduction_left"
 mechanicalReduction = 25.0
-armature = 0.038125
+armature = 0.2
 
 [Motor.SimpleMotor.hip_rotation_motor_left]
 joint_name = "hip_rotation_left"
 mechanicalReduction = 25.0
-armature = 0.038125
+armature = 0.2
 
 [Motor.SimpleMotor.hip_flexion_motor_left]
 joint_name = "hip_flexion_left"
 mechanicalReduction = 16.0
-armature = 0.09344
+armature = 0.2
 
 [Motor.SimpleMotor.knee_joint_motor_left]
 joint_name = "knee_joint_left"
 mechanicalReduction = 16.0
-armature = 0.09344
+armature = 0.2
 
 [Motor.SimpleMotor.toe_joint_motor_left]
 joint_name = "toe_joint_left"
 mechanicalReduction = 50.0
-armature = 0.01225
+armature = 0.2
 
 [Motor.SimpleMotor.hip_abduction_motor_right]
 joint_name = "hip_abduction_right"
 mechanicalReduction = 25.0
-armature = 0.038125
+armature = 0.2
 
 [Motor.SimpleMotor.hip_rotation_motor_right]
 joint_name = "hip_rotation_right"
 mechanicalReduction = 25.0
-armature = 0.038125
+armature = 0.2
 
 [Motor.SimpleMotor.hip_flexion_motor_right]
 joint_name = "hip_flexion_right"
 mechanicalReduction = 16.0
-armature = 0.09344
+armature = 0.2
 
 [Motor.SimpleMotor.knee_joint_motor_right]
 joint_name = "knee_joint_right"
 mechanicalReduction = 16.0
-armature = 0.09344
+armature = 0.2
 
 [Motor.SimpleMotor.toe_joint_motor_right]
 joint_name = "toe_joint_right"
 mechanicalReduction = 50.0
-armature = 0.01225
+armature = 0.2
 
 # =============== IMU sensors =================
 

@@ -1447,7 +1447,7 @@ class Panda3dVisualizer(BaseVisualizer):
         # Panda3d model caching procedure.
         is_success = True
         mesh_path = geometry_object.meshPath
-        if '\\' in mesh_path or '/' in mesh_path:
+        if any(char in mesh_path for char in ('\\', '/', '.')):
             # Assuming it is an actual path if it has a least on slash. It is
             # way faster than actually checking if the path actually exists.
             mesh_path = _sanitize_path(geometry_object.meshPath)
