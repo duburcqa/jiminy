@@ -47,11 +47,11 @@ namespace jiminy
         ++lastShuffle_;
 
         // Update every coefficients sequentially
-        for (int32_t const & i : indices_)
+        for (uint32_t const & i : indices_)
         {
             // Update a single coefficient
             float64_t const xPrev = x[i];
-            x[i] += (b[i] - A.row(i).dot(x)) / A(i, i);
+            x[i] += (b[i] - A.col(i).dot(x)) / A(i, i);
 
             // Project the coefficient between lower and upper bounds
             if (fIdx[i] < 0)
@@ -92,7 +92,7 @@ namespace jiminy
         /* Adapt shuffling indices if the number of indices has changed.
            Note that it may converge faster to enforce constraints in reverse order,
            since usually constraints bounds dependending on others have lower indices
-           by design. For instance, for friction, x and y  */
+           by design, aka. the linear friction pyramid.  */
         size_t const nIndicesOrig = indices_.size();
         size_t const nIndices = b.size();
         if (nIndicesOrig < nIndices)
@@ -122,27 +122,30 @@ namespace jiminy
             indices_.resize(nIndices);
         }
 
-        // Normalizing
-        for (Eigen::Index i = 0; i < b.size(); ++i)
-        {
-            b[i] /= A(i, i);
-            A.row(i).array() /= A(i, i);
-        }
-
         // Perform multiple PGS loop until convergence or max iter reached
-        for (uint32_t iter = 0; iter < maxIter_; ++iter)
+        uint32_t iter = 0;
+        bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, true, false, x);
+        while (!isSuccess)
         {
-            bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, false, true, x);
             if (isSuccess)
             {
                 // Do NOT shuffle indices unless necessary to avoid discontinuities
                 lastShuffle_ = 0U;
-                return true;
+                break;
             }
+            if (iter < maxIter_)
+            {
+                isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, false, true, x);
+            }
+            else
+            {
+                break;
+            }
+            ++iter;
         }
 
         // Impossible to converge
-        return false;
+        return isSuccess;
     }
 
     bool_t PGSSolver::BoxedForwardDynamics(pinocchio::Model const & model,
