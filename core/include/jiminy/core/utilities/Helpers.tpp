@@ -18,6 +18,14 @@ namespace jiminy
         return min(std::min(val1, val2), std::forward<Ts>(vs)...);
     }
 
+    template<typename ScalarType>
+    ScalarType clamp(ScalarType const & data,
+                     ScalarType const & minThr,
+                     ScalarType const & maxThr)
+    {
+        return std::min(std::max(data, minThr), maxThr);
+    }
+
     template<typename DerivedType>
     auto clamp(Eigen::MatrixBase<DerivedType> const & data,
                float64_t const & minThr,

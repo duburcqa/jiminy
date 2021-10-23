@@ -107,19 +107,15 @@ namespace jiminy
     template<typename T0, typename T1, typename... Ts>
     typename std::common_type_t<T0, T1, Ts...> min(T0 && val1, T1 && val2, Ts &&... vs);
 
-    template<typename DerivedType>
-    auto clamp(Eigen::MatrixBase<DerivedType> const & data,
-               float64_t const & minThr = -INF,
-               float64_t const & maxThr = +INF);
+    template<typename ScalarType>
+    ScalarType clamp(ScalarType const & data,
+                     ScalarType const & minThr,
+                     ScalarType const & maxThr);
 
     template<typename DerivedType1, typename DerivedType2, typename DerivedType3>
     Eigen::MatrixBase<DerivedType1> clamp(Eigen::MatrixBase<DerivedType1> const & data,
                                           Eigen::MatrixBase<DerivedType2> const & minThr,
                                           Eigen::MatrixBase<DerivedType2> const & maxThr);
-
-    float64_t clamp(float64_t const & data,
-                    float64_t const & minThr = -INF,
-                    float64_t const & maxThr = +INF);
 
     template<typename... Args>
     float64_t minClipped(float64_t val1, float64_t val2, Args ... vs);
