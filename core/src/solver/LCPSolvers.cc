@@ -32,8 +32,6 @@ namespace jiminy
                                                vectorN_t const & lo,
                                                vectorN_t const & hi,
                                                std::vector<int32_t> const & fIdx,
-                                               bool_t const & checkAbs,
-                                               bool_t const & checkRel,
                                                vectorN_t & x)
     {
         bool_t isSuccess = true;
@@ -49,30 +47,26 @@ namespace jiminy
         // Update every coefficients sequentially
         for (uint32_t const & i : indices_)
         {
+            // Extract single coefficient
+            float64_t & e = x[i];
+            float64_t const ePrev = e;
+
             // Update a single coefficient
-            float64_t const xPrev = x[i];
-            x[i] += (b[i] - A.col(i).dot(x)) / A(i, i);
+            e += (b[i] - A.col(i).dot(x)) / A(i, i);
 
             // Project the coefficient between lower and upper bounds
             if (fIdx[i] < 0)
             {
-                x[i] = clamp(x[i], lo[i], hi[i]);
+                e = clamp(e, lo[i], hi[i]);
             }
             else
             {
                 float64_t const hiTmp = hi[i] * x[fIdx[i]];
-                x[i] = clamp(x[i], - hiTmp, hiTmp);
+                e = clamp(e, -hiTmp, hiTmp);
             }
 
             // Check if still possible to terminate after complete update
-            if (checkAbs)
-            {
-                isSuccess = isSuccess && (std::abs(x[i] - xPrev) < tolAbs_);
-            }
-            if (checkRel && std::abs(x[i]) > EPS_DIVISION)
-            {
-                isSuccess = isSuccess && (std::abs((x[i] - xPrev) / x[i]) < tolRel_);
-            }
+            isSuccess = isSuccess && (std::abs(e - ePrev) < tolAbs_ || std::abs((e - ePrev) / e) < tolRel_);
         }
 
         return isSuccess;
@@ -123,29 +117,21 @@ namespace jiminy
         }
 
         // Perform multiple PGS loop until convergence or max iter reached
-        uint32_t iter = 0;
-        bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, true, false, x);
-        while (!isSuccess)
+        for (uint32_t iter = 0; iter < maxIter_; ++iter)
         {
+            bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, x);
             if (isSuccess)
             {
                 // Do NOT shuffle indices unless necessary to avoid discontinuities
+                // std::cout << "PGS iter: " << iter + 1 << std::endl;
                 lastShuffle_ = 0U;
-                break;
+                return true;
             }
-            if (iter < maxIter_)
-            {
-                isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, false, true, x);
-            }
-            else
-            {
-                break;
-            }
-            ++iter;
         }
+        // std::cout << "PGS iter: " << maxIter_ << std::endl;
 
         // Impossible to converge
-        return isSuccess;
+        return false;
     }
 
     bool_t PGSSolver::BoxedForwardDynamics(pinocchio::Model const & model,

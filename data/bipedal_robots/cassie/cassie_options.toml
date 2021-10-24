@@ -3,8 +3,6 @@
 [engine.stepper]
 verbose = false
 odeSolver = "runge_kutta_4"
-tolAbs = 1.0e-4
-tolRel = 1.0e-3
 sensorsUpdatePeriod = 0.01
 controllerUpdatePeriod = 0.01
 logInternalStepperSteps = false
@@ -15,6 +13,8 @@ randomSeed = 0
 [engine.contacts]
 model = "impulse"
 solver = "PGS"
+tolAbs = 1.0e-4
+tolRel = 1.0e-3
 regularization = 2.0e-3
 stabilizationFreq = 20.0
 transitionEps = 2.0e-3

@@ -108,9 +108,9 @@ namespace jiminy
     typename std::common_type_t<T0, T1, Ts...> min(T0 && val1, T1 && val2, Ts &&... vs);
 
     template<typename ScalarType>
-    ScalarType clamp(ScalarType const & data,
-                     ScalarType const & minThr,
-                     ScalarType const & maxThr);
+    constexpr ScalarType const & clamp(ScalarType const & data,
+                                       ScalarType const & minThr,
+                                       ScalarType const & maxThr);
 
     template<typename DerivedType1, typename DerivedType2, typename DerivedType3>
     Eigen::MatrixBase<DerivedType1> clamp(Eigen::MatrixBase<DerivedType1> const & data,

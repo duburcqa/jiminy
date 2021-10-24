@@ -19,11 +19,19 @@ namespace jiminy
     }
 
     template<typename ScalarType>
-    ScalarType clamp(ScalarType const & data,
-                     ScalarType const & minThr,
-                     ScalarType const & maxThr)
+    constexpr ScalarType const & clamp(ScalarType const & data,
+                                       ScalarType const & minThr,
+                                       ScalarType const & maxThr)
     {
-        return std::min(std::max(data, minThr), maxThr);
+        if (data < minThr)
+        {
+            return minThr;
+        }
+        if (maxThr < data)
+        {
+            return maxThr;
+        }
+        return data;
     }
 
     template<typename DerivedType>
