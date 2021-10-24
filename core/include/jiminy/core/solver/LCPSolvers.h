@@ -6,8 +6,6 @@
 
 namespace jiminy
 {
-    float64_t const EPS_DIVISION = 1.0e-4;
-
     class AbstractLCPSolver
     {
     public:
@@ -55,8 +53,6 @@ namespace jiminy
                                         vectorN_t const & lo,
                                         vectorN_t const & hi,
                                         std::vector<int32_t> const & fIdx,
-                                        bool_t const & checkAbs,
-                                        bool_t const & checkRel,
                                         vectorN_t & x);
         bool_t ProjectedGaussSeidelSolver(matrixN_t & A,
                                           vectorN_t & b,

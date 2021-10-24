@@ -888,8 +888,8 @@ namespace jiminy
             contactSolver_ = std::make_unique<PGSSolver>(
                 PGS_MAX_ITERATIONS,
                 PGS_RANDOM_PERMUTATION_PERIOD,
-                engineOptions_->stepper.tolAbs,
-                engineOptions_->stepper.tolRel);
+                engineOptions_->contacts.tolAbs,
+                engineOptions_->contacts.tolRel);
         }
     }
 
