@@ -1,19 +1,19 @@
 from itertools import chain
+from pkg_resources import get_distribution
 from setuptools import setup, find_namespace_packages
 
 
-version = __import__("jiminy_py").__version__
-version_required = ".".join(version.split(".")[:2])
+version = get_distribution('jiminy_py').version
 
 extras = {
     "zoo": [
-        f"gym_jiminy_zoo~={version_required}",
+        f"gym_jiminy_zoo=={version}",
     ],
     "toolbox": [
-        f"gym_jiminy_toolbox~={version_required}"
+        f"gym_jiminy_toolbox=={version}"
     ],
     "rllib": [
-        f"gym_jiminy_rllib~={version_required}"
+        f"gym_jiminy_rllib=={version}"
     ]
 }
 extras["all"] = list(set(chain.from_iterable(extras.values())))
@@ -46,7 +46,7 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        f"jiminy-py~={version_required}",
+        f"jiminy-py=={version}",
         # Use to perform linear algebra computation.
         # 1.16 introduces new array function dispatcher which had significant
         # overhead if not handle carefully.

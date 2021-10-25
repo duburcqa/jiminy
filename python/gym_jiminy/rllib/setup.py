@@ -28,7 +28,7 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        f"gym_jiminy~={version}",
+        f"gym_jiminy=={version}",
         "ray[default,rllib]>=1.4.0",
         "plotext"
     ],
