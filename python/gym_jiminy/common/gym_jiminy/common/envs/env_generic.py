@@ -1059,6 +1059,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         By default, it enforces some options of the engine.
 
+        .. warning::
+            Beware this method is called BEFORE `observe_dt` and
+            `controller_dt` are properly set, so one cannot rely on it at this
+            point. Yet, `step_dt` is available and should always be. One can
+            still access the low-level controller update period through
+            `engine_options['stepper']['controllerUpdatePeriod']`.
+
         .. note::
             The user must overload this method to enforce custom observer
             update period, otherwise it will be the same of the controller.

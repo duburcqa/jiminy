@@ -123,12 +123,10 @@ namespace jiminy
             if (isSuccess)
             {
                 // Do NOT shuffle indices unless necessary to avoid discontinuities
-                // std::cout << "PGS iter: " << iter + 1 << std::endl;
                 lastShuffle_ = 0U;
                 return true;
             }
         }
-        // std::cout << "PGS iter: " << maxIter_ << std::endl;
 
         // Impossible to converge
         return false;

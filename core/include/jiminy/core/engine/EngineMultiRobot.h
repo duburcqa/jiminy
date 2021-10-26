@@ -158,8 +158,8 @@ namespace jiminy
             config["verbose"] = false;
             config["randomSeed"] = 0U;
             config["odeSolver"] = std::string("runge_kutta_dopri5");  // ["runge_kutta_dopri5", "runge_kutta_4", "euler_explicit"]
-            config["tolAbs"] = 1.0e-6;
-            config["tolRel"] = 1.0e-5;
+            config["tolAbs"] = 1.0e-5;
+            config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
             config["successiveIterFailedMax"] = 1000U;
