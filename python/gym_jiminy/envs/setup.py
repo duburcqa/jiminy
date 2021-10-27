@@ -27,10 +27,9 @@ setup(
     ],
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
-    package_data={"gym_jiminy.envs": ["data/**/*"]},
     include_package_data=True,
     install_requires=[
-        f"gym_jiminy~={version}"
+        f"gym_jiminy=={version}"
     ],
     zip_safe=False
 )

@@ -116,6 +116,8 @@ namespace jiminy
             configHolder_t config;
             config["model"] = std::string("spring_damper");   // ["spring_damper", "impulse"]
             config["solver"] = std::string("PGS");   // ["PGS",]
+            config["tolAbs"] = 1.0e-4;
+            config["tolRel"] = 1.0e-3;
             config["regularization"] = 0.0;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
             config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
             config["stiffness"] = 1.0e6;
@@ -200,6 +202,8 @@ namespace jiminy
         {
             std::string const model;
             std::string const solver;
+            float64_t const tolAbs;
+            float64_t const tolRel;
             float64_t const regularization;
             float64_t const stabilizationFreq;
             float64_t const stiffness;
@@ -212,6 +216,8 @@ namespace jiminy
             contactOptions_t(configHolder_t const & options) :
             model(boost::get<std::string>(options.at("model"))),
             solver(boost::get<std::string>(options.at("solver"))),
+            tolAbs(boost::get<float64_t>(options.at("tolAbs"))),
+            tolRel(boost::get<float64_t>(options.at("tolRel"))),
             regularization(boost::get<float64_t>(options.at("regularization"))),
             stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq"))),
             stiffness(boost::get<float64_t>(options.at("stiffness"))),

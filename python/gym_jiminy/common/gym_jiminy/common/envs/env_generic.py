@@ -28,7 +28,7 @@ from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.log import extract_data_from_log
 
-from pinocchio import neutral, framesForwardKinematics
+from pinocchio import neutral, normalize, framesForwardKinematics
 
 from ..utils import (zeros,
                      fill,
@@ -1059,6 +1059,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         By default, it enforces some options of the engine.
 
+        .. warning::
+            Beware this method is called BEFORE `observe_dt` and
+            `controller_dt` are properly set, so one cannot rely on it at this
+            point. Yet, `step_dt` is available and should always be. One can
+            still access the low-level controller update period through
+            `engine_options['stepper']['controllerUpdatePeriod']`.
+
         .. note::
             The user must overload this method to enforce custom observer
             update period, otherwise it will be the same of the controller.
@@ -1147,6 +1154,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # Get the neutral configuration
         qpos = self._neutral()
+
+        # Make sure the configuration is not out-of-bound
+        pinocchio_model = self.robot.pinocchio_model
+        position_limit_lower = pinocchio_model.lowerPositionLimit
+        position_limit_upper = pinocchio_model.upperPositionLimit
+        qpos = np.minimum(np.maximum(
+            qpos, position_limit_lower), position_limit_upper)
+
+        # Make sure the configuration is normalized
+        qpos = normalize(pinocchio_model, qpos)
 
         # Make sure the robot impacts the ground
         if self.robot.has_freeflyer:

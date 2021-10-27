@@ -192,11 +192,15 @@ man_pages = [
 # Grouping the document tree into Texinfo files. List of tuples
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
-texinfo_documents = [
-    (master_doc, 'jiminy', u'Jiminy Documentation',
-     author, 'jiminy', 'Fast and light weight Python/C++ simulator of rigid poly-articulated systems focused on reinforcement learning.',
-     'Miscellaneous'),
-]
+texinfo_documents = [(
+    master_doc,
+    'jiminy',
+    'Jiminy Documentation',
+    author,
+    'jiminy',
+    'Fast and light weight Python/C++ simulator of rigid poly-articulated systems focused on reinforcement learning.',
+    'Miscellaneous'
+)]
 
 
 # -- Options for Epub output -------------------------------------------------

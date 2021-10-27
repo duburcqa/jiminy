@@ -169,20 +169,4 @@ namespace jiminy
         auto start = std::find(header.begin(), header.end(), "StartColumns");
         return logData.col(std::distance(start, iterator) - 1);
     }
-
-    // ********************** Math utilities *************************
-
-    float64_t clamp(float64_t const & data,
-                    float64_t const & minThr,
-                    float64_t const & maxThr)
-    {
-        if (!isnan(data))
-        {
-            return std::min(std::max(data, minThr), maxThr);
-        }
-        else
-        {
-            return 0.0;
-        }
-    }
 }

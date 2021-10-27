@@ -6,8 +6,8 @@ import pathlib
 import tempfile
 import numpy as np
 import xml.etree.ElementTree as ET
-from collections import OrderedDict
-from typing import Optional
+from collections import OrderedDict, defaultdict
+from typing import Optional, Dict, Any
 
 import trimesh
 
@@ -18,6 +18,7 @@ from .core import (EncoderSensor as encoder,
                    ForceSensor as force,
                    ImuSensor as imu)
 
+import hppfcl
 import pinocchio as pin
 from pinocchio.rpy import rpyToMatrix
 
@@ -52,23 +53,58 @@ def _gcd(a: float,
     return a
 
 
-def _string_to_array(txt: str) -> np.ndarray:
-    """Convert a string array of float delimited by spaces into a numpy array.
-    """
-    return np.array(list(map(float, txt.split())))
+def _fix_urdf_mesh_path(urdf_path: str,
+                        mesh_path: str,
+                        output_root_path: Optional[str] = None):
+    """Generate an URDF with updated mesh paths.
 
+    :param urdf_path: Full path of the URDF file.
+    :param mesh_path: Root path of the meshes.
+    :param output_root_path: Root directory of the fixed URDF file.
+                             Optional: temporary directory by default.
 
-def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
-    """Convert an XML element with str attribute 'xyz' [X, Y, Z] encoding the
-    translation and 'rpy' encoding [Roll, Pitch, Yaw] into a Pinocchio.SE3
-    object.
+    :returns: Full path of the fixed URDF file.
     """
-    if origin_info is not None:
-        origin_xyz = _string_to_array(origin_info.attrib['xyz'])
-        origin_rpy = _string_to_array(origin_info.attrib['rpy'])
-        return pin.SE3(rpyToMatrix(origin_rpy), origin_xyz)
+    # Extract all the mesh path that are not package path, continue if any
+    with open(urdf_path, 'r') as urdf_file:
+        urdf_contents = urdf_file.read()
+    mesh_tag = "<mesh filename="
+    pathlists = {
+        filename
+        for filename in re.findall(mesh_tag + '"(.*)"', urdf_contents)
+        if not filename.startswith('package://')}
+    if not pathlists:
+        return urdf_path
+
+    # If mesh root path already matching, then nothing to do
+    if len(pathlists) > 1:
+        if all(path.startswith('.') for path in pathlists):
+            mesh_path_orig = '.'
+        else:
+            mesh_path_orig = os.path.commonpath(pathlists)
     else:
-        return pin.SE3.Identity()
+        mesh_path_orig = os.path.dirname(next(iter(pathlists)))
+    if mesh_path == mesh_path_orig:
+        return urdf_path
+
+    # Create the output directory
+    if output_root_path is None:
+        output_root_path = tempfile.mkdtemp()
+    fixed_urdf_dir = os.path.join(
+        output_root_path, "fixed_urdf" + mesh_path.translate(
+            str.maketrans({k: '_' for k in '/:'})))
+    os.makedirs(fixed_urdf_dir, exist_ok=True)
+    fixed_urdf_path = os.path.join(
+        fixed_urdf_dir, os.path.basename(urdf_path))
+
+    # Override the root mesh path with the desired one
+    urdf_contents = urdf_contents.replace(
+        '"'.join((mesh_tag, mesh_path_orig)),
+        '"'.join((mesh_tag, mesh_path)))
+    with open(fixed_urdf_path, 'w') as f:
+        f.write(urdf_contents)
+
+    return fixed_urdf_path
 
 
 def generate_hardware_description_file(
@@ -326,8 +362,8 @@ def generate_hardware_description_file(
     # URDF standard, so it should be available on any URDF file.
     transmission_found = root.find('transmission') is not None
     for transmission_descr in root.iterfind('transmission'):
-        motor_info = OrderedDict()
-        sensor_info = OrderedDict()
+        # Initialize motor and sensor info
+        motor_info, sensor_info = OrderedDict(), OrderedDict()
 
         # Check that the transmission type is supported
         transmission_name = transmission_descr.get('name')
@@ -436,58 +472,302 @@ def generate_hardware_description_file(
         toml.dump(hardware_info, f)
 
 
-def _fix_urdf_mesh_path(urdf_path: str,
-                        mesh_path: str,
-                        output_root_path: Optional[str] = None):
-    """Generate an URDF with updated mesh paths.
+def load_hardware_description_file(
+        robot: jiminy.Robot,
+        hardware_path: str,
+        avoid_instable_collisions: bool = True,
+        verbose: bool = True) -> Dict[str, Any]:
+    """Load hardware configuration file.
 
-    :param urdf_path: Full path of the URDF file.
-    :param mesh_path: Root path of the meshes.
-    :param output_root_path: Root directory of the fixed URDF file.
-                             Optional: temporary directory by default.
+    If no collision geometry is associated with the body requiring collision
+    handling, then the visual geometry is used instead, if any. If none is
+    available despite at, then a single contact point is added at body frame.
 
-    :returns: Full path of the fixed URDF file.
+    For now, every mesh used for collision are replaced by the vertices of the
+    associated minimum volume bounding box, to avoid numerical instabilities.
+
+    :param robot: Jiminy robot.
+    :param hardware_path: Path of Jiminy hardware description toml file.
+    :param avoid_instable_collisions: Prevent numerical instabilities by
+                                      replacing collision mesh by vertices of
+                                      associated minimal volume bounding box,
+                                      and primitive box by its vertices.
+    :param verbose: Whether or not to print warnings.
+
+    :returns: Unused information available in hardware configuration file.
     """
-    # Extract all the mesh path that are not package path, continue if any
-    with open(urdf_path, 'r') as urdf_file:
-        urdf_contents = urdf_file.read()
-    mesh_tag = "<mesh filename="
-    pathlists = {
-        filename
-        for filename in re.findall(mesh_tag + '"(.*)"', urdf_contents)
-        if not filename.startswith('package://')}
-    if not pathlists:
-        return urdf_path
-
-    # If mesh root path already matching, then nothing to do
-    if len(pathlists) > 1:
-        if all(path.startswith('.') for path in pathlists):
-            mesh_path_orig = '.'
-        else:
-            mesh_path_orig = os.path.commonpath(pathlists)
+    # Handle verbosity level
+    if verbose:
+        logger.setLevel(logging.DEBUG)
     else:
-        mesh_path_orig = os.path.dirname(next(iter(pathlists)))
-    if mesh_path == mesh_path_orig:
-        return urdf_path
+        logger.setLevel(logging.ERROR)
 
-    # Create the output directory
-    if output_root_path is None:
-        output_root_path = tempfile.mkdtemp()
-    fixed_urdf_dir = os.path.join(
-        output_root_path, "fixed_urdf" + mesh_path.translate(
-            str.maketrans({k: '_' for k in '/:'})))
-    os.makedirs(fixed_urdf_dir, exist_ok=True)
-    fixed_urdf_path = os.path.join(
-        fixed_urdf_dir, os.path.basename(urdf_path))
+    hardware_info = toml.load(hardware_path)
+    extra_info = hardware_info.pop('Global', {})
+    motors_info = hardware_info.pop('Motor', {})
+    sensors_info = hardware_info.pop('Sensor', {})
 
-    # Override the root mesh path with the desired one
-    urdf_contents = urdf_contents.replace(
-        '"'.join((mesh_tag, mesh_path_orig)),
-        '"'.join((mesh_tag, mesh_path)))
-    with open(fixed_urdf_path, 'w') as f:
-        f.write(urdf_contents)
+    # Extract the list of bodies having visual and collision meshes or
+    # primitives.
+    geometry_types = {
+        geom_type: {'primitive': set(), 'mesh': set()}
+        for geom_type in ('collision', 'visual')}
+    geometry_specs = {
+        geom_type: {
+            'primitive': defaultdict(lambda: []),
+            'mesh': defaultdict(lambda: [])}
+        for geom_type in ('collision', 'visual')}
+    for geom_model, geometry_types_i, geometry_specs_i in zip(
+            (robot.collision_model, robot.visual_model),
+            geometry_types.values(),
+            geometry_specs.values()):
+        for geometry_object in geom_model.geometryObjects:
+            frame_idx = geometry_object.parentFrame
+            frame_name = robot.pinocchio_model.frames[frame_idx].name
+            mesh_path = geometry_object.meshPath
+            is_mesh = any(char in mesh_path for char in ('\\', '/', '.'))
+            geom_type = 'mesh' if is_mesh else 'primitive'
+            geometry_types_i[geom_type].add(frame_name)
+            geometry_specs_i[geom_type][frame_name].append(geometry_object)
 
-    return fixed_urdf_path
+    # Checking the collision bodies, to make sure they are associated with
+    # supported collision geometries. If not, fixing the issue after
+    # throwing a warning.
+    collision_bodies_names = extra_info.pop(
+        'collisionBodiesNames', [])
+    contact_frames_names = extra_info.pop('contactFramesNames', [])
+    for body_name in collision_bodies_names.copy():
+        # Filter out the different cases.
+        # After this filter, we know that their is no collision geometry
+        # associated with the body but their is a visual mesh, or there is
+        # only collision meshes.
+        if body_name in geometry_types['collision']['mesh'] and \
+                body_name in geometry_types['collision']['primitive']:
+            if not avoid_instable_collisions:
+                continue
+            logger.warning(
+                "Collision body having both primitive and mesh geometries "
+                "is not supported. Enabling only primitive collision for "
+                "this body.")
+            continue
+        elif body_name in geometry_types['collision']['primitive']:
+            pass
+        elif body_name in geometry_types['collision']['mesh']:
+            if not avoid_instable_collisions:
+                continue
+            logger.warning(
+                "Collision body associated with mesh geometry is not "
+                "supported for now. Replacing it by contact points at the "
+                "vertices of the minimal volume bounding box.")
+        elif body_name not in geometry_types['visual']['mesh']:
+            logger.warning(
+                "No visual mesh nor collision geometry associated with "
+                "the collision body. Fallback to adding a single contact "
+                "point at body frame.")
+            contact_frames_names.append(body_name)
+            continue
+        else:
+            logger.warning(
+                "No collision geometry associated with the collision "
+                "body. Fallback to replacing it by contact points at "
+                "the vertices of the minimal volume bounding box of the "
+                "available visual meshes.")
+
+        # Check if collision primitive box are available
+        collision_boxes_size, collision_boxes_origin = [], []
+        for geometry_object in \
+                geometry_specs['collision']['primitive'][body_name]:
+            geom = geometry_object.geometry
+            if isinstance(geom, hppfcl.Box):
+                collision_boxes_size.append(2.0 * geom.halfSide)
+                collision_boxes_origin.append(geometry_object.placement)
+
+        # Replace the collision boxes by contact points, if any
+        if collision_boxes_size:
+            if not avoid_instable_collisions:
+                continue
+            logger.warning(
+                "Collision body associated with box geometry is not "
+                "numerically stable for now. Replacing it by contact "
+                "points at the vertices.")
+
+            for i, (box_size, box_origin) in enumerate(zip(
+                    collision_boxes_size, collision_boxes_origin)):
+                vertices = [e.flatten() for e in np.meshgrid(*[
+                    0.5 * v * np.array([-1.0, 1.0]) for v in box_size])]
+                for j, (x, y, z) in enumerate(zip(*vertices)):
+                    frame_name = "_".join((
+                        body_name, "CollisionBox", str(i), str(j)))
+                    vertex_pos_rel = pin.SE3(
+                        np.eye(3), np.array([x, y, z]))
+                    frame_transform = box_origin.act(vertex_pos_rel)
+                    robot.add_frame(frame_name, body_name, frame_transform)
+                    contact_frames_names.append(frame_name)
+        elif body_name in geometry_types['collision']['primitive']:
+            # Do nothing if the primitive is not a box. It should be fine.
+            continue
+
+        # Remove the body from the collision detection set
+        collision_bodies_names.remove(body_name)
+
+        # Early return if collision box primitives have been replaced
+        if collision_boxes_size:
+            continue
+
+        # Replace the collision body by contact points
+        for geometry_object in (
+                geometry_specs['collision']['mesh'][body_name] +
+                geometry_specs['visual']['mesh'][body_name]):
+            # Extract info from geometry object
+            mesh_path = geometry_object.meshPath
+            mesh_scale = geometry_object.meshScale
+            mesh_origin = geometry_object.placement
+
+            # Replace relative mesh path by absolute one
+            if mesh_path.startswith("package://"):
+                mesh_path_orig = mesh_path
+                for root_dir in robot.mesh_package_dirs:
+                    mesh_path = mesh_path_orig.replace(
+                        "package:/", root_dir)
+                    if os.path.exists(mesh_path):
+                        break
+
+            # Compute the minimal volume bounding box, then add new frames to
+            # the robot model at its vertices and register contact points at
+            # their location.
+            try:
+                mesh = trimesh.load(mesh_path)
+            except ValueError:  # Mesh file is not available
+                continue
+            box = mesh.bounding_box_oriented
+            for i in range(8):
+                frame_name = "_".join((body_name, "BoundingBox", str(i)))
+                frame_transform_rel = pin.SE3(
+                    np.eye(3), mesh_scale * np.asarray(box.vertices[i]))
+                frame_transform = mesh_origin.act(frame_transform_rel)
+                robot.add_frame(frame_name, body_name, frame_transform)
+                contact_frames_names.append(frame_name)
+
+    # Add the collision bodies and contact points.
+    # Note that it must be done before adding the sensors because
+    # Contact sensors requires contact points to be defined.
+    # Mesh collisions is not numerically stable for now, so disabling it.
+    # Note: Be careful, the order of the contact points is important, it
+    # changes the computation of the external forces, which is an iterative
+    # algorithm for impulse model, resulting in different simulation
+    # results. The order of the element of the set depends of the `hash`
+    # method of python, whose seed is randomly generated when starting the
+    # interpreter for security reason. As a result, the set must be sorted
+    # manually to ensure consistent results.
+    robot.add_collision_bodies(
+        collision_bodies_names, ignore_meshes=avoid_instable_collisions)
+    robot.add_contact_points(sorted(list(set(contact_frames_names))))
+
+    # Add the motors to the robot
+    for motor_type, motors_descr in motors_info.items():
+        for motor_name, motor_descr in motors_descr.items():
+            # Make sure the motor can be instantiated
+            joint_name = motor_descr.pop('joint_name')
+            if not robot.pinocchio_model.existJointName(joint_name):
+                logger.warning(
+                    f"'{joint_name}' is not a valid joint name.")
+                continue
+
+            # Create the motor and attach it
+            motor = getattr(jiminy, motor_type)(motor_name)
+            robot.attach_motor(motor)
+
+            # Initialize the motor
+            motor.initialize(joint_name)
+
+            # Set the motor options
+            options = motor.get_options()
+            option_fields = options.keys()
+            for name, value in motor_descr.items():
+                if name not in option_fields:
+                    logger.warning(
+                        f"'{name}' is not a valid option for the motor "
+                        f"{motor_name} of type {motor_type}.")
+                options[name] = value
+            options['enableArmature'] = True
+            motor.set_options(options)
+
+    # Add the sensors to the robot
+    for sensor_type, sensors_descr in sensors_info.items():
+        for sensor_name, sensor_descr in sensors_descr.items():
+            # Make sure the sensor can be instantiated
+            if sensor_type == encoder.type:
+                joint_name = sensor_descr.pop('joint_name')
+                if not robot.pinocchio_model.existJointName(joint_name):
+                    logger.warning(
+                        f"'{joint_name}' is not a valid joint name.")
+                    continue
+            elif sensor_type == effort.type:
+                motor_name = sensor_descr.pop('motor_name')
+                if motor_name not in robot.motors_names:
+                    logger.warning(
+                        f"'{motor_name}' is not a valid motor name.")
+                    continue
+
+            # Create the sensor and attach it
+            sensor = getattr(jiminy, sensor_type)(sensor_name)
+            robot.attach_sensor(sensor)
+
+            # Initialize the sensor
+            if sensor_type == encoder.type:
+                sensor.initialize(joint_name)
+            elif sensor_type == effort.type:
+                sensor.initialize(motor_name)
+            elif sensor_type == contact.type:
+                frame_name = sensor_descr.pop('frame_name')
+                sensor.initialize(frame_name)
+            elif sensor_type in [force.type, imu.type]:
+                # Create the frame and add it to the robot model
+                frame_name = sensor_descr.pop('frame_name', None)
+
+                # Create a frame if a frame name has been specified.
+                # In such a case, the body name must be specified.
+                if frame_name is None:
+                    # Get the body name
+                    body_name = sensor_descr.pop('body_name')
+
+                    # Generate a frame name both intelligible and available
+                    i = 0
+                    frame_name = "_".join((
+                        sensor_name, sensor_type, "Frame"))
+                    while robot.pinocchio_model.existFrame(frame_name):
+                        frame_name = "_".join((
+                            sensor_name, sensor_type, "Frame", str(i)))
+                        i += 1
+
+                    # Compute SE3 object representing the frame placement
+                    frame_pose_xyzrpy = np.array(
+                        sensor_descr.pop('frame_pose'))
+                    frame_trans = frame_pose_xyzrpy[:3]
+                    frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
+                    frame_placement = pin.SE3(frame_rot, frame_trans)
+
+                    # Add the frame to the robot model
+                    robot.add_frame(frame_name, body_name, frame_placement)
+
+                # Initialize the sensor
+                sensor.initialize(frame_name)
+            else:
+                raise ValueError(
+                    f"Unsupported sensor type {sensor_type}.")
+
+            # Set the sensor options
+            options = sensor.get_options()
+            option_fields = options.keys()
+            for name, value in sensor_descr.items():
+                if name not in option_fields:
+                    logger.warning(
+                        f"'{name}' is not a valid option for the sensor "
+                        f"{sensor_name} of type {sensor_type}.")
+                options[name] = value
+            sensor.set_options(options)
+
+    return extra_info
 
 
 class BaseJiminyRobot(jiminy.Robot):
@@ -501,13 +781,6 @@ class BaseJiminyRobot(jiminy.Robot):
     required to fully characterize the motors, sensors, contact points and
     collision bodies, along with some of there properties.
 
-    If no collision geometry is associated with the body requiring collision
-    handling, then the visual geometry is used instead, if any. If none is
-    available despite at, then a single contact point is added at body frame.
-
-    For now, every mesh used for collision are replaced by the vertices of the
-    associated minimum volume bounding box, to avoid numerical instabilities.
-
     .. note::
         Overload this class if you need finer-grained capability.
 
@@ -519,7 +792,7 @@ class BaseJiminyRobot(jiminy.Robot):
     def __init__(self) -> None:
         super().__init__()
         self.extra_info = {}
-        self.urdf_path_orig = None
+        self._urdf_path_orig = None
 
     def initialize(self,
                    urdf_path: str,
@@ -545,18 +818,12 @@ class BaseJiminyRobot(jiminy.Robot):
         :param avoid_instable_collisions: Prevent numerical instabilities by
                                           replacing collision mesh by vertices
                                           of associated minimal volume bounding
-                                          box, and replacing primitive box by
-                                          its vertices.
+                                          box, primitive box by its vertices,
+                                          and primitive sphere by its center.
         :param verbose: Whether or not to print warnings.
         """
-        # Handle verbosity level
-        if verbose:
-            logger.setLevel(logging.DEBUG)
-        else:
-            logger.setLevel(logging.ERROR)
-
         # Backup the original URDF path
-        self.urdf_path_orig = urdf_path
+        self._urdf_path_orig = urdf_path
 
         # Fix the URDF mesh paths
         if mesh_path is not None:
@@ -581,7 +848,7 @@ class BaseJiminyRobot(jiminy.Robot):
         # Load the hardware description file if available
         if hardware_path is None:
             hardware_path = str(pathlib.Path(
-                self.urdf_path_orig).with_suffix('')) + '_hardware.toml'
+                self._urdf_path_orig).with_suffix('')) + '_hardware.toml'
 
         self.hardware_path = hardware_path
         if not os.path.exists(hardware_path):
@@ -591,271 +858,13 @@ class BaseJiminyRobot(jiminy.Robot):
                     "hardware to the robot.\n Default file can be generated "
                     "using 'generate_hardware_description_file' method.")
             return
-        hardware_info = toml.load(hardware_path)
-        self.extra_info = hardware_info.pop('Global', {})
-        motors_info = hardware_info.pop('Motor', {})
-        sensors_info = hardware_info.pop('Sensor', {})
 
-        # Parse the URDF
-        tree = ET.parse(urdf_path)
-        root = tree.getroot()
-
-        # Extract the list of bodies having visual and collision meshes or
-        # primitives.
-        geometry_info = {'visual': {'primitive': None, 'mesh': None},
-                         'collision': {'primitive': None, 'mesh': None}}
-        for geometry_type in geometry_info.keys():
-            geometry_links = set(link.get('name') for link in root.findall(
-                f"./link/{geometry_type}/geometry/../.."))
-            mesh_links = [name for name in geometry_links if 'mesh' in set(
-                link[0].tag for link in root.find(
-                    f"./link[@name='{name}']").findall(
-                        f'{geometry_type}/geometry'))]
-            primitive_links = [name for name in geometry_links if set(
-                link[0].tag for link in root.find(
-                    f"./link[@name='{name}']").findall(
-                        f'{geometry_type}/geometry')).difference({'mesh'})]
-            geometry_info[geometry_type]['mesh'] = mesh_links
-            geometry_info[geometry_type]['primitive'] = primitive_links
-
-        # Checking the collision bodies, to make sure they are associated with
-        # supported collision geometries. If not, fixing the issue after
-        # throwing a warning.
-        collision_bodies_names = self.extra_info.pop(
-            'collisionBodiesNames', [])
-        contact_frames_names = self.extra_info.pop('contactFramesNames', [])
-        for body_name in collision_bodies_names.copy():
-            # Filter out the different cases.
-            # After this filter, we know that their is no collision geometry
-            # associated with the body but their is a visual mesh, or there is
-            # only collision meshes.
-            if body_name in geometry_info['collision']['mesh'] and \
-                    body_name in geometry_info['collision']['primitive']:
-                if not avoid_instable_collisions:
-                    continue
-                logger.warning(
-                    "Collision body having both primitive and mesh geometries "
-                    "is not supported. Enabling only primitive collision for "
-                    "this body.")
-                continue
-            elif body_name in geometry_info['collision']['primitive']:
-                pass
-            elif body_name in geometry_info['collision']['mesh']:
-                if not avoid_instable_collisions:
-                    continue
-                logger.warning(
-                    "Collision body associated with mesh geometry is not "
-                    "supported for now. Replacing it by contact points at the "
-                    "vertices of the minimal volume bounding box.")
-            elif body_name not in geometry_info['visual']['mesh']:
-                logger.warning(
-                    "No visual mesh nor collision geometry associated with "
-                    "the collision body. Fallback to adding a single contact "
-                    "point at body frame.")
-                contact_frames_names.append(body_name)
-                continue
-            else:
-                logger.warning(
-                    "No collision geometry associated with the collision "
-                    "body. Fallback to replacing it by contact points at "
-                    "the vertices of the minimal volume bounding box of the "
-                    "available visual meshes.")
-            # Check if collision primitive box are available
-            body_link = root.find(f"./link[@name='{body_name}']")
-            collision_box_sizes_info, collision_box_origin_info = [], []
-            for link in body_link.findall('collision'):
-                box_link = link.find('geometry/box')
-                if box_link is not None:
-                    collision_box_sizes_info.append(box_link.get('size'))
-                    collision_box_origin_info.append(link.find('origin'))
-
-            # Replace the collision boxes by contact points, if any
-            if collision_box_sizes_info:
-                if not avoid_instable_collisions:
-                    continue
-                logger.warning(
-                    "Collision body associated with box geometry is not "
-                    "numerically stable for now. Replacing it by contact "
-                    "points at the vertices.")
-
-                for i, (box_size_info, box_origin_info) in enumerate(zip(
-                        collision_box_sizes_info, collision_box_origin_info)):
-                    box_size = list(map(float, box_size_info.split()))
-                    box_origin = _origin_info_to_se3(box_origin_info)
-                    vertices = [e.flatten() for e in np.meshgrid(*[
-                        0.5 * v * np.array([-1.0, 1.0]) for v in box_size])]
-                    for j, (x, y, z) in enumerate(zip(*vertices)):
-                        frame_name = "_".join((
-                            body_name, "CollisionBox", str(i), str(j)))
-                        vertex_pos_rel = pin.SE3(
-                            np.eye(3), np.array([x, y, z]))
-                        frame_transform = box_origin.act(vertex_pos_rel)
-                        self.add_frame(frame_name, body_name, frame_transform)
-                        contact_frames_names.append(frame_name)
-            elif body_name in geometry_info['collision']['primitive']:
-                # Do nothing if the primitive is not a box. It should be fine.
-                continue
-
-            # Remove the body from the collision detection set
-            collision_bodies_names.remove(body_name)
-
-            # Early return if collision box primitives have been replaced
-            if collision_box_sizes_info:
-                continue
-
-            # Extract meshes paths and origins.
-            if body_name in geometry_info['collision']['mesh']:
-                mesh_links = body_link.findall('collision')
-            else:
-                mesh_links = body_link.findall('visual')
-            mesh_paths = [link.find('geometry/mesh').get('filename')
-                          for link in mesh_links]
-            mesh_scales = [_string_to_array(link.find('geometry/mesh').get(
-                               'scale', '1.0 1.0 1.0'))
-                           for link in mesh_links]
-            mesh_origins = []
-            for link in mesh_links:
-                mesh_origin_info = link.find('origin')
-                mesh_origin_transform = \
-                    _origin_info_to_se3(mesh_origin_info)
-                mesh_origins.append(mesh_origin_transform)
-
-            # Replace the collision body by contact points
-            for mesh_path, mesh_scale, mesh_origin in zip(
-                    mesh_paths, mesh_scales, mesh_origins):
-                # Replace relative mesh path by absolute one
-                if mesh_path.startswith("package://"):
-                    mesh_path_orig = mesh_path
-                    for root_dir in mesh_root_dirs:
-                        mesh_path = mesh_path_orig.replace(
-                            "package:/", root_dir)
-                        if os.path.exists(mesh_path):
-                            break
-
-                # Compute the minimal volume bounding box, then add new frames
-                # to the robot model at its vertices and register contact
-                # points at their location.
-                try:
-                    mesh = trimesh.load(mesh_path)
-                except ValueError:  # Mesh file is not available
-                    continue
-                box = mesh.bounding_box_oriented
-                for i in range(8):
-                    frame_name = "_".join((body_name, "BoundingBox", str(i)))
-                    frame_transform_rel = pin.SE3(
-                        np.eye(3), mesh_scale * np.asarray(box.vertices[i]))
-                    frame_transform = mesh_origin.act(frame_transform_rel)
-                    self.add_frame(frame_name, body_name, frame_transform)
-                    contact_frames_names.append(frame_name)
-
-        # Add the collision bodies and contact points.
-        # Note that it must be done before adding the sensors because
-        # Contact sensors requires contact points to be defined.
-        # Mesh collisions is not numerically stable for now, so disabling it.
-        # Note: Be careful, the order of the contact points is important, it
-        # changes the computation of the external forces, which is an iterative
-        # algorithm for impulse model, resulting in different simulation
-        # results. The order of the element of the set depends of the `hash`
-        # method of python, whose seed is randomly generated when starting the
-        # interpreter for security reason. As a result, the set must be sorted
-        # manually to ensure consistent results.
-        self.add_collision_bodies(
-            collision_bodies_names, ignore_meshes=avoid_instable_collisions)
-        self.add_contact_points(sorted(list(set(contact_frames_names))))
-
-        # Add the motors to the robot
-        for motor_type, motors_descr in motors_info.items():
-            for motor_name, motor_descr in motors_descr.items():
-                # Create the sensor and attach it
-                motor = getattr(jiminy, motor_type)(motor_name)
-                self.attach_motor(motor)
-
-                # Initialize the motor
-                joint_name = motor_descr.pop('joint_name')
-                motor.initialize(joint_name)
-
-                # Set the motor options
-                options = motor.get_options()
-                option_fields = options.keys()
-                for name, value in motor_descr.items():
-                    if name not in option_fields:
-                        logger.warning(
-                            f"'{name}' is not a valid option for the motor "
-                            f"{motor_name} of type {motor_type}.")
-                    options[name] = value
-                options['enableArmature'] = True
-                motor.set_options(options)
-
-        # Add the sensors to the robot
-        for sensor_type, sensors_descr in sensors_info.items():
-            for sensor_name, sensor_descr in sensors_descr.items():
-                # Create the sensor and attach it
-                sensor = getattr(jiminy, sensor_type)(sensor_name)
-                self.attach_sensor(sensor)
-
-                # Initialize the sensor
-                if sensor_type == encoder.type:
-                    joint_name = sensor_descr.pop('joint_name')
-                    sensor.initialize(joint_name)
-                elif sensor_type == effort.type:
-                    motor_name = sensor_descr.pop('motor_name')
-                    sensor.initialize(motor_name)
-                elif sensor_type == contact.type:
-                    frame_name = sensor_descr.pop('frame_name')
-                    sensor.initialize(frame_name)
-                elif sensor_type in [force.type, imu.type]:
-                    # Create the frame and add it to the robot model
-                    frame_name = sensor_descr.pop('frame_name', None)
-
-                    # Create a frame if a frame name has been specified.
-                    # In such a case, the body name must be specified.
-                    if frame_name is None:
-                        # Get the body name
-                        body_name = sensor_descr.pop('body_name')
-
-                        # Generate a frame name both intelligible and available
-                        i = 0
-                        frame_name = "_".join((
-                            sensor_name, sensor_type, "Frame"))
-                        while self.pinocchio_model.existFrame(frame_name):
-                            frame_name = "_".join((
-                                sensor_name, sensor_type, "Frame", str(i)))
-                            i += 1
-
-                        # Compute SE3 object representing the frame placement
-                        frame_pose_xyzrpy = np.array(
-                            sensor_descr.pop('frame_pose'))
-                        frame_trans = frame_pose_xyzrpy[:3]
-                        frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
-                        frame_placement = pin.SE3(frame_rot, frame_trans)
-
-                        # Add the frame to the robot model
-                        self.add_frame(frame_name, body_name, frame_placement)
-
-                    # Initialize the sensor
-                    sensor.initialize(frame_name)
-                else:
-                    raise ValueError(
-                        f"Unsupported sensor type {sensor_type}.")
-
-                # Set the sensor options
-                options = sensor.get_options()
-                option_fields = options.keys()
-                for name, value in sensor_descr.items():
-                    if name not in option_fields:
-                        logger.warning(
-                            f"'{name}' is not a valid option for the sensor "
-                            f"{sensor_name} of type {sensor_type}.")
-                    options[name] = value
-                sensor.set_options(options)
+        self.extra_info = load_hardware_description_file(
+            self, hardware_path, avoid_instable_collisions, verbose)
 
     def __del__(self) -> None:
-        if self.urdf_path != self.urdf_path_orig:
+        if self.urdf_path != self._urdf_path_orig:
             try:
                 os.remove(self.urdf_path)
             except (PermissionError, FileNotFoundError):
                 pass
-
-    @property
-    def name(self) -> str:
-        return self.pinocchio_model.name

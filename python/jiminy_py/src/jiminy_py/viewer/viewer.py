@@ -626,16 +626,9 @@ class Viewer:
             self.f_external.extend([
                 pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
 
-        # Create robot visual model.
-        # Note that it does not actually loads the meshes if possible, since
-        # the rendering backend will reload them anyway.
-        visual_model = jiminy.build_geom_from_urdf(
-            pinocchio_model, self.urdf_path, pin.GeometryType.VISUAL,
-            robot.mesh_package_dirs, load_meshes=False)
-
         # Create backend wrapper to get (almost) backend-independent API
         self._client = backends_available[Viewer.backend](
-            pinocchio_model, robot.collision_model, visual_model)
+            pinocchio_model, robot.collision_model, robot.visual_model)
         self._client.data = pinocchio_data
         self._client.collision_data = robot.collision_data
 
@@ -1057,6 +1050,12 @@ class Viewer:
         # Get the URDF path and mesh directory search paths if any
         urdf_path = robot.urdf_path
         mesh_package_dirs = robot.mesh_package_dirs
+
+        # Make sure the robot is associated with an existing URDF
+        if not urdf_path:
+            raise RuntimeError(
+                "Impossible to call this method if the robot is not "
+                "associated with any URDF.")
 
         # Define color tag and string representation
         color_tag = " ".join(map(str, list(rgb) + [1.0]))

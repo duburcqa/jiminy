@@ -8,20 +8,20 @@ controllerUpdatePeriod = 0.01
 logInternalStepperSteps = false
 randomSeed = 0
 
-# ============== Contact dynamics ===============
+# ============== Ground dynamics ===============
 
 [engine.contacts]
 model = "impulse"
 solver = "PGS"
 tolAbs = 1.0e-4
 tolRel = 1.0e-3
-regularization = 1.0e-1
-stabilizationFreq = 5.0
-transitionEps = 1.0e-2
+regularization = 2.0e-3
+stabilizationFreq = 20.0
+transitionEps = 5.0e-3
 friction = 1.0
 
 # ======== Joints bounds configuration ========
 
 [system.robot.model.joints]
 enablePositionLimit = true
-enableVelocityLimit = false
+enableVelocityLimit = true

@@ -801,9 +801,13 @@ class Simulator:
         """
         if config_path is None:
             if isinstance(self.robot, BaseJiminyRobot):
-                urdf_path = self.robot.urdf_path_orig
+                urdf_path = self.robot._urdf_path_orig
             else:
                 urdf_path = self.robot.urdf_path
+            if not urdf_path:
+                raise ValueError(
+                    "'config_path' must be provided if the robot is not "
+                    "associated with any URDF.")
             config_path = str(pathlib.Path(
                 urdf_path).with_suffix('')) + '_options.toml'
         with open(config_path, 'w') as f:
@@ -833,9 +837,13 @@ class Simulator:
 
         if config_path is None:
             if isinstance(self.robot, BaseJiminyRobot):
-                urdf_path = self.robot.urdf_path_orig
+                urdf_path = self.robot._urdf_path_orig
             else:
                 urdf_path = self.robot.urdf_path
+            if not urdf_path:
+                raise ValueError(
+                    "'config_path' must be provided if the robot is not "
+                    "associated with any URDF.")
             config_path = str(pathlib.Path(
                 urdf_path).with_suffix('')) + '_options.toml'
             if not os.path.exists(config_path):

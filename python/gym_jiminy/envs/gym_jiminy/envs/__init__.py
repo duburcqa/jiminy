@@ -6,7 +6,10 @@ from .ant import AntEnv
 from .spotmicro import SpotmicroJiminyEnv
 from .cassie import CassieJiminyEnv, CassiePDControlJiminyEnv
 from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
-from .atlas import AtlasJiminyEnv, AtlasPDControlJiminyEnv
+from .atlas import (AtlasJiminyEnv,
+                    AtlasReducedJiminyEnv,
+                    AtlasPDControlJiminyEnv,
+                    AtlasReducedPDControlJiminyEnv)
 
 
 __all__ = [
@@ -20,7 +23,9 @@ __all__ = [
     'ANYmalJiminyEnv',
     'ANYmalPDControlJiminyEnv',
     'AtlasJiminyEnv',
-    'AtlasPDControlJiminyEnv'
+    'AtlasReducedJiminyEnv',
+    'AtlasPDControlJiminyEnv',
+    'AtlasReducedPDControlJiminyEnv'
 ]
 
 register(
@@ -66,6 +71,14 @@ register(
     entry_point='gym_jiminy.envs:AtlasJiminyEnv'
 )
 register(
+    id='atlas-reduced-v0',
+    entry_point='gym_jiminy.envs:AtlasReducedJiminyEnv'
+)
+register(
     id='atlas-pid-v0',
     entry_point='gym_jiminy.envs:AtlasPDControlJiminyEnv'
+)
+register(
+    id='atlas-reduced-pid-v0',
+    entry_point='gym_jiminy.envs:AtlasReducedPDControlJiminyEnv'
 )

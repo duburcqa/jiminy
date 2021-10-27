@@ -136,7 +136,7 @@ jobs:
         packages_dir: build/wheelhouse
     - name: Publish on PyPi the wheel of Gym Jiminy (Any platform / Any python3 version)
       if: >-
-        success() && matrix.container == 'quay.io/pypa/manylinux2010_x86_64' && matrix.PYTHON_VERSION == 'cp36' && matrix.legacy == false &&
+        success() && matrix.container == 'quay.io/pypa/manylinux2014_x86_64' && matrix.PYTHON_VERSION == 'cp36' && matrix.legacy == false &&
         github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:

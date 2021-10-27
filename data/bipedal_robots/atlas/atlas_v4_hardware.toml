@@ -1,0 +1,382 @@
+[Global]
+collisionBodiesNames = ["l_foot", "r_foot"]
+contactFramesNames = []
+
+# ================== Motors ==================
+
+[Motor.SimpleMotor.neck_ry]
+joint_name = "neck_ry"
+armature = 0.1
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.back_bkz]
+joint_name = "back_bkz"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.back_bky]
+joint_name = "back_bky"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.back_bkx]
+joint_name = "back_bkx"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_arm_shz]
+joint_name = "l_arm_shz"
+armature = 0.2
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_arm_shx]
+joint_name = "l_arm_shx"
+armature = 0.2
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_arm_ely]
+joint_name = "l_arm_ely"
+armature = 0.2
+frictionViscousPositive = -0.2
+frictionViscousNegative = -0.2
+
+[Motor.SimpleMotor.l_arm_elx]
+joint_name = "l_arm_elx"
+armature = 0.2
+frictionViscousPositive = -0.2
+frictionViscousNegative = -0.2
+
+[Motor.SimpleMotor.l_arm_wry]
+joint_name = "l_arm_wry"
+armature = 0.1
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_arm_wrx]
+joint_name = "l_arm_wrx"
+armature = 0.1
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_arm_wry2]
+joint_name = "l_arm_wry2"
+armature = 0.1
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_arm_shz]
+joint_name = "r_arm_shz"
+armature = 0.2
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_arm_shx]
+joint_name = "r_arm_shx"
+armature = 0.2
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_arm_ely]
+joint_name = "r_arm_ely"
+armature = 0.2
+frictionViscousPositive = -0.2
+frictionViscousNegative = -0.2
+
+[Motor.SimpleMotor.r_arm_elx]
+joint_name = "r_arm_elx"
+armature = 0.2
+frictionViscousPositive = -0.2
+frictionViscousNegative = -0.2
+
+[Motor.SimpleMotor.r_arm_wry]
+joint_name = "r_arm_wry"
+armature = 0.1
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_arm_wrx]
+joint_name = "r_arm_wrx"
+armature = 0.1
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_arm_wry2]
+joint_name = "r_arm_wry2"
+armature = 0.1
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_leg_hpx]
+joint_name = "l_leg_hpx"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_leg_hpz]
+joint_name = "l_leg_hpz"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_leg_hpy]
+joint_name = "l_leg_hpy"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_leg_kny]
+joint_name = "l_leg_kny"
+armature = 0.6
+frictionViscousPositive = -0.2
+frictionViscousNegative = -0.2
+
+[Motor.SimpleMotor.l_leg_aky]
+joint_name = "l_leg_aky"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_leg_akx]
+joint_name = "l_leg_akx"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_leg_hpx]
+joint_name = "r_leg_hpx"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_leg_hpz]
+joint_name = "r_leg_hpz"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_leg_hpy]
+joint_name = "r_leg_hpy"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_leg_kny]
+joint_name = "r_leg_kny"
+armature = 0.6
+frictionViscousPositive = -0.2
+frictionViscousNegative = -0.2
+
+[Motor.SimpleMotor.r_leg_aky]
+joint_name = "r_leg_aky"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_leg_akx]
+joint_name = "r_leg_akx"
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+# =============== IMU sensors =================
+
+[Sensor.ImuSensor.pelvis]
+frame_name = "pelvis"
+
+# ============= Force sensors ===============
+
+[Sensor.ForceSensor.l_foot]
+frame_name = "l_foot"
+
+[Sensor.ForceSensor.r_foot]
+frame_name = "r_foot"
+
+# ============= Effort sensors ===============
+
+[Sensor.EffortSensor.neck_ry]
+motor_name = "neck_ry"
+
+[Sensor.EffortSensor.back_bkz]
+motor_name = "back_bkz"
+
+[Sensor.EffortSensor.back_bky]
+motor_name = "back_bky"
+
+[Sensor.EffortSensor.back_bkx]
+motor_name = "back_bkx"
+
+[Sensor.EffortSensor.l_arm_shz]
+motor_name = "l_arm_shz"
+
+[Sensor.EffortSensor.l_arm_shx]
+motor_name = "l_arm_shx"
+
+[Sensor.EffortSensor.l_arm_ely]
+motor_name = "l_arm_ely"
+
+[Sensor.EffortSensor.l_arm_elx]
+motor_name = "l_arm_elx"
+
+[Sensor.EffortSensor.l_arm_wry]
+motor_name = "l_arm_wry"
+
+[Sensor.EffortSensor.l_arm_wrx]
+motor_name = "l_arm_wrx"
+
+[Sensor.EffortSensor.l_arm_wry2]
+motor_name = "l_arm_wry2"
+
+[Sensor.EffortSensor.r_arm_shz]
+motor_name = "r_arm_shz"
+
+[Sensor.EffortSensor.r_arm_shx]
+motor_name = "r_arm_shx"
+
+[Sensor.EffortSensor.r_arm_ely]
+motor_name = "r_arm_ely"
+
+[Sensor.EffortSensor.r_arm_elx]
+motor_name = "r_arm_elx"
+
+[Sensor.EffortSensor.r_arm_wry]
+motor_name = "r_arm_wry"
+
+[Sensor.EffortSensor.r_arm_wrx]
+motor_name = "r_arm_wrx"
+
+[Sensor.EffortSensor.r_arm_wry2]
+motor_name = "r_arm_wry2"
+
+[Sensor.EffortSensor.l_leg_hpx]
+motor_name = "l_leg_hpx"
+
+[Sensor.EffortSensor.l_leg_hpz]
+motor_name = "l_leg_hpz"
+
+[Sensor.EffortSensor.l_leg_hpy]
+motor_name = "l_leg_hpy"
+
+[Sensor.EffortSensor.l_leg_kny]
+motor_name = "l_leg_kny"
+
+[Sensor.EffortSensor.l_leg_aky]
+motor_name = "l_leg_aky"
+
+[Sensor.EffortSensor.l_leg_akx]
+motor_name = "l_leg_akx"
+
+[Sensor.EffortSensor.r_leg_hpx]
+motor_name = "r_leg_hpx"
+
+[Sensor.EffortSensor.r_leg_hpz]
+motor_name = "r_leg_hpz"
+
+[Sensor.EffortSensor.r_leg_hpy]
+motor_name = "r_leg_hpy"
+
+[Sensor.EffortSensor.r_leg_kny]
+motor_name = "r_leg_kny"
+
+[Sensor.EffortSensor.r_leg_aky]
+motor_name = "r_leg_aky"
+
+[Sensor.EffortSensor.r_leg_akx]
+motor_name = "r_leg_akx"
+
+# ============= Encoder sensors ===============
+
+[Sensor.EncoderSensor.neck_ry]
+joint_name = "neck_ry"
+
+[Sensor.EncoderSensor.back_bkz]
+joint_name = "back_bkz"
+
+[Sensor.EncoderSensor.back_bky]
+joint_name = "back_bky"
+
+[Sensor.EncoderSensor.back_bkx]
+joint_name = "back_bkx"
+
+[Sensor.EncoderSensor.l_arm_shz]
+joint_name = "l_arm_shz"
+
+[Sensor.EncoderSensor.l_arm_shx]
+joint_name = "l_arm_shx"
+
+[Sensor.EncoderSensor.l_arm_ely]
+joint_name = "l_arm_ely"
+
+[Sensor.EncoderSensor.l_arm_elx]
+joint_name = "l_arm_elx"
+
+[Sensor.EncoderSensor.l_arm_wry]
+joint_name = "l_arm_wry"
+
+[Sensor.EncoderSensor.l_arm_wrx]
+joint_name = "l_arm_wrx"
+
+[Sensor.EncoderSensor.l_arm_wry2]
+joint_name = "l_arm_wry2"
+
+[Sensor.EncoderSensor.r_arm_shz]
+joint_name = "r_arm_shz"
+
+[Sensor.EncoderSensor.r_arm_shx]
+joint_name = "r_arm_shx"
+
+[Sensor.EncoderSensor.r_arm_ely]
+joint_name = "r_arm_ely"
+
+[Sensor.EncoderSensor.r_arm_elx]
+joint_name = "r_arm_elx"
+
+[Sensor.EncoderSensor.r_arm_wry]
+joint_name = "r_arm_wry"
+
+[Sensor.EncoderSensor.r_arm_wrx]
+joint_name = "r_arm_wrx"
+
+[Sensor.EncoderSensor.r_arm_wry2]
+joint_name = "r_arm_wry2"
+
+[Sensor.EncoderSensor.l_leg_hpx]
+joint_name = "l_leg_hpx"
+
+[Sensor.EncoderSensor.l_leg_hpz]
+joint_name = "l_leg_hpz"
+
+[Sensor.EncoderSensor.l_leg_hpy]
+joint_name = "l_leg_hpy"
+
+[Sensor.EncoderSensor.l_leg_kny]
+joint_name = "l_leg_kny"
+
+[Sensor.EncoderSensor.l_leg_aky]
+joint_name = "l_leg_aky"
+
+[Sensor.EncoderSensor.l_leg_akx]
+joint_name = "l_leg_akx"
+
+[Sensor.EncoderSensor.r_leg_hpx]
+joint_name = "r_leg_hpx"
+
+[Sensor.EncoderSensor.r_leg_hpz]
+joint_name = "r_leg_hpz"
+
+[Sensor.EncoderSensor.r_leg_hpy]
+joint_name = "r_leg_hpy"
+
+[Sensor.EncoderSensor.r_leg_kny]
+joint_name = "r_leg_kny"
+
+[Sensor.EncoderSensor.r_leg_aky]
+joint_name = "r_leg_aky"
+
+[Sensor.EncoderSensor.r_leg_akx]
+joint_name = "r_leg_akx"

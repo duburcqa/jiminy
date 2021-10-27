@@ -153,7 +153,8 @@ class TabbedFigure:
         else:
             num_rows, num_cols = map(int, (num_rows_2, num_cols_2))
         for i, ax in enumerate(axes, 1):
-            ax.change_geometry(num_rows, num_cols, i)
+            ax.set_subplotspec(plt.GridSpec(
+                num_rows, num_cols, figure=self.figure)[i - 1])
 
         # Adjust layout: namely margins between subplots
         right_margin = 0.03
