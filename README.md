@@ -52,7 +52,7 @@ Pre-configured environments for some well-known toys models and reference roboti
 
 ## Demo
 
-<a href="./examples/tutorial.ipynb">
+<a href="./examples/python/tutorial.ipynb">
 <p align="middle">
   <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_plot_log.png" alt="" width="49.0%"/>
   <img src="https://raw.github.com/duburcqa/jiminy/readme/jiminy_viewer_open.png" alt="" width="49.0%"/>

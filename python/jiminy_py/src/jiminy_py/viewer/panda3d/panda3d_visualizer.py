@@ -19,13 +19,13 @@ import simplepbr
 from panda3d.core import (
     NodePath, Point3, Vec3, Mat4, Quat, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
-    GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
+    GeomVertexWriter, GraphicsWindow, PNMImage, RenderModeAttrib, InternalName,
     OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
     Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
     TransparencyAttrib, OrthographicLens, ClockObject, Shader, ShaderAttrib,
     AntialiasAttrib, GraphicsPipe, WindowProperties, FrameBufferProperties,
     CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
-    RenderModeAttrib, loadPrcFileData)
+    loadPrcFileData)
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
@@ -779,12 +779,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     (0.7, 0.7, 0.7, 1.0)  # wireframe_color
                 ))
 
+        # Make the floor two-sided, so that it is not possible to see through
+        # from below.
+        node.set_two_sided(True)
+
         # simplepbr shader must be by-passed to avoid having to specify a
         # material instead of a color.
         node.set_shader_auto(True)
-
-        # simplepbr shader is not working properly with two_sided nodes
-        node.set_two_sided(True)
 
         return node
 
@@ -941,33 +942,42 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         :param no_cache: Use cache to load a model.
                          Optional: may depend on the mesh file.
         """
+        # Load the mesh
         mesh = self.loader.loadModel(mesh_path, noCache=no_cache)
+
+        # Fix the orientation of the mesh if it has '.dae' extension
         if mesh_path.lower().endswith('.dae'):
+            # Replace non-standard hard drive prefix on Windows
+            if sys.platform.startswith('win'):
+                mesh_path = re.sub(
+                    r'^/([A-Za-z])', lambda m: m[1].upper() + ":", mesh_path)
+
+            # Parse the mesh file toe extract axis up if provided
             def parse_xml(xml_path: str) -> Tuple[ET.Element, Dict[str, str]]:
                 xml_iter = ET.iterparse(xml_path, events=["start-ns"])
                 xml_namespaces = dict(prefix_namespace_pair
                                       for _, prefix_namespace_pair in xml_iter)
                 return xml_iter.root, xml_namespaces
 
-            # Replace non-standard hard drive prefix on Windows
-            if sys.platform.startswith('win'):
-                mesh_path = re.sub(
-                    r'^/([A-Za-z])', lambda m: m[1].upper() + ":", mesh_path)
-
             root, ns = parse_xml(mesh_path)
             if ns:
                 field_axis = root.find(f".//{{{ns['']}}}up_axis")
             else:
                 field_axis = root.find(".//up_axis")
+
+            # Change the orientation of the mesh if necessary
             if field_axis is not None:
                 axis = field_axis.text.lower()
                 if axis == 'z_up':
                     mesh.set_mat(Mat4.yToZUpMat())
+
+        # Set the scale of the mesh
         if scale is not None:
             mesh.set_scale(*scale)
-            if sum([s < 0 for s in scale]) % 2 != 0:
-                # reverse the cull order in case of negative scale values
-                mesh.set_attrib(CullFaceAttrib.make_reverse())
+
+        # Render meshes two-sided in panda3d to avoid seeing through it
+        mesh.set_two_sided(True)
+
         self.append_node(root_path, name, mesh, frame)
 
     def set_watermark(self,
