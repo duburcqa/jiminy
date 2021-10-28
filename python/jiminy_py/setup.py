@@ -1,4 +1,3 @@
-import sys
 from setuptools import setup, dist, find_packages
 from setuptools.command.install import install
 
@@ -18,13 +17,6 @@ class InstallPlatlib(install):
         super().finalize_options()
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
-
-
-# Matplotlib>=3.3 is broken on Windows 64 bits and cannot be installed properly
-if sys.platform.startswith("win"):
-    matplotlib_spec = "<3.3"
-else:
-    matplotlib_spec = ""
 
 
 setup(
@@ -81,7 +73,6 @@ setup(
     ]},
     install_requires=[
         # Used internally by Viewer to read/write snapshots.
-        # >= 8.0 is required to support Python3.9.
         "pillow",
         # Add support of TypedDict to any Python 3 version.
         # 3.10.0 adds 'ParamSpec' that is required for pylint>=2.11.1.
@@ -102,7 +93,7 @@ setup(
         # 1.2.0 fixes `fmin_slsqp` optimizer returning wrong `imode` ouput.
         "scipy>=1.2.0",
         # Standard library to generate figures.
-        f"matplotlib{matplotlib_spec}",
+        "matplotlib",
         # Used internally to read HDF5 format log files.
         # No wheel is distributed for PyPy on pypi, but pip is able to build
         # from source without additionnal dependencies.
@@ -115,16 +106,19 @@ setup(
         # Parser for Jiminy's hardware description file.
         "toml",
         # Web-based mesh visualizer used as Viewer's backend.
-        # 0.0.19 introduces many new features, including loading generic
-        # geometries and jiminy_py viewer releases on it for rendering
-        # collision bodies.
-        # 0.3.1 updates threejs from 122 to 132, breakin compatibility with the
-        # old, now deprecated, geometry class used to internally to display
+        # 0.0.18 introduces many new features, including loading generic
+        # geometries and jiminy_py viewer relies on it to render collision
+        # bodies.
+        # 0.0.19 updates threejs from 122 to 132, breakin compatibility with
+        # the old, now deprecated, geometry class used to internally to display
         # tile floor.
         "meshcat>=0.0.19",
-        # Standalone mesh visualizer used as Viewer's backend.
+        # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
         # Panda3d is NOT supported by PyPy and cannot be built from source.
+        "panda3d>=1.10.9",
+        # Provide helper methods and class to make it easier to use panda3d for
+        # robotic applications.
         "panda3d_viewer",
         # Photo-realistic shader for Panda3d to improve rendering of meshes.
         "panda3d_simplepbr",
