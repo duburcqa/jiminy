@@ -69,7 +69,7 @@ def compute_distance_convex_to_ray(
         points: np.ndarray,
         vertex_indices: np.ndarray,
         query_vector: np.ndarray,
-        query_origin: np.ndarray) -> np.ndarray:
+        query_origin: np.ndarray) -> float:
     """ TODO: Write documentation.
     """
     # pylint: disable=misplaced-comparison-constant
@@ -93,7 +93,7 @@ def compute_distance_convex_to_ray(
             if proj.dot(query_vector) > 0.0:
                 return np.linalg.norm(proj)
 
-    return None  # This case cannot happens because for the explicit check
+    return 0.0  # This case cannot happens because for the explicit check
 
 
 class ConvexHull:
@@ -109,7 +109,7 @@ class ConvexHull:
         assert len(points) > 0, "The length of 'points' must be at least 1."
 
         # Backup user argument(s)
-        self._points = points
+        self._points = np.ascontiguousarray(points)
 
         # Create convex full if possible
         if len(self._points) > 2:

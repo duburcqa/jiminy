@@ -3,8 +3,8 @@
 import math
 from typing import Tuple
 
-import numba as nb
 import numpy as np
+import numba as nb
 
 
 @nb.jit(nopython=True, nogil=True)
