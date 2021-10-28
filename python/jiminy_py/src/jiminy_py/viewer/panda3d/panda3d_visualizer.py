@@ -15,14 +15,15 @@ import matplotlib.pyplot as plt
 from matplotlib import font_manager
 from matplotlib.patches import Patch
 
+import simplepbr
 from panda3d.core import (
-    NodePath, Point3, Vec3, Vec4, Mat4, Quat, LQuaternion, Material, Geom,
-    GeomEnums, GeomNode, GeomVertexData, GeomTriangles, GeomVertexArrayFormat,
-    GeomVertexFormat, GeomVertexWriter, CullFaceAttrib, GraphicsWindow,
-    PNMImage, InternalName, OmniBoundingVolume, CompassEffect, BillboardEffect,
-    Filename, TextNode, Texture, TextureStage, PNMImageHeader, PGTop, Camera,
-    PerspectiveLens, TransparencyAttrib, OrthographicLens, ClockObject,
-    GraphicsPipe, WindowProperties, FrameBufferProperties, AntialiasAttrib,
+    NodePath, Point3, Vec3, Mat4, Quat, LQuaternion, Geom, GeomEnums, GeomNode,
+    GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
+    GeomVertexWriter, CullFaceAttrib, GraphicsWindow, PNMImage, InternalName,
+    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
+    Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
+    TransparencyAttrib, OrthographicLens, ClockObject, Shader, ShaderAttrib,
+    AntialiasAttrib, GraphicsPipe, WindowProperties, FrameBufferProperties,
     CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
     RenderModeAttrib, loadPrcFileData)
 from direct.showbase.ShowBase import ShowBase
@@ -34,7 +35,6 @@ import panda3d_viewer.viewer
 import panda3d_viewer.viewer_app
 import panda3d_viewer.viewer_proxy
 from panda3d_viewer import geometry
-from panda3d_viewer import ViewerConfig as Panda3dViewerConfig
 from panda3d_viewer.viewer_errors import ViewerClosedError
 
 import hppfcl
@@ -51,7 +51,7 @@ LEGEND_SCALE = 0.3
 CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.05
 
-PANDA3D_FRAMERATE_MAX = 30
+PANDA3D_FRAMERATE_MAX = 40
 
 
 Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
@@ -158,10 +158,11 @@ def make_gradient_skybox(sky_color: Tuple3FType,
     node.add_geom(geom)
     node.set_bounds(OmniBoundingVolume())
     prism = NodePath(node)
-    prism.set_light_off(1)
     prism.set_bin("background", 0)
     prism.set_depth_write(False)
     prism.set_depth_test(False)
+    prism.set_light_off()
+    prism.set_shader_off()
 
     return prism
 
@@ -239,12 +240,12 @@ def make_heightmap(heightmap: np.ndarray) -> Geom:
     for i in range(dim - 1):
         for j in range(1, dim - 1):
             k = j * dim + i
-            indices[tri_idx] = k + 1, k, k + dim
-            indices[tri_idx + 1] = k, k + 1, k + 1 - dim
+            indices[tri_idx] = k, k + 1, k + dim
+            indices[tri_idx + 1] = k + 1, k, k + 1 - dim
             tri_idx += 2
         k = (dim - 1) * dim + i
-        indices[tri_idx] = i + 1, i, i + dim
-        indices[tri_idx + 1] = k, k + 1, k + 1 - dim
+        indices[tri_idx] = i, i + 1, i + dim
+        indices[tri_idx + 1] = k + 1, k, k + 1 - dim
         tri_idx += 2
     tris_array.unclean_set_num_rows(indices.size)
     memview = memoryview(tris_array)
@@ -258,9 +259,8 @@ def make_heightmap(heightmap: np.ndarray) -> Geom:
 
 
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, config) -> None:
         # Enforce viewer configuration
-        config = Panda3dViewerConfig()
         config.set_window_size(*WINDOW_SIZE_DEFAULT)
         config.set_window_fixed(False)
         config.enable_antialiasing(True, multisamples=2)
@@ -274,7 +274,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
         config.set_value('default-near', 0.1)
-        config.set_value('assimp-optimize-graph', True)
         config.set_value('gl-version', '3 1')
         config.set_value('notify-level', 'error')
         config.set_value('notify-level-x11display', 'fatal')
@@ -289,10 +288,31 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Note that the original constructor is by-passed on purpose.
         ShowBase.__init__(self)
 
-        # Configure rendering
-        self.render.set_shader_auto()
+        # Active enhanced rendering if dedicated NVIDIA GPU is used.
+        # Note that shadow resolution larger than 1024 significatly affects
+        # the frame rate on Intel GPU chipsets: going from 1024 to 2048 makes
+        # it drop from 60FPS to 30FPS.
+        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+            self._shadow_size = 4096
+        else:
+            self._shadow_size = 1024
+
+        # Make sure we have AA for if/when MSAA is enabled
         self.render.set_antialias(
             AntialiasAttrib.M_auto | AntialiasAttrib.M_faster)
+
+        # Configure the shader
+        shader_options = {
+            'MAX_LIGHTS': 2,
+            'USE_NORMAL_MAP': '',
+            'ENABLE_SHADOWS': '',
+            'USE_OCCLUSION_MAP': ''
+        }
+        pbr_vert = simplepbr._load_shader_str('simplepbr.vert', shader_options)
+        pbr_frag = simplepbr._load_shader_str('simplepbr.frag', shader_options)
+        pbrshader = Shader.make(
+            Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
+        self.render.set_attrib(ShaderAttrib.make(pbrshader))
 
         # Define default camera pos
         self._camera_defaults = CAMERA_POS_DEFAULT
@@ -302,23 +322,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.clock = ClockObject.get_global_clock()
         self.framerate = None
 
-        # Configure lighting and shadows
-        # Note that shadow resolution larger than 1024 significatly affects
-        # the frame rate on Intel GPU chipsets: going from 1024 to 2048 makes
-        # it drop from 60FPS to 30FPS.
-        self._spotlight = self.config.GetBool('enable-spotlight', False)
-        self._shadow_size = self.config.GetInt('shadow-buffer-size', 1024)
-        self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
-                        self._make_light_direct(
-                            1, (0.5, 0.5, 0.5), pos=(8.0, 8.0, 10.0))]
-        self._lights_mask = [True, True]
-        self.enable_lights(True)
-
         # Create default scene objects
         self._fog = self._make_fog()
         self._axes = self._make_axes()
         self._grid = self._make_grid()
         self._floor = self._make_floor()
+
+        # Configure lighting and shadows
+        self._spotlight = self.config.GetBool('enable-spotlight', False)
+        self._lights = [self._make_light_ambient((0.6, 0.6, 0.6)),
+                        self._make_light_direct(
+                            1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
+        self._lights_mask = [True, True]
 
         # Create scene tree
         self._scene_root = self.render.attach_new_node('scene_root')
@@ -724,13 +739,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                            ) -> NodePath:
         """Patched to fix wrong color alpha.
         """
-        node = super()._make_light_direct(index, color, pos, target)
-        node.get_node(0).set_color((*color, 1.0))
-        return node
+        light_path = super()._make_light_direct(index, color, pos, target)
+        light_path.get_node(0).set_color((*color, 1.0))
+        return light_path
 
     def _make_axes(self) -> NodePath:
         node = super()._make_axes()
         node.set_scale(0.3)
+        node.set_shader_off()
         return node
 
     def _make_floor(self,
@@ -752,13 +768,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                         tile_path.set_color((0.13, 0.13, 0.2, 1.0))
         else:
             model.add_geom(make_heightmap(heightmap))
-            material = Material()
-            material.set_ambient(Vec4(0.95, 0.95, 1.0, 1.0))
-            material.set_diffuse(Vec4(0.95, 0.95, 1.0, 1.0))
-            material.set_specular(Vec3(1.0, 1.0, 1.0))
-            material.set_roughness(0.4)
-            node.set_material(material, 1)
-            # node.set_color((0.95, 0.95, 1.0, 1.0))
+            node.set_color((0.75, 0.75, 0.85, 1.0))
             if show_meshes:
                 render_attrib = node.get_state().get_attrib_def(
                     RenderModeAttrib.get_class_slot())
@@ -769,6 +779,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     (0.7, 0.7, 0.7, 1.0)  # wireframe_color
                 ))
 
+        # simplepbr shader must be by-passed to avoid having to specify a
+        # material instead of a color.
+        node.set_shader_auto(True)
+
+        # simplepbr shader is not working properly with two_sided nodes
         node.set_two_sided(True)
 
         return node
@@ -786,8 +801,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                           renders a flat tile ground if not specified.
                           Optional: None by default.
         """
+        # Remove existing floor and create a new one
         self._floor.remove_node()
         self._floor = self._make_floor(heightmap, show_meshes)
+
+        # Adjust frustum of the lights to project shadow over the whole scene
+        for light_path in self._lights[1:]:
+            bmin, bmax = self._floor.get_tight_bounds(light_path)
+            lens = light_path.get_node(0).get_lens()
+            lens.set_film_offset((bmin.xz + bmax.xz) * 0.5)
+            lens.set_film_size(bmax.xz - bmin.xz)
+            lens.set_near_far(bmin.y, bmax.y)
 
     def append_group(self,
                      root_path: str,
@@ -915,7 +939,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         :param frame: Local frame position and quaternion.
                       Optional: ((0., 0., 0.), (0., 0., 0., 0.)) by default.
         :param no_cache: Use cache to load a model.
-                        Optional: may depend on the mesh file.
+                         Optional: may depend on the mesh file.
         """
         mesh = self.loader.loadModel(mesh_path, noCache=no_cache)
         if mesh_path.lower().endswith('.dae'):

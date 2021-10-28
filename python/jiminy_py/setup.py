@@ -126,6 +126,8 @@ setup(
         # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
         # Panda3d is NOT supported by PyPy and cannot be built from source.
         "panda3d_viewer",
+        # Photo-realistic shader for Panda3d to improve rendering of meshes.
+        "panda3d_simplepbr",
         # Used internally by Viewer to record video programmatically when
         # Meshcat is not used as rendering backend.
         # Cross-platform precompiled binary wheels are provided since 8.0.0.
