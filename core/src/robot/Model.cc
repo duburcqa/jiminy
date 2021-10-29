@@ -272,7 +272,7 @@ namespace jiminy
             visualModelOrig_ = visualModel;
 
             // Add ground geometry object to collision model is not already available
-            if (!collisionModel_.existGeometryName("ground"))
+            if (!collisionModelOrig_.existGeometryName("ground"))
             {
                 // Instantiate ground FCL box geometry, wrapped as a pinocchio collision geometry.
                 // Note that half-space cannot be used for Shape-Shape collision because it has no
@@ -288,7 +288,7 @@ namespace jiminy
                 pinocchio::GeometryObject groundPlane("ground", 0, 0, groudBox, groundPose);
 
                 // Add the ground plane pinocchio to the robot model
-                collisionModel_.addGeometryObject(groundPlane, pncModelOrig_);
+                collisionModelOrig_.addGeometryObject(groundPlane, pncModelOrig_);
             }
 
             // Backup the original model and data
@@ -526,7 +526,7 @@ namespace jiminy
             return hresult_t::SUCCESS;  // Nothing to do. Returning early.
         }
 
-        if (collisionModel_.ngeoms == 0)  // If successfully loaded, the ground should be available
+        if (collisionModelOrig_.ngeoms == 0)  // If successfully loaded, the ground should be available
         {
             PRINT_ERROR("Collision geometry not available. Some collision meshes were probably not found.");
             return hresult_t::ERROR_INIT_FAILED;
@@ -560,7 +560,7 @@ namespace jiminy
         for (std::string const & name : bodyNames)
         {
             bool_t hasGeometry = false;
-            for (pinocchio::GeometryObject const & geom : collisionModel_.geometryObjects)
+            for (pinocchio::GeometryObject const & geom : collisionModelOrig_.geometryObjects)
             {
                 bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
                                            geom.meshPath.find('\\') != std::string::npos);
@@ -582,14 +582,14 @@ namespace jiminy
         collisionBodiesNames_.insert(collisionBodiesNames_.end(), bodyNames.begin(), bodyNames.end());
 
         // Create the collision pairs and add them to the geometry model of the robot
-        pinocchio::GeomIndex const & groundId = collisionModel_.getGeometryId("ground");
+        pinocchio::GeomIndex const & groundId = collisionModelOrig_.getGeometryId("ground");
         for (std::string const & name : bodyNames)
         {
             // Find the geometries having the body for parent, and add a collision pair for each of them
             constraintsMap_t collisionConstraintsMap;
-            for (std::size_t i = 0; i < collisionModel_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < collisionModelOrig_.geometryObjects.size(); ++i)
             {
-                pinocchio::GeometryObject const & geom = collisionModel_.geometryObjects[i];
+                pinocchio::GeometryObject const & geom = collisionModelOrig_.geometryObjects[i];
                 bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
                                            geom.meshPath.find('\\') != std::string::npos);
                 std::string const & frameName = pncModel_.frames[geom.parentFrame].name;
@@ -599,7 +599,7 @@ namespace jiminy
                        Note that the ground always comes second for the normal to be
                        consistently compute wrt the ground instead of the body. */
                     pinocchio::CollisionPair const collisionPair(i, groundId);
-                    collisionModel_.addCollisionPair(collisionPair);
+                    collisionModelOrig_.addCollisionPair(collisionPair);
 
                     if (returnCode == hresult_t::SUCCESS)
                     {
@@ -636,11 +636,10 @@ namespace jiminy
             }
         }
 
-
         // Refresh proxies associated with the collisions only
         if (returnCode == hresult_t::SUCCESS)
         {
-            refreshCollisionsProxies();
+            refreshGeometryProxies();
         }
 
         return returnCode;
@@ -691,18 +690,18 @@ namespace jiminy
 
         // Get the indices of the corresponding collision pairs in the geometry model of the robot and remove them
         std::vector<std::string> collisionConstraintsNames;
-        pinocchio::GeomIndex const & groundId = collisionModel_.getGeometryId("ground");
+        pinocchio::GeomIndex const & groundId = collisionModelOrig_.getGeometryId("ground");
         for (std::string const & name : bodyNames)
         {
             // Find the geometries having the body for parent, and remove the collision pair for each of them
-            for (std::size_t i = 0; i < collisionModel_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < collisionModelOrig_.geometryObjects.size(); ++i)
             {
-                pinocchio::GeometryObject const & geom = collisionModel_.geometryObjects[i];
+                pinocchio::GeometryObject const & geom = collisionModelOrig_.geometryObjects[i];
                 if (pncModel_.frames[geom.parentFrame].name == name)
                 {
                     // Remove the collision pair with the ground
                     pinocchio::CollisionPair const collisionPair(i, groundId);
-                    collisionModel_.removeCollisionPair(collisionPair);
+                    collisionModelOrig_.removeCollisionPair(collisionPair);
 
                     // Append collision geometry to the list of constraints to remove
                     if (constraintsHolder_.exist(geom.name,  constraintsHolderType_t::COLLISION_BODIES))
@@ -718,7 +717,7 @@ namespace jiminy
         removeFrames(collisionConstraintsNames);
 
         // Refresh proxies associated with the collisions only
-        refreshCollisionsProxies();
+        refreshGeometryProxies();
 
         return hresult_t::SUCCESS;
     }
@@ -1069,6 +1068,16 @@ namespace jiminy
             }
 
             flexibleJointsNames_.emplace_back(flexName);
+        }
+
+        // Add flexibility armuture-like inertia to the model
+        for(flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
+        {
+            std::string const & frameName = flexibleJoint.frameName;
+            std::string flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
+            int32_t jointVelocityIdx;
+            ::jiminy::getJointVelocityIdx(pncModelFlexibleOrig_, flexName, jointVelocityIdx);
+            pncModelFlexibleOrig_.rotorInertia.segment<3>(jointVelocityIdx) = flexibleJoint.inertia;
         }
 
         // Compute flexible joint indices
@@ -1430,7 +1439,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = refreshCollisionsProxies();
+            returnCode = refreshGeometryProxies();
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -1446,7 +1455,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::refreshCollisionsProxies(void)
+    hresult_t Model::refreshGeometryProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1458,6 +1467,23 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Restore collision and visual models
+            collisionModel_ = collisionModelOrig_;
+            visualModel_ = visualModelOrig_;
+
+            // Update joint/frame fix for every geometry objects
+            if (mdlOptions_->dynamics.enableFlexibleModel)
+            {
+                for (auto model : std::array<pinocchio::GeometryModel *, 2>{{&collisionModel_, &visualModel_}})
+                {
+                    for (pinocchio::GeometryObject & geom : model->geometryObjects)
+                    {
+                        geom.parentFrame = pncModel_.getFrameId(pncModelOrig_.frames[geom.parentFrame].name);
+                        geom.parentJoint = pncModel_.getJointId(pncModelOrig_.names[geom.parentJoint]);
+                    }
+                }
+            }
+
             // Update geometry data object after changing the collision pairs
             if (collisionData_.get())
             {
@@ -1466,14 +1492,11 @@ namespace jiminy
             }
             else
             {
-                /* Use copy assignment to avoid changing memory pointers, to
-                   avoid dangling reference at Python-side. */
+                /* Use copy assignment to avoid changing memory pointers, which would
+                   result in dangling reference at Python-side. */
                 collisionData_ = std::make_unique<pinocchio::GeometryData>(collisionModel_);
             }
-            pinocchio::updateGeometryPlacements(pncModel_,
-                                                pncData_,
-                                                collisionModel_,
-                                                *collisionData_);
+            pinocchio::updateGeometryPlacements(pncModel_, pncData_, collisionModel_, *collisionData_);
 
             // Set the max number of contact points per collision pairs
             for (hpp::fcl::CollisionRequest & collisionRequest : collisionData_->collisionRequests)
@@ -1722,8 +1745,8 @@ namespace jiminy
         }
         else if (isCollisionDataInvalid)
         {
-            // Update the collision data
-            refreshCollisionsProxies();
+            // Update the visual and collision data
+            refreshGeometryProxies();
         }
 
         return hresult_t::SUCCESS;

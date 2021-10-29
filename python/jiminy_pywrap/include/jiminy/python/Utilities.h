@@ -316,6 +316,7 @@ namespace python
         flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
         flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
         flexibilityJointDataPy["damping"] = flexibleJointData.damping;
+        flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
         return flexibilityJointDataPy;
     }
 
@@ -606,6 +607,7 @@ namespace python
         flexData.frameName = convertFromPython<std::string>(flexDataPy["frameName"]);
         flexData.stiffness = convertFromPython<vectorN_t>(flexDataPy["stiffness"]);
         flexData.damping = convertFromPython<vectorN_t>(flexDataPy["damping"]);
+        flexData.inertia = convertFromPython<vectorN_t>(flexDataPy["inertia"]);
         return flexData;
     }
 

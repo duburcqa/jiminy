@@ -721,7 +721,7 @@ class Viewer:
             # Add contact frame markers
             for frame_name, frame_idx in zip(
                     robot.contact_frames_names, robot.contact_frames_idx):
-                frame_pose = robot.pinocchio_data.oMf[frame_idx]
+                frame_pose = self._client.data.oMf[frame_idx]
                 self.add_marker(name='_'.join(("ContactFrame", frame_name)),
                                 shape="sphere",
                                 color="yellow",
@@ -764,31 +764,25 @@ class Viewer:
                     joint_idx: int) -> Tuple[Tuple3FType, Tuple4FType]:
                 joint_pose = self._client.data.oMi[joint_idx]
                 joint_position = joint_pose.translation
-                if self.f_external:
-                    f_ext = self.f_external[joint_idx - 1].linear
-                    joint_rotation = pin.Quaternion(joint_pose.rotation)
-                    frame_rotation = (joint_rotation * pin.Quaternion(
-                        np.array([0.0, 0.0, 1.0]), f_ext)).coeffs()
-                else:
-                    frame_rotation = pin.Quaternion.Identity().coeffs()
+                f_ext = self.f_external[joint_idx - 1].linear
+                joint_rotation = pin.Quaternion(joint_pose.rotation)
+                frame_rotation = (joint_rotation * pin.Quaternion(
+                    np.array([0.0, 0.0, 1.0]), f_ext)).coeffs()
                 return (joint_position, frame_rotation)
 
             def get_force_scale(joint_idx: int) -> Tuple[float, float, float]:
-                if self.f_external:
-                    f_ext = self.f_external[joint_idx - 1].linear
-                    f_ext_norm = np.linalg.norm(f_ext, 2)
-                    length = min(f_ext_norm / EXTERNAL_FORCE_SCALE, 1.0)
-                else:
-                    length = 0.0
+                f_ext = self.f_external[joint_idx - 1].linear
+                f_ext_norm = np.linalg.norm(f_ext, 2)
+                length = min(f_ext_norm / EXTERNAL_FORCE_SCALE, 1.0)
                 return (1.0, 1.0, length)
 
-            for i in range(1, pinocchio_model.njoints):
-                frame_name = self._client.model.names[i]
-                self.add_marker(name=f"ForceExternal_{frame_name}",
+            for joint_name in pinocchio_model.names[1:]:
+                joint_idx = self._client.model.getJointId(joint_name)
+                self.add_marker(name=f"ForceExternal_{joint_name}",
                                 shape="arrow",
                                 color="red",
-                                pose=partial(get_force_pose, i),
-                                scale=partial(get_force_scale, i),
+                                pose=partial(get_force_pose, joint_idx),
+                                scale=partial(get_force_scale, joint_idx),
                                 remove_if_exists=True,
                                 auto_refresh=False,
                                 radius=0.015,

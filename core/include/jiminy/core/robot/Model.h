@@ -392,7 +392,7 @@ namespace jiminy
         hresult_t removeConstraints(std::vector<std::string> const & constraintsNames,
                                     constraintsHolderType_t const & holderType);
 
-        hresult_t refreshCollisionsProxies(void);
+        hresult_t refreshGeometryProxies(void);
         hresult_t refreshContactsProxies(void);
         /// \brief Refresh the proxies of the kinematics constraints.
         hresult_t refreshConstraintsProxies(void);

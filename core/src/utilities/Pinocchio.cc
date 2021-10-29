@@ -691,12 +691,12 @@ namespace jiminy
         }
 
         /* Add weightless body.
-           In practice having a zero inertia makes some of pinocchio algorithm crash,
-           so we set a very small value instead: 1.0g. Anything below that creates
-           numerical instability. */
+           In practice having a zero inertia makes some of pinocchio algorithm
+           crash, so we set a very small value instead: 1g. Anything below
+           creates numerical instability. */
         float64_t const mass = 1.0e-3;
         float64_t const lengthSemiAxis = 1.0;
-        pinocchio::Inertia inertia = pinocchio::Inertia::FromEllipsoid(
+        pinocchio::Inertia const inertia = pinocchio::Inertia::FromEllipsoid(
             mass, lengthSemiAxis, lengthSemiAxis, lengthSemiAxis);
 
         modelInOut.appendBodyToJoint(newJointIdx, inertia, SE3::Identity());
