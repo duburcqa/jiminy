@@ -127,23 +127,27 @@ namespace jiminy
     struct flexibleJointData_t
     {
         std::string frameName;
-        vectorN_t stiffness;
-        vectorN_t damping;
+        vector3_t stiffness;
+        vector3_t damping;
+        vector3_t inertia;
 
         flexibleJointData_t(void) :
         frameName(),
         stiffness(),
-        damping()
+        damping(),
+        inertia()
         {
             // Empty.
         };
 
         flexibleJointData_t(std::string const & frameNameIn,
-                            vectorN_t   const & stiffnessIn,
-                            vectorN_t   const & dampingIn) :
+                            vector3_t   const & stiffnessIn,
+                            vector3_t   const & dampingIn,
+                            vector3_t   const & inertiaIn) :
         frameName(frameNameIn),
         stiffness(stiffnessIn),
-        damping(dampingIn)
+        damping(dampingIn),
+        inertia(inertiaIn)
         {
             // Empty.
         };
@@ -152,7 +156,8 @@ namespace jiminy
         {
             return (this->frameName == other.frameName
                  && this->stiffness == other.stiffness
-                 && this->damping == other.damping);
+                 && this->damping == other.damping
+                 && this->inertia == other.inertia);
         };
     };
 

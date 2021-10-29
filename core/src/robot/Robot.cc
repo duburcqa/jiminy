@@ -191,8 +191,8 @@ namespace jiminy
                     int32_t jointVelocityIdx;
                     ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName, jointVelocityIdx);
                     robot->pncModel_.rotorInertia[jointVelocityIdx] = armature;
-                    ::jiminy::getJointVelocityIdx(robot->pncModelRigidOrig_, jointName, jointVelocityIdx);
-                    robot->pncModelRigidOrig_.rotorInertia[jointVelocityIdx] = armature;
+                    ::jiminy::getJointVelocityIdx(robot->pncModelOrig_, jointName, jointVelocityIdx);
+                    robot->pncModelOrig_.rotorInertia[jointVelocityIdx] = armature;
                     return hresult_t::SUCCESS;
                 };
 
@@ -859,8 +859,8 @@ namespace jiminy
         }
 
         // Propagate the user-defined motor inertia at Pinocchio model level
-        pncModelRigidOrig_.rotorInertia = getArmatures();
-        pncModel_.rotorInertia = pncModelRigidOrig_.rotorInertia;
+        pncModelOrig_.rotorInertia = getArmatures();
+        pncModel_.rotorInertia = pncModelOrig_.rotorInertia;
 
         return returnCode;
     }

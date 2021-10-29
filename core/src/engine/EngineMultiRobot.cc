@@ -2795,7 +2795,7 @@ namespace jiminy
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
         pinocchio::GeometryModel const & geomModel = system.robot->collisionModel_;
-        pinocchio::GeometryData & geomData = *system.robot->pncCollisionData_;
+        pinocchio::GeometryData & geomData = *system.robot->collisionData_;
 
         // Update forward kinematics
         pinocchio::forwardKinematics(model, data, q, v, a);
@@ -2874,7 +2874,7 @@ namespace jiminy
         jointIndex_t const & parentJointIdx = system.robot->collisionModel_.geometryObjects[geometryIdx].parentJoint;
 
         // Extract collision and distance results
-        hpp::fcl::CollisionResult const & collisionResult = system.robot->pncCollisionData_->collisionResults[collisionPairIdx];
+        hpp::fcl::CollisionResult const & collisionResult = system.robot->collisionData_->collisionResults[collisionPairIdx];
 
         fextLocal.setZero();
 
@@ -3384,11 +3384,11 @@ namespace jiminy
             jointIndex_t const & jointIdx = flexibilityIdx[i];
             uint32_t const & positionIdx = pncModel.joints[jointIdx].idx_q();
             uint32_t const & velocityIdx = pncModel.joints[jointIdx].idx_v();
-            vectorN_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
-            vectorN_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
+            vector3_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
+            vector3_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
             quaternion_t const quat(q.segment<4>(positionIdx));  // Only way to initialize with [x,y,z,w] order
-            vectorN_t const axis = pinocchio::quaternion::log3(quat);
+            vector3_t const axis = pinocchio::quaternion::log3(quat);
             uInternal.segment<3>(velocityIdx).array() +=
                 - stiffness.array() * axis.array()
                 - damping.array() * v.segment<3>(velocityIdx).array();

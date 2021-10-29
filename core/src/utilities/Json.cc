@@ -14,46 +14,13 @@ namespace jiminy
     // *************** Convertion to JSON utilities *****************
 
     template<>
-    Json::Value convertToJson<vectorN_t>(vectorN_t const & value)
-    {
-        Json::Value row(Json::arrayValue);
-        for (Eigen::Index i = 0; i < value.size(); ++i)
-        {
-            row.append(value[i]);
-        }
-        return row;
-    }
-
-    template<>
-    Json::Value convertToJson<matrixN_t>(matrixN_t const & value)
-    {
-        Json::Value mat(Json::arrayValue);
-        if (value.rows() > 0)
-        {
-            for (Eigen::Index i = 0; i<value.rows(); ++i)
-            {
-                Json::Value row(Json::arrayValue);
-                for (Eigen::Index j = 0; j<value.cols(); ++j)
-                {
-                    row.append(value(i, j));
-                }
-                mat.append(row);
-            }
-        }
-        else
-        {
-            mat.append(Json::Value(Json::arrayValue));
-        }
-        return mat;
-    }
-
-    template<>
     Json::Value convertToJson<flexibleJointData_t>(flexibleJointData_t const & value)
     {
         Json::Value flex;
         flex["frameName"] = convertToJson(value.frameName);
         flex["stiffness"] = convertToJson(value.stiffness);
         flex["damping"] = convertToJson(value.damping);
+        flex["inertia"] = convertToJson(value.inertia);
         return flex;
     }
 
@@ -196,7 +163,8 @@ namespace jiminy
         return {
             convertFromJson<std::string>(value["frameName"]),
             convertFromJson<vectorN_t>(value["stiffness"]),
-            convertFromJson<vectorN_t>(value["damping"])
+            convertFromJson<vectorN_t>(value["damping"]),
+            convertFromJson<vectorN_t>(value["inertia"])
         };
     }
 
