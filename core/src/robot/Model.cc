@@ -189,13 +189,15 @@ namespace jiminy
     }
 
     Model::Model(void) :
-    pncModelRigidOrig_(),
+    pncModelOrig_(),
     pncModel_(),
+    collisionModelOrig_(),
     collisionModel_(),
+    visualModelOrig_(),
     visualModel_(),
     pncDataRigidOrig_(),
     pncData_(),
-    pncCollisionData_(nullptr),
+    collisionData_(nullptr),
     mdlOptions_(nullptr),
     contactForces_(),
     isInitialized_(false),
@@ -265,9 +267,9 @@ namespace jiminy
             meshPackageDirs_.clear();
 
             // Set the models
-            pncModelRigidOrig_ = pncModel;
-            collisionModel_ = collisionModel;
-            visualModel_ = visualModel;
+            pncModelOrig_ = pncModel;
+            collisionModelOrig_ = collisionModel;
+            visualModelOrig_ = visualModel;
 
             // Add ground geometry object to collision model is not already available
             if (!collisionModel_.existGeometryName("ground"))
@@ -286,26 +288,26 @@ namespace jiminy
                 pinocchio::GeometryObject groundPlane("ground", 0, 0, groudBox, groundPose);
 
                 // Add the ground plane pinocchio to the robot model
-                collisionModel_.addGeometryObject(groundPlane, pncModelRigidOrig_);
+                collisionModel_.addGeometryObject(groundPlane, pncModelOrig_);
             }
 
             // Backup the original model and data
-            pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
+            pncDataRigidOrig_ = pinocchio::Data(pncModelOrig_);
 
             // Initialize Pinocchio data internal state, including basic
             // attributes such as the mass of each body.
-            pinocchio::forwardKinematics(pncModelRigidOrig_,
+            pinocchio::forwardKinematics(pncModelOrig_,
                                          pncDataRigidOrig_,
-                                         pinocchio::neutral(pncModelRigidOrig_),
-                                         vectorN_t::Zero(pncModelRigidOrig_.nv));
-            pinocchio::updateFramePlacements(pncModelRigidOrig_, pncDataRigidOrig_);
-            pinocchio::centerOfMass(pncModelRigidOrig_,
+                                         pinocchio::neutral(pncModelOrig_),
+                                         vectorN_t::Zero(pncModelOrig_.nv));
+            pinocchio::updateFramePlacements(pncModelOrig_, pncDataRigidOrig_);
+            pinocchio::centerOfMass(pncModelOrig_,
                                     pncDataRigidOrig_,
-                                    pinocchio::neutral(pncModelRigidOrig_));
+                                    pinocchio::neutral(pncModelOrig_));
 
             /* Get the list of joint names of the rigid model and remove the 'universe'
                and 'root_joint' if any, since they are not actual joints. */
-            rigidJointsNames_ = pncModelRigidOrig_.names;
+            rigidJointsNames_ = pncModelOrig_.names;
             rigidJointsNames_.erase(rigidJointsNames_.begin());  // remove 'universe'
             if (hasFreeflyer_)
             {
@@ -401,7 +403,7 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Check that no frame with the same name already exists.
-        if (pncModelRigidOrig_.existFrame(frameName))
+        if (pncModelOrig_.existFrame(frameName))
         {
             PRINT_ERROR("A frame with the same name already exists.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -411,19 +413,19 @@ namespace jiminy
         frameIndex_t parentFrameId = 0;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
+            returnCode = getFrameIdx(pncModelOrig_, parentBodyName, parentFrameId);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             // Add the frame to the the original rigid model
             {
-                jointIndex_t const & parentJointId = pncModelRigidOrig_.frames[parentFrameId].parent;
-                pinocchio::SE3 const & parentFramePlacement = pncModelRigidOrig_.frames[parentFrameId].placement;
+                jointIndex_t const & parentJointId = pncModelOrig_.frames[parentFrameId].parent;
+                pinocchio::SE3 const & parentFramePlacement = pncModelOrig_.frames[parentFrameId].placement;
                 pinocchio::SE3 const jointFramePlacement = parentFramePlacement.act(framePlacement);
                 pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
-                pncModelRigidOrig_.addFrame(frame);
-                pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
+                pncModelOrig_.addFrame(frame);
+                pncDataRigidOrig_ = pinocchio::Data(pncModelOrig_);
             }
 
             // Add the frame to the the original flexible model
@@ -464,10 +466,10 @@ namespace jiminy
         {
             frameIndex_t frameId;
             pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
-            returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
+            returnCode = getFrameIdx(pncModelOrig_, frameName, frameId);
             if (returnCode == hresult_t::SUCCESS)
             {
-                if (pncModelRigidOrig_.frames[frameId].type != frameType)
+                if (pncModelOrig_.frames[frameId].type != frameType)
                 {
                     PRINT_ERROR("Impossible to remove this frame. One should only remove frames added manually.");
                     returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -481,11 +483,11 @@ namespace jiminy
             {
                 // Get the frame idx
                 frameIndex_t frameId;
-                getFrameIdx(pncModelRigidOrig_, frameName, frameId);  // It cannot fail
+                getFrameIdx(pncModelOrig_, frameName, frameId);  // It cannot fail
 
                 // Remove the frame from the the original rigid model
-                pncModelRigidOrig_.frames.erase(pncModelRigidOrig_.frames.begin() + frameId);
-                pncModelRigidOrig_.nframes--;
+                pncModelOrig_.frames.erase(pncModelOrig_.frames.begin() + frameId);
+                pncModelOrig_.nframes--;
 
                 // Remove the frame from the the original flexible model
                 getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
@@ -494,7 +496,7 @@ namespace jiminy
             }
 
             // Regenerate rigid data
-            pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
+            pncDataRigidOrig_ = pinocchio::Data(pncModelOrig_);
 
             // One must reset the model after removing a frame
             reset();
@@ -1031,7 +1033,7 @@ namespace jiminy
     {
         flexibleJointsNames_.clear();
         flexibleJointsModelIdx_.clear();
-        pncModelFlexibleOrig_ = pncModelRigidOrig_;
+        pncModelFlexibleOrig_ = pncModelOrig_;
         for(flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
             // Check if joint name exists
@@ -1095,7 +1097,7 @@ namespace jiminy
             }
             else
             {
-                pncModel_ = pncModelRigidOrig_;
+                pncModel_ = pncModelOrig_;
             }
 
             for (std::string const & jointName : rigidJointsNames_)
@@ -1457,24 +1459,24 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Update geometry data object after changing the collision pairs
-            if (pncCollisionData_.get())
+            if (collisionData_.get())
             {
                 // No object stored at this point, so created a new one
-                *pncCollisionData_ = pinocchio::GeometryData(collisionModel_);
+                *collisionData_ = pinocchio::GeometryData(collisionModel_);
             }
             else
             {
                 /* Use copy assignment to avoid changing memory pointers, to
                    avoid dangling reference at Python-side. */
-                pncCollisionData_ = std::make_unique<pinocchio::GeometryData>(collisionModel_);
+                collisionData_ = std::make_unique<pinocchio::GeometryData>(collisionModel_);
             }
             pinocchio::updateGeometryPlacements(pncModel_,
                                                 pncData_,
                                                 collisionModel_,
-                                                *pncCollisionData_);
+                                                *collisionData_);
 
             // Set the max number of contact points per collision pairs
-            for (hpp::fcl::CollisionRequest & collisionRequest : pncCollisionData_->collisionRequests)
+            for (hpp::fcl::CollisionRequest & collisionRequest : collisionData_->collisionRequests)
             {
                 collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
             }
@@ -1653,7 +1655,6 @@ namespace jiminy
             bool_t const & enableFlexibleModel = boost::get<bool_t>(dynOptionsHolder.at("enableFlexibleModel"));
             flexibilityConfig_t const & flexibilityConfig =
                 boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
-
             if (mdlOptions_
             && (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size()
                 || !std::equal(flexibilityConfig.begin(),
@@ -1683,11 +1684,11 @@ namespace jiminy
 
         // Check that the model randomization parameters are valid
         configHolder_t & dynOptionsHolder = boost::get<configHolder_t>(modelOptions.at("dynamics"));
-        for (std::string const & field : std::vector<std::string>{
-                 "inertiaBodiesBiasStd",
-                 "massBodiesBiasStd",
-                 "centerOfMassPositionBodiesBiasStd",
-                 "relativePositionBodiesBiasStd"})
+        for (auto const & field : std::array<std::string, 4>{{
+                "inertiaBodiesBiasStd",
+                "massBodiesBiasStd",
+                "centerOfMassPositionBodiesBiasStd",
+                "relativePositionBodiesBiasStd"}})
         {
             float64_t const & value = boost::get<float64_t>(dynOptionsHolder.at(field));
             if (0.9 < value || value < 0.0)
@@ -1740,7 +1741,7 @@ namespace jiminy
 
     std::string const & Model::getName(void) const
     {
-        return pncModelRigidOrig_.name;
+        return pncModelOrig_.name;
     }
 
     std::string const & Model::getUrdfPath(void) const
@@ -1762,7 +1763,7 @@ namespace jiminy
                                                        vectorN_t       & qFlex) const
     {
         // Define some proxies
-        uint32_t const & nqRigid = pncModelRigidOrig_.nq;
+        uint32_t const & nqRigid = pncModelOrig_.nq;
 
         // Check the size of the input state
         if (qRigid.size() != nqRigid)
@@ -1777,13 +1778,13 @@ namespace jiminy
         // Compute the flexible state based on the rigid state
         int32_t idxRigid = 0;
         int32_t idxFlex = 0;
-        for (; idxRigid < pncModelRigidOrig_.njoints; ++idxFlex)
+        for (; idxRigid < pncModelOrig_.njoints; ++idxFlex)
         {
-            std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
+            std::string const & jointRigidName = pncModelOrig_.names[idxRigid];
             std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
             if (jointRigidName == jointFlexName)
             {
-                auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
+                auto const & jointRigid = pncModelOrig_.joints[idxRigid];
                 auto const & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
                 if (jointRigid.idx_q() >= 0)
                 {
@@ -1811,18 +1812,18 @@ namespace jiminy
         }
 
         // Initialize the rigid state
-        qRigid = pinocchio::neutral(pncModelRigidOrig_);
+        qRigid = pinocchio::neutral(pncModelOrig_);
 
         // Compute the rigid state based on the flexible state
         int32_t idxRigid = 0;
         int32_t idxFlex = 0;
         for (; idxFlex < pncModelFlexibleOrig_.njoints; ++idxFlex)
         {
-            std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
+            std::string const & jointRigidName = pncModelOrig_.names[idxRigid];
             std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
             if (jointRigidName == jointFlexName)
             {
-                auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
+                auto const & jointRigid = pncModelOrig_.joints[idxRigid];
                 auto const & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
                 if (jointRigid.idx_q() >= 0)
                 {
@@ -1840,7 +1841,7 @@ namespace jiminy
                                                   vectorN_t       & vFlex) const
     {
         // Define some proxies
-        uint32_t const & nvRigid = pncModelRigidOrig_.nv;
+        uint32_t const & nvRigid = pncModelOrig_.nv;
         uint32_t const & nvFlex = pncModelFlexibleOrig_.nv;
 
         // Check the size of the input state
@@ -1856,13 +1857,13 @@ namespace jiminy
         // Compute the flexible state based on the rigid state
         int32_t idxRigid = 0;
         int32_t idxFlex = 0;
-        for (; idxRigid < pncModelRigidOrig_.njoints; ++idxFlex)
+        for (; idxRigid < pncModelOrig_.njoints; ++idxFlex)
         {
-            std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
+            std::string const & jointRigidName = pncModelOrig_.names[idxRigid];
             std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
             if (jointRigidName == jointFlexName)
             {
-                auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
+                auto const & jointRigid = pncModelOrig_.joints[idxRigid];
                 auto const & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
                 if (jointRigid.idx_q() >= 0)
                 {
@@ -1880,7 +1881,7 @@ namespace jiminy
                                                   vectorN_t       & vRigid) const
     {
         // Define some proxies
-        uint32_t const & nvRigid = pncModelRigidOrig_.nv;
+        uint32_t const & nvRigid = pncModelOrig_.nv;
         uint32_t const & nvFlex = pncModelFlexibleOrig_.nv;
 
         // Check the size of the input state
@@ -1898,11 +1899,11 @@ namespace jiminy
         int32_t idxFlex = 0;
         for (; idxFlex < pncModelFlexibleOrig_.njoints; ++idxRigid, ++idxFlex)
         {
-            std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
+            std::string const & jointRigidName = pncModelOrig_.names[idxRigid];
             std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
             if (jointRigidName == jointFlexName)
             {
-                auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
+                auto const & jointRigid = pncModelOrig_.joints[idxRigid];
                 auto const & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
                 if (jointRigid.idx_q() >= 0)
                 {

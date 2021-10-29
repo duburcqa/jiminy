@@ -78,7 +78,7 @@ namespace python
                 .def("get_rigid_velocity_from_flexible", &PyModelVisitor::getRigidVelocityFromFlexible,
                                                          (bp::arg("self"), "flexible_velocity"))
 
-                .add_property("pinocchio_model_th", bp::make_getter(&Model::pncModelRigidOrig_,
+                .add_property("pinocchio_model_th", bp::make_getter(&Model::pncModelOrig_,
                                                     bp::return_internal_reference<>()))
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
                                                  bp::return_internal_reference<>()))
@@ -154,7 +154,7 @@ namespace python
 
         static pinocchio::GeometryData & getCollisionData(Model & self)
         {
-            return *(self.pncCollisionData_);
+            return *(self.collisionData_);
         }
 
         static hresult_t addCollisionBodies(Model          & self,
