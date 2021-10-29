@@ -22,6 +22,7 @@ namespace jiminy
         using sensorsHolder_t = std::vector<std::shared_ptr<AbstractSensorBase> >;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
         using sensorsSharedHolder_t = std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> >;
+        using transmissionsHolder_t = std::vector<std::shared_ptr<AbstractTransmissionBase> >;
 
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -61,6 +62,7 @@ namespace jiminy
         hresult_t detachSensor(std::string const & sensorType,
                               std::string const & sensorName);
         hresult_t detachSensors(std::string const & sensorType = {});
+        transmissionsHolder_t const & getTransmissions(void) const;
 
         void computeMotorsEfforts(float64_t const & t,
                                   vectorN_t const & q,
@@ -142,6 +144,7 @@ namespace jiminy
         bool_t isTelemetryConfigured_;
         std::shared_ptr<TelemetryData> telemetryData_;
         motorsHolder_t motorsHolder_;
+        transmissionsHolder_t tranmissionsHolder_;
         sensorsGroupHolder_t sensorsGroupHolder_;
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
         std::vector<std::string> motorsNames_;                                      ///< Name of the motors
@@ -149,6 +152,7 @@ namespace jiminy
         std::vector<std::string> commandFieldnames_;                                ///< Fieldnames of the command
         std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the motors effort
         uint64_t nmotors_;                                                          ///< The number of motors
+        std::vector<std::string> actuatedJoints_;                                   ///< List of joints attached to a transmission
 
     private:
         std::unique_ptr<MutexLocal> mutexLocal_;

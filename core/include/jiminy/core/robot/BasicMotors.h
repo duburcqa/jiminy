@@ -56,15 +56,10 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        hresult_t initialize(std::string const & jointName);
-
         virtual hresult_t setOptions(configHolder_t const & motorOptions) final override;
 
     private:
-        virtual hresult_t computeEffort(float64_t const & t,
-                                        Eigen::VectorBlock<vectorN_t const> const & q,
-                                        float64_t const & v,
-                                        float64_t const & a,
+        virtual hresult_t computeEffort(float64_t const & v,
                                         float64_t command) final override;
 
     private:

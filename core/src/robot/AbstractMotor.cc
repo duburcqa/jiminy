@@ -10,17 +10,11 @@ namespace jiminy
     AbstractMotorBase::AbstractMotorBase(std::string const & name) :
     baseMotorOptions_(nullptr),
     motorOptionsHolder_(),
-    isInitialized_(false),
     isAttached_(false),
     robot_(),
     notifyRobot_(),
     name_(name),
     motorIdx_(-1),
-    jointName_(),
-    jointModelIdx_(-1),
-    jointType_(joint_t::NONE),
-    jointPositionIdx_(-1),
-    jointVelocityIdx_(-1),
     commandLimit_(0.0),
     armature_(0.0),
     sharedHolder_(nullptr)
@@ -218,15 +212,6 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!isInitialized_)
-            {
-                PRINT_ERROR("Motor not initialized. Impossible to refresh proxies.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
             if (!robot->getIsInitialized())
             {
                 PRINT_ERROR("Robot not initialized. Impossible to refresh proxies.");
@@ -236,33 +221,12 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = ::jiminy::getJointModelIdx(robot->pncModel_, jointName_, jointModelIdx_);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getJointTypeFromIdx(robot->pncModel_, jointModelIdx_, jointType_);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Motors are only supported for linear and rotary joints
-            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY && jointType_ != joint_t::ROTARY_UNBOUNDED)
-            {
-                PRINT_ERROR("A motor can only be associated with a 1-dof linear or rotary joint.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            ::jiminy::getJointPositionIdx(robot->pncModel_, jointName_, jointPositionIdx_);
             ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName_, jointVelocityIdx_);
 
             // Get the motor effort limits from the URDF or the user options.
             if (baseMotorOptions_->commandLimitFromUrdf)
             {
-                commandLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_] / baseMotorOptions_->mechanicalReduction;
+                commandLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_];
             }
             else
             {
@@ -289,24 +253,42 @@ namespace jiminy
         return returnCode;
     }
 
-    float64_t const & AbstractMotorBase::get(void) const
+    float64_t & AbstractMotorBase::q(void)
     {
-        static float64_t dataEmpty;
-        if (isAttached_)
-        {
-            return sharedHolder_->data_[motorIdx_];
-        }
-        return dataEmpty;
+        return sharedHolder_->position_[motorIdx_];
     }
 
-    float64_t & AbstractMotorBase::data(void)
+    float64_t & AbstractMotorBase::v(void)
     {
-        return sharedHolder_->data_[motorIdx_];
+        return sharedHolder_->velocity_[motorIdx_];
+    }
+    float64_t & AbstractMotorBase::a(void)
+    {
+        return sharedHolder_->acceleration_[motorIdx_];
+    }
+    float64_t & AbstractMotorBase::u(void)
+    {
+        return sharedHolder_->effort_[motorIdx_];
     }
 
-    vectorN_t const & AbstractMotorBase::getAll(void) const
+    float64_t const & AbstractMotorBase::getPosition(void)
     {
-        return sharedHolder_->data_;
+        return sharedHolder_->position_[motorIdx_];
+    }
+
+    float64_t const & AbstractMotorBase::getVelocity(void);
+    {
+        return sharedHolder_->velocity_[motorIdx_];
+    }
+
+    float64_t const & AbstractMotorBase::getAcceleration(void);
+    {
+        return sharedHolder_->acceleration_[motorIdx_];
+    }
+
+    float64_t const & AbstractMotorBase::getEffort(void);
+    {
+        return sharedHolder_->effort_[motorIdx_];
     }
 
     hresult_t AbstractMotorBase::setOptionsAll(configHolder_t const & motorOptions)
@@ -346,31 +328,6 @@ namespace jiminy
         return motorIdx_;
     }
 
-    std::string const & AbstractMotorBase::getJointName(void) const
-    {
-        return jointName_;
-    }
-
-    jointIndex_t const & AbstractMotorBase::getJointModelIdx(void) const
-    {
-        return jointModelIdx_;
-    }
-
-    joint_t const & AbstractMotorBase::getJointType(void) const
-    {
-        return jointType_;
-    }
-
-    int32_t const & AbstractMotorBase::getJointPositionIdx(void) const
-    {
-        return jointPositionIdx_;
-    }
-
-    int32_t const & AbstractMotorBase::getJointVelocityIdx(void) const
-    {
-        return jointVelocityIdx_;
-    }
-
     float64_t const & AbstractMotorBase::getCommandLimit(void) const
     {
         return commandLimit_;
@@ -381,11 +338,7 @@ namespace jiminy
         return armature_;
     }
 
-    hresult_t AbstractMotorBase::computeEffortAll(float64_t const & t,
-                                                  vectorN_t const & q,
-                                                  vectorN_t const & v,
-                                                  vectorN_t const & a,
-                                                  vectorN_t const & command)
+    hresult_t AbstractMotorBase::computeEffortAll(vectorN_t const & command)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -401,20 +354,7 @@ namespace jiminy
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                uint8_t nq_motor;
-                if (motor->getJointType() == joint_t::ROTARY_UNBOUNDED)
-                {
-                    nq_motor = 2;
-                }
-                else
-                {
-                    nq_motor = 1;
-                }
-                returnCode = motor->computeEffort(t,
-                                                  q.segment(motor->getJointPositionIdx(), nq_motor),
-                                                  v[motor->getJointVelocityIdx()],
-                                                  a[motor->getJointVelocityIdx()],
-                                                  command[motor->getIdx()]);
+                returnCode = motor->computeEffort(command[motor->getIdx()]);
             }
         }
 

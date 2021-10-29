@@ -5,6 +5,7 @@
 
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
+#include "jiminy/core/robot/AbstractTransmission.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/utilities/Helpers.h"
@@ -21,6 +22,7 @@ namespace jiminy
     isTelemetryConfigured_(false),
     telemetryData_(nullptr),
     motorsHolder_(),
+    tranmissionsHolder_(),
     sensorsGroupHolder_(),
     sensorTelemetryOptions_(),
     motorsNames_(),
@@ -28,6 +30,7 @@ namespace jiminy
     commandFieldnames_(),
     motorEffortFieldnames_(),
     nmotors_(0U),
+    actuatedJoints(),
     mutexLocal_(std::make_unique<MutexLocal>()),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_()
@@ -121,6 +124,115 @@ namespace jiminy
         }
 
         return returnCode;
+    }
+
+    hresult_t Robot::attachTransmission(std::shared_ptr<AbstractTransmissionBase> transmission)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (!isInitialized_)
+        {
+            PRINT_ERROR("The robot is not initialized.");
+            returnCode = hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (getIsLocked())
+            {
+                PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                            "Please stop it before adding motors.");
+                returnCode = hresult_t::ERROR_GENERIC;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            std::string const & transmissionName = transmission->getName();
+            auto transmissionIt = std::find_if(transmissionsHolder_.begin(), transmissionsHolder_.end(),
+                                        [&transmissionName](auto const & elem)
+                                        {
+                                            return (elem->getName() == transmissionName);
+                                        });
+            if (transmissionIt != transmissionsHolder_.end())
+            {
+                PRINT_ERROR("A transmission with the same name already exists.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Define robot notification method, responsible for updating the robot if
+            // necessary after changing the transmission parameters
+            auto notifyRobot = [robot_=std::weak_ptr<Robot>(shared_from_this())](AbstractTransmissionBase & transmissionIn)
+                {
+                    // Make sure the robot still exists
+                    auto robot = robot_.lock();
+                    if (!robot)
+                    {
+                        PRINT_ERROR("Robot has been deleted. Impossible to notify transmission update.");
+                        return hresult_t::ERROR_GENERIC;
+                    }
+
+                    // TODO Update the list of transmission ? 
+
+                    return hresult_t::SUCCESS;
+                };
+
+            // Attach the transmission
+            returnCode = transmission->attach(shared_from_this(),
+                                       notifyRobot);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Add the transmission to the holder
+            transmissionsHolder_.push_back(transmission);
+
+            // Refresh the transmissions proxies
+            refreshTransmissionsProxies();
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Robot::detachTransmission(std::string const & transmissionName)
+    {
+        if (!isInitialized_)
+        {
+            PRINT_ERROR("Robot not initialized.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (getIsLocked())
+        {
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before removing transmissions.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        auto transmissionIt = std::find_if(transmissionsHolder_.begin(), transmissionsHolder_.end(),
+                                    [&transmissionName](auto const & elem)
+                                    {
+                                        return (elem->getName() == transmissionName);
+                                    });
+        if (transmissionIt == transmissionsHolder_.end())
+        {
+            PRINT_ERROR("No transmission with this name exists.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Detach the transmission
+        (*transmissionIt)->detach();  // It cannot fail at this point
+
+        // Remove the transmission from the holder
+        transmissionsHolder_.erase(transmissionIt);
+
+        // Refresh the transmissions proxies
+        refreshTransmissionsProxies();
+
+        return hresult_t::SUCCESS;
     }
 
     hresult_t Robot::attachMotor(std::shared_ptr<AbstractMotorBase> motor)
@@ -619,6 +731,11 @@ namespace jiminy
         return motorsHolder_;
     }
 
+    Robot::transmissionsHolder_t const & Robot::getTransmissions(void) const
+    {
+        return tranmissionsHolder_;
+    }
+
     hresult_t Robot::getSensor(std::string const & sensorType,
                                std::string const & sensorName,
                                std::weak_ptr<AbstractSensorBase const> & sensor) const
@@ -690,6 +807,11 @@ namespace jiminy
     Robot::sensorsGroupHolder_t const & Robot::getSensors(void) const
     {
         return sensorsGroupHolder_;
+    }
+
+    Robot::tranmissionssGroupHolder_t const & Robot::getTransmissions(void) const
+    {
+        return tranmissionssGroupHolder_;
     }
 
     hresult_t Robot::setOptions(configHolder_t const & robotOptions)

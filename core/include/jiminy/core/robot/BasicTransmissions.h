@@ -1,0 +1,67 @@
+#ifndef JIMINY_BASIC_TRANSMISSIONS_H
+#define JIMINY_BASIC_TRANSMISSIONS_H
+
+#include "jiminy/core/robot/AbstractTransmission.h"
+
+
+namespace jiminy
+{
+    class SimpleTransmission : public AbstractTransmissionBase
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Dictionary gathering the configuration options shared between transmissions
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual configHolder_t getDefaultTransmissionOptions(void) override
+        {
+            // Add extra options or update default values
+            configHolder_t config = AbstractTransmissionBase::getDefaultTransmissionOptions();
+
+            config["mechanicalReduction"] = 0.0;
+
+            return config;
+        };
+
+        struct transmissionOptions_t : public abstractTransmissionOptions_t
+        {
+            float64_t const mechanicalReduction;    ///< Gear reduction ratio motor to joint
+
+            transmissionOptions_t(configHolder_t const & options) :
+            abstractTransmissionOptions_t(options),
+            mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction")))
+            {
+                // Empty.
+            }
+        };
+
+    public:
+        SimpleTransmission(std::string const & name);
+        virtual ~SimpleTransmission(void) = default;
+
+        auto shared_from_this() { return shared_from(this); }
+        auto shared_from_this() const { return shared_from(this); }
+
+        hresult_t initialize(std::string const & jointName,
+                             std::string const & motorName);
+
+        virtual hresult_t setOptions(configHolder_t const & transmissionOptions) final override;
+
+    private:
+        virtual float64_t computeTransform(float64_t const & t,
+                                           Eigen::VectorBlock<vectorN_t> q,
+                                           float64_t  v,
+                                           float64_t const & a,
+                                           float64_t command) final override;
+
+        virtual float64_t computeInverseTransform(float64_t const & t,
+                                                  Eigen::VectorBlock<vectorN_t> q,
+                                                  float64_t v,
+                                                  float64_t const & a,
+                                                  float64_t command) final override;
+
+    private:
+        std::unique_ptr<transmissionOptions_t const> transmissionOptions_;
+    };
+}
+
+#endif //end of JIMINY_BASIC_TRANSMISSIONS_H
