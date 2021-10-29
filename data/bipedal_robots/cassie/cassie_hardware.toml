@@ -1,5 +1,5 @@
 [Global]
-collisionBodiesNames = ["right_toe", "left_toe"]
+collisionBodiesNames = ["left_toe", "right_toe"]
 contactFramesNames = []
 
 # ================== Motors ==================

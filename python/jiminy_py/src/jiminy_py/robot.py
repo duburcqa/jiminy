@@ -107,7 +107,7 @@ def _fix_urdf_mesh_path(urdf_path: str,
     return fixed_urdf_path
 
 
-def generate_hardware_description_file(
+def generate_default_hardware_description_file(
         urdf_path: str,
         hardware_path: Optional[str] = None,
         default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE,
@@ -115,10 +115,10 @@ def generate_hardware_description_file(
     """Generate a default hardware description file, based on the information
     grabbed from the URDF when available, using educated guess otherwise.
 
-    If no Gazebo IMU sensor is found, a single IMU is added on the root body
-    of the kinematic tree. If no Gazebo plugin is available, collision bodies
-    and force sensors are added on every leaf body of the robot. Otherwise,
-    the definition of the plugins in use to infer them.
+    If no IMU sensor is found, a single one is added on the root body of the
+    kinematic tree. If no Gazebo plugin is available, collision bodies and
+    force sensors are added on every leaf body of the robot. Otherwise, the
+    definition of the plugins in use to infer them.
 
     'joint' fields are parsed to extract every joint, actuated or not. 'fixed'
     joints are not considered as actual joints. Transmission fields are parsed
@@ -614,11 +614,13 @@ def load_hardware_description_file(
         if collision_boxes_size:
             continue
 
-        # Replace the collision body by contact points
+        # Replace the collision bodies by contact points, falling back to
+        # visual bodies if none.
         for geometry_object in (
-                geometry_specs['collision']['mesh'][body_name] +
+                geometry_specs['collision']['mesh'][body_name] or
                 geometry_specs['visual']['mesh'][body_name]):
             # Extract info from geometry object
+            mesh_name = geometry_object.name
             mesh_path = geometry_object.meshPath
             mesh_scale = geometry_object.meshScale
             mesh_origin = geometry_object.placement
@@ -641,7 +643,7 @@ def load_hardware_description_file(
                 continue
             box = mesh.bounding_box_oriented
             for i in range(8):
-                frame_name = "_".join((body_name, "BoundingBox", str(i)))
+                frame_name = "_".join((mesh_name, "BoundingBox", str(i)))
                 frame_transform_rel = pin.SE3(
                     np.eye(3), mesh_scale * np.asarray(box.vertices[i]))
                 frame_transform = mesh_origin.act(frame_transform_rel)
@@ -774,7 +776,7 @@ class BaseJiminyRobot(jiminy.Robot):
     """Base class to instantiate a Jiminy robot based on a standard URDF file
     and Jiminy-specific hardware description file.
 
-    The utility 'generate_hardware_description_file' is provided to
+    The utility 'generate_default_hardware_description_file' is provided to
     automatically generate a default hardware description file for any given
     URDF file. URDF file containing Gazebo plugins description should not
     require any further modification as it usually includes the information
@@ -856,7 +858,8 @@ class BaseJiminyRobot(jiminy.Robot):
                 logger.warning(
                     "Hardware configuration file not found. Not adding any "
                     "hardware to the robot.\n Default file can be generated "
-                    "using 'generate_hardware_description_file' method.")
+                    "using 'generate_default_hardware_description_file' "
+                    "method.")
             return
 
         self.extra_info = load_hardware_description_file(
