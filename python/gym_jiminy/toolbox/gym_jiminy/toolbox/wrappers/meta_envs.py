@@ -9,7 +9,7 @@ import numpy as np
 import gym
 from gym import spaces
 
-from gym_jiminy.common.utils.helpers import SpaceDictNested
+from gym_jiminy.common.utils.helpers import DataNested
 
 
 DataTreeT = Dict[Any, Tuple[Any, "DataTreeT"]]  # type: ignore[misc]
@@ -115,7 +115,7 @@ class TaskSchedulingWrapper(gym.Wrapper):
             tasks.append(tuple(task_path))
         return tasks
 
-    def reset(self, **kwargs: Any) -> SpaceDictNested:
+    def reset(self, **kwargs: Any) -> DataNested:
         """ TODO: Write documentation.
         """
         # Sample task

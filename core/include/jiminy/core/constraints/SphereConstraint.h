@@ -43,14 +43,14 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         SphereConstraint(std::string const & frameName,
                          float64_t   const & sphereRadius,
-                         vector3_t   const & groundNormal = (vector3_t() << 0.0, 0.0, 1.0).finished());
+                         vector3_t   const & groundNormal = vector3_t::UnitZ());
         virtual ~SphereConstraint(void);
 
         std::string const & getFrameName(void) const;
         frameIndex_t const & getFrameIdx(void) const;
 
         void setReferenceTransform(pinocchio::SE3 const & transformRef);
-        pinocchio::SE3 & getReferenceTransform(void);
+        pinocchio::SE3 const & getReferenceTransform(void) const;
 
         virtual hresult_t reset(vectorN_t const & /* q */,
                                 vectorN_t const & /* v */) override final;

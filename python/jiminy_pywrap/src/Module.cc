@@ -23,6 +23,7 @@
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Helpers.h"
 #include "jiminy/python/Functors.h"
+#include "jiminy/python/Generators.h"
 #include "jiminy/python/Engine.h"
 #include "jiminy/python/Constraints.h"
 #include "jiminy/python/Controllers.h"
@@ -91,11 +92,11 @@ namespace python
         .value("SPHERICAL", joint_t::SPHERICAL)
         .value("FREE", joint_t::FREE);
 
-        // Interfaces for heatMapType_t enum
-        bp::enum_<heatMapType_t>("heatMapType_t")
-        .value("CONSTANT", heatMapType_t::CONSTANT)
-        .value("STAIRS", heatMapType_t::STAIRS)
-        .value("GENERIC", heatMapType_t::GENERIC);
+        // Interfaces for heightmapType_t enum
+        bp::enum_<heightmapType_t>("heightmapType_t")
+        .value("CONSTANT", heightmapType_t::CONSTANT)
+        .value("STAIRS", heightmapType_t::STAIRS)
+        .value("GENERIC", heightmapType_t::GENERIC);
 
         // Disable CPP docstring
         bp::docstring_options doc_options;
@@ -113,15 +114,16 @@ namespace python
         // Expose functors
         TIME_STATE_FCT_EXPOSE(bool_t, Bool)
         TIME_STATE_FCT_EXPOSE(pinocchio::Force, PinocchioForce)
-        exposeHeatMapFunctor();
+        exposeHeightmapFunctor();
 
         /* Expose compatibility layer, to support both new and old C++ ABI, and to
            restore automatic converters of numpy scalars without altering python
            docstring signature. */
         exposeCompatibility();
 
-        // Expose helpers
+        // Expose helpers and generators
         exposeHelpers();
+        exposeGenerators();
 
         // Expose structs and classes
         exposeSensorsDataMap();

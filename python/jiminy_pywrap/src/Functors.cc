@@ -26,10 +26,10 @@ namespace python
         return (new pinocchio::Force(vector6_t::Zero()));
     }
 
-    // **************************** PyHeatMapFunctorVisitor *****************************
+    // **************************** PyHeightmapFunctorVisitor *****************************
 
-    struct PyHeatMapFunctorVisitor
-        : public bp::def_visitor<PyHeatMapFunctorVisitor>
+    struct PyHeightmapFunctorVisitor
+        : public bp::def_visitor<PyHeightmapFunctorVisitor>
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -39,25 +39,38 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .def("__init__", bp::make_constructor(&PyHeatMapFunctorVisitor::factory,
+                .def("__init__", bp::make_constructor(&PyHeightmapFunctorVisitor::factory,
                                  bp::default_call_policies(),
-                                (bp::args("heatmap_function", "heatmap_type"))))
-                .def("__call__", &PyHeatMapFunctorVisitor::eval,
-                                 (bp::arg("self"), bp::arg("position")))
+                                (bp::arg("heightmap_function"),
+                                 bp::arg("heightmap_type")=heightmapType_t::GENERIC)))
+                .def("__call__", &PyHeightmapFunctorVisitor::eval,
+                                 (bp::args("self", "position")))
+                .add_property("py_function", bp::make_function(&PyHeightmapFunctorVisitor::getPyFun,
+                                             bp::return_value_policy<bp::return_by_value>()));
                 ;
         }
 
-        static bp::tuple eval(heatMapFunctor_t       & self,
-                              vector3_t        const & posFrame)
+        static bp::tuple eval(heightmapFunctor_t       & self,
+                              vector3_t          const & posFrame)
         {
-            std::pair<float64_t, vector3_t> ground = self(posFrame);
-            return bp::make_tuple(std::move(std::get<0>(ground)), std::move(std::get<1>(ground)));
+            std::pair<float64_t, vector3_t> const ground = self(posFrame);
+            return bp::make_tuple(std::get<float64_t>(ground), std::get<vector3_t>(ground));
         }
 
-        static std::shared_ptr<heatMapFunctor_t> factory(bp::object          & objPy,
-                                                         heatMapType_t const & objType)
+        static bp::object getPyFun(heightmapFunctor_t & self)
         {
-            return std::make_shared<heatMapFunctor_t>(HeatMapFunctorPyWrapper(std::move(objPy), objType));
+            HeightmapFunctorPyWrapper * pyWrapper(self.target<HeightmapFunctorPyWrapper>());
+            if (!pyWrapper || pyWrapper->heightmapType_ != heightmapType_t::GENERIC)
+            {
+                return {};
+            }
+            return pyWrapper->handlePyPtr_;
+        }
+
+        static std::shared_ptr<heightmapFunctor_t> factory(bp::object            & objPy,
+                                                           heightmapType_t const & objType)
+        {
+            return std::make_shared<heightmapFunctor_t>(HeightmapFunctorPyWrapper(objPy, objType));
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -65,12 +78,12 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<heatMapFunctor_t,
-                       std::shared_ptr<heatMapFunctor_t> >("HeatMapFunctor", bp::no_init)
-                .def(PyHeatMapFunctorVisitor());
+            bp::class_<heightmapFunctor_t,
+                       std::shared_ptr<heightmapFunctor_t> >("HeightmapFunctor", bp::no_init)
+                .def(PyHeightmapFunctorVisitor());
         }
     };
 
-    BOOST_PYTHON_VISITOR_EXPOSE(HeatMapFunctor)
+    BOOST_PYTHON_VISITOR_EXPOSE(HeightmapFunctor)
 }  // End of namespace python.
 }  // End of namespace jiminy.

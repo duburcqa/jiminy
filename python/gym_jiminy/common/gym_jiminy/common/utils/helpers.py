@@ -1,14 +1,19 @@
 """ TODO: Write documentation.
 """
-from typing import Union, Dict, List, ValuesView
+import logging
+from typing import Union, ValuesView
 
+import gym
+import tree
 import numpy as np
 import numba as nb
-from gym import spaces
 
 import jiminy_py.core as jiminy
 
-from .spaces import FieldDictNested, SpaceDictNested
+from .spaces import FieldNested, DataNested, zeros
+
+
+logger = logging.getLogger(__name__)
 
 
 @nb.jit(nopython=True, nogil=True)
@@ -29,9 +34,9 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     return False
 
 
-def get_fieldnames(space: spaces.Space,
-                   namespace: str = "") -> FieldDictNested:
-    """Get generic fieldnames from `gym.spaces.Space`, so that it can be used
+def get_fieldnames(structure: Union[FieldNested, DataNested],
+                   namespace: str = "") -> FieldNested:
+    """Generate generic fieldnames from `gym..Space`, so that it can be used
     in conjunction with `register_variables`, to register any value from gym
     Space to the telemetry conveniently.
 
@@ -40,34 +45,34 @@ def get_fieldnames(space: spaces.Space,
                       Empty string to disable.
                       Optional: Disabled by default.
     """
-    # Fancy action space: Trying to be clever and infer meaningful
-    # telemetry names based on action space
-    if isinstance(space, (spaces.Box, spaces.Tuple, spaces.MultiBinary)):
-        # No information: fallback to basic numbering
-        return [".".join(filter(None, (namespace, str(i))))
-                for i in range(len(space))]
-    if isinstance(space, (
-            spaces.Discrete, spaces.MultiDiscrete)):
-        # The space is already scalar. Namespace alone as fieldname is enough.
-        return [namespace]
-    if isinstance(space, spaces.Dict):
-        assert space.spaces, "Dict space cannot be empty."
-        out: List[Union[Dict[str, FieldDictNested], str]] = []
-        for field, subspace in dict.items(space.spaces):
-            if isinstance(subspace, spaces.Dict):
-                out.append({field: get_fieldnames(subspace, namespace)})
-            else:
-                out.append(field)
-        return out
-    raise NotImplementedError(
-        f"Gym.Space of type {type(space)} is not supported.")
+    # Create dummy data structure if gym.Space is provided
+    if isinstance(structure, gym.Space):
+        structure = zeros(structure)
+
+    fieldnames = []
+    for fieldname_path, data in tree.flatten_with_path(structure):
+        assert isinstance(data, np.ndarray), (
+            "'structure' ({structure}) must have leaves of type `np.ndarray`.")
+        if data.size < 1:
+            # Empty: return empty list
+            fieldname = []
+        elif data.size == 1:
+            # Scalar: fieldname path is enough
+            fieldname = [".".join(filter(None, (namespace, *fieldname_path)))]
+        else:
+            # Tensor: basic numbering
+            fieldname = np.array([
+                ".".join(filter(None, (namespace, *fieldname_path, str(i))))
+                for i in range(data.size)]).reshape(data.shape).tolist()
+        fieldnames.append(fieldname)
+
+    return tree.unflatten_as(structure, fieldnames)
 
 
 def register_variables(controller: jiminy.AbstractController,
-                       fields: Union[
-                           ValuesView[FieldDictNested], FieldDictNested],
-                       data: SpaceDictNested,
-                       namespace: str = "") -> bool:
+                       fieldnames: Union[
+                           ValuesView[FieldNested], FieldNested],
+                       data: DataNested) -> bool:
     """Register data from `Gym.Space` to the telemetry of a controller.
 
     .. warning::
@@ -78,49 +83,29 @@ def register_variables(controller: jiminy.AbstractController,
 
     :param controller: Robot's controller of the simulator used to register
                        variables to the telemetry.
-    :param field: Nested variable names, as returned by `get_fieldnames`
-                  method. It can be a nested list or/and dict. The leaf are
-                  str corresponding to the name of each scalar data.
-    :param data: Data from `Gym.spaces.Space` to register. Note that the
+    :param fieldnames: Nested variable names, as returned by `get_fieldnames`
+                       method. It can be a nested list or/and dict. The leaves
+                       are str corresponding to the name of each scalar data.
+    :param data: Data from `gym.spaces.Space` to register. Note that the
                  telemetry stores pointers to the underlying memory, so it
                  only supports np.float64, and make sure to reassign data
                  using `np.copyto` or `[:]` operator (faster).
-    :param namespace: Namespace used to prepend fields, using '.' delimiter.
-                      Empty string to disable.
-                      Optional: Disabled by default.
 
     :returns: Whether or not the registration has been successful.
     """
-    # Make sure data is at least 1d if numpy array, to avoid undefined `len`
-    if isinstance(data, np.ndarray):
-        data = np.atleast_1d(data)  # By reference
-
-    # Make sure fields and data are consistent
-    assert fields and len(fields) == len(data), (
-        "fields and data are inconsistent.")
-
-    # Default case: data is already a numpy array. Can be registered directly.
-    if isinstance(data, np.ndarray):
-        if np.issubsctype(data, np.float64):
-            assert isinstance(fields, list)
-            for i, field in enumerate(fields):
-                if isinstance(fields[i], list):
-                    fields[i] = [".".join(filter(None, (namespace, subfield)))
-                                 for subfield in field]
-                else:
-                    fields[i] = ".".join(filter(None, (namespace, field)))
-            hresult = controller.register_variables(fields, data)
-            return hresult == jiminy.hresult_t.SUCCESS
-        return False
-
-    # Fallback to looping over fields and data iterators
-    is_success = True
-    if isinstance(fields, dict):
-        fields = fields.values()
-    for subfields, value in zip(fields, data.values()):
-        assert isinstance(subfields, (dict, list))
-        is_success = register_variables(
-            controller, subfields, value, namespace)
-        if not is_success:
-            break
-    return is_success
+    # pylint: disable=cell-var-from-loop
+    for fieldname, value in zip(
+            tree.flatten_up_to(data, fieldnames),
+            tree.flatten(data)):
+        if np.issubsctype(value, np.float64):
+            assert isinstance(fieldname, list), (
+                "'fieldname' ({fieldname}) should be a list of strings.")
+            hresult = controller.register_variables(fieldname, value)
+            if hresult != jiminy.hresult_t.SUCCESS:
+                return False
+        else:
+            logger.warning(
+                f"Variable of dtype '{value.dtype}' cannot be registered to "
+                "the telemetry and must have dtype 'np.float64' instead.")
+            return False
+    return True

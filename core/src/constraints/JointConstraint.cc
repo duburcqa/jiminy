@@ -34,7 +34,12 @@ namespace jiminy
         return jointIdx_;
     }
 
-    vectorN_t & JointConstraint::getReferenceConfiguration(void)
+    void JointConstraint::setReferenceConfiguration(vectorN_t const & configurationRef)
+    {
+        configurationRef_ = configurationRef;
+    }
+
+    vectorN_t const & JointConstraint::getReferenceConfiguration(void) const
     {
         return configurationRef_;
     }

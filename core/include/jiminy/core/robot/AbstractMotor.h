@@ -101,9 +101,6 @@ namespace jiminy
         AbstractMotorBase(AbstractMotorBase const & abstractMotor) = delete;
         AbstractMotorBase & operator = (AbstractMotorBase const & other) = delete;
 
-        auto shared_from_this() { return shared_from(this); }
-        auto shared_from_this() const { return shared_from(this); }
-
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor
         ///

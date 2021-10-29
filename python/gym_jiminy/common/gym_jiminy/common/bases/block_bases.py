@@ -12,7 +12,7 @@ from typing import Optional, Any, List
 
 import gym
 
-from ..utils import FieldDictNested, SpaceDictNested, get_fieldnames
+from ..utils import FieldNested, DataNested, get_fieldnames
 from ..envs import BaseJiminyEnv
 
 from .generic_bases import ControllerInterface, ObserverInterface
@@ -176,7 +176,7 @@ class BaseObserverBlock(ObserverInterface, BlockInterface):
             "environment simulation timestep.")
 
     def refresh_observation(self,  # type: ignore[override]
-                            measure: SpaceDictNested) -> None:
+                            measure: DataNested) -> None:
         """Compute observed features based on the current simulation state and
         lower-level measure.
 
@@ -257,7 +257,7 @@ class BaseControllerBlock(ControllerInterface, BlockInterface):
             "The controller update period must be lower than or equal to the "
             "environment simulation timestep.")
 
-    def get_fieldnames(self) -> FieldDictNested:
+    def get_fieldnames(self) -> FieldNested:
         """Get mapping between each scalar element of the action space of the
         controller and the associated fieldname for logging.
 
@@ -316,5 +316,5 @@ BaseControllerBlock.compute_command.__doc__ = \
     :param measure: Observation of the environment.
     :param action: Target to achieve.
 
-    :returns: Action to perform
+    :returns: Action to perform.
     """

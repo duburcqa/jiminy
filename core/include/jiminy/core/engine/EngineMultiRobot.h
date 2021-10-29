@@ -116,12 +116,15 @@ namespace jiminy
             configHolder_t config;
             config["model"] = std::string("spring_damper");   // ["spring_damper", "impulse"]
             config["solver"] = std::string("PGS");   // ["PGS",]
+            config["tolAbs"] = 1.0e-4;
+            config["tolRel"] = 1.0e-3;
             config["regularization"] = 0.0;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
-            config["stabilizationFreq"] = 0.0;  // [s-1]: 0.0 to disable
+            config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
             config["transitionEps"] = 1.0e-3;  // [m]
             config["friction"] = 1.0;
+            config["torsion"] = 0.0;
             config["transitionVelocity"] = 1.0e-2;  // [m.s-1]
 
             return config;
@@ -140,10 +143,10 @@ namespace jiminy
         {
             configHolder_t config;
             config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
-            config["groundProfile"] = heatMapFunctor_t(
-                [](vector3_t const & /* pos */) -> std::pair <float64_t, vector3_t>
+            config["groundProfile"] = heightmapFunctor_t(
+                [](vector3_t const & /* pos */) -> std::pair<float64_t, vector3_t>
                 {
-                    return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
+                    return {0.0, vector3_t::UnitZ()};
                 });
 
             return config;
@@ -199,23 +202,29 @@ namespace jiminy
         {
             std::string const model;
             std::string const solver;
+            float64_t const tolAbs;
+            float64_t const tolRel;
             float64_t const regularization;
             float64_t const stabilizationFreq;
             float64_t const stiffness;
             float64_t const damping;
             float64_t const transitionEps;
             float64_t const friction;
+            float64_t const torsion;
             float64_t const transitionVelocity;
 
             contactOptions_t(configHolder_t const & options) :
             model(boost::get<std::string>(options.at("model"))),
             solver(boost::get<std::string>(options.at("solver"))),
+            tolAbs(boost::get<float64_t>(options.at("tolAbs"))),
+            tolRel(boost::get<float64_t>(options.at("tolRel"))),
             regularization(boost::get<float64_t>(options.at("regularization"))),
             stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq"))),
             stiffness(boost::get<float64_t>(options.at("stiffness"))),
             damping(boost::get<float64_t>(options.at("damping"))),
             transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
             friction(boost::get<float64_t>(options.at("friction"))),
+            torsion(boost::get<float64_t>(options.at("torsion"))),
             transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity")))
             {
                 // Empty.
@@ -238,11 +247,11 @@ namespace jiminy
         struct worldOptions_t
         {
             vectorN_t const gravity;
-            heatMapFunctor_t const groundProfile;
+            heightmapFunctor_t const groundProfile;
 
             worldOptions_t(configHolder_t const & options) :
             gravity(boost::get<vectorN_t>(options.at("gravity"))),
-            groundProfile(boost::get<heatMapFunctor_t>(options.at("groundProfile")))
+            groundProfile(boost::get<heightmapFunctor_t>(options.at("groundProfile")))
             {
                 // Empty.
             }
@@ -515,8 +524,6 @@ namespace jiminy
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtBody(systemHolder_t const & system,
                                           pairIndex_t const & collisionPairIdx,
-                                          vectorN_t const & q,
-                                          vectorN_t const & v,
                                           std::shared_ptr<AbstractConstraintBase> & contactConstraint,
                                           pinocchio::Force & fextLocal) const;
 
@@ -527,8 +534,6 @@ namespace jiminy
         /// \return Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtFrame(systemHolder_t const & system,
                                            frameIndex_t const & frameIdx,
-                                           vectorN_t const & q,
-                                           vectorN_t const & v,
                                            std::shared_ptr<AbstractConstraintBase> & collisionConstraint,
                                            pinocchio::Force & fextLocal) const;
 
@@ -550,8 +555,6 @@ namespace jiminy
                                      vectorN_t                & uInternal) const;
         void computeCollisionForces(systemHolder_t     const & system,
                                     systemDataHolder_t       & systemData,
-                                    vectorN_t          const & q,
-                                    vectorN_t          const & v,
                                     forceVector_t            & fext) const;
         void computeExternalForces(systemHolder_t     const & system,
                                    systemDataHolder_t       & systemData,

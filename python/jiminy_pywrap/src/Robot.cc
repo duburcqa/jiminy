@@ -78,23 +78,27 @@ namespace python
                 .def("get_rigid_velocity_from_flexible", &PyModelVisitor::getRigidVelocityFromFlexible,
                                                          (bp::arg("self"), "flexible_velocity"))
 
-                .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
-                                                 bp::return_internal_reference<>()))
-                .add_property("pinocchio_data", bp::make_getter(&Model::pncData_,
-                                                bp::return_internal_reference<>()))
                 .add_property("pinocchio_model_th", bp::make_getter(&Model::pncModelRigidOrig_,
                                                     bp::return_internal_reference<>()))
-                .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
-                                                   bp::return_internal_reference<>()))
+                .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
+                                                 bp::return_internal_reference<>()))
                 .add_property("collision_model", bp::make_getter(&Model::collisionModel_,
                                                  bp::return_internal_reference<>()))
-                .add_property("collision_data", bp::make_function(&PyModelVisitor::getGeometryData,
+                .add_property("visual_model", bp::make_getter(&Model::visualModel_,
+                                              bp::return_internal_reference<>()))
+                .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
+                                                   bp::return_internal_reference<>()))
+                .add_property("pinocchio_data", bp::make_getter(&Model::pncData_,
+                                                bp::return_internal_reference<>()))
+                .add_property("collision_data", bp::make_function(&PyModelVisitor::getCollisionData,
                                                 bp::return_internal_reference<>()))
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("mesh_package_dirs", bp::make_function(&Model::getMeshPackageDirs,
                                                    bp::return_value_policy<result_converter<true> >()))
+                .add_property("name", bp::make_function(&Model::getName,
+                                      bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
@@ -148,9 +152,9 @@ namespace python
                 ;
         }
 
-        static pinocchio::GeometryData & getGeometryData(Model & self)
+        static pinocchio::GeometryData & getCollisionData(Model & self)
         {
-            return *(self.pncGeometryData_);
+            return *(self.pncCollisionData_);
         }
 
         static hresult_t addCollisionBodies(Model          & self,
@@ -281,6 +285,11 @@ namespace python
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false,
                                     bp::arg("mesh_package_dirs") = bp::list()))
+                .def("initialize",
+                    static_cast<
+                        hresult_t (Robot::*)(pinocchio::Model const &, pinocchio::GeometryModel const &, pinocchio::GeometryModel const &)
+                    >(&Robot::initialize),
+                    (bp::arg("self"), "pinocchio_model", "collision_model", "visual_model"))
 
                 .add_property("is_locked", bp::make_function(&Robot::getIsLocked,
                                            bp::return_value_policy<bp::copy_const_reference>()))

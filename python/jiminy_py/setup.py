@@ -84,15 +84,23 @@ setup(
         # >= 8.0 is required to support Python3.9.
         "pillow",
         # Add support of TypedDict to any Python 3 version.
-        "typing_extensions",
+        # 3.10.0 adds 'ParamSpec' that is required for pylint>=2.11.1.
+        "typing_extensions>=3.10.0",
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
         "numpy",
+        # Use to operate on nested data structure conveniently
+        # - 0.1.5 introduces `tree.traverse` method that it used to operate on
+        # `gym.spaces.Dict`.
+        # - 0.1.6 adds support of Python 3.9 and unifies API method naming.
+        "dm-tree>=0.1.6",
         # Used internally for interpolation and filtering.
         # No wheel is distributed for PyPy on pypi, and pip is only able to
-        # build from source after install `libatlas-base-dev` system depdency.
-        "scipy",
+        # build from source after install `libatlas-base-dev` system
+        # dependency.
+        # 1.2.0 fixes `fmin_slsqp` optimizer returning wrong `imode` ouput.
+        "scipy>=1.2.0",
         # Standard library to generate figures.
         f"matplotlib{matplotlib_spec}",
         # Used internally to read HDF5 format log files.
@@ -115,8 +123,7 @@ setup(
         # tile floor.
         "meshcat>=0.0.19",
         # Standalone mesh visualizer used as Viewer's backend.
-        # Panda3d>1.10.9 adds support of Nvidia EGL rendering without X11
-        # server.
+        # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
         # Panda3d is NOT supported by PyPy and cannot be built from source.
         "panda3d_viewer",
         # Used internally by Viewer to record video programmatically when

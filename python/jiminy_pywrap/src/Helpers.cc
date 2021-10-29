@@ -8,6 +8,8 @@
 #include "jiminy/core/utilities/Json.h"
 #include "jiminy/core/utilities/Random.h"
 
+#include "pinocchio/algorithm/model.hpp"
+
 #include <boost/optional.hpp>
 
 /* Note that it is necessary to import eigenpy to get access to the converters.
@@ -53,16 +55,6 @@ namespace python
         matrixN_t positionOut;
         ::jiminy::interpolate(modelIn, timesIn, positionsIn, timesOut, positionOut);
         return positionOut;
-    }
-
-    void resetRandomGenerators(bp::object const & seedPy)
-    {
-        boost::optional<uint32_t> seed = boost::none;
-        if (!seedPy.is_none())
-        {
-            seed = bp::extract<uint32_t>(seedPy);
-        }
-        ::jiminy::resetRandomGenerators(seed);
     }
 
     pinocchio::GeometryModel buildGeomFromUrdf(pinocchio::Model const & model,
@@ -118,6 +110,25 @@ namespace python
         return bp::make_tuple(model, collisionModel);
     }
 
+    bp::tuple buildReducedModels(pinocchio::Model const & model,
+                                 pinocchio::GeometryModel const & collisionModel,
+                                 pinocchio::GeometryModel const & visualModel,
+                                 bp::list const & jointsToLockPy,
+                                 vectorN_t const & referenceConfiguration)
+    {
+        auto jointsToLock = convertFromPython<std::vector<pinocchio::JointIndex> >(jointsToLockPy);
+        pinocchio::Model reducedModel;
+        pinocchio::GeometryModel reducedCollisionModel, reducedVisualModel;
+        pinocchio::buildReducedModel(model, collisionModel, jointsToLock,
+                                     referenceConfiguration, reducedModel,
+                                     reducedCollisionModel);
+        reducedModel = pinocchio::Model();
+        pinocchio::buildReducedModel(model, visualModel, jointsToLock,
+                                     referenceConfiguration, reducedModel,
+                                     reducedVisualModel);
+        return bp::make_tuple(reducedModel, reducedCollisionModel, reducedVisualModel);
+    }
+
     configHolder_t loadConfigJsonString(std::string const & jsonString)
     {
         std::vector<uint8_t> jsonStringVec(jsonString.begin(), jsonString.end());
@@ -150,8 +161,6 @@ namespace python
 
     void exposeHelpers(void)
     {
-        bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed") = bp::object()));
-
         bp::def("build_geom_from_urdf", &buildGeomFromUrdf,
                                         (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
                                          bp::arg("mesh_package_dirs") = bp::list(),
@@ -163,6 +172,12 @@ namespace python
                                            bp::arg("mesh_package_dirs") = bp::list(),
                                            bp::arg("build_visual_model") = false,
                                            bp::arg("load_visual_meshes") = false));
+
+        bp::def("build_reduced_models", &buildReducedModels,
+                                        (bp::arg("pinocchio_model"), "collision_model",
+                                         "visual_model",
+                                         "joint_locked_indices",
+                                         "configuration_ref"));
 
         bp::def("load_config_json_string", &loadConfigJsonString, (bp::arg("json_string")));
 
@@ -212,66 +227,6 @@ namespace python
                 bp::return_value_policy<result_converter<false> >());
         bp::def("solveJMinvJtv", &solveJMinvJtv,
                 (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true));
-
-        bp::class_<RandomPerlinProcess,
-                   std::shared_ptr<RandomPerlinProcess>,
-                   boost::noncopyable>("RandomPerlinProcess",
-                   bp::init<float64_t const &, uint32_t const &>(
-                   (bp::arg("self"), "wavelength", bp::arg("num_octaves") = 6U)))
-            .def("__call__", &RandomPerlinProcess::operator(),
-                             (bp::arg("self"), bp::arg("time")))
-            .def("reset", &RandomPerlinProcess::reset)
-            .add_property("wavelength", bp::make_function(&RandomPerlinProcess::getWavelength,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("num_octaves", bp::make_function(&RandomPerlinProcess::getNumOctaves,
-                                         bp::return_value_policy<bp::copy_const_reference>()));
-
-        bp::class_<PeriodicPerlinProcess,
-                   std::shared_ptr<PeriodicPerlinProcess>,
-                   boost::noncopyable>("PeriodicPerlinProcess",
-                   bp::init<float64_t const &, float64_t const &, uint32_t const &>(
-                   (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
-            .def("__call__", &PeriodicPerlinProcess::operator(),
-                             (bp::arg("self"), bp::arg("time")))
-            .def("reset", &PeriodicPerlinProcess::reset)
-            .add_property("wavelength", bp::make_function(&PeriodicPerlinProcess::getWavelength,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("period", bp::make_function(&PeriodicPerlinProcess::getPeriod,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("num_octaves", bp::make_function(&PeriodicPerlinProcess::getNumOctaves,
-                                         bp::return_value_policy<bp::copy_const_reference>()));
-
-        bp::class_<PeriodicGaussianProcess,
-                   std::shared_ptr<PeriodicGaussianProcess>,
-                   boost::noncopyable>("PeriodicGaussianProcess",
-                   bp::init<float64_t const &, float64_t const &>(
-                   bp::args("self", "wavelength", "period")))
-            .def("__call__", &PeriodicGaussianProcess::operator(),
-                             (bp::arg("self"), bp::arg("time")))
-            .def("reset", &PeriodicGaussianProcess::reset)
-            .add_property("wavelength", bp::make_function(&PeriodicGaussianProcess::getWavelength,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("period", bp::make_function(&PeriodicGaussianProcess::getPeriod,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("dt", bp::make_function(&PeriodicGaussianProcess::getDt,
-                                bp::return_value_policy<bp::copy_const_reference>()));
-
-        bp::class_<PeriodicFourierProcess,
-                   std::shared_ptr<PeriodicFourierProcess>,
-                   boost::noncopyable>("PeriodicFourierProcess",
-                   bp::init<float64_t const &, float64_t const &>(
-                   bp::args("self", "wavelength", "period")))
-            .def("__call__", &PeriodicFourierProcess::operator(),
-                             (bp::arg("self"), bp::arg("time")))
-            .def("reset", &PeriodicFourierProcess::reset)
-            .add_property("wavelength", bp::make_function(&PeriodicFourierProcess::getWavelength,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("period", bp::make_function(&PeriodicFourierProcess::getPeriod,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("dt", bp::make_function(&PeriodicFourierProcess::getDt,
-                                bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("num_harmonics", bp::make_function(&PeriodicFourierProcess::getNumHarmonics,
-                                           bp::return_value_policy<bp::copy_const_reference>()));
     }
 
 }  // End of namespace python.

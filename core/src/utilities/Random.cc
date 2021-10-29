@@ -796,4 +796,241 @@ namespace jiminy
     {
         return period_;
     }
+
+    template<typename VectorLike>
+    std::enable_if_t<is_eigen_vector_v<VectorLike>, float64_t>
+    randomDouble(Eigen::MatrixBase<VectorLike> const & key,
+                 int64_t   const & sparsity,
+                 float64_t const & scale,
+                 uint32_t  const & seed)
+    {
+        int32_t const keyLen = static_cast<int32_t>(sizeof(typename VectorLike::Scalar)) *
+                               static_cast<int32_t>(key.size());
+        uint32_t const hash = MurmurHash3(key.derived().data(), keyLen, seed);
+        if (hash % sparsity == 0)
+        {
+            float64_t encoding(hash);
+            encoding /= std::numeric_limits<uint32_t>::max();
+            return scale * encoding;
+        }
+        return 0.0;
+    }
+
+    std::pair<float64_t, float64_t> tile2dInterp1d(Eigen::Matrix<int32_t, 2, 1> & posIdx,
+                                                   vector2_t const & posRel,
+                                                   uint32_t  const & dim,
+                                                   vector2_t const & size,
+                                                   int64_t   const & sparsity,
+                                                   float64_t const & heightMax,
+                                                   vector2_t const & interpThreshold,
+                                                   uint32_t  const & seed)
+    {
+        float64_t const z = randomDouble(posIdx, sparsity, heightMax, seed);
+        float64_t height, dheight;
+        if (posRel[dim] < interpThreshold[dim])
+        {
+            posIdx[dim] -= 1;
+            float64_t const z_m = randomDouble(posIdx, sparsity, heightMax, seed);
+            posIdx[dim] += 1;
+
+            float64_t const ratio = (1.0 - posRel[dim] / interpThreshold[dim]) / 2.0;
+            height = z + (z_m - z) * ratio;
+            dheight = (z - z_m) / (2.0 * size[dim] * interpThreshold[dim]);
+        }
+        else if (1.0 - posRel[dim] < interpThreshold[dim])
+        {
+            posIdx[dim] += 1;
+            float64_t const z_p = randomDouble(posIdx, sparsity, heightMax, seed);
+            posIdx[dim] -= 1;
+
+            float64_t const ratio = (1.0 + (posRel[dim] - 1.0) / interpThreshold[dim]) / 2.0;
+            height = z + (z_p - z) * ratio;
+            dheight = (z_p - z) / (2.0 * size[dim] * interpThreshold[dim]);
+        }
+        else
+        {
+            height = z;
+            dheight = 0.0;
+        }
+
+        return {height, dheight};
+    }
+
+    heightmapFunctor_t randomTileGround(vector2_t const & size,
+                                        float64_t const & heightMax,
+                                        vector2_t const & interpDelta,
+                                        uint32_t  const & sparsity,
+                                        float64_t const & orientation,
+                                        uint32_t  const & seed)
+    {
+        if ((0.01 <= interpDelta.array()).all()
+         && (interpDelta.array() <= size.array() / 2.0).all())
+        {
+            PRINT_WARNING("'interpDelta' must be in range [0.01, 'size'/2.0].");
+        }
+
+        vector2_t interpThreshold = interpDelta.cwiseMax(0.01).cwiseMin(size / 2.0);
+        interpThreshold.array() /= size.array();
+
+        vector2_t const offset = vector2_t::NullaryExpr(
+            [&size, &seed] (vectorN_t::Index const & i) -> float64_t
+            {
+                Eigen::Matrix<vectorN_t::Index, 1, 1> key;
+                key << i;
+                return randomDouble(key, 1, size[i], seed);
+            });
+
+        Eigen::Rotation2D<float64_t> rotationMat(orientation);
+
+        return [size, heightMax, interpDelta, rotationMat, sparsity, interpThreshold, offset, seed](
+            vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
+        {
+            // Compute the tile index and relative coordinate
+            vector2_t pos = rotationMat * (pos3.head<2>() + offset);
+            vector2_t posRel = pos.array() / size.array();
+            Eigen::Matrix<int32_t, 2, 1> posIdx = posRel.array().floor().cast<int32_t>();
+            posRel -= posIdx.cast<float64_t>();
+
+            // Interpolate height based on nearby tiles if necessary
+            Eigen::Matrix<bool_t, 2, 1> isEdge =
+                (posRel.array() < interpThreshold.array()) ||
+                (1.0 - posRel.array() < interpThreshold.array());
+            float64_t height, dheight_x, dheight_y;
+            if (isEdge[0] && !isEdge[1])
+            {
+                auto result = tile2dInterp1d(
+                    posIdx, posRel, 0, size, sparsity, heightMax,
+                    interpThreshold, seed);
+                height = std::get<0>(result);
+                dheight_x = std::get<1>(result);
+                dheight_y = 0.0;
+            }
+            else if (!isEdge[0] && isEdge[1])
+            {
+                auto result = tile2dInterp1d(
+                    posIdx, posRel, 1, size, sparsity, heightMax,
+                    interpThreshold, seed);
+                height = std::get<0>(result);
+                dheight_y = std::get<1>(result);
+                dheight_x = 0.0;
+            }
+            else if (isEdge[0] && isEdge[1])
+            {
+                auto result_0 = tile2dInterp1d(
+                    posIdx, posRel, 0, size, sparsity, heightMax,
+                    interpThreshold, seed);
+                float64_t height_0 = std::get<0>(result_0);
+                float64_t dheight_x_0 = std::get<1>(result_0);
+                if (posRel[1] < interpThreshold[1])
+                {
+                    posIdx[1] -= 1;
+                    auto result_m = tile2dInterp1d(
+                        posIdx, posRel, 0, size, sparsity,
+                        heightMax, interpThreshold, seed);
+                    float64_t height_m = std::get<0>(result_m);
+                    float64_t dheight_x_m = std::get<1>(result_m);
+
+                    float64_t ratio = (1.0 - posRel[1] / interpThreshold[1]) / 2.0;
+                    height = height_0 + (height_m - height_0) * ratio;
+                    dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
+                    dheight_y = (height_0 - height_m) / (2.0 * size[1] * interpThreshold[1]);
+                }
+                else
+                {
+                    posIdx[1] += 1;
+                    auto result_p = tile2dInterp1d(
+                        posIdx, posRel, 0, size, sparsity,
+                        heightMax, interpThreshold, seed);
+                    float64_t height_p = std::get<0>(result_p);
+                    float64_t dheight_x_p = std::get<1>(result_p);
+
+                    float64_t ratio = (1.0 + (posRel[1] - 1.0) / interpThreshold[1]) / 2.0;
+                    height = height_0 + (height_p - height_0) * ratio;
+                    dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
+                    dheight_y = (height_p - height_0) / (2.0 * size[1] * interpThreshold[1]);
+                }
+            }
+            else
+            {
+                height = randomDouble(posIdx, sparsity, heightMax, seed);
+                dheight_x = 0.0;
+                dheight_y = 0.0;
+            }
+
+            // Compute the resulting normal to the surface: (-d.height/d.x, -d.height/d.y, 1.0)
+            vector3_t normal;
+            normal << -dheight_x, -dheight_y, 1.0;
+            normal.normalize();
+
+            return {height, normal};
+        };
+    }
+
+    heightmapFunctor_t sumHeightmap(std::vector<heightmapFunctor_t> const & heightmaps)
+    {
+        return [heightmaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
+        {
+            float64_t height = 0.0;
+            vector3_t normal = vector3_t::Zero();
+            for (heightmapFunctor_t const & heightmap : heightmaps)
+            {
+                auto result = heightmap(pos3);
+                height += std::get<float64_t>(result);
+                normal += std::get<vector3_t>(result);
+            }
+            normal.normalize();
+            return {height, normal};
+        };
+    }
+
+    heightmapFunctor_t mergeHeightmap(std::vector<heightmapFunctor_t> const & heightmaps)
+    {
+        return [heightmaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
+        {
+            float64_t heightmax = -INF;
+            vector3_t normal = vector3_t::UnitZ();
+            for (heightmapFunctor_t const & heightmap : heightmaps)
+            {
+                auto result = heightmap(pos3);
+                float64_t height = std::get<float64_t>(result);
+                if (std::abs(height - heightmax) < EPS)
+                {
+                    normal += std::get<vector3_t>(result);
+                }
+                else if (height > heightmax)
+                {
+                    heightmax = height;
+                    normal = std::get<vector3_t>(result);
+                }
+            }
+            normal.normalize();
+            return {heightmax, normal};
+        };
+    }
+
+    matrixN_t discretizeHeightmap(heightmapFunctor_t const & heightmap,
+                                  float64_t          const & gridSize,
+                                  float64_t          const & gridUnit)
+    {
+        // Allocate empty discrete grid
+        uint32_t gridDim = static_cast<uint32_t>(std::ceil(gridSize / gridUnit)) + 1U;
+        matrixN_t heightGrid(gridDim * gridDim, 6);
+
+        // Fill x and y discrete grid coordinates
+        vectorN_t const values = (
+            vectorN_t::LinSpaced(gridDim, 0, gridDim - 1) * gridUnit
+            ).array() - (gridDim - 1) * (gridUnit / 2.0);
+        Eigen::Map<matrixN_t>(heightGrid.col(0).data(), gridDim, gridDim).colwise() = values;
+        Eigen::Map<matrixN_t>(heightGrid.col(1).data(), gridDim, gridDim).rowwise() = values.transpose();
+
+        // Fill discrete grid
+        for (uint32_t i=0; i < heightGrid.rows(); ++i)
+        {
+            auto result = heightmap(heightGrid.block<1, 3>(i, 0));
+            heightGrid(i, 2) = std::get<float64_t>(result);
+            heightGrid.block<1, 3>(i, 3) = std::get<vector3_t>(result);
+        }
+
+        return heightGrid;
+    }
 }

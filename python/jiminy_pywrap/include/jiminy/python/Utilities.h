@@ -62,7 +62,7 @@ namespace python
            consists in adding the expected tags as function doc. It works for now but
            it is not really reliable and may break in the future too. */
         bp::converter::registration const * r = bp::converter::registry::query(typeid(WrappedClassT));
-        assert(r && ("Class " + typeid(WrappedClassT).name() + " not registered to Boost Python."));
+        assert((std::string("Class ") + typeid(WrappedClassT).name() + " not registered to Boost Python.", r != nullptr));
         PyTypeObject * nsPtr = r->get_class_object();
         bp::object nsName(bp::handle<>(PyObject_GetAttrString(reinterpret_cast<PyObject *>(nsPtr), "__name__")));
         bp::objects::function * funcPtr = bp::downcast<bp::objects::function>(func.ptr());
@@ -167,8 +167,8 @@ namespace python
         return array;
     }
 
-    template<typename T>
-    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> & value)
+    template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> & value)
     {
         npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
         PyObject * array = PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), const_cast<T*>(value.data()));
@@ -177,8 +177,8 @@ namespace python
         return arrayT;
     }
 
-    template<typename T>
-    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> > & value)
+    template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> > & value)
     {
         npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
         PyObject * array = PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), value.data());
@@ -187,11 +187,11 @@ namespace python
         return arrayT;
     }
 
-    template<typename T>
-    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> const & value)
+    template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const & value)
     {
         PyObject * array = getNumpyReferenceFromEigenMatrix(
-            const_cast<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &>(value));
+            const_cast<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> &>(value));
         PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array), NPY_ARRAY_WRITEABLE);
         return array;
     }

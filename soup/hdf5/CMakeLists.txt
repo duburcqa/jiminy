@@ -8,7 +8,7 @@ project(hdf5_external)
 if(NOT WIN32)
      set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/libz.a")
      set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/libz.a")
-     set(zlib_NINJA "${zlib_PATH}")
+     set(zlib_NINJA BUILD_BYPRODUCTS "${zlib_PATH}")
 else()
      set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/Release/zlibstatic.lib")
      set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/zlibstatic.lib")
@@ -50,13 +50,17 @@ ExternalProject_Add_Step(
 
 # Define paths of the generated hdf5 libraries
 if(NOT WIN32)
-     set(hdf5_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.a")
-     set(hdf5_NINJA "${hdf5_PATH}")
-     set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.a")
-     set(hdf5_cpp_NINJA "${hdf5_cpp_PATH}")
+     set(libhdf5_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.a")
+     set(libhdf5_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_debug.a")
+     set(libhdf5_NINJA BUILD_BYPRODUCTS "${libhdf5_PATH_${CMAKE_BUILD_TYPE}}")
+     set(libhdf5_cpp_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.a")
+     set(libhdf5_cpp_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp_debug.a")
+     set(libhdf5_cpp_NINJA BUILD_BYPRODUCTS "${libhdf5_cpp_PATH_${CMAKE_BUILD_TYPE}}")
 else()
-     set(hdf5_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
-     set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
+     set(libhdf5_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
+     set(libhdf5_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
+     set(libhdf5_cpp_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
+     set(libhdf5_cpp_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
 endif()
 
 # Download, build and install hdf5.
@@ -127,9 +131,13 @@ set_target_properties(hdf5::zlib PROPERTIES
 )
 add_library(hdf5::hdf5 STATIC IMPORTED GLOBAL)
 set_target_properties(hdf5::hdf5 PROPERTIES
-     IMPORTED_LOCATION ${hdf5_PATH}
+     IMPORTED_CONFIGURATIONS "Debug;Release"
+     IMPORTED_LOCATION ${libhdf5_PATH_Release}
+     IMPORTED_LOCATION_DEBUG ${libhdf5_PATH_Debug}
 )
 add_library(hdf5::hdf5_cpp STATIC IMPORTED GLOBAL)
 set_target_properties(hdf5::hdf5_cpp PROPERTIES
-     IMPORTED_LOCATION ${hdf5_cpp_PATH}
+     IMPORTED_CONFIGURATIONS "Debug;Release"
+     IMPORTED_LOCATION ${libhdf5_cpp_PATH_Release}
+     IMPORTED_LOCATION_DEBUG ${libhdf5_cpp_PATH_Debug}
 )

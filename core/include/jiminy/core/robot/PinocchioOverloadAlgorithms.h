@@ -349,13 +349,15 @@ namespace pinocchio_overload
             pinocchio::cholesky::decompose(model, data);
         }
 
-        // Compute sqrt(D)^-1 * U^-1 * J.T
+        // Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T
         data.sDUiJt = J.transpose();
         pinocchio::cholesky::Uiv(model, data, data.sDUiJt);
         data.sDUiJt.array().colwise() /= data.D.array().sqrt();
 
-        // Compute JMinvJt
-        data.JMinvJt.noalias() = data.sDUiJt.transpose() * data.sDUiJt;
+        // Compute JMinvJt := sDUiJt.T * sDUiJt
+        data.JMinvJt = matrixN_t::Zero(J.rows(), J.rows());
+        data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(data.sDUiJt.transpose());
+        data.JMinvJt.triangularView<Eigen::Upper>() = data.JMinvJt.transpose();
 
         return data.JMinvJt;
     }
