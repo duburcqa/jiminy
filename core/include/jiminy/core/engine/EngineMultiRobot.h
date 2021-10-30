@@ -114,18 +114,18 @@ namespace jiminy
         configHolder_t getDefaultContactOptions()
         {
             configHolder_t config;
-            config["model"] = std::string("spring_damper");   // ["spring_damper", "impulse"]
-            config["solver"] = std::string("PGS");   // ["PGS",]
+            config["model"] = std::string("impulse");  // ["spring_damper", "impulse"]
+            config["solver"] = std::string("PGS");     // ["PGS",]
             config["tolAbs"] = 1.0e-4;
             config["tolRel"] = 1.0e-3;
-            config["regularization"] = 0.0;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
-            config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
+            config["regularization"] = 2.0e-3;         // Relative inverse damping wrt. diagonal of J.Minv.Jt to enforce the minimum absolute regularizer.
+            config["stabilizationFreq"] = 20.0;        // [s-1]: 0.0 to disable
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
-            config["transitionEps"] = 1.0e-3;  // [m]
+            config["transitionEps"] = 1.0e-3;          // [m]
             config["friction"] = 1.0;
             config["torsion"] = 0.0;
-            config["transitionVelocity"] = 1.0e-2;  // [m.s-1]
+            config["transitionVelocity"] = 1.0e-2;     // [m.s-1]
 
             return config;
         };
@@ -157,14 +157,14 @@ namespace jiminy
             configHolder_t config;
             config["verbose"] = false;
             config["randomSeed"] = 0U;
-            config["odeSolver"] = std::string("runge_kutta_dopri5");  // ["runge_kutta_dopri5", "runge_kutta_4", "euler_explicit"]
+            config["odeSolver"] = std::string("runge_kutta_4");  // ["runge_kutta_dopri5", "runge_kutta_4", "euler_explicit"]
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
             config["successiveIterFailedMax"] = 1000U;
-            config["iterMax"] = 0U;  // <= 0: disable
-            config["timeout"] = 0.0;  // <= 0.0: disable
+            config["iterMax"] = 0U;                              // 0: disable
+            config["timeout"] = 0.0;                             // 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
             config["logInternalStepperSteps"] = false;
