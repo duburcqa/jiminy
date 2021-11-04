@@ -70,7 +70,8 @@ def initialize(num_cpus: int,
                logger_cls: type = TBXLogger,
                launch_tensorboard: bool = True,
                debug: bool = False,
-               verbose: bool = True) -> Callable[[Dict[str, Any]], Logger]:
+               verbose: bool = True,
+               **ray_init_kwargs: Any) -> Callable[[Dict[str, Any]], Logger]:
     """Initialize Ray and Tensorboard daemons.
 
     It will be used later for almost everything from dashboard, remote/client
@@ -153,18 +154,17 @@ def initialize(num_cpus: int,
                 num_cpus=num_cpus,
                 # Number of GPUs assigned to each raylet
                 num_gpus=num_gpus,
-                # Enable object eviction in LRU order under memory pressure
-                _lru_evict=False,
                 # Whether or not to execute the code serially (for debugging)
                 local_mode=debug,
                 # Logging level
                 logging_level=logging.DEBUG if debug else logging.ERROR,
                 # Whether to redirect outputs from every worker to the driver
-                log_to_driver=debug,
-                # Whether to start Ray dashboard, to monitor cluster's status
-                include_dashboard=True,
-                # The host to bind the dashboard server to
-                dashboard_host="0.0.0.0")
+                log_to_driver=debug, **{**dict(
+                    # Whether to start Ray dashboard to monitor cluster status
+                    include_dashboard=debug,
+                    # The host to bind the dashboard server to
+                    dashboard_host="0.0.0.0"
+                ), **ray_init_kwargs})
         else:
             # Connect to existing Ray cluster
             ray.init(
