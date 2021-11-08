@@ -43,16 +43,15 @@ unset Boost_ROOT
 ### Checkout boost and its submodules
 #   Note that boost python must be patched to fix error handling at import (boost < 1.76),
 #   and fix support of PyPy (boost < 1.75).
+#   Boost >= 1.75 is required to compile ouf-of-the-box on MacOS for intel and Apple Silicon.
 if [ ! -d "$RootDir/boost" ]; then
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
 cd "$RootDir/boost"
 git reset --hard
-git checkout --force "boost-1.71.0"
+git checkout --force "boost-1.76.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-cd "libs/python"
-git checkout --force "boost-1.76.0"
 
 ### Checkout eigen3
 if [ ! -d "$RootDir/eigen3" ]; then
@@ -160,7 +159,9 @@ PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get
 PYTHON_ROOT="$(${PYTHON_EXECUTABLE} -c "import sys; print(sys.prefix)")"
 PYTHON_INCLUDE_DIRS="$(${PYTHON_EXECUTABLE} -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())")"
 PYTHON_CONFIG_JAM="using python : ${PYTHON_VERSION} : ${PYTHON_ROOT} : ${PYTHON_INCLUDE_DIRS} ;"
-sed -i "/using python/c ${PYTHON_CONFIG_JAM}" ./project-config.jam
+sed -i.old "/using python/c\\
+${PYTHON_CONFIG_JAM}
+" project-config.jam
 
 ### Build and install and install boost
 #   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
@@ -171,13 +172,13 @@ mkdir -p "$RootDir/boost/build"
      --with-filesystem --with-atomic --with-serialization --with-thread \
      --build-type=minimal architecture=x86 address-model=64 threading=single \
      --layout=system --lto=off link=static runtime-link=static debug-symbols=off \
-     toolset=gcc cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" \
+     cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" \
      variant="$BuildTypeB2" install -q -d0 -j2
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-python \
      --build-type=minimal architecture=x86 address-model=64 threading=single \
      --layout=system --lto=off link=shared runtime-link=shared debug-symbols=off \
-     toolset=gcc cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" \
+     cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" \
      variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
