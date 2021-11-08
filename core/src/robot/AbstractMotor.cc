@@ -10,6 +10,7 @@ namespace jiminy
     AbstractMotorBase::AbstractMotorBase(std::string const & name) :
     baseMotorOptions_(nullptr),
     motorOptionsHolder_(),
+    isInitialized_(false),
     isAttached_(false),
     robot_(),
     notifyRobot_(),
@@ -59,9 +60,14 @@ namespace jiminy
         motorIdx_ = sharedHolder_->num_;
 
         // Add a value for the motor to the shared data buffer
-        sharedHolder_->data_.conservativeResize(sharedHolder_->num_ + 1);
-        sharedHolder_->data_.tail<1>().setZero();
-
+        sharedHolder_->position_.conservativeResize(sharedHolder_->num_ + 1);
+        sharedHolder_->position_.tail<1>().setZero();
+        sharedHolder_->velocity_.conservativeResize(sharedHolder_->num_ + 1);
+        sharedHolder_->velocity_.tail<1>().setZero();
+        sharedHolder_->acceleration_.conservativeResize(sharedHolder_->num_ + 1);
+        sharedHolder_->acceleration_.tail<1>().setZero();
+        sharedHolder_->effort_.conservativeResize(sharedHolder_->num_ + 1);
+        sharedHolder_->position_.tail<1>().setZero();
         // Add the motor to the shared memory
         sharedHolder_->motors_.push_back(this);
         ++sharedHolder_->num_;
@@ -86,10 +92,20 @@ namespace jiminy
         if (motorIdx_ < sharedHolder_->num_ - 1)
         {
             int32_t motorShift = sharedHolder_->num_ - motorIdx_ - 1;
-            sharedHolder_->data_.segment(motorIdx_, motorShift) =
-                sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
+            sharedHolder_->position_.segment(motorIdx_, motorShift) =
+                sharedHolder_->position_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
+            sharedHolder_->velocity_.segment(motorIdx_, motorShift) =
+                sharedHolder_->velocity_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
+            sharedHolder_->acceleration_.segment(motorIdx_, motorShift) =
+                sharedHolder_->acceleration_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
+            sharedHolder_->effort_.segment(motorIdx_, motorShift) =
+                sharedHolder_->effort_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
+                                                
         }
-        sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
+        sharedHolder_->position_.conservativeResize(sharedHolder_->num_ - 1);
+        sharedHolder_->velocity_.conservativeResize(sharedHolder_->num_ - 1);
+        sharedHolder_->acceleration_.conservativeResize(sharedHolder_->num_ - 1);
+        sharedHolder_->effort_.conservativeResize(sharedHolder_->num_ - 1);
 
         // Shift the motor ids
         for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
@@ -132,7 +148,10 @@ namespace jiminy
         }
 
         // Clear the shared data buffer
-        sharedHolder_->data_.setZero();
+        sharedHolder_->position_.setZero();
+        sharedHolder_->velocity_.setZero();
+        sharedHolder_->acceleration_.setZero();
+        sharedHolder_->effort_.setZero();
 
         // Update motor scope information
         for (AbstractMotorBase * motor : sharedHolder_->motors_)

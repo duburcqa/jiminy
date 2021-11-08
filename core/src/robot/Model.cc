@@ -46,6 +46,7 @@ namespace jiminy
     constraintsHolder_t::constraintsHolder_t(void) :
     boundJoints(),
     contactFrames(),
+    transmissionConstraints(),
     collisionBodies(),
     registered()
     {

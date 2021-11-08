@@ -17,19 +17,21 @@ namespace jiminy
         setOptions(getDefaultTransmissionOptions());
     }
 
-    hresult_t SimpleTransmission::initialize(std::string const & jointName, std::string const & motorName)
+    hresult_t SimpleTransmission::initialize(std::string const & jointNames, std::string const & motorNames)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        jointName_ = jointName;
-        motorName_ = motorName;
+        jointNames_ = jointNames;
+        motorNames_ = motorNames;
         isInitialized_ = true;
-        returnCode = refreshProxies();
 
+        AbstractTransmissionBase::initialize()
+
+        returnCode = refreshProxies();
         if (returnCode != hresult_t::SUCCESS)
         {
-            jointName_.clear();
-            motorName_.clear();
+            jointNames_.clear();
+            motorNames_.clear();
             isInitialized_ = false;
         }
 
@@ -42,37 +44,6 @@ namespace jiminy
 
         returnCode = AbstractTransmissionBase::setOptions(transmissionOptions);
 
-        // Check if the friction parameters make sense
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Make sure the user-defined position limit has the right dimension
-            if (boost::get<float64_t>(transmissionOptions.at("frictionViscousPositive")) > 0.0)
-            {
-                PRINT_ERROR("'frictionViscousPositive' must be negative.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-            if (boost::get<float64_t>(transmissionOptions.at("frictionViscousNegative")) > 0.0)
-            {
-                PRINT_ERROR("'frictionViscousNegative' must be negative.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-            if (boost::get<float64_t>(transmissionOptions.at("frictionDryPositive")) > 0.0)
-            {
-                PRINT_ERROR("'frictionDryPositive' must be negative.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-            if (boost::get<float64_t>(transmissionOptions.at("frictionDryNegative")) > 0.0)
-            {
-                PRINT_ERROR("'frictionDryNegative' must be negative.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-            if (boost::get<float64_t>(transmissionOptions.at("frictionDrySlope")) < 0.0)
-            {
-                PRINT_ERROR("'frictionDrySlope' must be positive.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-        }
-
         if (returnCode == hresult_t::SUCCESS)
         {
             transmissionOptions_ = std::make_unique<transmissionOptions_t const>(transmissionOptions);
@@ -81,11 +52,8 @@ namespace jiminy
         return returnCode;
     }
 
-    float64_t SimpleTransmission::computeTransform(float64_t const & /* t */,
-                                                   Eigen::VectorBlock<vectorN_t> q,
-                                                   float64_t v,
-                                                   float64_t const & /* a */,
-                                                   float64_t command)
+    float64_t SimpleTransmission::computeTransform(Eigen::VectorBlock<vectorN_t> /* q */,
+                                                   Eigen::VectorBlock<vectorN_t> /* v */))
     {
         if (!isInitialized_)
         {
@@ -96,17 +64,14 @@ namespace jiminy
         return transmissionOptions_->mechanicalReduction;
     }
 
-    float64_t SimpleTransmission::computeInverseTransform(float64_t const & /* t */,
-                                                          Eigen::VectorBlock<vectorN_t> /* q */,
-                                                          float64_t /* v */,
-                                                          float64_t const & /* a */,
-                                                          float64_t /* command */)
+    float64_t SimpleTransmission::computeInverseTransform(Eigen::VectorBlock<vectorN_t> /* q */,
+                                                          Eigen::VectorBlock<vectorN_t> /* v */))
     {
         if (!isInitialized_)
         {
             PRINT_ERROR("Transmission not initialized. Impossible to compute actual transmission effort.");
             return hresult_t::ERROR_INIT_FAILED;
         }
-        return transmissionOptions_->mechanicalReduction;
+        return transmissionOptions_-> 1.0 / mechanicalReduction;
     }
 }

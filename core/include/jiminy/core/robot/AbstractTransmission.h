@@ -47,6 +47,13 @@ namespace jiminy
         virtual ~AbstractTransmissionBase(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Init
+        ///
+        /// \remark   Init
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t initialize(void);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
         ///
         /// \remark   This method is not intended to be called manually. The Robot to which the
@@ -121,49 +128,42 @@ namespace jiminy
         ///
         /// \details    It is the name of the joints associated with the transmission.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::vector<std::string> const & getJointName(void) const;
+        std::vector<std::string> const & getJointNames(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get jointModelIdx_.
         ///
         /// \details    It is the index of the joints associated with the transmission in the kinematic tree.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::vector<jointIndex_t >const & getJointModelIdx(void) const;
+        std::vector<jointIndex_t >const & getJointModelIndices(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get jointType_.
         ///
         /// \details    It is the type of joints associated with the transmission.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::vector<joint_t> const & getJointType(void) const;
+        std::vector<joint_t> const & getJointTypes(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get jointPositionIdx_.
         ///
         /// \details    It is the index of the joints associated with the transmission in the configuration vector.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::vector<int32_t> const & getJointPositionIdx(void) const;
+        std::vector<int32_t> const & getJointPositionIndices(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get jointVelocityIdx_.
         ///
         /// \details    It is the index of the joints associated with the transmission in the velocity vector.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::vector<int32_t> const & getJointVelocityIdx(void) const;
+        std::vector<int32_t> const & getJointVelocityIndices(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get motorName_.
         ///
         /// \details    It is the name of the motors associated with the transmission.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::vector<std::string> const & getMotorName(void) const;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get ActuatedJoints.
-        ///
-        /// \details    It is a list of joints that are attached to a transmission
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::vector<std::string> const & robot.getActuatedJoints(void) const;
+        std::vector<std::string> const & getMotorNames(void) const;
         
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Compute forward transmission.
@@ -247,8 +247,8 @@ namespace jiminy
         std::vector<std::string> jointNames_;
         std::vector<jointIndex_t> jointModelIndices_;
         std::vector<joint_t> jointTypes_;
-        std::vector<int32_t> jointPositionIndices_;
-        std::vector<int32_t> jointVelocityIndices_;
+        vectorN_t jointPositionIndices_;
+        vectorN_t jointVelocityIndices_;
         std::vector<std::string> motorNames_;
         std::vector<std::weak_ptr<AbstractMotorBase> > motors_;
         matrixN_t forwardTransform_;

@@ -9,6 +9,7 @@ namespace jiminy
 {
     struct MotorSharedDataHolder_t;
     class AbstractMotorBase;
+    class AbstractTransmissionBase;
     struct SensorSharedDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
@@ -54,6 +55,7 @@ namespace jiminy
         motorsHolder_t const & getMotors(void) const;
         hresult_t detachMotor(std::string const & motorName);
         hresult_t detachMotors(std::vector<std::string> const & motorsNames = {});
+        hresult_t detachTransmissions(std::vector<std::string> const & transmissionsNames = {});
         hresult_t attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
         hresult_t getSensor(std::string const & sensorType,
                             std::string const & sensorName,
@@ -125,6 +127,8 @@ namespace jiminy
         std::vector<int32_t> getMotorsVelocityIdx(void) const;
         std::unordered_map<std::string, std::vector<std::string> > const & getSensorsNames(void) const;
         std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;
+        std::vector<std::string> const & getActuatedJoints(void) const;
+        hresult_t updateActuatedJoints(std::vector<std::string> const & jointNames);
 
         vectorN_t const & getCommandLimit(void) const;
         vectorN_t const & getArmatures(void) const;

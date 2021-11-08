@@ -30,7 +30,7 @@ namespace jiminy
     commandFieldnames_(),
     motorEffortFieldnames_(),
     nmotors_(0U),
-    actuatedJoints(),
+    actuatedJoints_(),
     mutexLocal_(std::make_unique<MutexLocal>()),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_()
@@ -40,18 +40,20 @@ namespace jiminy
 
     Robot::~Robot(void)
     {
-        // Detach all the motors and sensors
+        // Detach all the motors, sensors and transmissions
         detachSensors({});
         detachMotors({});
+        detachTransmissions({});
     }
 
     hresult_t Robot::initialize(std::string              const & urdfPath,
                                 bool_t                   const & hasFreeflyer,
                                 std::vector<std::string> const & meshPackageDirs)
     {
-        // Detach all the motors and sensors
+        // Detach all the motors, sensors and transmissions
         detachSensors({});
         detachMotors({});
+        detachTransmissions({});
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
@@ -176,26 +178,8 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Define robot notification method, responsible for updating the robot if
-            // necessary after changing the transmission parameters
-            auto notifyRobot = [robot_=std::weak_ptr<Robot>(shared_from_this())](AbstractTransmissionBase & transmissionIn)
-                {
-                    // Make sure the robot still exists
-                    auto robot = robot_.lock();
-                    if (!robot)
-                    {
-                        PRINT_ERROR("Robot has been deleted. Impossible to notify transmission update.");
-                        return hresult_t::ERROR_GENERIC;
-                    }
-
-                    // TODO Update the list of transmission ? 
-
-                    return hresult_t::SUCCESS;
-                };
-
             // Attach the transmission
-            returnCode = transmission->attach(shared_from_this(),
-                                       notifyRobot);
+            returnCode = transmission->attach(shared_from_this());
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -402,6 +386,51 @@ namespace jiminy
                 if (!motorsNames_.empty())
                 {
                     returnCode = detachMotors(std::vector<std::string>(motorsNames_));
+                }
+            }
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Robot::detachTransmissions(std::vector<std::string> const & transmissionsNames)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (!transmissionsNames.empty())
+        {
+            // Make sure that no transmission names are duplicates
+            if (checkDuplicates(transmissionsNames))
+            {
+                PRINT_ERROR("Duplicated transmission names.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                // Make sure that every transmission name exist
+                if (!checkInclusion(transmissionsNames_, transmissionsNames))
+                {
+                    PRINT_ERROR("At least one of the transmission names does not exist.");
+                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                }
+            }
+
+            for (std::string const & name : transmissionsNames)
+            {
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    returnCode = detachTransmission(name);
+                }
+            }
+        }
+        else
+        {
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                if (!transmissionsNames_.empty())
+                {
+                    returnCode = detachTransmissions(std::vector<std::string>(transmissionsNames_));
                 }
             }
         }
@@ -1338,6 +1367,12 @@ namespace jiminy
         return motorEffortEmpty;
     }
 
+    hresult_t Robot::updateActuatedJoints(std::vector<std::string> const & jointNames)
+    {
+        actuatedJoints_.insert(actuatedJoints_.end(), jointNames.begin(), jointNames.end());
+        return hresult_t::SUCCESS;
+    }
+
     void Robot::setSensorsData(float64_t const & t,
                                vectorN_t const & q,
                                vectorN_t const & v,
@@ -1368,7 +1403,7 @@ namespace jiminy
             sensorDataTypeMap_t dataType(std::cref(sensorsSharedIt->second->dataMeasured_));  // Need explicit call to `std::reference_wrapper` for gcc<7.3
             for (auto & sensor : sensorsGroupIt->second)
             {
-                auto & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);
+                auto const & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);
                 dataType.emplace(sensorConst.getName(),
                                  sensorConst.getIdx(),
                                  sensorConst.get());
@@ -1529,7 +1564,7 @@ namespace jiminy
 
     vectorN_t const & Robot::getArmatures(void) const
     {
-        static vectorN_t armatures;
+        static vectorN_t armatures_;
         armatures.resize(pncModel_.nv);
 
         armatures.setZero();

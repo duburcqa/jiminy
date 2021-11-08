@@ -47,17 +47,11 @@ namespace jiminy
         virtual hresult_t setOptions(configHolder_t const & transmissionOptions) final override;
 
     private:
-        virtual float64_t computeTransform(float64_t const & t,
-                                           Eigen::VectorBlock<vectorN_t> q,
-                                           float64_t  v,
-                                           float64_t const & a,
-                                           float64_t command) final override;
+        virtual float64_t computeTransform(Eigen::VectorBlock<vectorN_t> /* q */,
+                                           Eigen::VectorBlock<vectorN_t> /* v */) final override;
 
-        virtual float64_t computeInverseTransform(float64_t const & t,
-                                                  Eigen::VectorBlock<vectorN_t> q,
-                                                  float64_t v,
-                                                  float64_t const & a,
-                                                  float64_t command) final override;
+        virtual float64_t computeInverseTransform(Eigen::VectorBlock<vectorN_t> /* q */,
+                                                  Eigen::VectorBlock<vectorN_t> /* v */) final override;
 
     private:
         std::unique_ptr<transmissionOptions_t const> transmissionOptions_;

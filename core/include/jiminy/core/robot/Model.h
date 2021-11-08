@@ -16,6 +16,7 @@ namespace jiminy
     class AbstractConstraintBase;
     class FixedFrameConstraint;
     class JointConstraint;
+    class TransmisionConstraint;
 
     template<typename DerivedConstraint>
     using constraintsMapTpl_t = static_map_t<std::string, std::shared_ptr<DerivedConstraint> >;
@@ -26,14 +27,16 @@ namespace jiminy
         BOUNDS_JOINTS = 0,
         CONTACT_FRAMES = 1,
         COLLISION_BODIES = 2,
-        USER = 3
+        USER = 3,
+        TRANSMISSIONS = 4
     };
 
-    std::array<constraintsHolderType_t, 4> const constraintsHolderTypeRange = {{
+    std::array<constraintsHolderType_t, 5> const constraintsHolderTypeRange = {{
         constraintsHolderType_t::BOUNDS_JOINTS,
         constraintsHolderType_t::CONTACT_FRAMES,
         constraintsHolderType_t::COLLISION_BODIES,
-        constraintsHolderType_t::USER
+        constraintsHolderType_t::USER,
+        constraintsHolderType_t::TRANSMISSIONS
     }};
 
     struct constraintsHolder_t
@@ -91,6 +94,9 @@ namespace jiminy
                 case constraintsHolderType_t::CONTACT_FRAMES:
                     constraintsMapPtr = &contactFrames;
                     break;
+                case constraintsHolderType_t::TRANSMISSIONS:
+                    constraintsMapPtr = &transmissionConstraints;
+                    break;
                 case constraintsHolderType_t::USER:
                 case constraintsHolderType_t::COLLISION_BODIES:
                 default:
@@ -115,6 +121,7 @@ namespace jiminy
     public:
         constraintsMap_t boundJoints;                   ///< Store internal constraints related to joint bounds
         constraintsMap_t contactFrames;                 ///< Store internal constraints related to contact frames
+        constraintsMap_t transmissionConstraints;       ///< Store internal constraints related to the transmissions
         std::vector<constraintsMap_t> collisionBodies;  ///< Store internal constraints related to collision bounds
         constraintsMap_t registered;                    ///< Store internal constraints registered by user
     };
