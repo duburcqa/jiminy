@@ -217,7 +217,7 @@ namespace jiminy
     flexibleJointsNames_(),
     flexibleJointsModelIdx_(),
     constraintsHolder_(),
-    constraintsMask_(0U),
+    constraintsMask_(0),
     constraintsJacobian_(),
     constraintsDrift_(),
     constraintsLambda_(),
@@ -253,7 +253,7 @@ namespace jiminy
         {
             // Clear existing constraints
             constraintsHolder_.clear();
-            constraintsMask_ = 0U;
+            constraintsMask_ = 0;
             constraintsJacobian_.resize(0, 0);
             constraintsDrift_.resize(0);
             constraintsLambda_.resize(0);
@@ -486,12 +486,14 @@ namespace jiminy
                 getFrameIdx(pncModelOrig_, frameName, frameId);  // It cannot fail
 
                 // Remove the frame from the the original rigid model
-                pncModelOrig_.frames.erase(pncModelOrig_.frames.begin() + frameId);
+                pncModelOrig_.frames.erase(std::next(
+                    pncModelOrig_.frames.begin(), static_cast<uint32_t>(frameId)));
                 pncModelOrig_.nframes--;
 
                 // Remove the frame from the the original flexible model
                 getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
-                pncModelFlexibleOrig_.frames.erase(pncModelFlexibleOrig_.frames.begin() + frameId);
+                pncModelFlexibleOrig_.frames.erase(std::next(
+                    pncModelFlexibleOrig_.frames.begin(), static_cast<uint32_t>(frameId)));
                 pncModelFlexibleOrig_.nframes--;
             }
 
@@ -1202,7 +1204,7 @@ namespace jiminy
             pncModel_, pncData_, vectorN_t::Zero(pncModel_.nv));
 
         // Compute sequentially the jacobian and drift of each enabled constraint
-        constraintsMask_ = 0U;
+        constraintsMask_ = 0;
         constraintsHolder_.foreach(
             [&](std::shared_ptr<AbstractConstraintBase> const & constraint,
                 constraintsHolderType_t const & /* holderType */)
@@ -1214,11 +1216,11 @@ namespace jiminy
                 }
 
                 // Compute constraint jacobian and drift
-                uint64_t const constraintDimPrev = constraint->getDim();
+                Eigen::Index const constraintDimPrev = static_cast<Eigen::Index>(constraint->getDim());
                 constraint->computeJacobianAndDrift(q, v);
 
                 // Resize matrix if needed
-                uint64_t const constraintDim = constraint->getDim();
+                Eigen::Index const constraintDim = static_cast<Eigen::Index>(constraint->getDim());
                 if (constraintDimPrev != constraintDim)
                 {
                     constraintsJacobian_.conservativeResize(
@@ -1599,7 +1601,7 @@ namespace jiminy
         // Reset jacobian and drift to 0
         if (returnCode == hresult_t::SUCCESS)
         {
-            constraintsMask_ = 0U;
+            constraintsMask_ = 0;
             constraintsJacobian_ = matrixN_t::Zero(constraintSize, pncModel_.nv);
             constraintsDrift_ = vectorN_t::Zero(constraintSize);
             constraintsLambda_ = vectorN_t::Zero(constraintSize);

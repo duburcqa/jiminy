@@ -65,7 +65,7 @@ namespace jiminy
 
     hresult_t MemoryDevice::seek(int64_t pos)
     {
-        if ((pos < 0) || pos > static_cast<int64_t>(buffer_.size()))
+        if ((pos < 0) || pos > size())
         {
             lastError_ = hresult_t::ERROR_GENERIC;
             PRINT_ERROR("The requested position '", pos, "' is out of scope.");
@@ -131,7 +131,7 @@ namespace jiminy
 
     hresult_t MemoryDevice::resize(int64_t size)
     {
-        buffer_.resize(size);
+        buffer_.resize(static_cast<std::size_t>(size));
         return hresult_t::SUCCESS;
     }
 }

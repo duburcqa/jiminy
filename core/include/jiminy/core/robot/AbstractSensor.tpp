@@ -34,7 +34,7 @@ namespace jiminy
     template<typename T>
     AbstractSensorTpl<T>::AbstractSensorTpl(std::string const & name) :
     AbstractSensorBase(name),
-    sensorIdx_(-1),
+    sensorIdx_(0),
     sharedHolder_(nullptr)
     {
         // Empty
@@ -108,7 +108,7 @@ namespace jiminy
         // Remove associated col in the shared data buffers
         if (sensorIdx_ < sharedHolder_->num_ - 1)
         {
-            int32_t sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
+            std::size_t const sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
             for (matrixN_t & data : sharedHolder_->data_)
             {
                 data.middleCols(sensorIdx_, sensorShift) =
@@ -124,7 +124,7 @@ namespace jiminy
         sharedHolder_->dataMeasured_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
 
         // Shift the sensor indices
-        for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; ++i)
+        for (std::size_t i = sensorIdx_ + 1; i < sharedHolder_->num_; ++i)
         {
             AbstractSensorTpl<T> * sensor =
                 static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
@@ -231,7 +231,7 @@ namespace jiminy
     }
 
     template<typename T>
-    int32_t const & AbstractSensorTpl<T>::getIdx(void) const
+    std::size_t const & AbstractSensorTpl<T>::getIdx(void) const
     {
         return sensorIdx_;
     }

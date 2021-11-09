@@ -33,7 +33,7 @@ namespace jiminy
             std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
             std::ostream output(&buffer);
             writer->write(input, &output);
-            returnCode = device_->resize(buffer.str().size());
+            returnCode = device_->resize(static_cast<int64_t>(buffer.str().size()));
         }
 
         if (returnCode == hresult_t::SUCCESS)

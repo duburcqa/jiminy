@@ -149,11 +149,11 @@ namespace jiminy
     // *********************** Miscellaneous **************************
 
     template<typename type>
-    void swapVectorBlocks(Eigen::Matrix<type, Eigen::Dynamic, 1>       & vector,
-                          uint32_t                               const & firstBlockStart,
-                          uint32_t                               const & firstBlockLength,
-                          uint32_t                               const & secondBlockStart,
-                          uint32_t                               const & secondBlockLength);
+    void swapVectorBlocks(Eigen::Matrix<type, Eigen::Dynamic, 1> & vector,
+                          Eigen::Index const & firstBlockStart,
+                          Eigen::Index const & firstBlockLength,
+                          Eigen::Index const & secondBlockStart,
+                          Eigen::Index const & secondBlockLength);
 }
 
 #include "jiminy/core/utilities/Helpers.tpp"

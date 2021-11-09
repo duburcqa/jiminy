@@ -1414,7 +1414,7 @@ namespace jiminy
                 u = uInternal + uCustom;
                 for (auto const & motor : systemIt->robot->getMotors())
                 {
-                    int32_t const & motorIdx = motor->getIdx();
+                    std::size_t const & motorIdx = motor->getIdx();
                     int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
                     u[motorVelocityIdx] += uMotor[motorIdx];
                 }
@@ -3660,7 +3660,7 @@ namespace jiminy
             u = uInternal + uCustom;
             for (auto const & motor : systemIt->robot->getMotors())
             {
-                int32_t const & motorIdx = motor->getIdx();
+                std::size_t const & motorIdx = motor->getIdx();
                 int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
                 u[motorVelocityIdx] += uMotor[motorIdx];
             }

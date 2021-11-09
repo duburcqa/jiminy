@@ -105,7 +105,7 @@ namespace jiminy
 
     template<typename T>
     std::enable_if_t<!is_vector_v<T>, T>
-    convertFromJson(Json::Value const & value)
+    convertFromJson(Json::Value const & /* value */)
     {
         T::undefined_template_specialization_for_this_type;
     }
