@@ -30,7 +30,7 @@ namespace jiminy
     commandFieldnames_(),
     motorEffortFieldnames_(),
     nmotors_(0U),
-    actuatedJoints_(),
+    actuatedJointNames_(),
     mutexLocal_(std::make_unique<MutexLocal>()),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_()
@@ -67,6 +67,7 @@ namespace jiminy
         // Detach all the motors and sensors
         detachSensors({});
         detachMotors({});
+        detachTransmissions({});
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
@@ -190,6 +191,11 @@ namespace jiminy
             // Refresh the transmissions proxies
             refreshTransmissionsProxies();
         }
+
+        // update list of actuated joints
+        std::vector<std::string> const & jointNames = transmission->getJointNames();
+        actuatedJoints_.insert(actuatedJoints_.end(), jointNames.begin(), jointNames.end());
+
 
         return returnCode;
     }
@@ -851,11 +857,6 @@ namespace jiminy
         return sensorsGroupHolder_;
     }
 
-    Robot::tranmissionssGroupHolder_t const & Robot::getTransmissions(void) const
-    {
-        return tranmissionssGroupHolder_;
-    }
-
     hresult_t Robot::setOptions(configHolder_t const & robotOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -1367,12 +1368,6 @@ namespace jiminy
         return motorEffortEmpty;
     }
 
-    hresult_t Robot::updateActuatedJoints(std::vector<std::string> const & jointNames)
-    {
-        actuatedJoints_.insert(actuatedJoints_.end(), jointNames.begin(), jointNames.end());
-        return hresult_t::SUCCESS;
-    }
-
     void Robot::setSensorsData(float64_t const & t,
                                vectorN_t const & q,
                                vectorN_t const & v,
@@ -1564,7 +1559,7 @@ namespace jiminy
 
     vectorN_t const & Robot::getArmatures(void) const
     {
-        static vectorN_t armatures_;
+        static vectorN_t armatures;
         armatures.resize(pncModel_.nv);
 
         armatures.setZero();

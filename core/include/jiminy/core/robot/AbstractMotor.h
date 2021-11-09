@@ -136,6 +136,20 @@ namespace jiminy
         configHolder_t getOptions(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Set the configuration options of the motor.
+        ///
+        /// \param[in]  motorOptions   Dictionary with the parameters of the motor
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t setOptions(configHolder_t const & motorOptions);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Set the same configuration options for every motors.
+        ///
+        /// \param[in]  motorOptions   Dictionary with the parameters used for any motor
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        hresult_t setOptionsAll(configHolder_t const & motorOptions);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get the actual position of the motor at the current time.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         float64_t const & getPosition(void) const;
@@ -156,6 +170,13 @@ namespace jiminy
         float64_t const & getEffort(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get name_.
+        ///
+        /// \details    It is the name of the motor.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        std::string const & getName(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get the actual position of all the motor at the current time.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         vectorN_t const & getPositionAll(void) const;
@@ -174,27 +195,6 @@ namespace jiminy
         /// \brief      Get the actual effort of all the motor at the current time.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         vectorN_t const & getEffortAll(void) const;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Set the configuration options of the motor.
-        ///
-        /// \param[in]  motorOptions   Dictionary with the parameters of the motor
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t setOptions(configHolder_t const & motorOptions);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Set the same configuration options for every motors.
-        ///
-        /// \param[in]  motorOptions   Dictionary with the parameters used for any motor
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t setOptionsAll(configHolder_t const & motorOptions);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get name_.
-        ///
-        /// \details    It is the name of the motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::string const & getName(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get commandLimit_.
@@ -250,7 +250,7 @@ namespace jiminy
         float64_t & v(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get a reference to the last data buffer corresponding to the actual acc
+        /// \brief      Get a reference to the last data buffer corresponding to the actual acceleration
         ///             of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         float64_t & a(void);
@@ -259,7 +259,7 @@ namespace jiminy
         /// \brief      Get a reference to the last data buffer corresponding to the actual effort
         ///             of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t & u(void);             
+        float64_t & u(void);
 
     private:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -268,7 +268,7 @@ namespace jiminy
         /// \details  This method must be called before initializing the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t attach(std::weak_ptr<Robot const> robot,
-                         std::function<hresult_t(AbstractMotorBase & /* motor */)> notifyRobot,
+                         std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
                          MotorSharedDataHolder_t * sharedHolder);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -281,13 +281,14 @@ namespace jiminy
 
     protected:
         configHolder_t motorOptionsHolder_;                          ///< Dictionary with the parameters of the motor
+        bool_t isInitialized_;                                       ///< Flag to determine whether the controller has been initialized or not
         bool_t isAttached_;                                          ///< Flag to determine whether the motor is attached to a robot
         std::weak_ptr<Robot const> robot_;                           ///< Robot for which the command and internal dynamics
         std::function<hresult_t(AbstractMotorBase &)> notifyRobot_;  ///< Notify the robot that the configuration of the motors have changed
         std::string name_;                                           ///< Name of the motor
         int32_t motorIdx_;                                           ///< Index of the motor in the measurement buffer
         float64_t commandLimit_;
-        float64_t armature_; 
+        float64_t armature_;
 
     private:
         MotorSharedDataHolder_t * sharedHolder_;  ///< Shared data between every motors associated with the robot

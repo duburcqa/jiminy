@@ -27,8 +27,8 @@ namespace jiminy
         BOUNDS_JOINTS = 0,
         CONTACT_FRAMES = 1,
         COLLISION_BODIES = 2,
-        USER = 3,
-        TRANSMISSIONS = 4
+        TRANSMISSIONS = 3,
+        USER = 4
     };
 
     std::array<constraintsHolderType_t, 5> const constraintsHolderTypeRange = {{

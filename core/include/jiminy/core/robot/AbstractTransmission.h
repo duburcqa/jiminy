@@ -47,11 +47,12 @@ namespace jiminy
         virtual ~AbstractTransmissionBase(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Init
+        /// \brief    Initialize
         ///
-        /// \remark   Init
+        /// \remark   Initialize the transmission with the names of connected motors and actuated joits.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t initialize(void);
+        virtual hresult_t initialize(std::vector<std::string> const & jointName,
+                                     std::vector<std::string> const & motorName);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
@@ -82,11 +83,6 @@ namespace jiminy
         /// \brief      Get the actual state of the transmission at the current time.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         float64_t const & get(void) const;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get the actual state of all the transmissions at the current time.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        vectorN_t const & getAll(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Set the configuration options of the transmission.
@@ -164,24 +160,24 @@ namespace jiminy
         /// \details    It is the name of the motors associated with the transmission.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         std::vector<std::string> const & getMotorNames(void) const;
-        
+
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Compute forward transmission.
         ///
         /// \details    Compute forward transmission from motor to joint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t computeForward(float64_t const & t,
+        virtual hresult_t computeForward(float64_t const & t,
                                  vectorN_t & q,
                                  vectorN_t & v,
                                  vectorN_t & a,
                                  vectorN_t & uJoint) final;
-        
+
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Compute backward transmission.
         ///
         /// \details    Compute backward transmission from joint to motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////        
-        hresult_t computeBackward(float64_t const & t,
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t computeBackward(float64_t const & t,
                                   vectorN_t const & q,
                                   vectorN_t const & v,
                                   vectorN_t const & a,
@@ -212,12 +208,12 @@ namespace jiminy
         virtual void computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & q,
                                              Eigen::VectorBlock<vectorN_t const> const & v) = 0;  /* copy on purpose */
 
-        
+
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Compute energy dissipation in the transmission.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void computeEffortTransmission() = 0;
+        virtual computeEffortTransmission(void) = 0;
 
     private:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -225,16 +221,12 @@ namespace jiminy
         ///
         /// \details  This method must be called before initializing the transmission.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t attach(std::weak_ptr<Robot const> robot,
-                         std::function<hresult_t(AbstractTransmissionBase & /*transmission*/)> notifyRobot);
+        hresult_t attach(std::weak_ptr<Robot const> robot);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Detach the transmission from the robot
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t detach(void);
-
-    public:
-        std::unique_ptr<abstractTransmissionOptions_t const> baseTransmissionOptions_;  ///< Structure with the parameters of the transmission
 
     protected:
         configHolder_t transmissionOptionsHolder_;                   ///< Dictionary with the parameters of the transmission

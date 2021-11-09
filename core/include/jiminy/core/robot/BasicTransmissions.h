@@ -41,9 +41,6 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        hresult_t initialize(std::string const & jointName,
-                             std::string const & motorName);
-
         virtual hresult_t setOptions(configHolder_t const & transmissionOptions) final override;
 
     private:
