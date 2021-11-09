@@ -1,0 +1,80 @@
+name: MacOS CI (Build from source dependencies)
+
+on:
+  # Trigger the workflow on push on the master branch, or for any pull request
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build-and-test-linux:
+    name: (${{ matrix.os }}) Build the dependencies. Build the project and run the unit tests.
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-10.15]
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      BUILD_TYPE: "Release"
+      PYTHON_VERSION: 3.8
+      MIN_MACOS_VERSION: 10.9
+
+    #####################################################################################
+
+    steps:
+    - name: Checkout jiminy
+      uses: actions/checkout@v2
+
+    #####################################################################################
+
+    - name: Configure Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        architecture: 'x64'
+    - name: Setup minimal build environment
+      run: |
+        PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
+        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
+
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade wheel
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+
+        echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+        echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
+
+        git config --global advice.detachedHead false
+    - name: Build project dependencies
+      run: |
+        MIN_MACOS_VERSION=${MIN_MACOS_VERSION} ./build_tools/build_install_deps_linux.sh
+
+        PYTHON_USER_SITELIB="$(${PYTHON_EXECUTABLE} -m site --user-site)"
+        mkdir -p "${PYTHON_USER_SITELIB}"
+        echo "$InstallDir/lib/python${PYTHON_VERSION}/site-packages" \
+        >> "${PYTHON_USER_SITELIB}/user_site.pth"
+
+    #####################################################################################
+
+    - name: Build and install Jiminy
+      run: |
+        unset Boost_ROOT
+
+        mkdir "$RootDir/build"
+        cd "$RootDir/build"
+        export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/:/usr/local/lib"
+        cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET="${MIN_MACOS_VERSION}" \
+              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
+              -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
+              -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
+              -DCMAKE_CXX_FLAGS="-fPIC" \
+              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+        make install -j2
