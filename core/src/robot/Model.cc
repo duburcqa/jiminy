@@ -2073,7 +2073,7 @@ namespace jiminy
         bool_t hasConstraintsEnabled = false;
         const_cast<constraintsHolder_t &>(constraintsHolder_).foreach(
             [&hasConstraintsEnabled](std::shared_ptr<AbstractConstraintBase> const & constraint,
-                                    constraintsHolderType_t const & /* holderType */)
+                                     constraintsHolderType_t const & /* holderType */)
             {
                 if (constraint && constraint->getIsEnabled())
                 {

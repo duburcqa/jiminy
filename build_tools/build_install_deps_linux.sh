@@ -12,7 +12,7 @@ fi
 ### Set common CMAKE_C/CXX_FLAGS
 CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -fPIC"
 if [ "${BUILD_TYPE}" == "Release" ]; then
-  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wl,-s -O3 -DNDEBUG"
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
 else
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
 fi
@@ -247,7 +247,7 @@ cmake "$RootDir/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX=
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow $(
-      ) -Wno-class-memaccess -Wno-stringop-truncation -Wno-tautological-compare" \
+      ) -Wno-tautological-compare" \
       -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
@@ -271,7 +271,7 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON \
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter $(
-      ) -Wno-unused-but-set-variable -Wno-ignored-qualifiers -Wno-class-memaccess" \
+      ) -Wno-ignored-qualifiers -Wno-class-memaccess" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 

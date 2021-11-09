@@ -3732,7 +3732,7 @@ namespace jiminy
             {
                 systemData.constraintsHolder.foreach(holderType,
                     [&lo, &hi, &fIdx, &constraintIdx,
-                     &contactOptions = const_cast<contactOptions_t &>(engineOptions_->contacts)](
+                     &contactOptions = engineOptions_->contacts](
                         std::shared_ptr<AbstractConstraintBase> const & constraint,
                         constraintsHolderType_t const & /* holderType */)
                     {
@@ -3789,7 +3789,7 @@ namespace jiminy
             // Update lagrangian multipliers associated with the constraint
             constraintIdx = 0U;
             systemData.constraintsHolder.foreach(
-                [&lambda_c = const_cast<vectorN_t const &>(data.lambda_c),  // std::as_const is not supported by gcc<7.3
+                [&lambda_c = data.lambda_c, // std::as_const is not supported by gcc<7.3
                  &constraintIdx](
                     std::shared_ptr<AbstractConstraintBase> const & constraint,
                     constraintsHolderType_t const & /* holderType */)
@@ -3808,7 +3808,7 @@ namespace jiminy
                 constraintsHolderType_t::BOUNDS_JOINTS,
                 [&u = systemData.state.u,
                  &uInternal = systemData.state.uInternal,
-                 &joints = const_cast<pinocchio::Model::JointModelVector const &>(model.joints)](
+                 &joints = model.joints](
                     std::shared_ptr<AbstractConstraintBase> & constraint,
                     constraintsHolderType_t const & /* holderType */)
                 {
