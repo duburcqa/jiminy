@@ -5,6 +5,7 @@
 
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
+#include "jiminy/core/robot/AbstractTransmission.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/utilities/Helpers.h"
@@ -21,6 +22,7 @@ namespace jiminy
     isTelemetryConfigured_(false),
     telemetryData_(nullptr),
     motorsHolder_(),
+    tranmissionsHolder_(),
     sensorsGroupHolder_(),
     sensorTelemetryOptions_(),
     motorsNames_(),
@@ -28,6 +30,7 @@ namespace jiminy
     commandFieldnames_(),
     motorEffortFieldnames_(),
     nmotors_(0U),
+    actuatedJointNames_(),
     mutexLocal_(std::make_unique<MutexLocal>()),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_()
@@ -37,18 +40,20 @@ namespace jiminy
 
     Robot::~Robot(void)
     {
-        // Detach all the motors and sensors
+        // Detach all the motors, sensors and transmissions
         detachSensors({});
         detachMotors({});
+        detachTransmissions({});
     }
 
     hresult_t Robot::initialize(std::string              const & urdfPath,
                                 bool_t                   const & hasFreeflyer,
                                 std::vector<std::string> const & meshPackageDirs)
     {
-        // Detach all the motors and sensors
+        // Detach all the motors, sensors and transmissions
         detachSensors({});
         detachMotors({});
+        detachTransmissions({});
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
@@ -62,6 +67,7 @@ namespace jiminy
         // Detach all the motors and sensors
         detachSensors({});
         detachMotors({});
+        detachTransmissions({});
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
@@ -134,6 +140,102 @@ namespace jiminy
         }
 
         return returnCode;
+    }
+
+    hresult_t Robot::attachTransmission(std::shared_ptr<AbstractTransmissionBase> transmission)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (!isInitialized_)
+        {
+            PRINT_ERROR("The robot is not initialized.");
+            returnCode = hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (getIsLocked())
+            {
+                PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                            "Please stop it before adding motors.");
+                returnCode = hresult_t::ERROR_GENERIC;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            std::string const & transmissionName = transmission->getName();
+            auto transmissionIt = std::find_if(transmissionsHolder_.begin(), transmissionsHolder_.end(),
+                                        [&transmissionName](auto const & elem)
+                                        {
+                                            return (elem->getName() == transmissionName);
+                                        });
+            if (transmissionIt != transmissionsHolder_.end())
+            {
+                PRINT_ERROR("A transmission with the same name already exists.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Attach the transmission
+            returnCode = transmission->attach(shared_from_this());
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Add the transmission to the holder
+            transmissionsHolder_.push_back(transmission);
+
+            // Refresh the transmissions proxies
+            refreshTransmissionsProxies();
+        }
+
+        // update list of actuated joints
+        std::vector<std::string> const & jointNames = transmission->getJointNames();
+        actuatedJoints_.insert(actuatedJoints_.end(), jointNames.begin(), jointNames.end());
+
+
+        return returnCode;
+    }
+
+    hresult_t Robot::detachTransmission(std::string const & transmissionName)
+    {
+        if (!isInitialized_)
+        {
+            PRINT_ERROR("Robot not initialized.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (getIsLocked())
+        {
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before removing transmissions.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        auto transmissionIt = std::find_if(transmissionsHolder_.begin(), transmissionsHolder_.end(),
+                                    [&transmissionName](auto const & elem)
+                                    {
+                                        return (elem->getName() == transmissionName);
+                                    });
+        if (transmissionIt == transmissionsHolder_.end())
+        {
+            PRINT_ERROR("No transmission with this name exists.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Detach the transmission
+        (*transmissionIt)->detach();  // It cannot fail at this point
+
+        // Remove the transmission from the holder
+        transmissionsHolder_.erase(transmissionIt);
+
+        // Refresh the transmissions proxies
+        refreshTransmissionsProxies();
+
+        return hresult_t::SUCCESS;
     }
 
     hresult_t Robot::attachMotor(std::shared_ptr<AbstractMotorBase> motor)
@@ -290,6 +392,51 @@ namespace jiminy
                 if (!motorsNames_.empty())
                 {
                     returnCode = detachMotors(std::vector<std::string>(motorsNames_));
+                }
+            }
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Robot::detachTransmissions(std::vector<std::string> const & transmissionsNames)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (!transmissionsNames.empty())
+        {
+            // Make sure that no transmission names are duplicates
+            if (checkDuplicates(transmissionsNames))
+            {
+                PRINT_ERROR("Duplicated transmission names.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                // Make sure that every transmission name exist
+                if (!checkInclusion(transmissionsNames_, transmissionsNames))
+                {
+                    PRINT_ERROR("At least one of the transmission names does not exist.");
+                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                }
+            }
+
+            for (std::string const & name : transmissionsNames)
+            {
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    returnCode = detachTransmission(name);
+                }
+            }
+        }
+        else
+        {
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                if (!transmissionsNames_.empty())
+                {
+                    returnCode = detachTransmissions(std::vector<std::string>(transmissionsNames_));
                 }
             }
         }
@@ -630,6 +777,11 @@ namespace jiminy
     Robot::motorsHolder_t const & Robot::getMotors(void) const
     {
         return motorsHolder_;
+    }
+
+    Robot::transmissionsHolder_t const & Robot::getTransmissions(void) const
+    {
+        return tranmissionsHolder_;
     }
 
     hresult_t Robot::getSensor(std::string const & sensorType,
@@ -1246,7 +1398,7 @@ namespace jiminy
             sensorDataTypeMap_t dataType(std::cref(sensorsSharedIt->second->dataMeasured_));  // Need explicit call to `std::reference_wrapper` for gcc<7.3
             for (auto & sensor : sensorsGroupIt->second)
             {
-                auto & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);
+                auto const & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);
                 dataType.emplace(sensorConst.getName(),
                                  sensorConst.getIdx(),
                                  sensorConst.get());

@@ -9,6 +9,7 @@ namespace jiminy
 {
     struct MotorSharedDataHolder_t;
     class AbstractMotorBase;
+    class AbstractTransmissionBase;
     struct SensorSharedDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
@@ -22,6 +23,7 @@ namespace jiminy
         using sensorsHolder_t = std::vector<std::shared_ptr<AbstractSensorBase> >;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
         using sensorsSharedHolder_t = std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> >;
+        using transmissionsHolder_t = std::vector<std::shared_ptr<AbstractTransmissionBase> >;
 
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -53,6 +55,8 @@ namespace jiminy
         motorsHolder_t const & getMotors(void) const;
         hresult_t detachMotor(std::string const & motorName);
         hresult_t detachMotors(std::vector<std::string> const & motorsNames = {});
+        hresult_t detachTransmission(std::string const & transmissionName);
+        hresult_t detachTransmissions(std::vector<std::string> const & transmissionsNames = {});
         hresult_t attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
         hresult_t getSensor(std::string const & sensorType,
                             std::string const & sensorName,
@@ -64,6 +68,10 @@ namespace jiminy
         hresult_t detachSensor(std::string const & sensorType,
                               std::string const & sensorName);
         hresult_t detachSensors(std::string const & sensorType = {});
+        hresult_t getTransmission(std::string const & transmissionName,
+                                  std::shared_ptr<AbstractTransmissionBase> & transmission);
+        transmissionsHolder_t const & getTransmissions(void) const;
+        hresult_t attachTransmission(std::shared_ptr<AbstractTransmissionBase> transmission);
 
         void computeMotorsEfforts(float64_t const & t,
                                   vectorN_t const & q,
@@ -123,6 +131,7 @@ namespace jiminy
         std::vector<int32_t> getMotorsVelocityIdx(void) const;
         std::unordered_map<std::string, std::vector<std::string> > const & getSensorsNames(void) const;
         std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;
+        std::vector<std::string> const & getActuatedJointNames(void) const;
 
         vectorN_t const & getCommandLimit(void) const;
         vectorN_t const & getArmatures(void) const;
@@ -145,6 +154,7 @@ namespace jiminy
         bool_t isTelemetryConfigured_;
         std::shared_ptr<TelemetryData> telemetryData_;
         motorsHolder_t motorsHolder_;
+        transmissionsHolder_t transmissionsHolder_;
         sensorsGroupHolder_t sensorsGroupHolder_;
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
         std::vector<std::string> motorsNames_;                                      ///< Name of the motors
@@ -152,6 +162,7 @@ namespace jiminy
         std::vector<std::string> commandFieldnames_;                                ///< Fieldnames of the command
         std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the motors effort
         uint64_t nmotors_;                                                          ///< The number of motors
+        std::vector<std::string> actuatedJointNames_;                               ///< List of joints attached to a transmission
 
     private:
         std::unique_ptr<MutexLocal> mutexLocal_;

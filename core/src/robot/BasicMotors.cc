@@ -17,23 +17,6 @@ namespace jiminy
         setOptions(getDefaultMotorOptions());
     }
 
-    hresult_t SimpleMotor::initialize(std::string const & jointName)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        jointName_ = jointName;
-        isInitialized_ = true;
-        returnCode = refreshProxies();
-
-        if (returnCode != hresult_t::SUCCESS)
-        {
-            jointName_.clear();
-            isInitialized_ = false;
-        }
-
-        return returnCode;
-    }
-
     hresult_t SimpleMotor::setOptions(configHolder_t const & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -79,25 +62,16 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SimpleMotor::computeEffort(float64_t const & /* t */,
-                                         Eigen::VectorBlock<vectorN_t const> const & /* q */,
-                                         float64_t const & v,
-                                         float64_t const & /* a */,
-                                         float64_t command)
+    hresult_t SimpleMotor::computeEffort(float64_t const & v,
+                                        float64_t command)
     {
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Motor not initialized. Impossible to compute actual motor effort.");
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
         /* Compute the motor effort, taking into account the limit, if any.
            It is the output of the motor on joint side, ie after the transmission. */
         if (motorOptions_->enableCommandLimit)
         {
             command = clamp(command, -getCommandLimit(), getCommandLimit());
         }
-        data() = motorOptions_->mechanicalReduction * command;
+        data() = command;
 
         /* Add friction to the joints associated with the motor if enable.
            It is computed on joint side instead of the motor. */
