@@ -726,7 +726,7 @@ namespace Eigen
         }
 
         #define GENERATE_OPERATOR_ARITHEMTIC(OP,NAME) \
-        auto const (operator OP)(Scalar const & scalar) const \
+        auto (operator OP)(Scalar const & scalar) const \
         { \
             typedef std::remove_const_t<decltype( \
                 std::declval<ValueType>() OP std::declval<Scalar>())> wrappedType; \
@@ -740,14 +740,14 @@ namespace Eigen
             return VectorContainerWrapper<wrappedType>(std::move(result)); \
         } \
          \
-        friend auto const (operator OP)(Scalar              const & scalar, \
-                                        VectorContainerBase const & other) \
+        friend auto (operator OP)(Scalar              const & scalar, \
+                                  VectorContainerBase const & other) \
         { \
             return other OP scalar; \
         } \
          \
         template<typename OtherDerived> \
-        auto const (operator OP)(VectorContainerBase<OtherDerived> const & other) const \
+        auto (operator OP)(VectorContainerBase<OtherDerived> const & other) const \
         { \
             typedef std::remove_const_t<decltype( \
                 std::declval<ValueType>() OP std::declval<typename OtherDerived::ValueType>())> wrappedType; \
@@ -825,7 +825,8 @@ namespace Eigen
             {
                 return std::accumulate(
                     container.vector().begin(), container.vector().end(), RealScalar(0.0),
-                    [](RealScalar & cumsum, typename internal::traits<Derived>::ValueType const & element)
+                    [](RealScalar & /* cumsum */,
+                       typename internal::traits<Derived>::ValueType const & element)
                     {
                         return element.template lpNorm<1>();
                     }
@@ -889,6 +890,7 @@ namespace Eigen
         {
             do_for([&robots](auto arg) {
                 assert(arg.size() == robots.size());
+                (void)(arg);  // Necessary to fix unused variable warning
             }, args...);
             vector_.reserve(robots.size());
             for (std::size_t i = 0; i < robots.size(); ++i)
@@ -904,6 +906,7 @@ namespace Eigen
         {
             do_for([&robots](auto arg) {
                 assert(arg.size() == robots.size());
+                (void)(arg);  // Necessary to fix unused variable warning
             }, args...);
             vector_.reserve(robots.size());
             for (std::size_t i = 0; i < robots.size(); ++i)
@@ -952,8 +955,8 @@ namespace Eigen
         std::vector<ValueType> const & vector(void) const { return vector_; }
         std::vector<ValueType> & vector(void) { return vector_; }
 
-        static auto const Zero(std::vector<Robot const *> const & robots);
-        static auto const Ones(std::vector<Robot const *> const & robots);
+        static auto Zero(std::vector<Robot const *> const & robots);
+        static auto Ones(std::vector<Robot const *> const & robots);
 
         // This method allows you to assign Eigen expressions to VectorContainer
         template<typename OtherDerived>
@@ -1015,7 +1018,7 @@ namespace Eigen
     };
 
     template<typename _ValueType>
-    auto const VectorContainer<_ValueType>::Zero(std::vector<Robot const *> const & robots)
+    auto VectorContainer<_ValueType>::Zero(std::vector<Robot const *> const & robots)
     {
         typedef std::remove_const_t<decltype( \
             _ValueType::Zero(std::declval<Robot const * const &>()))> wrappedType; \
@@ -1031,7 +1034,7 @@ namespace Eigen
     }
 
     template<typename _ValueType>
-    auto const VectorContainer<_ValueType>::Ones(std::vector<Robot const *> const & robots)
+    auto VectorContainer<_ValueType>::Ones(std::vector<Robot const *> const & robots)
     {
         typedef std::remove_const_t<decltype( \
             _ValueType::Ones(std::declval<Robot const * const &>()))> wrappedType; \

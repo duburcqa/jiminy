@@ -1,4 +1,4 @@
-name: Linux CI (Build from source dependencies)
+name: MacOS CI (Build from source dependencies)
 
 on:
   # Trigger the workflow on push on the master branch, or for any pull request
@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
+        os: [macos-10.15]
 
     defaults:
       run:
@@ -22,7 +22,8 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
-      PYTHON_VERSION: 3.6
+      PYTHON_VERSION: 3.8
+      MIN_MACOS_VERSION: 10.9
 
     #####################################################################################
 
@@ -42,9 +43,6 @@ jobs:
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
 
-        sudo apt update
-        sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
-
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade wheel
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
@@ -55,13 +53,11 @@ jobs:
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
-        ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install torch==1.8.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        MIN_MACOS_VERSION=${MIN_MACOS_VERSION} ./build_tools/build_install_deps_unix.sh
 
-        PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
+        PYTHON_USER_SITELIB="$(${PYTHON_EXECUTABLE} -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"
-        echo "${InstallDir}/lib/python${PYTHON_VERSION}/site-packages" \
+        echo "$InstallDir/lib/python${PYTHON_VERSION}/site-packages" \
         >> "${PYTHON_USER_SITELIB}/user_site.pth"
 
     #####################################################################################
@@ -74,39 +70,11 @@ jobs:
         cd "$RootDir/build"
         export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET="${MIN_MACOS_VERSION}" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="-fPIC -DBOOST_BIND_GLOBAL_PLACEHOLDERS" \
+              -DCMAKE_CXX_FLAGS="-fPIC" \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2
-
-    #####################################################################################
-
-    - name: Build extension module
-      run: |
-        export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/:/usr/local/lib"
-
-        "$InstallDir/bin/jiminy_double_pendulum"
-
-        mkdir -p "$RootDir/examples/cpp/pip_extension/build"
-        cd "$RootDir/examples/cpp/pip_extension/build"
-        cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-               -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-        make install
-
-        "$InstallDir/bin/pip_double_pendulum"
-
-    - name: Run unit tests
-      run: |
-        export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/:/usr/local/lib"
-
-        ./build/unit/unit
-
-        cd "$RootDir/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
-
-        cd "$RootDir/python/gym_jiminy/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v

@@ -27,7 +27,7 @@ Beside a strong focus on performance to answer machine learning's need for runni
 - Dedicated integration in Google Colab, Jupyter Lab, and VSCode working out-of-the-box - including interactive 3D viewer based on [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnement such as machine learning clusters.
 - Cross-platform offscreen rendering capability, without requiring X-server, based on [Panda3d](https://github.com/panda3d/panda3d).
 - Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported in raw binary, CSV or [HDF5](https://portal.hdfgroup.org/display/HDF5/Introduction+to+HDF5) format.
-- Available for both Linux and Windows platforms.
+- Support Linux, Mac and Windows platforms.
 
 ### Physics
 
@@ -65,7 +65,7 @@ Pre-configured environments for some well-known toys models and reference roboti
 
 ## Getting started
 
-Jiminy and Gym Jiminy are compatible with Linux and Windows, and supports Python3.6+. They are distributed on PyPi for Python 3.6/3.7/3.8/3.9 for both platform, so they can be installed using `pip`:
+Jiminy and Gym Jiminy support Linux, Mac and Windows, and is compatible with Python3.6+. Pre-compiled binaries are distributed on PyPi for Python 3.6/3.7/3.8/3.9 on Linux and Windows only. They can be installed using `pip`:
 
 ```bash
 # For installing Jiminy

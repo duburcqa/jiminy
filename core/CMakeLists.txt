@@ -149,7 +149,7 @@ foreach(target "${PROJECT_NAME}" "${LIBRARY_NAME}")
     target_link_libraries(${target} jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
     target_link_libraries(${target} ${Boost_LIBRARIES})
     # Link some libraries that are not automatically linked with HDF5 and assimp (through hppfcl) respectively
-    if(NOT WIN32)
+    if(UNIX AND NOT APPLE)
         target_link_libraries(${target} ${CMAKE_DL_LIBS} -lrt)
     endif()
 endforeach()

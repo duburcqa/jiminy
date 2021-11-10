@@ -1268,11 +1268,11 @@ namespace jiminy
             /* Generate the fieldnames associated with the configuration vector,
                velocity, acceleration and external force vectors. */
             positionFieldnames_.clear();
-            positionFieldnames_.resize(nq_);
+            positionFieldnames_.resize(static_cast<std::size_t>(nq_));
             velocityFieldnames_.clear();
-            velocityFieldnames_.resize(nv_);
+            velocityFieldnames_.resize(static_cast<std::size_t>(nv_));
             accelerationFieldnames_.clear();
-            accelerationFieldnames_.resize(nv_);
+            accelerationFieldnames_.resize(static_cast<std::size_t>(nv_));
             forceExternalFieldnames_.clear();
             forceExternalFieldnames_.resize(6U * (pncModel_.njoints - 1));
             for (std::size_t i = 1; i < pncModel_.joints.size(); ++i)
