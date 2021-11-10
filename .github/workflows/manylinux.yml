@@ -49,7 +49,13 @@ jobs:
         echo "export PATH=\"${pythonLocation}/bin:\$PATH\"" >> $HOME/.bashrc
         source $HOME/.bashrc
 
+        git config --global advice.detachedHead false
+
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python"
+        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
+        echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+        echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
+
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel auditwheel cmake
         if [ "${{ matrix.legacy }}" == true ] ; then
@@ -57,12 +63,6 @@ jobs:
         else
           "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
         fi
-        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
-
-        echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
-        echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
-
-        git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
@@ -95,6 +95,8 @@ jobs:
 
         make install
 
+    #####################################################################################
+
     - name: Generate and install Python Pip wheels
       run: |
         export LD_LIBRARY_PATH="$InstallDir/lib:/usr/local/lib"
@@ -105,8 +107,8 @@ jobs:
         # Note that `--strip` option is not used but rather done manually because the
         # built-in option corrupts the shared library for some reason...
         "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_repair_linux.py" repair \
-            -w "$RootDir/build/wheelhouse" "$RootDir"/build/pypi/dist/jiminy_py/*.whl
-        "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir"/build/wheelhouse/*.whl
+            -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
+        "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of Jiminy_py
       if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1

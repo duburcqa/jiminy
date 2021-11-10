@@ -117,7 +117,7 @@ jobs:
             $wheel_path = ($_.FullName)
             python -m pip install --force-reinstall --no-deps $wheel_path
         }
-    - name: Upload the wheel for Windows of Jiminy_py
+    - name: Upload the wheel for Windows of jiminy_py
       if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
@@ -164,7 +164,7 @@ jobs:
 #########################################################################################
 
   publish-pypi-win10:
-    name: (Windows) Publish on PyPi the wheel for Windows of Jiminy_py
+    name: (Windows) Publish on PyPi the wheel for Windows of jiminy_py
     needs: build-and-test-win10
     runs-on: ubuntu-20.04
     if: github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
