@@ -3689,7 +3689,7 @@ namespace jiminy
             vectorN_t & uAugmented = systemData.uAugmented;
             vectorN_t & lo = systemData.lo;
             vectorN_t & hi = systemData.hi;
-            std::vector<int32_t> & fIdx = systemData.fIdx;
+            std::vector<std::vector<int32_t> > & fIndices = systemData.fIndices;
 
             // Compute kinematic constraints
             system.robot->computeConstraints(q, v);
@@ -3702,7 +3702,7 @@ namespace jiminy
             // Compute constraints bounds
             lo = vectorN_t::Constant(constraintsDrift.size(), -INF);
             hi = vectorN_t::Constant(constraintsDrift.size(), +INF);
-            fIdx = std::vector<int32_t>(constraintsDrift.size(), -1);
+            fIndices = std::vector<std::vector<int32_t> >(constraintsDrift.size());
 
             uint64_t constraintIdx = 0U;
             auto constraintIt = systemData.constraintsHolder.boundJoints.begin();
@@ -3731,7 +3731,7 @@ namespace jiminy
             for (constraintsHolderType_t holderType : holderTypes)
             {
                 systemData.constraintsHolder.foreach(holderType,
-                    [&lo, &hi, &fIdx, &constraintIdx,
+                    [&lo, &hi, &fIndices, &constraintIdx,
                      &contactOptions = const_cast<contactOptions_t &>(engineOptions_->contacts)](  // capturing const reference is not properly supported by gcc<7.3
                         std::shared_ptr<AbstractConstraintBase> const & constraint,
                         constraintsHolderType_t const & /* holderType */)
@@ -3743,11 +3743,13 @@ namespace jiminy
 
                         // Enforce tangential friction pyramid and torsional friction
                         hi[constraintIdx] = contactOptions.friction;      // Friction along x-axis
-                        fIdx[constraintIdx] = static_cast<int32_t>(constraintIdx + 2);
+                        fIndices[constraintIdx] = {static_cast<int32_t>(constraintIdx + 2),
+                                                   static_cast<int32_t>(constraintIdx + 1)};
                         hi[constraintIdx + 1] = contactOptions.friction;  // Friction along y-axis
-                        fIdx[constraintIdx + 1] = static_cast<int32_t>(constraintIdx + 2);
+                        fIndices[constraintIdx + 1] = {static_cast<int32_t>(constraintIdx + 2),
+                                                       static_cast<int32_t>(constraintIdx)};
                         hi[constraintIdx + 3] = contactOptions.torsion;   // Friction around z-axis
-                        fIdx[constraintIdx + 3] = static_cast<int32_t>(constraintIdx + 2);
+                        fIndices[constraintIdx + 3] = {static_cast<int32_t>(constraintIdx + 2)};
 
                         // Vertical force cannot be negative
                         lo[constraintIdx + 2] = 0.0;
@@ -3784,7 +3786,7 @@ namespace jiminy
                                                  engineOptions_->contacts.regularization,
                                                  lo,
                                                  hi,
-                                                 fIdx);
+                                                 fIndices);
 
             // Update lagrangian multipliers associated with the constraint
             constraintIdx = 0U;

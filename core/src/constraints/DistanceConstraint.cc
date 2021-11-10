@@ -142,7 +142,7 @@ namespace jiminy
 
         // dDir.T * (dp_A - dp_B) = [(dp_A - dp_B) ** 2 - (dir.T * (dp_A - dp_B)) ** 2] / norm(p_A - p_B)
         float64_t const deltaVelocityProj = deltaVelocity.dot(direction);
-        drift_[0] += (deltaVelocity.squaredNorm() - std::pow(deltaVelocityProj, 2)) / deltaPositionNorm;
+        drift_[0] += (deltaVelocity.squaredNorm() - deltaVelocityProj * deltaVelocityProj) / deltaPositionNorm;
 
         // Add Baumgarte stabilization drift
         drift_[0] += kp_ * (deltaPositionNorm - distanceRef_) + kd_ * deltaVelocityProj;
