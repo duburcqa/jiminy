@@ -159,7 +159,7 @@ namespace jiminy
         vectorN_t uAugmented;                                          ///< Used to store the input effort plus the effect of external forces
         vectorN_t lo;                                                  ///< Lower bound of LCP problem
         vectorN_t hi;                                                  ///< Higher bound of LCP problem
-        std::vector<int32_t> fIdx;                                     ///< Used to indicate linear coupling between bounds of LCP and the solution (i.e. friction pyramid: - mu * F_z < F_x/F_y < mu * F_z)
+        std::vector<std::vector<int32_t> > fIndices;                   ///< Used to indicate linear coupling between bounds of LCP and the solution (i.e. friction cone: - mu * F_z < F_x/F_y < mu * F_z)
 
         std::vector<std::string> positionFieldnames;
         std::vector<std::string> velocityFieldnames;
