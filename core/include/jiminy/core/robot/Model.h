@@ -431,7 +431,7 @@ namespace jiminy
         std::vector<jointIndex_t> flexibleJointsModelIdx_;          ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
 
         constraintsHolder_t constraintsHolder_;                 ///< Store constraints
-        uint64_t constraintsMask_;                              ///< Mask used to filter out disable constraints from full jacobian and drift
+        Eigen::Index constraintsMask_;                          ///< Mask used to filter out disable constraints from full jacobian and drift
         matrixN_t constraintsJacobian_;                         ///< Matrix holding the jacobian of the constraints
         vectorN_t constraintsDrift_;                            ///< Vector holding the drift of the constraints
         vectorN_t constraintsLambda_;                           ///< Vector holding the lambda multipliers of the constraints

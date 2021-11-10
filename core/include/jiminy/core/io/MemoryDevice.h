@@ -40,7 +40,7 @@ namespace jiminy
 
         int64_t bytesAvailable(void) override
         {
-            return buffer_.size() - currentPos_;
+            return size() - currentPos_;
         }
 
         hresult_t seek(int64_t pos) override;

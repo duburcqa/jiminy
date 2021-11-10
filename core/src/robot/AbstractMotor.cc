@@ -15,9 +15,9 @@ namespace jiminy
     robot_(),
     notifyRobot_(),
     name_(name),
-    motorIdx_(-1),
+    motorIdx_(0),
     jointName_(),
-    jointModelIdx_(-1),
+    jointModelIdx_(0),
     jointType_(joint_t::NONE),
     jointPositionIdx_(-1),
     jointVelocityIdx_(-1),
@@ -91,20 +91,20 @@ namespace jiminy
         // Remove associated col in the global data buffer
         if (motorIdx_ < sharedHolder_->num_ - 1)
         {
-            int32_t motorShift = sharedHolder_->num_ - motorIdx_ - 1;
+            Eigen::Index const motorShift = static_cast<Eigen::Index>(sharedHolder_->num_ - motorIdx_ - 1);
             sharedHolder_->data_.segment(motorIdx_, motorShift) =
                 sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
         }
         sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
 
         // Shift the motor ids
-        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
+        for (std::size_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
         {
             --sharedHolder_->motors_[i]->motorIdx_;
         }
 
         // Remove the motor to the shared memory
-        sharedHolder_->motors_.erase(sharedHolder_->motors_.begin() + motorIdx_);
+        sharedHolder_->motors_.erase(std::next(sharedHolder_->motors_.begin(), motorIdx_));
         --sharedHolder_->num_;
 
         // Clear the references to the robot and shared data
@@ -341,7 +341,7 @@ namespace jiminy
         return name_;
     }
 
-    int32_t const & AbstractMotorBase::getIdx(void) const
+    std::size_t const & AbstractMotorBase::getIdx(void) const
     {
         return motorIdx_;
     }

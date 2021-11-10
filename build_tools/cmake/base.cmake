@@ -33,13 +33,13 @@ else()
                    -Wmissing-field-initializers -Wmissing-noreturn \
                    -Wmissing-format-attribute -Wctor-dtor-privacy \
                    -Wpointer-arith -Wold-style-cast -Wpacked \
-                   -Woverloaded-virtual -Wredundant-decls \
-                   -Wstrict-null-sentinel -Wshadow -Wstack-protector \
-                   -Wstrict-aliasing=2 -Wswitch-default -Wswitch-enum \
-                   -Wunreachable-code -Wunused -Wundef -Wlogical-op \
-                   -Wdisabled-optimization -Wmissing-braces -Wtrigraphs \
-                   -Wparentheses -Wwrite-strings -Wsequence-point \
-                   -Wdeprecated -Wconversion -Wdelete-non-virtual-dtor \
+                   -Woverloaded-virtual -Wredundant-decls -Wshadow \
+                   -Wstack-protector -Wstrict-aliasing=2 \
+                   -Wswitch-default -Wswitch-enum -Wunreachable-code \
+                   -Wunused -Wundef -Wdisabled-optimization \
+                   -Wmissing-braces -Wtrigraphs -Wparentheses \
+                   -Wwrite-strings -Wsequence-point -Wdeprecated \
+                   -Wconversion -Wdelete-non-virtual-dtor \
                    -Wno-non-virtual-dtor -Werror=return-type")
 endif()
 

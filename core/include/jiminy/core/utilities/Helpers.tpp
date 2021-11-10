@@ -240,21 +240,21 @@ namespace jiminy
     /// \param[in] secondBlockLength Length of the second block.
     ///////////////////////////////////////////////////////////////////////////////////////////////
     template<typename type>
-    void swapVectorBlocks(Eigen::Matrix<type, Eigen::Dynamic, 1>       & vector,
-                          uint32_t                               const & firstBlockStart,
-                          uint32_t                               const & firstBlockLength,
-                          uint32_t                               const & secondBlockStart,
-                          uint32_t                               const & secondBlockLength)
+    void swapVectorBlocks(Eigen::Matrix<type, Eigen::Dynamic, 1> & vector,
+                          Eigen::Index const & firstBlockStart,
+                          Eigen::Index const & firstBlockLength,
+                          Eigen::Index const & secondBlockStart,
+                          Eigen::Index const & secondBlockLength)
     {
-        // Extract both blocks.
-        Eigen::Matrix< type, Eigen::Dynamic, 1 > firstBlock = vector.segment(firstBlockStart, firstBlockLength);
-        Eigen::Matrix< type, Eigen::Dynamic, 1 > secondBlock = vector.segment(secondBlockStart, secondBlockLength);
+        // Extract both blocks by copy
+        Eigen::Matrix<type, Eigen::Dynamic, 1> firstBlock = vector.segment(firstBlockStart, firstBlockLength);
+        Eigen::Matrix<type, Eigen::Dynamic, 1> secondBlock = vector.segment(secondBlockStart, secondBlockLength);
 
-        // Extract content between the blocks.
-        uint32_t middleLength = secondBlockStart - (firstBlockStart + firstBlockLength);
-        Eigen::Matrix< type, Eigen::Dynamic, 1 > middleBlock = vector.segment(firstBlockStart + firstBlockLength, middleLength);
+        // Extract content between the blocks
+        Eigen::Index const middleLength = secondBlockStart - (firstBlockStart + firstBlockLength);
+        Eigen::Matrix<type, Eigen::Dynamic, 1> middleBlock = vector.segment(firstBlockStart + firstBlockLength, middleLength);
 
-        // Reorder vector.
+        // Reorder vector
         vector.segment(firstBlockStart, secondBlockLength) = secondBlock;
         vector.segment(firstBlockStart + secondBlockLength, middleLength) = middleBlock;
         vector.segment(firstBlockStart + secondBlockLength + middleLength, firstBlockLength) = firstBlock;

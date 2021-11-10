@@ -44,7 +44,7 @@ namespace jiminy
 
         vectorN_t data_;                           ///< Buffer with current actual motor effort
         std::vector<AbstractMotorBase *> motors_;  ///< Vector of pointers to the motors.
-        int32_t num_;                              ///< Number of motors
+        std::size_t num_;                          ///< Number of motors
     };
 
     class AbstractMotorBase : public std::enable_shared_from_this<AbstractMotorBase>
@@ -174,7 +174,7 @@ namespace jiminy
         ///
         /// \details    It is the index of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        int32_t const & getIdx(void) const;
+        std::size_t const & getIdx(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get jointName_.
@@ -299,7 +299,7 @@ namespace jiminy
         std::weak_ptr<Robot const> robot_;                           ///< Robot for which the command and internal dynamics
         std::function<hresult_t(AbstractMotorBase &)> notifyRobot_;  ///< Notify the robot that the configuration of the sensors have changed
         std::string name_;                                           ///< Name of the motor
-        int32_t motorIdx_;                                           ///< Index of the motor in the measurement buffer
+        std::size_t motorIdx_;                                       ///< Index of the motor in the measurement buffer
         std::string jointName_;
         jointIndex_t jointModelIdx_;
         joint_t jointType_;

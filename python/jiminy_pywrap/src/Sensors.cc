@@ -173,7 +173,7 @@ namespace python
                 for (auto const & sensorData : sensorsDataType.second)
                 {
                     std::string const & sensorName = sensorData.name;
-                    int32_t const & sensorIdx = sensorData.idx;
+                    std::size_t const & sensorIdx = sensorData.idx;
                     Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorData.value;
                     s << "    (" << sensorIdx << ") " <<  sensorName << ": "
                       << sensorDataValue.transpose().format(HeavyFmt);

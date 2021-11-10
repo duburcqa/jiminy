@@ -70,7 +70,7 @@ namespace jiminy
         return std::static_pointer_cast<T>(shared_from_base(derived));
     }
 
-    // ======================== is_base_of_template ===========================
+    // =================== is_base_of_template ======================
 
     // https://stackoverflow.com/a/34672753/4820605
     template<template<typename...> class base, typename derived>
@@ -119,7 +119,7 @@ namespace jiminy
     template<typename T>
     constexpr bool is_map_v = is_map<T>::value;
 
-    // ====================== is_not_eigen_expr =======================
+    // ===================== is_not_eigen_expr ======================
 
     // Check it is eigen object has its own storage, otherwise it is an expression
     // https://stackoverflow.com/questions/53770832/type-trait-to-check-if-an-eigen-type-is-an-expression-without-storage-or-a-mat
