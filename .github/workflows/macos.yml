@@ -53,7 +53,7 @@ jobs:
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
-        MIN_MACOS_VERSION=${MIN_MACOS_VERSION} ./build_tools/build_install_deps_linux.sh
+        MIN_MACOS_VERSION=${MIN_MACOS_VERSION} ./build_tools/build_install_deps_unix.sh
 
         PYTHON_USER_SITELIB="$(${PYTHON_EXECUTABLE} -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"

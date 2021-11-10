@@ -76,7 +76,7 @@ git reset --hard
 git checkout --force "v2.6.4"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/eigenpy.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
 
 ### Checkout tinyxml (robotology fork for cmake compatibility)
 if [ ! -d "$RootDir/tinyxml" ]; then
@@ -85,7 +85,7 @@ fi
 cd "$RootDir/tinyxml"
 git reset --hard
 git checkout --force "master"
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/tinyxml.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/tinyxml.patch"
 
 ### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
 if [ ! -d "$RootDir/console_bridge" ]; then
@@ -110,7 +110,7 @@ fi
 cd "$RootDir/urdfdom"
 git checkout --force "1.0.4"
 git reset --hard
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/urdfdom.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/urdfdom.patch"
 
 ### Checkout assimp
 if [ ! -d "$RootDir/assimp" ]; then
@@ -119,7 +119,7 @@ fi
 cd "$RootDir/assimp"
 git reset --hard
 git checkout --force "v5.0.1"
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/assimp.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/assimp.patch"
 
 ### Checkout hpp-fcl
 if [ ! -d "$RootDir/hpp-fcl" ]; then
@@ -130,7 +130,7 @@ git reset --hard
 git checkout --force "v1.7.4"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/hppfcl.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/hppfcl.patch"
 cd "$RootDir/hpp-fcl/third-parties/qhull"
 git checkout --force "v8.0.2"
 
@@ -143,7 +143,7 @@ git reset --hard
 git checkout --force "v2.5.6"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/pinocchio.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"
 
 ################################### Build and install boost ############################################
 

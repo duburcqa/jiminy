@@ -110,7 +110,7 @@ python -m pip install "numpy<1.20"
 Just run the bash script already available.
 
 ```
-BUILD_TYPE="Release" ./build_tools/build_install_deps_linux.sh
+BUILD_TYPE="Release" ./build_tools/build_install_deps_unix.sh
 ```
 
 ### Build Procedure

@@ -55,7 +55,7 @@ jobs:
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
-        ./build_tools/build_install_deps_linux.sh
+        ./build_tools/build_install_deps_unix.sh
         "${PYTHON_EXECUTABLE}" -m pip install torch==1.8.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
