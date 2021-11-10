@@ -40,7 +40,11 @@ else()
                    -Wmissing-braces -Wtrigraphs -Wparentheses \
                    -Wwrite-strings -Wsequence-point -Wdeprecated \
                    -Wconversion -Wdelete-non-virtual-dtor \
-                   -Wno-non-virtual-dtor -Werror=return-type")
+                   -Wno-sign-conversion -Wno-non-virtual-dtor \
+                   -Wno-delete-abstract-non-virtual-dtor \
+                   -Wno-delete-non-abstract-non-virtual-dtor \
+                   -Wno-unknown-pragmas -Wno-undefined-var-template \
+                   -Werror=return-type")
 endif()
 
 # Shared libraries need PIC
@@ -63,6 +67,7 @@ endif()
 
 # Define search strategy for Boost package
 # TODO: Remove hard-coded path
+option(Boost_NO_WARN_NEW_VERSIONS "Do not warn about unknown boost version." ON)
 option(Boost_NO_SYSTEM_PATHS "Do not search for boost on system." ON)
 if(Boost_NO_SYSTEM_PATHS AND (NOT DEFINED BOOST_ROOT))
     set(BOOST_ROOT "/opt/install/pc/")
