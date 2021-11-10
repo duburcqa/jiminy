@@ -16,6 +16,13 @@ if(NOT isMultiConfig)
      set(EXTERNALPROJECT_BUILD_TYPE_CMD -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
 endif()
 
+# Propagate OSX configuration
+if(APPLE)
+     set(EXTERNALPROJECT_OSX_CONFIG "\
+         -DCMAKE_OSX_ARCHITECTURES:STRING=${CMAKE_OSX_ARCHITECTURES} \
+         -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+endif()
+
 # Add all SOUP
 file(GLOB subdirs_list RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
 foreach(subdir ${subdirs_list})

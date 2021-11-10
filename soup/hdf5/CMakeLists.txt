@@ -32,6 +32,7 @@ externalproject_add(zlib_external
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_C_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
           -Wno-dev  # Silent Cmake warnings about deprecated support of Cmake < 2.8.12
+          ${EXTERNALPROJECT_OSX_CONFIG}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
 
      ${zlib_NINJA}
@@ -112,6 +113,7 @@ externalproject_add(${PROJECT_NAME}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
           -DCMAKE_C_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
+          ${EXTERNALPROJECT_OSX_CONFIG}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
 
      ${hdf5_NINJA}
