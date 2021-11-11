@@ -182,10 +182,7 @@ if [ "${OSTYPE//[0-9.]/}" == "darwin" ]; then
   CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
 fi
 if grep -q ";" <<< "${OSX_ARCHITECTURES}" ; then
-    ARCHITECTURE_TYPE_B2="combined"
     CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} $(echo "-arch ${OSX_ARCHITECTURES}" | sed "s/;/ -arch /g")"
-else
-    ARCHITECTURE_TYPE_B2="x86"
 fi
 
 mkdir -p "$RootDir/boost/build"
