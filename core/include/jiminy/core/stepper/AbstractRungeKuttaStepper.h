@@ -25,6 +25,7 @@ namespace jiminy
                                       vectorN_t const & bWeights,
                                       vectorN_t const & cNodes,
                                       bool_t    const & isFSAL);
+            virtual ~AbstractRungeKuttaStepper(void) = default;
 
         protected:
             /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.

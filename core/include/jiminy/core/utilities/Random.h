@@ -116,7 +116,6 @@ namespace jiminy
     public:
         AbstractPerlinNoiseOctave(float64_t const & wavelength,
                                   float64_t const & scale);
-
         virtual ~AbstractPerlinNoiseOctave(void) = default;
 
         virtual void reset(void);
@@ -213,7 +212,6 @@ namespace jiminy
     public:
         AbstractPerlinProcess(float64_t const & wavelength,
                               uint32_t  const & numOctaves = 8U);
-
         virtual ~AbstractPerlinProcess(void) = default;
 
         void reset(void);

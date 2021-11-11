@@ -35,6 +35,7 @@ namespace jiminy
         /// \param[in] robots  Robots whose dynamics the stepper will work on.
         AbstractStepper(systemDynamics f, /* Copy on purpose */
                         std::vector<Robot const *> const & robots);
+        virtual ~AbstractStepper(void) = default;
 
         /// \brief Attempt to integrate the system from time t to time t + dt.
         /// \details Each stepper is responsible for implementing its own error checking routine to determine

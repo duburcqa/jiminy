@@ -14,16 +14,20 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-10.15]
+        os: [macos-10.15, macos-11]
+        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
+        exclude:
+          - os: macos-11
+            PYTHON_VERSION: '3.6'
+          - os: macos-11
+            PYTHON_VERSION: '3.7'
 
     defaults:
       run:
-        shell: bash
+        shell: bash -ieo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
 
     env:
       BUILD_TYPE: "Release"
-      PYTHON_VERSION: 3.8
-      MIN_MACOS_VERSION: 10.9
 
     #####################################################################################
 
@@ -36,29 +40,34 @@ jobs:
     - name: Configure Python
       uses: actions/setup-python@v1
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
+        python-version: ${{ matrix.PYTHON_VERSION }}
         architecture: 'x64'
     - name: Setup minimal build environment
       run: |
+        git config --global advice.detachedHead false
+
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
-
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade wheel
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
-
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
-        git config --global advice.detachedHead false
+        if [ "${{ matrix.os }}" == "macos-10.15" ] ; then
+          echo "MIN_MACOS_VERSION=10.9" >> $GITHUB_ENV
+          echo "OSX_ARCHITECTURES=x86_64" >> $GITHUB_ENV
+          echo "WHEEL_ARCH=x86_64" >> $GITHUB_ENV
+        else
+          echo "MIN_MACOS_VERSION=11.0" >> $GITHUB_ENV
+          echo "OSX_ARCHITECTURES=x86_64;arm64" >> $GITHUB_ENV
+          echo "WHEEL_ARCH=universal2" >> $GITHUB_ENV
+        fi
+
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel delocate
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
     - name: Build project dependencies
       run: |
-        MIN_MACOS_VERSION=${MIN_MACOS_VERSION} ./build_tools/build_install_deps_unix.sh
-
-        PYTHON_USER_SITELIB="$(${PYTHON_EXECUTABLE} -m site --user-site)"
-        mkdir -p "${PYTHON_USER_SITELIB}"
-        echo "$InstallDir/lib/python${PYTHON_VERSION}/site-packages" \
-        >> "${PYTHON_USER_SITELIB}/user_site.pth"
+        MIN_MACOS_VERSION=${MIN_MACOS_VERSION} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} ./build_tools/build_install_deps_unix.sh
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -68,13 +77,66 @@ jobs:
 
         mkdir "$RootDir/build"
         cd "$RootDir/build"
-        export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/:/usr/local/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET="${MIN_MACOS_VERSION}" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+              -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MIN_MACOS_VERSION}" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="-fPIC" \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-        make install -j2
+        make -j2
+
+        mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
+        cp -R -H "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages/." \
+                 "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        find "$RootDir/build/pypi/" -name "*.so*" -exec strip -S -x -r -v {} +
+
+        make install
+
+    #####################################################################################
+
+    - name: Generate and install Python Pip wheels
+      run: |
+        export DYLD_LIBRARY_PATH="$InstallDir/lib"
+
+        cd "$RootDir/build"
+        cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
+
+        delocate-wheel --require-archs "${WHEEL_ARCH}" \
+                       -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
+        delocate-addplat --rm-orig -p "macosx_${MIN_MACOS_VERSION//./_}_${WHEEL_ARCH}" \
+                         "$RootDir/build/wheelhouse/"*.whl
+        "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
+    - name: Upload the wheel for Linux of jiminy_py
+      if: success() && github.repository == 'duburcqa/jiminy'
+      uses: actions/upload-artifact@v1
+      with:
+        name: jiminy_py-${{ matrix.PYTHON_VERSION }}-wheel
+        path: build/wheelhouse
+
+    #####################################################################################
+
+    - name: Run unit tests
+      run: |
+        ./build/unit/unit
+
+        # The access to hpp-fcl shapes is not working for some reason, so that doing
+        # `collision_model.geometryObjects[0].geometry.clone()` is failing. It is
+        # probably an issue with boost python and it is not related to jiminy.
+        cd "$RootDir/unit_py"
+        #"${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+    #####################################################################################
+
+    - name: Publish on PyPi the wheel for Linux of jiminy_py
+      if: >-
+        success() &&
+        github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_DEPLOY }}
+        packages_dir: build/wheelhouse
