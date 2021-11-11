@@ -17,7 +17,6 @@ namespace jiminy
     {
     public:
         JsonWriter(std::shared_ptr<AbstractIODevice> device);
-
         ~JsonWriter() = default;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -8,18 +8,19 @@ from contextlib import redirect_stderr as _redirect_stderr
 from distutils.sysconfig import get_config_var as _get_config_var
 
 
-# Special dlopen flags are used when loading Boost Python shared library to
-# make sure the same boost python runtime is shared between every modules,
-# even if linked versions are different. It is necessary to share the same
-# boost python registers, required for inter-operability between modules. Note
-# that since Python3.8, PATH and the current working directory are no longer
-# used for DLL resolution on Windows OS. One is expected to explicitly call
-# `os.add_dll_directory` instead.
+# Special dlopen flags are used when loading Boost Python shared library
+# available in search path on the system if any. This is necessary to make sure
+# the same boost python runtime is shared between every modules, even if linked
+# versions are different. It is necessary to share the same boost python
+# registers, required for inter-operability between modules.
 try:
     pyver_suffix = "".join(map(str, _sys.version_info[:2]))
     if _sys.platform.startswith('win'):
         lib_prefix = ""
         lib_suffix = ".dll"
+    elif _sys.platform == 'darwin':
+        lib_prefix = "lib"
+        lib_suffix = ".dylib"
     else:
         lib_prefix = "lib"
         lib_suffix = _get_config_var('SHLIB_SUFFIX')
@@ -28,7 +29,9 @@ try:
 except OSError:
     pass
 
-# Fix Dll seach path on windows for Python >= 3.8
+# Since Python >= 3.8, PATH and the current working directory are no longer
+# used for DLL resolution on Windows OS. One is expected to explicitly call
+# `os.add_dll_directory` instead.
 if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
     _os.add_dll_directory(_os.path.join(_os.path.dirname(__file__), "lib"))
     for path in _os.environ['PATH'].split(_os.pathsep):

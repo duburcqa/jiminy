@@ -9,6 +9,9 @@ namespace jiminy
     class AbstractLCPSolver
     {
     public:
+        AbstractLCPSolver(void) = default;
+        virtual ~AbstractLCPSolver(void) = default;
+
         /// \brief Compute the solution of the Linear Complementary Problem:
         ///        A x + b = w,
         ///        s.t. (w[i] > 0 and x[i] = 0) or (w[i] = 0 and x[i] > 0

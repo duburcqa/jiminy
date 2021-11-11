@@ -41,8 +41,6 @@ else()
                    -Wwrite-strings -Wsequence-point -Wdeprecated \
                    -Wconversion -Wdelete-non-virtual-dtor \
                    -Wno-sign-conversion -Wno-non-virtual-dtor \
-                   -Wno-delete-abstract-non-virtual-dtor \
-                   -Wno-delete-non-abstract-non-virtual-dtor \
                    -Wno-unknown-pragmas -Wno-undefined-var-template \
                    -Werror=return-type")
 endif()
