@@ -9,7 +9,9 @@ on:
 
 jobs:
   build-and-test-linux:
-    name: (${{ matrix.os }}) Build the dependencies. Build the project and run the unit tests.
+    name: >-
+      (${{ matrix.os }}) (${{ matrix.PYTHON_VERSION }})
+      Build and run the unit tests. Then generate and publish the wheels on PyPi.
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -28,6 +30,7 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
+      MACOSX_DEPLOYMENT_TARGET: "10.9"
 
     #####################################################################################
 
@@ -38,7 +41,7 @@ jobs:
     #####################################################################################
 
     - name: Configure Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
         architecture: 'x64'
@@ -52,11 +55,9 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         if [ "${{ matrix.os }}" == "macos-10.15" ] ; then
-          echo "MIN_MACOS_VERSION=10.9" >> $GITHUB_ENV
           echo "OSX_ARCHITECTURES=x86_64" >> $GITHUB_ENV
           echo "WHEEL_ARCH=x86_64" >> $GITHUB_ENV
         else
-          echo "MIN_MACOS_VERSION=11.0" >> $GITHUB_ENV
           echo "OSX_ARCHITECTURES=x86_64;arm64" >> $GITHUB_ENV
           echo "WHEEL_ARCH=universal2" >> $GITHUB_ENV
         fi
@@ -66,7 +67,8 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
     - name: Build project dependencies
       run: |
-        MIN_MACOS_VERSION=${MIN_MACOS_VERSION} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} ./build_tools/build_install_deps_unix.sh
+        MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
+          ./build_tools/build_install_deps_unix.sh
         "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
     #####################################################################################
@@ -80,7 +82,7 @@ jobs:
         export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
-              -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MIN_MACOS_VERSION}" \
+              -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
@@ -107,7 +109,7 @@ jobs:
 
         delocate-wheel --require-archs "${WHEEL_ARCH}" \
                        -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
-        delocate-addplat --rm-orig -p "macosx_${MIN_MACOS_VERSION//./_}_${WHEEL_ARCH}" \
+        delocate-addplat --rm-orig -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" \
                          "$RootDir/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
