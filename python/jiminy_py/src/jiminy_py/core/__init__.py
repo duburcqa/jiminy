@@ -88,7 +88,7 @@ def get_libraries():
     lib_dir = _os.path.join(_os.path.dirname(__file__), "lib")
     libraries_fullpath = []
     for library_filename in _os.listdir(lib_dir):
-        if _re.search(r'\.(dll|so[0-9\.]*)$', library_filename):
+        if _re.search(r'\.(dll|dylib|so[0-9\.]*)$', library_filename):
             libraries_fullpath.append(_os.path.join(lib_dir, library_filename))
     return ";".join(libraries_fullpath)
 
