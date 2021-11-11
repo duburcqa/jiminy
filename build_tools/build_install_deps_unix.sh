@@ -177,13 +177,13 @@ ${PYTHON_CONFIG_JAM}
 ### Build and install and install boost
 #   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
 BuildTypeB2="$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')"
-CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS} -std=c++17"
+CMAKE_CXX_FLAGS_B2="-std=c++17"
 if [ "${OSTYPE//[0-9.]/}" == "darwin" ]; then
-  CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS} -mmacosx-version-min=${MIN_MACOS_VERSION}"
+  CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} -mmacosx-version-min=${MIN_MACOS_VERSION}"
 fi
 if grep -q ";" <<< "${OSX_ARCHITECTURES}" ; then
     ARCHITECTURE_TYPE_B2="combined"
-    ARCHITECTURE_FLAGS_B2="$(echo "-arch ${OSX_ARCHITECTURES}" | sed "s/;/ -arch /g")"
+    CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} $(echo "-arch ${OSX_ARCHITECTURES}" | sed "s/;/ -arch /g")"
 else
     ARCHITECTURE_TYPE_B2="x86"
 fi
@@ -195,14 +195,16 @@ mkdir -p "$RootDir/boost/build"
      --build-type=minimal --layout=system --lto=off \
      architecture=${B2_ARCHITECTURE_TYPE} address-model=64 \
      threading=single link=static runtime-link=static debug-symbols=off \
-     cxxflags="${CMAKE_CXX_FLAGS_B2} ${ARCHITECTURE_FLAGS_B2}" \
+     cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
+     linkflags="${CMAKE_CXX_FLAGS_B2}" \
      variant="$BuildTypeB2" install -q -d0 -j2
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-python \
      --build-type=minimal --layout=system --lto=off \
      architecture=${B2_ARCHITECTURE_TYPE} address-model=64 \
      threading=single link=shared runtime-link=shared debug-symbols=off \
-     cxxflags="${CMAKE_CXX_FLAGS_B2} ${ARCHITECTURE_FLAGS_B2}" \
+     cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
+     linkflags="${CMAKE_CXX_FLAGS_B2}" \
      variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################

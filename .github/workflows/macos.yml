@@ -19,6 +19,8 @@ jobs:
         exclude:
           - os: macos-11
             PYTHON_VERSION: '3.6'
+          - os: macos-11
+            PYTHON_VERSION: '3.7'
 
     defaults:
       run:
