@@ -179,9 +179,6 @@ jobs:
       with:
         name: jiminy_py${{ matrix.python-version }}-wheel
         path: wheelhouse
-
-    ####################################################################################
-
     - name: Publish the wheel
       uses: pypa/gh-action-pypi-publish@master
       with:
