@@ -109,14 +109,16 @@ setup(
         # 0.0.18 introduces many new features, including loading generic
         # geometries and jiminy_py viewer relies on it to render collision
         # bodies.
-        # 0.0.19 updates threejs from 122 to 132, breakin compatibility with
+        # 0.3.1 updates threejs from 122 to 132, breakin compatibility with
         # the old, now deprecated, geometry class used to internally to display
         # tile floor.
-        "meshcat>=0.0.19",
+        # 0.3.2 fixes the rendering of DAE meshes.
+        "meshcat>=0.3.2",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
         # Panda3d is NOT supported by PyPy and cannot be built from source.
-        "panda3d>=1.10.9",
+        # 1.10.10 fixes an impressive list of bugs.
+        "panda3d>=1.10.10",
         # Provide helper methods and class to make it easier to use panda3d for
         # robotic applications.
         "panda3d_viewer",
