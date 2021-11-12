@@ -39,8 +39,9 @@ externalproject_add(${PROJECT_NAME}
      CMAKE_ARGS
           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
-          -Dgtest_force_shared_crt=ON  # This option is required on Github Windows CI for some reasons..
+          -Dgtest_force_shared_crt=ON  # This option is required on Github Windows CI for some reasons...
           -Wno-dev  # Silent Cmake warnings about deprecated support of Cmake < 2.8.12
+          ${EXTERNALPROJECT_OSX_CONFIG}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
 
      ${gtest_NINJA}

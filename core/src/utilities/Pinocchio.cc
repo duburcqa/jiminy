@@ -22,18 +22,18 @@
 namespace jiminy
 {
     hresult_t getJointNameFromPositionIdx(pinocchio::Model const & model,
-                                          jointIndex_t     const & idIn,
+                                          int32_t          const & idx,
                                           std::string            & jointNameOut)
     {
         // Iterate over all joints.
-        for (int32_t i = 0; i < model.njoints; ++i)
+        for (jointIndex_t i = 0; i < static_cast<jointIndex_t>(model.njoints); ++i)
         {
             // Get joint starting and ending index in position vector.
-            jointIndex_t const & startIndex = model.joints[i].idx_q();
-            jointIndex_t const endIndex = startIndex + model.joints[i].nq();
+            int32_t const & startIdx = model.joints[i].idx_q();
+            int32_t const endIdx = startIdx + model.joints[i].nq();
 
             // If inIn is between start and end, we found the joint we were looking for.
-            if (startIndex <= idIn && endIndex > idIn)
+            if (startIdx <= idx && idx < endIdx)
             {
                 jointNameOut = model.names[i];
                 return hresult_t::SUCCESS;
@@ -45,18 +45,18 @@ namespace jiminy
     }
 
     hresult_t getJointNameFromVelocityIdx(pinocchio::Model const & model,
-                                          jointIndex_t     const & idIn,
+                                          int32_t          const & idIn,
                                           std::string            & jointNameOut)
     {
         // Iterate over all joints.
-        for (int32_t i = 0; i < model.njoints; ++i)
+        for (jointIndex_t i = 0; i < static_cast<jointIndex_t>(model.njoints); ++i)
         {
             // Get joint starting and ending index in velocity vector.
-            jointIndex_t const & startIndex = model.joints[i].idx_v();
-            jointIndex_t const endIndex = startIndex + model.joints[i].nv();
+            int32_t const & startIdx = model.joints[i].idx_v();
+            int32_t const endIdx = startIdx + model.joints[i].nv();
 
             // If inIn is between start and end, we found the joint we were looking for.
-            if (startIndex <= idIn && endIndex > idIn)
+            if (startIdx <= idIn && idIn < endIdx)
             {
                 jointNameOut = model.names[i];
                 return hresult_t::SUCCESS;
@@ -332,7 +332,7 @@ namespace jiminy
         jointIndex_t const & jointModelIdx = model.getJointId(jointName);
         int32_t const & jointPositionFirstIdx = model.joints[jointModelIdx].idx_q();
         int32_t const & jointNq = model.joints[jointModelIdx].nq();
-        jointPositionIdx.resize(jointNq);
+        jointPositionIdx.resize(static_cast<std::size_t>(jointNq));
         std::iota(jointPositionIdx.begin(), jointPositionIdx.end(), jointPositionFirstIdx);
 
         return hresult_t::SUCCESS;
@@ -453,7 +453,7 @@ namespace jiminy
         jointIndex_t const & jointModelIdx = model.getJointId(jointName);
         int32_t const & jointVelocityFirstIdx = model.joints[jointModelIdx].idx_v();
         int32_t const & jointNv = model.joints[jointModelIdx].nv();
-        jointVelocityIdx.resize(jointNv);
+        jointVelocityIdx.resize(static_cast<std::size_t>(jointNv));
         std::iota(jointVelocityIdx.begin(), jointVelocityIdx.end(), jointVelocityFirstIdx);
 
         return hresult_t::SUCCESS;
@@ -636,8 +636,8 @@ namespace jiminy
             /* Recompute all position and velocity indexes, as we may have
                switched joints that didn't have the same size.
                Skip 'universe' joint since it is not an actual joint. */
-            uint32_t incrementalNq = 0;
-            uint32_t incrementalNv = 0;
+            int32_t incrementalNq = 0;
+            int32_t incrementalNv = 0;
             for (std::size_t i = 1; i < modelInOut.joints.size(); ++i)
             {
                 modelInOut.joints[i].setIndexes(i, incrementalNq, incrementalNv);
@@ -691,12 +691,12 @@ namespace jiminy
         }
 
         /* Add weightless body.
-           In practice having a zero inertia makes some of pinocchio algorithm crash,
-           so we set a very small value instead: 1.0g. Anything below that creates
-           numerical instability. */
+           In practice having a zero inertia makes some of pinocchio algorithm
+           crash, so we set a very small value instead: 1g. Anything below
+           creates numerical instability. */
         float64_t const mass = 1.0e-3;
         float64_t const lengthSemiAxis = 1.0;
-        pinocchio::Inertia inertia = pinocchio::Inertia::FromEllipsoid(
+        pinocchio::Inertia const inertia = pinocchio::Inertia::FromEllipsoid(
             mass, lengthSemiAxis, lengthSemiAxis, lengthSemiAxis);
 
         modelInOut.appendBodyToJoint(newJointIdx, inertia, SE3::Identity());
@@ -742,7 +742,7 @@ namespace jiminy
            child in the tree. */
         jointIndex_t const parentJointIdx = frame.parent;
         std::vector<jointIndex_t> childCandidateJointsIdx;
-        for (int32_t i = 1; i < modelInOut.njoints; ++i)
+        for (std::size_t i = 1; i < static_cast<std::size_t>(modelInOut.njoints); ++i)
         {
             if (modelInOut.parents[i] == parentJointIdx)
             {

@@ -392,20 +392,22 @@ namespace jiminy
         hresult_t removeConstraints(std::vector<std::string> const & constraintsNames,
                                     constraintsHolderType_t const & holderType);
 
-        hresult_t refreshCollisionsProxies(void);
+        hresult_t refreshGeometryProxies(void);
         hresult_t refreshContactsProxies(void);
         /// \brief Refresh the proxies of the kinematics constraints.
         hresult_t refreshConstraintsProxies(void);
         virtual hresult_t refreshProxies(void);
 
     public:
-        pinocchio::Model pncModelRigidOrig_;
+        pinocchio::Model pncModelOrig_;
         pinocchio::Model pncModel_;
+        pinocchio::GeometryModel collisionModelOrig_;
         pinocchio::GeometryModel collisionModel_;
+        pinocchio::GeometryModel visualModelOrig_;
         pinocchio::GeometryModel visualModel_;
         pinocchio::Data pncDataRigidOrig_;
         mutable pinocchio::Data pncData_;
-        mutable std::unique_ptr<pinocchio::GeometryData> pncCollisionData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes Pinocchio segfault at least up to v2.5.6
+        mutable std::unique_ptr<pinocchio::GeometryData> collisionData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes Pinocchio segfault at least up to v2.5.6
         std::unique_ptr<modelOptions_t const> mdlOptions_;
         forceVector_t contactForces_;                       ///< Buffer storing the contact forces
 
@@ -429,7 +431,7 @@ namespace jiminy
         std::vector<jointIndex_t> flexibleJointsModelIdx_;          ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
 
         constraintsHolder_t constraintsHolder_;                 ///< Store constraints
-        uint64_t constraintsMask_;                              ///< Mask used to filter out disable constraints from full jacobian and drift
+        Eigen::Index constraintsMask_;                          ///< Mask used to filter out disable constraints from full jacobian and drift
         matrixN_t constraintsJacobian_;                         ///< Matrix holding the jacobian of the constraints
         vectorN_t constraintsDrift_;                            ///< Vector holding the drift of the constraints
         vectorN_t constraintsLambda_;                           ///< Vector holding the lambda multipliers of the constraints

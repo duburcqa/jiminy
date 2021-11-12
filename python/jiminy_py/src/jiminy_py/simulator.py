@@ -17,7 +17,7 @@ from .core import (EncoderSensor as encoder,
                    ContactSensor as contact,
                    ForceSensor as force,
                    ImuSensor as imu)
-from .robot import (generate_hardware_description_file,
+from .robot import (generate_default_hardware_description_file,
                     BaseJiminyRobot)
 from .plot import TabbedFigure
 from .log import read_log, build_robot_from_log, extract_data_from_log
@@ -180,7 +180,7 @@ class Simulator:
                     atexit.register(remove_file_at_exit)
 
                 # Generate default Hardware Description File
-                generate_hardware_description_file(
+                generate_default_hardware_description_file(
                     urdf_path, hardware_path, verbose=debug)
 
         # Instantiate and initialize the robot

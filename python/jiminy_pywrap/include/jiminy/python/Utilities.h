@@ -316,7 +316,8 @@ namespace python
         flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
         flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
         flexibilityJointDataPy["damping"] = flexibleJointData.damping;
-        return flexibilityJointDataPy;
+        flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
+        return std::move(flexibilityJointDataPy);
     }
 
     template<typename T>
@@ -356,7 +357,7 @@ namespace python
         {
             dataPy.append(convertToPython(val, copy));
         }
-        return dataPy;
+        return std::move(dataPy);
     }
 
     template<typename T>
@@ -368,7 +369,7 @@ namespace python
         {
             dataPy.append(convertToPython(val, copy));
         }
-        return dataPy;
+        return std::move(dataPy);
     }
 
     class AppendBoostVariantToPython : public boost::static_visitor<bp::object>
@@ -402,7 +403,7 @@ namespace python
             auto const & key = std::get<0>(pair); auto const & value = std::get<1>(pair);
             configPyDict[key] = boost::apply_visitor(visitor, value);
         }
-        return configPyDict;
+        return std::move(configPyDict);
     }
 
     template<typename T, bool copy = true>
@@ -606,6 +607,7 @@ namespace python
         flexData.frameName = convertFromPython<std::string>(flexDataPy["frameName"]);
         flexData.stiffness = convertFromPython<vectorN_t>(flexDataPy["stiffness"]);
         flexData.damping = convertFromPython<vectorN_t>(flexDataPy["damping"]);
+        flexData.inertia = convertFromPython<vectorN_t>(flexDataPy["inertia"]);
         return flexData;
     }
 

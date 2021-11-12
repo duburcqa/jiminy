@@ -17,7 +17,7 @@
 
 #include <functional>
 
-#include "pinocchio/spatial/fwd.hpp"               // `Pinocchio::Motion`
+#include "pinocchio/spatial/fwd.hpp"               // `Pinocchio::Inertia`
 #include "pinocchio/multibody/visitor.hpp"         // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/fwd.hpp"             // `pinocchio::ModelTpl`, `pinocchio::DataTpl`
 #include "pinocchio/multibody/joint/fwd.hpp"       // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
@@ -74,7 +74,7 @@ namespace pinocchio_overload
          Eigen::MatrixBase<TangentVectorType2>                    const & a)
     {
         (void) pinocchio::rnea(model, data, q, v, a);
-        data.tau += model.rotorInertia.asDiagonal() * a;
+        data.tau.array() += model.rotorInertia.array() * a.array();
         return data.tau;
     }
 
@@ -86,9 +86,7 @@ namespace pinocchio_overload
          Eigen::MatrixBase<ConfigVectorType>                      const & q)
     {
         (void) pinocchio::crba(model, data, q);
-        // data.M.triangularView<Eigen::StrictlyLower>() =
-        //     data.M.transpose().triangularView<Eigen::StrictlyLower>();
-        data.M += model.rotorInertia.asDiagonal();
+        data.M.diagonal() += model.rotorInertia;
         return data.M;
     }
 
@@ -120,8 +118,8 @@ namespace pinocchio_overload
             jmodel.jointVelocitySelector(data.u) -= jdata.S().transpose()*data.f[i];
 
             // jmodel.calc_aba(jdata.derived(), Ia, parent > 0);
-            Scalar const & Im = model.rotorInertia[jmodel.idx_v()];
-            calc_aba(jmodel.derived(), jdata.derived(), Ia, Im, parent > 0);
+            auto const Im = model.rotorInertia.segment(jmodel.idx_v(), jmodel.nv());
+            calc_aba(jmodel.derived(), jdata.derived(), Im, Ia, parent > 0);
 
             if (parent > 0)
             {
@@ -132,102 +130,243 @@ namespace pinocchio_overload
             }
         }
 
-        template<typename JointModel, typename Matrix6Like>
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel>
                              || is_pinocchio_joint_revolute_unbounded_v<JointModel>, void>
         calc_aba(JointModel const & model,
                  typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 Scalar const & Im,
                  bool const & update_I)
         {
-            using Motion = pinocchio::Motion;
+            using Inertia = pinocchio::Inertia;
 
-            data.U.noalias() = Ia.col(Motion::ANGULAR + getAxis(model));
-            data.Dinv[0] = Scalar(1.0) / (data.U[Motion::ANGULAR + getAxis(model)] + Im);
+            data.U = Ia.col(Inertia::ANGULAR + getAxis(model));
+            data.Dinv[0] = Scalar(1) / (data.U[Inertia::ANGULAR + getAxis(model)] + Im[0]);
             data.UDinv.noalias() = data.U * data.Dinv[0];
 
             if (update_I)
             {
-                Ia -= data.UDinv * data.U.transpose();
+                Ia.noalias() -= data.UDinv * data.U.transpose();
             }
         }
 
-        template<typename JointModel, typename Matrix6Like>
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_revolute_unaligned_v<JointModel>
                              || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, void>
         calc_aba(JointModel const & model,
                  typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 Scalar const & Im,
                  bool const & update_I)
         {
-            using Motion = pinocchio::Motion;
+            using Inertia = pinocchio::Inertia;
 
-            data.U.noalias() = Ia.template middleCols<3>(Motion::ANGULAR) * model.axis;
-            data.Dinv[0] = Scalar(1.0) / (model.axis.dot(data.U.template segment<3>(Motion::ANGULAR)) + Im);
+            data.U.noalias() = Ia.template middleCols<3>(Inertia::ANGULAR) * model.axis;
+            data.Dinv[0] = Scalar(1) / (model.axis.dot(data.U.template segment<3>(Inertia::ANGULAR)) + Im[0]);
             data.UDinv.noalias() = data.U * data.Dinv[0];
 
             if (update_I)
             {
-                Ia -= data.UDinv * data.U.transpose();
+                Ia.noalias() -= data.UDinv * data.U.transpose();
             }
         }
 
-        template<typename JointModel, typename Matrix6Like>
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel>, void>
         calc_aba(JointModel const & model,
                  typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 Scalar const & Im,
                  bool const & update_I)
         {
-            using Motion = pinocchio::Motion;
+            using Inertia = pinocchio::Inertia;
 
-            data.U.noalias() = Ia.col(Motion::LINEAR + getAxis(model));
-            data.Dinv[0] = Scalar(1.0) / (data.U[Motion::LINEAR + getAxis(model)] + Im);
+            data.U = Ia.col(Inertia::LINEAR + getAxis(model));
+            data.Dinv[0] = Scalar(1) / (data.U[Inertia::LINEAR + getAxis(model)] + Im[0]);
             data.UDinv.noalias() = data.U * data.Dinv[0];
 
             if (update_I)
             {
-                Ia -= data.UDinv * data.U.transpose();
+                Ia.noalias() -= data.UDinv * data.U.transpose();
             }
         }
 
-        template<typename JointModel, typename Matrix6Like>
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_prismatic_unaligned_v<JointModel>, void>
         calc_aba(JointModel const & model,
                  typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 Scalar const & Im,
                  bool const & update_I)
         {
-            using Motion = pinocchio::Motion;
+            using Inertia = pinocchio::Inertia;
 
-            data.U.noalias() = Ia.template middleCols<3>(Motion::LINEAR) * model.axis;
-            data.Dinv[0] = Scalar(1.0) / (model.axis.dot(data.U.template segment<3>(Motion::LINEAR)) + Im);
+            data.U.noalias() = Ia.template middleCols<3>(Inertia::LINEAR) * model.axis;
+            data.Dinv[0] = Scalar(1) / (model.axis.dot(data.U.template segment<3>(Inertia::LINEAR)) + Im[0]);
             data.UDinv.noalias() = data.U * data.Dinv[0];
 
             if (update_I)
             {
-                Ia -= data.UDinv * data.U.transpose();
+                Ia.noalias() -= data.UDinv * data.U.transpose();
             }
         }
 
-        template<typename JointModel, typename Matrix6Like>
-        static std::enable_if_t<is_pinocchio_joint_planar_v<JointModel>
-                             || is_pinocchio_joint_translation_v<JointModel>
-                             || is_pinocchio_joint_spherical_v<JointModel>
-                             || is_pinocchio_joint_spherical_zyx_v<JointModel>
-                             || is_pinocchio_joint_freeflyer_v<JointModel>
-                             || is_pinocchio_joint_mimic_v<JointModel>
-                             || is_pinocchio_joint_composite_v<JointModel>, void>
-        calc_aba(JointModel const & model,
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
+        static std::enable_if_t<is_pinocchio_joint_planar_v<JointModel>, void>
+        calc_aba(JointModel const & /* model */,
                  typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 Scalar const & /* Im */,
                  bool const & update_I)
         {
+            static Eigen::Matrix<Scalar, 3, 3> StU;
+
+            data.U.template leftCols<2>() = Ia.template leftCols<2>();
+            data.U.template rightCols<1>() = Ia.template rightCols<1>();
+            StU.template leftCols<2>() = data.U.template topRows<2>().transpose();
+            StU.template rightCols<1>() = data.U.template bottomRows<1>();
+
+            StU.diagonal() += Im;
+            pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
+            data.UDinv.noalias() = data.U * data.Dinv;
+
+            if(update_I)
+            {
+                Ia.noalias() -= data.UDinv * data.U.transpose();
+            }
+        }
+
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
+        static std::enable_if_t<is_pinocchio_joint_translation_v<JointModel>, void>
+        calc_aba(JointModel const & /* model */,
+                 typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
+                 Eigen::MatrixBase<Matrix6Like> & Ia,
+                 bool const & update_I)
+        {
+            static Eigen::Matrix<Scalar, 3, 3> StU;
+
+            using Inertia = pinocchio::Inertia;
+
+            data.U = Ia.template middleCols<3>(Inertia::LINEAR);
+            StU = data.U.template middleRows<3>(Inertia::LINEAR);
+            StU.diagonal() += Im;
+
+            pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
+            data.UDinv.noalias() = data.U * data.Dinv;
+
+            if(update_I)
+            {
+                Ia.noalias() -= data.UDinv * data.U.transpose();
+            }
+        }
+
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
+        static std::enable_if_t<is_pinocchio_joint_spherical_v<JointModel>, void>
+        calc_aba(JointModel const & /* model */,
+                 typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
+                 Eigen::MatrixBase<Matrix6Like> & Ia,
+                 bool const & update_I)
+        {
+            static Eigen::Matrix<Scalar, 3, 3> StU;
+
+            using Inertia = pinocchio::Inertia;
+
+            data.U = Ia.template block<6,3>(0, Inertia::ANGULAR);
+            StU = data.U.template middleRows<3>(Inertia::ANGULAR);
+            StU.diagonal() += Im;
+
+            pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
+            data.UDinv.noalias() = data.U * data.Dinv;
+
+            if (update_I)
+            {
+                Ia.noalias() -= data.UDinv * data.U.transpose();
+            }
+        }
+
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
+        static std::enable_if_t<is_pinocchio_joint_spherical_zyx_v<JointModel>, void>
+        calc_aba(JointModel const & /* model */,
+                 typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
+                 Eigen::MatrixBase<Matrix6Like> & Ia,
+                 bool const & update_I)
+        {
+            static Eigen::Matrix<Scalar, 3, 3> StU;
+
+            using Inertia = pinocchio::Inertia;
+
+            data.U.noalias() = Ia.template middleCols<3>(Inertia::ANGULAR) * data.S.angularSubspace();
+            StU.noalias() = data.S.angularSubspace().transpose() * data.U.template middleRows<3>(Inertia::ANGULAR);
+            StU.diagonal() += Im;
+
+            pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
+            data.UDinv.noalias() = data.U * data.Dinv;
+
+            if (update_I)
+            {
+                Ia.noalias() -= data.UDinv * data.U.transpose();
+            }
+        }
+
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
+        static std::enable_if_t<is_pinocchio_joint_freeflyer_v<JointModel>, void>
+        calc_aba(JointModel const & /* model */,
+                 typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
+                 Eigen::MatrixBase<Matrix6Like> & Ia,
+                 bool const & update_I)
+        {
+            static Eigen::Matrix<Scalar, 6, 6> StU;
+
+            data.U = Ia;
+            StU = Ia;
+            StU.diagonal() += Im;
+
+            pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
+            data.UDinv.noalias() = data.U * data.Dinv;
+
+            if(update_I)
+            {
+                Ia.noalias() -= data.UDinv * data.U.transpose();
+            }
+        }
+
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
+        static std::enable_if_t<is_pinocchio_joint_composite_v<JointModel>, void>
+        calc_aba(JointModel const & /* model */,
+                 typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & Im,
+                 Eigen::MatrixBase<Matrix6Like> & Ia,
+                 bool const & update_I)
+        {
+            static Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> StU;
+
+            data.U.noalias() = Ia * data.S.matrix();
+            StU.noalias() = data.S.matrix().transpose() * data.U;
+            StU.diagonal() += Im;
+
+            pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
+            data.UDinv.noalias() = data.U * data.Dinv;
+
+            if(update_I)
+            {
+                Ia.noalias() -= data.UDinv * data.U.transpose();
+            }
+        }
+
+        template<typename JointModel, typename VectorLike, typename Matrix6Like>
+        static std::enable_if_t< is_pinocchio_joint_mimic_v<JointModel>, void>
+        calc_aba(JointModel const & model,
+                 typename JointModel::JointDataDerived & data,
+                 Eigen::MatrixBase<VectorLike> const & /* Im */,
+                 Eigen::MatrixBase<Matrix6Like> & Ia,
+                 bool const & update_I)
+        {
+            // TODO: Not implemented
             model.calc_aba(data.derived(), Ia, update_I);
         }
 

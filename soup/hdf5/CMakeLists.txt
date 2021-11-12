@@ -32,6 +32,7 @@ externalproject_add(zlib_external
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_C_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
           -Wno-dev  # Silent Cmake warnings about deprecated support of Cmake < 2.8.12
+          ${EXTERNALPROJECT_OSX_CONFIG}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
 
      ${zlib_NINJA}
@@ -63,19 +64,30 @@ else()
      set(libhdf5_cpp_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
 endif()
 
+# Pick different version of HDF5 depending on the platform:
+# macOS Universal Binaries is supported since 2021/02/07, github-311
+# 'hdf5-1_10_6' and 'hdf5_1_12-initial' are the latest versions not requiring CMake >= 3.12.
+if(CMAKE_VERSION VERSION_LESS "3.12")
+     set(HDF5_VERSION "hdf5_1_12-initial")
+else()
+     set(HDF5_VERSION "hdf5-1_12_1")
+endif()
+
 # Download, build and install hdf5.
 externalproject_add(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/HDFGroup/hdf5.git
-     GIT_TAG           hdf5_1_12-initial  # 'hdf5-1_10_6' and 'hdf5_1_12-initial' are the latest versions not requiring CMake >= 3.12.
+     GIT_TAG           ${HDF5_VERSION}
      GIT_SHALLOW       TRUE
      GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
 
      CMAKE_ARGS
+          -DHDF5_ENABLE_DEV_WARNINGS=OFF
+          -DHDF5_ENABLE_ALL_WARNINGS=OFF
           -DHDF5_ENABLE_COVERAGE=OFF
           -DHDF5_ENABLE_USING_MEMCHECKER=OFF
           -DHDF5_MEMORY_ALLOC_SANITY_CHECK=OFF
           -DHDF5_ENABLE_PREADWRITE=ON
-          -DHDF5_ENABLE_DEPRECATED_SYMBOLS=OFF
+          -DHDF5_ENABLE_DEPRECATED_SYMBOLS=ON
           #-DHDF5_MINGW_STATIC_GCC_LIBS=OFF
           -DHDF5_BUILD_GENERATORS=OFF
           -DHDF5_ENABLE_TRACE=OFF
@@ -102,7 +114,7 @@ externalproject_add(${PROJECT_NAME}
           -DZLIB_ROOT:PATH=${CMAKE_INSTALL_PREFIX}
           -DZLIB_LIBRARY:PATH=${zlib_PATH}  # Using ZLIB_ROOT only is finding the shared lib instead of the static one
           -DHDF5_DISABLE_COMPILER_WARNINGS=ON
-          -DHDF5_ENABLE_SYMBOLS=OFF
+          -DHDF5_ENABLE_SYMBOLS=ON
           -DHDF5_ENABLE_OPTIMIZATION=ON
           -DBUILD_TESTING=OFF
           #-DBUILD_STATIC_LIBS=ON
@@ -112,6 +124,7 @@ externalproject_add(${PROJECT_NAME}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
           -DCMAKE_C_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
+          ${EXTERNALPROJECT_OSX_CONFIG}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
 
      ${hdf5_NINJA}

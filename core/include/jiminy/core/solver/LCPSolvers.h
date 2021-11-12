@@ -9,13 +9,16 @@ namespace jiminy
     class AbstractLCPSolver
     {
     public:
+        AbstractLCPSolver(void) = default;
+        virtual ~AbstractLCPSolver(void) = default;
+
         /// \brief Compute the solution of the Linear Complementary Problem:
         ///        A x + b = w,
         ///        s.t. (w[i] > 0 and x[i] = 0) or (w[i] = 0 and x[i] > 0
         ///
         ///        using boxed bounds lo < x < hi instead of 0 < x:
-        ///        s.t. if fIdx[i] < 0, lo[i] < x[i] < hi[i]
-        ///             else, - hi[i] * x[fIdx[i]] < x[i] < hi[i] * x[fIdx[i]]
+        ///        s.t. if fIndices[i].size() == 0, lo[i] < x[i] < hi[i]
+        ///             else, sqrt(x[i] ** 2 + sum_{j>=1}(x[fIndices[i][j]] ** 2)) < hi[i] * abs(x[fIndices[i][0]])
         ///
         /// The result x will be stored in data.lambda_c.
         virtual bool_t BoxedForwardDynamics(pinocchio::Model const & model,
@@ -26,7 +29,7 @@ namespace jiminy
                                             float64_t const & inv_damping,
                                             vectorN_t const & lo,
                                             vectorN_t const & hi,
-                                            std::vector<int32_t> const & fIdx) = 0;
+                                            std::vector<std::vector<int32_t> > const & fIndices) = 0;
     };
 
     class PGSSolver : public AbstractLCPSolver
@@ -45,20 +48,20 @@ namespace jiminy
                                             float64_t const & inv_damping,
                                             vectorN_t const & lo,
                                             vectorN_t const & hi,
-                                            std::vector<int32_t> const & fIdx) override final;
+                                            std::vector<std::vector<int32_t> > const & fIndices) override final;
 
     private:
         bool_t ProjectedGaussSeidelIter(matrixN_t const & A,
                                         vectorN_t const & b,
                                         vectorN_t const & lo,
                                         vectorN_t const & hi,
-                                        std::vector<int32_t> const & fIdx,
+                                        std::vector<std::vector<int32_t> > const & fIndices,
                                         vectorN_t & x);
         bool_t ProjectedGaussSeidelSolver(matrixN_t & A,
                                           vectorN_t & b,
                                           vectorN_t const & lo,
                                           vectorN_t const & hi,
-                                          std::vector<int32_t> const & fIdx,
+                                          std::vector<std::vector<int32_t> > const & fIndices,
                                           vectorN_t & x);
 
     private:

@@ -23,7 +23,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             auto size = device_->bytesAvailable();
-            payload_.resize(size);
+            payload_.resize(static_cast<std::size_t>(size));
             returnCode = device_->read(payload_.data(), size);
         }
 

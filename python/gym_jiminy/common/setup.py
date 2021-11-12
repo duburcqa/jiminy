@@ -56,7 +56,8 @@ setup(
         # numba relies on llvmlite, for which wheels take some time before
         # being available on Pypi, making the whole installation process fail.
         # >=0.53 is required to support Python 3.9.
-        "numba==0.53.1",
+        # >=0.54 does not support Python 3.6 anymore.
+        "numba",
         # Standard interface library for reinforcement learning.
         # - 0.17.3 introduces iterable space dict
         # - 0.18.0: dtype handling of flatten space

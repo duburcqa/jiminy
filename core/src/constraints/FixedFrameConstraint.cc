@@ -22,9 +22,9 @@ namespace jiminy
     frameJacobian_(),
     frameDrift_()
     {
-        dofsFixed_.resize(maskFixed.cast<int32_t>().array().sum());
+        dofsFixed_.resize(static_cast<std::size_t>(maskFixed.cast<int32_t>().array().sum()));
         uint32_t dofIndex = 0;
-        for (int32_t i=0; i < 6; ++i)
+        for (uint32_t i=0; i < 6; ++i)
         {
             if (maskFixed[i])
             {
@@ -98,7 +98,7 @@ namespace jiminy
             // Initialize jacobian, drift and multipliers
             frameJacobian_ = matrix6N_t::Zero(6, model->pncModel_.nv);
             frameDrift_ = vector6_t::Zero();
-            uint64_t const dim = dofsFixed_.size();
+            Eigen::Index const dim = static_cast<Eigen::Index>(dofsFixed_.size());
             jacobian_ = matrixN_t::Zero(dim, model->pncModel_.nv);
             drift_ = vectorN_t::Zero(dim);
             lambda_ = vectorN_t::Zero(dim);
@@ -138,7 +138,7 @@ namespace jiminy
         pinocchio::Frame const & frame = model->pncModel_.frames[frameIdx_];
         pinocchio::JointModel const & joint = model->pncModel_.joints[frame.parent];
         int32_t const colRef = joint.nv() + joint.idx_v() - 1;
-        for(Eigen::DenseIndex j=colRef; j>=0; j=model->pncData_.parents_fromRow[j])
+        for(Eigen::DenseIndex j=colRef; j>=0; j=model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
         {
             pinocchio::MotionRef<matrix6N_t::ColXpr> J_col(frameJacobian_.col(j));
             J_col.linear() = rotInvLocal * J_col.linear();

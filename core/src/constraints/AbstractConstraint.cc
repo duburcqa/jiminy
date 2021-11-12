@@ -96,7 +96,7 @@ namespace jiminy
 
     uint64_t AbstractConstraintBase::getDim(void) const
     {
-        return drift_.size();
+        return static_cast<uint64_t>(drift_.size());
     }
 
     matrixN_t const & AbstractConstraintBase::getJacobian(void) const

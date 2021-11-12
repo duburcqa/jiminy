@@ -178,7 +178,7 @@ namespace jiminy
     uAugmented(),
     lo(),
     hi(),
-    fIdx(),
+    fIndices(),
     positionFieldnames(),
     velocityFieldnames(),
     accelerationFieldnames(),

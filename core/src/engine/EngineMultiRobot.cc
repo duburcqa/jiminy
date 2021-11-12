@@ -1414,7 +1414,7 @@ namespace jiminy
                 u = uInternal + uCustom;
                 for (auto const & motor : systemIt->robot->getMotors())
                 {
-                    int32_t const & motorIdx = motor->getIdx();
+                    std::size_t const & motorIdx = motor->getIdx();
                     int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
                     u[motorVelocityIdx] += uMotor[motorIdx];
                 }
@@ -2795,7 +2795,7 @@ namespace jiminy
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
         pinocchio::GeometryModel const & geomModel = system.robot->collisionModel_;
-        pinocchio::GeometryData & geomData = *system.robot->pncCollisionData_;
+        pinocchio::GeometryData & geomData = *system.robot->collisionData_;
 
         // Update forward kinematics
         pinocchio::forwardKinematics(model, data, q, v, a);
@@ -2874,7 +2874,7 @@ namespace jiminy
         jointIndex_t const & parentJointIdx = system.robot->collisionModel_.geometryObjects[geometryIdx].parentJoint;
 
         // Extract collision and distance results
-        hpp::fcl::CollisionResult const & collisionResult = system.robot->pncCollisionData_->collisionResults[collisionPairIdx];
+        hpp::fcl::CollisionResult const & collisionResult = system.robot->collisionData_->collisionResults[collisionPairIdx];
 
         fextLocal.setZero();
 
@@ -3384,11 +3384,11 @@ namespace jiminy
             jointIndex_t const & jointIdx = flexibilityIdx[i];
             uint32_t const & positionIdx = pncModel.joints[jointIdx].idx_q();
             uint32_t const & velocityIdx = pncModel.joints[jointIdx].idx_v();
-            vectorN_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
-            vectorN_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
+            vector3_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
+            vector3_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
             quaternion_t const quat(q.segment<4>(positionIdx));  // Only way to initialize with [x,y,z,w] order
-            vectorN_t const axis = pinocchio::quaternion::log3(quat);
+            vector3_t const axis = pinocchio::quaternion::log3(quat);
             uInternal.segment<3>(velocityIdx).array() +=
                 - stiffness.array() * axis.array()
                 - damping.array() * v.segment<3>(velocityIdx).array();
@@ -3660,7 +3660,7 @@ namespace jiminy
             u = uInternal + uCustom;
             for (auto const & motor : systemIt->robot->getMotors())
             {
-                int32_t const & motorIdx = motor->getIdx();
+                std::size_t const & motorIdx = motor->getIdx();
                 int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
                 u[motorVelocityIdx] += uMotor[motorIdx];
             }
@@ -3689,7 +3689,7 @@ namespace jiminy
             vectorN_t & uAugmented = systemData.uAugmented;
             vectorN_t & lo = systemData.lo;
             vectorN_t & hi = systemData.hi;
-            std::vector<int32_t> & fIdx = systemData.fIdx;
+            std::vector<std::vector<int32_t> > & fIndices = systemData.fIndices;
 
             // Compute kinematic constraints
             system.robot->computeConstraints(q, v);
@@ -3702,7 +3702,7 @@ namespace jiminy
             // Compute constraints bounds
             lo = vectorN_t::Constant(constraintsDrift.size(), -INF);
             hi = vectorN_t::Constant(constraintsDrift.size(), +INF);
-            fIdx = std::vector<int32_t>(constraintsDrift.size(), -1);
+            fIndices = std::vector<std::vector<int32_t> >(constraintsDrift.size());
 
             uint64_t constraintIdx = 0U;
             auto constraintIt = systemData.constraintsHolder.boundJoints.begin();
@@ -3731,8 +3731,8 @@ namespace jiminy
             for (constraintsHolderType_t holderType : holderTypes)
             {
                 systemData.constraintsHolder.foreach(holderType,
-                    [&lo, &hi, &fIdx, &constraintIdx,
-                     &contactOptions = const_cast<contactOptions_t &>(engineOptions_->contacts)](
+                    [&lo, &hi, &fIndices, &constraintIdx,
+                     &contactOptions = const_cast<contactOptions_t &>(engineOptions_->contacts)](  // capturing const reference is not properly supported by gcc<7.3
                         std::shared_ptr<AbstractConstraintBase> const & constraint,
                         constraintsHolderType_t const & /* holderType */)
                     {
@@ -3743,11 +3743,13 @@ namespace jiminy
 
                         // Enforce tangential friction pyramid and torsional friction
                         hi[constraintIdx] = contactOptions.friction;      // Friction along x-axis
-                        fIdx[constraintIdx] = static_cast<int32_t>(constraintIdx + 2);
+                        fIndices[constraintIdx] = {static_cast<int32_t>(constraintIdx + 2),
+                                                   static_cast<int32_t>(constraintIdx + 1)};
                         hi[constraintIdx + 1] = contactOptions.friction;  // Friction along y-axis
-                        fIdx[constraintIdx + 1] = static_cast<int32_t>(constraintIdx + 2);
+                        fIndices[constraintIdx + 1] = {static_cast<int32_t>(constraintIdx + 2),
+                                                       static_cast<int32_t>(constraintIdx)};
                         hi[constraintIdx + 3] = contactOptions.torsion;   // Friction around z-axis
-                        fIdx[constraintIdx + 3] = static_cast<int32_t>(constraintIdx + 2);
+                        fIndices[constraintIdx + 3] = {static_cast<int32_t>(constraintIdx + 2)};
 
                         // Vertical force cannot be negative
                         lo[constraintIdx + 2] = 0.0;
@@ -3784,12 +3786,12 @@ namespace jiminy
                                                  engineOptions_->contacts.regularization,
                                                  lo,
                                                  hi,
-                                                 fIdx);
+                                                 fIndices);
 
             // Update lagrangian multipliers associated with the constraint
             constraintIdx = 0U;
             systemData.constraintsHolder.foreach(
-                [&lambda_c = const_cast<vectorN_t &>(data.lambda_c),  // std::as_const is not supported by gcc<7.3
+                [&lambda_c = const_cast<vectorN_t &>(data.lambda_c),
                  &constraintIdx](
                     std::shared_ptr<AbstractConstraintBase> const & constraint,
                     constraintsHolderType_t const & /* holderType */)

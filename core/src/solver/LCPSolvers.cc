@@ -31,7 +31,7 @@ namespace jiminy
                                                vectorN_t const & b,
                                                vectorN_t const & lo,
                                                vectorN_t const & hi,
-                                               std::vector<int32_t> const & fIdx,
+                                               std::vector<std::vector<int32_t> > const & fIndices,
                                                vectorN_t & x)
     {
         bool_t isSuccess = true;
@@ -55,14 +55,31 @@ namespace jiminy
             e += (b[i] - A.col(i).dot(x)) / A(i, i);
 
             // Project the coefficient between lower and upper bounds
-            if (fIdx[i] < 0)
+            std::vector<int32_t> const & fIdx = fIndices[i];
+            std::size_t const fSize = fIdx.size();
+            if (fSize == 0)
             {
                 e = clamp(e, lo[i], hi[i]);
             }
             else
             {
-                float64_t const hiTmp = hi[i] * x[fIdx[i]];
-                e = clamp(e, -hiTmp, hiTmp);
+                float64_t thr;
+                float64_t f = x[fIdx[0]];
+                if (fSize == 1)
+                {
+                    thr = hi[i] * std::abs(f);
+                }
+                else
+                {
+                    thr = hi[i] * f * f;
+                    for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                    {
+                        f = x[*fIt];
+                        thr -= f * f;
+                    }
+                    thr = std::sqrt(std::max(0.0, thr));
+                }
+                e = clamp(e, -thr, thr);
             }
 
             // Check if still possible to terminate after complete update
@@ -76,7 +93,7 @@ namespace jiminy
                                                  vectorN_t & b,
                                                  vectorN_t const & lo,
                                                  vectorN_t const & hi,
-                                                 std::vector<int32_t> const & fIdx,
+                                                 std::vector<std::vector<int32_t> > const & fIndices,
                                                  vectorN_t & x)
     {
         /* The implementation is partially adapted from Dart Simulator:
@@ -86,9 +103,10 @@ namespace jiminy
         /* Adapt shuffling indices if the number of indices has changed.
            Note that it may converge faster to enforce constraints in reverse order,
            since usually constraints bounds dependending on others have lower indices
-           by design, aka. the linear friction pyramid.  */
-        size_t const nIndicesOrig = indices_.size();
+           by design, aka. the linear friction pyramid.
+           TODO: take into account the actual value of 'fIndices' to order the indices. */
         size_t const nIndices = b.size();
+        size_t const nIndicesOrig = indices_.size();
         if (nIndicesOrig < nIndices)
         {
             indices_.resize(nIndices);
@@ -116,10 +134,17 @@ namespace jiminy
             indices_.resize(nIndices);
         }
 
+        // Normalizing
+        // for (Eigen::Index i = 0; i < b.size(); ++i)
+        // {
+        //     b[i] /= A(i, i);
+        //     A.col(i).array() /= A(i, i);
+        // }
+
         // Perform multiple PGS loop until convergence or max iter reached
         for (uint32_t iter = 0; iter < maxIter_; ++iter)
         {
-            bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIdx, x);
+            bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIndices, x);
             if (isSuccess)
             {
                 // Do NOT shuffle indices unless necessary to avoid discontinuities
@@ -140,7 +165,7 @@ namespace jiminy
                                            float64_t const & inv_damping,
                                            vectorN_t const & lo,
                                            vectorN_t const & hi,
-                                           std::vector<int32_t> const & fIdx)
+                                           std::vector<std::vector<int32_t> > const & fIndices)
     {
         // Define some proxies for convenience
         vectorN_t & f = data.lambda_c;
@@ -186,7 +211,7 @@ namespace jiminy
         else
         {
             // Run standard PGS algorithm
-            isSuccess = ProjectedGaussSeidelSolver(A, b_, lo, hi, fIdx, f);
+            isSuccess = ProjectedGaussSeidelSolver(A, b_, lo, hi, fIndices, f);
         }
 
         // Compute resulting acceleration, no matter if computing forces was successful

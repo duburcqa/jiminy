@@ -127,23 +127,27 @@ namespace jiminy
     struct flexibleJointData_t
     {
         std::string frameName;
-        vectorN_t stiffness;
-        vectorN_t damping;
+        vector3_t stiffness;
+        vector3_t damping;
+        vector3_t inertia;
 
         flexibleJointData_t(void) :
         frameName(),
         stiffness(),
-        damping()
+        damping(),
+        inertia()
         {
             // Empty.
         };
 
         flexibleJointData_t(std::string const & frameNameIn,
-                            vectorN_t   const & stiffnessIn,
-                            vectorN_t   const & dampingIn) :
+                            vector3_t   const & stiffnessIn,
+                            vector3_t   const & dampingIn,
+                            vector3_t   const & inertiaIn) :
         frameName(frameNameIn),
         stiffness(stiffnessIn),
-        damping(dampingIn)
+        damping(dampingIn),
+        inertia(inertiaIn)
         {
             // Empty.
         };
@@ -152,7 +156,8 @@ namespace jiminy
         {
             return (this->frameName == other.frameName
                  && this->stiffness == other.stiffness
-                 && this->damping == other.damping);
+                 && this->damping == other.damping
+                 && this->inertia == other.inertia);
         };
     };
 
@@ -175,7 +180,7 @@ namespace jiminy
         sensorDataTypePair_t & operator = (sensorDataTypePair_t const & other) = delete;
 
         sensorDataTypePair_t(std::string                 const & nameIn,
-                             int32_t                     const & idIn,
+                             std::size_t                 const & idIn,
                              Eigen::Ref<vectorN_t const> const & valueIn) :
         name(nameIn),
         idx(idIn),
@@ -195,7 +200,7 @@ namespace jiminy
         };
 
         std::string name;
-        int32_t idx;
+        std::size_t idx;
         Eigen::Ref<vectorN_t const> value;
     };
 
@@ -207,8 +212,8 @@ namespace jiminy
         indexed_by<
             ordered_unique<
                 tag<IndexByIdx>,
-                member<sensorDataTypePair_t, int32_t, &sensorDataTypePair_t::idx>,
-                std::less<int32_t> // Ordering by ascending order
+                member<sensorDataTypePair_t, std::size_t, &sensorDataTypePair_t::idx>,
+                std::less<std::size_t> // Ordering by ascending order
             >,
             hashed_unique<
                 tag<IndexByName>,
@@ -243,12 +248,12 @@ namespace jiminy
             else
             {
                 // Resize internal buffer if needed
-                sharedData.resize(size(), this->begin()->value.size());
+                sharedData.resize(static_cast<Eigen::Index>(size()), this->begin()->value.size());
 
                 // Set internal buffer by copying sensor data sequentially
                 for (auto const & sensor : *this)
                 {
-                    sharedData.row(sensor.idx) = sensor.value;
+                    sharedData.row(static_cast<Eigen::Index>(sensor.idx)) = sensor.value;
                 }
 
                 return sharedData;

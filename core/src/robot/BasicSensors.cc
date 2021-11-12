@@ -559,7 +559,7 @@ namespace jiminy
         return motorName_;
     }
 
-    int32_t const & EffortSensor::getMotorIdx(void) const
+    std::size_t const & EffortSensor::getMotorIdx(void) const
     {
         return motorIdx_;
     }

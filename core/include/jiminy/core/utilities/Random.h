@@ -63,7 +63,7 @@ namespace jiminy
         float64_t const wavelength_;
         float64_t const period_;
         float64_t const dt_;
-        uint32_t const numTimes_;
+        int32_t const numTimes_;
 
         bool_t isInitialized_;
         vectorN_t values_;
@@ -92,7 +92,7 @@ namespace jiminy
 
         float64_t const & getWavelength(void) const;
         float64_t const & getPeriod(void) const;
-        uint32_t const & getNumHarmonics(void) const;
+        int32_t const & getNumHarmonics(void) const;
         float64_t const & getDt(void) const;
 
     protected:
@@ -102,8 +102,8 @@ namespace jiminy
         float64_t const wavelength_;
         float64_t const period_;
         float64_t const dt_;
-        uint32_t const numTimes_;
-        uint32_t const numHarmonics_;
+        int32_t const numTimes_;
+        int32_t const numHarmonics_;
 
         bool_t isInitialized_;
         vectorN_t values_;
@@ -116,7 +116,6 @@ namespace jiminy
     public:
         AbstractPerlinNoiseOctave(float64_t const & wavelength,
                                   float64_t const & scale);
-
         virtual ~AbstractPerlinNoiseOctave(void) = default;
 
         virtual void reset(void);
@@ -213,7 +212,6 @@ namespace jiminy
     public:
         AbstractPerlinProcess(float64_t const & wavelength,
                               uint32_t  const & numOctaves = 8U);
-
         virtual ~AbstractPerlinProcess(void) = default;
 
         void reset(void);

@@ -509,7 +509,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         model_options["dynamics"]["flexibilityConfig"] = [{
             'frameName': "PendulumJoint",
             'stiffness': k * np.ones(3),
-            'damping': nu * np.ones(3)
+            'damping': nu * np.ones(3),
+            'inertia': np.zeros(3)
         }]
         self.robot.set_model_options(model_options)
 

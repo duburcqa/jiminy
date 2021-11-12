@@ -71,7 +71,7 @@ namespace jiminy
 
             // Get the header
             telemetryData->formatHeader(header);
-            headerSize_ = header.size();
+            headerSize_ = static_cast<int64_t>(header.size());
 
             // Create a new MemoryDevice and open it
             returnCode = createNewChunk();
@@ -191,7 +191,7 @@ namespace jiminy
                 flow.seek(0);
 
                 std::vector<uint8_t> bufferChunk;
-                bufferChunk.resize(pos_old);
+                bufferChunk.resize(static_cast<std::size_t>(pos_old));
                 flow.read(bufferChunk);
                 myFile.write(bufferChunk);
 
@@ -224,10 +224,10 @@ namespace jiminy
         {
             int64_t timestamp;
             std::vector<int64_t> intDataLine;
-            logData.numInt = static_cast<uint32_t>(integerSectionSize / sizeof(int64_t));
+            logData.numInt = static_cast<std::size_t>(integerSectionSize) / sizeof(int64_t);
             intDataLine.resize(logData.numInt);
             std::vector<float64_t> floatDataLine;
-            logData.numFloat = static_cast<uint32_t>(floatSectionSize / sizeof(float64_t));
+            logData.numFloat = static_cast<std::size_t>(floatSectionSize) / sizeof(float64_t);
             floatDataLine.resize(logData.numFloat);
 
             bool_t isReadingHeaderDone = false;
@@ -252,7 +252,7 @@ namespace jiminy
 
                     // Read the rest of the header
                     std::vector<char_t> headerCharBuffer;
-                    headerCharBuffer.resize(headerSize - sizeof(int32_t));
+                    headerCharBuffer.resize(static_cast<std::size_t>(headerSize) - sizeof(int32_t));
                     flow->read(headerCharBuffer);
 
                     // Parse header

@@ -64,7 +64,7 @@ namespace jiminy
         float32_t y;
 
         hz = static_cast<int32_t>(generator_());
-        iz = (hz & 127U);
+        iz = (static_cast<uint32_t>(hz) & 127U);
 
         if (fabs(hz) < kn[iz])
         {
@@ -264,7 +264,7 @@ namespace jiminy
         };
 
         // Finalization mix - force all bits of a hash block to avalanche
-        h1 ^= len;
+        h1 ^= static_cast<uint32_t>(len);
         h1 ^= h1 >> 16;
         h1 *= 0x85ebca6b;
         h1 ^= h1 >> 13;
@@ -333,7 +333,7 @@ namespace jiminy
     wavelength_(wavelength),
     period_(period),
     dt_(0.02 * wavelength_),
-    numTimes_(static_cast<uint32_t>(std::ceil(period_ / dt_))),
+    numTimes_(static_cast<int32_t>(std::ceil(period_ / dt_))),
     isInitialized_(false),
     values_(numTimes_),
     covSqrtRoot_(numTimes_, numTimes_)
@@ -400,7 +400,7 @@ namespace jiminy
     {
         // Compute distance matrix
         matrixN_t distMat(numTimes_, numTimes_);
-        for (uint32_t i = 0; i < numTimes_; ++i)
+        for (int32_t i = 0; i < numTimes_; ++i)
         {
             distMat.diagonal(i).setConstant(dt_ * i);
         }
@@ -437,8 +437,8 @@ namespace jiminy
     wavelength_(wavelength),
     period_(period),
     dt_(0.02 * wavelength_),
-    numTimes_(static_cast<uint32_t>(std::ceil(period_ / dt_))),
-    numHarmonics_(static_cast<uint32_t>(std::ceil(period_ / wavelength_))),
+    numTimes_(static_cast<int32_t>(std::ceil(period_ / dt_))),
+    numHarmonics_(static_cast<int32_t>(std::ceil(period_ / wavelength_))),
     isInitialized_(false),
     values_(numTimes_),
     cosMat_(numTimes_, numHarmonics_),
@@ -500,7 +500,7 @@ namespace jiminy
         return period_;
     }
 
-    uint32_t const & PeriodicFourierProcess::getNumHarmonics(void) const
+    int32_t const & PeriodicFourierProcess::getNumHarmonics(void) const
     {
         return numHarmonics_;
     }
@@ -513,9 +513,9 @@ namespace jiminy
     void PeriodicFourierProcess::initialize(void)
     {
         // Compute exponential base at given time
-        for (uint32_t colIdx = 0; colIdx < numHarmonics_; ++colIdx)
+        for (int32_t colIdx = 0; colIdx < numHarmonics_; ++colIdx)
         {
-            for (uint32_t rowIdx = 0; rowIdx < numTimes_; ++rowIdx)
+            for (int32_t rowIdx = 0; rowIdx < numTimes_; ++rowIdx)
             {
                 float64_t const freq = colIdx / period_;
                 float64_t const t = dt_ * rowIdx;
@@ -1013,7 +1013,7 @@ namespace jiminy
                                   float64_t          const & gridUnit)
     {
         // Allocate empty discrete grid
-        uint32_t gridDim = static_cast<uint32_t>(std::ceil(gridSize / gridUnit)) + 1U;
+        uint32_t gridDim = static_cast<int32_t>(std::ceil(gridSize / gridUnit)) + 1U;
         matrixN_t heightGrid(gridDim * gridDim, 6);
 
         // Fill x and y discrete grid coordinates
