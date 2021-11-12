@@ -8,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  build-and-test-linux:
+  build-and-test-osx:
     name: >-
       (${{ matrix.os }}) (${{ matrix.PYTHON_VERSION }})
       Build and run the unit tests. Then generate and publish the wheels on PyPi.
@@ -116,7 +116,7 @@ jobs:
       if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
-        name: jiminy_py-${{ matrix.PYTHON_VERSION }}-wheel
+        name: jiminy_py-${{ matrix.os }}-${{ matrix.PYTHON_VERSION }}-wheel
         path: build/wheelhouse
 
     #####################################################################################
@@ -131,14 +131,33 @@ jobs:
         cd "$RootDir/unit_py"
         #"${PYTHON_EXECUTABLE}" -m unittest discover -v
 
-    #####################################################################################
+#########################################################################################
 
-    - name: Publish on PyPi the wheel for Linux of jiminy_py
-      if: >-
-        success() &&
-        github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+  publish-pypi-macos:
+    name: (MacOS CI) Publish on PyPi the wheel for OS X of jiminy_py
+    needs: build-and-test-osx
+    runs-on: ubuntu-20.04
+    if: github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    strategy:
+      matrix:
+        os: [macos-10.15, macos-11]
+        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
+        exclude:
+          - os: macos-11
+            PYTHON_VERSION: '3.6'
+          - os: macos-11
+            PYTHON_VERSION: '3.7'
+
+    steps:
+    - name: Download the wheel previously generated
+      uses: actions/download-artifact@v1
+      with:
+        name: jiminy_py-${{ matrix.os }}-${{ matrix.PYTHON_VERSION }}-wheel
+        path: wheelhouse
+    - name: Publish the wheel
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
-        packages_dir: build/wheelhouse
+        packages_dir: wheelhouse
