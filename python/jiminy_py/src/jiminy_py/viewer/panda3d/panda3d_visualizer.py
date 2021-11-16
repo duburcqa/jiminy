@@ -301,18 +301,23 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.render.set_antialias(
             AntialiasAttrib.M_auto | AntialiasAttrib.M_faster)
 
-        # Configure the shader
-        shader_options = {
-            'MAX_LIGHTS': 2,
-            'USE_NORMAL_MAP': '',
-            'ENABLE_SHADOWS': '',
-            'USE_OCCLUSION_MAP': ''
-        }
-        pbr_vert = simplepbr._load_shader_str('simplepbr.vert', shader_options)
-        pbr_frag = simplepbr._load_shader_str('simplepbr.frag', shader_options)
-        pbrshader = Shader.make(
-            Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
-        self.render.set_attrib(ShaderAttrib.make(pbrshader))
+        # Configure the physics-based shader if dedicated NVIDIA GPU is used
+        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+            shader_options = {
+                'MAX_LIGHTS': 2,
+                'USE_NORMAL_MAP': '',
+                'ENABLE_SHADOWS': '',
+                'USE_OCCLUSION_MAP': ''
+            }
+            pbr_vert = simplepbr._load_shader_str(
+                'simplepbr.vert', shader_options)
+            pbr_frag = simplepbr._load_shader_str(
+                'simplepbr.frag', shader_options)
+            pbrshader = Shader.make(
+                Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
+            self.render.set_attrib(ShaderAttrib.make(pbrshader))
+        else:
+            self.render.set_shader_auto()
 
         # Define default camera pos
         self._camera_defaults = CAMERA_POS_DEFAULT
