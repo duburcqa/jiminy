@@ -5,7 +5,7 @@
 ____
 
 
-Jiminy is a fast and lightweight cross-platform open-source simulator for poly-articulated systems. It was built with two ideas in mind:
+Jiminy is a fast and portable cross-platform open-source simulator for poly-articulated systems. It was built with two ideas in mind:
 
 - **provide a fast yet physically accurate simulator for robotics research.**
 

@@ -8,12 +8,23 @@ from contextlib import redirect_stderr as _redirect_stderr
 from distutils.sysconfig import get_config_var as _get_config_var
 
 
+# Define the (ordered) list of boost python dependencies to preload before
+# being able to load jiminy bindings.
+BOOST_PYTHON_DEPENDENCIES = ("eigenpy", "hppfcl", "pinocchio")
+
+# Check if all the boost python dependencies are already available on the
+# system. The system dependencies will be used instead of the one embedded with
+# jiminy if and only if all of them are available.
+use_system_dependencies = not any(
+    _importlib.util.find_spec(module_name) is None
+    for module_name in BOOST_PYTHON_DEPENDENCIES)
+
 # Special dlopen flags are used when loading Boost Python shared library
 # available in search path on the system if any. This is necessary to make sure
 # the same boost python runtime is shared between every modules, even if linked
 # versions are different. It is necessary to share the same boost python
 # registers, required for inter-operability between modules.
-try:
+if use_system_dependencies:
     pyver_suffix = "".join(map(str, _sys.version_info[:2]))
     if _sys.platform.startswith('win'):
         lib_prefix = ""
@@ -25,9 +36,10 @@ try:
         lib_prefix = "lib"
         lib_suffix = _get_config_var('SHLIB_SUFFIX')
     boost_python_lib = f"{lib_prefix}boost_python{pyver_suffix}{lib_suffix}"
-    _ctypes.CDLL(boost_python_lib, _ctypes.RTLD_GLOBAL)
-except OSError:
-    pass
+    try:
+        _ctypes.CDLL(boost_python_lib, _ctypes.RTLD_GLOBAL)
+    except OSError:
+        pass
 
 # Since Python >= 3.8, PATH and the current working directory are no longer
 # used for DLL resolution on Windows OS. One is expected to explicitly call
@@ -39,8 +51,8 @@ if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
             _os.add_dll_directory(path)
 
 # Import dependencies, using embedded versions only if necessary
-for module_name in ["eigenpy", "hppfcl", "pinocchio"]:
-    if _importlib.util.find_spec(module_name) is not None:
+for module_name in BOOST_PYTHON_DEPENDENCIES:
+    if use_system_dependencies:
         _importlib.import_module(module_name)
     else:
         _module = _importlib.import_module(".".join((__name__, module_name)))
