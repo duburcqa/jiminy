@@ -30,11 +30,11 @@ if interactive_mode() == 2:
         logging.warning(
             "Chrome must be installed manually on Google Colab. It must be "
             "done using '!apt install chromium-chromedriver'.")
-elif not sys.platform.startswith('win'):
+else:
     # Must use a recent release that supports webgl rendering with hardware
     # acceleration. It speeds up rendering at least by a factor 5 using on
     # a midrange dedicated GPU.
-    os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
+    os.environ['PYPPETEER_CHROMIUM_REVISION'] = '943836'
 
 
 # ==================== Monkey-patch pyppeteer ============================
