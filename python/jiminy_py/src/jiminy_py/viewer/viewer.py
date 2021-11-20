@@ -1908,6 +1908,7 @@ class Viewer:
                                 Callable[[], Tuple4FType]] = None,
                    remove_if_exists: bool = False,
                    auto_refresh: bool = True,
+                   *shape_args: Any,
                    **shape_kwargs: Any) -> MarkerDataType:
         """Add marker on the scene.
 
@@ -1932,8 +1933,11 @@ class Viewer:
                              the marker. Useful for adding a bunch of markers
                              and only refresh once. Note that the marker will
                              not display properly until then.
-        :param shape_kwargs: Any additional keyword arguments to forward for
-                             shape instantiation.
+        :param shape_args: Any additional positional arguments to forward to
+                           `jiminy_py.viewer.panda3d.panda3d_visualizer.`
+                           `Panda3dApp.append_{shape}`.
+        :param shape_kwargs: Any additional keyword arguments to forward to
+                             shape instantiation method.
 
         :returns: Dict of type `MarkerDataType`, storing references to the
                   current pose, scale, and color of the marker, and itself a
@@ -1970,7 +1974,7 @@ class Viewer:
 
         # Add new marker
         create_shape = getattr(self._gui, f"append_{shape}")
-        create_shape(self._markers_group, name, **shape_kwargs)
+        create_shape(self._markers_group, name, *shape_args, **shape_kwargs)
         marker_data = {"pose": pose, "scale": scale, "color": color}
         self.markers[name] = marker_data
         self._markers_visibility[name] = True
