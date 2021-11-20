@@ -289,7 +289,7 @@ class MeshcatRecorder:
             'message': self.__manager.Value(c_char_p, "")
         }
 
-        self.proc = multiprocessing.Process(
+        self.proc = multiprocessing.get_context('spawn').Process(
             target=meshcat_recorder,
             args=(self.url, self.__shm['request'], self.__shm['message']),
             daemon=True)

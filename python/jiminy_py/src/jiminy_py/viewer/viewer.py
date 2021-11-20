@@ -180,15 +180,15 @@ def get_color_code(color: Optional[Union[str, Tuple4FType]]) -> Tuple4FType:
 
 
 class _ProcessWrapper:
-    """Wrap `multiprocessing.Process`, `subprocess.Popen`, and `psutil.Process`
-    in the same object to have the same user interface.
+    """Wrap `multiprocessing.process.BaseProcess`, `subprocess.Popen`, and
+    `psutil.Process` in the same object to provide the same user interface.
 
     It also makes sure that the process is properly terminated at Python exits,
     and without zombies left behind.
     """
     def __init__(self,
                  proc: Union[
-                     multiprocessing.Process, subprocess.Popen,
+                     multiprocessing.process.BaseProcess, subprocess.Popen,
                      psutil.Process, Panda3dApp],
                  kill_at_exit: bool = False):
         self._proc = proc
@@ -200,7 +200,7 @@ class _ProcessWrapper:
         return not isinstance(self._proc, psutil.Process)
 
     def is_alive(self) -> bool:
-        if isinstance(self._proc, multiprocessing.Process):
+        if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.is_alive()
         elif isinstance(self._proc, subprocess.Popen):
             return self._proc.poll() is None
@@ -215,7 +215,7 @@ class _ProcessWrapper:
         return False  # Assuming it is not running by default
 
     def wait(self, timeout: Optional[float] = None) -> bool:
-        if isinstance(self._proc, multiprocessing.Process):
+        if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.join(timeout)
         elif isinstance(self._proc, (
                 subprocess.Popen, psutil.Process)):
