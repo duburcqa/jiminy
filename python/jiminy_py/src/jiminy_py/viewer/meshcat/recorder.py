@@ -14,8 +14,6 @@ from ctypes import c_char_p
 from contextlib import redirect_stderr
 from typing import Awaitable, Any, Optional
 
-from requests_html import HTMLSession, HTMLResponse
-
 from .utilities import interactive_mode
 
 
@@ -36,6 +34,10 @@ else:
     # a midrange dedicated GPU.
     os.environ['PYPPETEER_CHROMIUM_REVISION'] = '943836'
 
+
+# `requests_html` must be imported after setting the chromimum release to be
+# used because it is importing `pyppeteer` itself.
+from requests_html import HTMLSession, HTMLResponse
 
 # ==================== Monkey-patch pyppeteer ============================
 
