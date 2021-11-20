@@ -74,7 +74,7 @@ jobs:
       run: |
         unset Boost_ROOT
 
-        # gcc flag '-s' removes all symbol table and relocation information
+        # Build jiminy
         mkdir "$RootDir/build"
         cd "$RootDir/build"
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
@@ -84,16 +84,20 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -s" \
               -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
+        # Bundle the boost python dependencies with jiminy
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
         cp -r -H "$InstallDir/lib/python${PYTHON_VERSION}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
-        find "$RootDir/build/pypi/" -name "*.so*" -exec strip --strip-unneeded -v {} +
 
+        # Install jiminy along with its dependencies
         make install
+
+        # Strip all symbol table and relocation information from python bindings and shared libraries
+        find "$RootDir/build/pypi/" -name "*.so*" -print -exec strip -s {} +
+        find "$InstallDir/lib"* -name "*.so*" -maxdepth 1 -print -exec strip -s {} +
 
     #####################################################################################
 
