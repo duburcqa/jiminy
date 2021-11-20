@@ -16,13 +16,15 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-10.15, macos-11]
-        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
-        exclude:
-          - os: macos-11
+        include:
+          - os: macos-10.15
             PYTHON_VERSION: '3.6'
-          - os: macos-11
+          - os: macos-10.15
             PYTHON_VERSION: '3.7'
+          - os: macos-11
+            PYTHON_VERSION: '3.8'
+          - os: macos-11
+            PYTHON_VERSION: '3.9'
 
     defaults:
       run:
@@ -143,13 +145,15 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-10.15, macos-11]
-        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
-        exclude:
-          - os: macos-11
+        include:
+          - os: macos-10.15
             PYTHON_VERSION: '3.6'
-          - os: macos-11
+          - os: macos-10.15
             PYTHON_VERSION: '3.7'
+          - os: macos-11
+            PYTHON_VERSION: '3.8'
+          - os: macos-11
+            PYTHON_VERSION: '3.9'
 
     steps:
     - name: Download the wheel previously generated
