@@ -11,13 +11,22 @@ add_subdirectory(${LIBRARY_NAME}_pywrap)
 install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
                    LIST_DIRECTORIES false
                    \"${CMAKE_CURRENT_BINARY_DIR}/${LIBRARY_NAME}_pywrap/*core*\")
-              list(FILTER src_file_list INCLUDE REGEX \".*\.(so|dll|pyd|dylib)$\")
+              list(FILTER src_file_list INCLUDE REGEX \".*\.(so|dll|pyd|dylib).*\")
+              set(src_file_symlinks)
+              set(build_pypi_core_dir \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core\")
               foreach(src_file \${src_file_list})
                   get_filename_component(src_file_real \"\${src_file}\" REALPATH)
                   get_filename_component(src_file_name \"\${src_file}\" NAME)
+                  if(IS_SYMLINK \"\${src_file}\")
+                      get_filename_component(src_file_name_orig \"\${src_file_real}\" NAME)
+                      list(APPEND src_file_symlinks \"\${build_pypi_core_dir}/\${src_file_name_orig}\")
+                  endif()
                   file(COPY \"\${src_file_real}/\"
-                       DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/\${src_file_name}\")
-              endforeach()"
+                       DESTINATION \"\${build_pypi_core_dir}/\${src_file_name}\")
+              endforeach()
+              if (src_file_symlinks)
+                  file(REMOVE \${src_file_symlinks})
+              endif()"
 )
 
 # Bundle headers, core library, and cmake config into Python package `core` submodule.
