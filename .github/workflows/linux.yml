@@ -72,7 +72,7 @@ jobs:
 
         mkdir "$RootDir/build"
         cd "$RootDir/build"
-        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
@@ -86,7 +86,7 @@ jobs:
 
     - name: Build extension module
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
         "$InstallDir/bin/jiminy_double_pendulum"
 
@@ -101,7 +101,7 @@ jobs:
 
     - name: Run unit tests
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
         ./build/unit/unit
 

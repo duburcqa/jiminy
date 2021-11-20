@@ -77,7 +77,7 @@ jobs:
         # gcc flag '-s' removes all symbol table and relocation information
         mkdir "$RootDir/build"
         cd "$RootDir/build"
-        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
@@ -99,7 +99,7 @@ jobs:
 
     - name: Generate and install Python Pip wheels
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib:/usr/local/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
         cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
