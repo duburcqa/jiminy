@@ -14,8 +14,6 @@ from ctypes import c_char_p
 from contextlib import redirect_stderr
 from typing import Awaitable, Any, Optional
 
-from requests_html import HTMLSession, HTMLResponse
-
 from .utilities import interactive_mode
 
 
@@ -30,12 +28,16 @@ if interactive_mode() == 2:
         logging.warning(
             "Chrome must be installed manually on Google Colab. It must be "
             "done using '!apt install chromium-chromedriver'.")
-elif not sys.platform.startswith('win'):
+else:
     # Must use a recent release that supports webgl rendering with hardware
     # acceleration. It speeds up rendering at least by a factor 5 using on
     # a midrange dedicated GPU.
-    os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
+    os.environ['PYPPETEER_CHROMIUM_REVISION'] = '943836'
 
+
+# `requests_html` must be imported after setting the chromimum release to be
+# used because it is importing `pyppeteer` itself.
+from requests_html import HTMLSession, HTMLResponse
 
 # ==================== Monkey-patch pyppeteer ============================
 
@@ -287,7 +289,7 @@ class MeshcatRecorder:
             'message': self.__manager.Value(c_char_p, "")
         }
 
-        self.proc = multiprocessing.Process(
+        self.proc = multiprocessing.get_context('spawn').Process(
             target=meshcat_recorder,
             args=(self.url, self.__shm['request'], self.__shm['message']),
             daemon=True)

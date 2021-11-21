@@ -9,7 +9,6 @@ import umsgpack
 import threading
 import tornado.gen
 import tornado.ioloop
-from pkg_resources import parse_version as version
 from contextlib import redirect_stdout, redirect_stderr
 from typing import Optional, Sequence, Dict, Any
 
@@ -35,7 +34,7 @@ if interactive_mode():
     # is tricky to do it properly, so instead every message is process
     # without distinction.
     import ipykernel
-    ipykernel_version_major = version(ipykernel.__version__).major
+    ipykernel_version_major = int(ipykernel.__version__[0])
     if ipykernel_version_major == 5:
         from ipykernel.kernelbase import SHELL_PRIORITY
     elif ipykernel_version_major > 5:
@@ -62,7 +61,7 @@ if interactive_mode():
         def __init__(self):
             from IPython import get_ipython
             self.__kernel = get_ipython().kernel
-            self.__old_api = version(ipykernel.__version__).major < 5
+            self.__old_api = ipykernel_version_major < 5
             if self.__old_api:
                 logging.warning(
                     "Pre/post kernel handler hooks must be disable for the "

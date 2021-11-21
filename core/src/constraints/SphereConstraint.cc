@@ -108,7 +108,7 @@ namespace jiminy
         jacobian_ = frameJacobian_.topRows(3);
         if (radius_ > EPS)
         {
-            shewRadius_ * frameJacobian_.bottomRows(3);
+            jacobian_.noalias() += shewRadius_ * frameJacobian_.bottomRows(3);
         }
 
         // Compute frame drift in local frame

@@ -25,7 +25,6 @@ namespace jiminy
                        frameIndex_t          const & frameIdxIn,
                        float64_t             const & updatePeriodIn,
                        forceProfileFunctor_t const & forceFctIn);
-        ~forceProfile_t(void) = default;
 
     public:
         std::string frameName;
@@ -44,7 +43,6 @@ namespace jiminy
                        float64_t        const & tIn,
                        float64_t        const & dtIn,
                        pinocchio::Force const & FIn);
-        ~forceImpulse_t(void) = default;
 
     public:
         std::string frameName;
@@ -67,7 +65,6 @@ namespace jiminy
                         std::string            const & frameName2In,
                         frameIndex_t           const & frameIdx2In,
                         forceCouplingFunctor_t const & forceFctIn);
-        ~forceCoupling_t(void) = default;
 
     public:
         std::string systemName1;
@@ -109,7 +106,6 @@ namespace jiminy
     {
     public:
         systemState_t(void);
-        ~systemState_t(void) = default;
 
         hresult_t initialize(Robot const & robot);
         bool_t const & getIsInitialized(void) const;
