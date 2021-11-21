@@ -14,7 +14,7 @@ import tracemalloc
 from tempfile import mkstemp
 from datetime import datetime
 from collections import defaultdict
-from typing import Optional, Callable, Dict, Any, Tuple
+from typing import Optional, Callable, Dict, Any, Tuple, Union, List
 
 import gym
 import numpy as np
@@ -277,10 +277,11 @@ def build_policy_wrapper(policy: Policy,
                          n_frames_stack: int = 1,
                          clip_action: bool = False,
                          explore: bool = False) -> Callable[
-                             [np.ndarray, Optional[float]], DataNested]:
-    """Wrap a policy into a simple callable
+                             [DataNested, Optional[float]], DataNested]:
+    """Wrap a policy into a simple callable.
 
-    The internal state of the policy, if any, is managed internally.
+    .. note::
+        The internal state of the policy, if any, is managed internally.
 
     .. warning:
         One is responsible of instantiating a new wrapper to reset the internal
@@ -589,103 +590,6 @@ def train(train_agent: Trainer,
     return train_agent.save()
 
 
-def evaluate(env: gym.Env,
-             policy: Policy,
-             seed: int,
-             obs_filter_fn: Optional[
-                 Callable[[np.ndarray], np.ndarray]] = None,
-             n_frames_stack: int = 1,
-             clip_action: bool = False,
-             explore: bool = False,
-             horizon: Optional[int] = None,
-             enable_stats: bool = True,
-             enable_replay: bool = True,
-             viewer_kwargs: Optional[Dict[str, Any]] = None) -> gym.Env:
-    """Evaluate a policy on a given environment over a complete episode.
-
-    :param env: Environment on which to evaluate the policy. Note that the
-                environment must be already instantiated and ready-to-use.
-    :param policy: Policy to evaluate.
-    :param obs_filter_fn: Observation filter to apply on (flattened)
-                          observation from the environment, usually used
-                          from moving average normalization. `None` to
-                          disable.
-                          Optional: Disabled by default.
-    :param n_frames_stack: Number of frames to stack in the input to provide
-                           to the policy. Note that previous observation,
-                           action, and reward will be stacked.
-                           Optional: 1 by default.
-    :param horizon: Horizon of the simulation, namely maximum number of steps
-                    before termination. `None` to disable.
-                    Optional: Disabled by default.
-    :param clip_action: Whether or not to clip action to make sure the
-                        prediction by the policy is not out-of-bounds.
-                        Optional: Disabled by default.
-    :param explore: Whether or not to enable exploration during sampling of the
-                    actions predicted by the policy.
-                    Optional: Disabled by default.
-    :param enable_stats: Whether or not to print high-level statistics after
-                         simulation.
-                         Optional: Enabled by default.
-    :param enable_replay: Whether or not to enable replay of the simulation,
-                          and eventually recording through `viewer_kwargs`.
-                          Optional: Enabled by default.
-    :param viewer_kwargs: Extra keyword arguments to forward to the viewer if
-                          replay has been requested.
-    """
-    # Handling of default arguments
-    if viewer_kwargs is None:
-        viewer_kwargs = {}
-
-    # Initialize frame stack
-    policy_forward = build_policy_wrapper(
-        policy, obs_filter_fn, n_frames_stack, clip_action, explore)
-
-    # Make sure evaluation mode is enabled
-    is_training = env.is_training
-    if is_training:
-        env.eval()
-
-    # Reset the seed of the environment
-    env.seed(seed)
-
-    # Initialize the simulation
-    obs = env.reset()
-    reward = None
-
-    # Run the simulation
-    try:
-        info_episode = []
-        done = False
-        while not done:
-            action = policy_forward(obs, reward)
-            obs, reward, done, info = env.step(action)
-            info_episode.append(info)
-            if done or (horizon is not None and env.num_steps > horizon):
-                break
-    except KeyboardInterrupt:
-        pass
-
-    # Restore training mode if it was enabled
-    if is_training:
-        env.train()
-
-    # Display some statistic if requested
-    if enable_stats:
-        print("env.num_steps:", env.num_steps)
-        print("cumulative reward:", env.total_reward)
-
-    # Replay the result if requested
-    if enable_replay:
-        try:
-            env.replay(**{'speed_ratio': 1.0, **viewer_kwargs})
-        except Exception as e:  # pylint: disable=broad-except
-            # Do not fail because of replay/recording exception
-            logger.warning(str(e))
-
-    return env, info_episode
-
-
 def test(test_agent: Trainer,
          explore: bool = True,
          seed: Optional[int] = None,
@@ -694,13 +598,16 @@ def test(test_agent: Trainer,
          enable_replay: bool = True,
          test_env: Optional[gym.Env] = None,
          viewer_kwargs: Optional[Dict[str, Any]] = None,
-         **kwargs: Any) -> gym.Env:
+         **kwargs: Any) -> Union[gym.Env, List[Dict[str, Any]]]:
     """Test a model on a specific environment using a given agent.
 
     .. note::
         This function can be terminated early using CTRL+C.
 
     :param test_agent: Agent to evaluate on a single simulation.
+    :param seed: Seed of the environment to be used for the evaluation of the
+                 policy. Note that the environment's seed is always reset.
+                 Optional: `test_agent.config["seed"] or 0` if not especified.
     :param explore: Whether or not to enable exploration during sampling of the
                     actions predicted by the policy.
                     Optional: Disabled by default.
@@ -736,20 +643,27 @@ def test(test_agent: Trainer,
         obs_filter_fn = \
             lambda obs: (obs - obs_mean) / (obs_std + 1.0e-8)  # noqa: E731
 
+    # Forward viewer keyword arguments
     if viewer_kwargs is not None:
         kwargs.update(viewer_kwargs)
 
-    return evaluate(test_env,
-                    policy,
-                    seed or test_agent.config["seed"] or 0,
-                    obs_filter_fn,
-                    n_frames_stack=n_frames_stack,
-                    clip_action=test_agent.config["clip_actions"],
-                    explore=explore,
-                    horizon=test_agent.config["horizon"],
-                    enable_stats=enable_stats,
-                    enable_replay=enable_replay,
-                    viewer_kwargs=kwargs)
+    # Wrap policy as a callback function
+    policy_fn = build_policy_wrapper(policy,
+                                     obs_filter_fn,
+                                     n_frames_stack,
+                                     test_agent.config["clip_actions"],
+                                     explore)
+
+    # Evaluate the policy
+    info_episode = test_env.evaluate(test_env,
+                                     policy_fn,
+                                     seed or test_agent.config["seed"] or 0,
+                                     horizon=test_agent.config["horizon"],
+                                     enable_stats=enable_stats,
+                                     enable_replay=enable_replay,
+                                     **kwargs)
+
+    return test_env, info_episode
 
 
 __all__ = [
