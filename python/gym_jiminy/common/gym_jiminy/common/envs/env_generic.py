@@ -1032,6 +1032,91 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._is_interactive = False
         self.is_training = is_training
 
+    @staticmethod
+    def evaluate(env: gym.Env,
+                 policy_fn: Callable[
+                     [DataNested, Optional[float]], DataNested],
+                 seed: Optional[int] = None,
+                 horizon: Optional[int] = None,
+                 enable_stats: bool = True,
+                 enable_replay: bool = True,
+                 **kwargs: Any) -> List[Dict[str, Any]]:
+        r"""Evaluate a policy on the environment over a complete episode.
+
+        :param env: `BaseJiminyEnv` environment instance to play with,
+                    eventually wrapped by composition, typically using
+                    `gym.Wrapper`.
+        :param policy_fn:
+            .. raw:: html
+
+                Policy to evaluate as a callback function. It must have the
+                following signature (**rew** = None at reset):
+
+            | policy_fn\(**obs**: DataNested,
+            |            **reward**: Optional[float]
+            |            \) -> DataNested  # **action**
+        :param seed: Seed of the environment to be used for the evaluation of
+                     the policy.
+                     Optional: Random seed if not provided.
+        :param horizon: Horizon of the simulation, namely maximum number of
+                        steps before termination. `None` to disable.
+                        Optional: Disabled by default.
+        :param enable_stats: Whether or not to print high-level statistics
+                             after simulation.
+                             Optional: Enabled by default.
+        :param enable_replay: Whether or not to enable replay of the
+                              simulation, and eventually recording if the extra
+                              keyword argument `record_video_path` is provided.
+                              Optional: Enabled by default.
+        :param kwargs: Extra keyword arguments to forward to the `replay`
+                       method if replay is requested.
+        """
+        # Initialize frame stack
+
+        # Make sure evaluation mode is enabled
+        is_training = env.is_training
+        if is_training:
+            env.eval()
+
+        # Reset the seed of the environment
+        env.seed(seed)
+
+        # Initialize the simulation
+        obs = env.reset()
+        reward = None
+
+        # Run the simulation
+        try:
+            info_episode = []
+            done = False
+            while not done:
+                action = policy_fn(obs, reward)
+                obs, reward, done, info = env.step(action)
+                info_episode.append(info)
+                if done or (horizon is not None and env.num_steps > horizon):
+                    break
+        except KeyboardInterrupt:
+            pass
+
+        # Restore training mode if it was enabled
+        if is_training:
+            env.train()
+
+        # Display some statistic if requested
+        if enable_stats:
+            print("env.num_steps:", env.num_steps)
+            print("cumulative reward:", env.total_reward)
+
+        # Replay the result if requested
+        if enable_replay:
+            try:
+                env.replay(**kwargs)
+            except Exception as e:  # pylint: disable=broad-except
+                # Do not fail because of replay/recording exception
+                logger.warning(str(e))
+
+        return info_episode
+
     def train(self) -> None:
         """Sets the environment in training mode.
 
