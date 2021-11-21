@@ -180,15 +180,15 @@ def get_color_code(color: Optional[Union[str, Tuple4FType]]) -> Tuple4FType:
 
 
 class _ProcessWrapper:
-    """Wrap `multiprocessing.Process`, `subprocess.Popen`, and `psutil.Process`
-    in the same object to have the same user interface.
+    """Wrap `multiprocessing.process.BaseProcess`, `subprocess.Popen`, and
+    `psutil.Process` in the same object to provide the same user interface.
 
     It also makes sure that the process is properly terminated at Python exits,
     and without zombies left behind.
     """
     def __init__(self,
                  proc: Union[
-                     multiprocessing.Process, subprocess.Popen,
+                     multiprocessing.process.BaseProcess, subprocess.Popen,
                      psutil.Process, Panda3dApp],
                  kill_at_exit: bool = False):
         self._proc = proc
@@ -200,7 +200,7 @@ class _ProcessWrapper:
         return not isinstance(self._proc, psutil.Process)
 
     def is_alive(self) -> bool:
-        if isinstance(self._proc, multiprocessing.Process):
+        if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.is_alive()
         elif isinstance(self._proc, subprocess.Popen):
             return self._proc.poll() is None
@@ -215,7 +215,7 @@ class _ProcessWrapper:
         return False  # Assuming it is not running by default
 
     def wait(self, timeout: Optional[float] = None) -> bool:
-        if isinstance(self._proc, multiprocessing.Process):
+        if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.join(timeout)
         elif isinstance(self._proc, (
                 subprocess.Popen, psutil.Process)):
@@ -1220,16 +1220,21 @@ class Viewer:
 
             # List of connections likely to correspond to Meshcat servers
             meshcat_candidate_conn = []
-            for conn in psutil.net_connections("tcp4"):
-                if conn.status == 'LISTEN' and conn.laddr.ip == '127.0.0.1':
-                    try:
-                        cmdline = psutil.Process(conn.pid).cmdline()
-                        if not cmdline:
+            for pid in psutil.pids():
+                try:
+                    proc = psutil.Process(pid)
+                    for conn in proc.connections("tcp4"):
+                        if conn.status != 'LISTEN' or \
+                                conn.laddr.ip != '127.0.0.1':
                             continue
-                        if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
+                        cmdline = proc.cmdline()
+                        if cmdline and ('python' in cmdline[0].lower() or
+                                        'meshcat' in cmdline[-1]):
                             meshcat_candidate_conn.append(conn)
-                    except psutil.AccessDenied:
-                        pass
+                except (psutil.AccessDenied,
+                        psutil.ZombieProcess,
+                        psutil.NoSuchProcess):
+                    pass
 
             # Exclude ipython kernel ports from the look up because sending a
             # message on ipython ports will throw a low-level exception, that
@@ -1908,6 +1913,7 @@ class Viewer:
                                 Callable[[], Tuple4FType]] = None,
                    remove_if_exists: bool = False,
                    auto_refresh: bool = True,
+                   *shape_args: Any,
                    **shape_kwargs: Any) -> MarkerDataType:
         """Add marker on the scene.
 
@@ -1932,8 +1938,11 @@ class Viewer:
                              the marker. Useful for adding a bunch of markers
                              and only refresh once. Note that the marker will
                              not display properly until then.
-        :param shape_kwargs: Any additional keyword arguments to forward for
-                             shape instantiation.
+        :param shape_args: Any additional positional arguments to forward to
+                           `jiminy_py.viewer.panda3d.panda3d_visualizer.`
+                           `Panda3dApp.append_{shape}`.
+        :param shape_kwargs: Any additional keyword arguments to forward to
+                             shape instantiation method.
 
         :returns: Dict of type `MarkerDataType`, storing references to the
                   current pose, scale, and color of the marker, and itself a
@@ -1970,7 +1979,7 @@ class Viewer:
 
         # Add new marker
         create_shape = getattr(self._gui, f"append_{shape}")
-        create_shape(self._markers_group, name, **shape_kwargs)
+        create_shape(self._markers_group, name, *shape_args, **shape_kwargs)
         marker_data = {"pose": pose, "scale": scale, "color": color}
         self.markers[name] = marker_data
         self._markers_visibility[name] = True

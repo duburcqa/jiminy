@@ -236,7 +236,7 @@ def start_meshcat_server(verbose: bool = False
     """
     manager = multiprocessing.Manager()
     info = manager.dict()
-    server = multiprocessing.Process(
+    server = multiprocessing.get_context('spawn').Process(
         target=_meshcat_server, args=(info, verbose), daemon=True)
     server.start()
 

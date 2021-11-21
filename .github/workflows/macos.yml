@@ -16,13 +16,15 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-10.15, macos-11]
-        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
-        exclude:
-          - os: macos-11
+        include:
+          - os: macos-10.15
             PYTHON_VERSION: '3.6'
-          - os: macos-11
+          - os: macos-10.15
             PYTHON_VERSION: '3.7'
+          - os: macos-11
+            PYTHON_VERSION: '3.8'
+          - os: macos-11
+            PYTHON_VERSION: '3.9'
 
     defaults:
       run:
@@ -30,7 +32,7 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
-      MACOSX_DEPLOYMENT_TARGET: "10.9"
+      MACOSX_DEPLOYMENT_TARGET: "10.14"
 
     #####################################################################################
 
@@ -49,7 +51,7 @@ jobs:
       run: |
         git config --global advice.detachedHead false
 
-        PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
+        PYTHON_EXECUTABLE="${pythonLocation}/bin/python3"
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
@@ -77,6 +79,7 @@ jobs:
       run: |
         unset Boost_ROOT
 
+        # Build jiminy
         mkdir "$RootDir/build"
         cd "$RootDir/build"
         export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
@@ -87,16 +90,20 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="-fPIC" \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make -j2
 
+        # Bundle the boost python dependencies with jiminy
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         cp -R -H "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages/." \
                  "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
-        find "$RootDir/build/pypi/" -name "*.so*" -exec strip -S -x -r -v {} +
 
+        # Install jiminy along with its dependencies
         make install
+
+        # Strip all symbol table and relocation information from python bindings and shared libraries
+        find "$RootDir/build/pypi/" -name "*.so" -print -exec strip -x {} +
+        find "$InstallDir/lib" -name "*.dylib" -maxdepth 1 -print -exec strip -x {} +
 
     #####################################################################################
 
@@ -109,7 +116,7 @@ jobs:
 
         delocate-wheel --require-archs "${WHEEL_ARCH}" \
                        -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
-        delocate-addplat --rm-orig -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" \
+        delocate-addplat --rm-orig --clobber -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" \
                          "$RootDir/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
@@ -125,11 +132,11 @@ jobs:
       run: |
         ./build/unit/unit
 
-        # The access to hpp-fcl shapes is not working for some reason, so that doing
-        # `collision_model.geometryObjects[0].geometry.clone()` is failing. It is
-        # probably an issue with boost python and it is not related to jiminy.
         cd "$RootDir/unit_py"
-        #"${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+        cd "$RootDir/python/gym_jiminy/unit_py"
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
 #########################################################################################
 
@@ -141,13 +148,15 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-10.15, macos-11]
-        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
-        exclude:
-          - os: macos-11
+        include:
+          - os: macos-10.15
             PYTHON_VERSION: '3.6'
-          - os: macos-11
+          - os: macos-10.15
             PYTHON_VERSION: '3.7'
+          - os: macos-11
+            PYTHON_VERSION: '3.8'
+          - os: macos-11
+            PYTHON_VERSION: '3.9'
 
     steps:
     - name: Download the wheel previously generated

@@ -288,6 +288,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Note that the original constructor is by-passed on purpose.
         ShowBase.__init__(self)
 
+        # Monkey-patch task manager to ignore SIGINT from keyboard interrupt
+        def keyboardInterruptHandler(signalNumber, stackFrame):
+            pass
+
+        self.taskMgr.keyboardInterruptHandler = keyboardInterruptHandler
+
         # Active enhanced rendering if dedicated NVIDIA GPU is used.
         # Note that shadow resolution larger than 1024 significatly affects
         # the frame rate on Intel GPU chipsets: going from 1024 to 2048 makes
@@ -301,7 +307,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.render.set_antialias(
             AntialiasAttrib.M_auto | AntialiasAttrib.M_faster)
 
-        # Configure the physics-based shader if dedicated NVIDIA GPU is used
+        # Configure lighting and shadows
+        self._spotlight = self.config.GetBool('enable-spotlight', False)
+        self._lights_mask = [True, True]
+
+        # Enable physics-based shader if discrete NVIDIA GPU is used
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             shader_options = {
                 'MAX_LIGHTS': 2,
@@ -316,8 +326,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             pbrshader = Shader.make(
                 Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
             self.render.set_attrib(ShaderAttrib.make(pbrshader))
+            self._lights = [self._make_light_ambient((0.6, 0.6, 0.6)),
+                            self._make_light_direct(
+                                1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
         else:
             self.render.set_shader_auto()
+            self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
+                            self._make_light_direct(
+                                1, (0.5, 0.5, 0.5), pos=(8.0, -8.0, 10.0))]
 
         # Define default camera pos
         self._camera_defaults = CAMERA_POS_DEFAULT
@@ -332,13 +348,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._axes = self._make_axes()
         self._grid = self._make_grid()
         self._floor = self._make_floor()
-
-        # Configure lighting and shadows
-        self._spotlight = self.config.GetBool('enable-spotlight', False)
-        self._lights = [self._make_light_ambient((0.6, 0.6, 0.6)),
-                        self._make_light_direct(
-                            1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
-        self._lights_mask = [True, True]
 
         # Create scene tree
         self._scene_root = self.render.attach_new_node('scene_root')
@@ -1350,8 +1359,8 @@ panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
 
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
     def __getstate__(self) -> dict:
-        """Required for Windows support, which uses spawning instead of forking
-        to create subprocesses, requiring pickling of process instance.
+        """Required for Windows and OS X support, which use spawning instead of
+        forking to create subprocesses, requiring pickling of process instance.
         """
         return vars(self)
 
@@ -1367,7 +1376,11 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
             if self._host_conn.closed:
                 raise ViewerClosedError('User closed the main window')
             self._host_conn.send((name, args, kwargs))
-            reply = self._host_conn.recv()
+            try:
+                reply = self._host_conn.recv()
+            except EOFError:
+                # This exception may arise if the last command was interrupted
+                reply = self._host_conn.recv()
             if isinstance(reply, Exception):
                 if isinstance(reply, ViewerClosedError):
                     # Close pipe to make sure it does not get used in future

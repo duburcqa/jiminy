@@ -1,4 +1,5 @@
 import time
+import ctypes
 import logging
 import pathlib
 import asyncio
@@ -518,7 +519,11 @@ def play_trajectories(trajs_data: Union[
             thread.daemon = True
             thread.start()
         for thread in threads:
-            thread.join()
+            try:
+                thread.join()
+            except KeyboardInterrupt:
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                    ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
 
     if Viewer.is_alive():
         # Disable camera travelling and camera motion if it was enabled

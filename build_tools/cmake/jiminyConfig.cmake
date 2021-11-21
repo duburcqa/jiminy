@@ -77,18 +77,20 @@ execute_process(COMMAND "${Python_EXECUTABLE}" -c
 
 # Define compilation options and definitions
 set(jiminy_DEFINITIONS
-    EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC
     BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON BOOST_MPL_LIMIT_VECTOR_SIZE=30 BOOST_MPL_LIMIT_LIST_SIZE=30
 )
 if(WIN32)
-    set(jiminy_DEFINITIONS ${jiminy_DEFINITIONS} _USE_MATH_DEFINES=1 NOMINMAX)
+    list(APPEND jiminy_DEFINITIONS
+        _USE_MATH_DEFINES=1 NOMINMAX
+        EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC
+    )
     set(jiminy_OPTIONS /EHsc /bigobj /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
 else()
     execute_process(COMMAND readelf --version-info "${jiminy_LIBRARIES}"
                     COMMAND grep -c "Name: CXXABI_1.3.9\\\|Name: GLIBCXX_3.4.21"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE CHECK_NEW_CXX11_ABI)
-    set(jiminy_DEFINITIONS ${jiminy_DEFINITIONS} _GLIBCXX_USE_CXX11_ABI=$<BOOL:${CHECK_NEW_CXX11_ABI}>)
+    list(APPEND jiminy_DEFINITIONS _GLIBCXX_USE_CXX11_ABI=$<BOOL:${CHECK_NEW_CXX11_ABI}>)
     set(jiminy_OPTIONS -fPIC)
 endif()
 
