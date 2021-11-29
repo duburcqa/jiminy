@@ -330,6 +330,8 @@ def play_trajectories(trajs_data: Union[
         if data:
             i = bisect_right(
                 [s.t for s in data], time_interval[0], hi=len(data)-1)
+            for f_ext in viewer_i.f_external:
+                f_ext.vector[:] = 0.0
             viewer_i.display(data[i].q, data[i].v, offset)
         if Viewer.backend.startswith('panda3d'):
             if display_com is not None:
