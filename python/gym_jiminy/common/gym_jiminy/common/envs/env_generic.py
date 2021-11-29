@@ -811,7 +811,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Make sure the reward is not 'nan'
         if reward != reward:
             raise RuntimeError(
-                f"The reward is 'nan'. Something went wrong with "
+                "The reward is 'nan'. Something went wrong with "
                 "`compute_reward` or `compute_reward_terminal` methods.")
 
         # Update cumulative reward

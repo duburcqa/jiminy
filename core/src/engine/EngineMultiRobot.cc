@@ -3743,11 +3743,9 @@ namespace jiminy
 
                         // Enforce tangential friction pyramid and torsional friction
                         hi[constraintIdx] = contactOptions.friction;      // Friction along x-axis
-                        fIndices[constraintIdx] = {static_cast<int32_t>(constraintIdx + 2),
-                                                   static_cast<int32_t>(constraintIdx + 1)};
+                        fIndices[constraintIdx] = {static_cast<int32_t>(constraintIdx + 2)};
                         hi[constraintIdx + 1] = contactOptions.friction;  // Friction along y-axis
-                        fIndices[constraintIdx + 1] = {static_cast<int32_t>(constraintIdx + 2),
-                                                       static_cast<int32_t>(constraintIdx)};
+                        fIndices[constraintIdx + 1] = {static_cast<int32_t>(constraintIdx + 2)};
                         hi[constraintIdx + 3] = contactOptions.torsion;   // Friction around z-axis
                         fIndices[constraintIdx + 3] = {static_cast<int32_t>(constraintIdx + 2)};
 
