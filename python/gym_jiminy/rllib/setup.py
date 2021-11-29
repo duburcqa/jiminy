@@ -8,7 +8,8 @@ setup(
     name="gym_jiminy_rllib",
     version=version,
     description=(
-        "Reinforcement learning toolbox based on Ray RLlib for Gym Jiminy."),
+        "Specialized Reinforcement learning toolbox based on Ray RLlib for "
+        "Gym Jiminy."),
     author="Alexis Duburcq",
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",

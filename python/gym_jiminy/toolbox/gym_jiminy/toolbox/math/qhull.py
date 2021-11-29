@@ -72,8 +72,6 @@ def compute_distance_convex_to_ray(
         query_origin: np.ndarray) -> float:
     """ TODO: Write documentation.
     """
-    # pylint: disable=misplaced-comparison-constant
-
     # Compute the direction vectors of the edges
     points_1 = points[np.roll(vertex_indices, 1)]
     points_0 = points[vertex_indices]
