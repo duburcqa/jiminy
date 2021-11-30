@@ -2310,6 +2310,10 @@ class Viewer:
         assert self._client.model.nq == q.shape[0], (
             "The configuration vector does not have the right size.")
 
+        # Make sure the state is valid
+        if np.isnan(q).any() or np.isnan(v).any():
+            raise ValueError("The input state ('q','v') contains 'nan'.")
+
         # Apply offset on the freeflyer, if requested.
         # Note that it is NOT checking that the robot has a freeflyer.
         if xyz_offset is not None:

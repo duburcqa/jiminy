@@ -665,6 +665,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "inconsistent with the observation space defined by "
                 "`_refresh_observation_space` at initialization.") from e
 
+        # Make sure there is no 'nan' value in observation
+        for value in tree.flatten(obs):
+            if np.isnan(value).any():
+                raise RuntimeError(
+                    f"'nan' value found in observation ({obs}). Something "
+                    "went wrong with `refresh_observation` method.")
+
+        # The simulation cannot be done before doing a single step.
         if self.is_done():
             raise RuntimeError(
                 "The simulation is already done at `reset`. Check the "
@@ -729,35 +737,40 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
-        # Update the action to perform if necessary
+        # Update of the action to perform if provided
         if action is not None:
+            # Make sure the action is valid
+            for value in tree.flatten(action):
+                if np.isnan(value).any():
+                    raise RuntimeError(
+                        f"'nan' value found in action ({action}).")
+
+            # Update the action
             set_value(self._action, action)
 
-        # Trying to perform a single simulation step
-        is_step_failed = True
-        try:
-            # Do a single step
-            self.simulator.step(self.step_dt)
+        # Perform a single simulation step
+        self.simulator.step(self.step_dt)
 
-            # Update shared buffers
-            self._refresh_internal()
+        # Update shared buffers
+        self._refresh_internal()
 
-            # Update the observer at the end of the step. Indeed, internally,
-            # it is called at the beginning of the every integration steps,
-            # during the controller update.
-            self.engine.controller.refresh_observation(
-                self.stepper_state.t,
-                self.system_state.q,
-                self.system_state.v,
-                self.sensors_data)
-
-            # Update some internal buffers
-            is_step_failed = False
-        except RuntimeError as e:
-            logger.error(f"Unrecoverable Jiminy engine exception:\n{str(e)}")
+        # Update the observer at the end of the step. Indeed, internally,
+        # it is called at the beginning of the every integration steps,
+        # during the controller update.
+        self.engine.controller.refresh_observation(
+            self.stepper_state.t,
+            self.system_state.q,
+            self.system_state.v,
+            self.sensors_data)
 
         # Get clipped observation
         obs = clip(self.observation_space, self.get_observation())
+
+        # Make sure there is no 'nan' value in observation
+        if np.isnan(self.system_state.a).any():
+            raise RuntimeError(
+                "The acceleration of the system is 'nan'. Something went "
+                "wrong with jiminy engine.")
 
         # Reset the extra information buffer
         self._info = {}
@@ -765,7 +778,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
-        done = is_step_failed or not self.simulator.is_simulation_running or \
+        done = not self.simulator.is_simulation_running or \
             self.num_steps >= self.max_steps or self.is_done()
 
         # Check if stepping after done and if it is an undefined behavior
@@ -781,11 +794,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     "Please call `reset` to avoid further undefined behavior.")
             self._num_steps_beyond_done += 1
 
-        # Early return in case of low-level engine integration failure.
-        # In such a case, it always returns reward = 0.0 and done = True.
-        if is_step_failed:
-            return obs, 0.0, True, deepcopy(self._info)
-
         # Compute reward and extra information
         reward = self.compute_reward(info=self._info)
 
@@ -799,6 +807,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.enable_reward_terminal:
                 # Add terminal reward to current reward
                 reward += self.compute_reward_terminal(info=self._info)
+
+        # Make sure the reward is not 'nan'
+        if reward != reward:
+            raise RuntimeError(
+                "The reward is 'nan'. Something went wrong with "
+                "`compute_reward` or `compute_reward_terminal` methods.")
 
         # Update cumulative reward
         self.total_reward += reward

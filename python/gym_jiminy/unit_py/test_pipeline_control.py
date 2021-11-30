@@ -17,7 +17,7 @@ from jiminy_py.viewer import Viewer
 from gym_jiminy.envs import AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv
 
 
-IMAGE_DIFF_THRESHOLD = 0.3
+IMAGE_DIFF_THRESHOLD = 1.0
 
 
 class PipelineControl(unittest.TestCase):

@@ -59,12 +59,12 @@ namespace jiminy
 
     void AbstractConstraintBase::enable(void)
     {
+        lambda_.setZero();
         isEnabled_ = true;
     }
 
     void AbstractConstraintBase::disable(void)
     {
-        lambda_.setZero();
         isEnabled_ = false;
     }
 

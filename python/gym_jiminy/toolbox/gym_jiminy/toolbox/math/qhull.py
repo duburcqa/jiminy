@@ -3,7 +3,7 @@
 import numpy as np
 import numba as nb
 from numba.np.extensions import cross2d
-from scipy.spatial.qhull import _Qhull
+from scipy.spatial.qhull import _Qhull, QhullError
 
 from .generic import squared_norm_2
 
@@ -72,8 +72,6 @@ def compute_distance_convex_to_ray(
         query_origin: np.ndarray) -> float:
     """ TODO: Write documentation.
     """
-    # pylint: disable=misplaced-comparison-constant
-
     # Compute the direction vectors of the edges
     points_1 = points[np.roll(vertex_indices, 1)]
     points_0 = points[vertex_indices]
@@ -113,13 +111,18 @@ class ConvexHull:
 
         # Create convex full if possible
         if len(self._points) > 2:
-            self._hull = _Qhull(points=self._points,
-                                options=b"",
-                                mode_option=b"i",
-                                required_options=b"Qt",
-                                furthest_site=False,
-                                incremental=False,
-                                interior_point=None)
+            try:
+                self._hull = _Qhull(points=self._points,
+                                    options=b"",
+                                    mode_option=b"i",
+                                    required_options=b"Qt",
+                                    furthest_site=False,
+                                    incremental=False,
+                                    interior_point=None)
+            except QhullError as e:
+                raise ValueError(
+                    f"Impossible to compute convex hull ({self._points})."
+                    ) from e
             self._vertex_indices = self._hull.get_extremes_2d()
         else:
             self._hull = None
