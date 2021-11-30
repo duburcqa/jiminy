@@ -41,7 +41,7 @@ class PipelineControl(unittest.TestCase):
         action_init['Q'], action_init['V'] = encoder_data[
             :, self.env.controller.motor_to_encoder]
 
-        # Run the simulation during 12s
+        # Run the simulation
         while self.env.stepper_state.t < 12.0:
             self.env.step(action_init)
 
