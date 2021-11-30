@@ -63,23 +63,56 @@ namespace jiminy
             }
             else
             {
-                float64_t thr;
                 float64_t f = x[fIdx[0]];
-                if (fSize == 1)
+                float64_t const thr = hi[i] * f;
+                if (thr > EPS)
                 {
-                    thr = hi[i] * std::abs(f);
+                    if (fSize == 1)
+                    {
+                        // Specialization for speedup and numerical stability
+                        e = clamp(e, -thr, thr);
+                    }
+                    else
+                    {
+                        // Generic case
+                        float64_t squaredNorm = e * e;
+                        for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                        {
+                            f = x[*fIt];
+                            squaredNorm += f * f;
+                        }
+                        if (squaredNorm > thr * thr)
+                        {
+                            if (squaredNorm > EPS)
+                            {
+                                float64_t const scale = thr / std::sqrt(squaredNorm);
+                                e *= scale;
+                                for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                                {
+                                    x[*fIt] *= scale;
+                                }
+                            }
+                            else
+                            {
+                                // Specialization for numerical stability
+                                e = 0.0;
+                                for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                                {
+                                    x[*fIt] = 0.0;
+                                }
+                            }
+                        }
+                    }
                 }
                 else
                 {
-                    thr = hi[i] * f * f;
+                    // Specialization for speedup
+                    e = 0.0;
                     for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
                     {
-                        f = x[*fIt];
-                        thr -= f * f;
+                        x[*fIt] = 0.0;
                     }
-                    thr = std::sqrt(std::max(0.0, thr));
                 }
-                e = clamp(e, -thr, thr);
             }
 
             // Check if still possible to terminate after complete update
