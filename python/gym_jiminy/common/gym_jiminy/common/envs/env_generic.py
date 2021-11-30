@@ -809,7 +809,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 reward += self.compute_reward_terminal(info=self._info)
 
         # Make sure the reward is not 'nan'
-        if reward != reward:
+        if np.isnan(reward):
             raise RuntimeError(
                 "The reward is 'nan'. Something went wrong with "
                 "`compute_reward` or `compute_reward_terminal` methods.")

@@ -63,23 +63,37 @@ namespace jiminy
             }
             else
             {
-                float64_t thr;
                 float64_t f = x[fIdx[0]];
-                if (fSize == 1)
+                float64_t thr = hi[i] * f;
+                if (thr > EPS)
                 {
-                    thr = hi[i] * std::abs(f);
+                    if (fSize == 1)
+                    {
+                        e = clamp(e, -thr, thr);
+                    }
+                    else
+                    {
+                        thr *= thr;
+                        for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                        {
+                            f = x[*fIt];
+                            thr -= f * f;
+                        }
+                        if (thr > EPS)
+                        {
+                            thr = std::sqrt(thr);
+                            e = clamp(e, -thr, thr);
+                        }
+                        else
+                        {
+                            e = 0.0;
+                        }
+                    }
                 }
                 else
                 {
-                    thr = hi[i] * f * f;
-                    for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
-                    {
-                        f = x[*fIt];
-                        thr -= f * f;
-                    }
-                    thr = std::sqrt(std::max(0.0, thr));
+                    e = 0.0;
                 }
-                e = clamp(e, -thr, thr);
             }
 
             // Check if still possible to terminate after complete update
