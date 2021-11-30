@@ -22,7 +22,9 @@ namespace jiminy
     tolRel_(tolRel),
     indices_(),
     lastShuffle_(0U),
-    b_()
+    b_(),
+    y_(),
+    yPrev_()
     {
         // Empty on purpose.
     }
@@ -34,8 +36,6 @@ namespace jiminy
                                                std::vector<std::vector<int32_t> > const & fIndices,
                                                vectorN_t & x)
     {
-        bool_t isSuccess = true;
-
         // Shuffle coefficient update order to break any repeating cycles
         if (randomPermutationPeriod_ > 0 && lastShuffle_ > randomPermutationPeriod_)
         {
@@ -44,12 +44,14 @@ namespace jiminy
         }
         ++lastShuffle_;
 
+        // Backup previous solution
+        yPrev_.noalias() = A * x;
+
         // Update every coefficients sequentially
         for (uint32_t const & i : indices_)
         {
             // Extract single coefficient
             float64_t & e = x[i];
-            float64_t const ePrev = e;
 
             // Update a single coefficient
             e += (b[i] - A.col(i).dot(x)) / A(i, i);
@@ -81,10 +83,14 @@ namespace jiminy
                 }
                 e = clamp(e, -thr, thr);
             }
-
-            // Check if still possible to terminate after complete update
-            isSuccess = isSuccess && (std::abs(e - ePrev) < tolAbs_ || std::abs((e - ePrev) / e) < tolRel_);
         }
+
+        // Check if terminate conditions are satisfied
+        y_.noalias() = A * x;
+        bool_t isSuccess = (
+            (y_ - yPrev_).array().abs() < tolAbs_ ||
+            ((y_ - yPrev_).array() / y_.array()).abs() < tolRel_
+        ).all();
 
         return isSuccess;
     }
