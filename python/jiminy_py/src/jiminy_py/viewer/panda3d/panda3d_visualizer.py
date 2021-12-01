@@ -816,9 +816,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                           renders a flat tile ground if not specified.
                           Optional: None by default.
         """
+        # Check if floor is currently hidden
+        is_hidden = self._floor.isHidden()
+
         # Remove existing floor and create a new one
         self._floor.remove_node()
         self._floor = self._make_floor(heightmap, show_meshes)
+
+        # Hide the floor if is was previously hidden
+        if is_hidden:
+            self._floor.hide()
 
         # Adjust frustum of the lights to project shadow over the whole scene
         for light_path in self._lights[1:]:
