@@ -2311,7 +2311,7 @@ class Viewer:
             "The configuration vector does not have the right size.")
 
         # Make sure the state is valid
-        if np.isnan(q).any() or np.isnan(v).any():
+        if np.isnan(q).any() or (v is not None and np.isnan(v).any()):
             raise ValueError("The input state ('q','v') contains 'nan'.")
 
         # Apply offset on the freeflyer, if requested.
