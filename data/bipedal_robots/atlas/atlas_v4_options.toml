@@ -10,13 +10,15 @@ randomSeed = 0
 
 # ============== Ground dynamics ===============
 
-[engine.contacts]
-model = "impulse"
+[engine.constraints]
 solver = "PGS"
-tolAbs = 1.0e-4
-tolRel = 1.0e-3
+tolAbs = 1.0e-6
+tolRel = 1.0e-5
 regularization = 2.0e-3
 stabilizationFreq = 20.0
+
+[engine.contacts]
+model = "constraint"
 transitionEps = 5.0e-3
 friction = 1.0
 

@@ -18,10 +18,10 @@ namespace jiminy
     {
         NONE = 0,
         SPRING_DAMPER = 1,
-        IMPULSE = 2
+        CONSTRAINT = 2
     };
 
-    enum class contactSolver_t : uint8_t
+    enum class constraintSolver_t : uint8_t
     {
         NONE = 0,
         PGS = 1  // Projected Gauss-Seidel
@@ -29,17 +29,17 @@ namespace jiminy
 
     std::map<std::string, contactModel_t> const CONTACT_MODELS_MAP {
         {"spring_damper", contactModel_t::SPRING_DAMPER},
-        {"impulse", contactModel_t::IMPULSE},
+        {"constraint", contactModel_t::CONSTRAINT},
     };
 
-    std::map<std::string, contactSolver_t> const CONTACT_SOLVERS_MAP {
-        {"PGS", contactSolver_t::PGS}
+    std::map<std::string, constraintSolver_t> const CONSTRAINT_SOLVERS_MAP {
+        {"PGS", constraintSolver_t::PGS}
     };
 
     std::set<std::string> const STEPPERS {
+        "euler_explicit",
         "runge_kutta_4",
-        "runge_kutta_dopri5",
-        "euler_explicit"
+        "runge_kutta_dopri5"
     };
 
     class Timer;
@@ -111,20 +111,27 @@ namespace jiminy
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     public:
+        configHolder_t getDefaultConstraintOptions()
+        {
+            configHolder_t config;
+            config["solver"] = std::string("PGS");   // ["PGS",]
+            config["tolAbs"] = 1.0e-6;
+            config["tolRel"] = 1.0e-5;
+            config["regularization"] = 1.0e-3;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
+            config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
+
+            return config;
+        };
+
         configHolder_t getDefaultContactOptions()
         {
             configHolder_t config;
-            config["model"] = std::string("spring_damper");   // ["spring_damper", "impulse"]
-            config["solver"] = std::string("PGS");   // ["PGS",]
-            config["tolAbs"] = 1.0e-4;
-            config["tolRel"] = 1.0e-3;
-            config["regularization"] = 0.0;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
-            config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
+            config["model"] = std::string("constraint");   // ["spring_damper", "constraint"]
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
-            config["transitionEps"] = 1.0e-3;  // [m]
             config["friction"] = 1.0;
             config["torsion"] = 0.0;
+            config["transitionEps"] = 1.0e-3;  // [m]
             config["transitionVelocity"] = 1.0e-2;  // [m.s-1]
 
             return config;
@@ -193,38 +200,48 @@ namespace jiminy
             config["stepper"] = getDefaultStepperOptions();
             config["world"] = getDefaultWorldOptions();
             config["joints"] = getDefaultJointOptions();
+            config["constraints"] = getDefaultConstraintOptions();
             config["contacts"] = getDefaultContactOptions();
 
             return config;
         };
 
-        struct contactOptions_t
+        struct constraintOptions_t
         {
-            std::string const model;
             std::string const solver;
             float64_t const tolAbs;
             float64_t const tolRel;
             float64_t const regularization;
             float64_t const stabilizationFreq;
-            float64_t const stiffness;
-            float64_t const damping;
-            float64_t const transitionEps;
-            float64_t const friction;
-            float64_t const torsion;
-            float64_t const transitionVelocity;
 
-            contactOptions_t(configHolder_t const & options) :
-            model(boost::get<std::string>(options.at("model"))),
+            constraintOptions_t(configHolder_t const & options) :
             solver(boost::get<std::string>(options.at("solver"))),
             tolAbs(boost::get<float64_t>(options.at("tolAbs"))),
             tolRel(boost::get<float64_t>(options.at("tolRel"))),
             regularization(boost::get<float64_t>(options.at("regularization"))),
-            stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq"))),
+            stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq")))
+            {
+                // Empty.
+            }
+        };
+
+        struct contactOptions_t
+        {
+            std::string const model;
+            float64_t const stiffness;
+            float64_t const damping;
+            float64_t const friction;
+            float64_t const torsion;
+            float64_t const transitionEps;
+            float64_t const transitionVelocity;
+
+            contactOptions_t(configHolder_t const & options) :
+            model(boost::get<std::string>(options.at("model"))),
             stiffness(boost::get<float64_t>(options.at("stiffness"))),
             damping(boost::get<float64_t>(options.at("damping"))),
-            transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
             friction(boost::get<float64_t>(options.at("friction"))),
             torsion(boost::get<float64_t>(options.at("torsion"))),
+            transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
             transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity")))
             {
                 // Empty.
@@ -319,17 +336,19 @@ namespace jiminy
 
         struct engineOptions_t
         {
-            telemetryOptions_t const telemetry;
-            stepperOptions_t   const stepper;
-            worldOptions_t     const world;
-            jointOptions_t     const joints;
-            contactOptions_t   const contacts;
+            telemetryOptions_t  const telemetry;
+            stepperOptions_t    const stepper;
+            worldOptions_t      const world;
+            jointOptions_t      const joints;
+            constraintOptions_t const constraints;
+            contactOptions_t    const contacts;
 
             engineOptions_t(configHolder_t const & options) :
             telemetry(boost::get<configHolder_t>(options.at("telemetry"))),
             stepper(boost::get<configHolder_t>(options.at("stepper"))),
             world(boost::get<configHolder_t>(options.at("world"))),
             joints(boost::get<configHolder_t>(options.at("joints"))),
+            constraints(boost::get<configHolder_t>(options.at("constraints"))),
             contacts(boost::get<configHolder_t>(options.at("contacts")))
             {
                 // Empty.
@@ -652,7 +671,7 @@ namespace jiminy
     private:
         std::unique_ptr<Timer> timer_;
         contactModel_t contactModel_;
-        std::unique_ptr<AbstractLCPSolver> contactSolver_;
+        std::unique_ptr<AbstractLCPSolver> constraintSolver_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;

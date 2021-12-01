@@ -25,9 +25,9 @@ urdf_path = f"{os.environ['HOME']}/wdc_workspace/src/jiminy/unit_py/data/box_col
 env = BaseJiminyEnv(Simulator.build(
     urdf_path, has_freeflyer=True), step_dt=0.01)
 
-# Enable impulse contact model
+# Enable constraint contact model
 engine_options = env.engine.get_options()
-engine_options['contacts']['model'] = 'impulse'
+engine_options['contacts']['model'] = 'constraint'
 env.engine.set_options(engine_options)
 
 # Generate random ground profile

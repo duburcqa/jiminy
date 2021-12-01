@@ -243,6 +243,7 @@ class SimulateTwoMasses(unittest.TestCase):
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
+        engine_options["constraints"]["regularization"] = 0.0
         engine.set_options(engine_options)
 
         # Add a kinematic constraint on the second mass
@@ -284,6 +285,7 @@ class SimulateTwoMasses(unittest.TestCase):
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
+        engine_options["constraints"]["regularization"] = 0.0
         engine.set_options(engine_options)
 
         # Add a kinematic constraints.
@@ -345,6 +347,7 @@ class SimulateTwoMasses(unittest.TestCase):
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
+        engine_options["constraints"]["regularization"] = 0.0
         engine.set_options(engine_options)
 
         # Define some internal parameters

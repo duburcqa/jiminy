@@ -62,7 +62,7 @@ namespace jiminy
     engineOptionsHolder_(),
     timer_(std::make_unique<Timer>()),
     contactModel_(contactModel_t::NONE),
-    contactSolver_(nullptr),
+    constraintSolver_(nullptr),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
@@ -882,14 +882,14 @@ namespace jiminy
         }
 
         // Instantiate desired LCP solver
-        std::string const & contactSolver = engineOptions_->contacts.solver;
-        if (CONTACT_SOLVERS_MAP.at(contactSolver) == contactSolver_t::PGS)
+        std::string const & constraintSolver = engineOptions_->constraints.solver;
+        if (CONSTRAINT_SOLVERS_MAP.at(constraintSolver) == constraintSolver_t::PGS)
         {
-            contactSolver_ = std::make_unique<PGSSolver>(
+            constraintSolver_ = std::make_unique<PGSSolver>(
                 PGS_MAX_ITERATIONS,
                 PGS_RANDOM_PERMUTATION_PERIOD,
-                engineOptions_->contacts.tolAbs,
-                engineOptions_->contacts.tolRel);
+                engineOptions_->constraints.tolAbs,
+                engineOptions_->constraints.tolRel);
         }
     }
 
@@ -1307,7 +1307,7 @@ namespace jiminy
             for (constraintsHolderType_t holderType : holderTypes)
             {
                 systemDataIt->constraintsHolder.foreach(holderType,
-                    [freq = engineOptions_->contacts.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
+                    [freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
                         std::shared_ptr<AbstractConstraintBase> const & constraint,
                         constraintsHolderType_t const & /* holderType */)
                     {
@@ -2563,33 +2563,36 @@ namespace jiminy
         }
 
         // Make sure the contacts options are fine
+        configHolder_t constraintsOptions = boost::get<configHolder_t>(engineOptions.at("constraints"));
+        std::string const & constraintSolver = boost::get<std::string>(constraintsOptions.at("solver"));
+        auto const constraintSolverIt = CONSTRAINT_SOLVERS_MAP.find(constraintSolver);
+        if (constraintSolverIt == CONSTRAINT_SOLVERS_MAP.end())
+        {
+            PRINT_ERROR("The requested constraint solver is not available.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        float64_t const & stabilizationFreq =
+            boost::get<float64_t>(constraintsOptions.at("stabilizationFreq"));
+        if (stabilizationFreq < 0.0)
+        {
+            PRINT_ERROR("The constraints option 'stabilizationFreq' must be positive.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        float64_t const & regularization =
+            boost::get<float64_t>(constraintsOptions.at("regularization"));
+        if (regularization < 0.0)
+        {
+            PRINT_ERROR("The constraints option 'regularization' must be positive.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Make sure the contacts options are fine
         configHolder_t contactsOptions = boost::get<configHolder_t>(engineOptions.at("contacts"));
         std::string const & contactModel = boost::get<std::string>(contactsOptions.at("model"));
         auto const contactModelIt = CONTACT_MODELS_MAP.find(contactModel);
         if (contactModelIt == CONTACT_MODELS_MAP.end())
         {
             PRINT_ERROR("The requested contact model is not available.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-        std::string const & contactSolver = boost::get<std::string>(contactsOptions.at("solver"));
-        auto const contactSolverIt = CONTACT_SOLVERS_MAP.find(contactSolver);
-        if (contactSolverIt == CONTACT_SOLVERS_MAP.end())
-        {
-            PRINT_ERROR("The requested contact solver is not available.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-        float64_t const & stabilizationFreq =
-            boost::get<float64_t>(contactsOptions.at("stabilizationFreq"));
-        if (stabilizationFreq < 0.0)
-        {
-            PRINT_ERROR("The contacts option 'stabilizationFreq' must be positive.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-        float64_t const & regularization =
-            boost::get<float64_t>(contactsOptions.at("regularization"));
-        if (regularization < 0.0)
-        {
-            PRINT_ERROR("The contacts option 'regularization' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         float64_t const & contactsTransitionEps =
@@ -3776,15 +3779,15 @@ namespace jiminy
             pinocchio_overload::crba(model, data, q);
 
             // Call forward dynamics
-            contactSolver_->BoxedForwardDynamics(model,
-                                                 data,
-                                                 uAugmented,
-                                                 constraintsJacobian,
-                                                 constraintsDrift,
-                                                 engineOptions_->contacts.regularization,
-                                                 lo,
-                                                 hi,
-                                                 fIndices);
+            constraintSolver_->BoxedForwardDynamics(model,
+                                                    data,
+                                                    uAugmented,
+                                                    constraintsJacobian,
+                                                    constraintsDrift,
+                                                    engineOptions_->constraints.regularization,
+                                                    lo,
+                                                    hi,
+                                                    fIndices);
 
             // Update lagrangian multipliers associated with the constraint
             constraintIdx = 0U;

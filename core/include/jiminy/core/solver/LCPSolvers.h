@@ -72,6 +72,8 @@ namespace jiminy
         std::vector<uint32_t> indices_;
         uint32_t lastShuffle_;
         vectorN_t b_;
+        vectorN_t y_;
+        vectorN_t yPrev_;
     };
 
 
