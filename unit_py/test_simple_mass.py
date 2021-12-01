@@ -235,8 +235,8 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # Set some extra options of the engine
         engine_options = engine.get_options()
-        engine_options['contacts']['transitionEps'] = 1.0e-6
         engine_options['contacts']['friction'] = self.friction
+        engine_options['contacts']['transitionEps'] = 1.0e-6
         engine_options['contacts']['transitionVelocity'] = self.transtion_vel
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dtMax
         engine.set_options(engine_options)

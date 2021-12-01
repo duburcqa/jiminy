@@ -611,7 +611,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
-        engine_options["contacts"]["regularization"] = 0.0
+        engine_options["constraints"]["regularization"] = 0.0
         engine.set_options(engine_options)
 
         # Run simulation and extract some information from log data

@@ -110,8 +110,8 @@ int main(int /* argc */, char_t * /* argv */[])
     boost::get<std::string>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("model")) = std::string("spring_damper");
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("stiffness")) = 1.0e6;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("damping")) = 2000.0;
-    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("transitionEps")) = 0.001;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("friction")) = 5.0;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("transitionEps")) = 0.001;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("transitionVelocity")) = 0.01;
     engine->setOptions(simuOptions);
     engine->initialize(robot, controller, callback);
