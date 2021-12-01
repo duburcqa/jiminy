@@ -115,9 +115,9 @@ namespace jiminy
         {
             configHolder_t config;
             config["solver"] = std::string("PGS");   // ["PGS",]
-            config["tolAbs"] = 1.0e-6;
-            config["tolRel"] = 1.0e-5;
-            config["regularization"] = 1.0e-3;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
+            config["tolAbs"] = 1.0e-5;
+            config["tolRel"] = 1.0e-7;
+            config["regularization"] = 1.0e-3;       // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
             config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
 
             return config;

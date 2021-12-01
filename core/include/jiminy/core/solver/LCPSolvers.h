@@ -12,13 +12,13 @@ namespace jiminy
         AbstractLCPSolver(void) = default;
         virtual ~AbstractLCPSolver(void) = default;
 
-        /// \brief Compute the solution of the Linear Complementary Problem:
+        /// \brief Compute the solution of the Nonlinear Complementary Problem:
         ///        A x + b = w,
         ///        s.t. (w[i] > 0 and x[i] = 0) or (w[i] = 0 and x[i] > 0
         ///
-        ///        using boxed bounds lo < x < hi instead of 0 < x:
+        ///        for non-linear boxed bounds lo(x) < x < hi(x):
         ///        s.t. if fIndices[i].size() == 0, lo[i] < x[i] < hi[i]
-        ///             else, sqrt(x[i] ** 2 + sum_{j>=1}(x[fIndices[i][j]] ** 2)) < hi[i] * abs(x[fIndices[i][0]])
+        ///             else, sqrt(x[i] ** 2 + sum_{j>=1}(x[fIndices[i][j]] ** 2)) < hi[i] * max(0.0, x[fIndices[i][0]])
         ///
         /// The result x will be stored in data.lambda_c.
         virtual bool_t BoxedForwardDynamics(pinocchio::Model const & model,

@@ -45,7 +45,7 @@ namespace jiminy
         ++lastShuffle_;
 
         // Backup previous solution
-        yPrev_.noalias() = A * x;
+        yPrev_.noalias() = A * x - b;
 
         // Update every coefficients sequentially
         for (uint32_t const & i : indices_)
@@ -66,41 +66,48 @@ namespace jiminy
             else
             {
                 float64_t f = x[fIdx[0]];
-                float64_t thr = hi[i] * f;
+                float64_t const thr = hi[i] * f;
                 if (thr > EPS)
                 {
                     if (fSize == 1)
                     {
+                        // Specialization for speedup and numerical stability
                         e = clamp(e, -thr, thr);
                     }
                     else
                     {
-                        thr *= thr;
+                        // Generic case
+                        float64_t squaredNorm = e * e;
                         for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
                         {
                             f = x[*fIt];
-                            thr -= f * f;
+                            squaredNorm += f * f;
                         }
-                        if (thr > EPS)
+                        if (squaredNorm > thr * thr)
                         {
-                            thr = std::sqrt(thr);
-                            e = clamp(e, -thr, thr);
-                        }
-                        else
-                        {
-                            e = 0.0;
+                            float64_t const scale = thr / std::sqrt(squaredNorm);
+                            e *= scale;
+                            for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                            {
+                                x[*fIt] *= scale;
+                            }
                         }
                     }
                 }
                 else
                 {
+                    // Specialization for speedup
                     e = 0.0;
+                    for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                    {
+                        x[*fIt] = 0.0;
+                    }
                 }
             }
         }
 
         // Check if terminate conditions are satisfied
-        y_.noalias() = A * x;
+        y_.noalias() = A * x - b;
         bool_t isSuccess = (
             (y_ - yPrev_).array().abs() < tolAbs_ ||
             ((y_ - yPrev_).array() / y_.array()).abs() < tolRel_
@@ -123,7 +130,7 @@ namespace jiminy
         /* Adapt shuffling indices if the number of indices has changed.
            Note that it may converge faster to enforce constraints in reverse order,
            since usually constraints bounds dependending on others have lower indices
-           by design, aka. the linear friction pyramid.
+           by design, aka. coulomb friction law.
            TODO: take into account the actual value of 'fIndices' to order the indices. */
         size_t const nIndices = b.size();
         size_t const nIndicesOrig = indices_.size();
