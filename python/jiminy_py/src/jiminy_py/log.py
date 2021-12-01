@@ -341,10 +341,11 @@ def emulate_sensors_data_from_log(log_data: Dict[str, np.ndarray],
         sensor_fieldnames = getattr(jiminy, sensor_type).fieldnames
         for name in sensors_names:
             sensor = robot.get_sensor(sensor_type, name)
-            if any(field.startswith(sensor.name) for field in log_data.keys()):
+            log_fieldnames = [
+                '.'.join((sensor.name, field)) for field in sensor_fieldnames]
+            if log_fieldnames[0] in log_data.keys():
                 sensor_log = np.stack([
-                    log_data['.'.join((sensor.name, field))]
-                    for field in sensor_fieldnames], axis=-1)
+                    log_data[field] for field in log_fieldnames], axis=-1)
                 sensors_set.append(sensor)
                 sensors_log.append(sensor_log)
 
