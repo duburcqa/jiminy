@@ -13,8 +13,8 @@ randomSeed = 0
 [engine.contacts]
 model = "impulse"
 solver = "PGS"
-tolAbs = 1.0e-4
-tolRel = 1.0e-3
+tolAbs = 1.0e-6
+tolRel = 1.0e-5
 regularization = 2.0e-3
 stabilizationFreq = 20.0
 transitionEps = 5.0e-3

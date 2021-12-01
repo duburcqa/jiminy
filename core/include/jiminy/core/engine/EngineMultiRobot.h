@@ -114,11 +114,11 @@ namespace jiminy
         configHolder_t getDefaultContactOptions()
         {
             configHolder_t config;
-            config["model"] = std::string("spring_damper");   // ["spring_damper", "impulse"]
+            config["model"] = std::string("impulse");   // ["spring_damper", "impulse"]
             config["solver"] = std::string("PGS");   // ["PGS",]
-            config["tolAbs"] = 1.0e-4;
-            config["tolRel"] = 1.0e-3;
-            config["regularization"] = 0.0;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
+            config["tolAbs"] = 1.0e-6;
+            config["tolRel"] = 1.0e-5;
+            config["regularization"] = 1.0e-3;     // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
             config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;

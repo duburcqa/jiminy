@@ -98,6 +98,7 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # configure the engine
         engine_options = engine.get_options()
+        engine_options["contacts"]["model"] = "spring_damper"
         engine_options['contacts']['stiffness'] = self.k_contact
         engine_options['contacts']['damping'] = self.nu_contact
         engine.set_options(engine_options)
