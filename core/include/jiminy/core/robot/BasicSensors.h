@@ -29,11 +29,12 @@ namespace jiminy
         frameIndex_t const & getFrameIdx(void) const;
 
     private:
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor) final override;
+        virtual hresult_t set(float64_t     const & t,
+                              vectorN_t     const & q,
+                              vectorN_t     const & v,
+                              vectorN_t     const & a,
+                              vectorN_t     const & uMotor,
+                              forceVector_t const & fExternal) final override;
         virtual void skewMeasurement(void) final override;
 
     private:
@@ -58,11 +59,12 @@ namespace jiminy
         frameIndex_t const & getFrameIdx(void) const;
 
     private:
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor) final override;
+        virtual hresult_t set(float64_t     const & t,
+                              vectorN_t     const & q,
+                              vectorN_t     const & v,
+                              vectorN_t     const & a,
+                              vectorN_t     const & uMotor,
+                              forceVector_t const & fExternal) final override;
 
     private:
         std::string frameName_;
@@ -86,16 +88,18 @@ namespace jiminy
         jointIndex_t getJointIdx(void) const;
 
     private:
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor) final override;
+        virtual hresult_t set(float64_t     const & t,
+                              vectorN_t     const & q,
+                              vectorN_t     const & v,
+                              vectorN_t     const & a,
+                              vectorN_t     const & uMotor,
+                              forceVector_t const & fExternal) final override;
 
     private:
         std::string frameName_;
         frameIndex_t frameIdx_;
         jointIndex_t parentJointIdx_;
+        pinocchio::Force f_;
     };
 
     class EncoderSensor : public AbstractSensorTpl<EncoderSensor>
@@ -115,11 +119,12 @@ namespace jiminy
         joint_t const & getJointType(void) const;
 
     private:
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor) final override;
+        virtual hresult_t set(float64_t     const & t,
+                              vectorN_t     const & q,
+                              vectorN_t     const & v,
+                              vectorN_t     const & a,
+                              vectorN_t     const & uMotor,
+                              forceVector_t const & fExternal) final override;
 
     private:
         std::string jointName_;
@@ -143,11 +148,12 @@ namespace jiminy
         std::size_t const & getMotorIdx(void) const;
 
     private:
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor) final override;
+        virtual hresult_t set(float64_t     const & t,
+                              vectorN_t     const & q,
+                              vectorN_t     const & v,
+                              vectorN_t     const & a,
+                              vectorN_t     const & uMotor,
+                              forceVector_t const & fExternal) final override;
 
     private:
         std::string motorName_;

@@ -72,11 +72,12 @@ namespace jiminy
                                   vectorN_t const & command);
         vectorN_t const & getMotorsEfforts(void) const;
         float64_t const & getMotorEffort(std::string const & motorName) const;
-        void setSensorsData(float64_t const & t,
-                            vectorN_t const & q,
-                            vectorN_t const & v,
-                            vectorN_t const & a,
-                            vectorN_t const & uMotor);
+        void setSensorsData(float64_t     const & t,
+                            vectorN_t     const & q,
+                            vectorN_t     const & v,
+                            vectorN_t     const & a,
+                            vectorN_t     const & uMotor,
+                            forceVector_t const & fExternal);
 
         sensorsDataMap_t getSensorsData(void) const;
         Eigen::Ref<vectorN_t const> getSensorData(std::string const & sensorType,

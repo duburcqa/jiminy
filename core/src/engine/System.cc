@@ -175,7 +175,6 @@ namespace jiminy
     contactFramesForces(),
     collisionBodiesForces(),
     jointJacobian(),
-    uAugmented(),
     lo(),
     hi(),
     fIndices(),

@@ -454,7 +454,10 @@ namespace pinocchio_overload
             jointIndex_t const & i = jmodel.id();
             jointIndex_t const & parent = model.parents[i];
             data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
-            data.a[i] += data.liMi[i].actInv(data.a[parent]);
+            if (parent > 0)
+            {
+                data.a[i] += data.liMi[i].actInv(data.a[parent]);
+            }
         }
     };
 

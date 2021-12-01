@@ -894,7 +894,7 @@ namespace jiminy
     }
 
     void computeExtraTerms(systemHolder_t           & system,
-                           systemDataHolder_t const & systemData)
+                           systemDataHolder_t const & /* systemData */)
     {
         /// This method is optimized to avoid redundant computations.
         /// See `pinocchio::computeAllTerms` for reference:
@@ -932,9 +932,9 @@ namespace jiminy
         }
 
         /* Neither 'aba' nor 'forwardDynamics' are computing simultaneously the actual
-           joint accelerations and forces, so it must be done separately:
-           - 1st step: computing the forces based on rnea algorithm
-           - 2nd step: computing the accelerations based on ForwardKinematic algorithm */
+           joint accelerations, joint forces and body forces, so it must be done separately:
+           - 1st step: computing the accelerations based on ForwardKinematic algorithm
+           - 2nd step: computing the forces based on rnea algorithm */
         pinocchio_overload::forwardKinematicsAcceleration(model, data, data.ddq);
 
         // Compute the spatial momenta and the sum of external forces acting on each body
@@ -943,7 +943,7 @@ namespace jiminy
         for (int32_t i = 1; i < model.njoints; ++i)
         {
             data.h[i] = model.inertias[i] * data.v[i];
-            data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]) - systemData.state.fExternal[i];
+            data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
         }
 
         for (int32_t i = model.njoints - 1; i > 0; --i)
@@ -1396,7 +1396,7 @@ namespace jiminy
                 forceVector_t & fext = systemDataIt->state.fExternal;
 
                 // Initialize the sensor data
-                systemIt->robot->setSensorsData(t, q, v, a, uMotor);
+                systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
 
                 // Compute the actual motor effort
                 command.setZero();
@@ -1427,7 +1427,7 @@ namespace jiminy
                 syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
 
                 // Update the sensor data once again, with the updated effort and acceleration
-                systemIt->robot->setSensorsData(t, q, v, a, uMotor);
+                systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
             }
 
             // Synchronize the global stepper state with the individual system states
@@ -2129,7 +2129,8 @@ namespace jiminy
                     vectorN_t const & v = systemDataIt->state.v;
                     vectorN_t const & a = systemDataIt->state.a;
                     vectorN_t const & uMotor = systemDataIt->state.uMotor;
-                    systemIt->robot->setSensorsData(t, q, v, a, uMotor);
+                    forceVector_t const & fext = systemDataIt->state.fExternal;
+                    systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
                 }
             }
 
@@ -3622,6 +3623,7 @@ namespace jiminy
             forceVector_t & fext = systemDataIt->state.fExternal;
             vectorN_t const & aPrev = systemDataIt->statePrev.a;
             vectorN_t const & uMotorPrev = systemDataIt->statePrev.uMotor;
+            forceVector_t const & fextPrev = systemDataIt->statePrev.fExternal;
 
             /* Update the sensor data if necessary (only for infinite update frequency).
                Note that it is impossible to have access to the current accelerations
@@ -3633,7 +3635,7 @@ namespace jiminy
                 aPrevIt->swap(systemIt->robot->pncData_.a);
 
                 // Update sensors based on previous accelerations and forces
-                systemIt->robot->setSensorsData(t, *qIt, *vIt, aPrev, uMotorPrev);
+                systemIt->robot->setSensorsData(t, *qIt, *vIt, aPrev, uMotorPrev, fextPrev);
 
                 // Restore current forces and accelerations
                 fPrevIt->swap(systemIt->robot->pncData_.f);
@@ -3689,7 +3691,6 @@ namespace jiminy
         {
             // Define some proxies for convenience
             matrixN_t & jointJacobian = systemData.jointJacobian;
-            vectorN_t & uAugmented = systemData.uAugmented;
             vectorN_t & lo = systemData.lo;
             vectorN_t & hi = systemData.hi;
             std::vector<std::vector<int32_t> > & fIndices = systemData.fIndices;
@@ -3761,7 +3762,7 @@ namespace jiminy
             }
 
             // Project external forces from cartesian space to joint space
-            uAugmented = u;
+            data.u = u;
             for (int32_t i = 1; i < model.njoints; ++i)
             {
                 jointJacobian.setZero();
@@ -3770,7 +3771,7 @@ namespace jiminy
                                             i,
                                             pinocchio::LOCAL,
                                             jointJacobian);
-                uAugmented.noalias() += jointJacobian.transpose() * fext[i].toVector();
+                data.u.noalias() += jointJacobian.transpose() * fext[i].toVector();
             }
 
             // Compute non-linear effects
@@ -3782,7 +3783,7 @@ namespace jiminy
             // Call forward dynamics
             constraintSolver_->BoxedForwardDynamics(model,
                                                     data,
-                                                    uAugmented,
+                                                    data.u,
                                                     constraintsJacobian,
                                                     constraintsDrift,
                                                     engineOptions_->constraints.regularization,
