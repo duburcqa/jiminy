@@ -24,7 +24,7 @@ namespace jiminy
     {
         dofsFixed_.resize(static_cast<std::size_t>(maskFixed.cast<int32_t>().array().sum()));
         uint32_t dofIndex = 0;
-        for (uint32_t i=0; i < 6; ++i)
+        for (uint32_t i : std::vector<uint32_t>{{3, 4, 5, 0, 1, 2}})
         {
             if (maskFixed[i])
             {
