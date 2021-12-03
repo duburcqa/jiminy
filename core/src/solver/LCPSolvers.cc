@@ -50,15 +50,18 @@ namespace jiminy
         // Update every coefficients sequentially
         for (uint32_t const & i : indices_)
         {
-            // Extract single coefficient
+            // Extract a single coefficient
             float64_t & e = x[i];
 
-            // Update a single coefficient
-            e += (b[i] - A.col(i).dot(x)) / A(i, i);
-
-            // Project the coefficient between lower and upper bounds
+            // Update the coefficient if relevant
             std::vector<int32_t> const & fIdx = fIndices[i];
             std::size_t const fSize = fIdx.size();
+            if ((fSize == 0 && (hi[i] - lo[i] > EPS)) || (hi[i] > EPS))
+            {
+                e += (b[i] - A.col(i).dot(x)) / A(i, i);
+            }
+
+            // Project the coefficient between lower and upper bounds
             if (fSize == 0)
             {
                 e = clamp(e, lo[i], hi[i]);
