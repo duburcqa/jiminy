@@ -1899,6 +1899,8 @@ namespace jiminy
                 {
                     dtNextGlobal = tEnd - t;
                 }
+
+                // Update next dt
                 tNext += dtNextGlobal;
 
                 // Compute the next step using adaptive step method
@@ -1920,18 +1922,29 @@ namespace jiminy
                         hasDynamicsChanged = false;
                     }
 
-                    /* Adjust stepsize to end up exactly at the next breakpoint,
-                       prevent steps larger than dtMax, trying to reach multiples of
-                       STEPPER_MIN_TIMESTEP whenever possible. The idea here is to
-                       reach only multiples of 1us, making logging easier, given that,
-                       in robotics, 1us can be consider an 'infinitesimal' time. This
-                       arbitrary threshold many not be suited for simulating different,
-                       faster dynamics, that require sub-microsecond precision. */
+                    // Adjust stepsize to end up exactly at the next breakpoint
                     dt = min(dt, tNext - t);
-                    if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
+                    if (dtLargest > SIMULATION_MIN_TIMESTEP)
                     {
-                        dt = tNext - t;
+                        if (tNext - (t + dt) < SIMULATION_MIN_TIMESTEP)
+                        {
+                            dt = tNext - t;
+                        }
                     }
+                    else
+                    {
+                        if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
+                        {
+                            dt = tNext - t;
+                        }
+                    }
+
+                    /* Trying to reach multiples of STEPPER_MIN_TIMESTEP whenever
+                       possible. The idea here is to reach only multiples of 1us,
+                       making logging easier, given that, 1us can be consider an
+                       'infinitesimal' time in robotics. This arbitrary threshold
+                       many not be suited for simulating different, faster
+                       dynamics, that require sub-microsecond precision. */
                     if (dt > SIMULATION_MIN_TIMESTEP)
                     {
                         float64_t const dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
