@@ -193,13 +193,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._action = zeros(self.action_space, dtype=np.float64)
         self._observation = zeros(self.observation_space)
 
-        # Register the action to the telemetry
-        if isinstance(self._action, np.ndarray) and (
-                self._action.size == self.robot.nmotors):
-            # Default case: assuming there is one scalar action per motor
-            action_headers = [
-                ".".join(("action", e)) for e in self.robot.motors_names]
-        self.register_variable("action", self._action, action_headers)
+        # Register the action to the telemetry automatically iif there is
+        # exactly one scalar action per motor.
+        if isinstance(self._action, np.ndarray):
+            action_size = self._action.size
+            if action_size > 0 and action_size == self.robot.nmotors:
+                action_headers = [
+                    ".".join(("action", e)) for e in self.robot.motors_names]
+                self.register_variable("action", self._action, action_headers)
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
