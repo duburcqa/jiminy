@@ -12,6 +12,7 @@ from gym_jiminy.common.envs.env_locomotion import (
     F_PROFILE_WAVELENGTH, F_PROFILE_PERIOD)
 from gym_jiminy.common.controllers import PDController
 from gym_jiminy.common.pipeline import build_pipeline
+from gym_jiminy.toolbox.math import ConvexHull
 
 from pinocchio import neutral
 
@@ -79,6 +80,23 @@ STD_RATIO = {
 }
 
 
+def _cleanup_contact_points(env: "AtlasJiminyEnv") -> None:
+    contact_frames_idx = env.robot.contact_frames_idx
+    contact_frames_names = env.robot.contact_frames_names
+    num_contacts = int(len(env.robot.contact_frames_idx) // 2)
+    for contact_slice in (slice(num_contacts), slice(num_contacts, None)):
+        contact_positions = np.stack([
+            env.robot.pinocchio_data.oMf[frame_idx].translation
+            for frame_idx in contact_frames_idx[contact_slice]], axis=0)
+        contact_bottom_idx = np.argsort(
+            contact_positions[:, 2])[:int(num_contacts//2)]
+        convex_hull = ConvexHull(contact_positions[contact_bottom_idx, :2])
+        env.robot.remove_contact_points([
+            contact_frames_names[contact_slice][i]
+            for i in set(range(num_contacts)).difference(
+                contact_bottom_idx[convex_hull._vertex_indices])])
+
+
 class AtlasJiminyEnv(WalkerJiminyEnv):
     def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         # Get the urdf and mesh paths
@@ -98,9 +116,7 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
             debug=debug), **kwargs})
 
         # Remove unrelevant contact points
-        self.robot.remove_contact_points([
-            name for name in self.robot.contact_frames_names
-            if int(name.split("_")[-1]) in (1, 3, 5, 7)])
+        _cleanup_contact_points(self)
 
     def _neutral(self):
         def joint_position_idx(joint_name):
@@ -200,9 +216,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             step_dt=STEP_DT, debug=debug), **kwargs})
 
         # Remove unrelevant contact points
-        self.robot.remove_contact_points([
-            name for name in self.robot.contact_frames_names
-            if int(name.split("_")[-1]) in (1, 3, 5, 7)])
+        _cleanup_contact_points(self)
 
 
 AtlasPDControlJiminyEnv = build_pipeline(**{

@@ -29,7 +29,7 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        f"gym_jiminy=={version}"
+        f"gym_jiminy_toolbox=={version}"
     ],
     zip_safe=False
 )
