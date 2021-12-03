@@ -169,8 +169,8 @@ namespace python
                                                      bp::return_internal_reference<>()),
                                                      &FixedFrameConstraint::setReferenceTransform)
                 .add_property("local_rotation", bp::make_function(&FixedFrameConstraint::getLocalFrame,
-                                                bp::return_value_policy<result_converter<false> >()),
-                                                &FixedFrameConstraint::setLocalFrame);
+                                                bp::return_value_policy<result_converter<false> >()))
+                .def("set_normal", &FixedFrameConstraint::setNormal);
 
             bp::class_<DistanceConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<DistanceConstraint>,

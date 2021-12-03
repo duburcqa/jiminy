@@ -2959,9 +2959,7 @@ namespace jiminy
                         system.robot->pncData_.oMf[frameIdx].rotation(),
                         system.robot->pncData_.oMf[frameIdx].translation() - depth * nGround
                     });
-                    frameConstraint.setLocalFrame(
-                        quaternion_t::FromTwoVectors(vector3_t::UnitZ(), nGround).toRotationMatrix()
-                    );
+                    frameConstraint.setNormal(nGround);
 
                     // Only one contact constraint per collision body is supported for now
                     break;
@@ -3048,9 +3046,7 @@ namespace jiminy
                 system.robot->pncData_.oMf[frameIdx].rotation(),
                 (vector3_t() << posFrame.head<2>(), zGround).finished()
             });
-            frameConstraint.setLocalFrame(
-                quaternion_t::FromTwoVectors(vector3_t::UnitZ(), nGround).toRotationMatrix()
-            );
+            frameConstraint.setNormal(nGround);
         }
     }
 

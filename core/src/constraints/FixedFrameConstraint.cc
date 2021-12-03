@@ -18,7 +18,8 @@ namespace jiminy
     frameIdx_(0),
     dofsFixed_(),
     transformRef_(),
-    rotationLocal_(),
+    normal_(),
+    rotationLocal_(matrix3_t::Identity()),
     frameJacobian_(),
     frameDrift_()
     {
@@ -64,9 +65,12 @@ namespace jiminy
         return transformRef_;
     }
 
-    void FixedFrameConstraint::setLocalFrame(matrix3_t const & frameRot)
+    void FixedFrameConstraint::setNormal(vector3_t const & normal)
     {
-        rotationLocal_ = frameRot;
+        normal_ = normal;
+        rotationLocal_.col(2) = normal_;
+        rotationLocal_.col(1) = normal_.cross(vector3_t::UnitX()).normalized();
+        rotationLocal_.col(0) = rotationLocal_.col(1).cross(rotationLocal_.col(2));
     }
 
     matrix3_t const & FixedFrameConstraint::getLocalFrame(void) const
