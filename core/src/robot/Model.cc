@@ -802,20 +802,17 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Remove the list of frames from the set of contact frames
+        /* Remove the constraint associated with contact frame, then
+           remove the list of frames from the set of contact frames. */
         if (!frameNames.empty())
         {
+            removeConstraints(frameNames, constraintsHolderType_t::CONTACT_FRAMES);  // It cannot fail at this point
             eraseVector(contactFramesNames_, frameNames);
         }
         else
         {
+            removeConstraints(contactFramesNames_, constraintsHolderType_t::CONTACT_FRAMES);
             contactFramesNames_.clear();
-        }
-
-        // Remove constraint associated with contact frame, disable by default
-        for (std::string const & frameName : frameNames)
-        {
-            removeConstraint(frameName, constraintsHolderType_t::CONTACT_FRAMES);  // It cannot fail at this point
         }
 
         // Refresh proxies associated with contacts and constraints
