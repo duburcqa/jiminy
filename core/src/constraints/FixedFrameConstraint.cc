@@ -156,10 +156,11 @@ namespace jiminy
                                            pinocchio::LOCAL_WORLD_ALIGNED);
 
         // Add Baumgarte stabilization to drift in world frame
-        vector3_t const deltaPosition = model->pncData_.oMf[frameIdx_].translation() - transformRef_.translation();
-        matrix3_t const deltaRotation = transformRef_.rotation().transpose() * model->pncData_.oMf[frameIdx_].rotation();
+        pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
+        vector3_t const deltaPosition = framePose.translation() - transformRef_.translation();
+        matrix3_t const deltaRotation = transformRef_.rotation().transpose() * framePose.rotation();
         frameDrift_.linear() += kp_ * deltaPosition;
-        frameDrift_.angular() += kp_ * pinocchio::log3(deltaRotation);
+        frameDrift_.angular() += kp_ * framePose.rotation() * pinocchio::log3(deltaRotation);
         pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
                                                             model->pncData_,
                                                             frameIdx_,

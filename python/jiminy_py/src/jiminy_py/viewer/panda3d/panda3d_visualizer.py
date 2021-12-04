@@ -659,7 +659,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     group_path = f"render/scene_root/{group_name}/"
                     # Only nodes part of user groups can be selected
                     if node_path.startswith(group_path):
-                        name = node_path[len(group_path):].split("/", 1)[0]
+                        name = node_path[len(group_path):]
                         if (group_name, name) != picked_object_prev:
                             self.picked_object = (group_name, name)
                         object_found = True
