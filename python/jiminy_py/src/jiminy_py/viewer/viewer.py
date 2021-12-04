@@ -1916,18 +1916,20 @@ class Viewer:
 
         :param name: Unique name. It must be a valid string identifier.
         :param shape: Desired shape, as a string, i.e. 'cone', 'box', 'sphere',
-                      'capsule', 'cylinder', or 'arrow'.
+                      'capsule', 'cylinder', 'frame', or 'arrow'.
         :param pose: Pose of the geometry on the scene, as a list of vectors
-                     (position [X, Y, Z], quaternion [X,  Y, Z, W]). `None`
-                     corresponds to world frame position and/or orientation.
-                     Optional: World frame by default.
+                     (position, orientation). The position must be the vector
+                     [X, Y, Z], while the orientation can be either a rotation
+                     matrix, or a quaternion [X, Y, Z, W]. `None` can be used
+                     to specify neutral frame position and/or orientation.
+                     Optional: Neutral position and orientation by default.
         :param scale: Size of the marker. Each principal axis of the geometry
                       are scaled separately.
         :param color: Color of the marker. It supports both RGBA codes as a
                       list of 4 floating-point values ranging from 0.0 and 1.0,
                       and a few named colors.
-                      Optional: robot's color by default if overridden,
-                      'red' otherwise.
+                      Optional: Robot's color by default if overridden,
+                                'white' otherwise, except for 'frame'.
         :param auto_refresh: Whether or not to refresh the scene after adding
                              the marker. Useful for adding a bunch of markers
                              and only refresh once. Note that the marker will
@@ -1961,9 +1963,10 @@ class Viewer:
             scale = np.full((3,), fill_value=float(scale))
         if color is None:
             color = self.robot_color
-        if color is None:
+        if color is None and shape != 'frame':
             color = 'white'
-        color = np.asarray(get_color_code(color))
+        if color is not None:
+            color = np.asarray(get_color_code(color))
 
         # Remove marker is one already exists and requested
         if name in self.markers.keys():
@@ -2266,8 +2269,10 @@ class Viewer:
                 else:
                     qx, qy, qz, qw = orientation
                 pose_dict[marker_name] = ((x, y, z), (qw, qx, qy, qz))
-                r, g, b, a = marker_data["color"]
-                material_dict[marker_name] = (2.0 * r, 2.0 * g, 2.0 * b, a)
+                color = marker_data["color"]
+                if color is not None:
+                    r, g, b, a = marker_data["color"]
+                    material_dict[marker_name] = (2.0 * r, 2.0 * g, 2.0 * b, a)
                 scale_dict[marker_name] = marker_data["scale"]
             self._gui.move_nodes(self._markers_group, pose_dict)
             self._gui.set_materials(self._markers_group, material_dict)
