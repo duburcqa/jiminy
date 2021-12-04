@@ -733,13 +733,6 @@ class Viewer:
             self.display_contact_frames(self._display_contact_frames)
 
             # Add contact sensor markers
-            def get_contact_pose(
-                    sensor: contact) -> Tuple[Tuple3FType, Tuple4FType]:
-                oMf = self._client.data.oMf[sensor.frame_idx]
-                frame_position = oMf.translation
-                frame_rotation = pin.Quaternion(oMf.rotation).coeffs()
-                return (frame_position, frame_rotation)
-
             def get_contact_scale(sensor: contact) -> Tuple3FType:
                 length = min(abs(sensor.data[2]) / CONTACT_FORCE_SCALE, 1.0)
                 return (1.0, 1.0, - np.sign(sensor.data[2]) * length)
@@ -747,9 +740,10 @@ class Viewer:
             if contact.type in robot.sensors_names.keys():
                 for name in robot.sensors_names[contact.type]:
                     sensor = robot.get_sensor(contact.type, name)
+                    oMf = self._client.data.oMf[sensor.frame_idx]
                     self.add_marker(name='_'.join((contact.type, name)),
                                     shape="cylinder",
-                                    pose=partial(get_contact_pose, sensor),
+                                    pose=[oMf.translation, oMf.rotation],
                                     scale=partial(get_contact_scale, sensor),
                                     remove_if_exists=True,
                                     auto_refresh=False,
@@ -2266,7 +2260,11 @@ class Viewer:
                     continue
                 marker_data = {key: value() if callable(value) else value
                                for key, value in marker_data.items()}
-                (x, y, z), (qx, qy, qz, qw) = marker_data["pose"]
+                (x, y, z), orientation = marker_data["pose"]
+                if orientation.ndim > 1:
+                    qx, qy, qz, qw = pin.Quaternion(orientation).coeffs()
+                else:
+                    qx, qy, qz, qw = orientation
                 pose_dict[marker_name] = ((x, y, z), (qw, qx, qy, qz))
                 r, g, b, a = marker_data["color"]
                 material_dict[marker_name] = (2.0 * r, 2.0 * g, 2.0 * b, a)
