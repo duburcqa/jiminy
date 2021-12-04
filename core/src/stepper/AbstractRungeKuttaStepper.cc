@@ -79,10 +79,7 @@ namespace jiminy
                                                  state_t   const & /* solution */,
                                                  float64_t       & dt)
     {
-        /* Fixed-step by default, which never fails. By default INF is retuned
-           in case of fixed time step, so that the engine will always try to
-           perform the latest timestep possible, or stop to the next breakpoint
-           otherwise. */
+        // Fixed-step by default, which never fails
         dt = INF;
         return true;
     }

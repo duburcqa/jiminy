@@ -1899,6 +1899,8 @@ namespace jiminy
                 {
                     dtNextGlobal = tEnd - t;
                 }
+
+                // Update next dt
                 tNext += dtNextGlobal;
 
                 // Compute the next step using adaptive step method
@@ -1920,18 +1922,29 @@ namespace jiminy
                         hasDynamicsChanged = false;
                     }
 
-                    /* Adjust stepsize to end up exactly at the next breakpoint,
-                       prevent steps larger than dtMax, trying to reach multiples of
-                       STEPPER_MIN_TIMESTEP whenever possible. The idea here is to
-                       reach only multiples of 1us, making logging easier, given that,
-                       in robotics, 1us can be consider an 'infinitesimal' time. This
-                       arbitrary threshold many not be suited for simulating different,
-                       faster dynamics, that require sub-microsecond precision. */
+                    // Adjust stepsize to end up exactly at the next breakpoint
                     dt = min(dt, tNext - t);
-                    if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
+                    if (dtLargest > SIMULATION_MIN_TIMESTEP)
                     {
-                        dt = tNext - t;
+                        if (tNext - (t + dt) < SIMULATION_MIN_TIMESTEP)
+                        {
+                            dt = tNext - t;
+                        }
                     }
+                    else
+                    {
+                        if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
+                        {
+                            dt = tNext - t;
+                        }
+                    }
+
+                    /* Trying to reach multiples of STEPPER_MIN_TIMESTEP whenever
+                       possible. The idea here is to reach only multiples of 1us,
+                       making logging easier, given that, 1us can be consider an
+                       'infinitesimal' time in robotics. This arbitrary threshold
+                       many not be suited for simulating different, faster
+                       dynamics, that require sub-microsecond precision. */
                     if (dt > SIMULATION_MIN_TIMESTEP)
                     {
                         float64_t const dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
@@ -2946,9 +2959,7 @@ namespace jiminy
                         system.robot->pncData_.oMf[frameIdx].rotation(),
                         system.robot->pncData_.oMf[frameIdx].translation() - depth * nGround
                     });
-                    frameConstraint.setLocalFrame(
-                        quaternion_t::FromTwoVectors(vector3_t::UnitZ(), nGround).toRotationMatrix()
-                    );
+                    frameConstraint.setNormal(nGround);
 
                     // Only one contact constraint per collision body is supported for now
                     break;
@@ -3035,9 +3046,7 @@ namespace jiminy
                 system.robot->pncData_.oMf[frameIdx].rotation(),
                 (vector3_t() << posFrame.head<2>(), zGround).finished()
             });
-            frameConstraint.setLocalFrame(
-                quaternion_t::FromTwoVectors(vector3_t::UnitZ(), nGround).toRotationMatrix()
-            );
+            frameConstraint.setNormal(nGround);
         }
     }
 
@@ -3745,17 +3754,17 @@ namespace jiminy
                             return;
                         }
 
-                        // Friction cone in tangential plane
-                        hi[constraintIdx] = contactOptions.friction;
-                        fIndices[constraintIdx] = {static_cast<int32_t>(constraintIdx + 2),
-                                                   static_cast<int32_t>(constraintIdx + 1)};
-
                         // Torsional friction around normal axis
-                        hi[constraintIdx + 3] = contactOptions.torsion;
-                        fIndices[constraintIdx + 3] = {static_cast<int32_t>(constraintIdx + 2)};
+                        hi[constraintIdx] = contactOptions.torsion;
+                        fIndices[constraintIdx] = {static_cast<int32_t>(constraintIdx + 3)};
+
+                        // Friction cone in tangential plane
+                        hi[constraintIdx + 1] = contactOptions.friction;
+                        fIndices[constraintIdx + 1] = {static_cast<int32_t>(constraintIdx + 3),
+                                                       static_cast<int32_t>(constraintIdx + 2)};
 
                         // Non-penetration normal force
-                        lo[constraintIdx + 2] = 0.0;
+                        lo[constraintIdx + 3] = 0.0;
 
                         constraintIdx += constraint->getDim();
                     });
@@ -3844,8 +3853,8 @@ namespace jiminy
 
                 // Extract force in local reference-frame-aligned from lagrangian multipliers
                 pinocchio::Force fextInLocal(
-                    frameConstraint.lambda_.head<3>(),
-                    frameConstraint.lambda_[3] * vector3_t::UnitZ());
+                    frameConstraint.lambda_.tail<3>(),
+                    frameConstraint.lambda_[0] * vector3_t::UnitZ());
 
                 // Compute force in local world aligned frame
                 matrix3_t const & rotationLocal = frameConstraint.getLocalFrame();
@@ -3879,8 +3888,8 @@ namespace jiminy
 
                     // Extract force in world frame from lagrangian multipliers
                     pinocchio::Force fextInLocal(
-                        frameConstraint.lambda_.head<3>(),
-                        frameConstraint.lambda_[3] * vector3_t::UnitZ());
+                        frameConstraint.lambda_.tail<3>(),
+                        frameConstraint.lambda_[0] * vector3_t::UnitZ());
 
                     // Compute force in world frame
                     matrix3_t const & rotationLocal = frameConstraint.getLocalFrame();

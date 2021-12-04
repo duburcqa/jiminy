@@ -18,13 +18,14 @@ namespace jiminy
     frameIdx_(0),
     dofsFixed_(),
     transformRef_(),
-    rotationLocal_(),
+    normal_(),
+    rotationLocal_(matrix3_t::Identity()),
     frameJacobian_(),
     frameDrift_()
     {
         dofsFixed_.resize(static_cast<std::size_t>(maskFixed.cast<int32_t>().array().sum()));
         uint32_t dofIndex = 0;
-        for (uint32_t i=0; i < 6; ++i)
+        for (uint32_t i : std::vector<uint32_t>{{3, 4, 5, 0, 1, 2}})
         {
             if (maskFixed[i])
             {
@@ -64,9 +65,12 @@ namespace jiminy
         return transformRef_;
     }
 
-    void FixedFrameConstraint::setLocalFrame(matrix3_t const & frameRot)
+    void FixedFrameConstraint::setNormal(vector3_t const & normal)
     {
-        rotationLocal_ = frameRot;
+        normal_ = normal;
+        rotationLocal_.col(2) = normal_;
+        rotationLocal_.col(1) = normal_.cross(vector3_t::UnitX()).normalized();
+        rotationLocal_.col(0) = rotationLocal_.col(1).cross(rotationLocal_.col(2));
     }
 
     matrix3_t const & FixedFrameConstraint::getLocalFrame(void) const

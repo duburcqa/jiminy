@@ -50,15 +50,18 @@ namespace jiminy
         // Update every coefficients sequentially
         for (uint32_t const & i : indices_)
         {
-            // Extract single coefficient
+            // Extract a single coefficient
             float64_t & e = x[i];
 
-            // Update a single coefficient
-            e += (b[i] - A.col(i).dot(x)) / A(i, i);
-
-            // Project the coefficient between lower and upper bounds
+            // Update the coefficient if relevant
             std::vector<int32_t> const & fIdx = fIndices[i];
             std::size_t const fSize = fIdx.size();
+            if ((fSize == 0 && (hi[i] - lo[i] > EPS)) || (hi[i] > EPS))
+            {
+                e += (b[i] - A.col(i).dot(x)) / A(i, i);
+            }
+
+            // Project the coefficient between lower and upper bounds
             if (fSize == 0)
             {
                 e = clamp(e, lo[i], hi[i]);
@@ -131,34 +134,14 @@ namespace jiminy
            Note that it may converge faster to enforce constraints in reverse order,
            since usually constraints bounds dependending on others have lower indices
            by design, aka. coulomb friction law.
+           TODO: Avoid resetting it completely when the size changes.
            TODO: take into account the actual value of 'fIndices' to order the indices. */
         size_t const nIndices = b.size();
-        size_t const nIndicesOrig = indices_.size();
-        if (nIndicesOrig < nIndices)
+        if (indices_.size() != nIndices)
         {
             indices_.resize(nIndices);
-            std::generate(indices_.begin() + nIndicesOrig, indices_.end(),
+            std::generate(indices_.begin(), indices_.end(),
                           [n = static_cast<uint32_t>(nIndices - 1)]() mutable { return n--; });
-        }
-        else if (nIndicesOrig > nIndices)
-        {
-            size_t shiftIdx = nIndices;
-            for (size_t i = 0; i < nIndices; ++i)
-            {
-                if (static_cast<size_t>(indices_[i]) >= nIndices)
-                {
-                    for (size_t j = shiftIdx; j < nIndicesOrig; ++j)
-                    {
-                        ++shiftIdx;
-                        if (static_cast<size_t>(indices_[j]) < nIndices)
-                        {
-                            indices_[i] = indices_[j];
-                            break;
-                        }
-                    }
-                }
-            }
-            indices_.resize(nIndices);
         }
 
         // Normalizing
