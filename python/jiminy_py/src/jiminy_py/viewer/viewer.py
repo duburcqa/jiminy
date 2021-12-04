@@ -667,20 +667,27 @@ class Viewer:
             # Add markers' display groups
             self._gui.append_group(self._markers_group, remove_if_exists=False)
 
+            # Extract data for fast access
+            com_position = self._client.data.com[0]
+            com_velocity = self._client.data.vcom[0]
+            gravity = self._client.model.gravity.linear
+            dcm = np.zeros(3)
+
             # Add center of mass
             def get_com_scale() -> Tuple3FType:
-                return (1.0, 1.0, self._client.data.com[0][2])
+                nonlocal com_position
+                return (1.0, 1.0, com_position[2])
 
             self.add_marker(name="COM_0_sphere",
                             shape="sphere",
-                            pose=[self._client.data.com[0], None],
+                            pose=[com_position, None],
                             remove_if_exists=True,
                             auto_refresh=False,
                             radius=0.03)
 
             self.add_marker(name="COM_0_cylinder",
                             shape="cylinder",
-                            pose=[self._client.data.com[0], None],
+                            pose=[com_position, None],
                             scale=get_com_scale,
                             remove_if_exists=True,
                             auto_refresh=False,
@@ -692,17 +699,14 @@ class Viewer:
 
             # Add DCM marker
             def get_dcm_pose() -> Tuple[Tuple3FType, Tuple4FType]:
-                dcm = np.zeros(3)
-                com_position = self._client.data.com[0]
+                nonlocal com_position, com_velocity, gravity, dcm
                 if com_position[2] > 0.0:
-                    com_velocity = self._client.data.vcom[0]
-                    gravity = abs(self._client.model.gravity.linear[2])
-                    omega = math.sqrt(abs(gravity / com_position[2]))
+                    omega = math.sqrt(abs(gravity[2]) / com_position[2])
                     dcm[:2] = com_position[:2] + com_velocity[:2] / omega
                 return (dcm, pin.Quaternion.Identity().coeffs())
 
             def get_dcm_scale() -> Tuple3FType:
-                com_position = self._client.data.com[0]
+                nonlocal com_position
                 return np.full((3,), com_position[2] > 0.0, dtype=np.float64)
 
             self.add_marker(name="DCM",
@@ -733,18 +737,19 @@ class Viewer:
             self.display_contact_frames(self._display_contact_frames)
 
             # Add contact sensor markers
-            def get_contact_scale(sensor: contact) -> Tuple3FType:
-                length = min(abs(sensor.data[2]) / CONTACT_FORCE_SCALE, 1.0)
-                return (1.0, 1.0, - np.sign(sensor.data[2]) * length)
+            def get_contact_scale(sensor_data: contact) -> Tuple3FType:
+                f_z = - sensor_data[2]
+                length = min(max(f_z / CONTACT_FORCE_SCALE, -1.0), 1.0)
+                return (1.0, 1.0, length)
 
             if contact.type in robot.sensors_names.keys():
                 for name in robot.sensors_names[contact.type]:
                     sensor = robot.get_sensor(contact.type, name)
-                    oMf = self._client.data.oMf[sensor.frame_idx]
+                    frame_idx, data = sensor.frame_idx, sensor.data
                     self.add_marker(name='_'.join((contact.type, name)),
                                     shape="cylinder",
-                                    pose=[oMf.translation, oMf.rotation],
-                                    scale=partial(get_contact_scale, sensor),
+                                    pose=self._client.data.oMf[frame_idx],
+                                    scale=partial(get_contact_scale, data),
                                     remove_if_exists=True,
                                     auto_refresh=False,
                                     radius=0.02,
@@ -754,15 +759,15 @@ class Viewer:
             self.display_contact_forces(self._display_contact_forces)
 
             # Add external forces
-            def get_force_pose(
-                    joint_idx: int) -> Tuple[Tuple3FType, Tuple4FType]:
-                joint_pose = self._client.data.oMi[joint_idx]
-                joint_position = joint_pose.translation
-                f_ext = self.f_external[joint_idx - 1].linear
-                joint_rotation = pin.Quaternion(joint_pose.rotation)
-                frame_rotation = (joint_rotation * pin.Quaternion(
-                    np.array([0.0, 0.0, 1.0]), f_ext)).coeffs()
-                return (joint_position, frame_rotation)
+            def get_force_pose(joint_idx: int,
+                               joint_position: np.ndarray,
+                               joint_rotation: np.ndarray
+                               ) -> Tuple[Tuple3FType, Tuple4FType]:
+                f = self.f_external[joint_idx - 1].linear
+                f_rotation_local = pin.Quaternion(np.array([0.0, 0.0, 1.0]), f)
+                f_rotation_world = (
+                    pin.Quaternion(joint_rotation) * f_rotation_local).coeffs()
+                return (joint_position, f_rotation_world)
 
             def get_force_scale(joint_idx: int) -> Tuple[float, float, float]:
                 f_ext = self.f_external[joint_idx - 1].linear
@@ -772,10 +777,15 @@ class Viewer:
 
             for joint_name in pinocchio_model.names[1:]:
                 joint_idx = self._client.model.getJointId(joint_name)
+                joint_pose = self._client.data.oMi[joint_idx]
+                pose_fn = partial(get_force_pose,
+                                  joint_idx,
+                                  joint_pose.translation,
+                                  joint_pose.rotation)
                 self.add_marker(name=f"ForceExternal_{joint_name}",
                                 shape="arrow",
                                 color="red",
-                                pose=partial(get_force_pose, joint_idx),
+                                pose=pose_fn,
                                 scale=partial(get_force_scale, joint_idx),
                                 remove_if_exists=True,
                                 auto_refresh=False,
@@ -790,8 +800,8 @@ class Viewer:
 
             # Display external forces only on freeflyer by default
             if self._display_f_external is None:
-                self._display_f_external = [
-                    robot.has_freeflyer] + [False] * (njoints - 2)
+                self._display_f_external = \
+                    [robot.has_freeflyer] + [False] * (njoints - 2)
 
             self.display_external_forces(self._display_f_external)
 
@@ -1898,7 +1908,8 @@ class Viewer:
     def add_marker(self,
                    name: str,
                    shape: str,
-                   pose: Union[Sequence[Optional[np.ndarray]],
+                   pose: Union[pin.SE3,
+                               Sequence[Optional[np.ndarray]],
                                Callable[[], Tuple[Tuple3FType, Tuple4FType]]
                                ] = (None, None),
                    scale: Union[Union[float, Tuple3FType],
@@ -1917,11 +1928,12 @@ class Viewer:
         :param name: Unique name. It must be a valid string identifier.
         :param shape: Desired shape, as a string, i.e. 'cone', 'box', 'sphere',
                       'capsule', 'cylinder', 'frame', or 'arrow'.
-        :param pose: Pose of the geometry on the scene, as a list of vectors
-                     (position, orientation). The position must be the vector
-                     [X, Y, Z], while the orientation can be either a rotation
-                     matrix, or a quaternion [X, Y, Z, W]. `None` can be used
-                     to specify neutral frame position and/or orientation.
+        :param pose: Pose of the geometry on the scene, as a transform object
+                     `pin.SE3`, or a tuple (position, orientation). In the
+                     latter case, the position must be the vector [X, Y, Z],
+                     while the orientation can be either a rotation matrix, or
+                     a quaternion [X, Y, Z, W]. `None` can be used to specify
+                     neutral frame position and/or orientation.
                      Optional: Neutral position and orientation by default.
         :param scale: Size of the marker. Each principal axis of the geometry
                       are scaled separately.
@@ -1953,6 +1965,8 @@ class Viewer:
         # Handling of user arguments
         if pose is None:
             pose = [None, None]
+        if isinstance(pose, pin.SE3):
+            pose = [pose.translation, pose.rotation]
         if not callable(pose) and any(value is None for value in pose):
             pose = list(pose)
             if pose[0] is None:
