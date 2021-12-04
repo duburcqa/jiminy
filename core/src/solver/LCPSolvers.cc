@@ -134,34 +134,14 @@ namespace jiminy
            Note that it may converge faster to enforce constraints in reverse order,
            since usually constraints bounds dependending on others have lower indices
            by design, aka. coulomb friction law.
+           TODO: Avoid resetting it completely when the size changes.
            TODO: take into account the actual value of 'fIndices' to order the indices. */
         size_t const nIndices = b.size();
-        size_t const nIndicesOrig = indices_.size();
-        if (nIndicesOrig < nIndices)
+        if (indices_.size() != nIndices)
         {
             indices_.resize(nIndices);
-            std::generate(indices_.begin() + nIndicesOrig, indices_.end(),
+            std::generate(indices_.begin(), indices_.end(),
                           [n = static_cast<uint32_t>(nIndices - 1)]() mutable { return n--; });
-        }
-        else if (nIndicesOrig > nIndices)
-        {
-            size_t shiftIdx = nIndices;
-            for (size_t i = 0; i < nIndices; ++i)
-            {
-                if (static_cast<size_t>(indices_[i]) >= nIndices)
-                {
-                    for (size_t j = shiftIdx; j < nIndicesOrig; ++j)
-                    {
-                        ++shiftIdx;
-                        if (static_cast<size_t>(indices_[j]) < nIndices)
-                        {
-                            indices_[i] = indices_[j];
-                            break;
-                        }
-                    }
-                }
-            }
-            indices_.resize(nIndices);
         }
 
         // Normalizing
