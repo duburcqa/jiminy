@@ -312,6 +312,8 @@ def build_robot_from_log(
     robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
     robot.set_options(all_options["system"]["robot"])
     robot.pinocchio_model.loadFromString(pinocchio_model_str)
+    robot.pinocchio_data.loadFromString(
+        robot.pinocchio_model.createData().saveToString())
 
     return robot
 
