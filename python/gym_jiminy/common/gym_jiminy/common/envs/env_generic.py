@@ -180,8 +180,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Refresh the observation and action spaces.
         # Note that it is necessary to refresh the action space before the
         # observation one, since it may be useful to observe the action.
-        self._refresh_action_space()
-        self._refresh_observation_space()
+        self._initialize_action_space()
+        self._initialize_observation_space()
 
         # Assertion(s) for type checker
         assert (isinstance(self.observation_space, spaces.Space) and
@@ -256,7 +256,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         This method is not meant to be overloaded in general since the
         definition of the state space is mostly consensual. One must rather
-        overload `_refresh_observation_space` to customize the observation
+        overload `_initialize_observation_space` to customize the observation
         space as a whole.
 
         :param use_theoretical_model: Whether to compute the state space
@@ -337,7 +337,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. warning:
             This method is not meant to be overloaded in general since the
             definition of the sensor space is mostly consensual. One must
-            rather overload `_refresh_observation_space` to customize the
+            rather overload `_initialize_observation_space` to customize the
             observation space as a whole.
         """
         # Define some proxies for convenience
@@ -445,7 +445,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             for (key, min_val), max_val in zip(
                 sensor_space_lower.items(), sensor_space_upper.values())))
 
-    def _refresh_action_space(self) -> None:
+    def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.
 
         The action is a vector gathering the torques of the actuator of the
@@ -644,8 +644,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.start(
             qpos, qvel, None, self.simulator.use_theoretical_model)
 
+        # Initialize shared buffers
+        self._initialize_buffers()
+
         # Update shared buffers
-        self._refresh_internal()
+        self._refresh_buffers()
 
         # Initialize the observer.
         # Note that it is responsible of refreshing the environment's
@@ -657,14 +660,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.sensors_data)
 
         # Make sure the state is valid, otherwise there `refresh_observation`
-        # and `_refresh_observation_space` are probably inconsistent.
+        # and `_initialize_observation_space` are probably inconsistent.
         try:
             obs = clip(self.observation_space, self.get_observation())
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
-                "`_refresh_observation_space` at initialization.") from e
+                "`_initialize_observation_space` at initialization.") from e
 
         # Make sure there is no 'nan' value in observation
         for value in tree.flatten(obs):
@@ -753,7 +756,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.step(self.step_dt)
 
         # Update shared buffers
-        self._refresh_internal()
+        self._refresh_buffers()
 
         # Update the observer at the end of the step. Indeed, internally,
         # it is called at the beginning of the every integration steps,
@@ -1188,7 +1191,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         framesForwardKinematics(
             self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
 
-    def _refresh_observation_space(self) -> None:
+    def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.
 
         By default, the observation is a dictionary gathering the current
@@ -1277,17 +1280,42 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return qpos, qvel
 
-    def _refresh_internal(self) -> None:
-        """Refresh internal buffers.
+    def _initialize_buffers(self) -> None:
+        """Initialize internal buffers for fast access to shared memory or to
+        avoid redundant computations.
+
+        .. note::
+            This method is called at `reset`, right after
+            `self.simulator.start`. At this point, the simulation is running
+            but `refresh_observation` has never been called, so that it can be
+            used to initialize buffers involving the engine state but required
+            to refresh the observation. Note that it is not appropriate to
+            initialize buffers that would be used by `compute_command`.
+
+        .. note::
+            Buffers requiring manual update must be refreshed using
+            `_refresh_buffers` method.
+        """
+
+    def _refresh_buffers(self) -> None:
+        """Refresh internal buffers that must be updated manually.
 
         .. note::
             This method is called right after every internal `engine.step`, so
             it is the right place to update shared data between `is_done` and
-            `compute_reward`. Be careful when using it to share data with
-            `refresh_observation`, but the later is called at `self.observe_dt`
-            update period, which the others are called at `self.step_dt` update
-            period. `self.observe_dt` is likely to different from `self.step`,
-            unless configured otherwise by overloading `_setup` method.
+            `compute_reward`.
+
+        .. note::
+            `_initialize_buffers` method can be used to initialize buffers that
+            may requires special care.
+
+        .. warning::
+            Be careful when using it to update buffers that are used by
+            `refresh_observation`. The later is called at `self.observe_dt`
+            update period, while the others are called at `self.step_dt` update
+            period. `self.observe_dt` is likely to be different from
+            `self.step_dt`, unless configured manually when overloading
+            `_setup` method.
         """
 
     def refresh_observation(self) -> None:  # type: ignore[override]
@@ -1336,6 +1364,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         By default, it does not perform any processing. One is responsible of
         overloading this method to clip the action if necessary to make sure it
         does not violate the lower and upper bounds.
+
+        .. warning::
+            There is not good place to initialize buffers that are necessary to
+            compute the command. The only solution for now is to define
+            initialization inside this method itself, using the safeguard
+            `if not self.simulator.is_simulation_running:`.
 
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
