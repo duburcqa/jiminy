@@ -36,7 +36,6 @@ namespace jiminy
     {
     public:
         PGSSolver(uint32_t const & maxIter,
-                  uint32_t const & randomPermutationPeriod,
                   float64_t const & tolAbs,
                   float64_t const & tolRel);
 
@@ -66,11 +65,8 @@ namespace jiminy
 
     private:
         uint32_t maxIter_;
-        uint32_t randomPermutationPeriod_;
         float64_t tolAbs_;
         float64_t tolRel_;
-        std::vector<uint32_t> indices_;
-        uint32_t lastShuffle_;
         vectorN_t b_;
         vectorN_t y_;
         vectorN_t yPrev_;

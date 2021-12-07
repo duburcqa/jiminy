@@ -887,7 +887,6 @@ namespace jiminy
         {
             constraintSolver_ = std::make_unique<PGSSolver>(
                 PGS_MAX_ITERATIONS,
-                PGS_RANDOM_PERMUTATION_PERIOD,
                 engineOptions_->constraints.tolAbs,
                 engineOptions_->constraints.tolRel);
         }

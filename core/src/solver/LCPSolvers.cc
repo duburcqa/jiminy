@@ -13,15 +13,11 @@
 namespace jiminy
 {
     PGSSolver::PGSSolver(uint32_t const & maxIter,
-                         uint32_t const & randomPermutationPeriod,
                          float64_t const & tolAbs,
                          float64_t const & tolRel) :
     maxIter_(maxIter),
-    randomPermutationPeriod_(randomPermutationPeriod),
     tolAbs_(tolAbs),
     tolRel_(tolRel),
-    indices_(),
-    lastShuffle_(0U),
     b_(),
     y_(),
     yPrev_()
@@ -36,19 +32,11 @@ namespace jiminy
                                                std::vector<std::vector<int32_t> > const & fIndices,
                                                vectorN_t & x)
     {
-        // Shuffle coefficient update order to break any repeating cycles
-        if (randomPermutationPeriod_ > 0 && lastShuffle_ > randomPermutationPeriod_)
-        {
-            shuffleIndices(indices_);
-            lastShuffle_ = 0U;
-        }
-        ++lastShuffle_;
-
         // Backup previous solution
         yPrev_.noalias() = A * x - b;
 
         // Update every coefficients sequentially
-        for (uint32_t const & i : indices_)
+        for (uint32_t i = 0; i < x.size(); ++i)
         {
             // Extract a single coefficient
             float64_t & e = x[i];
@@ -130,35 +118,12 @@ namespace jiminy
            https://github.com/dartsim/dart/blob/master/dart/constraint/PgsBoxedLcpSolver.cpp */
         assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
 
-        /* Adapt shuffling indices if the number of indices has changed.
-           Note that it may converge faster to enforce constraints in reverse order,
-           since usually constraints bounds dependending on others have lower indices
-           by design, aka. coulomb friction law.
-           TODO: Avoid resetting it completely when the size changes.
-           TODO: take into account the actual value of 'fIndices' to order the indices. */
-        size_t const nIndices = b.size();
-        if (indices_.size() != nIndices)
-        {
-            indices_.resize(nIndices);
-            std::generate(indices_.begin(), indices_.end(),
-                          [n = static_cast<uint32_t>(nIndices - 1)]() mutable { return n--; });
-        }
-
-        // Normalizing
-        // for (Eigen::Index i = 0; i < b.size(); ++i)
-        // {
-        //     b[i] /= A(i, i);
-        //     A.col(i).array() /= A(i, i);
-        // }
-
         // Perform multiple PGS loop until convergence or max iter reached
         for (uint32_t iter = 0; iter < maxIter_; ++iter)
         {
             bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIndices, x);
             if (isSuccess)
             {
-                // Do NOT shuffle indices unless necessary to avoid discontinuities
-                lastShuffle_ = 0U;
                 return true;
             }
         }
