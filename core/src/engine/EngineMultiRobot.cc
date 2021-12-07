@@ -887,7 +887,6 @@ namespace jiminy
         {
             constraintSolver_ = std::make_unique<PGSSolver>(
                 PGS_MAX_ITERATIONS,
-                PGS_RANDOM_PERMUTATION_PERIOD,
                 engineOptions_->constraints.tolAbs,
                 engineOptions_->constraints.tolRel);
         }
@@ -3755,16 +3754,16 @@ namespace jiminy
                         }
 
                         // Torsional friction around normal axis
-                        hi[constraintIdx] = contactOptions.torsion;
-                        fIndices[constraintIdx] = {static_cast<int32_t>(constraintIdx + 3)};
+                        hi[constraintIdx + 3] = contactOptions.torsion;
+                        fIndices[constraintIdx + 3] = {static_cast<int32_t>(constraintIdx)};
 
                         // Friction cone in tangential plane
-                        hi[constraintIdx + 1] = contactOptions.friction;
-                        fIndices[constraintIdx + 1] = {static_cast<int32_t>(constraintIdx + 3),
-                                                       static_cast<int32_t>(constraintIdx + 2)};
+                        hi[constraintIdx + 2] = contactOptions.friction;
+                        fIndices[constraintIdx + 2] = {static_cast<int32_t>(constraintIdx),
+                                                       static_cast<int32_t>(constraintIdx + 1)};
 
                         // Non-penetration normal force
-                        lo[constraintIdx + 3] = 0.0;
+                        lo[constraintIdx] = 0.0;
 
                         constraintIdx += constraint->getDim();
                     });
@@ -3853,8 +3852,8 @@ namespace jiminy
 
                 // Extract force in local reference-frame-aligned from lagrangian multipliers
                 pinocchio::Force fextInLocal(
-                    frameConstraint.lambda_.tail<3>(),
-                    frameConstraint.lambda_[0] * vector3_t::UnitZ());
+                    frameConstraint.lambda_.head<3>().reverse(),
+                    frameConstraint.lambda_[3] * vector3_t::UnitZ());
 
                 // Compute force in local world aligned frame
                 matrix3_t const & rotationLocal = frameConstraint.getLocalFrame();
@@ -3888,8 +3887,8 @@ namespace jiminy
 
                     // Extract force in world frame from lagrangian multipliers
                     pinocchio::Force fextInLocal(
-                        frameConstraint.lambda_.tail<3>(),
-                        frameConstraint.lambda_[0] * vector3_t::UnitZ());
+                        frameConstraint.lambda_.head<3>().reverse(),
+                        frameConstraint.lambda_[3] * vector3_t::UnitZ());
 
                     // Compute force in world frame
                     matrix3_t const & rotationLocal = frameConstraint.getLocalFrame();

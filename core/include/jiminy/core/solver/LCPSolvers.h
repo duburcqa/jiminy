@@ -36,7 +36,6 @@ namespace jiminy
     {
     public:
         PGSSolver(uint32_t const & maxIter,
-                  uint32_t const & randomPermutationPeriod,
                   float64_t const & tolAbs,
                   float64_t const & tolRel);
 
@@ -51,12 +50,12 @@ namespace jiminy
                                             std::vector<std::vector<int32_t> > const & fIndices) override final;
 
     private:
-        bool_t ProjectedGaussSeidelIter(matrixN_t const & A,
-                                        vectorN_t const & b,
-                                        vectorN_t const & lo,
-                                        vectorN_t const & hi,
-                                        std::vector<std::vector<int32_t> > const & fIndices,
-                                        vectorN_t & x);
+        void ProjectedGaussSeidelIter(matrixN_t const & A,
+                                      vectorN_t const & b,
+                                      vectorN_t const & lo,
+                                      vectorN_t const & hi,
+                                      std::vector<std::vector<int32_t> > const & fIndices,
+                                      vectorN_t & x);
         bool_t ProjectedGaussSeidelSolver(matrixN_t & A,
                                           vectorN_t & b,
                                           vectorN_t const & lo,
@@ -66,14 +65,13 @@ namespace jiminy
 
     private:
         uint32_t maxIter_;
-        uint32_t randomPermutationPeriod_;
         float64_t tolAbs_;
         float64_t tolRel_;
-        std::vector<uint32_t> indices_;
-        uint32_t lastShuffle_;
         vectorN_t b_;
+        vectorN_t xPrev_;
         vectorN_t y_;
         vectorN_t yPrev_;
+        vectorN_t dy_;
     };
 
 
