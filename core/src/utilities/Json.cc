@@ -56,7 +56,7 @@ namespace jiminy
     template<>
     Json::Value convertToJson<configHolder_t>(configHolder_t const & value)
     {
-        Json::Value root;
+        Json::Value root{Json::objectValue};
         AppendBoostVariantToJson visitor(root);
         for (auto const & option : value)
         {

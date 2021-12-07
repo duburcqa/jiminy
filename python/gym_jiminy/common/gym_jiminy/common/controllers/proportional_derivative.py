@@ -91,7 +91,7 @@ class PDController(BaseControllerBlock):
         # Initialize the controller
         super().__init__(env, update_ratio)
 
-    def _refresh_action_space(self) -> None:
+    def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
 
         The action spaces corresponds to the position and velocity of motors
