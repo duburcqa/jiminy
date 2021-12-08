@@ -3785,9 +3785,6 @@ namespace jiminy
             // Compute non-linear effects
             pinocchio::nonLinearEffects(model, data, q, v);
 
-            // Compute inertia matrix, adding rotor inertia
-            pinocchio_overload::crba(model, data, q);
-
             // Call forward dynamics
             constraintSolver_->BoxedForwardDynamics(model,
                                                     data,

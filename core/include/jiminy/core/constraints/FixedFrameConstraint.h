@@ -63,11 +63,13 @@ namespace jiminy
         std::string const frameName_;         ///< Name of the frame on which the constraint operates.
         frameIndex_t frameIdx_;               ///< Corresponding frame index.
         std::vector<uint32_t> dofsFixed_;     ///< Degrees of freedom to fix.
+        bool_t isFixedPositionXY_;            ///< Whether or not the frame is fixed for both X and Y translations
         pinocchio::SE3 transformRef_;         ///< Reference pose of the frame to enforce.
         vector3_t normal_;                    ///< Normal direction locally at the interface.
         matrix3_t rotationLocal_;             ///< Rotation matrix of the local frame in which to apply masking
         matrix6N_t frameJacobian_;            ///< Stores full frame jacobian in reference frame.
         pinocchio::Motion frameDrift_;        ///< Stores full frame drift in reference frame.
+        matrixN_t UiJt_;                      ///< Used to store intermediary computation to compute (J.Minv.Jt)_{i,i}
     };
 }
 

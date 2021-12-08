@@ -658,19 +658,19 @@ def compute_inverse_dynamics(robot: jiminy.Model,
         pnc_model, pnc_data, position, velocity, acceleration)
     pin.updateFramePlacements(pnc_model, pnc_data)
 
-    # Compute inverted inertia matrix, taking into account rotor inertias
-    jiminy.crba(pnc_model, pnc_data, position)
-    pin.cholesky.decompose(pnc_model, pnc_data)
+    # Compute constraint jacobian and drift
+    robot.compute_constraints(position, velocity)
+    J = robot.get_constraints_jacobian()
+    drift = robot.get_constraints_drift()
+
+    # No need to compute the internal matrix using `crba` nor to perform the
+    # cholesky decomposition since it is already done by `compute_constraints`
+    # internally.
     M_inv = pin.cholesky.computeMinv(pnc_model, pnc_data)
 
     # Compute non-linear effects
     pin.nonLinearEffects(pnc_model, pnc_data, position, velocity)
     nle = pnc_data.nle
-
-    # Compute constraint jacobian and drift
-    robot.compute_constraints(position, velocity)
-    J = robot.get_constraints_jacobian()
-    drift = robot.get_constraints_drift()
 
     # Compute constraint forces
     jiminy.computeJMinvJt(pnc_model, pnc_data, J, False)

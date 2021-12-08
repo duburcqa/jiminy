@@ -180,7 +180,8 @@ def simulate_and_get_state_evolution(
            name = system.name
            q0[name] = x0[name][:system.robot.nq]
            v0[name] = x0[name][-system.robot.nv:]
-    engine.simulate(tf, q0, v0)
+    hresult = engine.simulate(tf, q0, v0)
+    assert hresult == jiminy.hresult_t.SUCCESS
 
     # Get log data
     log_data, _ = engine.get_log()
