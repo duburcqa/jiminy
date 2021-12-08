@@ -155,11 +155,15 @@ namespace jiminy
         vectorN_t & f = data.lambda_c;
 
         // Compute JMinvJt, including cholesky decomposition of inertia matrix
-        matrixN_t & A = pinocchio_overload::computeJMinvJt(model, data, J, true);
+        matrixN_t & A = pinocchio_overload::computeJMinvJt(model, data, J, false);
 
         // Compute the dynamic drift (control - nle)
         data.torque_residual = tau - data.nle;
         pinocchio::cholesky::solve(model, data, data.torque_residual);
+
+        // Compute b
+        b_.noalias() = - J * data.torque_residual;
+        b_ -= gamma;
 
         /* Add regularization term in case A is not inversible.
            Note that Mujoco defines an impedance function that depends on
@@ -170,10 +174,6 @@ namespace jiminy
             A.diagonal() * inv_damping,
             PGS_MIN_REGULARIZER,
             INF);
-
-        // Compute b
-        b_.noalias() = - J * data.torque_residual;
-        b_ -= gamma;
 
         // Compute resulting forces solving forward dynamics
         bool_t isSuccess = false;
