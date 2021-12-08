@@ -123,7 +123,7 @@ namespace jiminy
         std::vector<std::string> actuatedJointNames = robotTemp->getActuatedJointNames();
         for (std::string const & transmissionJoint : getJointNames())
         {
-            auto transmissionJointIt = actuatedJointNames.find(transmissionJoint);
+            auto transmissionJointIt = std::find(actuatedJointNames.begin(), actuatedJointNames.end(), transmissionJoint);
             if (transmissionJointIt != actuatedJointNames.end())
             {
                 PRINT_ERROR("Joint already attached to another transmission");
@@ -295,39 +295,21 @@ namespace jiminy
 
     std::vector<jointIndex_t> const & AbstractTransmissionBase::getJointModelIndices(void) const
     {
-        jointIndex_t jointModelIdx;
-        for (std::string const & jointName : jointNames_)
-        {
-            auto robot = robot_.lock();
-            hresult_t returnCode = ::jiminy::getJointModelIdx(robot->pncModel_, jointName, jointModelIdx);
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                jointModelIndices_.push_back(jointModelIdx);
-            }
-        }
         return jointModelIndices_;
     }
 
     std::vector<joint_t> const & AbstractTransmissionBase::getJointTypes(void) const
     {
-        std::vector<jointIndex_t> const & jointModelIndices = getJointModelIndices();
-        auto robot = robot_.lock();
-        for (jointIndex_t const & idx : jointModelIndices)
-        {
-            joint_t jointType;
-            getJointTypeFromIdx(robot->pncModel, idx, jointType);
-            jointTypes_.push_back(jointType);
-        }
         return jointTypes_;
     }
 
-    vectorN_t const & AbstractTransmissionBase::getJointPositionIndices(void)
+    vectorN_t const & AbstractTransmissionBase::getJointPositionIndices(void) const
     {
         return jointPositionIndices_;
     }
 
 
-    vectorN_t const & AbstractTransmissionBase::getJointVelocityIndices(void)
+    vectorN_t const & AbstractTransmissionBase::getJointVelocityIndices(void) const
     {
 
         return jointVelocityIndices_;
@@ -347,10 +329,11 @@ namespace jiminy
         auto qMotors = q.segment<>(jointPositionIdx_, );
         auto vMotors = v.segment<>(jointVelocityIdx_, );
         computeTransform(qMotors, vMotors);
-        q.noalias() = forwardTransform_ * motors_->getPosition();
-        v.noalias() = forwardTransform_ * motors_->getVelocity();
-        a.noalias() = forwardTransform_ * motors_->getAcceleration();
-        uJoint.noalias() = forwardTransform_ * motors_->getEffort();
+        auto motors = motors_.lock();
+        q.noalias() = forwardTransform_ * motors->getPosition();
+        v.noalias() = forwardTransform_ * motors->getVelocity();
+        a.noalias() = forwardTransform_ * motors->getAcceleration();
+        uJoint.noalias() = forwardTransform_ * motors->getEffort();
     }
 
     hresult_t AbstractTransmissionBase::computeBackward(float64_t const & t,
@@ -360,9 +343,10 @@ namespace jiminy
                                                         vectorN_t const & uJoint)
     {
         computeInverseTransform(q, v);
-        motors_->q = backwardTransform_ * q;
-        motors_->v = backwardTransform_ * v;
-        motors_->a = backwardTransform_ * a;
-        motors_->u = backwardTransform_ * uJoint;
+        auto motors = motors_.lock();
+        motors->q = backwardTransform_ * q;
+        motors->v = backwardTransform_ * v;
+        motors->a = backwardTransform_ * a;
+        motors->u = backwardTransform_ * uJoint;
     }
 }

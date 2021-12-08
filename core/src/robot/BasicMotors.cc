@@ -63,7 +63,7 @@ namespace jiminy
     }
 
     hresult_t SimpleMotor::computeEffort(float64_t const & v,
-                                        float64_t command)
+                                         float64_t command)
     {
         /* Compute the motor effort, taking into account the limit, if any.
            It is the output of the motor on joint side, ie after the transmission. */
