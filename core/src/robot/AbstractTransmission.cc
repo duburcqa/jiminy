@@ -8,11 +8,11 @@
 namespace jiminy
 {
     AbstractTransmissionBase::AbstractTransmissionBase(std::string const & name) :
+    baseTransmissionOptions_(nullptr),
     transmissionOptionsHolder_(),
     isInitialized_(false),
     isAttached_(false),
     robot_(),
-    notifyRobot_(),
     name_(name),
     transmissionIdx_(-1),
     jointNames_(),
@@ -55,17 +55,18 @@ namespace jiminy
         // Populate jointPositionIndices_
         std::vector<int32_t> jointPositionIndices;
         hresult_t returnCode = hresult_t::SUCCESS;
+        auto robot = robot_.lock();
         for (std::string const & jointName : jointNames_)
         {
             std::vector<int32_t> jointPositionIdx;
-            if (!robot_->model.existJointName(jointName))
+            if (!robot->pncModel_.existJointName(jointName))
             {
                 PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
             if (returnCode == hresult_t::SUCCESS)
             {
-                returnCode = getJointPositionIdx(robot_->model, jointName, jointPositionIdx);
+                returnCode = getJointPositionIdx(robot->pncModel_, jointName, jointPositionIdx);
             }
             if (returnCode == hresult_t::SUCCESS)
             {
@@ -84,18 +85,20 @@ namespace jiminy
         for (std::string const & jointName : jointNames_)
         {
             std::vector<int32_t> jointVelocityIdx;
-            if (!robot_->model.existJointName(jointName))
+            if (!robot->pncModel_.existJointName(jointName))
             {
                 PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
-            jointIndex_t const & jointModelIdx = robot->model.getJointId(jointName);
-            int32_t const & jointVelocityFirstIdx = robot->model.joints[jointModelIdx].idx_v();
-            int32_t const & jointNv = robot->model.joints[jointModelIdx].nv();
+            jointIndex_t const & jointModelIdx = robot->pncModel_.getJointId(jointName);
+            int32_t const & jointVelocityFirstIdx = robot->pncModel_.joints[jointModelIdx].idx_v();
+            int32_t const & jointNv = robot->pncModel_.joints[jointModelIdx].nv();
             jointVelocityIdx.resize(jointNv);
             std::iota(jointVelocityIdx.begin(), jointVelocityIdx.end(), jointVelocityFirstIdx);
             jointVelocityIndices.insert(jointVelocityIndices.end(), jointVelocityIdx.begin(), jointVelocityIdx.end());
         }
+
+        // missing how to populate vectorN_t jointVelocityIndices_
         return returnCode;
     }
 
@@ -116,7 +119,8 @@ namespace jiminy
         }
 
         // Make sure the joint is not already attached to a transmission
-        std::vector<std::string> actuatedJointNames = robot->getActuatedJointNames();
+        auto robotTemp = robot.lock();
+        std::vector<std::string> actuatedJointNames = robotTemp->getActuatedJointNames();
         for (std::string const & transmissionJoint : getJointNames())
         {
             auto transmissionJointIt = actuatedJointNames.find(transmissionJoint);
@@ -125,8 +129,9 @@ namespace jiminy
                 PRINT_ERROR("Joint already attached to another transmission");
                 return hresult_t::ERROR_GENERIC;
             }
+            // Add joint to actuated joints
+            actuatedJointNames.push_back(transmissionJoint);
         }
-
         // Copy references to the robot and shared data
         robot_ = robot;
 
@@ -138,71 +143,22 @@ namespace jiminy
 
     hresult_t AbstractTransmissionBase::detach(void)
     {
-        // Delete the part of the shared memory associated with the transmission
-
         if (!isAttached_)
         {
             PRINT_ERROR("Transmission not attached to any robot.");
             return hresult_t::ERROR_GENERIC;
         }
 
-        // Remove associated col in the global data buffer
-        if (transmissionIdx_ < sharedHolder_->num_ - 1)
-        {
-            int32_t transmissionShift = sharedHolder_->num_ - transmissionIdx_ - 1;
-            sharedHolder_->data_.segment(transmissionIdx_, transmissionShift) =
-                sharedHolder_->data_.segment(transmissionIdx_ + 1, transmissionShift).eval();  // eval to avoid aliasing
-        }
-        sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
-
-        // Shift the transmission ids
-        for (int32_t i = transmissionIdx_ + 1; i < sharedHolder_->num_; ++i)
-        {
-            --sharedHolder_->transmissions_[i]->transmissionIdx_;
-        }
-
-        // Remove the transmission to the shared memory
-        sharedHolder_->transmissions_.erase(sharedHolder_->transmissions_.begin() + transmissionIdx_);
-        --sharedHolder_->num_;
-
-        // Clear the references to the robot and shared data
+        // Clear the references to the robot
         robot_.reset();
-        sharedHolder_ = nullptr;
 
         // Unset the Id
         transmissionIdx_ = -1;
 
+        // Delete motor and joint references
+
         // Update the flag
         isAttached_ = false;
-
-        return hresult_t::SUCCESS;
-    }
-
-    hresult_t AbstractTransmissionBase::resetAll(void)
-    {
-        // Make sure the transmission is attached to a robot
-        if (!isAttached_)
-        {
-            PRINT_ERROR("Transmission not attached to any robot.");
-            return hresult_t::ERROR_GENERIC;
-        }
-
-        // Make sure the robot still exists
-        if (robot_.expired())
-        {
-            PRINT_ERROR("Robot has been deleted. Impossible to reset the transmissions.");
-            return hresult_t::ERROR_GENERIC;
-        }
-
-        // Clear the shared data buffer
-        sharedHolder_->data_.setZero();
-
-        // Update transmission scope information
-        for (AbstractTransmissionBase * transmission : sharedHolder_->transmissions_)
-        {
-            // Refresh proxies that are robot-dependent
-            transmission->refreshProxies();
-        }
 
         return hresult_t::SUCCESS;
     }
@@ -216,11 +172,6 @@ namespace jiminy
             // Check if reduction ratio has changed
             float64_t const & mechanicalReduction = boost::get<float64_t>(transmissionOptions.at("mechanicalReduction"));
             internalBuffersMustBeUpdated |= (baseTransmissionOptions_->mechanicalReduction != mechanicalReduction);
-            if (mechanicalReduction)
-            {
-                float64_t const & mechanicalReduction = boost::get<float64_t>(transmissionOptions.at("mechanicalReduction"));
-                internalBuffersMustBeUpdated |= std::abs(armature - baseTransmissionOptions_->armature) > EPS;
-            }
         }
 
         // Update the transmission's options
@@ -282,27 +233,27 @@ namespace jiminy
             }
         }
 
-        for (i = 0; i < jointName_.size(); i++)
+        for (int i = 0; i < jointNames_.size(); i++)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                returnCode = ::jiminy::getJointModelIdx(robot->pncModel_, jointName_[i], jointModelIdx_[i]);
+                returnCode = ::jiminy::getJointModelIdx(robot->pncModel_, jointNames_[i], jointModelIndices_[i]);
             }
         }
-        for (i = 0; i < jointName_.size(); i++)
+        for (int i = 0; i < jointNames_.size(); i++)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                returnCode = getJointTypeFromIdx(robot->pncModel_, jointModelIdx_[i], jointType_[i]);
+                returnCode = getJointTypeFromIdx(robot->pncModel_, jointModelIndices_[i], jointTypes_[i]);
             }
         }
 
-        for (i = 0; i < jointName_.size(); i++)
+        for (int i = 0; i < jointNames_.size(); i++)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
                 // Transmissions are only supported for linear and rotary joints
-                if (jointType_[i] != joint_t::LINEAR && jointType_[i] != joint_t::ROTARY && jointType_[i] != joint_t::ROTARY_UNBOUNDED)
+                if (jointTypes_[i] != joint_t::LINEAR && jointTypes_[i] != joint_t::ROTARY && jointTypes_[i] != joint_t::ROTARY_UNBOUNDED)
                 {
                     PRINT_ERROR("A transmission can only be associated with a 1-dof linear or rotary joint.");
                     returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -310,50 +261,12 @@ namespace jiminy
             }
         }
 
-        for (i = 0; i < jointName_.size(); i++)
+        for (int i = 0; i < jointNames_.size(); i++)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                ::jiminy::getJointPositionIdx(robot->pncModel_, jointName_[i], jointPositionIdx_[i]);
-                ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName_[i], jointVelocityIdx_[i]);
-
-                // Get the rotor inertia
-                if (baseTransmissionOptions_->enableArmature)
-                {
-                    armature_ = baseTransmissionOptions_->armature;
-                }
-                else
-                {
-                    armature_ = 0.0;
-                }
-
-                // Propagate the user-defined transmission inertia at Pinocchio model level
-                if (notifyRobot_)
-                {
-                    returnCode = notifyRobot_(*this);
-                }
-            }
-        }
-
-        return returnCode;
-    }
-
-    hresult_t AbstractTransmissionBase::setOptionsAll(configHolder_t const & transmissionOptions)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        // Make sure the transmission is attached to a robot
-        if (!isAttached_)
-        {
-            PRINT_ERROR("Transmission not attached to any robot.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        for (AbstractTransmissionBase * transmission : sharedHolder_->transmissions_)
-        {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = transmission->setOptions(transmissionOptions);
+                ::jiminy::getJointPositionIdx(robot->pncModel_, jointNames_[i], jointPositionIndices_[i]);
+                ::jiminy::getJointVelocityIdx(robot->pncModel_, jointNames_[i], jointVelocityIndices_[i]);
             }
         }
 
@@ -375,7 +288,7 @@ namespace jiminy
         return transmissionIdx_;
     }
 
-    std::vector<std>::string const & AbstractTransmissionBase::getJointNames(void) const
+    std::vector<std::string> const & AbstractTransmissionBase::getJointNames(void) const
     {
         return jointNames_;
     }
@@ -385,7 +298,8 @@ namespace jiminy
         jointIndex_t jointModelIdx;
         for (std::string const & jointName : jointNames_)
         {
-            returnCode = ::jiminy::getJointModelIdx(robot->pncModel_, jointName, jointModelIdx);
+            auto robot = robot_.lock();
+            hresult_t returnCode = ::jiminy::getJointModelIdx(robot->pncModel_, jointName, jointModelIdx);
             if (returnCode == hresult_t::SUCCESS)
             {
                 jointModelIndices_.push_back(jointModelIdx);
@@ -396,7 +310,8 @@ namespace jiminy
 
     std::vector<joint_t> const & AbstractTransmissionBase::getJointTypes(void) const
     {
-        jointModelIndices = getJointModelIndices();
+        std::vector<jointIndex_t> const & jointModelIndices = getJointModelIndices();
+        auto robot = robot_.lock();
         for (jointIndex_t const & idx : jointModelIndices)
         {
             joint_t jointType;
@@ -418,9 +333,9 @@ namespace jiminy
         return jointVelocityIndices_;
     }
 
-    std::vector<std>::string const & AbstractTransmissionBase::getMotorNames(void) const
+    std::vector<std::string> const & AbstractTransmissionBase::getMotorNames(void) const
     {
-        return motorName_;
+        return motorNames_;
     }
 
     hresult_t AbstractTransmissionBase::computeForward(float64_t const & t,

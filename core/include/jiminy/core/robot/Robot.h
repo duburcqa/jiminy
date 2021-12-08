@@ -80,6 +80,7 @@ namespace jiminy
                                   vectorN_t const & command);
         vectorN_t const & getMotorsEfforts(void) const;
         float64_t const & getMotorEffort(std::string const & motorName) const;
+        float64_t getMotorEffortLimit;
         void setSensorsData(float64_t const & t,
                             vectorN_t const & q,
                             vectorN_t const & v,

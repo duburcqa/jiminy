@@ -29,6 +29,28 @@ namespace jiminy
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Dictionary gathering the configuration options shared between transmissions
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual configHolder_t getDefaultTransmissionOptions(void)
+        {
+            configHolder_t config;
+            config["mechanicalReduction"] = 0.0;
+            return config;
+        };
+
+        struct abstractTransmissionOptions_t
+        {
+            float64_t const mechanicalReduction;
+
+            abstractTransmissionOptions_t(configHolder_t const & options) :
+            mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction")))
+            {
+                // Empty.
+            }
+        };
+
+    public:
+        ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Forbid the copy of the class
         ///////////////////////////////////////////////////////////////////////////////////////////////
         AbstractTransmissionBase(AbstractTransmissionBase const & abstractTransmission) = delete;
@@ -145,14 +167,14 @@ namespace jiminy
         ///
         /// \details    It is the index of the joints associated with the transmission in the configuration vector.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::vector<int32_t> const & getJointPositionIndices(void) const;
+        vectorN_t const & getJointPositionIndices(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get jointVelocityIdx_.
         ///
         /// \details    It is the index of the joints associated with the transmission in the velocity vector.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::vector<int32_t> const & getJointVelocityIndices(void) const;
+        vectorN_t const & getJointVelocityIndices(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get motorName_.
@@ -228,12 +250,14 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t detach(void);
 
+    public:
+        std::unique_ptr<abstractTransmissionOptions_t const> baseTransmissionOptions_;  ///< Structure with the parameters of the transmission
+
     protected:
         configHolder_t transmissionOptionsHolder_;                   ///< Dictionary with the parameters of the transmission
         bool_t isInitialized_;                                       ///< Flag to determine whether the transmission has been initialized or not
         bool_t isAttached_;                                          ///< Flag to determine whether the transmission is attached to a robot
         std::weak_ptr<Robot const> robot_;                           ///< Robot for which the command and internal dynamics
-        std::function<hresult_t(AbstractTransmissionBase &)> notifyRobot_;  ///< Notify the robot that the configuration of the transmissions have changed
         std::string name_;                                           ///< Name of the transmission
         int32_t transmissionIdx_;                                           ///< Index of the transmission in the transmission buffer
         std::vector<std::string> jointNames_;

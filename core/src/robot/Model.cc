@@ -102,6 +102,7 @@ namespace jiminy
                 break;
             case constraintsHolderType_t::USER:
             case constraintsHolderType_t::COLLISION_BODIES:
+            case constraintsHolderType_t::TRANSMISSIONS:
             default:
                 constraintsMapPtr = &registered;
             }
@@ -172,6 +173,7 @@ namespace jiminy
             collisionBodies.push_back(constraintsMap);
             break;
         case constraintsHolderType_t::USER:
+        case constraintsHolderType_t::TRANSMISSIONS:
         default:
             registered.insert(registered.end(), constraintsMap.begin(), constraintsMap.end());
         }

@@ -292,22 +292,22 @@ namespace jiminy
         return sharedHolder_->effort_[motorIdx_];
     }
 
-    float64_t const & AbstractMotorBase::getPosition(void)
+    float64_t const & AbstractMotorBase::getPosition(void) const
     {
         return sharedHolder_->position_[motorIdx_];
     }
 
-    float64_t const & AbstractMotorBase::getVelocity(void);
+    float64_t const & AbstractMotorBase::getVelocity(void) const
     {
         return sharedHolder_->velocity_[motorIdx_];
     }
 
-    float64_t const & AbstractMotorBase::getAcceleration(void);
+    float64_t const & AbstractMotorBase::getAcceleration(void) const
     {
         return sharedHolder_->acceleration_[motorIdx_];
     }
 
-    float64_t const & AbstractMotorBase::getEffort(void);
+    float64_t const & AbstractMotorBase::getEffort(void) const
     {
         return sharedHolder_->effort_[motorIdx_];
     }
@@ -334,19 +334,9 @@ namespace jiminy
         return returnCode;
     }
 
-    bool_t const & AbstractMotorBase::getIsInitialized(void) const
-    {
-        return isInitialized_;
-    }
-
     std::string const & AbstractMotorBase::getName(void) const
     {
         return name_;
-    }
-
-    int32_t const & AbstractMotorBase::getIdx(void) const
-    {
-        return motorIdx_;
     }
 
     float64_t const & AbstractMotorBase::getCommandLimit(void) const

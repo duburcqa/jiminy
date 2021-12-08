@@ -1368,6 +1368,11 @@ namespace jiminy
         return motorEffortEmpty;
     }
 
+    float64_t getMotorEffortLimit
+    {
+        // TODO combine robot information and transmission information
+    }
+
     void Robot::setSensorsData(float64_t const & t,
                                vectorN_t const & q,
                                vectorN_t const & v,
@@ -1531,6 +1536,10 @@ namespace jiminy
         {
             return sensorsNamesEmpty;
         }
+    }
+    std::vector<std::string> const & Robot::getActuatedJointNames(void) const
+    {
+        return actuatedJointNames_;
     }
 
     vectorN_t const & Robot::getCommandLimit(void) const
