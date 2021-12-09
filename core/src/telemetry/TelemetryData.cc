@@ -140,7 +140,7 @@ namespace jiminy
         floatsHeader_->isRegisteringAvailable = false;
 
         header.clear();
-        header.reserve(64 * 1024);
+        header.reserve(64U * 1024U);
 
         // Record format version
         header.resize(sizeof(int32_t));
@@ -185,6 +185,7 @@ namespace jiminy
 
         // Start data section
         header.insert(header.end(), START_DATA.data(), START_DATA.data() + START_DATA.size());
+        header.push_back('\0');
     }
 
     void TelemetryData::getData(char_t  const * & intAddrOut,
