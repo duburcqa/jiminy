@@ -86,7 +86,7 @@ namespace python
                                                  bp::return_internal_reference<>()))
                 .add_property("visual_model", bp::make_getter(&Model::visualModel_,
                                               bp::return_internal_reference<>()))
-                .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
+                .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataOrig_,
                                                    bp::return_internal_reference<>()))
                 .add_property("pinocchio_data", bp::make_getter(&Model::pncData_,
                                                 bp::return_internal_reference<>()))
