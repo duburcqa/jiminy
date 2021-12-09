@@ -471,11 +471,11 @@ namespace pinocchio_overload
                                               pinocchio::Data & data,
                                               Eigen::MatrixBase<TangentVectorType> const & a)
     {
-        typedef ForwardKinematicsAccelerationStep<TangentVectorType> Pass1;
+        typedef ForwardKinematicsAccelerationStep<TangentVectorType> Pass;
         data.a[0].setZero();
         for (int32_t i = 1; i < model.njoints; ++i)
         {
-            Pass1::run(model.joints[i], data.joints[i], typename Pass1::ArgsType(model, data, a));
+            Pass::run(model.joints[i], data.joints[i], typename Pass::ArgsType(model, data, a));
         }
     }
 
