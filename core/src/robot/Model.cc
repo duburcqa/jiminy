@@ -195,7 +195,7 @@ namespace jiminy
     collisionModel_(),
     visualModelOrig_(),
     visualModel_(),
-    pncDataRigidOrig_(),
+    pncDataOrig_(),
     pncData_(),
     collisionData_(nullptr),
     mdlOptions_(nullptr),
@@ -292,17 +292,17 @@ namespace jiminy
             }
 
             // Backup the original model and data
-            pncDataRigidOrig_ = pinocchio::Data(pncModelOrig_);
+            pncDataOrig_ = pinocchio::Data(pncModelOrig_);
 
             // Initialize Pinocchio data internal state, including basic
             // attributes such as the mass of each body.
             pinocchio::forwardKinematics(pncModelOrig_,
-                                         pncDataRigidOrig_,
+                                         pncDataOrig_,
                                          pinocchio::neutral(pncModelOrig_),
                                          vectorN_t::Zero(pncModelOrig_.nv));
-            pinocchio::updateFramePlacements(pncModelOrig_, pncDataRigidOrig_);
+            pinocchio::updateFramePlacements(pncModelOrig_, pncDataOrig_);
             pinocchio::centerOfMass(pncModelOrig_,
-                                    pncDataRigidOrig_,
+                                    pncDataOrig_,
                                     pinocchio::neutral(pncModelOrig_));
 
             /* Get the list of joint names of the rigid model and remove the 'universe'
@@ -425,7 +425,7 @@ namespace jiminy
                 pinocchio::SE3 const jointFramePlacement = parentFramePlacement.act(framePlacement);
                 pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
                 pncModelOrig_.addFrame(frame);
-                pncDataRigidOrig_ = pinocchio::Data(pncModelOrig_);
+                pncDataOrig_ = pinocchio::Data(pncModelOrig_);
             }
 
             // Add the frame to the the original flexible model
@@ -498,7 +498,7 @@ namespace jiminy
             }
 
             // Regenerate rigid data
-            pncDataRigidOrig_ = pinocchio::Data(pncModelOrig_);
+            pncDataOrig_ = pinocchio::Data(pncModelOrig_);
 
             // One must reset the model after removing a frame
             reset();

@@ -16,7 +16,11 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
+        include:
+          - os: ubuntu-18.04
+            BUILD_TYPE: 'Release'
+          - os: ubuntu-20.04
+            BUILD_TYPE: 'Debug'
 
     defaults:
       run:
@@ -70,9 +74,7 @@ jobs:
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
               -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_BUILD_TYPE="Debug"
-        make install -j2
-        cmake -DCMAKE_BUILD_TYPE="Release" .
+              -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j2
 
     #####################################################################################
@@ -84,18 +86,21 @@ jobs:
         mkdir -p "$RootDir/examples/cpp/pip_extension/build"
         cd "$RootDir/examples/cpp/pip_extension/build"
         cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="Release"
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"
 
-    - name: Run unit tests
+    - name: Run jiminy unit tests
       run: |
         "$RootDir/build/unit/unit"
 
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
+    - name: Run gym_jiminy unit tests
+      if: matrix.BUILD_TYPE == 'Release'
+      run: |
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
