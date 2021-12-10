@@ -1602,13 +1602,13 @@ namespace jiminy
                 }
             });
 
-        // Reset jacobian and drift to 0
+        // Reset jacobian and drift
         if (returnCode == hresult_t::SUCCESS)
         {
             constraintsMask_ = 0;
-            constraintsJacobian_ = matrixN_t::Zero(constraintSize, pncModel_.nv);
-            constraintsDrift_ = vectorN_t::Zero(constraintSize);
-            constraintsLambda_ = vectorN_t::Zero(constraintSize);
+            constraintsJacobian_.setZero(constraintSize, pncModel_.nv);
+            constraintsDrift_.setZero(constraintSize);
+            constraintsLambda_.setZero(constraintSize);
         }
 
         return returnCode;
@@ -1881,7 +1881,7 @@ namespace jiminy
         }
 
         // Initialize the flexible state
-        vFlex = vectorN_t::Zero(nvFlex);
+        vFlex.setZero(nvFlex);
 
         // Compute the flexible state based on the rigid state
         int32_t idxRigid = 0;
@@ -1921,7 +1921,7 @@ namespace jiminy
         }
 
         // Initialize the rigid state
-        vRigid = vectorN_t::Zero(nvRigid);
+        vRigid.setZero(nvRigid);
 
         // Compute the rigid state based on the flexible state
         int32_t idxRigid = 0;

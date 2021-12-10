@@ -497,7 +497,7 @@ namespace pinocchio_overload
         data.sDUiJt.array().colwise() /= data.D.array().sqrt();
 
         // Compute JMinvJt := sDUiJt.T * sDUiJt
-        data.JMinvJt = matrixN_t::Zero(J.rows(), J.rows());
+        data.JMinvJt.setZero(J.rows(), J.rows());
         data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(data.sDUiJt.transpose());
         data.JMinvJt.triangularView<Eigen::Upper>() = data.JMinvJt.transpose();
 

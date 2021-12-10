@@ -65,7 +65,7 @@ namespace jiminy
         vector3_t normal_;             ///< Ground normal, world frame.
         matrix3_t shewRadius_;         ///< Skew of ground normal, in world frame, scaled by radius.
         pinocchio::SE3 transformRef_;  ///< Reference pose of the frame to enforce.
-        matrixN_t frameJacobian_;      ///< Stores full frame jacobian in world.
+        matrix6N_t frameJacobian_;     ///< Stores full frame jacobian in world.
     };
 }
 

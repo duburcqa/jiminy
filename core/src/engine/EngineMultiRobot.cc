@@ -1318,7 +1318,7 @@ namespace jiminy
             }
 
             // Initialize some addition buffers used by impulse contact solver
-            systemDataIt->jointJacobian = matrixN_t::Zero(6, systemIt->robot->pncModel_.nv);
+            systemDataIt->jointJacobian.setZero(6, systemIt->robot->pncModel_.nv);
 
             // Reset the constraints
             returnCode = systemIt->robot->resetConstraints(q, v);
@@ -3698,7 +3698,7 @@ namespace jiminy
         if (system.robot->hasConstraints())
         {
             // Define some proxies for convenience
-            matrixN_t & jointJacobian = systemData.jointJacobian;
+            matrix6N_t & jointJacobian = systemData.jointJacobian;
             vectorN_t & lo = systemData.lo;
             vectorN_t & hi = systemData.hi;
             std::vector<std::vector<int32_t> > & fIndices = systemData.fIndices;
