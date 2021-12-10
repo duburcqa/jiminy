@@ -28,7 +28,7 @@ namespace jiminy
     {
         dofsFixed_.resize(static_cast<std::size_t>(maskFixed.cast<int32_t>().array().sum()));
         uint32_t dofIndex = 0;
-        for (uint32_t i : std::vector<uint32_t>{{2, 1, 0, 3, 4, 5}})
+        for (uint32_t const & i : std::array<uint32_t, 6>{{2, 1, 0, 3, 4, 5}})
         {
             if (maskFixed[i])
             {
@@ -102,13 +102,14 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Initialize jacobian, drift and multipliers
-            frameJacobian_ = matrix6N_t::Zero(6, model->pncModel_.nv);
-            frameDrift_ = vector6_t::Zero();
+            // Initialize frames jacobians buffers
+            frameJacobian_.setZero(6, model->pncModel_.nv);
+
+            // Initialize constraint jacobian, drift and multipliers
             Eigen::Index const dim = static_cast<Eigen::Index>(dofsFixed_.size());
-            jacobian_ = matrixN_t::Zero(dim, model->pncModel_.nv);
-            drift_ = vectorN_t::Zero(dim);
-            lambda_ = vectorN_t::Zero(dim);
+            jacobian_.setZero(dim, model->pncModel_.nv);
+            drift_.setZero(dim);
+            lambda_.setZero(dim);
 
             // Get the current frame position and use it as reference
             transformRef_ = model->pncData_.oMf[frameIdx_];

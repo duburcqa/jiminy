@@ -74,15 +74,12 @@ namespace jiminy
             pinocchio::JointModel const & jointModel = model->pncModel_.joints[jointIdx_];
 
             // Initialize the jacobian. It is simply the velocity selector mask.
-            jacobian_ = matrixN_t::Zero(jointModel.nv(), model->pncModel_.nv);
-            for (Eigen::Index i=0; i < jointModel.nv(); ++i)
-            {
-                jacobian_(i, jointModel.idx_v() + i) = 1.0;
-            }
+            jacobian_.setZero(jointModel.nv(), model->pncModel_.nv);
+            jacobian_.middleCols(jointModel.idx_v(), jointModel.nv()).setIdentity();
 
             // Initialize drift and multipliers
-            drift_ = vectorN_t::Zero(jointModel.nv());
-            lambda_ = vectorN_t::Zero(jointModel.nv());
+            drift_.setZero(jointModel.nv());
+            lambda_.setZero(jointModel.nv());
 
             // Get the current joint position and use it as reference
             configurationRef_ = jointModel.jointConfigSelector(q);

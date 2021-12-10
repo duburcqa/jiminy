@@ -61,16 +61,16 @@ namespace jiminy
                                                   vectorN_t const & v) override final;
 
     private:
-        std::string frameName_;        ///< Name of the frame on which the constraint operates.
-        frameIndex_t frameIdx_;        ///< Corresponding frame index.
-        float64_t radius_;             ///< Wheel radius.
-        vector3_t normal_;             ///< Ground normal, world frame.
-        vector3_t axis_;               ///< Wheel axis, local frame.
-        vector3_t x3_;                 ///< Wheel axis, world frame.
-        matrix3_t skewRadius_;         ///< Skew matrix of wheel axis, in world frame, scaled by radius.
-        matrix3_t dskewRadius_;        ///< Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
-        pinocchio::SE3 transformRef_;  ///< Reference pose of the frame to enforce.
-        matrixN_t frameJacobian_;      ///< Stores full frame jacobian in world.
+        std::string frameName_;         ///< Name of the frame on which the constraint operates.
+        frameIndex_t frameIdx_;         ///< Corresponding frame index.
+        float64_t radius_;              ///< Wheel radius.
+        vector3_t normal_;              ///< Ground normal, world frame.
+        vector3_t axis_;                ///< Wheel axis, local frame.
+        vector3_t x3_;                  ///< Wheel axis, world frame.
+        matrix3_t skewRadius_;          ///< Skew matrix of wheel axis, in world frame, scaled by radius.
+        matrix3_t dskewRadius_;         ///< Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
+        pinocchio::SE3 transformRef_;   ///< Reference pose of the frame to enforce.
+        matrix6N_t frameJacobian_;      ///< Stores full frame jacobian in world.
     };
 }
 

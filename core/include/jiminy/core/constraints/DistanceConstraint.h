@@ -43,8 +43,8 @@ namespace jiminy
         std::vector<std::string> framesNames_;    ///< Names of the frames on which the constraint operates.
         std::vector<frameIndex_t> framesIdx_;     ///< Corresponding frames indices.
         float64_t distanceRef_;                   ///< Reference Distance between the frames
-        matrixN_t firstFrameJacobian_;            ///< Stores first frame jacobian in world.
-        matrixN_t secondFrameJacobian_;           ///< Stores second frame jacobian in world.
+        matrix6N_t firstFrameJacobian_;            ///< Stores first frame jacobian in world.
+        matrix6N_t secondFrameJacobian_;           ///< Stores second frame jacobian in world.
     };
 }
 

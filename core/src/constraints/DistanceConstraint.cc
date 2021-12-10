@@ -75,14 +75,14 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Set jacobian, drift and multipliers to right dimension
-            jacobian_ = matrixN_t::Zero(1, model->pncModel_.nv);
-            drift_ = vectorN_t::Zero(1);
-            lambda_ = vectorN_t::Zero(1);
-
             // Initialize frames jacobians buffers
-            firstFrameJacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
-            secondFrameJacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
+            firstFrameJacobian_.setZero(6, model->pncModel_.nv);
+            secondFrameJacobian_.setZero(6, model->pncModel_.nv);
+
+            // Initialize jacobian, drift and multipliers
+            jacobian_.setZero(1, model->pncModel_.nv);
+            drift_.setZero(1);
+            lambda_.setZero(1);
         }
 
         return returnCode;
