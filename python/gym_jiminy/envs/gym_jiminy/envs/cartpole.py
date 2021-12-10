@@ -142,7 +142,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         engine_options["stepper"]["dtMax"] = CONTROL_DT
         self.simulator.engine.set_options(engine_options)
 
-    def _refresh_observation_space(self) -> None:
+    def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.
 
         Implement the official Gym cartpole-v1 action space. Only the state is
@@ -163,7 +163,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         self.observation_space = spaces.Box(
             low=-high, high=high, dtype=np.float64)
 
-    def _refresh_action_space(self) -> None:
+    def _initialize_action_space(self) -> None:
         """ TODO: Write documentation.
 
         Replace the action space by its discrete representation depending on
@@ -172,7 +172,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         if not self.continuous:
             self.action_space = spaces.Discrete(len(self.AVAIL_CTRL))
         else:
-            super()._refresh_action_space()
+            super()._initialize_action_space()
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
         """ TODO: Write documentation.

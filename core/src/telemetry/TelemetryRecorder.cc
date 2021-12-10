@@ -268,12 +268,6 @@ namespace jiminy
                         {
                             break;
                         }
-                        if (posHeader + fieldHeader.size() > headerCharBuffer.size())
-                        {
-                            fieldHeader = std::string(pHeader + posHeader, headerCharBuffer.size() - posHeader);
-                            logData.header.push_back(std::move(fieldHeader));
-                            break;
-                        }
                     }
                     isReadingHeaderDone = true;
                 }

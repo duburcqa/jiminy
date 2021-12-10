@@ -98,6 +98,7 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # configure the engine
         engine_options = engine.get_options()
+        engine_options["contacts"]["model"] = "spring_damper"
         engine_options['contacts']['stiffness'] = self.k_contact
         engine_options['contacts']['damping'] = self.nu_contact
         engine.set_options(engine_options)
@@ -234,8 +235,8 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # Set some extra options of the engine
         engine_options = engine.get_options()
-        engine_options['contacts']['transitionEps'] = 1.0e-6
         engine_options['contacts']['friction'] = self.friction
+        engine_options['contacts']['transitionEps'] = 1.0e-6
         engine_options['contacts']['transitionVelocity'] = self.transtion_vel
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dtMax
         engine.set_options(engine_options)

@@ -66,8 +66,8 @@ engine_options["stepper"]["randomSeed"] = 0
 engine_options['contacts']['model'] = "spring_damper"
 engine_options['contacts']['stiffness'] = 1.0e6
 engine_options['contacts']['damping'] = 2000.0
-engine_options['contacts']['transitionEps'] = 0.001
 engine_options['contacts']['friction'] = 5.0
+engine_options['contacts']['transitionEps'] = 0.001
 engine_options['contacts']['transitionVelocity'] = 0.01
 
 robot.set_options(robot_options)

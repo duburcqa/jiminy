@@ -157,11 +157,12 @@ namespace jiminy
         return frameIdx_;
     }
 
-    hresult_t ImuSensor::set(float64_t const & /* t */,
-                             vectorN_t const & /* q */,
-                             vectorN_t const & /* v */,
-                             vectorN_t const & /* a */,
-                             vectorN_t const & /* uMotor */)
+    hresult_t ImuSensor::set(float64_t     const & /* t */,
+                             vectorN_t     const & /* q */,
+                             vectorN_t     const & /* v */,
+                             vectorN_t     const & /* a */,
+                             vectorN_t     const & /* uMotor */,
+                             forceVector_t const & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
@@ -292,11 +293,12 @@ namespace jiminy
         return frameIdx_;
     }
 
-    hresult_t ContactSensor::set(float64_t const & /* t */,
-                                 vectorN_t const & /* q */,
-                                 vectorN_t const & /* v */,
-                                 vectorN_t const & /* a */,
-                                 vectorN_t const & /* uMotor */)
+    hresult_t ContactSensor::set(float64_t     const & /* t */,
+                                 vectorN_t     const & /* q */,
+                                 vectorN_t     const & /* v */,
+                                 vectorN_t     const & /* a */,
+                                 vectorN_t     const & /* uMotor */,
+                                 forceVector_t const & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
@@ -320,7 +322,8 @@ namespace jiminy
     AbstractSensorTpl(name),
     frameName_(),
     frameIdx_(0),
-    parentJointIdx_(0)
+    parentJointIdx_(0),
+    f_()
     {
         // Empty.
     }
@@ -376,19 +379,25 @@ namespace jiminy
         return parentJointIdx_;
     }
 
-    hresult_t ForceSensor::set(float64_t const & /* t */,
-                               vectorN_t const & /* q */,
-                               vectorN_t const & /* v */,
-                               vectorN_t const & /* a */,
-                               vectorN_t const & /* uMotor */)
+    hresult_t ForceSensor::set(float64_t     const & /* t */,
+                               vectorN_t     const & /* q */,
+                               vectorN_t     const & /* v */,
+                               vectorN_t     const & /* a */,
+                               vectorN_t     const & /* uMotor */,
+                               forceVector_t const & fExternal)
     {
-        // Returns the force applied at frame location, in the local frame of the parent joint
+        // Returns the force applied on parent body in frame
 
         GET_ROBOT_IF_INITIALIZED()
 
+        // Get the sum of external forces applied on parent joint
+        jointIndex_t const & i = parentJointIdx_;
+        pinocchio::Force const & fJoint = fExternal[i];
+
+        // Transform the force from joint frame to sensor frame
         pinocchio::SE3 const & framePlacement = robot->pncModel_.frames[frameIdx_].placement;
-        pinocchio::Force f = framePlacement.actInv(robot->pncData_.f[parentJointIdx_]);  // f is in the local frame of the joint
-        data() = f.toVector();
+        f_ = framePlacement.actInv(fJoint);
+        data() = - f_.toVector();
 
         return hresult_t::SUCCESS;
     }
@@ -474,11 +483,12 @@ namespace jiminy
         return jointType_;
     }
 
-    hresult_t EncoderSensor::set(float64_t const & /* t */,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t const & /* a */,
-                                 vectorN_t const & /* uMotor */)
+    hresult_t EncoderSensor::set(float64_t     const & /* t */,
+                                 vectorN_t     const & q,
+                                 vectorN_t     const & v,
+                                 vectorN_t     const & /* a */,
+                                 vectorN_t     const & /* uMotor */,
+                                 forceVector_t const & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
@@ -564,11 +574,12 @@ namespace jiminy
         return motorIdx_;
     }
 
-    hresult_t EffortSensor::set(float64_t const & /* t */,
-                                vectorN_t const & /* q */,
-                                vectorN_t const & /* v */,
-                                vectorN_t const & /* a */,
-                                vectorN_t const & uMotor)
+    hresult_t EffortSensor::set(float64_t     const & /* t */,
+                                vectorN_t     const & /* q */,
+                                vectorN_t     const & /* v */,
+                                vectorN_t     const & /* a */,
+                                vectorN_t     const & uMotor,
+                                forceVector_t const & /* fExternal */)
     {
         if (!isInitialized_)
         {

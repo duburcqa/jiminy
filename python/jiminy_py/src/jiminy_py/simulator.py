@@ -777,6 +777,7 @@ class Simulator:
         engine_options['stepper'] = engine_options_copy['stepper']
         engine_options['world'] = engine_options_copy['world']
         engine_options['joints'] = engine_options_copy['joints']
+        engine_options['constraints'] = engine_options_copy['constraints']
         engine_options['contacts'] = engine_options_copy['contacts']
         engine_options['telemetry'] = engine_options_copy['telemetry']
         return options

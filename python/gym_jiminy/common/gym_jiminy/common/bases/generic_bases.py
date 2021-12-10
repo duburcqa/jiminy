@@ -55,7 +55,7 @@ class ObserverInterface:
     # methods to override:
     # ----------------------------
 
-    def _refresh_observation_space(self) -> None:
+    def _initialize_observation_space(self) -> None:
         """Configure the observation space.
         """
         raise NotImplementedError
@@ -109,7 +109,7 @@ class ControllerInterface:
     # methods to override:
     # ----------------------------
 
-    def _refresh_action_space(self) -> None:
+    def _initialize_action_space(self) -> None:
         """Configure the action space.
         """
         raise NotImplementedError

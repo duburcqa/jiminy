@@ -1,4 +1,5 @@
-#include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
+#include "pinocchio/algorithm/frames.hpp"    // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
+#include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
 
 #include "jiminy/core/robot/Model.h"
 #include "jiminy/core/utilities/Pinocchio.h"
@@ -17,14 +18,17 @@ namespace jiminy
     frameName_(frameName),
     frameIdx_(0),
     dofsFixed_(),
+    isFixedPositionXY_(maskFixed.head<2>().all()),
     transformRef_(),
-    rotationLocal_(),
+    normal_(),
+    rotationLocal_(matrix3_t::Identity()),
     frameJacobian_(),
-    frameDrift_()
+    frameDrift_(),
+    UiJt_()
     {
         dofsFixed_.resize(static_cast<std::size_t>(maskFixed.cast<int32_t>().array().sum()));
         uint32_t dofIndex = 0;
-        for (uint32_t i=0; i < 6; ++i)
+        for (uint32_t i : std::vector<uint32_t>{{2, 1, 0, 3, 4, 5}})
         {
             if (maskFixed[i])
             {
@@ -64,9 +68,12 @@ namespace jiminy
         return transformRef_;
     }
 
-    void FixedFrameConstraint::setLocalFrame(matrix3_t const & frameRot)
+    void FixedFrameConstraint::setNormal(vector3_t const & normal)
     {
-        rotationLocal_ = frameRot;
+        normal_ = normal;
+        rotationLocal_.col(2) = normal_;
+        rotationLocal_.col(1) = normal_.cross(vector3_t::UnitX()).normalized();
+        rotationLocal_.col(0) = rotationLocal_.col(1).cross(rotationLocal_.col(2));
     }
 
     matrix3_t const & FixedFrameConstraint::getLocalFrame(void) const
@@ -151,15 +158,33 @@ namespace jiminy
                                            frameIdx_,
                                            pinocchio::LOCAL_WORLD_ALIGNED);
 
+        // Compute pose error
+        pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
+        vector3_t deltaPosition = framePose.translation() - transformRef_.translation();
+        matrix3_t const deltaRotation = transformRef_.rotation().transpose() * framePose.rotation();
+
+        // Compute velocity error
+        pinocchio::Motion velocity = getFrameVelocity(model->pncModel_,
+                                                      model->pncData_,
+                                                      frameIdx_,
+                                                      pinocchio::LOCAL_WORLD_ALIGNED);
+
+        // Correct bias of PGS solver in tangential plane
+        if (isFixedPositionXY_)
+        {
+            UiJt_ = frameJacobian_.topRows<2>().transpose();
+            pinocchio::cholesky::Uiv(model->pncModel_, model->pncData_, UiJt_);
+            vector2_t a;
+            a << model->pncData_.D[1] * UiJt_.col(0).squaredNorm(),
+                 model->pncData_.D[0] * UiJt_.col(1).squaredNorm();
+            a /= a.array().maxCoeff();
+            velocity.linear().head<2>().array() *= a.array();
+            deltaPosition.head<2>().array() *= a.array();
+        }
+
         // Add Baumgarte stabilization to drift in world frame
-        vector3_t const deltaPosition = model->pncData_.oMf[frameIdx_].translation() - transformRef_.translation();
-        matrix3_t const deltaRotation = transformRef_.rotation().transpose() * model->pncData_.oMf[frameIdx_].rotation();
         frameDrift_.linear() += kp_ * deltaPosition;
-        frameDrift_.angular() += kp_ * pinocchio::log3(deltaRotation);
-        pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
-                                                            model->pncData_,
-                                                            frameIdx_,
-                                                            pinocchio::LOCAL_WORLD_ALIGNED);
+        frameDrift_.angular() += kp_ * framePose.rotation() * pinocchio::log3(deltaRotation);
         frameDrift_ += kd_ * velocity;
 
         // Compute drift in local frame

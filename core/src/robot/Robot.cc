@@ -1216,11 +1216,12 @@ namespace jiminy
         return motorEffortEmpty;
     }
 
-    void Robot::setSensorsData(float64_t const & t,
-                               vectorN_t const & q,
-                               vectorN_t const & v,
-                               vectorN_t const & a,
-                               vectorN_t const & uMotor)
+    void Robot::setSensorsData(float64_t     const & t,
+                               vectorN_t     const & q,
+                               vectorN_t     const & v,
+                               vectorN_t     const & a,
+                               vectorN_t     const & uMotor,
+                               forceVector_t const & fExternal)
     {
         /* Note that it is assumed that the kinematic quantities have been
            updated previously to be consistent with (q, v, a, u). If not,
@@ -1231,7 +1232,7 @@ namespace jiminy
         {
             if (!sensorGroup.second.empty())
             {
-                (*sensorGroup.second.begin())->setAll(t, q, v, a, uMotor);
+                (*sensorGroup.second.begin())->setAll(t, q, v, a, uMotor, fExternal);
             }
         }
     }

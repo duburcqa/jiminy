@@ -454,7 +454,10 @@ namespace pinocchio_overload
             jointIndex_t const & i = jmodel.id();
             jointIndex_t const & parent = model.parents[i];
             data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
-            data.a[i] += data.liMi[i].actInv(data.a[parent]);
+            if (parent > 0)
+            {
+                data.a[i] += data.liMi[i].actInv(data.a[parent]);
+            }
         }
     };
 
@@ -468,11 +471,11 @@ namespace pinocchio_overload
                                               pinocchio::Data & data,
                                               Eigen::MatrixBase<TangentVectorType> const & a)
     {
-        typedef ForwardKinematicsAccelerationStep<TangentVectorType> Pass1;
+        typedef ForwardKinematicsAccelerationStep<TangentVectorType> Pass;
         data.a[0].setZero();
         for (int32_t i = 1; i < model.njoints; ++i)
         {
-            Pass1::run(model.joints[i], data.joints[i], typename Pass1::ArgsType(model, data, a));
+            Pass::run(model.joints[i], data.joints[i], typename Pass::ArgsType(model, data, a));
         }
     }
 

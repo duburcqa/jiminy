@@ -180,8 +180,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Refresh the observation and action spaces.
         # Note that it is necessary to refresh the action space before the
         # observation one, since it may be useful to observe the action.
-        self._refresh_action_space()
-        self._refresh_observation_space()
+        self._initialize_action_space()
+        self._initialize_observation_space()
 
         # Assertion(s) for type checker
         assert (isinstance(self.observation_space, spaces.Space) and
@@ -193,13 +193,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._action = zeros(self.action_space, dtype=np.float64)
         self._observation = zeros(self.observation_space)
 
-        # Register the action to the telemetry
-        if isinstance(self._action, np.ndarray) and (
-                self._action.size == self.robot.nmotors):
-            # Default case: assuming there is one scalar action per motor
-            action_headers = [
-                ".".join(("action", e)) for e in self.robot.motors_names]
-        self.register_variable("action", self._action, action_headers)
+        # Register the action to the telemetry automatically iif there is
+        # exactly one scalar action per motor.
+        if isinstance(self._action, np.ndarray):
+            action_size = self._action.size
+            if action_size > 0 and action_size == self.robot.nmotors:
+                action_headers = [
+                    ".".join(("action", e)) for e in self.robot.motors_names]
+                self.register_variable("action", self._action, action_headers)
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -255,7 +256,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         This method is not meant to be overloaded in general since the
         definition of the state space is mostly consensual. One must rather
-        overload `_refresh_observation_space` to customize the observation
+        overload `_initialize_observation_space` to customize the observation
         space as a whole.
 
         :param use_theoretical_model: Whether to compute the state space
@@ -336,7 +337,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. warning:
             This method is not meant to be overloaded in general since the
             definition of the sensor space is mostly consensual. One must
-            rather overload `_refresh_observation_space` to customize the
+            rather overload `_initialize_observation_space` to customize the
             observation space as a whole.
         """
         # Define some proxies for convenience
@@ -444,7 +445,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             for (key, min_val), max_val in zip(
                 sensor_space_lower.items(), sensor_space_upper.values())))
 
-    def _refresh_action_space(self) -> None:
+    def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.
 
         The action is a vector gathering the torques of the actuator of the
@@ -643,8 +644,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.start(
             qpos, qvel, None, self.simulator.use_theoretical_model)
 
+        # Initialize shared buffers
+        self._initialize_buffers()
+
         # Update shared buffers
-        self._refresh_internal()
+        self._refresh_buffers()
 
         # Initialize the observer.
         # Note that it is responsible of refreshing the environment's
@@ -656,15 +660,23 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.sensors_data)
 
         # Make sure the state is valid, otherwise there `refresh_observation`
-        # and `_refresh_observation_space` are probably inconsistent.
+        # and `_initialize_observation_space` are probably inconsistent.
         try:
             obs = clip(self.observation_space, self.get_observation())
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
-                "`_refresh_observation_space` at initialization.") from e
+                "`_initialize_observation_space` at initialization.") from e
 
+        # Make sure there is no 'nan' value in observation
+        for value in tree.flatten(obs):
+            if np.isnan(value).any():
+                raise RuntimeError(
+                    f"'nan' value found in observation ({obs}). Something "
+                    "went wrong with `refresh_observation` method.")
+
+        # The simulation cannot be done before doing a single step.
         if self.is_done():
             raise RuntimeError(
                 "The simulation is already done at `reset`. Check the "
@@ -729,35 +741,40 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
-        # Update the action to perform if necessary
+        # Update of the action to perform if provided
         if action is not None:
+            # Make sure the action is valid
+            for value in tree.flatten(action):
+                if np.isnan(value).any():
+                    raise RuntimeError(
+                        f"'nan' value found in action ({action}).")
+
+            # Update the action
             set_value(self._action, action)
 
-        # Trying to perform a single simulation step
-        is_step_failed = True
-        try:
-            # Do a single step
-            self.simulator.step(self.step_dt)
+        # Perform a single simulation step
+        self.simulator.step(self.step_dt)
 
-            # Update shared buffers
-            self._refresh_internal()
+        # Update shared buffers
+        self._refresh_buffers()
 
-            # Update the observer at the end of the step. Indeed, internally,
-            # it is called at the beginning of the every integration steps,
-            # during the controller update.
-            self.engine.controller.refresh_observation(
-                self.stepper_state.t,
-                self.system_state.q,
-                self.system_state.v,
-                self.sensors_data)
-
-            # Update some internal buffers
-            is_step_failed = False
-        except RuntimeError as e:
-            logger.error(f"Unrecoverable Jiminy engine exception:\n{str(e)}")
+        # Update the observer at the end of the step. Indeed, internally,
+        # it is called at the beginning of the every integration steps,
+        # during the controller update.
+        self.engine.controller.refresh_observation(
+            self.stepper_state.t,
+            self.system_state.q,
+            self.system_state.v,
+            self.sensors_data)
 
         # Get clipped observation
         obs = clip(self.observation_space, self.get_observation())
+
+        # Make sure there is no 'nan' value in observation
+        if np.isnan(self.system_state.a).any():
+            raise RuntimeError(
+                "The acceleration of the system is 'nan'. Something went "
+                "wrong with jiminy engine.")
 
         # Reset the extra information buffer
         self._info = {}
@@ -765,7 +782,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
-        done = is_step_failed or not self.simulator.is_simulation_running or \
+        done = not self.simulator.is_simulation_running or \
             self.num_steps >= self.max_steps or self.is_done()
 
         # Check if stepping after done and if it is an undefined behavior
@@ -781,11 +798,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     "Please call `reset` to avoid further undefined behavior.")
             self._num_steps_beyond_done += 1
 
-        # Early return in case of low-level engine integration failure.
-        # In such a case, it always returns reward = 0.0 and done = True.
-        if is_step_failed:
-            return obs, 0.0, True, deepcopy(self._info)
-
         # Compute reward and extra information
         reward = self.compute_reward(info=self._info)
 
@@ -799,6 +811,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.enable_reward_terminal:
                 # Add terminal reward to current reward
                 reward += self.compute_reward_terminal(info=self._info)
+
+        # Make sure the reward is not 'nan'
+        if np.isnan(reward):
+            raise RuntimeError(
+                "The reward is 'nan'. Something went wrong with "
+                "`compute_reward` or `compute_reward_terminal` methods.")
 
         # Update cumulative reward
         self.total_reward += reward
@@ -1032,6 +1050,91 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._is_interactive = False
         self.is_training = is_training
 
+    @staticmethod
+    def evaluate(env: gym.Env,
+                 policy_fn: Callable[
+                     [DataNested, Optional[float]], DataNested],
+                 seed: Optional[int] = None,
+                 horizon: Optional[int] = None,
+                 enable_stats: bool = True,
+                 enable_replay: bool = True,
+                 **kwargs: Any) -> List[Dict[str, Any]]:
+        r"""Evaluate a policy on the environment over a complete episode.
+
+        :param env: `BaseJiminyEnv` environment instance to play with,
+                    eventually wrapped by composition, typically using
+                    `gym.Wrapper`.
+        :param policy_fn:
+            .. raw:: html
+
+                Policy to evaluate as a callback function. It must have the
+                following signature (**rew** = None at reset):
+
+            | policy_fn\(**obs**: DataNested,
+            |            **reward**: Optional[float]
+            |            \) -> DataNested  # **action**
+        :param seed: Seed of the environment to be used for the evaluation of
+                     the policy.
+                     Optional: Random seed if not provided.
+        :param horizon: Horizon of the simulation, namely maximum number of
+                        steps before termination. `None` to disable.
+                        Optional: Disabled by default.
+        :param enable_stats: Whether or not to print high-level statistics
+                             after simulation.
+                             Optional: Enabled by default.
+        :param enable_replay: Whether or not to enable replay of the
+                              simulation, and eventually recording if the extra
+                              keyword argument `record_video_path` is provided.
+                              Optional: Enabled by default.
+        :param kwargs: Extra keyword arguments to forward to the `replay`
+                       method if replay is requested.
+        """
+        # Initialize frame stack
+
+        # Make sure evaluation mode is enabled
+        is_training = env.is_training
+        if is_training:
+            env.eval()
+
+        # Reset the seed of the environment
+        env.seed(seed)
+
+        # Initialize the simulation
+        obs = env.reset()
+        reward = None
+
+        # Run the simulation
+        try:
+            info_episode = []
+            done = False
+            while not done:
+                action = policy_fn(obs, reward)
+                obs, reward, done, info = env.step(action)
+                info_episode.append(info)
+                if done or (horizon is not None and env.num_steps > horizon):
+                    break
+        except KeyboardInterrupt:
+            pass
+
+        # Restore training mode if it was enabled
+        if is_training:
+            env.train()
+
+        # Display some statistic if requested
+        if enable_stats:
+            print("env.num_steps:", env.num_steps)
+            print("cumulative reward:", env.total_reward)
+
+        # Replay the result if requested
+        if enable_replay:
+            try:
+                env.replay(**kwargs)
+            except Exception as e:  # pylint: disable=broad-except
+                # Do not fail because of replay/recording exception
+                logger.warn(str(e))
+
+        return info_episode
+
     def train(self) -> None:
         """Sets the environment in training mode.
 
@@ -1088,7 +1191,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         framesForwardKinematics(
             self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
 
-    def _refresh_observation_space(self) -> None:
+    def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.
 
         By default, the observation is a dictionary gathering the current
@@ -1177,17 +1280,42 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return qpos, qvel
 
-    def _refresh_internal(self) -> None:
-        """Refresh internal buffers.
+    def _initialize_buffers(self) -> None:
+        """Initialize internal buffers for fast access to shared memory or to
+        avoid redundant computations.
+
+        .. note::
+            This method is called at `reset`, right after
+            `self.simulator.start`. At this point, the simulation is running
+            but `refresh_observation` has never been called, so that it can be
+            used to initialize buffers involving the engine state but required
+            to refresh the observation. Note that it is not appropriate to
+            initialize buffers that would be used by `compute_command`.
+
+        .. note::
+            Buffers requiring manual update must be refreshed using
+            `_refresh_buffers` method.
+        """
+
+    def _refresh_buffers(self) -> None:
+        """Refresh internal buffers that must be updated manually.
 
         .. note::
             This method is called right after every internal `engine.step`, so
             it is the right place to update shared data between `is_done` and
-            `compute_reward`. Be careful when using it to share data with
-            `refresh_observation`, but the later is called at `self.observe_dt`
-            update period, which the others are called at `self.step_dt` update
-            period. `self.observe_dt` is likely to different from `self.step`,
-            unless configured otherwise by overloading `_setup` method.
+            `compute_reward`.
+
+        .. note::
+            `_initialize_buffers` method can be used to initialize buffers that
+            may requires special care.
+
+        .. warning::
+            Be careful when using it to update buffers that are used by
+            `refresh_observation`. The later is called at `self.observe_dt`
+            update period, while the others are called at `self.step_dt` update
+            period. `self.observe_dt` is likely to be different from
+            `self.step_dt`, unless configured manually when overloading
+            `_setup` method.
         """
 
     def refresh_observation(self) -> None:  # type: ignore[override]
@@ -1236,6 +1364,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         By default, it does not perform any processing. One is responsible of
         overloading this method to clip the action if necessary to make sure it
         does not violate the lower and upper bounds.
+
+        .. warning::
+            There is not good place to initialize buffers that are necessary to
+            compute the command. The only solution for now is to define
+            initialization inside this method itself, using the safeguard
+            `if not self.simulator.is_simulation_running:`.
 
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.

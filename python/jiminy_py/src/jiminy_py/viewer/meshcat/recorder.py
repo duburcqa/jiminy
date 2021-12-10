@@ -17,6 +17,10 @@ from typing import Awaitable, Any, Optional
 from .utilities import interactive_mode
 
 
+PYPPETEER_STARTUP_TIMEOUT = 300.0  # 5min to download chrome (~150Mo)
+PYPPETEER_REQUEST_TIMEOUT = 20.0
+
+
 if interactive_mode() == 2:
     # Must overload 'chromium_executable' for Google Colaboratory to
     # the native browser instead: "/usr/lib/chromium-browser/chromium-browser".
@@ -41,7 +45,7 @@ from requests_html import HTMLSession, HTMLResponse
 
 # ==================== Monkey-patch pyppeteer ============================
 
-from pyppeteer.errors import NetworkError
+from pyppeteer.errors import NetworkError, BrowserError
 from pyppeteer.connection import (
     Connection, logger, logger_connection, logger_session)
 from pyppeteer.browser import Browser
@@ -205,18 +209,23 @@ def meshcat_recorder(meshcat_url: str,
     # Open a Meshcat client in background in a hidden chrome browser instance
     session = HTMLSession()
     client = session.get(meshcat_url)
-    client.html.render(keep_page=True)
-    message_shm.value = f"{session._browser.process.pid}"
+    try:
+        client.html.render(keep_page=True)
+        message_shm.value = f"{session._browser.process.pid}"
+    except BrowserError as e:
+        message_shm.value = str(e)
+        request_shm.value = "quit"
 
     # Stop the animation loop by default, since it is not relevant for
     # recording only
-    async def stop_animate_async(client):
-        await client.html.page.evaluate("""
-            () => {
-                stop_animate();
-            }
-        """)
-    loop.run_until_complete(stop_animate_async(client))
+    if request_shm.value != "quit":
+        async def stop_animate_async(client):
+            await client.html.page.evaluate("""
+                () => {
+                    stop_animate();
+                }
+            """)
+        loop.run_until_complete(stop_animate_async(client))
 
     # Infinite loop, waiting for requests
     try:
@@ -295,8 +304,20 @@ class MeshcatRecorder:
             daemon=True)
         self.proc.start()
 
+        time_start, time_waiting = time.time(), 0.0
         while self.__shm['message'].value == "":
-            pass
+            time_waiting = time.time() - time_start
+            if time_waiting > PYPPETEER_STARTUP_TIMEOUT:
+                break
+        if self.__shm['request'].value == "quit":
+            msg = "Impossible to start chromimum browser in background"
+            if not sys.platform.startswith("win"):
+                msg = (
+                    f"{msg}.\nTry installing 'libnss3' using your package "
+                    "manager (`apt` on Ubuntu)")
+            raise RuntimeError(f"{msg}:\n    {self.__shm['message'].value}")
+        elif time_waiting > PYPPETEER_STARTUP_TIMEOUT:
+            raise RuntimeError("Pupetter chromimum browser not responding.")
         self.__browser_pid = int(self.__shm['message'].value)
         self.__shm['message'].value = ""
 
@@ -333,7 +354,9 @@ class MeshcatRecorder:
     def _send_request(self,
                       request: str,
                       message: Optional[str] = None,
-                      timeout: float = 20.0) -> None:
+                      timeout: Optional[float] = None) -> None:
+        if timeout is None:
+            timeout = PYPPETEER_REQUEST_TIMEOUT
         if not self.is_open:
             raise RuntimeError(
                 "Meshcat recorder is not open. Impossible to send requests.")

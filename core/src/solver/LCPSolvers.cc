@@ -13,80 +13,98 @@
 namespace jiminy
 {
     PGSSolver::PGSSolver(uint32_t const & maxIter,
-                         uint32_t const & randomPermutationPeriod,
                          float64_t const & tolAbs,
                          float64_t const & tolRel) :
     maxIter_(maxIter),
-    randomPermutationPeriod_(randomPermutationPeriod),
     tolAbs_(tolAbs),
     tolRel_(tolRel),
-    indices_(),
-    lastShuffle_(0U),
-    b_()
+    b_(),
+    xPrev_(),
+    y_(),
+    yPrev_(),
+    dy_()
     {
         // Empty on purpose.
     }
 
-    bool_t PGSSolver::ProjectedGaussSeidelIter(matrixN_t const & A,
-                                               vectorN_t const & b,
-                                               vectorN_t const & lo,
-                                               vectorN_t const & hi,
-                                               std::vector<std::vector<int32_t> > const & fIndices,
-                                               vectorN_t & x)
+    void PGSSolver::ProjectedGaussSeidelIter(matrixN_t const & A,
+                                             vectorN_t const & b,
+                                             vectorN_t const & lo,
+                                             vectorN_t const & hi,
+                                             std::vector<std::vector<int32_t> > const & fIndices,
+                                             vectorN_t & x)
     {
-        bool_t isSuccess = true;
-
-        // Shuffle coefficient update order to break any repeating cycles
-        if (randomPermutationPeriod_ > 0 && lastShuffle_ > randomPermutationPeriod_)
-        {
-            shuffleIndices(indices_);
-            lastShuffle_ = 0U;
-        }
-        ++lastShuffle_;
+        // Backup previous solution
+        xPrev_ = x;
 
         // Update every coefficients sequentially
-        for (uint32_t const & i : indices_)
+        for (uint32_t i = 0; i < x.size(); ++i)
         {
-            // Extract single coefficient
+            // Extract a single coefficient
             float64_t & e = x[i];
-            float64_t const ePrev = e;
 
-            // Update a single coefficient
-            e += (b[i] - A.col(i).dot(x)) / A(i, i);
-
-            // Project the coefficient between lower and upper bounds
+            // Update the coefficient if relevant
             std::vector<int32_t> const & fIdx = fIndices[i];
             std::size_t const fSize = fIdx.size();
+            if ((fSize == 0 && (hi[i] - lo[i] > EPS)) || (hi[i] > EPS))
+            {
+                e += (b[i] - A.col(i).dot(x)) / A(i, i);
+                if (fSize > 1)
+                {
+                    for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                    {
+                        e += A(i, *fIt) / A(i, i) * (x[*fIt] - xPrev_[*fIt]);
+                    }
+                }
+            }
+
+            // Project the coefficient between lower and upper bounds
             if (fSize == 0)
             {
                 e = clamp(e, lo[i], hi[i]);
             }
             else
             {
-                float64_t thr;
                 float64_t f = x[fIdx[0]];
-                if (fSize == 1)
+                float64_t const thr = hi[i] * f;
+                if (thr > EPS)
                 {
-                    thr = hi[i] * std::abs(f);
+                    if (fSize == 1)
+                    {
+                        // Specialization for speedup and numerical stability
+                        e = clamp(e, -thr, thr);
+                    }
+                    else
+                    {
+                        // Generic case
+                        float64_t squaredNorm = e * e;
+                        for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                        {
+                            f = x[*fIt];
+                            squaredNorm += f * f;
+                        }
+                        if (squaredNorm > thr * thr)
+                        {
+                            float64_t const scale = thr / std::sqrt(squaredNorm);
+                            e *= scale;
+                            for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
+                            {
+                                x[*fIt] *= scale;
+                            }
+                        }
+                    }
                 }
                 else
                 {
-                    thr = hi[i] * f * f;
+                    // Specialization for speedup
+                    e = 0.0;
                     for (auto fIt = fIdx.begin() + 1; fIt != fIdx.end(); ++fIt)
                     {
-                        f = x[*fIt];
-                        thr -= f * f;
+                        x[*fIt] = 0.0;
                     }
-                    thr = std::sqrt(std::max(0.0, thr));
                 }
-                e = clamp(e, -thr, thr);
             }
-
-            // Check if still possible to terminate after complete update
-            isSuccess = isSuccess && (std::abs(e - ePrev) < tolAbs_ || std::abs((e - ePrev) / e) < tolRel_);
         }
-
-        return isSuccess;
     }
 
     bool_t PGSSolver::ProjectedGaussSeidelSolver(matrixN_t & A,
@@ -100,55 +118,21 @@ namespace jiminy
            https://github.com/dartsim/dart/blob/master/dart/constraint/PgsBoxedLcpSolver.cpp */
         assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
 
-        /* Adapt shuffling indices if the number of indices has changed.
-           Note that it may converge faster to enforce constraints in reverse order,
-           since usually constraints bounds dependending on others have lower indices
-           by design, aka. the linear friction pyramid.
-           TODO: take into account the actual value of 'fIndices' to order the indices. */
-        size_t const nIndices = b.size();
-        size_t const nIndicesOrig = indices_.size();
-        if (nIndicesOrig < nIndices)
-        {
-            indices_.resize(nIndices);
-            std::generate(indices_.begin() + nIndicesOrig, indices_.end(),
-                          [n = static_cast<uint32_t>(nIndices - 1)]() mutable { return n--; });
-        }
-        else if (nIndicesOrig > nIndices)
-        {
-            size_t shiftIdx = nIndices;
-            for (size_t i = 0; i < nIndices; ++i)
-            {
-                if (static_cast<size_t>(indices_[i]) >= nIndices)
-                {
-                    for (size_t j = shiftIdx; j < nIndicesOrig; ++j)
-                    {
-                        ++shiftIdx;
-                        if (static_cast<size_t>(indices_[j]) < nIndices)
-                        {
-                            indices_[i] = indices_[j];
-                            break;
-                        }
-                    }
-                }
-            }
-            indices_.resize(nIndices);
-        }
-
-        // Normalizing
-        // for (Eigen::Index i = 0; i < b.size(); ++i)
-        // {
-        //     b[i] /= A(i, i);
-        //     A.col(i).array() /= A(i, i);
-        // }
+        // Initialize the residuals
+        y_.noalias() = A * x - b;
 
         // Perform multiple PGS loop until convergence or max iter reached
         for (uint32_t iter = 0; iter < maxIter_; ++iter)
         {
-            bool_t isSuccess = ProjectedGaussSeidelIter(A, b, lo, hi, fIndices, x);
-            if (isSuccess)
+            // Do a single iteration
+            ProjectedGaussSeidelIter(A, b, lo, hi, fIndices, x);
+
+            // Check if terminate conditions are satisfied
+            yPrev_ = y_;
+            y_.noalias() = A * x - b;
+            dy_ = y_ - yPrev_;
+            if ((dy_.array().abs() < tolAbs_ || (dy_.array() / y_.array()).abs() < tolRel_).all())
             {
-                // Do NOT shuffle indices unless necessary to avoid discontinuities
-                lastShuffle_ = 0U;
                 return true;
             }
         }
@@ -171,11 +155,15 @@ namespace jiminy
         vectorN_t & f = data.lambda_c;
 
         // Compute JMinvJt, including cholesky decomposition of inertia matrix
-        matrixN_t & A = pinocchio_overload::computeJMinvJt(model, data, J, true);
+        matrixN_t & A = pinocchio_overload::computeJMinvJt(model, data, J, false);
 
         // Compute the dynamic drift (control - nle)
         data.torque_residual = tau - data.nle;
         pinocchio::cholesky::solve(model, data, data.torque_residual);
+
+        // Compute b
+        b_.noalias() = - J * data.torque_residual;
+        b_ -= gamma;
 
         /* Add regularization term in case A is not inversible.
            Note that Mujoco defines an impedance function that depends on
@@ -186,10 +174,6 @@ namespace jiminy
             A.diagonal() * inv_damping,
             PGS_MIN_REGULARIZER,
             INF);
-
-        // Compute b
-        b_.noalias() = - J * data.torque_residual;
-        b_ -= gamma;
 
         // Compute resulting forces solving forward dynamics
         bool_t isSuccess = false;

@@ -8,14 +8,15 @@ setup(
     name="gym_jiminy_toolbox",
     version=version,
     description=(
-        "Reinforcement learning toolbox based on Pytorch for Gym Jiminy."),
+        "Generic Reinforcement learning toolbox based on Pytorch for Gym "
+        "Jiminy."),
     author="Alexis Duburcq",
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
     license="MIT",
     python_requires=">=3.6,<3.10",
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
+        "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Topic :: Software Development :: Libraries :: Python Modules",
@@ -28,7 +29,7 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        f"gym_jiminy=={version}"
+        f"gym_jiminy_toolbox=={version}"
     ],
     zip_safe=False
 )

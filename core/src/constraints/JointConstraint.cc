@@ -91,13 +91,60 @@ namespace jiminy
         return returnCode;
     }
 
-    template<typename JointModel, typename ConfigVectorIn1, typename ConfigVectorIn2>
-    auto difference(pinocchio::JointModelBase<JointModel> const & /* jmodel */,
-                    Eigen::MatrixBase<ConfigVectorIn1>    const & q0,
-                    Eigen::MatrixBase<ConfigVectorIn2>    const & q1)
+    template<typename ConfigVectorIn1, typename ConfigVectorIn2, typename TangentVectorType>
+    struct DifferenceStep :
+    public pinocchio::fusion::JointUnaryVisitorBase<
+        DifferenceStep<ConfigVectorIn1, ConfigVectorIn2, TangentVectorType> >
     {
-        typename pinocchio::LieGroupMap::template operation<JointModel>::type lgo;
-        return lgo.difference(q0, q1);
+        typedef boost::fusion::vector<ConfigVectorIn1 const &,
+                                      ConfigVectorIn2 const &,
+                                      TangentVectorType &,
+                                      size_t,
+                                      size_t> ArgsType;
+
+        template<typename JointModel>
+        static std::enable_if_t<!is_pinocchio_joint_composite_v<JointModel>, void>
+        algo(pinocchio::JointModelBase<JointModel> const & jmodel,
+             ConfigVectorIn1 const & q0,
+             ConfigVectorIn2 const & q1,
+             TangentVectorType & v,
+             size_t qIdx,
+             size_t vIdx)
+        {
+            typename pinocchio::LieGroupMap::template operation<JointModel>::type lgo;
+            lgo.difference(q0.segment(qIdx, jmodel.nq()),
+                           q1.segment(qIdx, jmodel.nq()),
+                           v.segment(vIdx, jmodel.nv()));
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_composite_v<JointModel>, void>
+        algo(pinocchio::JointModelBase<JointModel> const & jmodel,
+             ConfigVectorIn1 const & q0,
+             ConfigVectorIn2 const & q1,
+             TangentVectorType & v,
+             size_t qIdx,
+             size_t vIdx)
+        {
+            for (size_t i = 0; i < jmodel.derived().joints.size(); ++i)
+            {
+                pinocchio::JointModel const & joint = jmodel.derived().joints[i];
+                algo(joint.derived(), q0, q1, v, qIdx, vIdx);
+                qIdx += joint.nq();
+                vIdx += joint.nv();
+            }
+        }
+    };
+
+    template<typename ConfigVectorIn1, typename ConfigVectorIn2>
+    vectorN_t difference(pinocchio::JointModel              const & jmodel,
+                         Eigen::MatrixBase<ConfigVectorIn1> const & q0,
+                         Eigen::MatrixBase<ConfigVectorIn2> const & q1)
+    {
+        vectorN_t v(jmodel.nv());
+        typedef DifferenceStep<ConfigVectorIn1, ConfigVectorIn2, vectorN_t> Pass;
+        Pass::run(jmodel, typename Pass::ArgsType(q0.derived(), q1.derived(), v, 0, 0));
+        return v;
     }
 
     hresult_t JointConstraint::computeJacobianAndDrift(vectorN_t const & q,

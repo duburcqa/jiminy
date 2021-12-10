@@ -142,9 +142,9 @@ jobs:
         $JIMINY_LIB_DIR = (python -c "import os, jiminy_py ; print(os.path.dirname(jiminy_py.get_libraries()))")
         $env:Path += ";$JIMINY_LIB_DIR"
 
-        cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-              -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
-              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+        cmake "$RootDir/examples/cpp/pip_extension" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+              -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
+              -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}"
         cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"
 
         & "$InstallDir/bin/pip_double_pendulum.exe"

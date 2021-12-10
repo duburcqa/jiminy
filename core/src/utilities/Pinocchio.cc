@@ -640,9 +640,14 @@ namespace jiminy
             int32_t incrementalNv = 0;
             for (std::size_t i = 1; i < modelInOut.joints.size(); ++i)
             {
-                modelInOut.joints[i].setIndexes(i, incrementalNq, incrementalNv);
-                incrementalNq += modelInOut.joints[i].nq();
-                incrementalNv += modelInOut.joints[i].nv();
+                pinocchio::JointModel & jmodel = modelInOut.joints[i];
+                jmodel.setIndexes(i, incrementalNq, incrementalNv);
+                incrementalNq += jmodel.nq();
+                incrementalNv += jmodel.nv();
+                modelInOut.nqs[i] = jmodel.nq();
+                modelInOut.idx_qs[i] = jmodel.idx_q();
+                modelInOut.nvs[i] = jmodel.nv();
+                modelInOut.idx_vs[i] = jmodel.idx_v();
             }
         }
     }
@@ -782,9 +787,9 @@ namespace jiminy
 
         // Create flexible joint
         jointIndex_t const newJointIdx = modelInOut.addJoint(parentJointIdx,
-                                                           JointModelSpherical(),
-                                                           frame.placement,
-                                                           newJointNameIn);
+                                                             JointModelSpherical(),
+                                                             frame.placement,
+                                                             newJointNameIn);
         modelInOut.appendBodyToJoint(newJointIdx, childBodyInertiaIn, SE3::Identity());
 
         // Add new joint to frame list

@@ -659,7 +659,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     group_path = f"render/scene_root/{group_name}/"
                     # Only nodes part of user groups can be selected
                     if node_path.startswith(group_path):
-                        name = node_path[len(group_path):].split("/", 1)[0]
+                        name = node_path[len(group_path):]
                         if (group_name, name) != picked_object_prev:
                             self.picked_object = (group_name, name)
                         object_found = True
@@ -816,9 +816,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                           renders a flat tile ground if not specified.
                           Optional: None by default.
         """
+        # Check if floor is currently hidden
+        is_hidden = self._floor.isHidden()
+
         # Remove existing floor and create a new one
         self._floor.remove_node()
         self._floor = self._make_floor(heightmap, show_meshes)
+
+        # Hide the floor if is was previously hidden
+        if is_hidden:
+            self._floor.hide()
 
         # Adjust frustum of the lights to project shadow over the whole scene
         for light_path in self._lights[1:]:
@@ -870,6 +877,23 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 if render_mode == RenderModeAttrib.M_off:
                     return
                 node.clear_render_mode()
+
+    def append_frame(self,
+                     root_path: str,
+                     name: str,
+                     frame: Optional[FrameType] = None) -> None:
+        """Append a cartesian frame primitive node to the group.
+        """
+        model = GeomNode('axes')
+        model.add_geom(geometry.make_axes())
+        node = NodePath(model)
+        node.set_light_off()
+        node.set_render_mode_wireframe()
+        node.set_render_mode_thickness(4)
+        node.set_antialias(AntialiasAttrib.MLine)
+        node.hide(self.LightMask)
+        node.set_shader_off()
+        self.append_node(root_path, name, node, frame)
 
     def append_cone(self,
                     root_path: str,
@@ -1408,6 +1432,9 @@ class Panda3dViewer(panda3d_viewer.viewer.Viewer):
 
     def set_material(self, *args: Any, **kwargs: Any) -> None:
         self._app.set_material(*args, **kwargs)
+
+    def append_frame(self, *args: Any, **kwargs: Any) -> None:
+        self._app.append_frame(*args, **kwargs)
 
     def append_cylinder(self, *args: Any, **kwargs: Any) -> None:
         self._app.append_cylinder(*args, **kwargs)

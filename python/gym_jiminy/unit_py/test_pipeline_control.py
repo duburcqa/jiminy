@@ -17,7 +17,7 @@ from jiminy_py.viewer import Viewer
 from gym_jiminy.envs import AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv
 
 
-IMAGE_DIFF_THRESHOLD = 0.3
+IMAGE_DIFF_THRESHOLD = 1.0
 
 
 class PipelineControl(unittest.TestCase):
@@ -41,8 +41,8 @@ class PipelineControl(unittest.TestCase):
         action_init['Q'], action_init['V'] = encoder_data[
             :, self.env.controller.motor_to_encoder]
 
-        # Run the simulation during 12s
-        while self.env.stepper_state.t < 12.0:
+        # Run the simulation
+        while self.env.stepper_state.t < 16.0:
             self.env.step(action_init)
 
         # Get the final posture of the robot as an RGB array

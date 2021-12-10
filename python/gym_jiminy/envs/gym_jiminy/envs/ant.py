@@ -102,7 +102,7 @@ class AntEnv(BaseJiminyEnv):
 
         return qpos, qvel
 
-    def _refresh_observation_space(self) -> None:
+    def _initialize_observation_space(self) -> None:
         """ TODO: Write documentation.
 
         The observation space comprises:

@@ -126,7 +126,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         engine_options["stepper"]["dtMax"] = CONTROL_DT
         self.simulator.engine.set_options(engine_options)
 
-    def _refresh_observation_space(self) -> None:
+    def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.
 
         Only the state is observable, while by default, the current time,
@@ -149,7 +149,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         self.__state_view[0][:] = self.__state[0]
         self.__state_view[1][:] = self.__state[1]
 
-    def _refresh_action_space(self) -> None:
+    def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.
 
         Replace the action space by its discrete representation depending on
@@ -158,7 +158,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         if not self.continuous:
             self.action_space = gym.spaces.Discrete(len(self.AVAIL_CTRL))
         else:
-            super()._refresh_action_space()
+            super()._initialize_action_space()
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a valid configuration and velocity for the robot.

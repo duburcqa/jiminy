@@ -62,7 +62,7 @@ namespace jiminy
     engineOptionsHolder_(),
     timer_(std::make_unique<Timer>()),
     contactModel_(contactModel_t::NONE),
-    contactSolver_(nullptr),
+    constraintSolver_(nullptr),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
@@ -882,19 +882,18 @@ namespace jiminy
         }
 
         // Instantiate desired LCP solver
-        std::string const & contactSolver = engineOptions_->contacts.solver;
-        if (CONTACT_SOLVERS_MAP.at(contactSolver) == contactSolver_t::PGS)
+        std::string const & constraintSolver = engineOptions_->constraints.solver;
+        if (CONSTRAINT_SOLVERS_MAP.at(constraintSolver) == constraintSolver_t::PGS)
         {
-            contactSolver_ = std::make_unique<PGSSolver>(
+            constraintSolver_ = std::make_unique<PGSSolver>(
                 PGS_MAX_ITERATIONS,
-                PGS_RANDOM_PERMUTATION_PERIOD,
-                engineOptions_->contacts.tolAbs,
-                engineOptions_->contacts.tolRel);
+                engineOptions_->constraints.tolAbs,
+                engineOptions_->constraints.tolRel);
         }
     }
 
     void computeExtraTerms(systemHolder_t           & system,
-                           systemDataHolder_t const & systemData)
+                           systemDataHolder_t const & /* systemData */)
     {
         /// This method is optimized to avoid redundant computations.
         /// See `pinocchio::computeAllTerms` for reference:
@@ -932,9 +931,9 @@ namespace jiminy
         }
 
         /* Neither 'aba' nor 'forwardDynamics' are computing simultaneously the actual
-           joint accelerations and forces, so it must be done separately:
-           - 1st step: computing the forces based on rnea algorithm
-           - 2nd step: computing the accelerations based on ForwardKinematic algorithm */
+           joint accelerations, joint forces and body forces, so it must be done separately:
+           - 1st step: computing the accelerations based on ForwardKinematic algorithm
+           - 2nd step: computing the forces based on rnea algorithm */
         pinocchio_overload::forwardKinematicsAcceleration(model, data, data.ddq);
 
         // Compute the spatial momenta and the sum of external forces acting on each body
@@ -943,7 +942,7 @@ namespace jiminy
         for (int32_t i = 1; i < model.njoints; ++i)
         {
             data.h[i] = model.inertias[i] * data.v[i];
-            data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]) - systemData.state.fExternal[i];
+            data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
         }
 
         for (int32_t i = model.njoints - 1; i > 0; --i)
@@ -1307,7 +1306,7 @@ namespace jiminy
             for (constraintsHolderType_t holderType : holderTypes)
             {
                 systemDataIt->constraintsHolder.foreach(holderType,
-                    [freq = engineOptions_->contacts.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
+                    [freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
                         std::shared_ptr<AbstractConstraintBase> const & constraint,
                         constraintsHolderType_t const & /* holderType */)
                     {
@@ -1396,7 +1395,7 @@ namespace jiminy
                 forceVector_t & fext = systemDataIt->state.fExternal;
 
                 // Initialize the sensor data
-                systemIt->robot->setSensorsData(t, q, v, a, uMotor);
+                systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
 
                 // Compute the actual motor effort
                 command.setZero();
@@ -1427,7 +1426,7 @@ namespace jiminy
                 syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
 
                 // Update the sensor data once again, with the updated effort and acceleration
-                systemIt->robot->setSensorsData(t, q, v, a, uMotor);
+                systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
             }
 
             // Synchronize the global stepper state with the individual system states
@@ -1899,6 +1898,8 @@ namespace jiminy
                 {
                     dtNextGlobal = tEnd - t;
                 }
+
+                // Update next dt
                 tNext += dtNextGlobal;
 
                 // Compute the next step using adaptive step method
@@ -1920,18 +1921,29 @@ namespace jiminy
                         hasDynamicsChanged = false;
                     }
 
-                    /* Adjust stepsize to end up exactly at the next breakpoint,
-                       prevent steps larger than dtMax, trying to reach multiples of
-                       STEPPER_MIN_TIMESTEP whenever possible. The idea here is to
-                       reach only multiples of 1us, making logging easier, given that,
-                       in robotics, 1us can be consider an 'infinitesimal' time. This
-                       arbitrary threshold many not be suited for simulating different,
-                       faster dynamics, that require sub-microsecond precision. */
+                    // Adjust stepsize to end up exactly at the next breakpoint
                     dt = min(dt, tNext - t);
-                    if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
+                    if (dtLargest > SIMULATION_MIN_TIMESTEP)
                     {
-                        dt = tNext - t;
+                        if (tNext - (t + dt) < SIMULATION_MIN_TIMESTEP)
+                        {
+                            dt = tNext - t;
+                        }
                     }
+                    else
+                    {
+                        if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
+                        {
+                            dt = tNext - t;
+                        }
+                    }
+
+                    /* Trying to reach multiples of STEPPER_MIN_TIMESTEP whenever
+                       possible. The idea here is to reach only multiples of 1us,
+                       making logging easier, given that, 1us can be consider an
+                       'infinitesimal' time in robotics. This arbitrary threshold
+                       many not be suited for simulating different, faster
+                       dynamics, that require sub-microsecond precision. */
                     if (dt > SIMULATION_MIN_TIMESTEP)
                     {
                         float64_t const dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
@@ -2129,7 +2141,8 @@ namespace jiminy
                     vectorN_t const & v = systemDataIt->state.v;
                     vectorN_t const & a = systemDataIt->state.a;
                     vectorN_t const & uMotor = systemDataIt->state.uMotor;
-                    systemIt->robot->setSensorsData(t, q, v, a, uMotor);
+                    forceVector_t const & fext = systemDataIt->state.fExternal;
+                    systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
                 }
             }
 
@@ -2563,33 +2576,36 @@ namespace jiminy
         }
 
         // Make sure the contacts options are fine
+        configHolder_t constraintsOptions = boost::get<configHolder_t>(engineOptions.at("constraints"));
+        std::string const & constraintSolver = boost::get<std::string>(constraintsOptions.at("solver"));
+        auto const constraintSolverIt = CONSTRAINT_SOLVERS_MAP.find(constraintSolver);
+        if (constraintSolverIt == CONSTRAINT_SOLVERS_MAP.end())
+        {
+            PRINT_ERROR("The requested constraint solver is not available.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        float64_t const & stabilizationFreq =
+            boost::get<float64_t>(constraintsOptions.at("stabilizationFreq"));
+        if (stabilizationFreq < 0.0)
+        {
+            PRINT_ERROR("The constraints option 'stabilizationFreq' must be positive.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        float64_t const & regularization =
+            boost::get<float64_t>(constraintsOptions.at("regularization"));
+        if (regularization < 0.0)
+        {
+            PRINT_ERROR("The constraints option 'regularization' must be positive.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Make sure the contacts options are fine
         configHolder_t contactsOptions = boost::get<configHolder_t>(engineOptions.at("contacts"));
         std::string const & contactModel = boost::get<std::string>(contactsOptions.at("model"));
         auto const contactModelIt = CONTACT_MODELS_MAP.find(contactModel);
         if (contactModelIt == CONTACT_MODELS_MAP.end())
         {
             PRINT_ERROR("The requested contact model is not available.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-        std::string const & contactSolver = boost::get<std::string>(contactsOptions.at("solver"));
-        auto const contactSolverIt = CONTACT_SOLVERS_MAP.find(contactSolver);
-        if (contactSolverIt == CONTACT_SOLVERS_MAP.end())
-        {
-            PRINT_ERROR("The requested contact solver is not available.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-        float64_t const & stabilizationFreq =
-            boost::get<float64_t>(contactsOptions.at("stabilizationFreq"));
-        if (stabilizationFreq < 0.0)
-        {
-            PRINT_ERROR("The contacts option 'stabilizationFreq' must be positive.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-        float64_t const & regularization =
-            boost::get<float64_t>(contactsOptions.at("regularization"));
-        if (regularization < 0.0)
-        {
-            PRINT_ERROR("The contacts option 'regularization' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         float64_t const & contactsTransitionEps =
@@ -2942,9 +2958,7 @@ namespace jiminy
                         system.robot->pncData_.oMf[frameIdx].rotation(),
                         system.robot->pncData_.oMf[frameIdx].translation() - depth * nGround
                     });
-                    frameConstraint.setLocalFrame(
-                        quaternion_t::FromTwoVectors(vector3_t::UnitZ(), nGround).toRotationMatrix()
-                    );
+                    frameConstraint.setNormal(nGround);
 
                     // Only one contact constraint per collision body is supported for now
                     break;
@@ -3031,9 +3045,7 @@ namespace jiminy
                 system.robot->pncData_.oMf[frameIdx].rotation(),
                 (vector3_t() << posFrame.head<2>(), zGround).finished()
             });
-            frameConstraint.setLocalFrame(
-                quaternion_t::FromTwoVectors(vector3_t::UnitZ(), nGround).toRotationMatrix()
-            );
+            frameConstraint.setNormal(nGround);
         }
     }
 
@@ -3619,6 +3631,7 @@ namespace jiminy
             forceVector_t & fext = systemDataIt->state.fExternal;
             vectorN_t const & aPrev = systemDataIt->statePrev.a;
             vectorN_t const & uMotorPrev = systemDataIt->statePrev.uMotor;
+            forceVector_t const & fextPrev = systemDataIt->statePrev.fExternal;
 
             /* Update the sensor data if necessary (only for infinite update frequency).
                Note that it is impossible to have access to the current accelerations
@@ -3630,7 +3643,7 @@ namespace jiminy
                 aPrevIt->swap(systemIt->robot->pncData_.a);
 
                 // Update sensors based on previous accelerations and forces
-                systemIt->robot->setSensorsData(t, *qIt, *vIt, aPrev, uMotorPrev);
+                systemIt->robot->setSensorsData(t, *qIt, *vIt, aPrev, uMotorPrev, fextPrev);
 
                 // Restore current forces and accelerations
                 fPrevIt->swap(systemIt->robot->pncData_.f);
@@ -3686,7 +3699,6 @@ namespace jiminy
         {
             // Define some proxies for convenience
             matrixN_t & jointJacobian = systemData.jointJacobian;
-            vectorN_t & uAugmented = systemData.uAugmented;
             vectorN_t & lo = systemData.lo;
             vectorN_t & hi = systemData.hi;
             std::vector<std::vector<int32_t> > & fIndices = systemData.fIndices;
@@ -3741,25 +3753,24 @@ namespace jiminy
                             return;
                         }
 
-                        // Enforce tangential friction pyramid and torsional friction
-                        hi[constraintIdx] = contactOptions.friction;      // Friction along x-axis
-                        fIndices[constraintIdx] = {static_cast<int32_t>(constraintIdx + 2),
-                                                   static_cast<int32_t>(constraintIdx + 1)};
-                        hi[constraintIdx + 1] = contactOptions.friction;  // Friction along y-axis
-                        fIndices[constraintIdx + 1] = {static_cast<int32_t>(constraintIdx + 2),
-                                                       static_cast<int32_t>(constraintIdx)};
-                        hi[constraintIdx + 3] = contactOptions.torsion;   // Friction around z-axis
-                        fIndices[constraintIdx + 3] = {static_cast<int32_t>(constraintIdx + 2)};
+                        // Torsional friction around normal axis
+                        hi[constraintIdx + 3] = contactOptions.torsion;
+                        fIndices[constraintIdx + 3] = {static_cast<int32_t>(constraintIdx)};
 
-                        // Vertical force cannot be negative
-                        lo[constraintIdx + 2] = 0.0;
+                        // Friction cone in tangential plane
+                        hi[constraintIdx + 2] = contactOptions.friction;
+                        fIndices[constraintIdx + 2] = {static_cast<int32_t>(constraintIdx),
+                                                       static_cast<int32_t>(constraintIdx + 1)};
+
+                        // Non-penetration normal force
+                        lo[constraintIdx] = 0.0;
 
                         constraintIdx += constraint->getDim();
                     });
             }
 
             // Project external forces from cartesian space to joint space
-            uAugmented = u;
+            data.u = u;
             for (int32_t i = 1; i < model.njoints; ++i)
             {
                 jointJacobian.setZero();
@@ -3768,25 +3779,22 @@ namespace jiminy
                                             i,
                                             pinocchio::LOCAL,
                                             jointJacobian);
-                uAugmented.noalias() += jointJacobian.transpose() * fext[i].toVector();
+                data.u.noalias() += jointJacobian.transpose() * fext[i].toVector();
             }
 
             // Compute non-linear effects
             pinocchio::nonLinearEffects(model, data, q, v);
 
-            // Compute inertia matrix, adding rotor inertia
-            pinocchio_overload::crba(model, data, q);
-
             // Call forward dynamics
-            contactSolver_->BoxedForwardDynamics(model,
-                                                 data,
-                                                 uAugmented,
-                                                 constraintsJacobian,
-                                                 constraintsDrift,
-                                                 engineOptions_->contacts.regularization,
-                                                 lo,
-                                                 hi,
-                                                 fIndices);
+            constraintSolver_->BoxedForwardDynamics(model,
+                                                    data,
+                                                    data.u,
+                                                    constraintsJacobian,
+                                                    constraintsDrift,
+                                                    engineOptions_->constraints.regularization,
+                                                    lo,
+                                                    hi,
+                                                    fIndices);
 
             // Update lagrangian multipliers associated with the constraint
             constraintIdx = 0U;
@@ -3841,7 +3849,7 @@ namespace jiminy
 
                 // Extract force in local reference-frame-aligned from lagrangian multipliers
                 pinocchio::Force fextInLocal(
-                    frameConstraint.lambda_.head<3>(),
+                    frameConstraint.lambda_.head<3>().reverse(),
                     frameConstraint.lambda_[3] * vector3_t::UnitZ());
 
                 // Compute force in local world aligned frame
@@ -3876,7 +3884,7 @@ namespace jiminy
 
                     // Extract force in world frame from lagrangian multipliers
                     pinocchio::Force fextInLocal(
-                        frameConstraint.lambda_.head<3>(),
+                        frameConstraint.lambda_.head<3>().reverse(),
                         frameConstraint.lambda_[3] * vector3_t::UnitZ());
 
                     // Compute force in world frame

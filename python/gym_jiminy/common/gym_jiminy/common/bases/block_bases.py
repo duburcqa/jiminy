@@ -55,8 +55,8 @@ class BlockInterface:
         super().__init__(**kwargs)  # type: ignore[call-arg]
 
         # Refresh the observation and action spaces
-        self._refresh_observation_space()
-        self._refresh_action_space()
+        self._initialize_observation_space()
+        self._initialize_action_space()
 
         # Assertion(s) for type checker
         assert (self.observation_space is not None and
@@ -95,7 +95,7 @@ class BlockInterface:
             state of the block.
         """
 
-    def _refresh_observation_space(self) -> None:
+    def _initialize_observation_space(self) -> None:
         """Configure the observation of the block.
 
         .. note::
@@ -105,7 +105,7 @@ class BlockInterface:
         """
         raise NotImplementedError
 
-    def _refresh_action_space(self) -> None:
+    def _initialize_action_space(self) -> None:
         """Configure the action of the block.
 
         .. note::
@@ -150,7 +150,7 @@ class BaseObserverBlock(ObserverInterface, BlockInterface):
         # Initialize the block and observe interface
         super().__init__(*args, **kwargs)
 
-    def _refresh_action_space(self) -> None:
+    def _initialize_action_space(self) -> None:
         """Configure the action space of the observer.
 
         It does nothing but to return the action space of the environment
@@ -232,7 +232,7 @@ class BaseControllerBlock(ControllerInterface, BlockInterface):
         # Initialize the block and control interface
         super().__init__(*args, **kwargs)
 
-    def _refresh_observation_space(self) -> None:
+    def _initialize_observation_space(self) -> None:
         """Configure the observation space of the controller.
 
         It does nothing but to return the observation space of the environment
@@ -293,7 +293,7 @@ BaseControllerBlock._setup.__doc__ = \
         monitor the internal state of the controller.
     """
 
-BaseControllerBlock._refresh_action_space.__doc__ = \
+BaseControllerBlock._initialize_action_space.__doc__ = \
     """Configure the action space of the controller.
 
     .. note::
