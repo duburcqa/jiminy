@@ -3712,8 +3712,8 @@ namespace jiminy
             data.lambda_c = system.robot->getConstraintsLambda();
 
             // Compute constraints bounds
-            lo = vectorN_t::Constant(constraintsDrift.size(), -INF);
-            hi = vectorN_t::Constant(constraintsDrift.size(), +INF);
+            lo.setConstant(constraintsDrift.size(), -INF);
+            hi.setConstant(constraintsDrift.size(), +INF);
             fIndices = std::vector<std::vector<int32_t> >(constraintsDrift.size());
 
             uint64_t constraintIdx = 0U;

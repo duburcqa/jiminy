@@ -127,13 +127,13 @@ namespace jiminy
         }
 
         q = pinocchio::neutral(robot.pncModel_);
-        v = vectorN_t::Zero(robot.nv());
-        a = vectorN_t::Zero(robot.nv());
-        command = vectorN_t::Zero(robot.getMotorsNames().size());
-        u = vectorN_t::Zero(robot.nv());
-        uMotor = vectorN_t::Zero(robot.getMotorsNames().size());
-        uInternal = vectorN_t::Zero(robot.nv());
-        uCustom = vectorN_t::Zero(robot.nv());
+        v.setZero(robot.nv());
+        a.setZero(robot.nv());
+        command.setZero(robot.getMotorsNames().size());
+        u.setZero(robot.nv());
+        uMotor.setZero(robot.getMotorsNames().size());
+        uInternal.setZero(robot.nv());
+        uCustom.setZero(robot.nv());
         fExternal = forceVector_t(robot.pncModel_.joints.size(),
                                   pinocchio::Force::Zero());
         isInitialized_ = true;
@@ -148,14 +148,14 @@ namespace jiminy
 
     void systemState_t::clear(void)
     {
-        q = vectorN_t();
-        v = vectorN_t();
-        a = vectorN_t();
-        command = vectorN_t();
-        u = vectorN_t();
-        uMotor = vectorN_t();
-        uInternal = vectorN_t();
-        uCustom = vectorN_t();
+        q.resize(0);
+        v.resize(0);
+        a.resize(0);
+        command.resize(0);
+        u.resize(0);
+        uMotor.resize(0);
+        uInternal.resize(0);
+        uCustom.resize(0);
         fExternal.clear();
     }
 
