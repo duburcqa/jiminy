@@ -297,7 +297,7 @@ namespace jiminy
     ///////////////////////////////////////////////////////////////////////////////////////////////
     template<typename DerivedType1, typename DerivedType2>
     void toeplitzCholeskyLower(Eigen::MatrixBase<DerivedType1> const & a,
-                            Eigen::MatrixBase<DerivedType2> & l)
+                               Eigen::MatrixBase<DerivedType2> & l)
     {
         /* Initialize lower Cholesky factor.
         Resizing is enough, no need to initialize it. */
@@ -305,8 +305,8 @@ namespace jiminy
         l.resize(n, n);
 
         /* Compute compressed representation of the matrix, which
-        coincide with the Schur genetor for Toepliz matrices. */
-        matrixN_t g = matrixN_t(2, n);
+           coincide with the Schur genetor for Toepliz matrices. */
+        matrixN_t g(2, n);
         g.row(0) = a.row(0);
         g.row(1).tail(n - 1) = a.col(0).tail(n - 1);
         g(1, 0) = 0.0;
@@ -350,7 +350,7 @@ namespace jiminy
         }
 
         // Sample normal vector
-        vectorN_t const normalVec = vectorN_t(numTimes_).unaryExpr(
+        vectorN_t const normalVec = vectorN_t::NullaryExpr(numTimes_,
             [](float64_t const &) { return randNormal(); });
 
         // Compute discrete periodic gaussian process values
@@ -419,14 +419,13 @@ namespace jiminy
         Square-Root-Free Cholesky or Schur decompositions are equivalent, but Cholesky is
         by far the most efficient one:
         - https://math.stackexchange.com/q/22825/375496
-        Moreover, note that the covariance is positive semi-definite toepliz
-        matrix, so computational complexity of the decomposition could be reduced
-        even further using adapted Cholesky algorithm since speed is very critical. */
+        Moreover, note that the covariance is positive semi-definite toepliz matrix,
+        so computational complexity of the decomposition could be reduced even further using
+        adapted Cholesky algorithm since speed is very critical. */
         //auto covLDLT = cov.ldlt();
         //covSqrtRoot_ = covLDLT.matrixL();
         //covSqrtRoot_ *= covLDLT.vectorD().array().cwiseMax(0.0).sqrt().matrix().asDiagonal();
-        toeplitzCholeskyLower(cov  + 1.0e-9 * matrixN_t::Identity(numTimes_, numTimes_),
-                                covSqrtRoot_);
+        toeplitzCholeskyLower(cov + 1.0e-9 * matrixN_t::Identity(numTimes_, numTimes_), covSqrtRoot_);
 
         // At this point, it is fully initialized
         isInitialized_ = true;
@@ -456,9 +455,9 @@ namespace jiminy
         }
 
         // Sample normal vectors
-        vectorN_t normalVec1 = vectorN_t(numHarmonics_).unaryExpr(
+        vectorN_t normalVec1 = vectorN_t::NullaryExpr(numHarmonics_,
             [](float64_t const &) { return randNormal(); });
-        vectorN_t normalVec2 = vectorN_t(numHarmonics_).unaryExpr(
+        vectorN_t normalVec2 = vectorN_t::NullaryExpr(numHarmonics_,
             [](float64_t const &) { return randNormal(); });
 
         // Compute discrete periodic gaussian process values
@@ -876,7 +875,7 @@ namespace jiminy
             [&size, &seed] (vectorN_t::Index const & i) -> float64_t
             {
                 Eigen::Matrix<vectorN_t::Index, 1, 1> key;
-                key << i;
+                key[0] = i;
                 return randomDouble(key, 1, size[i], seed);
             });
 

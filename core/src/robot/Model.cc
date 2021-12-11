@@ -1370,8 +1370,8 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the joint position limits from the URDF or the user options
-            positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF);  // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
-            positionLimitMax_ = vectorN_t::Constant(pncModel_.nq, +INF);
+            positionLimitMin_.setConstant(pncModel_.nq, -INF);  // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
+            positionLimitMax_.setConstant(pncModel_.nq, +INF);
 
             if (mdlOptions_->joints.enablePositionLimit)
             {
@@ -1422,7 +1422,7 @@ namespace jiminy
             }
 
             // Get the joint velocity limits from the URDF or the user options
-            velocityLimit_ = vectorN_t::Constant(pncModel_.nv, +INF);
+            velocityLimit_.setConstant(pncModel_.nv, +INF);
             if (mdlOptions_->joints.enableVelocityLimit)
             {
                 if (mdlOptions_->joints.velocityLimitFromUrdf)
