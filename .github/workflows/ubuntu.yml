@@ -54,7 +54,6 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
         "${PYTHON_EXECUTABLE}" -m pip install "torch==1.8.0+cpu" -f https://download.pytorch.org/whl/torch_stable.html
         "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
-        "${PYTHON_EXECUTABLE}" -m pip install "ray[default,rllib]<=1.4.0"  # Type checking is not working with 1.4.1
 
     #####################################################################################
 

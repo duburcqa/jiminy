@@ -45,7 +45,7 @@ def build_task_scheduling_callback(history_length: int,
                 base_env=base_env, episode=episode, **kwargs)
 
             # Monitor episode duration for each gait
-            for env in base_env.get_unwrapped():
+            for env in base_env.get_sub_environments():
                 # Gather the set of tasks.
                 # It corresponds to all the leaves of the task decision tree.
                 tasks: List[List[Any]] = [[]]

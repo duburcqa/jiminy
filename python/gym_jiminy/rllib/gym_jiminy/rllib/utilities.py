@@ -25,14 +25,20 @@ import ray
 import ray.cloudpickle as pickle
 from ray import ray_constants
 from ray._private import services
+from ray._private.gcs_utils import AvailableResources
+from ray._private.test_utils import monitor_memory_usage
 from ray._raylet import GlobalStateAccessor
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
 from ray.rllib.policy import Policy
+from ray.rllib.policy.torch_policy import TorchPolicy
+from ray.rllib.policy.tf_policy import TFPolicy
 from ray.rllib.utils.filter import NoFilter
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.models.preprocessors import get_preprocessor
+from ray.rllib.env.env_context import EnvContext
+from ray.rllib.evaluation.worker_set import WorkerSet
 
 from jiminy_py.viewer import play_logs_files
 from gym_jiminy.common.utils import clip, DataNested
@@ -129,7 +135,7 @@ def initialize(num_cpus: int,
             resources: Dict[str, int] = defaultdict(int)
             for info in global_state_accessor.get_all_available_resources():
                 # pylint: disable=no-member
-                message = ray.gcs_utils.AvailableResources.FromString(info)
+                message = AvailableResources.FromString(info)
                 for field, capacity in message.resources_available.items():
                     resources[field] += capacity
 
@@ -154,14 +160,12 @@ def initialize(num_cpus: int,
                 num_cpus=num_cpus,
                 # Number of GPUs assigned to each raylet
                 num_gpus=num_gpus,
-                # Whether or not to execute the code serially (for debugging)
-                local_mode=debug,
                 # Logging level
                 logging_level=logging.DEBUG if debug else logging.ERROR,
                 # Whether to redirect outputs from every worker to the driver
                 log_to_driver=debug, **{**dict(
                     # Whether to start Ray dashboard to monitor cluster status
-                    include_dashboard=debug,
+                    include_dashboard=False,
                     # The host to bind the dashboard server to
                     dashboard_host="0.0.0.0"
                 ), **ray_init_kwargs})
@@ -180,6 +184,10 @@ def initialize(num_cpus: int,
         if verbose:
             print(f"Started Tensorboard {url}.",
                   f"Root directory: {log_root_path}")
+
+    # Monitor memory usage in debug
+    if debug:
+        monitor_memory_usage(print_interval_s=60)
 
     # Define log filename interactively if requested
     if log_name == "":
@@ -228,6 +236,7 @@ def compute_action(policy: Policy,
                     action.
     """
     if policy.framework == 'torch':
+        assert isinstance(policy, TorchPolicy)
         input_dict = policy._lazy_tensor_dict(input_dict)
         with torch.no_grad():
             policy.model.eval()
@@ -249,6 +258,7 @@ def compute_action(policy: Policy,
                 action_torch = action_dist.deterministic_sample()
             action = action_torch.cpu().numpy()
     elif tf.compat.v1.executing_eagerly():
+        assert isinstance(policy, TFPolicy)
         action_logits, state = policy.model(input_dict)
         action_dist = policy.dist_class(action_logits, policy.model)
         if explore:
@@ -261,6 +271,7 @@ def compute_action(policy: Policy,
         # placeholders to avoid creating new nodes to evalute computation
         # graph. It is several order of magnitude more efficient than calling
         # `action_logits, _ = model(input_dict).eval(session=policy._sess)`.
+        assert isinstance(policy, TFPolicy)
         feed_dict = {policy._input_dict[key]: value
                      for key, value in input_dict.items()
                      if key in policy._input_dict.keys()}
@@ -439,6 +450,7 @@ def train(train_agent: Trainer,
               the trained neural network model.
     """
     # Get environment's reward threshold, if any
+    assert isinstance(train_agent.workers, WorkerSet)
     env_spec, *_ = [val for worker in train_agent.workers.foreach_worker(
         lambda worker: worker.foreach_env(lambda env: env.spec))
         for val in worker]
@@ -628,13 +640,14 @@ def test(test_agent: Trainer,
     """
     # Instantiate the environment if not provided
     if test_env is None:
-        test_env = test_agent.env_creator(
-            {**test_agent.config["env_config"], **kwargs})
+        test_env = test_agent.env_creator(EnvContext(
+            **test_agent.config["env_config"], **kwargs))
 
     # Get policy model
     policy = test_agent.get_policy()
 
     # Get observation filter if any
+    assert isinstance(test_agent.workers, WorkerSet)
     obs_filter = test_agent.workers.local_worker().filters["default_policy"]
     if isinstance(obs_filter, NoFilter):
         obs_filter_fn = None
