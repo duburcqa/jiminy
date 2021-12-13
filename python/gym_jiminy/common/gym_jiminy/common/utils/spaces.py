@@ -2,9 +2,10 @@
 """
 from typing import Optional, Union, Dict, Sequence, TypeVar
 
-import numpy as np
-import tree
 import gym
+import tree
+import numpy as np
+from numpy.random.mtrand import _rand as global_randstate
 
 
 ValueType = TypeVar('ValueType')
@@ -93,7 +94,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     # Sample from normalized distribution.
     # Note that some distributions are not normalized by default
     if rg is None:
-        rg = np.random
+        rg = global_randstate
     distrib_fn = getattr(rg, dist)
     if dist == 'uniform':
         value = distrib_fn(low=-1.0, high=1.0, size=shape)
@@ -123,7 +124,7 @@ def is_bounded(space_nested: gym.Space) -> bool:
 
 
 def zeros(space_nested: gym.Space,
-          dtype: Optional[type] = None) -> Union[DataNested, int]:
+          dtype: Optional[type] = None) -> DataNested:
     """Allocate data structure from `gym.space.Space` and initialize it to zero.
 
     :param space: Gym.Space on which to operate.

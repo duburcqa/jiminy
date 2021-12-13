@@ -34,7 +34,7 @@ from ray.tune.utils.util import SafeFallbackEncoder
 from ray.rllib.policy import Policy
 from ray.rllib.policy.torch_policy import TorchPolicy
 from ray.rllib.policy.tf_policy import TFPolicy
-from ray.rllib.utils.filter import NoFilter
+from ray.rllib.utils.filter import NoFilter, MeanStdFilter
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.models.preprocessors import get_preprocessor
 from ray.rllib.env.env_context import EnvContext
@@ -275,7 +275,7 @@ def compute_action(policy: Policy,
         feed_dict = {policy._input_dict[key]: value
                      for key, value in input_dict.items()
                      if key in policy._input_dict.keys()}
-        feed_dict[policy._is_exploring] = explore
+        feed_dict[policy._is_exploring] = np.array(True)
         action, *state = policy._sess.run(
             [policy._sampled_action] + policy._state_outputs,
             feed_dict=feed_dict)
@@ -651,10 +651,12 @@ def test(test_agent: Trainer,
     obs_filter = test_agent.workers.local_worker().filters["default_policy"]
     if isinstance(obs_filter, NoFilter):
         obs_filter_fn = None
-    else:
+    elif isinstance(obs_filter, MeanStdFilter):
         obs_mean, obs_std = obs_filter.rs.mean, obs_filter.rs.std
         obs_filter_fn = \
             lambda obs: (obs - obs_mean) / (obs_std + 1.0e-8)  # noqa: E731
+    else:
+        raise RuntimeError(f"Filter '{obs_filter.__class__}' not supported.")
 
     # Forward viewer keyword arguments
     if viewer_kwargs is not None:

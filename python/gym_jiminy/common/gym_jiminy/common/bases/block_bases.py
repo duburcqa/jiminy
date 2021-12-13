@@ -272,6 +272,9 @@ class BaseControllerBlock(ControllerInterface, BlockInterface):
             This method is not supposed to be called before `reset`, so that
             the controller should be already initialized at this point.
         """
+        # Assertion(s) for type checker
+        assert self.action_space is not None
+
         return get_fieldnames(self.action_space)
 
 

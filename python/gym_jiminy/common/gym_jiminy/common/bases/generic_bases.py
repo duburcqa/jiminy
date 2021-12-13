@@ -50,6 +50,8 @@ class ObserverInterface:
             In most cases, it is not necessary to overloaded this method, and
             doing so may lead to unexpected behavior if not done carefully.
         """
+        # Assertion(s) for type checker
+        assert self._observation is not None
         return self._observation
 
     # methods to override:

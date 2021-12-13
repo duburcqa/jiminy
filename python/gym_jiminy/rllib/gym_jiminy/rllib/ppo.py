@@ -499,6 +499,7 @@ class PPOTorchPolicy(ppo_torch_policy.PPOTorchPolicy):
         if self.config["l2_reg"] > 0.0:
             # Add actor l2-regularization loss
             l2_reg = torch.tensor(0.0)
+            assert isinstance(model, torch.nn.Module)
             for name, params in model.named_parameters():
                 if not name.endswith("bias"):
                     l2_reg += l2_loss(params)

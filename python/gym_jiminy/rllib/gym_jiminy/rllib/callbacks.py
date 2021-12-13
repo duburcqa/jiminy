@@ -1,6 +1,6 @@
 """ TODO: Write documentation.
 """
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from ray.rllib.env import BaseEnv
 from ray.rllib.policy import Policy
@@ -21,15 +21,15 @@ class MonitorInfoCallback(DefaultCallbacks):
                         *,
                         worker: RolloutWorker,
                         base_env: BaseEnv,
-                        policies: Dict[PolicyID, Policy],
+                        policies: Optional[Dict[PolicyID, Policy]] = None,
                         episode: Episode,
-                        **kwargs) -> None:
+                        **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
         super().on_episode_step(worker=worker,
                                 base_env=base_env,
                                 policies=policies,
-                                pisode=episode,
+                                episode=episode,
                                 **kwargs)
         info = episode.last_info_for()
         if info is not None:
@@ -43,13 +43,13 @@ class MonitorInfoCallback(DefaultCallbacks):
                        base_env: BaseEnv,
                        policies: Dict[PolicyID, Policy],
                        episode: Episode,
-                       **kwargs) -> None:
+                       **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
         super().on_episode_end(worker=worker,
                                base_env=base_env,
                                policies=policies,
-                               pisode=episode,
+                               episode=episode,
                                **kwargs)
         episode.custom_metrics["episode_duration"] = \
             base_env.get_sub_environments()[0].step_dt * episode.length
@@ -65,9 +65,13 @@ class CurriculumUpdateCallback(DefaultCallbacks):
                         **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
-        assert isinstance(trainer.workers, WorkerSet)
         super().on_train_result(trainer=trainer, result=result, **kwargs)
-        trainer.workers.foreach_worker(
+
+        # Assertion(s) for type checker
+        workers = trainer.workers
+        assert isinstance(workers, WorkerSet)
+
+        workers.foreach_worker(
             lambda worker: worker.foreach_env(
                 lambda env: env.update(result)))
 

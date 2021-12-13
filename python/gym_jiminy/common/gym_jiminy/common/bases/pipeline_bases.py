@@ -87,6 +87,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         .. warning::
             This method is not supposed to be called manually nor overloaded.
         """
+        # Assertion(s) for type checker
+        assert self._action is not None
+
         command[:] = self.compute_command(
             self.env.get_observation(), self._action)
 
@@ -113,6 +116,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         .. warning::
             This method is not supposed to be called manually nor overloaded.
         """
+        # Assertion(s) for type checker
+        assert self._observation is not None
+
         return copy(self._observation)
 
     def reset(self,
@@ -176,6 +182,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information.
         """
+        # Assertion(s) for type checker
+        assert self._action is not None
+
         # Backup the action to perform, if any
         if action is not None:
             set_value(self._action, action)
@@ -206,6 +215,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         # Call base implementation
         super()._setup()
 
+        # Assertion(s) for type checker
+        assert self._action is not None
+
         # Reset some internal buffers
         fill(self._action, 0.0)
         fill(self._command, 0.0)
@@ -234,6 +246,10 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         :param measure: Observation of the environment.
         :param action: Target to achieve.
         """
+        # Assertion(s) for type checker
+        assert self._action is not None
+        assert self.env._action is not None
+
         set_value(self._action, action)
         set_value(self.env._action, action)
         return self.env.compute_command(measure, action)
@@ -380,7 +396,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
             if not self.simulator.is_simulation_running:
                 features = self.observer.get_observation()
                 if self.augment_observation:
-                    # Assertion for type checker
+                    # Assertion(s) for type checker
                     assert isinstance(self._observation, dict)
                     # Make sure to store references
                     if isinstance(obs, gym.spaces.Dict):
@@ -563,6 +579,10 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         :param measure: Observation of the environment.
         :param action: High-level target to achieve.
         """
+        # Assertion(s) for type checker
+        assert self._observation is not None
+        assert self.env._action is not None
+
         # Update the target to send to the subsequent block if necessary.
         # Note that `_observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
@@ -609,7 +629,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         if not self.simulator.is_simulation_running:
             obs = self.env.get_observation()
             if self.augment_observation:
-                # Assertion for type checker
+                # Assertion(s) for type checker
                 assert isinstance(self._observation, dict)
                 # Make sure to store references
                 if isinstance(obs, dict):
