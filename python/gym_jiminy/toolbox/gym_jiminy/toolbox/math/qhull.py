@@ -1,5 +1,7 @@
 """ TODO: Write documentation.
 """
+from typing import Optional
+
 import numpy as np
 import numba as nb
 from numba.np.extensions import cross2d
@@ -128,7 +130,7 @@ class ConvexHull:
             self._hull = None
 
         # Buffer to cache center computation
-        self._center = None
+        self._center: Optional[np.ndarray] = None
 
     @property
     def center(self) -> np.ndarray:
