@@ -210,12 +210,14 @@ namespace jiminy
         /// \brief      Request the transmission to update its actual state based of the input data.
         ///
         /// \details    It assumes that the internal state of the robot is consistent with the
-        ///             input arguments.
+        ///             input arguments. This transformation is used to compute the forward transformation
+        ///             of the transmission transforming motor position, velocity and torque to joint
+        ///             position, velocity and torque.
         ///
         /// \param[in]  q        Current configuration of the motors.
         /// \param[in]  v        Current velocity of the motors.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void computeTransform(Eigen::VectorBlock<vectorN_t const> const & q,
+        virtual float64_t computeTransform(Eigen::VectorBlock<vectorN_t const> const & q,
                                       Eigen::VectorBlock<vectorN_t const> const & v) = 0;  /* copy on purpose */
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -227,7 +229,7 @@ namespace jiminy
         /// \param[in]  q        Current configuration of the motors.
         /// \param[in]  v        Current velocity of the motors.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & q,
+        virtual float64_t computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & q,
                                              Eigen::VectorBlock<vectorN_t const> const & v) = 0;  /* copy on purpose */
 
 
@@ -235,7 +237,7 @@ namespace jiminy
         /// \brief      Compute energy dissipation in the transmission.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual computeEffortTransmission(void) = 0;
+        virtual void computeEffortTransmission(void) = 0;
 
     private:
         ///////////////////////////////////////////////////////////////////////////////////////////////

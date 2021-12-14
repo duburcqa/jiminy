@@ -1143,14 +1143,15 @@ namespace jiminy
                 }
             }
 
-            for (auto const & motor : system.robot->getMotors())
-            {
-                if (!motor->getIsInitialized())
-                {
-                    PRINT_ERROR("At least a motor of a robot is not initialized.");
-                    return hresult_t::ERROR_INIT_FAILED;
-                }
-            }
+            // TODO check with transmission
+            // for (auto const & motor : system.robot->getMotors())
+            // {
+            //     if (!motor->getIsInitialized())
+            //     {
+            //         PRINT_ERROR("At least a motor of a robot is not initialized.");
+            //         return hresult_t::ERROR_INIT_FAILED;
+            //     }
+            // }
         }
 
         auto systemIt = systems_.begin();
@@ -1412,12 +1413,14 @@ namespace jiminy
 
                 // Compute the total effort vector
                 u = uInternal + uCustom;
-                for (auto const & motor : systemIt->robot->getMotors())
-                {
-                    int32_t const & motorIdx = motor->getIdx();
-                    int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
-                    u[motorVelocityIdx] += uMotor[motorIdx];
-                }
+
+                // TODO transmission
+                // for (auto const & motor : systemIt->robot->getMotors())
+                // {
+                //     int32_t const & motorIdx = motor->getIdx();
+                //     int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
+                //     u[motorVelocityIdx] += uMotor[motorIdx];
+                // }
 
                 // Compute dynamics
                 a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext);
@@ -3658,12 +3661,14 @@ namespace jiminy
 
             // Compute the total effort vector
             u = uInternal + uCustom;
-            for (auto const & motor : systemIt->robot->getMotors())
-            {
-                int32_t const & motorIdx = motor->getIdx();
-                int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
-                u[motorVelocityIdx] += uMotor[motorIdx];
-            }
+
+            // TODO Transmission
+            // for (auto const & motor : systemIt->robot->getMotors())
+            // {
+            //     int32_t const & motorIdx = motor->getIdx();
+            //     int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
+            //     u[motorVelocityIdx] += uMotor[motorIdx];
+            // }
 
             // Compute the dynamics
             *aIt = computeAcceleration(*systemIt, *systemDataIt, *qIt, *vIt, u, fext);
@@ -3682,6 +3687,8 @@ namespace jiminy
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
 
+        // TODO wtf
+        // data.rotorInertia = system.robot->getArmature();
         if (system.robot->hasConstraints())
         {
             // Define some proxies for convenience

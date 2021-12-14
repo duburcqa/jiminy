@@ -60,7 +60,7 @@ namespace jiminy
         motorIdx_ = sharedHolder_->num_;
 
         // Add values for the motor to the shared data buffer
-        for (vectorN_t & data : std::array<vectorN_t &, 4>{{
+        for (vectorN_t & data : std::array<vectorN_t, 4>{{
                 sharedHolder_->position_,
                 sharedHolder_->velocity_,
                 sharedHolder_->acceleration_,
@@ -89,7 +89,7 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        for (vectorN_t & data : std::array<vectorN_t &, 4>{{
+        for (vectorN_t & data : std::array<vectorN_t, 4>{{
             sharedHolder_->position_,
             sharedHolder_->velocity_,
             sharedHolder_->acceleration_,
@@ -146,7 +146,7 @@ namespace jiminy
         }
 
         // Clear the shared data buffer
-        for (vectorN_t & data : std::array<vectorN_t &, 4>{{
+        for (vectorN_t & data : std::array<vectorN_t, 4>{{
             sharedHolder_->position_,
             sharedHolder_->velocity_,
             sharedHolder_->acceleration_,
@@ -242,17 +242,18 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName_, jointVelocityIdx_);
+            // TODO shift this to transmission
+            // ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName_, jointVelocityIdx_);
 
-            // Get the motor effort limits from the URDF or the user options.
-            if (baseMotorOptions_->commandLimitFromUrdf)
-            {
-                commandLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_];
-            }
-            else
-            {
-                commandLimit_ = baseMotorOptions_->commandLimit;
-            }
+            // // Get the motor effort limits from the URDF or the user options.
+            // if (baseMotorOptions_->commandLimitFromUrdf)
+            // {
+            //     commandLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_];
+            // }
+            // else
+            // {
+            //     commandLimit_ = baseMotorOptions_->commandLimit;
+            // }
 
             // Get the rotor inertia
             if (baseMotorOptions_->enableArmature)
@@ -337,6 +338,11 @@ namespace jiminy
     std::string const & AbstractMotorBase::getName(void) const
     {
         return name_;
+    }
+
+    int32_t const & AbstractMotorBase::getIdx(void) const
+    {
+        return motorIdx_;
     }
 
     float64_t const & AbstractMotorBase::getCommandLimit(void) const

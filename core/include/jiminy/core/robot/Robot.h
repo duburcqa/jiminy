@@ -80,7 +80,7 @@ namespace jiminy
                                   vectorN_t const & command);
         vectorN_t const & getMotorsEfforts(void) const;
         float64_t const & getMotorEffort(std::string const & motorName) const;
-        float64_t getMotorEffortLimit;
+        float64_t getMotorEffortLimit(void);
         void setSensorsData(float64_t const & t,
                             vectorN_t const & q,
                             vectorN_t const & v,
@@ -149,6 +149,7 @@ namespace jiminy
     protected:
         hresult_t refreshMotorsProxies(void);
         hresult_t refreshSensorsProxies(void);
+        hresult_t refreshTransmissionProxies(void);
         virtual hresult_t refreshProxies(void) override;
 
     protected:
@@ -160,6 +161,7 @@ namespace jiminy
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
         std::vector<std::string> motorsNames_;                                      ///< Name of the motors
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///< Name of the sensors
+        std::vector<std::string> transmissionsNames_;                                      ///< Name of the motors
         std::vector<std::string> commandFieldnames_;                                ///< Fieldnames of the command
         std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the motors effort
         uint64_t nmotors_;                                                          ///< The number of motors

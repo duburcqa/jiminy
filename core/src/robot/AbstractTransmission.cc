@@ -119,19 +119,19 @@ namespace jiminy
         }
 
         // Make sure the joint is not already attached to a transmission
-        auto robotTemp = robot.lock();
-        std::vector<std::string> actuatedJointNames = robotTemp->getActuatedJointNames();
-        for (std::string const & transmissionJoint : getJointNames())
-        {
-            auto transmissionJointIt = std::find(actuatedJointNames.begin(), actuatedJointNames.end(), transmissionJoint);
-            if (transmissionJointIt != actuatedJointNames.end())
-            {
-                PRINT_ERROR("Joint already attached to another transmission");
-                return hresult_t::ERROR_GENERIC;
-            }
-            // Add joint to actuated joints
-            actuatedJointNames.push_back(transmissionJoint);
-        }
+        // WARNING at this point it is still not know which joint or motor the transmision connects
+        // auto robotTemp = robot.lock();
+        // std::vector<std::string> actuatedJointNames = robotTemp->getActuatedJointNames();
+        // for (std::string const & transmissionJoint : getJointNames())
+        // {
+        //     auto transmissionJointIt = std::find(actuatedJointNames.begin(), actuatedJointNames.end(), transmissionJoint);
+        //     if (transmissionJointIt != actuatedJointNames.end())
+        //     {
+        //         PRINT_ERROR("Joint already attached to another transmission");
+        //         return hresult_t::ERROR_GENERIC;
+        //     }
+        // }
+
         // Copy references to the robot and shared data
         robot_ = robot;
 
@@ -326,9 +326,15 @@ namespace jiminy
                                                        vectorN_t & a,
                                                        vectorN_t & uJoint)
     {
-        auto qMotors = q.segment<>(jointPositionIdx_, );
-        auto vMotors = v.segment<>(jointVelocityIdx_, );
+        // Extract motor configuration and velocity from all motors attached
+        // to the robot for this transmission
+        auto qMotors = q.segment<>(jointPositionIndices_, );
+        auto vMotors = v.segment<>(jointVelocityIndices_, );
+
+        // Compute the transmission effect based on the current configuration
         computeTransform(qMotors, vMotors);
+
+        // Apply transformation from motor to joint level
         auto motors = motors_.lock();
         q.noalias() = forwardTransform_ * motors->getPosition();
         v.noalias() = forwardTransform_ * motors->getVelocity();

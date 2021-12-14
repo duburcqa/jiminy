@@ -22,11 +22,12 @@ namespace jiminy
     isTelemetryConfigured_(false),
     telemetryData_(nullptr),
     motorsHolder_(),
-    tranmissionsHolder_(),
+    transmissionsHolder_(),
     sensorsGroupHolder_(),
     sensorTelemetryOptions_(),
     motorsNames_(),
     sensorsNames_(),
+    transmissionsNames_(),
     commandFieldnames_(),
     motorEffortFieldnames_(),
     nmotors_(0U),
@@ -92,6 +93,12 @@ namespace jiminy
             {
                 (*sensorGroup.second.begin())->resetAll();
             }
+        }
+
+        // Reset the transmissions
+        if (!transmissionsHolder_.empty())
+        {
+            (*transmissionsHolder_.begin())->resetAll();
         }
 
         // Reset the telemetry flag
@@ -189,13 +196,12 @@ namespace jiminy
             transmissionsHolder_.push_back(transmission);
 
             // Refresh the transmissions proxies
-            refreshTransmissionsProxies();
+            refreshTransmissionProxies();
         }
 
         // update list of actuated joints
         std::vector<std::string> const & jointNames = transmission->getJointNames();
-        actuatedJoints_.insert(actuatedJoints_.end(), jointNames.begin(), jointNames.end());
-
+        actuatedJointNames_.insert(actuatedJointNames_.end(), jointNames.begin(), jointNames.end());
 
         return returnCode;
     }
@@ -233,7 +239,7 @@ namespace jiminy
         transmissionsHolder_.erase(transmissionIt);
 
         // Refresh the transmissions proxies
-        refreshTransmissionsProxies();
+        refreshTransmissionProxies();
 
         return hresult_t::SUCCESS;
     }
@@ -288,13 +294,14 @@ namespace jiminy
                     }
 
                     // Update rotor inertia of pinocchio model
-                    float64_t const & armature = motorIn.getArmature();
-                    std::string const & jointName = motorIn.getJointName();
-                    int32_t jointVelocityIdx;
-                    ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName, jointVelocityIdx);
-                    robot->pncModel_.rotorInertia[jointVelocityIdx] = armature;
-                    ::jiminy::getJointVelocityIdx(robot->pncModelRigidOrig_, jointName, jointVelocityIdx);
-                    robot->pncModelRigidOrig_.rotorInertia[jointVelocityIdx] = armature;
+                    // TODO should not be done here anymore , motor has no idea of joints
+                    [[maybe_unused]] float64_t const & armature = motorIn.getArmature();
+                    // std::string const & jointName = motorIn.getJointName();
+                    // int32_t jointVelocityIdx;
+                    // ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName, jointVelocityIdx);
+                    // robot->pncModel_.rotorInertia[jointVelocityIdx] = armature;
+                    // ::jiminy::getJointVelocityIdx(robot->pncModelRigidOrig_, jointName, jointVelocityIdx);
+                    // robot->pncModelRigidOrig_.rotorInertia[jointVelocityIdx] = armature;
                     return hresult_t::SUCCESS;
                 };
 
@@ -415,11 +422,12 @@ namespace jiminy
             if (returnCode == hresult_t::SUCCESS)
             {
                 // Make sure that every transmission name exist
-                if (!checkInclusion(transmissionsNames_, transmissionsNames))
-                {
-                    PRINT_ERROR("At least one of the transmission names does not exist.");
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
-                }
+                // TODO adapt the template to include transmissions
+                // if (!checkInclusion(transmissionsNames_, transmissionsNames))
+                // {
+                //     PRINT_ERROR("At least one of the transmission names does not exist.");
+                //     returnCode = hresult_t::ERROR_BAD_INPUT;
+                // }
             }
 
             for (std::string const & name : transmissionsNames)
@@ -640,6 +648,11 @@ namespace jiminy
             returnCode = refreshSensorsProxies();
         }
 
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = refreshTransmissionProxies();
+        }
+
         return returnCode;
     }
 
@@ -724,6 +737,12 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t Robot::refreshTransmissionProxies(void)
+    {
+        // TODO
+        return hresult_t::SUCCESS;
+    }
+
     hresult_t Robot::getMotor(std::string const & motorName,
                               std::shared_ptr<AbstractMotorBase> & motor)
     {
@@ -781,7 +800,7 @@ namespace jiminy
 
     Robot::transmissionsHolder_t const & Robot::getTransmissions(void) const
     {
-        return tranmissionsHolder_;
+        return transmissionsHolder_;
     }
 
     hresult_t Robot::getSensor(std::string const & sensorType,
@@ -1327,15 +1346,17 @@ namespace jiminy
         return isTelemetryConfigured_;
     }
 
-    void Robot::computeMotorsEfforts(float64_t const & t,
-                                     vectorN_t const & q,
-                                     vectorN_t const & v,
-                                     vectorN_t const & a,
+    void Robot::computeMotorsEfforts(float64_t const & /*t*/,
+                                     vectorN_t const & /*q*/,
+                                     vectorN_t const & /*v*/,
+                                     vectorN_t const & /*a*/,
                                      vectorN_t const & command)
     {
         if (!motorsHolder_.empty())
         {
-            (*motorsHolder_.begin())->computeEffortAll(t, q, v, a, command);
+            // TODO this i would like to do
+            // (*motorsHolder_.begin())->computeEffortAll(t, q, v, a, command);
+            (*motorsHolder_.begin())->computeEffortAll(command);
         }
     }
 
@@ -1343,10 +1364,12 @@ namespace jiminy
     {
         static vectorN_t const motorsEffortsEmpty;
 
-        if (!motorsHolder_.empty())
-        {
-            return (*motorsHolder_.begin())->getAll();
-        }
+        // TODO what to do here, its not just data anymore but 4 values
+        // q, v, a, u
+        // if (!motorsHolder_.empty())
+        // {
+        //     return (*motorsHolder_.begin())->getAll();
+        // }
 
         return motorsEffortsEmpty;
     }
@@ -1360,17 +1383,21 @@ namespace jiminy
                                     {
                                         return (elem->getName() == motorName);
                                     });
+        // TODO what to do here, its not just data anymore but 4 values
+        // q, v, a, u
         if (motorIt != motorsHolder_.end())
         {
-            return (*motorIt)->get();
+            // return (*motorIt)->get();
+            return (*motorIt)->getEffort();
         }
 
         return motorEffortEmpty;
     }
 
-    float64_t getMotorEffortLimit
+    float64_t getMotorEffortLimit(void)
     {
         // TODO combine robot information and transmission information
+        return 0.0;
     }
 
     void Robot::setSensorsData(float64_t const & t,
@@ -1475,12 +1502,13 @@ namespace jiminy
     {
         std::vector<jointIndex_t> motorsModelIdx;
         motorsModelIdx.reserve(nmotors_);
-        std::transform(motorsHolder_.begin(), motorsHolder_.end(),
-                       std::back_inserter(motorsModelIdx),
-                       [](auto const & motor) -> jointIndex_t
-                       {
-                           return motor->getJointModelIdx();
-                       });
+        // TODO use transmission
+        // std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+        //                std::back_inserter(motorsModelIdx),
+        //                [](auto const & motor) -> jointIndex_t
+        //                {
+        //                    return motor->getJointModelIdx();
+        //                });
         return motorsModelIdx;
     }
 
@@ -1488,20 +1516,21 @@ namespace jiminy
     {
         std::vector<std::vector<int32_t> > motorsPositionIdx;
         motorsPositionIdx.reserve(nmotors_);
-        std::transform(motorsHolder_.begin(), motorsHolder_.end(),
-                       std::back_inserter(motorsPositionIdx),
-                       [](auto const & elem) -> std::vector<int32_t>
-                       {
-                           int32_t const & jointPositionIdx = elem->getJointPositionIdx();
-                           if (elem->getJointType() == joint_t::ROTARY_UNBOUNDED)
-                           {
-                               return {jointPositionIdx, jointPositionIdx + 1};
-                           }
-                           else
-                           {
-                               return {jointPositionIdx};
-                           }
-                       });
+        // TODO not possible anymore, use transmission to get joint
+        // std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+        //                std::back_inserter(motorsPositionIdx),
+        //                [](auto const & elem) -> std::vector<int32_t>
+        //                {
+        //                    int32_t const & jointPositionIdx = elem->getJointPositionIdx();
+        //                    if (elem->getJointType() == joint_t::ROTARY_UNBOUNDED)
+        //                    {
+        //                        return {jointPositionIdx, jointPositionIdx + 1};
+        //                    }
+        //                    else
+        //                    {
+        //                        return {jointPositionIdx};
+        //                    }
+        //                });
         return motorsPositionIdx;
     }
 
@@ -1509,12 +1538,13 @@ namespace jiminy
     {
         std::vector<int32_t> motorsVelocityIdx;
         motorsVelocityIdx.reserve(nmotors_);
-        std::transform(motorsHolder_.begin(), motorsHolder_.end(),
-                       std::back_inserter(motorsVelocityIdx),
-                       [](auto const & elem) -> int32_t
-                       {
-                           return elem->getJointVelocityIdx();
-                       });
+        // TODO transmission
+        // std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+        //                std::back_inserter(motorsVelocityIdx),
+        //                [](auto const & elem) -> int32_t
+        //                {
+        //                    return elem->getJointVelocityIdx();
+        //                });
         return motorsVelocityIdx;
     }
 
@@ -1548,20 +1578,21 @@ namespace jiminy
         commandLimit.resize(pncModel_.nv);
 
         commandLimit.setConstant(qNAN);
-        for (auto const & motor : motorsHolder_)
-        {
-            auto const & motorOptions = motor->baseMotorOptions_;
-            int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            if (motorOptions->enableCommandLimit)
-            {
-                commandLimit[motorsVelocityIdx] = motor->getCommandLimit();
-            }
-            else
-            {
-                commandLimit[motorsVelocityIdx] = INF;
-            }
 
-        }
+        // TODO should be part of transmission
+        // for (auto const & motor : motorsHolder_)
+        // {
+        //     auto const & motorOptions = motor->baseMotorOptions_;
+        //     int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
+        //     if (motorOptions->enableCommandLimit)
+        //     {
+        //         commandLimit[motorsVelocityIdx] = motor->getCommandLimit();
+        //     }
+        //     else
+        //     {
+        //         commandLimit[motorsVelocityIdx] = INF;
+        //     }
+        // }
 
         return commandLimit;
     }
@@ -1572,11 +1603,13 @@ namespace jiminy
         armatures.resize(pncModel_.nv);
 
         armatures.setZero();
-        for (auto const & motor : motorsHolder_)
-        {
-            int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            armatures[motorsVelocityIdx] = motor->getArmature();
-        }
+
+        // TODO part of transmission
+        // for (auto const & motor : motorsHolder_)
+        // {
+        //     int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
+        //     armatures[motorsVelocityIdx] = motor->getArmature();
+        // }
 
         return armatures;
     }
