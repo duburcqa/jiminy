@@ -26,22 +26,22 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
+                // .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
+                //                                 bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("name", bp::make_function(&AbstractMotorBase::getName,
                                         bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("idx", bp::make_function(&AbstractMotorBase::getIdx,
                                         bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_name", bp::make_function(&AbstractMotorBase::getJointName,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_idx", bp::make_function(&AbstractMotorBase::getJointModelIdx,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_type", bp::make_function(&AbstractMotorBase::getJointType,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_position_idx", bp::make_function(&AbstractMotorBase::getJointPositionIdx,
-                                                    bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_velocity_idx", bp::make_function(&AbstractMotorBase::getJointVelocityIdx,
-                                                    bp::return_value_policy<bp::copy_const_reference>()))
+                // .add_property("joint_name", bp::make_function(&AbstractMotorBase::getJointName,
+                //                             bp::return_value_policy<bp::copy_const_reference>()))
+                // .add_property("joint_idx", bp::make_function(&AbstractMotorBase::getJointModelIdx,
+                //                             bp::return_value_policy<bp::copy_const_reference>()))
+                // .add_property("joint_type", bp::make_function(&AbstractMotorBase::getJointType,
+                //                             bp::return_value_policy<bp::copy_const_reference>()))
+                // .add_property("joint_position_idx", bp::make_function(&AbstractMotorBase::getJointPositionIdx,
+                //                                     bp::return_value_policy<bp::copy_const_reference>()))
+                // .add_property("joint_velocity_idx", bp::make_function(&AbstractMotorBase::getJointVelocityIdx,
+                //                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("command_limit", bp::make_function(&AbstractMotorBase::getCommandLimit,
                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("armature", bp::make_function(&AbstractMotorBase::getArmature,
@@ -93,9 +93,9 @@ namespace python
 
             static void visit(PyClass & cl)
             {
-                cl
-                    .def("initialize", &TMotor::initialize)
-                    ;
+                // cl
+                //     .def("initialize", &TMotor::initialize)
+                //     ;
             }
         };
 

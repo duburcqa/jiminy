@@ -7,6 +7,7 @@
 
 #include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/BasicMotors.h"
+#include "jiminy/core/robot/BasicTransmissions.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/utilities/Helpers.h"
@@ -66,6 +67,7 @@ int main(int /* argc */, char_t * /* argv */[])
 
     // Instantiate and configuration the robot
     std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
+    std::vector<std::string> transmissionNames{"SimpleTransmissionSecondPendulumJoint"};
 
     auto robot = std::make_shared<Robot>();
     configHolder_t modelOptions = robot->getModelOptions();
@@ -77,7 +79,13 @@ int main(int /* argc */, char_t * /* argv */[])
     {
         auto motor = std::make_shared<SimpleMotor>(jointName);
         robot->attachMotor(motor);
-        motor->initialize(jointName);
+        // motor->initialize(jointName);
+    }
+    for (std::string const & transmissionName : transmissionNames)
+    {
+        auto transmission = std::make_shared<SimpleTransmission>(transmissionName);
+        // robot->attachTransmission(transmission);
+        // motor->initialize(jointName);
     }
 
     // Instantiate and configuration the controller

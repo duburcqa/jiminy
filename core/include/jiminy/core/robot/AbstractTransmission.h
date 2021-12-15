@@ -217,7 +217,7 @@ namespace jiminy
         /// \param[in]  q        Current configuration of the motors.
         /// \param[in]  v        Current velocity of the motors.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual float64_t computeTransform(Eigen::VectorBlock<vectorN_t const> const & q,
+        virtual void computeTransform(Eigen::VectorBlock<vectorN_t const> const & q,
                                       Eigen::VectorBlock<vectorN_t const> const & v) = 0;  /* copy on purpose */
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -229,7 +229,7 @@ namespace jiminy
         /// \param[in]  q        Current configuration of the motors.
         /// \param[in]  v        Current velocity of the motors.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual float64_t computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & q,
+        virtual void computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & q,
                                              Eigen::VectorBlock<vectorN_t const> const & v) = 0;  /* copy on purpose */
 
 
