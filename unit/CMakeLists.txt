@@ -15,8 +15,13 @@ set(UNIT_TEST_FILES
 # Create the unit test executable
 add_executable(${PROJECT_NAME} ${UNIT_TEST_FILES})
 
+# Add tests with CTest
+gtest_discover_tests(${PROJECT_NAME})
+
 # Add definition of unit test data folder
-add_definitions("-DUNIT_TEST_DATA_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/data/\"")
+target_compile_definitions(${PROJECT_NAME} PUBLIC
+    "-DUNIT_TEST_DATA_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/data/\""
+)
 
 # Link with Jiminy core library
 target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core)
@@ -33,5 +38,3 @@ target_link_libraries(${PROJECT_NAME} "${CMAKE_THREAD_LIBS_INIT}")
 set_property(TARGET ${PROJECT_NAME} PROPERTY
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
 )
-include(CTest)
-enable_testing()

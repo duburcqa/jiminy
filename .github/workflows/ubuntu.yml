@@ -92,7 +92,8 @@ jobs:
 
     - name: Run jiminy unit tests
       run: |
-        "$RootDir/build/unit/unit"
+        cd "$RootDir/build"
+        ctest
 
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

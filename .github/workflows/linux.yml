@@ -103,7 +103,8 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
-        ./build/unit/unit
+        cd "$RootDir/build"
+        ctest
 
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

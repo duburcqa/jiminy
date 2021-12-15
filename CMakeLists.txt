@@ -64,6 +64,8 @@ endif()
 
 option(BUILD_TESTING "Build the C++ unit tests." ON)
 if(BUILD_TESTING)
+    include(CTest)
+    include(GoogleTest)
     add_subdirectory(unit)
 endif()
 

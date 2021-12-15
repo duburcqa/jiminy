@@ -124,7 +124,8 @@ jobs:
 
     - name: Run unit tests
       run: |
-        ./build/unit/unit
+        cd "$RootDir/build"
+        ctest
 
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

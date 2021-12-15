@@ -387,6 +387,13 @@ namespace jiminy
 
         if (isInitialized_)
         {
+            /* Re-generate the true flexible model in case the original rigid
+               model has been manually modified by the user. */
+            if (mdlOptions_->dynamics.enableFlexibleModel)
+            {
+                generateModelFlexible();
+            }
+
             // Update the biases added to the dynamics properties of the model
             generateModelBiased();
         }
