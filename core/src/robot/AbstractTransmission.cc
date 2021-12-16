@@ -52,70 +52,6 @@ namespace jiminy
             isInitialized_ = false;
         }
 
-        auto robot = robot_.lock();
-
-        // TODO move this stuff to refresh Proxies ?
-        // Populate motorIndices_
-        std::weak_ptr<AbstractMotorBase const> motor;
-        for (std::string const & motorName : motorNames)
-        {
-            returnCode = robot->getMotor(motorName, motor);
-            auto motorTemp = motor.lock();
-            int32_t idx = motorTemp->getIdx();
-            motorIndices_.push_back(idx);
-        }
-
-        // Populate jointPositionIndices_
-        std::vector<int32_t> jointPositionIndices;
-        hresult_t returnCode = hresult_t::SUCCESS;
-        for (std::string const & jointName : jointNames_)
-        {
-            std::vector<int32_t> jointPositionIdx;
-            if (!robot->pncModel_.existJointName(jointName))
-            {
-                PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
-                return hresult_t::ERROR_BAD_INPUT;
-            }
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = getJointPositionIdx(robot->pncModel_, jointName, jointPositionIdx);
-            }
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                jointPositionIndices.insert(jointPositionIndices.end(), jointPositionIdx.begin(), jointPositionIdx.end());
-            }
-        }
-        int32_t jointPositionSize = jointPositionIndices.size();
-        jointPositionIndices_.resize(jointPositionSize);
-        for (int32_t i = 0; i <  jointPositionSize; ++i)
-        {
-            jointPositionIndices_(i) = jointPositionIndices[i];
-        }
-
-        // Populate jointVelocityIndices_
-        std::vector<int32_t> jointVelocityIndices;
-        for (std::string const & jointName : jointNames_)
-        {
-            std::vector<int32_t> jointVelocityIdx;
-            if (!robot->pncModel_.existJointName(jointName))
-            {
-                PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
-                return hresult_t::ERROR_BAD_INPUT;
-            }
-            jointIndex_t const & jointModelIdx = robot->pncModel_.getJointId(jointName);
-            int32_t const & jointVelocityFirstIdx = robot->pncModel_.joints[jointModelIdx].idx_v();
-            int32_t const & jointNv = robot->pncModel_.joints[jointModelIdx].nv();
-            jointVelocityIdx.resize(jointNv);
-            std::iota(jointVelocityIdx.begin(), jointVelocityIdx.end(), jointVelocityFirstIdx);
-            jointVelocityIndices.insert(jointVelocityIndices.end(), jointVelocityIdx.begin(), jointVelocityIdx.end());
-        }
-
-        int32_t jointVelocitySize = jointVelocityIndices.size();
-        jointVelocityIndices_.resize(jointVelocitySize);
-        for (int32_t i = 0; i <  jointVelocitySize; ++i)
-        {
-            jointVelocityIndices_(i) = jointVelocityIndices[i];
-        }
         return returnCode;
     }
 
@@ -282,9 +218,74 @@ namespace jiminy
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                ::jiminy::getJointPositionIdx(robot->pncModel_, jointNames_[i], jointPositionIndices_[i]);
-                ::jiminy::getJointVelocityIdx(robot->pncModel_, jointNames_[i], jointVelocityIndices_[i]);
+                ::jiminy::getJointPositionIdx(robot->pncModel_, jointNames_[i], static_cast<int32_t>(jointPositionIndices_[i]));
+                ::jiminy::getJointVelocityIdx(robot->pncModel_, jointNames_[i], static_cast<int32_t>(jointVelocityIndices_[i]));
             }
+        }
+
+        // Populate motorIndices_
+        std::weak_ptr<AbstractMotorBase const> motor;
+        for (std::string const & motorName : getMotorNames())
+        {
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                returnCode = robot->getMotor(motorName, motor);
+                auto motorTemp = motor.lock();
+                int32_t idx = motorTemp->getIdx();
+                motorIndices_.push_back(idx);
+            }
+        }
+
+        // PopulatjointPositionIndices_
+        std::vector<int32_t> jointPositionIndices;
+        for (std::string const & jointName : jointNames_)
+        {
+            std::vector<int32_t> jointPositionIdx;
+            if (!robot->pncModel_.existJointName(jointName))
+            {
+                PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                returnCode = getJointPositionIdx(robot->pncModel_, jointName, jointPositionIdx);
+            }
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                jointPositionIndices.insert(jointPositionIndices.end(), jointPositionIdx.begin(), jointPositionIdx.end());
+            }
+        }
+        int32_t jointPositionSize = jointPositionIndices.size();
+        jointPositionIndices_.resize(jointPositionSize);
+        for (int32_t i = 0; i <  jointPositionSize; ++i)
+        {
+            jointPositionIndices_(i) = jointPositionIndices[i];
+        }
+
+
+        // Populate jointVelocityIndices_
+        std::vector<int32_t> jointVelocityIndices;
+        for (std::string const & jointName : jointNames_)
+        {
+            std::vector<int32_t> jointVelocityIdx;
+            if (!robot->pncModel_.existJointName(jointName))
+            {
+                PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+            jointIndex_t const & jointModelIdx = robot->pncModel_.getJointId(jointName);
+            int32_t const & jointVelocityFirstIdx = robot->pncModel_.joints[jointModelIdx].idx_v();
+            int32_t const & jointNv = robot->pncModel_.joints[jointModelIdx].nv();
+            jointVelocityIdx.resize(jointNv);
+            std::iota(jointVelocityIdx.begin(), jointVelocityIdx.end(), jointVelocityFirstIdx);
+            jointVelocityIndices.insert(jointVelocityIndices.end(), jointVelocityIdx.begin(), jointVelocityIdx.end());
+        }
+
+        int32_t jointVelocitySize = jointVelocityIndices.size();
+        jointVelocityIndices_.resize(jointVelocitySize);
+        for (int32_t i = 0; i <  jointVelocitySize; ++i)
+        {
+            jointVelocityIndices_(i) = jointVelocityIndices[i];
         }
 
         return returnCode;
@@ -337,23 +338,22 @@ namespace jiminy
         return motorNames_;
     }
 
-    std::vector<std::string> const & getMotorIndices(void) const
+    std::vector<std::int32_t> const & AbstractTransmissionBase::getMotorIndices(void) const
     {
-        // TODO create and populate
         return motorIndices_;
     }
 
-    matrixN_t const & getForwardTransform(void) const
+    matrixN_t const & AbstractTransmissionBase::getForwardTransform(void) const
     {
         return forwardTransform_;
     }
 
-    matrixN_t const & getInverseTransform(void) const
+    matrixN_t const & AbstractTransmissionBase::getInverseTransform(void) const
     {
         return backwardTransform_;
     }
 
-    hresult_t AbstractTransmissionBase::computeForward(float64_t const & t,
+    hresult_t AbstractTransmissionBase::computeForward(float64_t const & /*t*/,
                                                        vectorN_t & q,
                                                        vectorN_t & v,
                                                        vectorN_t & a,
@@ -361,18 +361,36 @@ namespace jiminy
     {
         // Extract motor configuration and velocity from all motors attached
         // to the robot for this transmission
-        auto qMotors = q.segment<>(jointPositionIndices_, );
-        auto vMotors = v.segment<>(jointVelocityIndices_, );
 
+        // ujoint is effort on the level of the joint, not transmission
+        // if you know torque at motor level, use transmission to compute torque at joint level
+        // you know state of the system (joints), then compute the state of the motors
+
+        // Gather the corresponding data of the motors attached to the transmission
+        int32_t numberOfMotors = motors_.size();
+        vectorN_t qMotor(numberOfMotors);
+        vectorN_t vMotor(numberOfMotors);
+        vectorN_t aMotor(numberOfMotors);
+        vectorN_t uMotor(numberOfMotors);
+
+        for (int32_t i = 0; i < numberOfMotors; i++)
+        {
+            auto motorTemp = motors_[i].lock();
+            qMotor[i] = motorTemp->getPosition();
+            vMotor[i] = motorTemp->getVelocity();
+            aMotor[i] = motorTemp->getAcceleration();
+            uMotor[i] = motorTemp->getEffort();
+        }
         // Compute the transmission effect based on the current configuration
-        computeTransform(qMotors, vMotors);
+        computeTransform(qMotor, vMotor, forwardTransform_);
 
         // Apply transformation from motor to joint level
-        auto motors = motors_.lock();
-        q.noalias() = forwardTransform_ * motors->getPosition();
-        v.noalias() = forwardTransform_ * motors->getVelocity();
-        a.noalias() = forwardTransform_ * motors->getAcceleration();
-        uJoint.noalias() = forwardTransform_ * motors->getEffort();
+        // TODO take care of motor position which can be 1 or 2 dimensional
+        q.noalias() = forwardTransform_ * qMotor;
+        v.noalias() = forwardTransform_ * vMotor;
+        a.noalias() = forwardTransform_ * aMotor;
+        uJoint.noalias() = forwardTransform_ * uMotor;
+
     }
 
     hresult_t AbstractTransmissionBase::computeBackward(float64_t const & t,
@@ -381,7 +399,22 @@ namespace jiminy
                                                         vectorN_t const & a,
                                                         vectorN_t const & uJoint)
     {
-        computeInverseTransform(q, v);
+        // Extract motor configuration and velocity from all motors attached
+        // to the robot for this transmission
+        auto qMotors = q.segment(jointPositionIndices_);
+        auto vMotors = v.segment(jointVelocityIndices_);
+
+        // Compute the transmission effect based on the current configuration
+        computeInverseTransform(qMotors, vMotors, backwardTransform_);
+
+        // Gather the corresponding data of the motors attached to the transmission
+        int32_t numberOfMotors = motors_.size();
+        vectorN_t qTemp(numberOfMotors);
+        vectorN_t vTemp(numberOfMotors);
+        vectorN_t aTemp(numberOfMotors);
+        vectorN_t uTemp(numberOfMotors);
+
+        // TODO similar way than forward
         auto motors = motors_.lock();
         motors->q = backwardTransform_ * q;
         motors->v = backwardTransform_ * v;

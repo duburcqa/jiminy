@@ -44,12 +44,12 @@ namespace jiminy
         virtual hresult_t setOptions(configHolder_t const & transmissionOptions) final override;
 
     private:
-        virtual void computeTransform(Eigen::VectorBlock<vectorN_t const> const & /*q*/,
-                                      Eigen::VectorBlock<vectorN_t const> const & /*v*/,
+        virtual void computeTransform(Eigen::VectorBlock<vectorN_t const> const & q,
+                                      Eigen::VectorBlock<vectorN_t const> const & v,
                                       matrixN_t & out) final override;
 
-        virtual void computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & /*q*/,
-                                             Eigen::VectorBlock<vectorN_t const> const & /*v*/,
+        virtual void computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & q,
+                                             Eigen::VectorBlock<vectorN_t const> const & v,
                                              matrixN_t & out) final override;
 
         virtual void computeEffortTransmission(void);

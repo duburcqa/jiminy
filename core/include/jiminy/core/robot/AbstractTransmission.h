@@ -232,10 +232,11 @@ namespace jiminy
         ///
         /// \param[in]  q        Current configuration of the motors.
         /// \param[in]  v        Current velocity of the motors.
+        /// \param[out] out      Matrix transforming quantities from motor to joint level
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual void computeTransform(Eigen::VectorBlock<vectorN_t const> const & q,
                                       Eigen::VectorBlock<vectorN_t const> const & v,
-                                      matrixN_t & out) = 0;  /* copy on purpose */
+                                      matrixN_t & out) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request the transmission to update its actual state based of the input data.
@@ -245,10 +246,11 @@ namespace jiminy
         ///
         /// \param[in]  q        Current configuration of the motors.
         /// \param[in]  v        Current velocity of the motors.
+        /// \param[out] out      Matrix transforming quantities from joint to motor level
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual void computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & q,
                                              Eigen::VectorBlock<vectorN_t const> const & v,
-                                             matrixN_t & out) = 0;  /* copy on purpose */
+                                             matrixN_t & out) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Compute energy dissipation in the transmission.

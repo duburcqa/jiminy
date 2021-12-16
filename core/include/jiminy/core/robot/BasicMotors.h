@@ -60,7 +60,7 @@ namespace jiminy
         virtual hresult_t setOptions(configHolder_t const & motorOptions) final override;
 
     private:
-        virtual hresult_t computeEffort(float64_t command) final override;
+        virtual hresult_t computeEffort(float64_t command) final override; /* copy on purpose */
 
     private:
         std::unique_ptr<motorOptions_t const> motorOptions_;

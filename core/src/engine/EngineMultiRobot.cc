@@ -3687,7 +3687,7 @@ namespace jiminy
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
 
-        data.rotorInertia = system.robot->getArmatures();
+        model.rotorInertia = system.robot->getArmatures().col(0);
         if (system.robot->hasConstraints())
         {
             // Define some proxies for convenience

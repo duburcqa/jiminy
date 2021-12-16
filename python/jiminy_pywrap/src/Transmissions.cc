@@ -42,6 +42,10 @@ namespace python
                                                         bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("joint_velocity_indices", bp::make_function(&AbstractTransmissionBase::getJointVelocityIndices,
                                                         bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("forward_transform", bp::make_function(&AbstractTransmissionBase::getForward,
+                                                   bp::return_value_policy<result_converter<false> >()))
+                .add_property("backward_transform", bp::make_function(&AbstractTransmissionBase::getBackward,
+                                                   bp::return_value_policy<result_converter<false> >()))
 
                 .def("set_options", &PyAbstractTransmissionVisitor::setOptions)
                 .def("get_options", &AbstractTransmissionBase::getOptions)

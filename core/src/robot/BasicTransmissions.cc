@@ -23,7 +23,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Transmission not initialized. Impossible to compute actual transmission effort.");
+            PRINT_ERROR("Transmission not initialized. Impossible to compute transformation of transmission.");
         }
     }
 
@@ -33,7 +33,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Transmission not initialized. Impossible to compute actual transmission effort.");
+            PRINT_ERROR("Transmission not initialized. Impossible to compute transformation of transmission.");
         }
     }
 

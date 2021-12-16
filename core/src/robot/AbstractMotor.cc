@@ -240,7 +240,6 @@ namespace jiminy
             }
         }
 
-
         if (returnCode == hresult_t::SUCCESS)
         {
             if (!robot->getIsInitialized())
