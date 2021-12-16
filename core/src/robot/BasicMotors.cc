@@ -17,6 +17,20 @@ namespace jiminy
         setOptions(getDefaultMotorOptions());
     }
 
+    hresult_t initialize(void)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+        isInitialized_ = true;
+        returnCode = refreshProxies();
+
+        if (returnCode != hresult_t::SUCCESS)
+        {
+            isInitialized_ = false;
+        }
+
+        return returnCode;
+    }
+
     hresult_t SimpleMotor::setOptions(configHolder_t const & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;

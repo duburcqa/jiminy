@@ -18,7 +18,8 @@ namespace jiminy
     }
 
     void SimpleTransmission::computeTransform(Eigen::VectorBlock<vectorN_t const> const & /*q*/,
-                                              Eigen::VectorBlock<vectorN_t const> const & /*v*/)
+                                              Eigen::VectorBlock<vectorN_t const> const & /*v*/,
+                                              matrixN_t &out)
     {
         if (!isInitialized_)
         {
@@ -27,11 +28,17 @@ namespace jiminy
     }
 
     void SimpleTransmission::computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & /*q*/,
-                                                     Eigen::VectorBlock<vectorN_t const> const & /*v*/)
+                                                     Eigen::VectorBlock<vectorN_t const> const & /*v*/,
+                                                     matrixN_t &out)
     {
         if (!isInitialized_)
         {
             PRINT_ERROR("Transmission not initialized. Impossible to compute actual transmission effort.");
         }
+    }
+
+    void computeEffortTransmission(void)
+    {
+        // TODO
     }
 }

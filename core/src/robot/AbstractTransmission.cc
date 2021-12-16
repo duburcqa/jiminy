@@ -52,10 +52,22 @@ namespace jiminy
             isInitialized_ = false;
         }
 
+        auto robot = robot_.lock();
+
+        // TODO move this stuff to refresh Proxies ?
+        // Populate motorIndices_
+        std::weak_ptr<AbstractMotorBase const> motor;
+        for (std::string const & motorName : motorNames)
+        {
+            returnCode = robot->getMotor(motorName, motor);
+            auto motorTemp = motor.lock();
+            int32_t idx = motorTemp->getIdx();
+            motorIndices_.push_back(idx);
+        }
+
         // Populate jointPositionIndices_
         std::vector<int32_t> jointPositionIndices;
         hresult_t returnCode = hresult_t::SUCCESS;
-        auto robot = robot_.lock();
         for (std::string const & jointName : jointNames_)
         {
             std::vector<int32_t> jointPositionIdx;
@@ -98,7 +110,12 @@ namespace jiminy
             jointVelocityIndices.insert(jointVelocityIndices.end(), jointVelocityIdx.begin(), jointVelocityIdx.end());
         }
 
-        // missing how to populate vectorN_t jointVelocityIndices_
+        int32_t jointVelocitySize = jointVelocityIndices.size();
+        jointVelocityIndices_.resize(jointVelocitySize);
+        for (int32_t i = 0; i <  jointVelocitySize; ++i)
+        {
+            jointVelocityIndices_(i) = jointVelocityIndices[i];
+        }
         return returnCode;
     }
 
@@ -118,7 +135,7 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        // Make sure the joint is not already attached to a transmission
+        // TODO Make sure the joint is not already attached to a transmission
         // WARNING at this point it is still not know which joint or motor the transmision connects
         // auto robotTemp = robot.lock();
         // std::vector<std::string> actuatedJointNames = robotTemp->getActuatedJointNames();
@@ -318,6 +335,22 @@ namespace jiminy
     std::vector<std::string> const & AbstractTransmissionBase::getMotorNames(void) const
     {
         return motorNames_;
+    }
+
+    std::vector<std::string> const & getMotorIndices(void) const
+    {
+        // TODO create and populate
+        return motorIndices_;
+    }
+
+    matrixN_t const & getForwardTransform(void) const
+    {
+        return forwardTransform_;
+    }
+
+    matrixN_t const & getInverseTransform(void) const
+    {
+        return backwardTransform_;
     }
 
     hresult_t AbstractTransmissionBase::computeForward(float64_t const & t,

@@ -113,7 +113,7 @@ namespace python
                        std::shared_ptr<SimpleTransmission>,
                        boost::noncopyable>("SimpleTransmission",
                        bp::init<std::string const &>(
-                       bp::args("self", "Transmission_name")))
+                       bp::args("self", "transmission_name")))
                 .def(PySimpleTransmissionVisitor());
         }
     };

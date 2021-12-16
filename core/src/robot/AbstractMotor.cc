@@ -233,6 +233,16 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            if (!isInitialized_)
+            {
+                PRINT_ERROR("Motor not initialized. Impossible to refresh proxies.");
+                returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
+        }
+
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
             if (!robot->getIsInitialized())
             {
                 PRINT_ERROR("Robot not initialized. Impossible to refresh proxies.");

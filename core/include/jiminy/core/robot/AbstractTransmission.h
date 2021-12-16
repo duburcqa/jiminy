@@ -102,11 +102,6 @@ namespace jiminy
         configHolder_t getOptions(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get the actual state of the transmission at the current time.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & get(void) const;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Set the configuration options of the transmission.
         ///
         /// \param[in]  transmissionOptions   Dictionary with the parameters of the transmission
@@ -177,33 +172,54 @@ namespace jiminy
         vectorN_t const & getJointVelocityIndices(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get motorName_.
+        /// \brief      Get motorNames_.
         ///
         /// \details    It is the name of the motors associated with the transmission.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         std::vector<std::string> const & getMotorNames(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get getMotorIndices.
+        ///
+        /// \details    It is the name of the motors associated with the transmission.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        std::vector<int32_t> const & getMotorIndices(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get forwardTransform_.
+        ///
+        /// \details    It is the transformation matrix to convert quantities from motor to joint-level.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        matrixN_t const & getForwardTransform(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get backwardTransform_.
+        ///
+        /// \details    It is the transformation matrix to convert quantities from joint to motor-level.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        matrixN_t const & getInverseTransform(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Compute forward transmission.
         ///
         /// \details    Compute forward transmission from motor to joint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t computeForward(float64_t const & t,
+        hresult_t computeForward(float64_t const & t,
                                  vectorN_t & q,
                                  vectorN_t & v,
                                  vectorN_t & a,
-                                 vectorN_t & uJoint) final;
+                                 vectorN_t & uJoint);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Compute backward transmission.
         ///
         /// \details    Compute backward transmission from joint to motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t computeBackward(float64_t const & t,
+        hresult_t computeBackward(float64_t const & t,
                                   vectorN_t const & q,
                                   vectorN_t const & v,
                                   vectorN_t const & a,
-                                  vectorN_t const & uJoint) final;
+                                  vectorN_t const & uJoint);
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -218,7 +234,8 @@ namespace jiminy
         /// \param[in]  v        Current velocity of the motors.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual void computeTransform(Eigen::VectorBlock<vectorN_t const> const & q,
-                                      Eigen::VectorBlock<vectorN_t const> const & v) = 0;  /* copy on purpose */
+                                      Eigen::VectorBlock<vectorN_t const> const & v,
+                                      matrixN_t & out) = 0;  /* copy on purpose */
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request the transmission to update its actual state based of the input data.
@@ -230,8 +247,8 @@ namespace jiminy
         /// \param[in]  v        Current velocity of the motors.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual void computeInverseTransform(Eigen::VectorBlock<vectorN_t const> const & q,
-                                             Eigen::VectorBlock<vectorN_t const> const & v) = 0;  /* copy on purpose */
-
+                                             Eigen::VectorBlock<vectorN_t const> const & v,
+                                             matrixN_t & out) = 0;  /* copy on purpose */
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Compute energy dissipation in the transmission.
@@ -268,10 +285,10 @@ namespace jiminy
         vectorN_t jointPositionIndices_;
         vectorN_t jointVelocityIndices_;
         std::vector<std::string> motorNames_;
+        std::vector<int32_t> motorIndices_;
         std::vector<std::weak_ptr<AbstractMotorBase> > motors_;
         matrixN_t forwardTransform_;
         matrixN_t backwardTransform_;
-
     };
 }
 

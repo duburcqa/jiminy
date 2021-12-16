@@ -26,8 +26,8 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                // .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
-                //                                 bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("name", bp::make_function(&AbstractMotorBase::getName,
                                         bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("idx", bp::make_function(&AbstractMotorBase::getIdx,
@@ -93,9 +93,9 @@ namespace python
 
             static void visit(PyClass & cl)
             {
-                // cl
-                //     .def("initialize", &TMotor::initialize)
-                //     ;
+                cl
+                    .def("initialize", &TMotor::initialize)
+                    ;
             }
         };
 
