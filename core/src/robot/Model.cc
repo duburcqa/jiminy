@@ -389,10 +389,7 @@ namespace jiminy
         {
             /* Re-generate the true flexible model in case the original rigid
                model has been manually modified by the user. */
-            if (mdlOptions_->dynamics.enableFlexibleModel)
-            {
-                generateModelFlexible();
-            }
+            generateModelFlexible();
 
             // Update the biases added to the dynamics properties of the model
             generateModelBiased();
@@ -1624,8 +1621,7 @@ namespace jiminy
     hresult_t Model::setOptions(configHolder_t modelOptions)
     {
         bool_t internalBuffersMustBeUpdated = false;
-        bool_t isFlexibleModelInvalid = false;
-        bool_t isCurrentModelInvalid = false;
+        bool_t areModelsInvalid = false;
         bool_t isCollisionDataInvalid = false;
         if (isInitialized_)
         {
@@ -1695,13 +1691,10 @@ namespace jiminy
             && (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size()
                 || !std::equal(flexibilityConfig.begin(),
                                flexibilityConfig.end(),
-                               mdlOptions_->dynamics.flexibilityConfig.begin())))
+                               mdlOptions_->dynamics.flexibilityConfig.begin())
+                || enableFlexibleModel != mdlOptions_->dynamics.enableFlexibleModel))
             {
-                isFlexibleModelInvalid = true;
-            }
-            else if (mdlOptions_ && enableFlexibleModel != mdlOptions_->dynamics.enableFlexibleModel)
-            {
-                isCurrentModelInvalid = true;
+                areModelsInvalid = true;
             }
         }
 
@@ -1740,15 +1733,9 @@ namespace jiminy
         // Create a fast struct accessor
         mdlOptions_ = std::make_unique<modelOptions_t const>(mdlOptionsHolder_);
 
-        if (isFlexibleModelInvalid)
+        if (areModelsInvalid)
         {
-            // Force flexible model regeneration
-            generateModelFlexible();
-        }
-
-        if (isFlexibleModelInvalid || isCurrentModelInvalid)
-        {
-            // Trigger biased model regeneration
+            // Trigger models regeneration
             reset();
         }
         else if (internalBuffersMustBeUpdated)

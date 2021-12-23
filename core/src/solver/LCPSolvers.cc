@@ -119,7 +119,8 @@ namespace jiminy
         assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
 
         // Initialize the residuals
-        y_.noalias() = A * x - b;
+        y_ = - b;
+        y_.noalias() += A * x;
 
         // Perform multiple PGS loop until convergence or max iter reached
         for (uint32_t iter = 0; iter < maxIter_; ++iter)
@@ -129,7 +130,8 @@ namespace jiminy
 
             // Check if terminate conditions are satisfied
             yPrev_ = y_;
-            y_.noalias() = A * x - b;
+            y_ = - b;
+            y_.noalias() += A * x;
             dy_ = y_ - yPrev_;
             if ((dy_.array().abs() < tolAbs_ || (dy_.array() / y_.array()).abs() < tolRel_).all())
             {
@@ -162,8 +164,8 @@ namespace jiminy
         pinocchio::cholesky::solve(model, data, data.torque_residual);
 
         // Compute b
-        b_.noalias() = - J * data.torque_residual;
-        b_ -= gamma;
+        b_ = - gamma;
+        b_.noalias() -= J * data.torque_residual;
 
         /* Add regularization term in case A is not inversible.
            Note that Mujoco defines an impedance function that depends on
@@ -194,6 +196,9 @@ namespace jiminy
         }
         else
         {
+            // Full matrix is needed
+            A.triangularView<Eigen::Upper>() = A.transpose();
+
             // Run standard PGS algorithm
             isSuccess = ProjectedGaussSeidelSolver(A, b_, lo, hi, fIndices, f);
         }
