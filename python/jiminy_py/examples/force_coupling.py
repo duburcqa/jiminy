@@ -69,15 +69,8 @@ oMf1, oMf2 = robot1.pinocchio_data.oMf[1], robot2.pinocchio_data.oMf[1]
 Viewer.close()
 views = [Viewer(system.robot) for system in engine.systems]
 Viewer._backend_obj.gui.show_floor(False)
-views[0].add_marker(
-    "root_joint_1", "frame",
-    [oMf1.translation, oMf1.rotation],
-    color="black",
-    scale=1)
-views[0].add_marker(
-    "root_joint_2", "frame",
-    [oMf2.translation, oMf2.rotation],
-    color="red", scale=1)
+views[0].add_marker("root_joint_1", "frame", oMf1, color="black", scale=1)
+views[0].add_marker("root_joint_2", "frame", oMf2, color="red", scale=1)
 
 # Run the simulation while extracting the coupling force
 dt = 0.01

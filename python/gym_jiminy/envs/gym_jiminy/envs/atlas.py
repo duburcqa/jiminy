@@ -24,7 +24,7 @@ else:
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])
-DEFAULT_SAGITTAL_HIP_ANGLE = 0.2
+NEUTRAL_SAGITTAL_HIP_ANGLE = 0.2
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
@@ -153,12 +153,12 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
             return self.robot.pinocchio_model.joints[joint_idx].idx_q
 
         qpos = neutral(self.robot.pinocchio_model)
-        qpos[joint_position_idx('back_bky')] = DEFAULT_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('l_arm_elx')] = DEFAULT_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_idx('back_bky')] = NEUTRAL_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_idx('l_arm_elx')] = NEUTRAL_SAGITTAL_HIP_ANGLE
         qpos[joint_position_idx('l_arm_shx')] = - np.pi / 2.0
         qpos[joint_position_idx('l_arm_shz')] = np.pi / 4.0
         qpos[joint_position_idx('l_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
-        qpos[joint_position_idx('r_arm_elx')] = - DEFAULT_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_idx('r_arm_elx')] = - NEUTRAL_SAGITTAL_HIP_ANGLE
         qpos[joint_position_idx('r_arm_shx')] = np.pi / 2.0
         qpos[joint_position_idx('r_arm_shz')] = - np.pi / 4.0
         qpos[joint_position_idx('r_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
@@ -188,12 +188,12 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             return pinocchio_model.joints[joint_idx].idx_q
 
         qpos = neutral(pinocchio_model)
-        qpos[joint_position_idx('back_bky')] = DEFAULT_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('l_arm_elx')] = DEFAULT_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_idx('back_bky')] = NEUTRAL_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_idx('l_arm_elx')] = NEUTRAL_SAGITTAL_HIP_ANGLE
         qpos[joint_position_idx('l_arm_shx')] = - np.pi / 2.0
         qpos[joint_position_idx('l_arm_shz')] = np.pi / 4.0
         qpos[joint_position_idx('l_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
-        qpos[joint_position_idx('r_arm_elx')] = - DEFAULT_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_idx('r_arm_elx')] = - NEUTRAL_SAGITTAL_HIP_ANGLE
         qpos[joint_position_idx('r_arm_shx')] = np.pi / 2.0
         qpos[joint_position_idx('r_arm_shz')] = - np.pi / 4.0
         qpos[joint_position_idx('r_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
