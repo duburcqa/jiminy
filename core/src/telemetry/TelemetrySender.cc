@@ -98,7 +98,7 @@ namespace jiminy
                                           std::string const & objectNameIn)
     {
         objectName_ = objectNameIn;
-        telemetryData_ = std::move(telemetryDataInstance);
+        telemetryData_ = telemetryDataInstance;
         intBufferPosition_.clear();
         floatBufferPosition_.clear();
     }

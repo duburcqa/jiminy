@@ -562,16 +562,16 @@ def load_hardware_description_file(
         elif body_name not in geometry_types['visual']['mesh']:
             logger.warning(
                 "No visual mesh nor collision geometry associated with "
-                "the collision body. Fallback to adding a single contact "
-                "point at body frame.")
+                f"collision body '{body_name}'. Fallback to adding a single "
+                "contact point at body frame.")
             contact_frames_names.append(body_name)
             continue
         else:
             logger.warning(
                 "No collision geometry associated with the collision "
-                "body. Fallback to replacing it by contact points at "
-                "the vertices of the minimal volume bounding box of the "
-                "available visual meshes.")
+                f"body '{body_name}'. Fallback to replacing it by contact "
+                "points at the vertices of the minimal volume bounding box of "
+                "the available visual meshes.")
 
         # Check if collision primitive box are available
         collision_boxes_size, collision_boxes_origin = [], []

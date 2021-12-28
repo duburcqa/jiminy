@@ -103,9 +103,21 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
+        if (!robot)
+        {
+            PRINT_ERROR("Robot unspecified.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
         if (!robot->getIsInitialized())
         {
             PRINT_ERROR("Robot not initialized.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (!controller)
+        {
+            PRINT_ERROR("Controller unspecified.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -130,8 +142,8 @@ namespace jiminy
 
         // TODO: Check that the callback function is working as expected
         systems_.emplace_back(systemName,
-                              std::move(robot),
-                              std::move(controller),
+                              robot,
+                              controller,
                               std::move(callbackFct));
         systemsDataHolder_.resize(systems_.size());
 
@@ -142,6 +154,12 @@ namespace jiminy
                                           std::shared_ptr<Robot> robot,
                                           callbackFunctor_t callbackFct)
     {
+        if (!robot)
+        {
+            PRINT_ERROR("Robot unspecified.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
         if (!robot->getIsInitialized())
         {
             PRINT_ERROR("Robot not initialized.");
@@ -318,13 +336,13 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             forcesCoupling_.emplace_back(systemName1,
-                                         std::move(systemIdx1),
+                                         systemIdx1,
                                          systemName2,
-                                         std::move(systemIdx2),
+                                         systemIdx2,
                                          frameName1,
-                                         std::move(frameIdx1),
+                                         frameIdx1,
                                          frameName2,
-                                         std::move(frameIdx2),
+                                         frameIdx2,
                                          std::move(forceFct));
         }
 

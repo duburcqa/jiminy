@@ -2,7 +2,7 @@
 
 namespace jiminy
 {
-    RungeKuttaDOPRIStepper::RungeKuttaDOPRIStepper(systemDynamics f, /* Copy on purpose */
+    RungeKuttaDOPRIStepper::RungeKuttaDOPRIStepper(systemDynamics const & f,
                                                    std::vector<Robot const *> const & robots,
                                                    float64_t const & tolRel,
                                                    float64_t const & tolAbs):

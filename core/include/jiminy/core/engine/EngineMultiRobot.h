@@ -392,10 +392,10 @@ namespace jiminy
         /// \param[in] forceFct Callback function returning the force that systemName2
         ///                     applies on systemName1, in the global frame of frameName1.
         hresult_t registerForceCoupling(std::string const & systemName1,
-                                   std::string const & systemName2,
-                                   std::string const & frameName1,
-                                   std::string const & frameName2,
-                                   forceCouplingFunctor_t forceFct);
+                                        std::string const & systemName2,
+                                        std::string const & frameName1,
+                                        std::string const & frameName2,
+                                        forceCouplingFunctor_t forceFct);
         hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & systemName1,
                                                                std::string const & systemName2,
                                                                std::string const & frameName1,
