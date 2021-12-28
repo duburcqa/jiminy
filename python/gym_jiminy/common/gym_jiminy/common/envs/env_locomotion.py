@@ -11,7 +11,8 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu,
-                            PeriodicGaussianProcess)
+                            PeriodicGaussianProcess,
+                            Robot)
 from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
@@ -74,7 +75,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
     }
 
     def __init__(self,
-                 urdf_path: str,
+                 urdf_path: Optional[str],
                  hardware_path: Optional[str] = None,
                  mesh_path: Optional[str] = None,
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
@@ -84,7 +85,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
                  avoid_instable_collisions: bool = True,
-                 debug: bool = False,
+                 debug: bool = False, *,
+                 robot: Optional[Robot] = None,
                  **kwargs: Any) -> None:
         r"""
         :param urdf_path: Path of the urdf model to be used for the simulation.
@@ -118,6 +120,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                                           its vertices.
         :param debug: Whether or not the debug mode must be activated.
                       Doing it enables telemetry recording.
+        :param robot: Robot being simulated, already instantiated and
+                      initialized. Build default robot using 'urdf_path',
+                      'hardware_path' and 'mesh_path' if omitted.
+                      Optional: None by default.
         :param kwargs: Keyword arguments to forward to `BaseJiminyEnv` class.
         """
         # Handling of default arguments
@@ -155,15 +161,23 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self._height_neutral = 0.0
 
         # Configure the backend simulator
-        simulator = Simulator.build(**{**dict(
-            urdf_path=self.urdf_path,
-            hardware_path=self.hardware_path,
-            mesh_path=self.mesh_path,
-            has_freeflyer=True,
-            use_theoretical_model=False,
-            config_path=self.config_path,
-            avoid_instable_collisions=self.avoid_instable_collisions,
-            debug=debug), **kwargs})
+        if robot is None:
+            assert isinstance(self.urdf_path, str)
+            simulator = Simulator.build(
+                urdf_path=self.urdf_path,
+                hardware_path=self.hardware_path,
+                mesh_path=self.mesh_path,
+                config_path=self.config_path,
+                avoid_instable_collisions=self.avoid_instable_collisions,
+                debug=debug,
+                **{**dict(
+                    has_freeflyer=True,
+                    use_theoretical_model=False),
+                    **kwargs})
+        else:
+            # Instantiate a simulator and load the options
+            simulator = Simulator(robot)
+            simulator.import_options(config_path)
 
         # Initialize base class
         super().__init__(

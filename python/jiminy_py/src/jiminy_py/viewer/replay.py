@@ -713,10 +713,11 @@ def _play_logs_files_entrypoint() -> None:
     repeat = True
     viewers = None
     while repeat:
-        viewers = play_logs_files(**{**dict(
-            remove_widgets_overlay=False,
-            viewers=viewers),
-            **kwargs})
+        viewers = play_logs_files(
+            viewers=viewers,
+            **{**dict(
+                remove_widgets_overlay=False),
+                **kwargs})
         kwargs["start_paused"] = False
         if not hasattr(kwargs, "camera_xyzrpy"):
             kwargs["camera_xyzrpy"] = None
