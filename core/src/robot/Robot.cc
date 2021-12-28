@@ -105,7 +105,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            telemetryData_ = std::move(telemetryData);
+            telemetryData_ = telemetryData;
         }
 
         if (returnCode == hresult_t::SUCCESS)

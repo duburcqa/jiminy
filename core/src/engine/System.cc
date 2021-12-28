@@ -80,8 +80,8 @@ namespace jiminy
                                    std::shared_ptr<AbstractController> controllerIn,
                                    callbackFunctor_t callbackFctIn) :
     name(systemNameIn),
-    robot(std::move(robotIn)),
-    controller(std::move(controllerIn)),
+    robot(robotIn),
+    controller(controllerIn),
     callbackFct(std::move(callbackFctIn))
     {
         // Empty on purpose

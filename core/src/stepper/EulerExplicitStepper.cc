@@ -3,7 +3,7 @@
 
 namespace jiminy
 {
-    EulerExplicitStepper::EulerExplicitStepper(systemDynamics f, /* Copy on purpose */
+    EulerExplicitStepper::EulerExplicitStepper(systemDynamics const & f,
                                                std::vector<Robot const *> const & robots):
     AbstractStepper(f, robots)
     {

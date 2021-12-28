@@ -276,7 +276,7 @@ namespace jiminy
             {
                 frameIndex_t frameIdx;
                 returnCode = getFrameIdx(model, name, frameIdx);
-                framesIdx.push_back(std::move(frameIdx));
+                framesIdx.push_back(frameIdx);
             }
         }
 
@@ -311,7 +311,7 @@ namespace jiminy
             {
                 frameIndex_t frameIdx;
                 returnCode = getFrameIdx(model, name, frameIdx);
-                bodiesIdx.push_back(std::move(frameIdx));
+                bodiesIdx.push_back(frameIdx);
             }
         }
 

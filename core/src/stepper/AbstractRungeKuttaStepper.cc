@@ -4,7 +4,7 @@
 
 namespace jiminy
 {
-    AbstractRungeKuttaStepper::AbstractRungeKuttaStepper(systemDynamics f, /* Copy on purpose */
+    AbstractRungeKuttaStepper::AbstractRungeKuttaStepper(systemDynamics const & f,
                                                          std::vector<Robot const *> const & robots,
                                                          matrixN_t const & RungeKuttaMatrix,
                                                          vectorN_t const & bWeights,
