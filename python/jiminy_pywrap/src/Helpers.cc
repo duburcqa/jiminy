@@ -8,8 +8,6 @@
 #include "jiminy/core/utilities/Json.h"
 #include "jiminy/core/utilities/Random.h"
 
-#include "pinocchio/algorithm/model.hpp"
-
 #include <boost/optional.hpp>
 
 /* Note that it is necessary to import eigenpy to get access to the converters.
@@ -119,13 +117,19 @@ namespace python
         auto jointsToLock = convertFromPython<std::vector<pinocchio::JointIndex> >(jointsToLockPy);
         pinocchio::Model reducedModel;
         pinocchio::GeometryModel reducedCollisionModel, reducedVisualModel;
-        pinocchio::buildReducedModel(model, collisionModel, jointsToLock,
-                                     referenceConfiguration, reducedModel,
-                                     reducedCollisionModel);
+        buildReducedModel(model,
+                          collisionModel,
+                          jointsToLock,
+                          referenceConfiguration,
+                          reducedModel,
+                          reducedCollisionModel);
         reducedModel = pinocchio::Model();
-        pinocchio::buildReducedModel(model, visualModel, jointsToLock,
-                                     referenceConfiguration, reducedModel,
-                                     reducedVisualModel);
+        buildReducedModel(model,
+                          visualModel,
+                          jointsToLock,
+                          referenceConfiguration,
+                          reducedModel,
+                          reducedVisualModel);
         return bp::make_tuple(reducedModel, reducedCollisionModel, reducedVisualModel);
     }
 

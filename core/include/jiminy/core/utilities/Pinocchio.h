@@ -118,6 +118,13 @@ namespace jiminy
                                   pinocchio::GeometryModel & collisionModel,
                                   boost::optional<pinocchio::GeometryModel &> visualModel = boost::none,
                                   bool_t const & loadVisualMeshes = false);
+
+    void buildReducedModel(pinocchio::Model const & inputModel,
+                           pinocchio::GeometryModel const & inputGeomModel,
+                           std::vector<pinocchio::JointIndex> const & listOfJointsToLock,
+                           vectorN_t const & referenceConfiguration,
+                           pinocchio::Model & reducedModel,
+                           pinocchio::GeometryModel & reducedGeomModel);
 }
 
 #endif  // JIMINY_PINOCCHIO_H
