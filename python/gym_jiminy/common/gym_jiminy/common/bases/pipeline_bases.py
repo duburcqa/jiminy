@@ -168,7 +168,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             return observer_handle, controller_handle
 
         # Reset base pipeline
-        self.env.reset(register, **kwargs)  # type: ignore[call-arg]
+        self.env.reset(register, **kwargs)
 
         return self.get_observation()
 

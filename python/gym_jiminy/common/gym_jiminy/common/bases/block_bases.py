@@ -52,7 +52,7 @@ class BlockInterface:
         self.action_space = None
 
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__(**kwargs)  # type: ignore[call-arg]
+        super().__init__(**kwargs)
 
         # Refresh the observation and action spaces
         self._initialize_observation_space()
