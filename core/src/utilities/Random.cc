@@ -278,7 +278,7 @@ namespace jiminy
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     ///
-    /// \brief  Lower Cholesky factor of a Toeplitz positive semi_definite matrix.
+    /// \brief  Lower Cholesky factor of a Toeplitz positive semi-definite matrix.
     ///
     /// \details  In practice, it is advisable to combine this algorithm with Tikhonov
     ///           regularization of relative magnitude 1e-9 to avoid numerical instabilities
@@ -414,17 +414,12 @@ namespace jiminy
                 return std::exp(-2.0 * std::pow(std::sin(M_PI / period * dist), 2) / wavelength2);
             });
 
-        /* Perform Square-Root-Free Cholesky decomposition (LDLT) .
-        In practice, since the covariance matrix is symmetric, Eigen Value, Singular Value,
-        Square-Root-Free Cholesky or Schur decompositions are equivalent, but Cholesky is
-        by far the most efficient one:
-        - https://math.stackexchange.com/q/22825/375496
-        Moreover, note that the covariance is positive semi-definite toepliz matrix,
-        so computational complexity of the decomposition could be reduced even further using
-        adapted Cholesky algorithm since speed is very critical. */
-        //auto covLDLT = cov.ldlt();
-        //covSqrtRoot_ = covLDLT.matrixL();
-        //covSqrtRoot_ *= covLDLT.vectorD().array().cwiseMax(0.0).sqrt().matrix().asDiagonal();
+        /* Perform Square-Root-Free Cholesky decomposition (LDLT).
+           All decompositions are equivalent as the covariance matrix is symmetric, namely Eigen
+           Value, Singular Value, Square-Root-Free Cholesky and Schur decompositions. Cholesky
+           is by far the most efficient one (https://math.stackexchange.com/q/22825/375496).
+           Moreover, the covariance is positive semi-definite toepliz matrix, so computational
+           complexity can be reduced even further using optimized Cholesky algorithm. */
         toeplitzCholeskyLower(cov + 1.0e-9 * matrixN_t::Identity(numTimes_, numTimes_), covSqrtRoot_);
 
         // At this point, it is fully initialized

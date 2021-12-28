@@ -150,10 +150,10 @@ namespace jiminy
             constraint = get(key, holderType);
             if (constraint)
             {
-                return constraint;
+                break;
             }
         }
-        return {};
+        return constraint;
     }
 
     void constraintsHolder_t::insert(constraintsMap_t        const & constraintsMap,
@@ -389,10 +389,7 @@ namespace jiminy
         {
             /* Re-generate the true flexible model in case the original rigid
                model has been manually modified by the user. */
-            if (mdlOptions_->dynamics.enableFlexibleModel)
-            {
-                generateModelFlexible();
-            }
+            generateModelFlexible();
 
             // Update the biases added to the dynamics properties of the model
             generateModelBiased();
@@ -630,15 +627,11 @@ namespace jiminy
                             collisionConstraintsMap.emplace_back(geom.name, std::make_shared<FixedFrameConstraint>(
                                 geom.name, (Eigen::Matrix<bool_t, 6, 1>() << true, true, true, false, false, true).finished()));
                         }
-                        else
-                        {
-                            collisionConstraintsMap.emplace_back(geom.name, nullptr);
-                        }
                     }
                 }
             }
 
-            // Add constraints map, even if nullptr for geometry shape not supported
+            // Add constraints map
             if (returnCode == hresult_t::SUCCESS)
             {
                 returnCode = addConstraints(collisionConstraintsMap, constraintsHolderType_t::COLLISION_BODIES);
@@ -713,7 +706,7 @@ namespace jiminy
                     collisionModelOrig_.removeCollisionPair(collisionPair);
 
                     // Append collision geometry to the list of constraints to remove
-                    if (constraintsHolder_.exist(geom.name,  constraintsHolderType_t::COLLISION_BODIES))
+                    if (constraintsHolder_.exist(geom.name, constraintsHolderType_t::COLLISION_BODIES))
                     {
                         collisionConstraintsNames.emplace_back(geom.name);
                     }
@@ -833,14 +826,20 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        // Look for constraint in every constraint holders sequentially
+        // Check if constraint is properly defined and not already exists
         for (auto const & constraintPair : constraintsMap)
         {
-            std::string const & constraintName = constraintPair.first;
+            auto const & constraintName = std::get<0>(constraintPair);
+            auto const & constraintPtr = std::get<1>(constraintPair);
+            if (!constraintPtr)
+            {
+                PRINT_ERROR("Constraint with name '", constraintName, "' is unspecified.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
             if (constraintsHolder_.exist(constraintName))
             {
                 PRINT_ERROR("A constraint with name '", constraintName, "' already exists.");
-                return hresult_t::ERROR_BAD_INPUT;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
 
@@ -998,10 +997,7 @@ namespace jiminy
             auto lambda = [](std::shared_ptr<AbstractConstraintBase> const & constraint,
                              constraintsHolderType_t const & /* holderType */)
                           {
-                              if (constraint)
-                              {
-                                  constraint->disable();
-                              }
+                              constraint->disable();
                           };
             constraintsHolder_.foreach(constraintsHolderType_t::BOUNDS_JOINTS, lambda);
             constraintsHolder_.foreach(constraintsHolderType_t::CONTACT_FRAMES, lambda);
@@ -1624,8 +1620,7 @@ namespace jiminy
     hresult_t Model::setOptions(configHolder_t modelOptions)
     {
         bool_t internalBuffersMustBeUpdated = false;
-        bool_t isFlexibleModelInvalid = false;
-        bool_t isCurrentModelInvalid = false;
+        bool_t areModelsInvalid = false;
         bool_t isCollisionDataInvalid = false;
         if (isInitialized_)
         {
@@ -1695,13 +1690,10 @@ namespace jiminy
             && (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size()
                 || !std::equal(flexibilityConfig.begin(),
                                flexibilityConfig.end(),
-                               mdlOptions_->dynamics.flexibilityConfig.begin())))
+                               mdlOptions_->dynamics.flexibilityConfig.begin())
+                || enableFlexibleModel != mdlOptions_->dynamics.enableFlexibleModel))
             {
-                isFlexibleModelInvalid = true;
-            }
-            else if (mdlOptions_ && enableFlexibleModel != mdlOptions_->dynamics.enableFlexibleModel)
-            {
-                isCurrentModelInvalid = true;
+                areModelsInvalid = true;
             }
         }
 
@@ -1740,15 +1732,9 @@ namespace jiminy
         // Create a fast struct accessor
         mdlOptions_ = std::make_unique<modelOptions_t const>(mdlOptionsHolder_);
 
-        if (isFlexibleModelInvalid)
+        if (areModelsInvalid)
         {
-            // Force flexible model regeneration
-            generateModelFlexible();
-        }
-
-        if (isFlexibleModelInvalid || isCurrentModelInvalid)
-        {
-            // Trigger biased model regeneration
+            // Trigger models regeneration
             reset();
         }
         else if (internalBuffersMustBeUpdated)
@@ -2088,7 +2074,7 @@ namespace jiminy
             [&hasConstraintsEnabled](std::shared_ptr<AbstractConstraintBase> const & constraint,
                                      constraintsHolderType_t const & /* holderType */)
             {
-                if (constraint && constraint->getIsEnabled())
+                if (constraint->getIsEnabled())
                 {
                     hasConstraintsEnabled = true;
                 }

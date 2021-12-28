@@ -35,7 +35,7 @@ class ObserverInterface:
         self._observation = None
 
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
+        super().__init__(*args, **kwargs)
 
     def get_observation(self) -> DataNested:
         """Get post-processed observation.
@@ -106,7 +106,7 @@ class ControllerInterface:
             __func__ is not ControllerInterface.compute_reward_terminal)
 
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
+        super().__init__(*args, **kwargs)
 
     # methods to override:
     # ----------------------------
