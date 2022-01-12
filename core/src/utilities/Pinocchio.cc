@@ -640,6 +640,12 @@ namespace jiminy
             uint32_t incrementalNv = 0;
             for (std::size_t i = 1; i < modelInOut.joints.size(); ++i)
             {
+                // Update global model indices.
+                modelInOut->idx_qs[i] = incrementalNq;
+                modelInOut->idx_vs[i] = incrementalNv;
+                modelInOut->nqs[i] = modelInOut->joints[i].nq();
+                modelInOut->nvs[i] = modelInOut->joints[i].nv();
+
                 modelInOut.joints[i].setIndexes(i, incrementalNq, incrementalNv);
                 incrementalNq += modelInOut.joints[i].nq();
                 incrementalNv += modelInOut.joints[i].nv();
