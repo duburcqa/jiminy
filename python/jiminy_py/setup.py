@@ -146,9 +146,9 @@ setup(
           # Check PEP8 conformance of Python native code
           "flake8",
           # Python linter
-          "pylint",
+          "pylint>=2.12.2",
           # Python static type checker
-          "mypy",
+          "mypy>=0.931",
           # Generate Python docs and render '.rst' nicely
           "sphinx",
           # 'Read the Docs' Sphinx docs style
@@ -162,9 +162,10 @@ setup(
           # Bridge between doxygen and sphinx. Used to generate C++ API docs
           "breathe",
           # Repair wheels to embed shared libraries.
-          # Since 3.2.0, it is now possible to use custom patcher, and new
-          # manylinux_2_24 images are supported since 3.3.0
-          "auditwheel>=3.3.0"
+          # - 3.2.0: enable defining custom patcher
+          # - 3.3.0: Support Python 3.9 and manylinux_2_24 images
+          # - 4.0.0: Many bug fixes, including RPATH of dependencies
+          "auditwheel>=4.0.0"
       ]
     },
     zip_safe=False

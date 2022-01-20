@@ -47,7 +47,7 @@ jobs:
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade wheel
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
 
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV

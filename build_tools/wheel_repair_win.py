@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # This tool has been copied from https://github.com/vinayak-mehta/pdftopng/blob/main/scripts/wheel_repair.py
-# and extended to supported hierarchical folder architecture with mulitple .pyd
+# and extended to supported hierarchical folder architecture with multiple .pyd
 # to update, and to move all the DLL in a common folder *package*.lib installed
 # jointly with the package itself, similarly to auditwheel on Linux platform.
 #(see also https://discuss.python.org/t/delocate-auditwheel-but-for-windows/2589/9).

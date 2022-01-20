@@ -2,7 +2,7 @@ import pinocchio as pin
 
 
 # Use numpy array by default for Eigenpy and Pinocchio incidentally
-__import__('eigenpy').switchToNumpyArray()
+__import__("eigenpy").switchToNumpyArray()
 
 
 # Do not load the geometry of the ground is is not an actually geometry but
