@@ -51,7 +51,7 @@ jobs:
       run: |
         sudo env "PATH=$PATH" "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
         "${PYTHON_EXECUTABLE}" -m pip install tensorflow
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
         "${PYTHON_EXECUTABLE}" -m pip install "torch==1.8.0+cpu" -f https://download.pytorch.org/whl/torch_stable.html
         "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
@@ -126,7 +126,7 @@ jobs:
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \
                  --disable=unspecified-encoding,logging-fstring-interpolation \
-                 --disable=misplaced-comparison-constant \
+                 --disable=misplaced-comparison-constant --disable=cyclic-import \
                  --generated-members=numpy.*,torch.* "gym_jiminy/"
 
           mypy --allow-redefinition --check-untyped-defs --disallow-incomplete-defs --disallow-untyped-defs \

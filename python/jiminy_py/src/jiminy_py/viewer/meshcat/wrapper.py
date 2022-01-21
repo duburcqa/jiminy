@@ -7,7 +7,6 @@ import logging
 import pathlib
 import umsgpack
 import threading
-import tornado.gen
 import tornado.ioloop
 from contextlib import redirect_stdout, redirect_stderr
 from typing import Optional, Sequence, Dict, Any
@@ -113,7 +112,7 @@ if interactive_mode():
                     # New message: reading message without deserializing its
                     # content at this point for efficiency.
                     _, msg = self.__kernel.session.feed_identities(
-                        args[1], copy=False)
+                        args[-1], copy=False)
                     msg = self.__kernel.session.deserialize(
                         msg, content=False, copy=False)
                 else:
@@ -122,20 +121,29 @@ if interactive_mode():
 
                 if msg is not None and \
                         msg['header']['msg_type'].startswith('comm_'):
+                    # Extract comm type and handler
+                    comm_type = msg['header']['msg_type']
+                    comm_handler = getattr(
+                        self.__kernel.comm_manager, comm_type)
+
+                    # Extract message content
+                    content = self.__kernel.session.unpack(msg['content'])
+                    data = content.get('data', '')
+
                     # Comm message. Analyzing message content to determine if
                     # it is related to meshcat or not.
-                    if msg['header']['msg_type'] == 'comm_close':
+                    if comm_type == 'comm_close':
                         # All comm_close messages are processed because Google
                         # Colab API does not support sending data on close.
-                        data = "meshcat:close"
-                    else:
-                        content = self.__kernel.session.unpack(msg['content'])
-                        data = content.get('data', '')
+                        msg['content'] = content
+                        comm_handler(None, None, msg)
+                        continue
                     if isinstance(data, str) and data.startswith('meshcat:'):
                         # Comm message related to meshcat. Processing it right
                         # now and moving to the next message without puting it
                         # back into the queue.
-                        tornado.gen.maybe_future(dispatch(*args))
+                        msg['content'] = content
+                        comm_handler(None, None, msg)
                         continue
 
                 # The message is not related to meshcat comm, so putting it
@@ -192,7 +200,7 @@ class CommManager:
             self.__comm_socket = context.socket(zmq.XREQ)
             self.__comm_socket.connect(comm_url)
             self.__comm_stream = ZMQStream(self.__comm_socket, self.__ioloop)
-            self.__comm_stream.on_recv(self.__forward_to_ipython)
+            self.__comm_stream.on_recv(self.__forward_to_ipykernel)
             self.__ioloop.start()
             self.__ioloop.close()
             self.__ioloop = None
@@ -213,25 +221,25 @@ class CommManager:
     def close(self) -> None:
         self.n_comm = 0
         self.n_message = 0
-        self.__kernel.comm_manager.unregister_target(
-            'meshcat', self.__comm_register)
+        if 'meshcat' in self.__kernel.comm_manager.targets:
+            self.__kernel.comm_manager.unregister_target(
+                'meshcat', self.__comm_register)
         self.__comm_stream.close(linger=5)
         self.__comm_socket.close(linger=5)
         self.__ioloop.add_callback(lambda: self.__ioloop.stop())
         self.__thread.join()
         self.__thread = None
 
-    def __forward_to_ipython(self, frames: Sequence[bytes]) -> None:
+    def __forward_to_ipykernel(self, frames: Sequence[bytes]) -> None:
         comm_id, cmd = frames  # There must be always two parts each messages
         comm_id = comm_id.decode()
         try:
             comm = self.__kernel.comm_manager.comms[comm_id]
+            comm.send(buffers=[cmd])
         except KeyError:
             # The comm has probably been closed without the server knowing.
             # Sending the notification to the server to consider it as such.
             self.__comm_socket.send(f"close:{comm_id}".encode())
-        else:
-            comm.send(buffers=[cmd])
 
     def __comm_register(self,
                         comm: 'ipykernel.comm.Comm',  # noqa
@@ -240,7 +248,7 @@ class CommManager:
         # mechanism: if the main thread is already busy for some reason, for
         # instance waiting for a reply from the server ZMQ socket, then
         # `comm.on_msg` will NOT triggered automatically. It is only triggered
-        # automatically once every other tacks has been process. The workaround
+        # automatically once every other tasks has been process. The workaround
         # is to interleave blocking code with call of `kernel.do_one_iteration`
         # or `await kernel.process_one(wait=True)`. See Stackoverflow for ref:
         # https://stackoverflow.com/a/63666477/4820605

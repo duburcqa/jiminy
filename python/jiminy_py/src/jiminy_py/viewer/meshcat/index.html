@@ -34,10 +34,13 @@
                 }
             };
 
-            // Connect the viewer to the existing server, using the
-            // usual websocket on desktop, though kernel communication
-            // in Google Colaboratory or Jupyter notebooks.
+            // Connect the viewer to the existing server, though direct ZMP
+            // websocket in standalone browser or though kernel communication
+            // in notebooks.
             try {
+                // Set externally by python in interactive mode
+                var ws_path = undefined;
+
                 if (typeof google !== 'undefined') {
                     (async () => {
                         viewer.connection = await google.colab.kernel.comms.open("meshcat", "meshcat:open");
@@ -58,16 +61,116 @@
                         viewer.handle_command_bytearray(new Uint8Array(message.buffers[0].buffer));
                     });
                     viewer.connection.on_close(function(message) {
-                        viewer.connection = null;  // The connection is no longer available
                         console.log("connection to Jupyter kernel closed:", message);
+                        viewer.connection = null;  // The connection is no longer available
                     });
                 }
-                else {
-                    var ws_url = undefined;
-                    viewer.connect(ws_url);
+                else if (ws_path !== undefined) {
+                    // Connect to kernel socket manually if necessary, namely for
+                    // VSCode notebooks and jupyterlab.
+                    const ws_url = "ws" + window.parent.location.origin.substring(4) + ws_path;
+                    viewer.connection = new window.WebSocket(ws_url);
+
+                    // Define UUID generation utility to identify the comm and messages
+                    function uuid() {
+                        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+                            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+                        );
+                    };
+
+                    // Define message deserialization method
+                    var deserialize_array_buffer = function (buf) {
+                        var data = new DataView(buf);
+                        var nbufs = data.getUint32(0);
+                        var offsets = [];
+                        var i;
+                        for (i = 1; i <= nbufs; i++) {
+                            offsets.push(data.getUint32(i * 4));
+                        }
+                        var json_bytes = new Uint8Array(buf.slice(offsets[0], offsets[1]));
+                        var msg = JSON.parse(
+                            (new TextDecoder('utf8')).decode(json_bytes)
+                        );
+                        msg.buffers = [];
+                        var start, stop;
+                        for (i = 1; i < nbufs; i++) {
+                            start = offsets[i];
+                            stop = offsets[i+1] || buf.byteLength;
+                            msg.buffers.push(new DataView(buf.slice(start, stop)));
+                        }
+                        return msg;
+                    };
+
+                    // Create unique comm identifier
+                    const comm_id = uuid();
+
+                    // Monkey-patch send command
+                    var send = viewer.connection.send;
+                    viewer.connection.send = function(data, msg_type) {
+                        var msg = {
+                            header : {
+                                date: new Date().toISOString(),
+                                username : "meshcat",
+                                msg_id : uuid(),
+                                session : "000000000000",
+                                version : "5.3",
+                                msg_type : msg_type || "comm_msg"
+                            },
+                            metadata : {},
+                            content : {
+                                comm_id : comm_id,
+                                target_name : "meshcat",
+                                data : data,
+                            },
+                            channel : 'shell',
+                            buffers : [],
+                            parent_header : {}
+                        };
+                        send.call(this, JSON.stringify(msg));
+                    };
+
+                    // Monkey-patch close command
+                    var close = viewer.connection.close;
+                    viewer.connection.close = function() {
+                        // For some reason, `onclose` is never called, and
+                        // calling the original `close` interferes with the
+                        // send method and the message is never received.
+                        viewer.connection.send("meshcat:close", "comm_close");
+                    };
+
+                    // Define event handler
+                    viewer.connection.onopen = function(event) {
+                        console.log("connection to generic ipykernel:", viewer.connection);
+                        viewer.connection.send("meshcat:open", "comm_open");
+                    };
+                    viewer.connection.onmessage = async function (event) {
+                        var data = event.data;
+                        if (data instanceof Blob) {
+                            const reader = new FileReader();
+                            reader.addEventListener('loadend', () => {
+                                var p = Promise.resolve(deserialize_array_buffer(reader.result));
+                                p.then(function(msg) {
+                                    if (msg.content.comm_id === comm_id)
+                                    {
+                                        viewer.handle_command_bytearray(new Uint8Array(msg.buffers[0].buffer));
+                                    }
+                                });
+                            });
+                            reader.readAsArrayBuffer(event.data);
+                        }
+                    };
+                    viewer.connection.onclose = function (message) {
+                        console.log("connection to generic ipykernel closed:", message);
+                        viewer.connection = null;  // The connection is no longer available
+                    };
+                }
+                else
+                {
+                    // Fallback to direct local communication through meshcat ZMQ socket
+                    viewer.connect();
                 }
             } catch (e) {
-                console.info("Not connected to MeshCat server: ", e);
+                console.info("not connected to MeshCat server: ", e);
             }
 
             // Replace the mesh grid by a filled checkerboard, similar to
@@ -143,7 +246,7 @@
                 // available.
                 if (viewer.connection !== null)
                 {
-                    console.log("Closing connection...");
+                    console.log("closing connection...");
                     viewer.connection.close();
                 }
                 return false;

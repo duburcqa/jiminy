@@ -18,7 +18,7 @@ def copylib(src_path: str, dest_dir: str,
             patcher: ElfPatcher) -> Tuple[str, str]:
     # Do NOT hash filename to make it unique in the particular case of boost
     # python modules, since otherwise it will be impossible to share a common
-    # registery, which is necessary for cross module interoperability.
+    # registry, which is necessary for cross module interoperability.
     if "libboost_python" in src_path:
         src_name = os.path.basename(src_path)
         dest_path = os.path.join(dest_dir, src_name)

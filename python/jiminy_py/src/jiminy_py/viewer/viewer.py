@@ -15,7 +15,6 @@ import webbrowser
 import multiprocessing
 import xml.etree.ElementTree as ET
 from copy import deepcopy
-from urllib.parse import urlparse
 from urllib.request import urlopen
 from functools import wraps, partial
 from bisect import bisect_right
@@ -52,7 +51,7 @@ from .panda3d.panda3d_visualizer import (Tuple3FType,
                                          Panda3dVisualizer)
 
 
-DISPLAY_FRAMERATE = 30
+REPLAY_FRAMERATE = 40
 
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
@@ -851,10 +850,26 @@ class Viewer:
 
                 # Provide websocket URL as fallback if needed. It would be
                 # the case if the environment is not jupyter-notebook nor
-                # colab but rather japyterlab or vscode for instance.
-                web_url = f"ws://{urlparse(viewer_url).netloc}"
+                # colab but rather jupyterlab or vscode for instance.
+                from IPython import get_ipython
+                from notebook import notebookapp
+                kernel = get_ipython().kernel
+                conn_file = kernel.config['IPKernelApp']['connection_file']
+                kernel_id = conn_file.split('-', 1)[1].split('.')[0]
+                server_pid = psutil.Process(os.getpid()).parent().pid
+                server_list = list(notebookapp.list_running_servers())
+                try:
+                    from jupyter_server import serverapp
+                    server_list += list(serverapp.list_running_servers())
+                except ImportError:
+                    pass
+                for server_info in server_list:
+                    if server_info['pid'] == server_pid:
+                        break
+                ws_path = (f"{server_info['base_url']}api/kernels/{kernel_id}"
+                           f"/channels?token={server_info['token']}")
                 html_content = html_content.replace(
-                    "var ws_url = undefined;", f'var ws_url = "{web_url}";')
+                    "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
                 if interactive_mode() == 1:
                     # Embed HTML in iframe on Jupyter, since it is not
@@ -905,8 +920,8 @@ class Viewer:
                 comm_manager = Viewer._backend_obj.comm_manager
                 if comm_manager is not None:
                     ack = Viewer._backend_obj.wait(require_client=False)
-                    Viewer._has_gui = any([
-                        msg == "meshcat:ok" for msg in ack.split(",")])
+                    Viewer._has_gui = any(
+                        msg == "ok" for msg in ack.split(","))
             return Viewer._has_gui
         return False
 
@@ -1223,7 +1238,7 @@ class Viewer:
                 open_gui = True
 
             # List of connections likely to correspond to Meshcat servers
-            meshcat_candidate_conn = []
+            meshcat_candidate_conn = {}
             for pid in psutil.pids():
                 try:
                     proc = psutil.Process(pid)
@@ -1234,7 +1249,7 @@ class Viewer:
                         cmdline = proc.cmdline()
                         if cmdline and ('python' in cmdline[0].lower() or
                                         'meshcat' in cmdline[-1]):
-                            meshcat_candidate_conn.append(conn)
+                            meshcat_candidate_conn[pid] = conn
                 except (psutil.AccessDenied,
                         psutil.ZombieProcess,
                         psutil.NoSuchProcess):
@@ -1254,7 +1269,7 @@ class Viewer:
             # Use the first port responding to zmq request, if any
             zmq_url = None
             context = zmq.Context.instance()
-            for conn in meshcat_candidate_conn:
+            for pid, conn in meshcat_candidate_conn.items():
                 try:
                     # Note that the timeout must be long enough to give enough
                     # time to the server to respond, but not to long to avoid
@@ -1264,7 +1279,7 @@ class Viewer:
                         continue
                     zmq_url = f"tcp://127.0.0.1:{port}"
                     zmq_socket = context.socket(zmq.REQ)
-                    zmq_socket.RCVTIMEO = 250  # millisecond
+                    zmq_socket.RCVTIMEO = 200  # millisecond
                     zmq_socket.connect(zmq_url)
                     zmq_socket.send(b"url")
                     response = zmq_socket.recv().decode("utf-8")
@@ -1285,7 +1300,7 @@ class Viewer:
             # Create a meshcat server if needed and connect to it
             client = MeshcatWrapper(zmq_url)
             if client.server_proc is None:
-                proc = psutil.Process(conn.pid)
+                proc = psutil.Process(pid)
             else:
                 proc = client.server_proc
             proc = _ProcessWrapper(proc, close_at_exit)
@@ -2442,7 +2457,7 @@ class Viewer:
                 self.display(q, v, xyz_offset, update_hook_t, wait)
 
                 # Sleep for a while if computing faster than display framerate
-                sleep(1.0 / DISPLAY_FRAMERATE - (time.time() - time_prev))
+                sleep(1.0 / REPLAY_FRAMERATE - (time.time() - time_prev))
 
                 # Update time in simulation, taking into account speed ratio
                 time_prev = time.time()

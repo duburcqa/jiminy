@@ -60,7 +60,7 @@ namespace pinocchio_overload
          pinocchio::container::aligned_vector<ForceDerived>     const & fext)
     {
         (void) pinocchio::rnea(model, data, q, v, a, fext);
-        data.tau += model.rotorInertia.asDiagonal() * a;
+        data.tau.array() += model.rotorInertia.array() * a.array();
         return data.tau;
     }
 
