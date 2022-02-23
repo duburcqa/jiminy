@@ -25,7 +25,7 @@ from panda3d.core import (
     TransparencyAttrib, OrthographicLens, ClockObject, Shader, ShaderAttrib,
     AntialiasAttrib, GraphicsPipe, WindowProperties, FrameBufferProperties,
     CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
-    loadPrcFileData)
+    GraphicsOutput, loadPrcFileData)
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
@@ -294,8 +294,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         self.taskMgr.keyboardInterruptHandler = keyboardInterruptHandler
 
+        # Disable the task manager loop for now. Only useful if onscreen.
+        self.shutdown()
+
         # Active enhanced rendering if dedicated NVIDIA GPU is used.
-        # Note that shadow resolution larger than 1024 significatly affects
+        # Note that shadow resolution larger than 1024 significantly affects
         # the frame rate on Intel GPU chipsets: going from 1024 to 2048 makes
         # it drop from 60FPS to 30FPS.
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
@@ -504,6 +507,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 "Impossible to open graphical window. Make sure display is "
                 "available on system.")
 
+        # Enable the task manager
+        self.restart()
+
     def _open_offscreen_window(self,
                                size: Optional[Tuple[int, int]] = None) -> None:
         """Create new completely independent offscreen buffer, rendering the
@@ -521,7 +527,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.close_window(self.buff, keepCamera=False)
 
         # Set offscreen buffer frame properties
-        # Note that accumalator bits and back buffers is not supported by
+        # Note that accumulator bits and back buffers is not supported by
         # resizeable buffers.
         fbprops = FrameBufferProperties(self.win.getFbProperties())
         fbprops.set_accum_bits(0)
@@ -531,19 +537,21 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         winprops = WindowProperties()
         winprops.set_size(*size)
 
-        # Set offscreen buffer flags to enforce resizeable `GaphicsBuffer`
+        # Set offscreen buffer flags to enforce resizeable `GraphicsBuffer`
         flags = GraphicsPipe.BF_refuse_window | GraphicsPipe.BF_refuse_parasite
         flags |= GraphicsPipe.BF_resizeable
 
-        # Create new offscreen buffer.
+        # Create new offscreen buffer and attach a texture
         # Note that it is impossible to create resizeable buffer without an
         # already existing host for some reason...
         win = self.graphicsEngine.make_output(
             self.pipe, "offscreen_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
+        texture = Texture()
+        win.addRenderTexture(texture, GraphicsOutput.RTMCopyRam)
+        self.buff = win
 
         # Append buffer to the list of windows managed by the ShowBase
-        self.buff = win
         self.winList.append(win)
 
         # Create 3D camera region for the scene.
@@ -558,7 +566,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.offscreen_display_region.set_sort(5)
         self.offscreen_display_region.set_camera(self.offscreen_camera_2d)
 
-        # # Adjust aspect ratio
+        # Adjust aspect ratio
         self._adjust_offscreen_window_aspect_ratio()
 
     def _adjust_offscreen_window_aspect_ratio(self) -> None:
@@ -671,7 +679,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.picked_object is not None:
             self.highlight_node(*self.picked_object, True)
 
-    def move_orbital_camera_task(self, task: Any) -> None:
+    def move_orbital_camera_task(self,
+                                 task: Optional[Any] = None) -> Optional[int]:
         """Custom control of the camera to be more suitable for robotic
         application than the default one.
         """
@@ -736,7 +745,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.last_mouse_y = y
 
         # End task
-        return task.cont
+        if task is not None:
+            return task.cont
 
     def _make_light_ambient(self, color: Tuple3FType) -> NodePath:
         """Patched to fix wrong color alpha.
@@ -1300,7 +1310,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def set_window_size(self, width: int, height: int) -> None:
         self.buff.setSize(width, height)
         self._adjust_offscreen_window_aspect_ratio()
-        self.step()  # Update frame on-the-spot
 
     def set_framerate(self, framerate: Optional[float] = None) -> None:
         """Limit framerate of Panda3d to avoid consuming too much ressources.
@@ -1325,6 +1334,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if filename is None:
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
             filename = datetime.now().strftime(template)
+
+        # Refresh the scene to make sure it is perfectly up-to-date.
+        # It will take into account the updated position of the camera.
+        self.graphics_engine.render_frame()
 
         # Capture frame as image
         image = PNMImage()
@@ -1353,9 +1366,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             framerate, as any other method relaying on low-level panda3d task
             scheduler. The framerate limit must be disable manually to avoid
             such limitation.
+
+        :param requested_format: Desired export format (e.g. 'RGBA' or 'RGB')
+        :param raw: whether to return a raw memory view of bytes, of a
+                    structured `np.ndarray` of uint8 with dimensions [W, H, D].
         """
-        # Capture frame as raw texture
-        texture = self.buff.get_screenshot()
+        # Refresh the scene
+        self.graphics_engine.render_frame()
+
+        # Get frame as raw texture
+        texture = self.buff.get_texture()
 
         # Extract raw array buffer from texture
         image = texture.get_ram_image_as(requested_format)
@@ -1439,34 +1459,9 @@ class Panda3dViewer(panda3d_viewer.viewer.Viewer):
     def append_cylinder(self, *args: Any, **kwargs: Any) -> None:
         self._app.append_cylinder(*args, **kwargs)
 
-    def set_watermark(self, *args: Any, **kwargs: Any) -> None:
-        self._app.set_watermark(*args, **kwargs)
-        self._app.step()  # Add watermark widget on-the-spot
-
-    def set_legend(self, *args: Any, **kwargs: Any) -> None:
-        self._app.set_legend(*args, **kwargs)
-        self._app.step()  # Add legend widget on-the-spot
-
-    def set_clock(self, *args: Any, **kwargs: Any) -> None:
-        self._app.set_clock(*args, **kwargs)
-        self._app.step()  # Add clock widget on-the-spot
-
-    def set_window_size(self, *args: Any, **kwargs: Any) -> None:
-        self._app.set_window_size(*args, **kwargs)
-        self._app.step()  # Update window size on-the-spot
-
-    def save_screenshot(self, *args: Any, **kwargs: Any) -> bool:
-        # Refresh the scene if no graphical window is available
-        if not self._app.has_gui():
-            self._app.step()
-        return self._app.save_screenshot(*args, **kwargs)
-
     def get_screenshot(self,
                        requested_format: str = 'RGBA',
                        raw: bool = False) -> Union[np.ndarray, bytes]:
-        # Refresh the scene if no graphical window is available
-        if not self._app.has_gui():
-            self._app.step()
         return self._app.get_screenshot(requested_format, raw)
 
 panda3d_viewer.viewer.Viewer = Panda3dViewer  # noqa

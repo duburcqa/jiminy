@@ -27,11 +27,9 @@ class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
         # Only accept focus by clicking on widget
         self.setFocusPolicy(Qt.ClickFocus)
 
-        # Enable mouse control
+        # Configure mouse control
         self.setMouseTracking(True)
         self._app.getMousePos = self.getMousePos
-        self._app.taskMgr.add(
-            self._app.move_orbital_camera_task, "move_camera_task", sort=2)
 
         # Create painter to render "screenshot" from panda3d
         self.paint_surface = QtGui.QPainter()
@@ -53,9 +51,13 @@ class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
     def paintEvent(self, event: Any) -> None:
         """Pull the contents of the panda texture to the widget.
         """
+        # Updating the pose of the camera
+        self._app.move_orbital_camera_task()
+
         # Get raw image and convert it to Qt format.
-        # Note that `QImage` apparently does not manage the lifetime of the
-        # input data buffer, so it is necessary to keep it is local scope.
+        # Note that `QImage` does not manage the lifetime of the input data
+        # buffer, so it is necessary to keep it is local scope until the end of
+        # its drawning.
         data = self.get_screenshot('RGBA', raw=True)
         img = QtGui.QImage(data,
                            *self._app.buff.getSize(),
