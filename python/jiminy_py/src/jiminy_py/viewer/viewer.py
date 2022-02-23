@@ -153,8 +153,13 @@ def sleep(dt: float) -> None:
 
     :param dt: Sleep duration in seconds.
     """
+    # A new high-precision cross-platform sleep method is now available
+    if sys.version_info >= (3, 11):
+        time.sleep(dt)
+        return
+
     # Estimate of timer jitter depending on the operating system
-    if os.name == 'nt':
+    if sys.platform.startswith('win'):
         timer_jitter = 1e-2
     else:
         timer_jitter = 1e-3
