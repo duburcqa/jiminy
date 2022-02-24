@@ -173,8 +173,7 @@
                 console.info("not connected to MeshCat server: ", e);
             }
 
-            // Replace the mesh grid by a filled checkerboard, similar to
-            // the one of Gepetto-gui. The paving size is 1m by 1m.
+            // Replace the mesh grid by tiles. The paving size is 1m by 1m.
             var segments = 20;
             var cmap = [new MeshCat.THREE.Color(0x222233), new MeshCat.THREE.Color(0xf2f2fe)];
             var geometry = new MeshCat.THREE.PlaneBufferGeometry(
@@ -199,8 +198,7 @@
 
             viewer.scene_tree.find(["Axes", "<object>"]).object.material.linewidth = 2.5
 
-            // Update the "zoom" of the camera to match the behavior of
-            // Gepetto-gui, and update the default position of the camera.
+            // Update the "zoom" of the camera and its default position
             viewer.camera.fov = 30;
             viewer.camera.position.set(8.0, 1.2, 0);
             viewer.render();

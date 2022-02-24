@@ -79,8 +79,8 @@ def play_trajectories(trajs_data: Union[
     """Replay one or several robot trajectories in a viewer.
 
     The ratio between the replay and the simulation time is kept constant to
-    the desired ratio. One can choose between several backend (gepetto-gui or
-    meshcat).
+    the desired ratio. One can choose between several backend ('panda3d' or
+    'meshcat').
 
     .. note::
         Replay speed is independent of the platform (windows, linux...) and
@@ -172,9 +172,9 @@ def play_trajectories(trajs_data: Union[
                          input before starting to play the trajectories.
                          Only available if `record_video_path` is None.
                          Optional: False by default.
-    :param backend: Backend, one of 'panda3d', 'meshcat', or 'gepetto-gui'. If
-                    `None`, the most appropriate backend will be selected
-                    automatically, based on hardware and python environment.
+    :param backend: Backend, one of 'panda3d', 'meshcat'. If `None`, the most
+                    appropriate backend will be selected automatically, based
+                    on hardware and python environment.
                     Optional: `None` by default.
     :param delete_robot_on_close: Whether or not to delete the robot from the
                                   viewer when closing it.
@@ -690,7 +690,7 @@ def _play_logs_files_entrypoint() -> None:
               "assuming the robot has a freeflyer."))
     parser.add_argument(
         '-b', '--backend', default='panda3d',
-        help="Display backend (panda3d, meshcat, or gepetto-gui).")
+        help="Display backend ('panda3d' or 'meshcat').")
     parser.add_argument(
         '-m', '--mesh_package_dir', default=None,
         help="Fullpath location of mesh package directory.")

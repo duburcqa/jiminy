@@ -6,25 +6,7 @@
 
 #### Dependencies installation
 
-There is not requirement to install `jiminy_py` on linux if one does not want to build it. Nevertheless, this package does not provide the backend viewer `gepetto-gui` (still, the backend `meshcat` is available).
-
-##### (optional) Gepetto viewer
-
-The first step to install `gepetto-gui` is to setup the APT repository `robotpkg` to have access to compiled binaries.
-
-```bash
-sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
-curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | sudo apt-key add -
-apt update
-```
-
-Once done, it is straightforward to install the required package for Python 3.6.
-
-For Python 3.6
-
-```bash
-sudo apt install -y robotpkg-gepetto-viewer=4.4.0 robotpkg-py36-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py36-omniorbpy
-```
+There is no requirement to install `jiminy_py` on linux if one does not want to build it.
 
 #### Install Jiminy Python package
 

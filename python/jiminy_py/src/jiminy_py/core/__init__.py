@@ -58,7 +58,7 @@ for module_name in BOOST_PYTHON_DEPENDENCIES:
         _module = _importlib.import_module(".".join((__name__, module_name)))
         _sys.modules[module_name] = _module
 
-# Register pinocchio_pywrap to avoid importing bindings twise, which messes up
+# Register pinocchio_pywrap to avoid importing bindings twice, which messes up
 # with boost python converters. In addition, submodules search path needs to be
 # fixed for releases older than 2.5.6.
 submodules = _inspect.getmembers(
@@ -81,10 +81,6 @@ for name in dir(core):
     if not name.startswith("_") and isinstance(attrib, type):
         __all__.append(name)
         attrib.__module__ = __name__
-
-# Patch Pinocchio to avoid loading ground geometry in viewer, and force
-# `np.ndarray` type for from/to Python matrix converters.
-from . import _pinocchio_init  # noqa
 
 
 # Define helpers to build extension modules
