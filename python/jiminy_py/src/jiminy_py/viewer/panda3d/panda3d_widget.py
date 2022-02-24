@@ -3,16 +3,13 @@
 from typing import Optional, Tuple, Any
 
 from matplotlib.backends.qt_compat import QtCore, QtWidgets, QtGui
-from .panda3d_visualizer import Panda3dViewer
+from .panda3d_visualizer import Panda3dApp
 
 
 FRAMERATE = 30
 
 
-Qt = QtCore.Qt
-
-
-class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
+class Panda3dQWidget(Panda3dApp, QtWidgets.QWidget):
     """An interactive panda3D QWidget.
     """
     def __init__(self, parent: Optional[Any] = None) -> None:
@@ -22,14 +19,13 @@ class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self, parent=parent)
 
         # Initialize Panda3D app
-        Panda3dViewer.__init__(self, window_type='offscreen')
+        Panda3dApp.__init__(self)
 
         # Only accept focus by clicking on widget
-        self.setFocusPolicy(Qt.ClickFocus)
+        self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
         # Configure mouse control
         self.setMouseTracking(True)
-        self._app.getMousePos = self.getMousePos
 
         # Create painter to render "screenshot" from panda3d
         self.paint_surface = QtGui.QPainter()
@@ -40,19 +36,19 @@ class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
         self.clock.timeout.connect(self.update)
         self.clock.start()
 
-    def destroy(self):
-        super(Panda3dViewer, self).destroy()
-        super(QtWidgets.QWidget, self).destroy()
+    def destroy(self) -> None:
+        Panda3dApp.destroy(self)
+        QtWidgets.QWidget.destroy(self)
 
     def close(self) -> bool:
-        super(Panda3dViewer, self).destroy()
-        return super(QtWidgets.QWidget, self).close()
+        Panda3dApp.destroy(self)
+        return QtWidgets.QWidget.close(self)
 
     def paintEvent(self, event: Any) -> None:
         """Pull the contents of the panda texture to the widget.
         """
         # Updating the pose of the camera
-        self._app.move_orbital_camera_task()
+        self.move_orbital_camera_task()
 
         # Get raw image and convert it to Qt format.
         # Note that `QImage` does not manage the lifetime of the input data
@@ -60,7 +56,7 @@ class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
         # its drawning.
         data = self.get_screenshot('RGBA', raw=True)
         img = QtGui.QImage(data,
-                           *self._app.buff.getSize(),
+                           *self.buff.getSize(),
                            QtGui.QImage.Format_RGBA8888).mirrored()
 
         # Render image on Qt widget
@@ -74,7 +70,7 @@ class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
         self.set_window_size(
             event.size().width(), event.size().height())
 
-    def getMousePos(self) -> Tuple[int, int]:
+    def getMousePos(self) -> Tuple[float, float]:
         """ TODO: Write documentation.
         """
         pos = self.mapFromGlobal(QtGui.QCursor().pos())
@@ -83,22 +79,22 @@ class Panda3dQWidget(Panda3dViewer, QtWidgets.QWidget):
     def mousePressEvent(self, event: Any) -> None:
         """ TODO: Write documentation.
         """
-        self._app.handle_key("mouse1", event.buttons() & Qt.LeftButton)
-        self._app.handle_key("mouse2", event.buttons() & Qt.MiddleButton)
-        self._app.handle_key("mouse3", event.buttons() & Qt.RightButton)
+        self.handle_key("mouse1", event.buttons() & QtCore.Qt.LeftButton)
+        self.handle_key("mouse2", event.buttons() & QtCore.Qt.MiddleButton)
+        self.handle_key("mouse3", event.buttons() & QtCore.Qt.RightButton)
 
     def mouseReleaseEvent(self, event: Any) -> None:
         """ TODO: Write documentation.
         """
-        self._app.handle_key("mouse1", event.buttons() & Qt.LeftButton)
-        self._app.handle_key("mouse2", event.buttons() & Qt.MiddleButton)
-        self._app.handle_key("mouse3", event.buttons() & Qt.RightButton)
+        self.handle_key("mouse1", event.buttons() & QtCore.Qt.LeftButton)
+        self.handle_key("mouse2", event.buttons() & QtCore.Qt.MiddleButton)
+        self.handle_key("mouse3", event.buttons() & QtCore.Qt.RightButton)
 
     def wheelEvent(self, event: Any) -> None:
         """ TODO: Write documentation.
         """
         delta = event.angleDelta().y()
         if delta > 0.0:
-            self._app.handle_key("wheelup", True)
+            self.handle_key("wheelup", True)
         else:
-            self._app.handle_key("wheeldown", True)
+            self.handle_key("wheeldown", True)

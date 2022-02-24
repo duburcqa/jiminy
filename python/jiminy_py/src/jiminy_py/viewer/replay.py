@@ -425,8 +425,8 @@ def play_trajectories(trajs_data: Union[
 
         # Disable framerate limit of Panda3d for efficiency
         if Viewer.backend.startswith('panda3d'):
-            framerate = viewer._backend_obj._app.get_framerate()
-            viewer._backend_obj._app.set_framerate(None)
+            framerate = viewer._backend_obj.get_framerate()
+            viewer._backend_obj.set_framerate(None)
 
         # Initialize video recording
         if Viewer.backend == 'meshcat':
@@ -497,7 +497,7 @@ def play_trajectories(trajs_data: Union[
 
         # Restore framerate limit of Panda3d
         if Viewer.backend.startswith('panda3d'):
-            viewer._backend_obj._app.set_framerate(framerate)
+            viewer._backend_obj.set_framerate(framerate)
     else:
         # Play trajectories with multithreading
         def replay_thread(viewer, *args):

@@ -998,7 +998,7 @@ class Viewer:
                         recorder_proc = Viewer._backend_obj.recorder.proc
                         _ProcessWrapper(recorder_proc).kill()
                     if Viewer.backend == 'panda3d':
-                        Viewer._backend_obj._app.stop()
+                        Viewer._backend_obj.stop()
                         Viewer._backend_proc.wait(timeout=0.1)
                     Viewer._backend_proc.kill()
                 atexit.unregister(Viewer.close)
@@ -1230,13 +1230,14 @@ class Viewer:
             # Note that it fallbacks to software rendering if necessary.
             if Viewer.backend == 'panda3d-qt':
                 client = Panda3dQWidget()
+                proc = _ProcessWrapper(client, close_at_exit)
             else:
                 client = Panda3dViewer(window_type='onscreen',
                                        window_title=Viewer.window_name)
-            client.gui = client  # The gui is the client itself for now
+                proc = _ProcessWrapper(client._app, close_at_exit)
 
-            # Extract low-level process to monitor health
-            proc = _ProcessWrapper(client._app, close_at_exit)
+            # The gui is the client itself
+            client.gui = client
         else:
             # handle default argument(s)
             if open_gui is None:

@@ -547,7 +547,7 @@ def get_policy_class(
     return None
 
 
-PPOTrainer = PPOTrainer.with_updates(
+PPOTrainer = PPOTrainer.with_updates(  # type: ignore
     default_config=DEFAULT_CONFIG,
     get_policy_class=get_policy_class
 )
