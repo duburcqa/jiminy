@@ -36,6 +36,7 @@ import panda3d_viewer.viewer_app
 import panda3d_viewer.viewer_proxy
 from panda3d_viewer import geometry
 from panda3d_viewer.viewer_errors import ViewerClosedError
+from panda3d_viewer.viewer_config import ViewerConfig
 
 import hppfcl
 import pinocchio as pin
@@ -259,8 +260,10 @@ def make_heightmap(heightmap: np.ndarray) -> Geom:
 
 
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
-    def __init__(self, config) -> None:
+    def __init__(self, config: Optional[ViewerConfig] = None) -> None:
         # Enforce viewer configuration
+        if config is None:
+            config = ViewerConfig()
         config.set_window_size(*WINDOW_SIZE_DEFAULT)
         config.set_window_fixed(False)
         config.enable_antialiasing(True, multisamples=2)
@@ -610,7 +613,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             win = self.buff
         return super().getSize(win)
 
-    def getMousePos(self) -> Tuple[int, int]:
+    def getMousePos(self) -> Tuple[float, float]:
         """Get current mouse position.
 
         .. note::
@@ -1459,6 +1462,9 @@ class Panda3dViewer(panda3d_viewer.viewer.Viewer):
     def append_cylinder(self, *args: Any, **kwargs: Any) -> None:
         self._app.append_cylinder(*args, **kwargs)
 
+    def save_screenshot(self, filename: Optional[str] = None):
+        return self._app.save_screenshot(filename)
+
     def get_screenshot(self,
                        requested_format: str = 'RGBA',
                        raw: bool = False) -> Union[np.ndarray, bytes]:
@@ -1475,7 +1481,7 @@ class Panda3dVisualizer(BaseVisualizer):
     Copyright (c) 2018-2020, INRIA
     """  # noqa: E501
     def initViewer(self,
-                   viewer: Optional[Panda3dViewer] = None,
+                   viewer: Optional[Union[Panda3dViewer, Panda3dApp]] = None,
                    loadModel: bool = False) -> None:
         """Init the viewer by attaching to / creating a GUI viewer.
         """
@@ -1574,7 +1580,7 @@ class Panda3dVisualizer(BaseVisualizer):
                 geom_node = GeomNode('convex')
                 geom_node.add_geom(obj)
                 node = NodePath(geom_node)
-                self.viewer._app.append_node(*node_name, node)
+                self.viewer.append_node(*node_name, node)
             else:
                 is_success = False
         else:
