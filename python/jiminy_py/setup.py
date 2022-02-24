@@ -91,7 +91,8 @@ setup(
         # build from source after install `libatlas-base-dev` system
         # dependency.
         # 1.2.0 fixes `fmin_slsqp` optimizer returning wrong `imode` ouput.
-        "scipy>=1.2.0",
+        # 1.8.0: `scipy.spatial.qhull._Qhull` is no longer exposed.
+        "scipy>=1.2.0,<1.8.0",
         # Standard library to generate figures.
         "matplotlib",
         # Used internally to read HDF5 format log files.
