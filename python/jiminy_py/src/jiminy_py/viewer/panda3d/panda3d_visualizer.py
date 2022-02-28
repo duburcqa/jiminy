@@ -453,6 +453,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_grid(False)
         self.show_floor(True)
 
+        # Force rendering the scene to finalize initialization of the GSG
+        self.graphics_engine.render_frame()
+
     def has_gui(self) -> bool:
         return any(isinstance(win, GraphicsWindow) for win in self.winList)
 

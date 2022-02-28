@@ -932,7 +932,6 @@ class Viewer:
                         _ProcessWrapper(recorder_proc).kill()
                     if Viewer.backend == 'panda3d':
                         Viewer._backend_obj.stop()
-                        Viewer._backend_proc.wait(timeout=0.1)
                     Viewer._backend_proc.kill()
                 atexit.unregister(Viewer.close)
                 Viewer._backend_obj = None
