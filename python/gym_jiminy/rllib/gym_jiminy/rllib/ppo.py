@@ -20,11 +20,14 @@ from ray.rllib.utils.numpy import convert_to_numpy
 from ray.rllib.utils.torch_utils import l2_loss
 from ray.rllib.utils.typing import TensorType, TrainerConfigDict
 
-from ray.rllib.agents.ppo import DEFAULT_CONFIG, PPOTrainer, ppo_torch_policy
+from ray.rllib.agents.ppo import (
+    DEFAULT_CONFIG as _DEFAULT_CONFIG, PPOTrainer as _PPOTrainer)
+from ray.rllib.agents.ppo.ppo_torch_policy import (
+    PPOTorchPolicy as _PPOTorchPolicy)
 
 
-DEFAULT_CONFIG = PPOTrainer.merge_trainer_configs(
-    DEFAULT_CONFIG,
+DEFAULT_CONFIG = _PPOTrainer.merge_trainer_configs(
+    _DEFAULT_CONFIG,
     {
         "enable_adversarial_noise": False,
         "spatial_noise_scale": 1.0,
@@ -51,7 +54,7 @@ def get_action_mean(model: TorchModelV2,
     .. note:
         It performs deterministic sampling for all distributions except
         multivariate independent normal distribution, for which the mean can be
-        very efficiently extracted as a view of the logitis.
+        very efficiently extracted as a view of the logits.
     """
     if issubclass(dist_class, TorchDiagGaussian):
         action_mean, _ = torch.chunk(action_logits, 2, dim=1)
@@ -71,7 +74,7 @@ def get_adversarial_observation_sgld(
         action_true_mean: Optional[torch.Tensor] = None
         ) -> torch.Tensor:
     """Compute adversarial observation maximizing Mean Squared Error between
-    the original and the perturbated mean action using Stochastic gradient
+    the original and the perturbed mean action using Stochastic gradient
     Langevin dynamics algorithm (SGLD).
     """
     # Compute mean field action for true observation if not provided
@@ -181,18 +184,18 @@ def _compute_mirrored_value(value: torch.Tensor,
     return _update_flattened_slice(value, space.shape, mirror_mat)
 
 
-class PPOTorchPolicy(ppo_torch_policy.PPOTorchPolicy):
+class PPOTorchPolicy(_PPOTorchPolicy):
     """Add regularization losses on top of the original loss of PPO.
     More specifically, it adds:
-        - CAPS regulization, which combines the spatial and temporal difference
-        betwen previous and current state
-        - Global regulization, which is the average norm of the action
+        - CAPS regularization, which combines the spatial and temporal
+          difference betwen previous and current state
+        - Global regularization, which is the average norm of the action
         - temporal barrier, which is exponential barrier loss when the
-        normalized action is above a threshold (much like interior point
-        methods).
+          normalized action is above a threshold (much like interior point
+          methods).
         - symmetry regularization, which is the error between actions and
         symmetric actions associated with symmetric observations.
-        - L2 regulization of policy network weights
+        - L2 regularization of policy network weights
     """
     def __init__(self,
                  obs_space: gym.spaces.Space,
@@ -498,10 +501,10 @@ class PPOTorchPolicy(ppo_torch_policy.PPOTorchPolicy):
 
         if self.config["l2_reg"] > 0.0:
             # Add actor l2-regularization loss
-            l2_reg = torch.tensor(0.0)
+            l2_reg = 0.0
             assert isinstance(model, torch.nn.Module)
             for name, params in model.named_parameters():
-                if not name.endswith("bias"):
+                if not name.endswith("bias") and params.requires_grad:
                     l2_reg += l2_loss(params)
 
             # Add l2-regularization loss to total loss
@@ -512,7 +515,7 @@ class PPOTorchPolicy(ppo_torch_policy.PPOTorchPolicy):
 
     def extra_grad_info(self,
                         train_batch: SampleBatch) -> Dict[str, TensorType]:
-        """Add regulization values to statitics.
+        """Add regularization values to statistics.
         """
         stats_dict = super().extra_grad_info(train_batch)
 
@@ -538,19 +541,18 @@ class PPOTorchPolicy(ppo_torch_policy.PPOTorchPolicy):
         return convert_to_numpy(stats_dict)
 
 
-def get_policy_class(
-        config: TrainerConfigDict) -> Optional[Type[Policy]]:
-    """ TODO: Write documentation.
-    """
-    if config["framework"] == "torch":
-        return PPOTorchPolicy
-    return None
+class PPOTrainer(_PPOTrainer):
+    @classmethod
+    def get_default_config(cls) -> TrainerConfigDict:
+        """Returns a default configuration for the Trainer.
+        """
+        return DEFAULT_CONFIG
 
-
-PPOTrainer = PPOTrainer.with_updates(  # type: ignore
-    default_config=DEFAULT_CONFIG,
-    get_policy_class=get_policy_class
-)
+    def get_default_policy_class(self,
+                                 config: TrainerConfigDict) -> Type[Policy]:
+        if config["framework"] == "torch":
+            return PPOTorchPolicy
+        raise RuntimeError("The only framework supported is 'torch'.")
 
 
 __all__ = [
