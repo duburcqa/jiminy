@@ -3,6 +3,7 @@
 from typing import Optional, Tuple, Any
 
 from matplotlib.backends.qt_compat import QtCore, QtWidgets, QtGui
+
 from .panda3d_visualizer import Panda3dApp
 
 

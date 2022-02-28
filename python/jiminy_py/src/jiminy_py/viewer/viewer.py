@@ -925,14 +925,10 @@ class Viewer:
                 Viewer.detach_camera()
                 Viewer.remove_camera_motion()
                 if Viewer.is_alive():
-                    if Viewer.backend in ('meshcat', 'panda3d-qt'):
+                    if Viewer.backend in 'meshcat':
                         Viewer._backend_obj.close()
-                    if Viewer.backend == 'meshcat':
-                        recorder_proc = Viewer._backend_obj.recorder.proc
-                        _ProcessWrapper(recorder_proc).kill()
-                    if Viewer.backend == 'panda3d':
+                    elif Viewer.backend.startswith('panda3d'):
                         Viewer._backend_obj.stop()
-                        Viewer._backend_proc.wait(timeout=0.1)
                     Viewer._backend_proc.kill()
                 atexit.unregister(Viewer.close)
                 Viewer._backend_obj = None
