@@ -542,6 +542,9 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
 
 class PPOTrainer(_PPOTrainer):
+    """Custom PPO Trainer with additional regularization losses on top of the
+    original surrogate loss. See `PPOTorchPolicy` for details.
+    """
     @classmethod
     def get_default_config(cls) -> TrainerConfigDict:
         """Returns a default configuration for the Trainer.
