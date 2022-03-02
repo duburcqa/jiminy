@@ -19,7 +19,7 @@ namespace jiminy
             /// \brief Constructor
             /// \param[in] f      Dynamics function, with signature a = f(t, q, v)
             /// \param[in] robots Robots whose dynamics the stepper will work on.
-            AbstractRungeKuttaStepper(systemDynamics f, /* Copy on purpose */
+            AbstractRungeKuttaStepper(systemDynamics const & f,
                                       std::vector<Robot const *> const & robots,
                                       matrixN_t const & RungeKuttaMatrix,
                                       vectorN_t const & bWeights,

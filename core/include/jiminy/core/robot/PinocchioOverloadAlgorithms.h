@@ -60,7 +60,7 @@ namespace pinocchio_overload
          pinocchio::container::aligned_vector<ForceDerived>     const & fext)
     {
         (void) pinocchio::rnea(model, data, q, v, a, fext);
-        data.tau += model.rotorInertia.asDiagonal() * a;
+        data.tau.array() += model.rotorInertia.array() * a.array();
         return data.tau;
     }
 
@@ -485,7 +485,7 @@ namespace pinocchio_overload
                                       Eigen::MatrixBase<JacobianType> const & J,
                                       bool_t const & updateDecomposition = true)
     {
-        // Compute Cholesky decomposition of mass matrix M
+        // Compute the Cholesky decomposition of mass matrix M if requested
         if (updateDecomposition)
         {
             pinocchio::cholesky::decompose(model, data);
@@ -494,12 +494,12 @@ namespace pinocchio_overload
         // Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T
         data.sDUiJt = J.transpose();
         pinocchio::cholesky::Uiv(model, data, data.sDUiJt);
-        data.sDUiJt.array().colwise() /= data.D.array().sqrt();
+        data.sDUiJt.array().colwise() *= data.Dinv.array().sqrt();
 
         // Compute JMinvJt := sDUiJt.T * sDUiJt
-        data.JMinvJt = matrixN_t::Zero(J.rows(), J.rows());
+        data.JMinvJt.resize(J.rows(), J.rows());
+        data.JMinvJt.triangularView<Eigen::Lower>().setZero();
         data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(data.sDUiJt.transpose());
-        data.JMinvJt.triangularView<Eigen::Upper>() = data.JMinvJt.transpose();
 
         return data.JMinvJt;
     }

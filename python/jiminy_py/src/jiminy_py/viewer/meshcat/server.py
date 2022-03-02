@@ -153,6 +153,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             self.send_scene(comm_id=comm_id)
             self.comm_pool.add(comm_id)
             if self.is_waiting_ready_msg:
+                # Send request for acknowledgment a-posteriori
                 msg = umsgpack.packb({"type": "ready"})
                 self.forward_to_comm(comm_id, msg)
         elif cmd.startswith("close:"):

@@ -1,10 +1,12 @@
 """ TODO: Write documentation.
 """
+from collections import OrderedDict
 from typing import Optional, Union, Dict, Sequence, TypeVar
 
-import numpy as np
-import tree
 import gym
+import tree
+import numpy as np
+from numpy.random.mtrand import _rand as global_randstate
 
 
 ValueType = TypeVar('ValueType')
@@ -19,15 +21,13 @@ def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:
     """Replace any `gym.spaces.Dict` by the raw `OrderedDict` dict it contains.
 
     .. note::
-        It is necessary because it does not inherit from
-        `collection.abc.Mapping`, which is necessary for `dm-tree` to operate
-        properly on it.
-        # TODO: remove this patch after release of gym==0.22.0 (hopefully)
+        It is necessary because non primitive objects must inherit from
+        `collection.abc.Mapping|Sequence` for `dm-tree` to operate on them.
+        # TODO: support of gym.spaces.Tuple is expected for gym>=0.23.0.
     """
     return tree.traverse(
-        lambda space:
-            _space_nested_raw(space.spaces)
-            if isinstance(space, gym.spaces.Dict) else None,
+        lambda space: _space_nested_raw(space.spaces) if isinstance(
+            space, (gym.spaces.Dict, gym.spaces.Tuple)) else None,
         space_nested)
 
 
@@ -93,7 +93,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     # Sample from normalized distribution.
     # Note that some distributions are not normalized by default
     if rg is None:
-        rg = np.random
+        rg = global_randstate
     distrib_fn = getattr(rg, dist)
     if dist == 'uniform':
         value = distrib_fn(low=-1.0, high=1.0, size=shape)
@@ -111,9 +111,9 @@ def sample(low: Union[float, np.ndarray] = -1.0,
 
 
 def is_bounded(space_nested: gym.Space) -> bool:
-    """Check wether `gym.spaces.Space` has finite bounds.
+    """Check wether a `gym.Space` has finite bounds.
 
-    :param space: Gym.Space on which to operate.
+    :param space: `gym.Space` on which to operate.
     """
     for space in tree.flatten(_space_nested_raw(space_nested)):
         is_bounded_fn = getattr(space, "is_bounded", None)
@@ -122,34 +122,37 @@ def is_bounded(space_nested: gym.Space) -> bool:
     return True
 
 
-def zeros(space_nested: gym.Space,
-          dtype: Optional[type] = None) -> Union[DataNested, int]:
-    """Allocate data structure from `gym.space.Space` and initialize it to zero.
+def zeros(space: gym.Space, dtype: Optional[type] = None) -> DataNested:
+    """Allocate data structure from `gym.Space` and initialize it to zero.
 
-    :param space: Gym.Space on which to operate.
+    :param space: `gym.Space` on which to operate.
     :param dtype: Must be specified to overwrite original space dtype.
     """
-    space_nested_raw = _space_nested_raw(space_nested)
-    values = []
-    for space in tree.flatten(space_nested_raw):
-        if isinstance(space, gym.spaces.Box):
-            value = np.zeros(space.shape, dtype=dtype or space.dtype)
-        elif isinstance(space, gym.spaces.Discrete):
-            # Note that np.array of 0 dim is returned in order to be mutable
-            value = np.array(0, dtype=dtype or np.int64)
-        elif isinstance(space, gym.spaces.MultiDiscrete):
-            value = np.zeros_like(space.nvec, dtype=dtype or np.int64)
-        elif isinstance(space, gym.spaces.MultiBinary):
-            value = np.zeros(space.n, dtype=dtype or np.int8)
-        else:
-            raise NotImplementedError(
-                f"Space of type {type(space)} is not supported.")
-        values.append(value)
-    return tree.unflatten_as(space_nested_raw, values)
+    # Note that it is not possible to take advantage of dm-tree because the
+    # output type for collections (OrderedDict or Tuple) is not the same as
+    # the input one (gym.Space). This feature request would be too specific.
+    if isinstance(space, gym.spaces.Box):
+        return np.zeros(space.shape, dtype=dtype or space.dtype)
+    if isinstance(space, gym.spaces.Dict):
+        value = OrderedDict()
+        for field, subspace in dict.items(space.spaces):
+            value[field] = zeros(subspace, dtype=dtype)
+        return value
+    if isinstance(space, gym.spaces.Tuple):
+        return tuple(zeros(subspace, dtype=dtype) for subspace in space.spaces)
+    if isinstance(space, gym.spaces.Discrete):
+        # Note that np.array of 0 dim is returned in order to be mutable
+        return np.array(0, dtype=dtype or np.int64)
+    if isinstance(space, gym.spaces.MultiDiscrete):
+        return np.zeros_like(space.nvec, dtype=dtype or np.int64)
+    if isinstance(space, gym.spaces.MultiBinary):
+        return np.zeros(space.n, dtype=dtype or np.int8)
+    raise NotImplementedError(
+        f"Space of type {type(space)} is not supported.")
 
 
 def fill(data: DataNested, fill_value: float) -> None:
-    """Set every element of 'data' from `Gym.Space` to scalar 'fill_value'.
+    """Set every element of 'data' from `gym.Space` to scalar 'fill_value'.
 
     :param data: Data structure to update.
     :param fill_value: Value used to fill any scalar from the leaves.
@@ -164,7 +167,7 @@ def fill(data: DataNested, fill_value: float) -> None:
 
 
 def set_value(data: DataNested, value: DataNested) -> None:
-    """Partially set 'data' from `Gym.Space` to 'value'.
+    """Partially set 'data' from `gym.Space` to 'value'.
 
     It avoids memory allocation, so that memory pointers of 'data' remains
     unchanged. A direct consequences, it is necessary to preallocate memory
@@ -187,7 +190,7 @@ def set_value(data: DataNested, value: DataNested) -> None:
 
 
 def copy(data: DataNested) -> DataNested:
-    """Shallow copy recursively 'data' from `Gym.Space`, so that only leaves
+    """Shallow copy recursively 'data' from `gym.Space`, so that only leaves
     are still references.
 
     :param data: Hierarchical data structure to copy without allocation.
@@ -197,13 +200,13 @@ def copy(data: DataNested) -> DataNested:
 
 def clip(space_nested: gym.Space,
          data: DataNested) -> DataNested:
-    """Clamp value from Gym.Space to make sure it is within bounds.
+    """Clamp value from `gym.Space` to make sure it is within bounds.
 
-    :param space: Gym.Space on which to operate.
+    :param space: `gym.Space` on which to operate.
     :param data: Data to clamp.
     """
     return tree.map_structure(
-        lambda space, value:
+        lambda value, space:
             np.minimum(np.maximum(value, space.low), space.high)
         if isinstance(space, gym.spaces.Box) else value,
-        _space_nested_raw(space_nested), data)
+        data, _space_nested_raw(space_nested))

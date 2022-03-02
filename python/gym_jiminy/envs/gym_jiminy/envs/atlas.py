@@ -4,12 +4,9 @@ from pathlib import Path
 from pkg_resources import resource_filename
 from typing import Any
 
-import jiminy_py.core as jiminy
-from jiminy_py.robot import load_hardware_description_file
-from jiminy_py.simulator import Simulator
-from gym_jiminy.common.envs import BaseJiminyEnv, WalkerJiminyEnv
-from gym_jiminy.common.envs.env_locomotion import (
-    F_PROFILE_WAVELENGTH, F_PROFILE_PERIOD)
+from jiminy_py.core import build_models_from_urdf, build_reduced_models, Robot
+from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
+from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.controllers import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
@@ -104,18 +101,20 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
             "gym_jiminy.envs", "data/bipedal_robots/atlas")
         urdf_path = os.path.join(data_root_dir, "atlas_v4.urdf")
 
-        # Initialize the walker environment directly
-        super().__init__(**{**dict(
+        # Initialize the walker environment
+        super().__init__(
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
-            simu_duration_max=SIMULATION_DURATION,
-            step_dt=STEP_DT,
-            reward_mixture=REWARD_MIXTURE,
-            std_ratio=STD_RATIO,
             avoid_instable_collisions=True,
-            debug=debug), **kwargs})
+            debug=debug,
+            **{**dict(
+                simu_duration_max=SIMULATION_DURATION,
+                step_dt=STEP_DT,
+                reward_mixture=REWARD_MIXTURE,
+                std_ratio=STD_RATIO),
+                **kwargs})
 
-        # Remove unrelevant contact points
+        # Remove irrelevant contact points
         _cleanup_contact_points(self)
 
     def _neutral(self):
@@ -146,10 +145,10 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
 
         # Load the full models
         pinocchio_model, collision_model, visual_model = \
-            jiminy.build_models_from_urdf(urdf_path,
-                                          has_freeflyer=True,
-                                          build_visual_model=True,
-                                          mesh_package_dirs=[data_root_dir])
+            build_models_from_urdf(urdf_path,
+                                   has_freeflyer=True,
+                                   build_visual_model=True,
+                                   mesh_package_dirs=[data_root_dir])
 
         # Generate the reference configuration
         def joint_position_idx(joint_name):
@@ -172,50 +171,39 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             pinocchio_model.getJointId(joint_name)
             for joint_name in pinocchio_model.names[2:]
             if "_leg_" not in joint_name]
-        pinocchio_model, collision_model, visual_model = \
-            jiminy.build_reduced_models(pinocchio_model,
-                                        collision_model,
-                                        visual_model,
-                                        joint_locked_indices,
-                                        qpos)
+        pinocchio_model, collision_model, visual_model = build_reduced_models(
+            pinocchio_model,
+            collision_model,
+            visual_model,
+            joint_locked_indices,
+            qpos)
 
         # Build the robot and load the hardware
-        robot = jiminy.Robot()
-        robot.initialize(pinocchio_model, collision_model, visual_model)
-        hardware_path = str(
-            Path(urdf_path).with_suffix('')) + '_hardware.toml'
-        config_path = str(
-            Path(urdf_path).with_suffix('')) + '_options.toml'
-        load_hardware_description_file(robot, hardware_path, True, False)
+        robot = BaseJiminyRobot()
+        Robot.initialize(robot, pinocchio_model, collision_model, visual_model)
+        robot._urdf_path_orig = urdf_path
+        hardware_path = str(Path(urdf_path).with_suffix('')) + '_hardware.toml'
+        load_hardware_description_file(
+            robot,
+            hardware_path,
+            avoid_instable_collisions=True,
+            verbose=debug)
 
-        # Instantiate a simulator and load the options
-        simulator = Simulator(robot)
-        simulator.import_options(config_path)
+        # Initialize the walker environment
+        super().__init__(
+            robot=robot,
+            urdf_path=urdf_path,
+            mesh_path=data_root_dir,
+            avoid_instable_collisions=True,
+            debug=debug,
+            **{**dict(
+                simu_duration_max=SIMULATION_DURATION,
+                step_dt=STEP_DT,
+                reward_mixture=REWARD_MIXTURE,
+                std_ratio=STD_RATIO),
+                **kwargs})
 
-        # Set base class attributes manually
-        self.simu_duration_max = SIMULATION_DURATION
-        self.reward_mixture = {
-            k: v for k, v in REWARD_MIXTURE.items() if v > 0.0}
-        self.urdf_path = urdf_path
-        self.mesh_path = data_root_dir
-        self.hardware_path = hardware_path
-        self.config_path = config_path
-        self.std_ratio = {
-            k: v for k, v in STD_RATIO.items() if v > 0.0}
-        self.avoid_instable_collisions = True
-        self._f_xy_profile = [
-            jiminy.PeriodicGaussianProcess(
-                F_PROFILE_WAVELENGTH, F_PROFILE_PERIOD),
-            jiminy.PeriodicGaussianProcess(
-                F_PROFILE_PERIOD, F_PROFILE_PERIOD)]
-        self._power_consumption_max = 0.0
-        self._height_neutral = 0.0
-
-        # Initialize base environment
-        BaseJiminyEnv.__init__(self, simulator, **{**dict(
-            step_dt=STEP_DT, debug=debug), **kwargs})
-
-        # Remove unrelevant contact points
+        # Remove irrelevant contact points
         _cleanup_contact_points(self)
 
 

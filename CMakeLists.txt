@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.7.6)
+set(BUILD_VERSION 1.7.7)
 
 # Set compatibility
 if(CMAKE_VERSION VERSION_GREATER "3.11.0")
@@ -64,6 +64,8 @@ endif()
 
 option(BUILD_TESTING "Build the C++ unit tests." ON)
 if(BUILD_TESTING)
+    include(CTest)
+    include(GoogleTest)
     add_subdirectory(unit)
 endif()
 

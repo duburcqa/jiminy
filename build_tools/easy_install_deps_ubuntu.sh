@@ -53,7 +53,7 @@ apt update && \
 apt install -y sudo python3-setuptools python3-pip python3-tk && \
 sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade pip && \
 sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade wheel && \
-sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade "numpy>=1.16"
+sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade "numpy>=1.16,<1.22"
 
 # Install Python 3 toolsuite for testing and documentation generation
 sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade setuptools auditwheel && \
@@ -81,8 +81,7 @@ fi
 # Note that `apt-get` is used instead of `apt` because it supports wildcard in package names
 apt-get install -y --allow-downgrades --allow-unauthenticated \
     robotpkg-octomap=1.9.0 robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=1.7.1 robotpkg-pinocchio=2.5.6 \
-    robotpkg-qt5-osgqt=3.5.7r2 robotpkg-py3*-qt5-gepetto-viewer=4.12.0r2 robotpkg-py3*-qt5-gepetto-viewer-corba=5.6.0 \
-    robotpkg-py3*-omniorbpy=4.2.4 robotpkg-py3*-eigenpy=2.6.2 robotpkg-py3*-hpp-fcl=1.7.1 robotpkg-py3*-pinocchio=2.5.6
+    robotpkg-py3*-eigenpy=2.6.2 robotpkg-py3*-hpp-fcl=1.7.1 robotpkg-py3*-pinocchio=2.5.6
 
 # Add openrobots libraries to python packages search path
 if ! [ -f "${PYTHON_SITELIB}/openrobots.pth" ]; then

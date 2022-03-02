@@ -239,6 +239,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. warning::
             This method is not supposed to be called manually nor overloaded.
         """
+        assert self._action is not None
         command[:] = self.compute_command(
             self.get_observation(), self._action)
 
@@ -546,6 +547,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Assertion(s) for type checker
         assert self.observation_space is not None
+        assert self._action is not None
 
         # Stop the simulator
         self.simulator.stop()
@@ -736,6 +738,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information
         """
+        # Assertion(s) for type checker
+        assert self._action is not None
+
         # Make sure a simulation is already running
         if not self.simulator.is_simulation_running:
             raise RuntimeError(
@@ -1357,7 +1362,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
     def compute_command(self,
                         measure: DataNested,
-                        action: np.ndarray
+                        action: DataNested
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
@@ -1377,6 +1382,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Check if the action is out-of-bounds, in debug mode only
         if self.debug and not self.action_space.contains(action):
             logger.warn("The action is out-of-bounds.")
+
+        if not isinstance(action, np.ndarray):
+            raise RuntimeError(
+                "`BaseJiminyEnv.compute_command` must be overloaded unless "
+                "the action space has type `gym.spaces.Box`.")
 
         return action
 

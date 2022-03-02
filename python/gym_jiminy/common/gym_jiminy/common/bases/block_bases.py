@@ -52,7 +52,7 @@ class BlockInterface:
         self.action_space = None
 
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__(**kwargs)  # type: ignore[call-arg]
+        super().__init__(**kwargs)
 
         # Refresh the observation and action spaces
         self._initialize_observation_space()
@@ -272,6 +272,9 @@ class BaseControllerBlock(ControllerInterface, BlockInterface):
             This method is not supposed to be called before `reset`, so that
             the controller should be already initialized at this point.
         """
+        # Assertion(s) for type checker
+        assert self.action_space is not None
+
         return get_fieldnames(self.action_space)
 
 

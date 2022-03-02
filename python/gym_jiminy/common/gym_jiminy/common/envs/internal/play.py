@@ -3,8 +3,9 @@
 # pylint: disable=import-outside-toplevel,import-error
 
 import os
-import queue
+import sys
 import time
+import queue
 import threading
 from typing import Optional, Callable, Any
 
@@ -28,8 +29,7 @@ class Getch:
         """
         self.stop_event = stop_event
         self.max_rate = max_rate
-        if os.name != 'nt':
-            import sys
+        if sys.platform.startswith('linux'):
             import fcntl
             import termios
             self.fd = sys.stdin.fileno()
@@ -46,7 +46,7 @@ class Getch:
         stream are restored at python exit, otherwise the user may not be
         able to enter any command without closing the terminal.
         """
-        if os.name != 'nt':
+        if sys.platform.startswith('linux'):
             import fcntl
             import termios
             termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.oldterm)
@@ -57,15 +57,15 @@ class Getch:
         return it. Any previous characters not fetched before calling this
         method will be discarded.
         """
-        if os.name != 'nt':  # pylint: disable=no-else-return
+        if sys.platform.startswith('linux'):  # pylint: disable=no-else-return
             char = ''
             try:
-                import sys
                 import termios
                 termios.tcflush(self.fd, termios.TCIFLUSH)
                 while self.stop_event is None or \
                         not self.stop_event.is_set():
                     if self.max_rate is not None:
+                        # Busy loop is not used to avoid unnecessary cpu load
                         time.sleep(self.max_rate)
                     try:
                         char += sys.stdin.read(1)
@@ -82,8 +82,8 @@ class Getch:
                     not self.stop_event.is_set():
                 if self.max_rate is not None:
                     time.sleep(self.max_rate)
-                if msvcrt.kbhit():  # type: ignore[attr-defined]
-                    return msvcrt.getch()  # type: ignore[attr-defined]
+                if msvcrt.kbhit():
+                    return msvcrt.getch()
             return ''
 
 
@@ -156,7 +156,7 @@ def loop_interactive(exit_key: str = 'k',
             if pause_key:
                 print(f"Press '{pause_key}' to start...")
 
-            # Loop infinitly until termination is triggered
+            # Loop infinitely until termination is triggered
             key = None
             stop = False
             is_paused = start_paused
@@ -176,7 +176,7 @@ def loop_interactive(exit_key: str = 'k',
                             stop = True
 
                     # Sleep for a while if necessary, using busy loop only if
-                    # already started to avoid unecessary cpu load.
+                    # already started to avoid unnecessary cpu load.
                     if max_rate is not None and max_rate > 0.0:
                         dt = max(max_rate - (time.time() - t_init), 0.0)
                         if is_paused:

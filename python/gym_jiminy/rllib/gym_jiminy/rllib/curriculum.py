@@ -9,9 +9,13 @@ import numpy as np
 from ray.tune.logger import TBXLogger
 from ray.tune.result import TRAINING_ITERATION, TIMESTEPS_TOTAL
 from ray.rllib.env import BaseEnv
-from ray.rllib.evaluation import MultiAgentEpisode
+from ray.rllib.policy import Policy
+from ray.rllib.evaluation.episode import Episode
+from ray.rllib.evaluation.worker_set import WorkerSet
+from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.utils.typing import PolicyID
 
 from gym_jiminy.toolbox.wrappers.meta_envs import DataTreeT
 
@@ -35,17 +39,22 @@ def build_task_scheduling_callback(history_length: int,
 
         def on_episode_end(self,
                            *,
+                           worker: RolloutWorker,
                            base_env: BaseEnv,
-                           episode: MultiAgentEpisode,
+                           policies: Dict[PolicyID, Policy],
+                           episode: Episode,
                            **kwargs: Any) -> None:
             """ TODO: Write documentation.
             """
             # Call base implementation
-            super().on_episode_end(
-                base_env=base_env, episode=episode, **kwargs)
+            super().on_episode_end(worker=worker,
+                                   base_env=base_env,
+                                   policies=policies,
+                                   episode=episode,
+                                   **kwargs)
 
             # Monitor episode duration for each gait
-            for env in base_env.get_unwrapped():
+            for env in base_env.get_sub_environments():
                 # Gather the set of tasks.
                 # It corresponds to all the leaves of the task decision tree.
                 tasks: List[List[Any]] = [[]]
@@ -196,8 +205,12 @@ def build_task_scheduling_callback(history_length: int,
                     if task_branch_next:
                         task_branches.append(task_branch_next)
 
+            # Assertion(s) for type checker
+            workers = trainer.workers
+            assert isinstance(workers, WorkerSet)
+
             # Update envs accordingly
-            trainer.workers.foreach_worker(
+            workers.foreach_worker(
                 lambda worker: worker.foreach_env(
                     lambda env: env.task_tree_probas.update(task_tree_probas)))
 

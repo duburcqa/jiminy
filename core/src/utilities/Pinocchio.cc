@@ -11,6 +11,7 @@
 #include "pinocchio/multibody/visitor.hpp"                 // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/joint/joint-model-base.hpp"  // `pinocchio::JointModelBase`
 #include "pinocchio/algorithm/joint-configuration.hpp"     // `pinocchio::isNormalized`
+#include "pinocchio/algorithm/model.hpp"                   // `pinocchio::buildReducedModel`
 
 #include "hpp/fcl/mesh_loader/loader.h"
 #include "hpp/fcl/BVH/BVH_model.h"
@@ -275,7 +276,7 @@ namespace jiminy
             {
                 frameIndex_t frameIdx;
                 returnCode = getFrameIdx(model, name, frameIdx);
-                framesIdx.push_back(std::move(frameIdx));
+                framesIdx.push_back(frameIdx);
             }
         }
 
@@ -310,7 +311,7 @@ namespace jiminy
             {
                 frameIndex_t frameIdx;
                 returnCode = getFrameIdx(model, name, frameIdx);
-                bodiesIdx.push_back(std::move(frameIdx));
+                bodiesIdx.push_back(frameIdx);
             }
         }
 
@@ -1052,5 +1053,27 @@ namespace jiminy
         }
 
         return returnCode;
+    }
+
+    void buildReducedModel(pinocchio::Model const & inputModel,
+                           pinocchio::GeometryModel const & inputGeomModel,
+                           std::vector<pinocchio::JointIndex> const & listOfJointsToLock,
+                           vectorN_t const & referenceConfiguration,
+                           pinocchio::Model & reducedModel,
+                           pinocchio::GeometryModel & reducedGeomModel)
+    {
+        // Fix `parentFrame` not updated for reduced geometry model in Pinocchio < 2.6.0
+        pinocchio::buildReducedModel(inputModel,
+                                     inputGeomModel,
+                                     listOfJointsToLock,
+                                     referenceConfiguration,
+                                     reducedModel,
+                                     reducedGeomModel);
+        for (auto const & geom : inputGeomModel.geometryObjects)
+        {
+            geomIndex_t reducedGeomIdx = reducedGeomModel.getGeometryId(geom.name);
+            auto & reducedGeom = reducedGeomModel.geometryObjects[reducedGeomIdx];
+            reducedGeom.parentFrame = reducedModel.getBodyId(inputModel.frames[geom.parentFrame].name);
+        }
     }
 }

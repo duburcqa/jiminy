@@ -58,7 +58,7 @@ namespace jiminy
 
         std::shared_ptr<AbstractConstraintBase> get(std::string const & key);
         std::shared_ptr<AbstractConstraintBase> get(std::string const & key,
-                                                constraintsHolderType_t const & holderType);
+                                                    constraintsHolderType_t const & holderType);
 
         void insert(constraintsMap_t const & constraintsMap,
                     constraintsHolderType_t const & holderType);

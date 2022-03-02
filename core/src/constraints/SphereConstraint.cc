@@ -72,11 +72,13 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Initialize frames jacobians buffers
+            frameJacobian_.setZero(6, model->pncModel_.nv);
+
             // Initialize jacobian, drift and multipliers
-            frameJacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
-            jacobian_ = matrixN_t::Zero(3, model->pncModel_.nv);
-            drift_ = vectorN_t::Zero(3);
-            lambda_ = vectorN_t::Zero(3);
+            jacobian_.setZero(3, model->pncModel_.nv);
+            drift_.setZero(3);
+            lambda_.setZero(3);
 
             // Get the current frame position and use it as reference
             transformRef_ = model->pncData_.oMf[frameIdx_];

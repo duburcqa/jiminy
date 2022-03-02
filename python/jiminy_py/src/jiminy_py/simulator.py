@@ -465,10 +465,6 @@ class Simulator:
         """Render the current state of the simulation. One can display it
                or return an RGB array instead.
 
-        .. note::
-            Gepetto-gui supports parallel rendering, which means that one can
-            display multiple simulations at the same time in different tabs.
-
         :param return_rgb_array: Whether or not to return the current frame as
                                  an rgb array.
         :param width: Width of the returned RGB frame, if enabled.

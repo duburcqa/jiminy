@@ -43,12 +43,12 @@ namespace jiminy
         if (controller)
         {
             returnCode = EngineMultiRobot::addSystem(
-                "", std::move(robot), std::move(controller), std::move(callbackFct));
+                "", robot, controller, std::move(callbackFct));
         }
         else
         {
             returnCode = EngineMultiRobot::addSystem(
-                "", std::move(robot), std::move(callbackFct));
+                "", robot, std::move(callbackFct));
         }
 
         if (returnCode == hresult_t::SUCCESS)

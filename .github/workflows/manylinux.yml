@@ -59,9 +59,9 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel auditwheel cmake
         if [ "${{ matrix.legacy }}" == true ] ; then
-          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.20"
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.20"  # for tensorflow compat.
         else
-          "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
         fi
     - name: Build project dependencies
       run: |
@@ -124,7 +124,8 @@ jobs:
 
     - name: Run unit tests
       run: |
-        ./build/unit/unit
+        cd "$RootDir/build"
+        ctest
 
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

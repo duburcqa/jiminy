@@ -1,23 +1,28 @@
 import os
 import math
 import numpy as np
+from pathlib import Path
 from pkg_resources import resource_filename
 
-from jiminy_py.core import (
-    DistanceConstraint, JointConstraint, get_joint_type, joint_t)
-
-from pinocchio import neutral, SE3
-
+from jiminy_py.core import (joint_t,
+                            get_joint_type,
+                            build_models_from_urdf,
+                            build_reduced_models,
+                            DistanceConstraint,
+                            Robot)
+from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.controllers import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 
+from pinocchio import neutral, SE3
+
 
 # Parameters of neutral configuration
-DEFAULT_SAGITTAL_HIP_ANGLE = 30.0 / 180.0 * math.pi
+DEFAULT_SAGITTAL_HIP_ANGLE = 23.0 / 180.0 * math.pi
 DEFAULT_KNEE_ANGLE = -65.0 / 180.0 * math.pi
 DEFAULT_ANKLE_ANGLE = 80.0 / 180.0 * math.pi
-DEFAULT_TOE_ANGLE = -95.0 / 180.0 * math.pi
+DEFAULT_TOE_ANGLE = -90.0 / 180.0 * math.pi
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
@@ -58,21 +63,49 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             "gym_jiminy.envs", "data/bipedal_robots/cassie")
         urdf_path = os.path.join(data_root_dir, "cassie.urdf")
 
+        # Load the full models
+        pinocchio_model, collision_model, visual_model = \
+            build_models_from_urdf(urdf_path,
+                                   has_freeflyer=True,
+                                   build_visual_model=True,
+                                   mesh_package_dirs=[data_root_dir])
+
+        # Fix passive rotary joints with spring.
+        # Alternatively, it would be more realistic to model them using the
+        # internal dynamics of the controller to add spring forces, but it
+        # would slow down the simulation.
+        qpos = neutral(pinocchio_model)
+        joint_locked_indices = [
+            pinocchio_model.getJointId(joint_name)
+            for joint_name in ("knee_to_shin_right", "knee_to_shin_left")]
+        pinocchio_model, collision_model, visual_model = build_reduced_models(
+            pinocchio_model, collision_model, visual_model,
+            joint_locked_indices, qpos)
+
+        # Build the robot and load the hardware
+        robot = BaseJiminyRobot()
+        Robot.initialize(robot, pinocchio_model, collision_model, visual_model)
+        robot._urdf_path_orig = urdf_path
+        hardware_path = str(Path(urdf_path).with_suffix('')) + '_hardware.toml'
+        load_hardware_description_file(
+            robot,
+            hardware_path,
+            avoid_instable_collisions=True,
+            verbose=debug)
+
         # Initialize the walker environment
-        super().__init__(**{**dict(
+        super().__init__(
+            robot=robot,
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
-            simu_duration_max=SIMULATION_DURATION,
-            step_dt=STEP_DT,
-            reward_mixture=REWARD_MIXTURE,
-            std_ratio=STD_RATIO,
-            avoid_instable_collisions=False,
-            debug=debug), **kwargs})
-
-        # Remove unrelevant contact points
-        self.robot.remove_contact_points([
-            name for name in self.robot.contact_frames_names
-            if int(name.split("_")[-1]) in (0, 1, 4, 5)])
+            avoid_instable_collisions=True,
+            debug=debug,
+            **{**dict(
+                simu_duration_max=SIMULATION_DURATION,
+                step_dt=STEP_DT,
+                reward_mixture=REWARD_MIXTURE,
+                std_ratio=STD_RATIO),
+                **kwargs})
 
         # Add missing pushrod close kinematic chain constraint
         M_pushrod_tarsus_right = SE3(
@@ -100,15 +133,10 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         pushrod_left.baumgarte_freq = 2.0
         self.robot.add_constraint("pushrod_left", pushrod_left)
 
-        # Replace knee to shin spring by fixed joint constraint
-        right_spring_knee_to_shin = JointConstraint("knee_to_shin_right")
-        right_spring_knee_to_shin.baumgarte_freq = 20.0
-        self.robot.add_constraint(
-            "right_spring_knee_to_shin", right_spring_knee_to_shin)
-        left_spring_knee_to_shin = JointConstraint("knee_to_shin_left")
-        left_spring_knee_to_shin.baumgarte_freq = 20.0
-        self.robot.add_constraint(
-            "left_spring_knee_to_shin", left_spring_knee_to_shin)
+        # Remove irrelevant contact points
+        self.robot.remove_contact_points([
+            name for name in self.robot.contact_frames_names
+            if int(name.split("_")[-1]) in (0, 1, 4, 5)])
 
     def _neutral(self):
         def set_joint_rotary_position(joint_name, q_full, theta):

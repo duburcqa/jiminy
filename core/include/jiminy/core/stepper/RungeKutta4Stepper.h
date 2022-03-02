@@ -27,7 +27,7 @@ namespace jiminy
             /// \brief Constructor
             /// \param[in] f      Dynamics function, with signature a = f(t, q, v)
             /// \param[in] robots Robots whose dynamics the stepper will work on.
-            RungeKutta4Stepper(systemDynamics f, /* Copy on purpose */
+            RungeKutta4Stepper(systemDynamics const & f,
                                std::vector<Robot const *> const & robots);
     };
 }

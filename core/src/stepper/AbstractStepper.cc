@@ -3,9 +3,9 @@
 
 namespace jiminy
 {
-    AbstractStepper::AbstractStepper(systemDynamics f,
+    AbstractStepper::AbstractStepper(systemDynamics const & f,
                                      std::vector<Robot const *> const & robots):
-    f_(std::move(f)),
+    f_(f),
     robots_(robots),
     state_(robots),
     stateDerivative_(robots),

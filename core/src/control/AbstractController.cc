@@ -144,7 +144,7 @@ namespace jiminy
                 {
                     objectName = objectPrefixName + TELEMETRY_FIELDNAME_DELIMITER + objectName;
                 }
-                telemetrySender_.configureObject(std::move(telemetryData), objectName);
+                telemetrySender_.configureObject(telemetryData, objectName);
                 for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
                 {
                     if (returnCode == hresult_t::SUCCESS)

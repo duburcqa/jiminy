@@ -60,11 +60,13 @@ class AntEnv(BaseJiminyEnv):
         self.xpos_prev = 0.0
 
         # Initialize base class
-        super().__init__(**{**dict(
+        super().__init__(
             simulator=simulator,
-            step_dt=STEP_DT,
-            enforce_bounded_spaces=False,
-            debug=debug), **kwargs})
+            debug=debug,
+            **{**dict(
+                step_dt=STEP_DT,
+                enforce_bounded_spaces=False),
+                **kwargs})
 
     def _neutral(self) -> np.ndarray:
         """ TODO: Write documentation.

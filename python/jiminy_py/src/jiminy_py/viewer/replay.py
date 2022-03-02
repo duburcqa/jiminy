@@ -79,8 +79,8 @@ def play_trajectories(trajs_data: Union[
     """Replay one or several robot trajectories in a viewer.
 
     The ratio between the replay and the simulation time is kept constant to
-    the desired ratio. One can choose between several backend (gepetto-gui or
-    meshcat).
+    the desired ratio. One can choose between several backend ('panda3d' or
+    'meshcat').
 
     .. note::
         Replay speed is independent of the platform (windows, linux...) and
@@ -172,9 +172,9 @@ def play_trajectories(trajs_data: Union[
                          input before starting to play the trajectories.
                          Only available if `record_video_path` is None.
                          Optional: False by default.
-    :param backend: Backend, one of 'panda3d', 'meshcat', or 'gepetto-gui'. If
-                    `None`, the most appropriate backend will be selected
-                    automatically, based on hardware and python environment.
+    :param backend: Backend, one of 'panda3d', 'meshcat'. If `None`, the most
+                    appropriate backend will be selected automatically, based
+                    on hardware and python environment.
                     Optional: `None` by default.
     :param delete_robot_on_close: Whether or not to delete the robot from the
                                   viewer when closing it.
@@ -425,8 +425,8 @@ def play_trajectories(trajs_data: Union[
 
         # Disable framerate limit of Panda3d for efficiency
         if Viewer.backend.startswith('panda3d'):
-            framerate = viewer._backend_obj._app.get_framerate()
-            viewer._backend_obj._app.set_framerate(None)
+            framerate = viewer._backend_obj.get_framerate()
+            viewer._backend_obj.set_framerate(None)
 
         # Initialize video recording
         if Viewer.backend == 'meshcat':
@@ -497,7 +497,7 @@ def play_trajectories(trajs_data: Union[
 
         # Restore framerate limit of Panda3d
         if Viewer.backend.startswith('panda3d'):
-            viewer._backend_obj._app.set_framerate(framerate)
+            viewer._backend_obj.set_framerate(framerate)
     else:
         # Play trajectories with multithreading
         def replay_thread(viewer, *args):
@@ -690,7 +690,7 @@ def _play_logs_files_entrypoint() -> None:
               "assuming the robot has a freeflyer."))
     parser.add_argument(
         '-b', '--backend', default='panda3d',
-        help="Display backend (panda3d, meshcat, or gepetto-gui).")
+        help="Display backend ('panda3d' or 'meshcat').")
     parser.add_argument(
         '-m', '--mesh_package_dir', default=None,
         help="Fullpath location of mesh package directory.")
@@ -713,10 +713,11 @@ def _play_logs_files_entrypoint() -> None:
     repeat = True
     viewers = None
     while repeat:
-        viewers = play_logs_files(**{**dict(
-            remove_widgets_overlay=False,
-            viewers=viewers),
-            **kwargs})
+        viewers = play_logs_files(
+            viewers=viewers,
+            **{**dict(
+                remove_widgets_overlay=False),
+                **kwargs})
         kwargs["start_paused"] = False
         if not hasattr(kwargs, "camera_xyzrpy"):
             kwargs["camera_xyzrpy"] = None

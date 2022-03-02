@@ -150,10 +150,10 @@ namespace jiminy
             constraint = get(key, holderType);
             if (constraint)
             {
-                return constraint;
+                break;
             }
         }
-        return {};
+        return constraint;
     }
 
     void constraintsHolder_t::insert(constraintsMap_t        const & constraintsMap,
@@ -387,6 +387,10 @@ namespace jiminy
 
         if (isInitialized_)
         {
+            /* Re-generate the true flexible model in case the original rigid
+               model has been manually modified by the user. */
+            generateModelFlexible();
+
             // Update the biases added to the dynamics properties of the model
             generateModelBiased();
         }
@@ -623,15 +627,11 @@ namespace jiminy
                             collisionConstraintsMap.emplace_back(geom.name, std::make_shared<FixedFrameConstraint>(
                                 geom.name, (Eigen::Matrix<bool_t, 6, 1>() << true, true, true, false, false, true).finished()));
                         }
-                        else
-                        {
-                            collisionConstraintsMap.emplace_back(geom.name, nullptr);
-                        }
                     }
                 }
             }
 
-            // Add constraints map, even if nullptr for geometry shape not supported
+            // Add constraints map
             if (returnCode == hresult_t::SUCCESS)
             {
                 returnCode = addConstraints(collisionConstraintsMap, constraintsHolderType_t::COLLISION_BODIES);
@@ -706,7 +706,7 @@ namespace jiminy
                     collisionModelOrig_.removeCollisionPair(collisionPair);
 
                     // Append collision geometry to the list of constraints to remove
-                    if (constraintsHolder_.exist(geom.name,  constraintsHolderType_t::COLLISION_BODIES))
+                    if (constraintsHolder_.exist(geom.name, constraintsHolderType_t::COLLISION_BODIES))
                     {
                         collisionConstraintsNames.emplace_back(geom.name);
                     }
@@ -826,14 +826,20 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        // Look for constraint in every constraint holders sequentially
+        // Check if constraint is properly defined and not already exists
         for (auto const & constraintPair : constraintsMap)
         {
-            std::string const & constraintName = constraintPair.first;
+            auto const & constraintName = std::get<0>(constraintPair);
+            auto const & constraintPtr = std::get<1>(constraintPair);
+            if (!constraintPtr)
+            {
+                PRINT_ERROR("Constraint with name '", constraintName, "' is unspecified.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
             if (constraintsHolder_.exist(constraintName))
             {
                 PRINT_ERROR("A constraint with name '", constraintName, "' already exists.");
-                return hresult_t::ERROR_BAD_INPUT;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
 
@@ -991,10 +997,7 @@ namespace jiminy
             auto lambda = [](std::shared_ptr<AbstractConstraintBase> const & constraint,
                              constraintsHolderType_t const & /* holderType */)
                           {
-                              if (constraint)
-                              {
-                                  constraint->disable();
-                              }
+                              constraint->disable();
                           };
             constraintsHolder_.foreach(constraintsHolderType_t::BOUNDS_JOINTS, lambda);
             constraintsHolder_.foreach(constraintsHolderType_t::CONTACT_FRAMES, lambda);
@@ -1370,8 +1373,8 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the joint position limits from the URDF or the user options
-            positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF);  // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
-            positionLimitMax_ = vectorN_t::Constant(pncModel_.nq, +INF);
+            positionLimitMin_.setConstant(pncModel_.nq, -INF);  // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
+            positionLimitMax_.setConstant(pncModel_.nq, +INF);
 
             if (mdlOptions_->joints.enablePositionLimit)
             {
@@ -1422,7 +1425,7 @@ namespace jiminy
             }
 
             // Get the joint velocity limits from the URDF or the user options
-            velocityLimit_ = vectorN_t::Constant(pncModel_.nv, +INF);
+            velocityLimit_.setConstant(pncModel_.nv, +INF);
             if (mdlOptions_->joints.enableVelocityLimit)
             {
                 if (mdlOptions_->joints.velocityLimitFromUrdf)
@@ -1602,13 +1605,13 @@ namespace jiminy
                 }
             });
 
-        // Reset jacobian and drift to 0
+        // Reset jacobian and drift
         if (returnCode == hresult_t::SUCCESS)
         {
             constraintsMask_ = 0;
-            constraintsJacobian_ = matrixN_t::Zero(constraintSize, pncModel_.nv);
-            constraintsDrift_ = vectorN_t::Zero(constraintSize);
-            constraintsLambda_ = vectorN_t::Zero(constraintSize);
+            constraintsJacobian_.setZero(constraintSize, pncModel_.nv);
+            constraintsDrift_.setZero(constraintSize);
+            constraintsLambda_.setZero(constraintSize);
         }
 
         return returnCode;
@@ -1617,8 +1620,7 @@ namespace jiminy
     hresult_t Model::setOptions(configHolder_t modelOptions)
     {
         bool_t internalBuffersMustBeUpdated = false;
-        bool_t isFlexibleModelInvalid = false;
-        bool_t isCurrentModelInvalid = false;
+        bool_t areModelsInvalid = false;
         bool_t isCollisionDataInvalid = false;
         if (isInitialized_)
         {
@@ -1688,13 +1690,10 @@ namespace jiminy
             && (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size()
                 || !std::equal(flexibilityConfig.begin(),
                                flexibilityConfig.end(),
-                               mdlOptions_->dynamics.flexibilityConfig.begin())))
+                               mdlOptions_->dynamics.flexibilityConfig.begin())
+                || enableFlexibleModel != mdlOptions_->dynamics.enableFlexibleModel))
             {
-                isFlexibleModelInvalid = true;
-            }
-            else if (mdlOptions_ && enableFlexibleModel != mdlOptions_->dynamics.enableFlexibleModel)
-            {
-                isCurrentModelInvalid = true;
+                areModelsInvalid = true;
             }
         }
 
@@ -1733,15 +1732,9 @@ namespace jiminy
         // Create a fast struct accessor
         mdlOptions_ = std::make_unique<modelOptions_t const>(mdlOptionsHolder_);
 
-        if (isFlexibleModelInvalid)
+        if (areModelsInvalid)
         {
-            // Force flexible model regeneration
-            generateModelFlexible();
-        }
-
-        if (isFlexibleModelInvalid || isCurrentModelInvalid)
-        {
-            // Trigger biased model regeneration
+            // Trigger models regeneration
             reset();
         }
         else if (internalBuffersMustBeUpdated)
@@ -1881,7 +1874,7 @@ namespace jiminy
         }
 
         // Initialize the flexible state
-        vFlex = vectorN_t::Zero(nvFlex);
+        vFlex.setZero(nvFlex);
 
         // Compute the flexible state based on the rigid state
         int32_t idxRigid = 0;
@@ -1921,7 +1914,7 @@ namespace jiminy
         }
 
         // Initialize the rigid state
-        vRigid = vectorN_t::Zero(nvRigid);
+        vRigid.setZero(nvRigid);
 
         // Compute the rigid state based on the flexible state
         int32_t idxRigid = 0;
@@ -2081,7 +2074,7 @@ namespace jiminy
             [&hasConstraintsEnabled](std::shared_ptr<AbstractConstraintBase> const & constraint,
                                      constraintsHolderType_t const & /* holderType */)
             {
-                if (constraint && constraint->getIsEnabled())
+                if (constraint->getIsEnabled())
                 {
                     hasConstraintsEnabled = true;
                 }
