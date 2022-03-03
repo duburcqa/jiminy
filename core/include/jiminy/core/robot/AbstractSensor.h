@@ -88,7 +88,7 @@ namespace jiminy
             config["bias"] = vectorN_t();
             config["delay"] = 0.0;
             config["jitter"] = 0.0;
-            config["delayInterpolationOrder"] = 0U;
+            config["delayInterpolationOrder"] = 1U;
 
             return config;
         };

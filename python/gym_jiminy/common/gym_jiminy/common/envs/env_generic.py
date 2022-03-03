@@ -942,8 +942,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             kwargs["camera_xyzrpy"] = (*DEFAULT_CAMERA_XYZRPY_REL, root_name)
 
         # Call render before replay in order to take into account custom
-        # backend viewer instantiation options, such as initial camera pose.
-        self.render(**kwargs)
+        # backend viewer instantiation options, such as initial camera pose,
+        # and to update the ground profile.
+        self.render(update_ground_profile=True, **kwargs)
 
         # Set default travelling options
         if enable_travelling and self.robot.has_freeflyer:
@@ -1003,16 +1004,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # forces with the robot automatically.
         if not (self.simulator.is_viewer_available and
                 self.simulator.viewer.has_gui()):
-            env.render()
+            env.render(update_ground_profile=False)
 
-        # Reset the environement
+        # Reset the environnement
         obs = env.reset()
         reward = None
 
         # Refresh the ground profile
-        engine_options = self.engine.get_options()
-        ground_profile = engine_options["world"]["groundProfile"]
-        self.viewer.update_floor(ground_profile, show_meshes=False)
+        env.render(update_ground_profile=True)
 
         # Enable travelling
         if enable_travelling is None:
