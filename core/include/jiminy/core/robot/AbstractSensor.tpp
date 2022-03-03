@@ -2,6 +2,7 @@
 
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Constants.h"
+#include "jiminy/core/utilities/Random.h"
 
 
 namespace jiminy
@@ -135,17 +136,6 @@ namespace jiminy
         sharedHolder_->sensors_.erase(sharedHolder_->sensors_.begin() + sensorIdx_);
         --sharedHolder_->num_;
 
-        // Update delayMax_ proxy
-        if (sharedHolder_->delayMax_ < baseSensorOptions_->delay + EPS)
-        {
-            sharedHolder_->delayMax_ = 0.0;
-            for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
-            {
-                sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_,
-                                                    sensor->baseSensorOptions_->delay);
-            }
-        }
-
         // Clear the references to the robot and shared data
         robot_.reset();
         sharedHolder_ = nullptr;
@@ -192,7 +182,9 @@ namespace jiminy
             sharedHolder_->sensors_.begin(), sharedHolder_->sensors_.end(), 0.0,
             [](float64_t const & value, AbstractSensorBase * sensor)
             {
-                return std::max(sensor->baseSensorOptions_->delay, value);
+                float64_t const delay = sensor->baseSensorOptions_->delay
+                                      + sensor->baseSensorOptions_->jitter;
+                return std::max(delay, value);
             });
 
         // Update sensor scope information
@@ -296,8 +288,11 @@ namespace jiminy
     {
         assert(sharedHolder_->time_.size() > 0 && "Do data to interpolate.");
 
+        // Sample the delay uniformly
+        float64_t const delay = baseSensorOptions_->delay + randUniform(0.0, baseSensorOptions_->jitter);
+
         // Add STEPPER_MIN_TIMESTEP to timeDesired to avoid float comparison issues
-        float64_t const timeDesired = sharedHolder_->time_.back() - baseSensorOptions_->delay + STEPPER_MIN_TIMESTEP;
+        float64_t const timeDesired = sharedHolder_->time_.back() - delay + STEPPER_MIN_TIMESTEP;
 
         /* Determine the position of the closest right element.
         Bisection method can be used since times are sorted. */
@@ -369,7 +364,7 @@ namespace jiminy
         }
         else
         {
-            if (baseSensorOptions_->delay > EPS)
+            if (baseSensorOptions_->delay > EPS || baseSensorOptions_->jitter > EPS)
             {
                 // Return the oldest value since the buffer is not fully initialized yet
                 auto it = std::find_if(sharedHolder_->time_.begin(), sharedHolder_->time_.end(),
