@@ -87,7 +87,8 @@ namespace jiminy
             config["noiseStd"] = vectorN_t();
             config["bias"] = vectorN_t();
             config["delay"] = 0.0;
-            config["delayInterpolationOrder"] = 0U;
+            config["jitter"] = 0.0;
+            config["delayInterpolationOrder"] = 1U;
 
             return config;
         };
@@ -97,12 +98,15 @@ namespace jiminy
             vectorN_t const noiseStd;                 ///< Standard deviation of the noise of the sensor
             vectorN_t const bias;                     ///< Bias of the sensor
             float64_t const delay;                    ///< Delay of the sensor
-            uint32_t  const delayInterpolationOrder;  ///< Order of the interpolation used to compute delayed sensor data. [0: Zero-order holder, 1: Linear interpolation]
+            float64_t const jitter;                   ///< Jitter of the sensor
+            uint32_t  const delayInterpolationOrder;  ///< Order of the interpolation used to compute delayed sensor data.
+                                                      ///  [0: Zero-order holder, 1: Linear interpolation]
 
             abstractSensorOptions_t(configHolder_t const & options) :
             noiseStd(boost::get<vectorN_t>(options.at("noiseStd"))),
             bias(boost::get<vectorN_t>(options.at("bias"))),
             delay(boost::get<float64_t>(options.at("delay"))),
+            jitter(boost::get<float64_t>(options.at("jitter"))),
             delayInterpolationOrder(boost::get<uint32_t>(options.at("delayInterpolationOrder")))
             {
                 // Empty.
