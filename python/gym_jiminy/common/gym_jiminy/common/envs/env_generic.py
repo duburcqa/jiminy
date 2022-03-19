@@ -4,7 +4,6 @@ the official OpenAI Gym API and extended it to add more functionalities.
 """
 import os
 import tempfile
-import multiprocessing
 from copy import deepcopy
 from collections import OrderedDict
 from collections.abc import Mapping
@@ -24,7 +23,8 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL, Viewer
+from jiminy_py.viewer.viewer import (
+    DEFAULT_CAMERA_XYZRPY_REL, check_display_available, Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.log import extract_data_from_log
@@ -130,7 +130,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Set the available rendering modes
         self.metadata['render.modes'] = ['rgb_array']
-        if not multiprocessing.current_process().daemon:
+        if check_display_available():
             self.metadata['render.modes'].append('human')
 
         # Define some proxies for fast access
