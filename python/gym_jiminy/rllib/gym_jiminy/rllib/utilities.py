@@ -27,7 +27,7 @@ from ray import ray_constants
 from ray._private import services
 from ray._private.gcs_utils import AvailableResources
 from ray._private.test_utils import monitor_memory_usage
-from ray._raylet import GlobalStateAccessor
+from ray._raylet import GlobalStateAccessor  # type: ignore[attr-defined]
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
@@ -41,6 +41,7 @@ from ray.rllib.env.env_context import EnvContext
 from ray.rllib.evaluation.worker_set import WorkerSet
 
 from jiminy_py.viewer import play_logs_files
+from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import clip, DataNested
 
 try:
@@ -531,6 +532,7 @@ def train(train_agent: Trainer,
                 log_files_tmp = []
                 test_env = train_agent.env_creator(
                     train_agent.config["env_config"])
+                assert isinstance(test_env, BaseJiminyEnv)
                 seed = train_agent.config["seed"] or 0
                 for i in range(evaluation_num):
                     # Evaluate the policy once
@@ -608,9 +610,9 @@ def test(test_agent: Trainer,
          n_frames_stack: int = 1,
          enable_stats: bool = True,
          enable_replay: bool = True,
-         test_env: Optional[gym.Env] = None,
+         test_env: Optional[BaseJiminyEnv] = None,
          viewer_kwargs: Optional[Dict[str, Any]] = None,
-         **kwargs: Any) -> Union[gym.Env, List[Dict[str, Any]]]:
+         **kwargs: Any) -> Union[BaseJiminyEnv, List[Dict[str, Any]]]:
     """Test a model on a specific environment using a given agent.
 
     .. note::
