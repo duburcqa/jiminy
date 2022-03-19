@@ -88,21 +88,28 @@ logger = logging.getLogger(__name__)
 logger.addFilter(_DuplicateFilter())
 
 
-# Determine set the of available backends
-backends_available = {'meshcat': MeshcatVisualizer,
-                      'panda3d': Panda3dVisualizer}
-try:
-    from .panda3d.panda3d_widget import Panda3dQWidget
-    backends_available['panda3d-qt'] = Panda3dVisualizer
-except ImportError:
-    pass
+def get_backends_available() -> Dict[str, type]:
+    """Determine the set of available backends.
+    """
+    # In must be a function, otherwise it would only be run once at import by
+    # the main thread only.
+    backends_available = {'panda3d-sync': Panda3dVisualizer}
+    if not multiprocessing.current_process()._config.get('daemon'):
+        backends_available.update({'meshcat': MeshcatVisualizer,
+                                   'panda3d': Panda3dVisualizer})
+        try:
+            from .panda3d.panda3d_widget import Panda3dQWidget
+            backends_available['panda3d-qt'] = Panda3dVisualizer
+        except ImportError:
+            pass
+    return backends_available
 
 
 def default_backend() -> str:
     """Determine the default backend viewer, depending eventually on the
     running environment, hardware, and set of available backends.
 
-    Meshcat will always be prefered in interactive mode, i.e. in Jupyter
+    Meshcat will always be preferred in interactive mode, i.e. in Jupyter
     notebooks, Panda3d otherwise.
 
     .. note::
@@ -112,20 +119,18 @@ def default_backend() -> str:
     """
     if interactive_mode():
         return 'meshcat'
-    else:
+    elif not multiprocessing.current_process()._config.get('daemon'):
         return 'panda3d'
+    else:
+        return 'panda3d-sync'
 
 
-def _get_backend_exceptions(
-        backend: Optional[str] = None) -> Sequence[Exception]:
+def _get_backend_exceptions(backend: str) -> Sequence[Exception]:
     """Get the list of exceptions that may be raised by a given backend.
     """
-    if backend is None:
-        backend = default_backend()
-    elif backend.startswith('panda3d'):
+    if backend.startswith('panda3d'):
         return (ViewerClosedError,)
-    else:
-        return (zmq.error.Again, zmq.error.ZMQError)
+    return (zmq.error.Again, zmq.error.ZMQError)
 
 
 def sleep(dt: float) -> None:
@@ -275,11 +280,11 @@ class Viewer:
         The environment variable 'JIMINY_VIEWER_INTERACTIVE_DISABLE' can be
         used to force disabling interactive display.
     """
-    backend = default_backend()
+    backend = None
     window_name = 'jiminy'
     _has_gui = False
     _backend_obj = None
-    _backend_exceptions = _get_backend_exceptions()
+    _backend_exceptions = ()
     _backend_proc = None
     _backend_robot_names = set()
     _backend_robot_colors = {}
@@ -324,11 +329,11 @@ class Viewer:
                      `None` to use the unique lock of the current thread.
                      Optional: `None` by default.
         :param backend: Name of the rendering backend to use. It can be either
-                        'panda3d', 'panda3d-qt', 'meshcat'.
-                        None to keep using to one already running if any, or
-                        the default one otherwise. Note that the default is
-                        hardware and environment dependent.
-                        See `viewer.default_backend` method for details.
+                        'panda3d', 'panda3d-qt', 'meshcat'. None to keep using
+                        to one already running if any, or the default one
+                        otherwise. Note that the default is hardware and
+                        environment dependent. See `viewer.default_backend`
+                        method for details.
                         Optional: `None` by default.
         :param open_gui_if_parent: Open GUI if new viewer's backend server is
                                    started. `None` to fallback to default.
@@ -371,8 +376,18 @@ class Viewer:
             uniq_id = next(tempfile._get_candidate_names())
             robot_name = "_".join(("robot", uniq_id))
 
+        if backend is None:
+            if Viewer.backend is not None:
+                backend = Viewer.backend
+            else:
+                backend = default_backend()
+
         # Make sure user arguments are valid
-        if not Viewer.backend.startswith('panda3d'):
+        backend = backend.lower()
+        if backend not in get_backends_available():
+            raise ValueError("%s backend not available." % backend)
+
+        if not backend.startswith('panda3d'):
             if display_com or display_dcm or display_contact_frames or \
                     display_contact_forces:
                 logger.warning(
@@ -410,14 +425,6 @@ class Viewer:
         self.f_external = pin.StdVec_Force()
         self.f_external.extend([
             pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
-
-        # Select the desired backend
-        if backend is None:
-            backend = Viewer.backend
-        else:
-            backend = backend.lower()  # Make sure backend's name is lowercase
-            if backend not in backends_available:
-                raise ValueError("%s backend not available." % backend)
 
         # Update the backend currently running, if any
         if Viewer.backend != backend and Viewer.is_alive():
@@ -596,7 +603,7 @@ class Viewer:
                 pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
 
         # Create backend wrapper to get (almost) backend-independent API
-        self._client = backends_available[Viewer.backend](
+        self._client = get_backends_available()[Viewer.backend](
             pinocchio_model, robot.collision_model, robot.visual_model)
         self._client.data = pinocchio_data
         self._client.collision_data = robot.collision_data
@@ -766,7 +773,7 @@ class Viewer:
         if Viewer.has_gui():
             return
 
-        if Viewer.backend == 'panda3d-qt':
+        if Viewer.backend in ('panda3d-qt', 'panda3d-sync'):
             # No instance is considered manager of the unique window
             pass
         elif Viewer.backend == 'panda3d':
@@ -1011,7 +1018,11 @@ class Viewer:
             # Instantiate client with onscreen rendering capability enabled.
             # Note that it fallbacks to software rendering if necessary.
             if Viewer.backend == 'panda3d-qt':
+                from .panda3d.panda3d_widget import Panda3dQWidget
                 client = Panda3dQWidget()
+                proc = _ProcessWrapper(client, close_at_exit)
+            elif Viewer.backend == 'panda3d-sync':
+                client = Panda3dApp()
                 proc = _ProcessWrapper(client, close_at_exit)
             else:
                 client = Panda3dViewer(window_type='onscreen',

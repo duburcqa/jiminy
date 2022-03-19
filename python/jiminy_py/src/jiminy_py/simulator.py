@@ -501,18 +501,19 @@ class Simulator:
                 robot_name = self.viewer.robot_name
                 scene_name = self.viewer.scene_name
 
-            # Handling of default backend
-            self.viewer_backend = self.viewer_backend or Viewer.backend
-
             # Create new viewer instance
+            viewer_backend = self.viewer_backend or Viewer.backend
             self.viewer = Viewer(self.robot,
                                  use_theoretical_model=False,
                                  open_gui_if_parent=False,
                                  **{'scene_name': scene_name,
                                     'robot_name': robot_name,
-                                    'backend': self.viewer_backend,
+                                    'backend': viewer_backend,
                                     'delete_robot_on_close': True,
                                     **kwargs})
+
+            # Backup current backend
+            self.viewer_backend = self.viewer_backend or Viewer.backend
 
             # Share the external force buffer of the viewer with the engine
             if self.is_simulation_running:

@@ -4,6 +4,7 @@ the official OpenAI Gym API and extended it to add more functionalities.
 """
 import os
 import tempfile
+import multiprocessing
 from copy import deepcopy
 from collections import OrderedDict
 from collections.abc import Mapping
@@ -23,7 +24,8 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL, Viewer
+from jiminy_py.viewer.viewer import (
+    DEFAULT_CAMERA_XYZRPY_REL, get_backends_available, Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.log import extract_data_from_log
@@ -92,13 +94,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     to implement one. It has been designed to be highly flexible and easy to
     customize by overloading it to fit the vast majority of users' needs.
     """
-    metadata = {
-        'render.modes': ['human', 'rgb_array'],
-    }
-
-    observation_space: spaces.Space
-    action_space: spaces.Space
-
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
@@ -134,6 +129,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
+        # Set the available rendering modes
+        self.metadata['render.modes'] = ['rgb_array']
+        if not multiprocessing.current_process()._config.get('daemon'):
+            self.metadata['render.modes'].append('human')
+
         # Define some proxies for fast access
         self.engine: jiminy.EngineMultiRobot = self.simulator.engine
         self.stepper_state: jiminy.StepperState = self.engine.stepper_state
@@ -151,10 +151,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.rg = np.random.Generator(np.random.Philox())
         self.log_path: Optional[str] = None
 
-        # Whether or not evaluation mode is active
+        # Whether evaluation mode is active
         self.is_training = True
 
-        # Whether or not play interactive mode is active
+        # Whether play interactive mode is active
         self._is_interactive = False
 
         # Information about the learning process
@@ -832,31 +832,36 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return obs, reward, done, deepcopy(self._info)
 
     def render(self,
-               mode: str = 'human',
+               mode: Optional[str] = None,
                **kwargs: Any) -> Optional[np.ndarray]:
-        """Render the current state of the robot.
-
-        .. note::
-            Do not suport Multi-Rendering RGB output for now.
+        """Render the world.
 
         :param mode: Rendering mode. It can be either 'human' to display the
-                     current simulation state, or 'rgb_array' to return
-                     instead a snapshot of it as an RGB array without showing
-                     it on the screen.
+                     current simulation state, or 'rgb_array' to return a
+                     snapshot as an RGB array without showing it on the screen.
+                     Optional: 'human' by default if available, 'rgb_array'
+                     otherwise.
         :param kwargs: Extra keyword arguments to forward to
                        `jiminy_py.simulator.Simulator.render` method.
 
         :returns: RGB array if 'mode' is 'rgb_array', None otherwise.
         """
-        if mode == 'human':
-            return_rgb_array = False
-        elif mode == 'rgb_array':
-            return_rgb_array = True
-        else:
-            raise ValueError(f"Rendering mode {mode} not supported.")
+        # Handling of default rendering mode
+        if mode is None:
+            if 'human' in self.metadata['render.modes']:
+                mode = 'human'
+            else:
+                mode = 'rgb_array'
 
-        return self.simulator.render(**{
-            'return_rgb_array': return_rgb_array, **kwargs})
+        # Make sure the rendering mode is valid.
+        # Note that it is not possible to raise an exception, because the
+        # default is overwritten by gym wrappers by mistake to 'human'.
+        if mode not in self.metadata['render.modes']:
+            mode = 'rgb_array'
+
+        # Call base implementation
+        return self.simulator.render(
+            return_rgb_array=(mode == 'rgb_array'), **kwargs)
 
     def plot(self, **kwargs: Any) -> None:
         """Display common simulation data and action over time.
