@@ -94,11 +94,11 @@ def get_backends_available() -> Dict[str, type]:
     # In must be a function, otherwise it would only be run once at import by
     # the main thread only.
     backends_available = {'panda3d-sync': Panda3dVisualizer}
-    if not multiprocessing.current_process()._config.get('daemon'):
+    if not multiprocessing.current_process().daemon:
         backends_available.update({'meshcat': MeshcatVisualizer,
                                    'panda3d': Panda3dVisualizer})
         try:
-            from .panda3d.panda3d_widget import Panda3dQWidget
+            from .panda3d.panda3d_widget import Panda3dQWidget  # noqa: F401
             backends_available['panda3d-qt'] = Panda3dVisualizer
         except ImportError:
             pass
@@ -119,7 +119,7 @@ def default_backend() -> str:
     """
     if interactive_mode():
         return 'meshcat'
-    elif not multiprocessing.current_process()._config.get('daemon'):
+    elif not multiprocessing.current_process().daemon:
         return 'panda3d'
     else:
         return 'panda3d-sync'

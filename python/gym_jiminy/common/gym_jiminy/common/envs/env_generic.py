@@ -24,8 +24,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.viewer.viewer import (
-    DEFAULT_CAMERA_XYZRPY_REL, get_backends_available, Viewer)
+from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL, Viewer
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.log import extract_data_from_log
@@ -131,7 +130,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Set the available rendering modes
         self.metadata['render.modes'] = ['rgb_array']
-        if not multiprocessing.current_process()._config.get('daemon'):
+        if not multiprocessing.current_process().daemon:
             self.metadata['render.modes'].append('human')
 
         # Define some proxies for fast access
@@ -1383,6 +1382,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
+        # Assertion(s) for type checker
+        assert self.action_space is not None
+
         # Check if the action is out-of-bounds, in debug mode only
         if self.debug and not self.action_space.contains(action):
             logger.warn("The action is out-of-bounds.")
