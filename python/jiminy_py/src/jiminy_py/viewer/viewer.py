@@ -115,7 +115,7 @@ def check_display_available() -> bool:
     return True
 
 
-def default_backend() -> str:
+def get_default_backend() -> str:
     """Determine the default backend viewer, depending eventually on the
     running environment, hardware, and set of available backends.
 
@@ -392,7 +392,7 @@ class Viewer:
             if Viewer.backend is not None:
                 backend = Viewer.backend
             else:
-                backend = default_backend()
+                backend = get_default_backend()
 
         # Make sure user arguments are valid
         backend = backend.lower()
@@ -483,23 +483,6 @@ class Viewer:
         try:
             # Connect viewer backend
             if not Viewer.is_alive():
-                # Handling of default argument(s)
-                if open_gui_if_parent is None:
-                    if not check_display_available():
-                        open_gui_if_parent = False
-                    elif Viewer.backend == 'meshcat':
-                        # Opening a new display cell automatically if there is
-                        # no other display cell already opened. The user is
-                        # probably expecting a display cell to open in such
-                        # cases, but there is no fixed rule.
-                        open_gui_if_parent = interactive_mode() and (
-                            Viewer._backend_obj is None or
-                            not Viewer._backend_obj.comm_manager.n_comm)
-                    elif Viewer.backend == 'panda3d':
-                        open_gui_if_parent = not interactive_mode()
-                    else:
-                        open_gui_if_parent = False
-
                 # Start viewer backend, eventually with graphical window
                 try:
                     Viewer.__connect_backend(
@@ -781,7 +764,7 @@ class Viewer:
         """
         # Start backend if needed
         if not Viewer.is_alive():
-            Viewer.__connect_backend(start_if_needed)
+            Viewer.__connect_backend(start_if_needed, open_gui=False)
 
         # If a graphical window is already open, do nothing
         if Viewer.has_gui():
@@ -1001,7 +984,7 @@ class Viewer:
     @staticmethod
     @__with_lock
     def __connect_backend(start_if_needed: bool = False,
-                          open_gui: bool = True,
+                          open_gui: Optional[bool] = None,
                           close_at_exit: bool = True) -> None:
         """Get the running process of backend client.
 
@@ -1011,12 +994,36 @@ class Viewer:
                                 running process is found.
                                 Optional: False by default
         :param open_gui: Open gui automatically after connecting to backend.
-                         Optional: True by default.
+                         `None` to fallback to default.
+                         Optional: Do not open gui for 'meshcat' backend in
+                         interactive mode with already one display cell
+                         already opened, open gui by default in any other
+                         case if possible.
         :param close_at_exit: Terminate backend server at Python exit.
                               Optional: True by default
 
         :returns: Pointer to the running backend Client and its PID.
         """
+        # Set default backend if None
+        if Viewer.backend is None:
+            Viewer.backend = get_default_backend()
+
+        # Handling of default argument(s)
+        if open_gui is None:
+            if not check_display_available():
+                open_gui = False
+            elif Viewer.backend == 'meshcat':
+                # Opening a new display cell automatically if there is no other
+                # display cell already opened. The user is probably expecting a
+                # display cell to open in such cases, but there is no fixed rule.
+                open_gui = interactive_mode() and (
+                    Viewer._backend_obj is None or
+                    not Viewer._backend_obj.comm_manager.n_comm)
+            elif Viewer.backend == 'panda3d':
+                open_gui = not interactive_mode()
+            else:
+                open_gui = False
+
         if Viewer.backend.startswith('panda3d'):
             # Make sure that creating a new client is allowed
             if not start_if_needed:
