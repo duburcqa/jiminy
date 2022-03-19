@@ -444,9 +444,6 @@ class Viewer:
             logging.warning("Different backend already running. Closing it...")
         Viewer.backend = backend
 
-        # Configure exception handling
-        Viewer._backend_exceptions = _get_backend_exceptions(backend)
-
         # Check if the backend is still working, not just alive, if any
         if Viewer.is_alive():
             is_backend_running = True
@@ -1015,7 +1012,8 @@ class Viewer:
             elif Viewer.backend == 'meshcat':
                 # Opening a new display cell automatically if there is no other
                 # display cell already opened. The user is probably expecting a
-                # display cell to open in such cases, but there is no fixed rule.
+                # display cell to open in such cases, but there is no fixed
+                # rule.
                 open_gui = interactive_mode() and (
                     Viewer._backend_obj is None or
                     not Viewer._backend_obj.comm_manager.n_comm)
@@ -1023,6 +1021,9 @@ class Viewer:
                 open_gui = not interactive_mode()
             else:
                 open_gui = False
+
+        # Configure exception handling
+        Viewer._backend_exceptions = _get_backend_exceptions(Viewer.backend)
 
         if Viewer.backend.startswith('panda3d'):
             # Make sure that creating a new client is allowed
@@ -1096,7 +1097,7 @@ class Viewer:
                     response = zmq_socket.recv().decode("utf-8")
                     if response[:4] != "http":
                         zmq_url = None
-                except (zmq.error.Again, zmq.error.ZMQError):
+                except Viewer._backend_exceptions:
                     zmq_url = None
                 zmq_socket.close(linger=5)
                 if zmq_url is not None:

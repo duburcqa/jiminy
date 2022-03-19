@@ -644,6 +644,7 @@ def test(test_agent: Trainer,
     if test_env is None:
         test_env = test_agent.env_creator(EnvContext(
             **test_agent.config["env_config"], **kwargs))
+    assert isinstance(test_env, BaseJiminyEnv)
 
     # Get policy model
     policy = test_agent.get_policy()
