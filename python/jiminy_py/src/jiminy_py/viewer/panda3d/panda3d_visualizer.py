@@ -162,8 +162,8 @@ def make_gradient_skybox(sky_color: Tuple3FType,
     prism.set_bin("background", 0)
     prism.set_depth_write(False)
     prism.set_depth_test(False)
+    prism.set_shader_auto(True)
     prism.set_light_off()
-    prism.set_shader_off()
 
     return prism
 
@@ -309,9 +309,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         else:
             self._shadow_size = 1024
 
-        # Make sure we have AA for if/when MSAA is enabled
-        self.render.set_antialias(
-            AntialiasAttrib.M_auto | AntialiasAttrib.M_faster)
+        # Enable antialiasing
+        self.render.set_antialias(AntialiasAttrib.MMultisample)
 
         # Configure lighting and shadows
         self._spotlight = self.config.GetBool('enable-spotlight', False)
@@ -336,7 +335,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                             self._make_light_direct(
                                 1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
         else:
-            self.render.set_shader_auto()
+            self.render.set_shader_auto(True)
             self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
                             self._make_light_direct(
                                 1, (0.5, 0.5, 0.5), pos=(8.0, -8.0, 10.0))]
@@ -365,6 +364,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         sky_color = (0.53, 0.8, 0.98, 1.0)
         ground_color = (0.1, 0.1, 0.43, 1.0)
         self.skybox = make_gradient_skybox(sky_color, ground_color, 0.7)
+        self.skybox.hide(self.LightMask)
 
         # The background needs to be parented to an intermediary node to which
         # a compass effect is applied to keep it at the same position as the
@@ -774,9 +774,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return light_path
 
     def _make_axes(self) -> NodePath:
-        node = super()._make_axes()
+        model = GeomNode('axes')
+        model.add_geom(geometry.make_axes())
+        node = self.render.attach_new_node(model)
+        node.set_render_mode_wireframe()
+        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+            node.set_render_mode_thickness(4)
+        node.set_antialias(AntialiasAttrib.MLine)
+        node.set_shader_auto(True)
+        node.set_light_off()
+        node.hide(self.LightMask)
         node.set_scale(0.3)
-        node.set_shader_off()
         return node
 
     def _make_floor(self,
@@ -813,9 +821,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # from below.
         node.set_two_sided(True)
 
-        # simplepbr shader must be by-passed to avoid having to specify a
-        # material instead of a color.
+        # Enable default shader but disable light casting
         node.set_shader_auto(True)
+        node.hide(self.LightMask)
 
         return node
 
@@ -903,12 +911,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         model = GeomNode('axes')
         model.add_geom(geometry.make_axes())
         node = NodePath(model)
-        node.set_light_off()
         node.set_render_mode_wireframe()
-        node.set_render_mode_thickness(4)
+        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+            node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
+        node.set_shader_auto(True)
+        node.set_light_off()
         node.hide(self.LightMask)
-        node.set_shader_off()
         self.append_node(root_path, name, node, frame)
 
     def append_cone(self,

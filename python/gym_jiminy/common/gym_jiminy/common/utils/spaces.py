@@ -18,12 +18,12 @@ DataNested = StructNested[np.ndarray]  # type: ignore
 
 
 def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:
-    """Replace any `gym.spaces.Dict` by the raw `OrderedDict` dict it contains.
+    """Replace any `gym.spaces.Dict|Tuple` by the raw `OrderedDict|tuple` it
+    contains for inter-operability with gym<0.23.0.
 
     .. note::
         It is necessary because non primitive objects must inherit from
         `collection.abc.Mapping|Sequence` for `dm-tree` to operate on them.
-        # TODO: support of gym.spaces.Tuple is expected for gym>=0.23.0.
     """
     return tree.traverse(
         lambda space: _space_nested_raw(space.spaces) if isinstance(

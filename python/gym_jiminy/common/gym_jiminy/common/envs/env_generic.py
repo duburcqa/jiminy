@@ -908,7 +908,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     log_data, action_headers, as_dict=True).items()})
 
         # Add action tab
-        self.figure.add_tab("Action", t, tab_data)
+        self.simulator.figure.add_tab("Action", t, tab_data)
 
     def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
         """Replay the current episode until now.
