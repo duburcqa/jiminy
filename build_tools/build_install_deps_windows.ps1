@@ -119,6 +119,7 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/ass
 ### Checkout hpp-fcl
 if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
   git clone https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
+  git config --global url."https://".insteadOf git://
 }
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
@@ -133,6 +134,7 @@ git checkout --force "v8.0.2"
 ### Checkout pinocchio and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
   git clone https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
+  git config --global url."https://".insteadOf git://
 }
 Set-Location -Path "$RootDir/pinocchio"
 git reset --hard

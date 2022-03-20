@@ -163,7 +163,6 @@ def make_gradient_skybox(sky_color: Tuple3FType,
     prism.set_depth_write(False)
     prism.set_depth_test(False)
     prism.set_light_off()
-    prism.set_shader_off()
 
     return prism
 
@@ -273,12 +272,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('aux-display',
                          'p3headlessgl'
                          '\naux-display pandadx9'
-                         '\naux-display pandadx8'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
         config.set_value('default-near', 0.1)
         config.set_value('gl-version', '3 1')
-        config.set_value('notify-level', 'error')
+        config.set_value('notify-level', 'fatal')
         config.set_value('notify-level-x11display', 'fatal')
         config.set_value('notify-level-device', 'fatal')
         config.set_value('default-directnotify-level', 'error')
@@ -309,16 +307,23 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         else:
             self._shadow_size = 1024
 
-        # Make sure we have AA for if/when MSAA is enabled
-        self.render.set_antialias(
-            AntialiasAttrib.M_auto | AntialiasAttrib.M_faster)
+        # Enable antialiasing
+        self.render.set_antialias(AntialiasAttrib.MMultisample)
 
         # Configure lighting and shadows
         self._spotlight = self.config.GetBool('enable-spotlight', False)
         self._lights_mask = [True, True]
 
-        # Enable physics-based shader if discrete NVIDIA GPU is used
-        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+        # Use default shader for everything on the scene by default.
+        # Note that EGL graphical pipeline does not support shader for now.
+        is_headless = self.pipe.get_type().name != "eglGraphicsPipe"
+        if is_headless:
+            self.render.set_shader_auto(True)
+
+        # Create physics-based shader if using discrete NVIDIA gpu and EGL
+        # driver is not used. Then, adapt lighting accordingly.
+        self._pbr_shader = None
+        if not is_headless and self.win.gsg.driver_vendor.startswith('NVIDIA'):
             shader_options = {
                 'MAX_LIGHTS': 2,
                 'USE_NORMAL_MAP': '',
@@ -331,12 +336,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 'simplepbr.frag', shader_options)
             pbrshader = Shader.make(
                 Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
-            self.render.set_attrib(ShaderAttrib.make(pbrshader))
+            self._pbr_shader = ShaderAttrib.make(pbrshader)
             self._lights = [self._make_light_ambient((0.6, 0.6, 0.6)),
                             self._make_light_direct(
                                 1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
         else:
-            self.render.set_shader_auto()
             self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
                             self._make_light_direct(
                                 1, (0.5, 0.5, 0.5), pos=(8.0, -8.0, 10.0))]
@@ -349,22 +353,23 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.clock = ClockObject.get_global_clock()
         self.framerate = None
 
-        # Create default scene objects
-        self._fog = self._make_fog()
-        self._axes = self._make_axes()
-        self._grid = self._make_grid()
-        self._floor = self._make_floor()
-
         # Create scene tree
         self._scene_root = self.render.attach_new_node('scene_root')
         self._scene_scale = self.config.GetFloat('scene-scale', 1.0)
         self._scene_root.set_scale(self._scene_scale)
         self._groups = {}
 
+        # Create default scene objects
+        self._fog = self._make_fog()
+        self._axes = self._make_axes()
+        self._grid = self._make_grid()
+        self._floor = self._make_floor()
+
         # Create gradient for skybox
         sky_color = (0.53, 0.8, 0.98, 1.0)
         ground_color = (0.1, 0.1, 0.43, 1.0)
         self.skybox = make_gradient_skybox(sky_color, ground_color, 0.7)
+        self.skybox.hide(self.LightMask)
 
         # The background needs to be parented to an intermediary node to which
         # a compass effect is applied to keep it at the same position as the
@@ -774,9 +779,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return light_path
 
     def _make_axes(self) -> NodePath:
-        node = super()._make_axes()
+        model = GeomNode('axes')
+        model.add_geom(geometry.make_axes())
+        node = self.render.attach_new_node(model)
+        node.set_render_mode_wireframe()
+        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+            node.set_render_mode_thickness(4)
+        node.set_antialias(AntialiasAttrib.MLine)
+        node.set_light_off()
+        node.hide(self.LightMask)
         node.set_scale(0.3)
-        node.set_shader_off()
         return node
 
     def _make_floor(self,
@@ -813,9 +825,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # from below.
         node.set_two_sided(True)
 
-        # simplepbr shader must be by-passed to avoid having to specify a
-        # material instead of a color.
-        node.set_shader_auto(True)
+        # Enable default shader but disable light casting
+        node.hide(self.LightMask)
+
+        # Adjust frustum of the lights to project shadow over the whole scene
+        for light_path in self._lights[1:]:
+            bmin, bmax = node.get_tight_bounds(light_path)
+            lens = light_path.get_node(0).get_lens()
+            lens.set_film_offset((bmin.xz + bmax.xz) * 0.5)
+            lens.set_film_size(bmax.xz - bmin.xz)
+            lens.set_near_far(bmin.y, bmax.y)
 
         return node
 
@@ -842,14 +861,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Hide the floor if is was previously hidden
         if is_hidden:
             self._floor.hide()
-
-        # Adjust frustum of the lights to project shadow over the whole scene
-        for light_path in self._lights[1:]:
-            bmin, bmax = self._floor.get_tight_bounds(light_path)
-            lens = light_path.get_node(0).get_lens()
-            lens.set_film_offset((bmin.xz + bmax.xz) * 0.5)
-            lens.set_film_size(bmax.xz - bmin.xz)
-            lens.set_near_far(bmin.y, bmax.y)
 
     def append_group(self,
                      root_path: str,
@@ -903,12 +914,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         model = GeomNode('axes')
         model.add_geom(geometry.make_axes())
         node = NodePath(model)
-        node.set_light_off()
         node.set_render_mode_wireframe()
-        node.set_render_mode_thickness(4)
+        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+            node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
+        node.set_light_off()
         node.hide(self.LightMask)
-        node.set_shader_off()
         self.append_node(root_path, name, node, frame)
 
     def append_cone(self,
@@ -1214,7 +1225,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      disable_material: bool = False) -> None:
         """Patched to avoid raising an exception if node does not exist, and to
         clear color if not specified. In addition, an optional argument to
-        disable texture and has been added.
+        disable texture has been added, and a physics-based shader is used if
+        available.
         """
         node = self._groups[root_path].find(name)
         if node:
@@ -1224,6 +1236,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 node.clear_texture()
                 node.clear_material()
             super().set_material(root_path, name, color, texture_path)
+            if self._pbr_shader is not None:
+                node.set_attrib(self._pbr_shader)
             if color is None:
                 node.clear_color()
 
