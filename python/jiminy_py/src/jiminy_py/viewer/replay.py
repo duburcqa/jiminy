@@ -477,7 +477,9 @@ def play_trajectories(trajs_data: Union[
                 if Viewer.backend == 'meshcat':
                     viewer._backend_obj.add_frame()
                 else:
-                    # Capture frame
+                    # Update frame.
+                    # Note that `capture_frame` is by far the main bottleneck
+                    # of the whole recording process (~75% on discrete gpu).
                     buffer = viewer.capture_frame(*VIDEO_SIZE, raw_data=True)
                     memoryview(frame.planes[0])[:] = buffer
 
