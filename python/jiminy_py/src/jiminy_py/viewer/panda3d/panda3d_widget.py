@@ -55,10 +55,9 @@ class Panda3dQWidget(Panda3dApp, QtWidgets.QWidget):
         # Note that `QImage` does not manage the lifetime of the input data
         # buffer, so it is necessary to keep it is local scope until the end of
         # its drawning.
-        data = self.get_screenshot('RGBA', raw=True)
-        img = QtGui.QImage(data,
-                           *self.buff.getSize(),
-                           QtGui.QImage.Format_RGBA8888).mirrored()
+        data = self.get_screenshot('RGB', raw=True)
+        img = QtGui.QImage(
+            data, *self.buff.getSize(), QtGui.QImage.Format_RGB888)
 
         # Render image on Qt widget
         self.paint_surface.begin(self)

@@ -423,11 +423,6 @@ def play_trajectories(trajs_data: Union[
                 velocity_evolutions.append(None)
                 force_evolutions.append(None)
 
-        # Disable framerate limit of Panda3d for efficiency
-        if Viewer.backend.startswith('panda3d'):
-            framerate = viewer._backend_obj.get_framerate()
-            viewer._backend_obj.set_framerate(None)
-
         # Initialize video recording
         if Viewer.backend == 'meshcat':
             # Sanitize the recording path to enforce '.webm' extension
@@ -449,41 +444,48 @@ def play_trajectories(trajs_data: Union[
             stream.width, stream.height = VIDEO_SIZE
             stream.pix_fmt = 'yuv420p'
             stream.bit_rate = VIDEO_QUALITY * (8 * 1024 ** 2)
+            stream.options = {"preset": "veryfast", "tune": "zerolatency"}
+
+            # Create frame storage
+            frame = av.VideoFrame(*VIDEO_SIZE[::-1], 'rgb24')
 
         # Add frames to video sequentially
         for i, t_cur in enumerate(tqdm(
                 time_global, desc="Rendering frames", disable=(not verbose))):
-            # Update 3D view
-            for viewer, pos, vel, forces, xyz_offset, update_hook in zip(
-                    viewers, position_evolutions, velocity_evolutions,
-                    force_evolutions, xyz_offsets, update_hooks):
-                if pos is None:
-                    continue
-                q, v, f_ext = pos[i], vel[i], forces[i]
-                if f_ext is not None:
-                    for i, f_ext in enumerate(f_ext):
-                        viewer.f_external[i].vector[:] = f_ext
-                if update_hook is not None:
-                    update_hook_t = partial(update_hook, t_cur, q, v)
+            try:
+                # Update 3D view
+                for viewer, pos, vel, forces, xyz_offset, update_hook in zip(
+                        viewers, position_evolutions, velocity_evolutions,
+                        force_evolutions, xyz_offsets, update_hooks):
+                    if pos is None:
+                        continue
+                    q, v, f_ext = pos[i], vel[i], forces[i]
+                    if f_ext is not None:
+                        for i, f_ext in enumerate(f_ext):
+                            viewer.f_external[i].vector[:] = f_ext
+                    if update_hook is not None:
+                        update_hook_t = partial(update_hook, t_cur, q, v)
+                    else:
+                        update_hook_t = None
+                    viewer.display(q, v, xyz_offset, update_hook_t)
+
+                # Update clock if enabled
+                if enable_clock:
+                    Viewer.set_clock(t_cur)
+
+                # Add frame to video
+                if Viewer.backend == 'meshcat':
+                    viewer._backend_obj.add_frame()
                 else:
-                    update_hook_t = None
-                viewer.display(q, v, xyz_offset, update_hook_t)
+                    # Capture frame
+                    buffer = viewer.capture_frame(*VIDEO_SIZE, raw_data=True)
+                    memoryview(frame.planes[0])[:] = buffer
 
-            # Update clock if enabled
-            if enable_clock:
-                Viewer.set_clock(t_cur)
-
-            # Add frame to video
-            if Viewer.backend == 'meshcat':
-                viewer._backend_obj.add_frame()
-            else:
-                # Capture frame
-                frame = viewer.capture_frame(*VIDEO_SIZE)
-
-                # Write frame
-                frame = av.VideoFrame.from_ndarray(frame, format='rgb24')
-                for packet in stream.encode(frame):
-                    out.mux(packet)
+                    # Write frame
+                    for packet in stream.encode(frame):
+                        out.mux(packet)
+            except KeyboardInterrupt:
+                break
 
         # Finalize video recording
         if Viewer.backend == 'meshcat':
@@ -494,10 +496,6 @@ def play_trajectories(trajs_data: Union[
             for packet in stream.encode(None):
                 out.mux(packet)
             out.close()
-
-        # Restore framerate limit of Panda3d
-        if Viewer.backend.startswith('panda3d'):
-            viewer._backend_obj.set_framerate(framerate)
     else:
         # Play trajectories with multithreading
         def replay_thread(viewer, *args):

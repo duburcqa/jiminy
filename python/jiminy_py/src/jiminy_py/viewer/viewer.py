@@ -1614,8 +1614,7 @@ class Viewer:
                 return buffer
 
             # Return numpy array RGB
-            rgb_array = np.frombuffer(buffer, np.uint8)
-            return np.flipud(rgb_array.reshape((height, width, 3)))
+            return np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
         else:
             # Send capture frame request to the background recorder process
             img_html = Viewer._backend_obj.capture_frame(width, height)
@@ -1630,8 +1629,8 @@ class Viewer:
                 return buffer
 
             # Return numpy array RGB
-            img_obj = Image.open(io.BytesIO(buffer))
-            rgba_array = np.array(img_obj)
+            with Image.open(io.BytesIO(buffer)) as img_obj:
+                rgba_array = np.array(img_obj)
             return rgba_array[:, :, :-1]
 
     @__must_be_open

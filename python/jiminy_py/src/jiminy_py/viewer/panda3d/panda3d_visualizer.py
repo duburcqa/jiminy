@@ -276,6 +276,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('window-type', 'offscreen')
         config.set_value('default-near', 0.1)
         config.set_value('gl-version', '3 1')
+        config.set_value('copy-texture-inverted', '1')
         config.set_value('notify-level', 'fatal')
         config.set_value('notify-level-x11display', 'fatal')
         config.set_value('notify-level-device', 'fatal')
@@ -559,7 +560,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.pipe, "offscreen_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
         texture = Texture()
-        win.addRenderTexture(texture, GraphicsOutput.RTMCopyRam)
+        win.addRenderTexture(texture, GraphicsOutput.RTM_copy_ram)
         self.buff = win
 
         # Append buffer to the list of windows managed by the ShowBase
@@ -1126,7 +1127,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         bbox_inches = bbox.from_extents(bbox_pixels / LEGEND_DPI)
 
         # Export the figure, limiting the bounding box to the legend area,
-        # slighly extended to ensure the surrounding rounded corner box of
+        # slightly extended to ensure the surrounding rounded corner box of
         # is not cropped. Transparency is enabled, so it is not an issue.
         io_buf = io.BytesIO()
         fig.savefig(io_buf, format='rgba', dpi=LEGEND_DPI, transparent=True,
@@ -1375,7 +1376,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return True
 
     def get_screenshot(self,
-                       requested_format: str = 'RGBA',
+                       requested_format: str = 'RGB',
                        raw: bool = False) -> Union[np.ndarray, bytes]:
         """Patched to take screenshot of the last window available instead of
         the main one, and to add raw data return mode for efficient
@@ -1387,7 +1388,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             scheduler. The framerate limit must be disable manually to avoid
             such limitation.
 
-        :param requested_format: Desired export format (e.g. 'RGBA' or 'RGB')
+        .. note::
+            Internally, Panda3d uses BGRA, so using it is slightly faster than
+            RGBA, but not RGB since there is one channel missing.
+
+        :param requested_format: Desired export format (e.g. 'RGB' or 'BGRA')
         :param raw: whether to return a raw memory view of bytes, of a
                     structured `np.ndarray` of uint8 with dimensions [W, H, D].
         """
@@ -1405,11 +1410,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             return image.get_data()
 
         # Convert raw texture to numpy array if requested
-        xsize = texture.get_x_size()
-        ysize = texture.get_y_size()
-        dsize = len(requested_format)
-        array = np.frombuffer(image, np.uint8).reshape((ysize, xsize, dsize))
-        return np.flipud(array)
+        xsize, ysize = texture.get_x_size(), texture.get_y_size()
+        return np.frombuffer(image, np.uint8).reshape((ysize, xsize, -1))
 
     def enable_shadow(self, enable: bool) -> None:
         for light in self._lights:
