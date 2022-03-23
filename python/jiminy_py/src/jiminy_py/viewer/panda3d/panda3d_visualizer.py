@@ -162,7 +162,6 @@ def make_gradient_skybox(sky_color: Tuple3FType,
     prism.set_bin("background", 0)
     prism.set_depth_write(False)
     prism.set_depth_test(False)
-    prism.set_light_off()
 
     return prism
 
@@ -276,7 +275,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('window-type', 'offscreen')
         config.set_value('default-near', 0.1)
         config.set_value('gl-version', '3 1')
-        config.set_value('copy-texture-inverted', '1')
         config.set_value('notify-level', 'fatal')
         config.set_value('notify-level-x11display', 'fatal')
         config.set_value('notify-level-device', 'fatal')
@@ -299,7 +297,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Disable the task manager loop for now. Only useful if onscreen.
         self.shutdown()
 
-        # Active enhanced rendering if dedicated NVIDIA GPU is used.
+        # Active enhanced rendering if discrete NVIDIA GPU is used.
         # Note that shadow resolution larger than 1024 significantly affects
         # the frame rate on Intel GPU chipsets: going from 1024 to 2048 makes
         # it drop from 60FPS to 30FPS.
@@ -315,20 +313,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._spotlight = self.config.GetBool('enable-spotlight', False)
         self._lights_mask = [True, True]
 
-        # Use default shader for everything on the scene by default.
+        # Create physics-based shader and adapt lighting accordingly.
+        # It slows down the rendering by about 30% on discrete NVIDIA GPU.
         # Note that EGL graphical pipeline does not support shader for now.
-        is_headless = self.pipe.get_type().name != "eglGraphicsPipe"
-        if is_headless:
-            self.render.set_shader_auto(True)
-
-        # Create physics-based shader if using discrete NVIDIA gpu and EGL
-        # driver is not used. Then, adapt lighting accordingly.
-        self._pbr_shader = None
-        if not is_headless and self.win.gsg.driver_vendor.startswith('NVIDIA'):
+        if self.pipe.get_type().name != "eglGraphicsPipe":
             shader_options = {
-                'MAX_LIGHTS': 2,
-                'USE_NORMAL_MAP': '',
                 'ENABLE_SHADOWS': '',
+                'USE_EMISSION_MAP': '',
                 'USE_OCCLUSION_MAP': ''
             }
             pbr_vert = simplepbr._load_shader_str(
@@ -337,7 +328,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 'simplepbr.frag', shader_options)
             pbrshader = Shader.make(
                 Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
-            self._pbr_shader = ShaderAttrib.make(pbrshader)
+            self.render.set_attrib(ShaderAttrib.make(pbrshader))
             self._lights = [self._make_light_ambient((0.6, 0.6, 0.6)),
                             self._make_light_direct(
                                 1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
@@ -350,7 +341,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._camera_defaults = CAMERA_POS_DEFAULT
         self.reset_camera(*self._camera_defaults)
 
-        # Define clock. It will be used later to limit framerate.
+        # Define clock. It will be used later to limit framerate
         self.clock = ClockObject.get_global_clock()
         self.framerate = None
 
@@ -370,6 +361,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         sky_color = (0.53, 0.8, 0.98, 1.0)
         ground_color = (0.1, 0.1, 0.43, 1.0)
         self.skybox = make_gradient_skybox(sky_color, ground_color, 0.7)
+        if self.pipe.get_type().name != "eglGraphicsPipe":
+            self.skybox.set_shader_auto(True)
+        self.skybox.set_light_off()
         self.skybox.hide(self.LightMask)
 
         # The background needs to be parented to an intermediary node to which
@@ -458,9 +452,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_axes(True)
         self.show_grid(False)
         self.show_floor(True)
-
-        # Force rendering the scene to finalize initialization of the GSG
-        self.graphics_engine.render_frame()
 
     def has_gui(self) -> bool:
         return any(isinstance(win, GraphicsWindow) for win in self.winList)
@@ -553,7 +544,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         flags = GraphicsPipe.BF_refuse_window | GraphicsPipe.BF_refuse_parasite
         flags |= GraphicsPipe.BF_resizeable
 
-        # Create new offscreen buffer and attach a texture
+        # Create new offscreen buffer and attach a texture.
         # Note that it is impossible to create resizeable buffer without an
         # already existing host for some reason...
         win = self.graphicsEngine.make_output(
@@ -580,6 +571,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Adjust aspect ratio
         self._adjust_offscreen_window_aspect_ratio()
+
+        # Force rendering the scene to finalize initialization of the GSG
+        self.graphics_engine.render_frame()
+
+        # The buffer must be flipped upside-down manually because using the
+        # global option `copy-texture-inverted` distorts the shadows of the
+        # onscreen window for some reason. Moreover, it must be done after
+        # calling `render_frame` at least once.
+        self.buff.inverted = True
 
     def _adjust_offscreen_window_aspect_ratio(self) -> None:
         """Adjust aspect ratio of offscreen window.
@@ -787,6 +787,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
+        if self.pipe.get_type().name != "eglGraphicsPipe":
+            node.set_shader_auto(True)
         node.set_light_off()
         node.hide(self.LightMask)
         node.set_scale(0.3)
@@ -827,6 +829,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_two_sided(True)
 
         # Enable default shader but disable light casting
+        if self.pipe.get_type().name != "eglGraphicsPipe":
+            node.set_shader_auto(True)
         node.hide(self.LightMask)
 
         # Adjust frustum of the lights to project shadow over the whole scene
@@ -919,6 +923,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
+        if self.pipe.get_type().name != "eglGraphicsPipe":
+            node.set_shader_auto(True)
         node.set_light_off()
         node.hide(self.LightMask)
         self.append_node(root_path, name, node, frame)
@@ -1237,8 +1243,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 node.clear_texture()
                 node.clear_material()
             super().set_material(root_path, name, color, texture_path)
-            if self._pbr_shader is not None:
-                node.set_attrib(self._pbr_shader)
             if color is None:
                 node.clear_color()
 
@@ -1329,7 +1333,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.camera_lookat = np.asarray(pos)
 
     def set_window_size(self, width: int, height: int) -> None:
-        self.buff.setSize(width, height)
+        self.buff.set_size(width, height)
         self._adjust_offscreen_window_aspect_ratio()
 
     def set_framerate(self, framerate: Optional[float] = None) -> None:
@@ -1364,6 +1368,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         image = PNMImage()
         if not self.buff.get_screenshot(image):
             return False
+
+        # Flip the image if the buffer is also flipped to revert the effect
+        if self.buff.inverted:
+            image.flip(flip_x=False, flip_y=True, transpose=False)
 
         # Remove alpha if format does not support it
         if not filename.lower().endswith('.png'):
@@ -1405,7 +1413,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Extract raw array buffer from texture
         image = texture.get_ram_image_as(requested_format)
 
-        # Return raw texture if requested
+        # Return raw buffer if requested
         if raw:
             return image.get_data()
 

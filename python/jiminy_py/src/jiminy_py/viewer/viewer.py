@@ -2136,7 +2136,7 @@ class Viewer:
 
         .. note::
             Specifying 'udpate_hook' is necessary to be able to display sensor
-            information usch as contact forces. It will be automatically
+            information such as contact forces. It will be automatically
             disable otherwise.
 
         .. warning::
