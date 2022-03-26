@@ -61,7 +61,10 @@ class PipelineControl(unittest.TestCase):
                 break
             rgb_array_abs_orig = (
                 rgba_array_rel_orig[..., :3] * 255).astype(np.uint8)
-            img_diff = np.mean(np.abs(rgb_array - rgb_array_abs_orig))
+            try:
+                img_diff = np.mean(np.abs(rgb_array - rgb_array_abs_orig))
+            except ValueError:
+                pass
             if img_diff < IMAGE_DIFF_THRESHOLD:
                 break
         if img_diff > IMAGE_DIFF_THRESHOLD:

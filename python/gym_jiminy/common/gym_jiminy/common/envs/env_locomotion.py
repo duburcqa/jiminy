@@ -176,7 +176,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     **kwargs})
         else:
             # Instantiate a simulator and load the options
-            simulator = Simulator(robot)
+            simulator = Simulator(robot, **kwargs)
             simulator.import_options(config_path)
 
         # Initialize base class

@@ -9,12 +9,12 @@ import numpy as np
 from numpy.random.mtrand import _rand as global_randstate
 
 
-ValueType = TypeVar('ValueTypeT')
-StructNested = Union[Dict[str, 'StructNested'],  # type: ignore
-                     Sequence['StructNested'],  # type: ignore
-                     ValueType]
-FieldNested = StructNested[str]  # type: ignore
-DataNested = StructNested[np.ndarray]  # type: ignore
+ValueT = TypeVar('ValueT')
+StructNested = Union[Dict[str, 'StructNested'],  # type: ignore[misc]
+                     Sequence['StructNested'],  # type: ignore[misc]
+                     ValueT]
+FieldNested = StructNested[str]  # type: ignore[misc]
+DataNested = StructNested[np.ndarray]  # type: ignore[misc]
 
 
 def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:

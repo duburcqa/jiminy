@@ -273,6 +273,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                          '\naux-display pandadx9'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
+        config.set_value('sync-video', '0')
         config.set_value('default-near', 0.1)
         config.set_value('gl-version', '3 1')
         config.set_value('notify-level', 'fatal')
@@ -901,7 +902,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     RenderModeAttrib.get_class_slot())
                 node.set_attrib(RenderModeAttrib.make(
                     RenderModeAttrib.M_filled_wireframe,
-                    1.5,  # thickness (1.0 by default)
+                    1.0,  # thickness (1.0 by default)
                     render_attrib.perspective,
                     (2.0, 2.0, 2.0, 1.0)  # wireframe_color
                 ))
