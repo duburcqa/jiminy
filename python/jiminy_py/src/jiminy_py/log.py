@@ -21,8 +21,9 @@ from . import core as jiminy
 from .state import State
 
 
-FieldNested = Union[  # type: ignore
-    Dict[str, 'FieldNested'], Sequence['FieldNested'], str]  # type: ignore
+FieldNested = Union[
+    Dict[str, 'FieldNested'], Sequence['FieldNested'],
+    str]  # type: ignore[misc]
 
 
 class TrajectoryDataType(TypedDict, total=False):
