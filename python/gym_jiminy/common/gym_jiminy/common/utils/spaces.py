@@ -9,7 +9,7 @@ import numpy as np
 from numpy.random.mtrand import _rand as global_randstate
 
 
-ValueType = TypeVar('ValueType')
+ValueType = TypeVar('ValueTypeT')
 StructNested = Union[Dict[str, 'StructNested'],  # type: ignore
                      Sequence['StructNested'],  # type: ignore
                      ValueType]

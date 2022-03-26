@@ -595,24 +595,24 @@ namespace jiminy
             constraintsMap_t collisionConstraintsMap;
             for (std::size_t i = 0; i < collisionModelOrig_.geometryObjects.size(); ++i)
             {
-                pinocchio::GeometryObject const & geom = collisionModelOrig_.geometryObjects[i];
-                bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
-                                           geom.meshPath.find('\\') != std::string::npos);
-                std::string const & frameName = pncModel_.frames[geom.parentFrame].name;
-                if (!(ignoreMeshes && isGeomMesh) && frameName  == name)
+                if (returnCode == hresult_t::SUCCESS)
                 {
-                    /* Create and add the collision pair with the ground.
-                       Note that the ground always comes second for the normal to be
-                       consistently compute wrt the ground instead of the body. */
-                    pinocchio::CollisionPair const collisionPair(i, groundId);
-                    collisionModelOrig_.addCollisionPair(collisionPair);
-
-                    if (returnCode == hresult_t::SUCCESS)
+                    pinocchio::GeometryObject const & geom = collisionModelOrig_.geometryObjects[i];
+                    bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
+                                            geom.meshPath.find('\\') != std::string::npos);
+                    std::string const & frameName = pncModel_.frames[geom.parentFrame].name;
+                    if (!(ignoreMeshes && isGeomMesh) && frameName  == name)
                     {
                         // Add constraint associated with contact frame only if it is a sphere
                         hpp::fcl::CollisionGeometry const & shape = *geom.geometry;
                         if (shape.getNodeType() == hpp::fcl::GEOM_SPHERE)
                         {
+                            /* Create and add the collision pair with the ground.
+                            Note that the ground always comes second for the normal to be
+                            consistently compute wrt the ground instead of the body. */
+                            pinocchio::CollisionPair const collisionPair(i, groundId);
+                            collisionModelOrig_.addCollisionPair(collisionPair);
+
                             /* Add dedicated frame
                                Note that 'BODY' type is used instead of default 'OP_FRAME' to
                                it clear it is not consider as manually added to the model, and

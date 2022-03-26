@@ -1252,7 +1252,7 @@ class Viewer:
 
         .. warning::
             It returns the previous requested camera transform for meshcat,
-            since it is impossible to get acces to this information. Thus
+            since it is impossible to get access to this information. Thus
             this method is valid as long as the user does not move the
             camera manually using mouse camera control.
         """
