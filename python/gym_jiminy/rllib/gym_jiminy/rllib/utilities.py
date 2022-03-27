@@ -136,8 +136,7 @@ def initialize(num_cpus: int,
             resources: Dict[str, int] = defaultdict(int)
             for info in global_state_accessor.get_all_available_resources():
                 # pylint: disable=no-member
-                message = AvailableResources.\
-                    FromString(info)  # type: ignore[attr-defined]
+                message = AvailableResources.FromString(info)
                 for field, capacity in message.resources_available.items():
                     resources[field] += capacity
 
