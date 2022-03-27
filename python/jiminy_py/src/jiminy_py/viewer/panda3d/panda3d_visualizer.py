@@ -442,7 +442,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.click_mouse_x = 0.0
         self.click_mouse_y = 0.0
 
-        # Create resizeable offscreen buffer
+        # Create resizeable offscreen buffer.
+        # Note that a resizable buffer is systematically created, no matter
+        # if the main window is an offscreen non-resizable window or an
+        # onscreen resizeable graphical window. It avoids having to handle
+        # the two cases separately, especially for screenshot resizing and
+        # selective overlay information display. However, it affects the
+        # performance significantly. At least 20% on discrete NVIDIA GPU and
+        # 50% on integrated Intel GPU.
         self._open_offscreen_window(WINDOW_SIZE_DEFAULT)
 
         # Set default options
@@ -545,18 +552,20 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         flags = GraphicsPipe.BF_refuse_window | GraphicsPipe.BF_refuse_parasite
         flags |= GraphicsPipe.BF_resizeable
 
-        # Create new offscreen buffer and attach a texture.
+        # Create new offscreen buffer
         # Note that it is impossible to create resizeable buffer without an
-        # already existing host for some reason...
+        # already existing host.
         win = self.graphicsEngine.make_output(
             self.pipe, "offscreen_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
-        texture = Texture()
-        win.addRenderTexture(texture, GraphicsOutput.RTM_copy_ram)
         self.buff = win
 
         # Append buffer to the list of windows managed by the ShowBase
         self.winList.append(win)
+
+        # Attach a texture as screenshot requires copying GPU data to RAM
+        texture = Texture()
+        self.buff.add_render_texture(texture, GraphicsOutput.RTM_copy_ram)
 
         # Create 3D camera region for the scene.
         # Set near distance of camera lens to allow seeing model from close.
