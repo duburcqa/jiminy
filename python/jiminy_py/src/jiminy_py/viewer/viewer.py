@@ -386,7 +386,7 @@ class Viewer:
                 backend = get_default_backend()
 
         # Access the current backend or create one if none is available
-        self.__is_open = True
+        self.__is_open = False
         self.is_backend_parent = not Viewer.is_alive()
         try:
             # Start viewer backend
@@ -412,6 +412,7 @@ class Viewer:
             # case where the backend process has changed in the meantime.
             self._gui = Viewer._backend_obj.gui
             self._backend_proc = Viewer._backend_proc
+            self.__is_open = True
 
             # Open gui if requested
             try:

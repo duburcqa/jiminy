@@ -15,7 +15,6 @@ import tree
 import numpy as np
 import gym
 from gym import logger, spaces
-from gym.utils.seeding import _int_list_from_bigint, hash_seed
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
@@ -711,14 +710,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # into sequence of 4 bytes uint32 seeds. Backup only the first one.
         # Note that hashing is used to get rid off possible correlation in the
         # presence of concurrency.
-        seed = hash_seed(seed)
-        self._seed = list(map(np.uint32, _int_list_from_bigint(seed)))
+        self._seed = np.random.SeedSequence(seed)
 
         # Instantiate a new random number generator based on the provided seed
-        self.rg = np.random.Generator(np.random.Philox(self._seed))
+        self.rg = np.random.Generator(np.random.PCG64(self._seed))
 
         # Reset the seed of Jiminy Engine
-        self.simulator.seed(self._seed[0])
+        self.simulator.seed(self._seed.generate_state(1)[0])
 
         return self._seed
 
@@ -1473,12 +1471,15 @@ BaseJiminyEnv.compute_reward.__doc__ = \
     """
 
 
-class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
-    """Base class to train a robot in Gym OpenAI using a user-specified Jiminy
-    Engine for physics computations.
-
-    It creates an Gym environment wrapping Jiminy Engine and behaves like any
-    other Gym goal-environment.
+class BaseJiminyGoalEnv(BaseJiminyEnv):
+    """A goal-based environment. It functions just as any regular OpenAI Gym
+    environment but it imposes a required structure on the observation_space.
+    More concretely, the observation space is required to contain at least
+    three elements, namely `observation`, `desired_goal`, and `achieved_goal`.
+    Here, `desired_goal` specifies the goal that the agent should attempt to
+    achieve. `achieved_goal` is the goal that it currently achieved instead.
+    `observation` contains the actual observations of the environment as per
+    usual.
     """
     def __init__(self,
                  simulator: Optional[Simulator],
@@ -1583,7 +1584,11 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                        achieved_goal: Optional[DataNested] = None,
                        desired_goal: Optional[DataNested] = None,
                        *, info: Dict[str, Any]) -> float:
-        """Compute the reward for any given episode state.
+        """Compute the step reward. This externalizes the reward function and
+        makes it dependent on a desired goal and the one that was achieved. If
+        you wish to include additional rewards that are independent of the
+        goal, you can include the necessary values to derive it in 'info' and
+        compute it accordingly.
 
         :param achieved_goal: Achieved goal. `None` to evalute the reward for
                               currently achieved goal.
@@ -1591,7 +1596,14 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                              currently desired goal.
         :param info: Dictionary of extra information for monitoring.
 
-        :returns: Total reward.
+        Returns:
+            The reward that corresponds to the provided achieved goal wrt to
+            the desired goal. Note that the following should always hold true:
+            ```
+            obs, reward, done, info = env.step()
+            assert reward == env.compute_reward(
+                obs['achieved_goal'], obs['desired_goal'], info=info)
+            ```
         """
         # pylint: disable=arguments-differ
 
