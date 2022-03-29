@@ -10,7 +10,7 @@ on:
 jobs:
   build-test-and-publish-pypi-manylinux:
     name: >-
-      (${{ matrix.container }}) (${{ matrix.PYTHON_VERSION }}) (${{ matrix.legacy }})
+      (${{ matrix.container }}) (${{ matrix.PYTHON_VERSION }})
       Build and run the unit tests. Then generate and publish the wheels on PyPi.
 
     strategy:
@@ -18,11 +18,6 @@ jobs:
         container: ['quay.io/pypa/manylinux2014_x86_64',
                     'quay.io/pypa/manylinux_2_24_x86_64']
         PYTHON_VERSION: ['cp36', 'cp37', 'cp38', 'cp39']
-        legacy: [false]
-        include:
-          - container: 'quay.io/pypa/manylinux_2_24_x86_64'
-            PYTHON_VERSION: 'cp38'
-            legacy: true
 
     runs-on: ubuntu-20.04
     container: ${{ matrix.container }}
@@ -58,11 +53,7 @@ jobs:
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel auditwheel cmake
-        if [ "${{ matrix.legacy }}" == true ] ; then
-          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.20"  # for tensorflow compat.
-        else
-          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
-        fi
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
@@ -117,7 +108,7 @@ jobs:
       if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
-        name: jiminy_py-${{ matrix.PYTHON_VERSION }}-wheel-${{ matrix.legacy }}
+        name: jiminy_py-${{ matrix.PYTHON_VERSION }}-wheel
         path: build/wheelhouse
 
     #####################################################################################
@@ -134,7 +125,7 @@ jobs:
 
     - name: Publish on PyPi the wheel for Linux of Jiminy_py
       if: >-
-        success() && matrix.legacy == false &&
+        success() &&
         github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
@@ -143,7 +134,7 @@ jobs:
         packages_dir: build/wheelhouse
     - name: Publish on PyPi the wheel of Gym Jiminy (Any platform / Any python3 version)
       if: >-
-        success() && matrix.container == 'quay.io/pypa/manylinux2014_x86_64' && matrix.PYTHON_VERSION == 'cp36' && matrix.legacy == false &&
+        success() && matrix.container == 'quay.io/pypa/manylinux2014_x86_64' && matrix.PYTHON_VERSION == 'cp36' &&
         github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:

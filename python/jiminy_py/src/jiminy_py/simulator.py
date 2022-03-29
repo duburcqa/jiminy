@@ -310,7 +310,7 @@ class Simulator:
         """
         out[()] = True
 
-    def seed(self, seed: int) -> None:
+    def seed(self, seed: np.uint32) -> None:
         """Set the seed of the simulation and reset the simulation.
 
         .. warning::
