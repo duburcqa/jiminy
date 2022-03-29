@@ -713,6 +713,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._seed = np.random.SeedSequence(seed)
 
         # Instantiate a new random number generator based on the provided seed
+        # TODO: Rather use `PCG64DXSM` once `numpy>=1.21.0` would be enforced.
         self.rg = np.random.Generator(np.random.PCG64(self._seed))
 
         # Reset the seed of Jiminy Engine
