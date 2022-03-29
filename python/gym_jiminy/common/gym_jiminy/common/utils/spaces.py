@@ -1,5 +1,6 @@
 """ TODO: Write documentation.
 """
+from pkg_resources import parse_version
 from collections import OrderedDict
 from typing import Optional, Union, Dict, Sequence, TypeVar
 
@@ -17,18 +18,22 @@ FieldNested = StructNested[str]  # type: ignore[misc]
 DataNested = StructNested[np.ndarray]  # type: ignore[misc]
 
 
-def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:
-    """Replace any `gym.spaces.Dict|Tuple` by the raw `OrderedDict|tuple` it
-    contains for inter-operability with gym<0.23.0.
+if parse_version(gym.__version__) < parse_version('0.23.0'):
+    def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:
+        """Replace any `gym.spaces.Dict|Tuple` by a native collection type for
+        inter-operability with gym<0.23.0.
 
-    .. note::
-        It is necessary because non primitive objects must inherit from
-        `collection.abc.Mapping|Sequence` for `dm-tree` to operate on them.
-    """
-    return tree.traverse(
-        lambda space: _space_nested_raw(space.spaces) if isinstance(
-            space, (gym.spaces.Dict, gym.spaces.Tuple)) else None,
-        space_nested)
+        .. note::
+            It is necessary because non primitive objects must inherit from
+            `collection.abc.Mapping|Sequence` for `dm-tree` to operate on them.
+        """
+        return tree.traverse(
+            lambda space: _space_nested_raw(space.spaces) if isinstance(
+                space, (gym.spaces.Dict, gym.spaces.Tuple)) else None,
+            space_nested)
+else:
+    def _space_nested_raw(space_nested: gym.Space) -> gym.Space:
+        return space_nested
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,
