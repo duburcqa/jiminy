@@ -43,24 +43,26 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         """
         # Agent algorithm config
         config = {}
-        config['n_steps'] = 200
-        config['batch_size'] = 200
+        config['n_steps'] = 2500
+        config['batch_size'] = 250
         config['learning_rate'] = 5.0e-4
         config['n_epochs'] = 10
         config['gamma'] = 0.99
-        config['gae_lambda'] = 0.9
-        config['target_kl'] = None
+        config['gae_lambda'] = 0.95
+        config['target_kl'] = 0.1
         config['ent_coef'] = 0.0
-        config['vf_coef'] = 1.0
-        config['clip_range'] = np.inf
+        config['vf_coef'] = 0.5
+        config['clip_range'] = 0.2
         config['clip_range_vf'] = None
-        config['max_grad_norm'] = np.inf
+        config['max_grad_norm'] = 0.5
         config['seed'] = SEED
 
         # Policy model config
         config['policy_kwargs'] = {
             'net_arch': [dict(pi=[64, 64], vf=[64, 64])],
             'activation_fn': nn.Tanh,
+            'ortho_init': True,
+            'log_std_init': 1.0,
             'optimizer_kwargs': {
                 'eps': 0.0
             }

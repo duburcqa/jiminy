@@ -146,7 +146,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Internal buffers for physics computations
         self._seed: List[np.uint32] = []
-        self.rg = np.random.Generator(np.random.Philox())
+        self.rg = np.random.Generator(np.random.SFC64())
         self.log_path: Optional[str] = None
 
         # Whether evaluation mode is active
@@ -706,18 +706,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         :returns: Updated seed of the environment
         """
-        # Generate a 8 bytes (uint64) seed using gym utils, then convert it
-        # into sequence of 4 bytes uint32 seeds. Backup only the first one.
-        # Note that hashing is used to get rid off possible correlation in the
-        # presence of concurrency.
-        self._seed = np.random.SeedSequence(seed)
+        # Generate a sequence of 3 bytes uint32 seeds
+        self._seed = list(np.random.SeedSequence(seed).generate_state(3))
 
         # Instantiate a new random number generator based on the provided seed
-        # TODO: Rather use `PCG64DXSM` once `numpy>=1.21.0` would be enforced.
-        self.rg = np.random.Generator(np.random.PCG64(self._seed))
+        self.rg = np.random.Generator(np.random.SFC64(self._seed))
 
         # Reset the seed of Jiminy Engine
-        self.simulator.seed(self._seed.generate_state(1)[0])
+        self.simulator.seed(self._seed[0])
 
         return self._seed
 

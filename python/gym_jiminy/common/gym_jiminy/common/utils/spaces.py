@@ -18,7 +18,7 @@ DataNested = StructNested[np.ndarray]  # type: ignore[misc]
 
 
 if tuple(map(int, (gym.__version__.split(".", 4)[:3]))) < (0, 23, 0):
-    def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:
+    def _space_nested_raw(space_nested: gym.Space) -> gym.Space:
         """Replace any `gym.spaces.Dict|Tuple` by a native collection type for
         inter-operability with gym<0.23.0.
 
