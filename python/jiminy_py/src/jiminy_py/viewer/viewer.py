@@ -905,7 +905,10 @@ class Viewer:
                 if Viewer.backend == 'meshcat':
                     Viewer._backend_obj.close()
                 elif Viewer.backend.startswith('panda3d'):
-                    Viewer._backend_obj.stop()
+                    try:
+                        Viewer._backend_obj.stop()
+                    except ViewerClosedError:
+                        pass
                 Viewer._backend_proc.kill()
             atexit.unregister(Viewer.close)
             Viewer.backend = None
