@@ -94,7 +94,7 @@ namespace python
                 assert(maskFixedPyExtract.check() && "'maskFixedPy' must be a list.");
                 bp::list maskFixedListPy = maskFixedPyExtract();
                 assert(bp::len(maskFixedListPy) == 6 && "'maskFixedPy' must have length 6.");
-                for (uint32_t i=0; i < 6; ++i)
+                for (uint32_t i = 0; i < 6; ++i)
                 {
                     bp::extract<bool_t> maskFixedListPyExtract(maskFixedPy[i]);
                     assert(maskFixedListPyExtract.check() && "'maskFixedPy' elements must be bool.");

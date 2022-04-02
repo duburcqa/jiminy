@@ -152,9 +152,6 @@ namespace jiminy
         forceVector_t contactFramesForces;                             ///< Contact forces for each contact frames in local frame
         vector_aligned_t<forceVector_t> collisionBodiesForces;         ///< Contact forces for each geometries of each collision bodies in local frame
         matrix6N_t jointJacobian;                                      ///< Buffer used for intermediary computation of `data.u`
-        vectorN_t lo;                                                  ///< Lower bound of LCP problem
-        vectorN_t hi;                                                  ///< Higher bound of LCP problem
-        std::vector<std::vector<int32_t> > fIndices;                   ///< Used to indicate linear coupling between bounds of LCP and the solution (i.e. friction cone: - mu * F_z < F_x/F_y < mu * F_z)
 
         std::vector<std::string> positionFieldnames;
         std::vector<std::string> velocityFieldnames;

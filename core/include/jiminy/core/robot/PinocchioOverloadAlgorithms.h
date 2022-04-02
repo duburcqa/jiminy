@@ -85,7 +85,7 @@ namespace pinocchio_overload
          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
          Eigen::MatrixBase<ConfigVectorType>                      const & q)
     {
-        (void) pinocchio::crba(model, data, q);
+        (void) pinocchio::crbaMinimal(model, data, q);
         data.M.diagonal() += model.rotorInertia;
         return data.M;
     }

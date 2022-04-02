@@ -660,8 +660,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
 
     # Compute constraint jacobian and drift
     robot.compute_constraints(position, velocity)
-    J = robot.get_constraints_jacobian()
-    drift = robot.get_constraints_drift()
+    J, drift = robot.get_constraints_jacobian_and_drift()
 
     # No need to compute the internal matrix using `crba` nor to perform the
     # cholesky decomposition since it is already done by `compute_constraints`

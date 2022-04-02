@@ -39,7 +39,7 @@
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/control/ControllerFunctor.h"
-#include "jiminy/core/solver/LCPSolvers.h"
+#include "jiminy/core/solver/ContactSolvers.h"
 #include "jiminy/core/stepper/AbstractStepper.h"
 #include "jiminy/core/stepper/EulerExplicitStepper.h"
 #include "jiminy/core/stepper/RungeKuttaDOPRIStepper.h"
@@ -1317,23 +1317,20 @@ namespace jiminy
             }
 
             // Set Baumgarte stabilization natural frequency for contact constraints
-            std::array<constraintsHolderType_t, 3> holderTypes {{
-                constraintsHolderType_t::BOUNDS_JOINTS,
-                constraintsHolderType_t::CONTACT_FRAMES,
-                constraintsHolderType_t::COLLISION_BODIES}};
-            for (constraintsHolderType_t holderType : holderTypes)
-            {
-                systemDataIt->constraintsHolder.foreach(holderType,
-                    [freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
-                        std::shared_ptr<AbstractConstraintBase> const & constraint,
-                        constraintsHolderType_t const & /* holderType */)
+            systemDataIt->constraintsHolder.foreach(
+                std::array<constraintsHolderType_t, 3> {{
+                    constraintsHolderType_t::BOUNDS_JOINTS,
+                    constraintsHolderType_t::CONTACT_FRAMES,
+                    constraintsHolderType_t::COLLISION_BODIES}},
+                [freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
+                    std::shared_ptr<AbstractConstraintBase> const & constraint,
+                    constraintsHolderType_t const & /* holderType */)
+                {
+                    if (constraint)
                     {
-                        if (constraint)
-                        {
-                            constraint->setBaumgarteFreq(freq);  // It cannot fail at this point
-                        }
-                    });
-            }
+                        constraint->setBaumgarteFreq(freq);  // It cannot fail at this point
+                    }
+                });
 
             // Initialize some addition buffers used by impulse contact solver
             systemDataIt->jointJacobian.setZero(6, systemIt->robot->pncModel_.nv);
@@ -2835,7 +2832,7 @@ namespace jiminy
         pinocchio::forwardKinematics(model, data, q, v, a);
 
         // Update frame placements (avoiding redundant computations)
-        for(int32_t i=1; i < model.nframes; ++i)
+        for (int32_t i=1; i < model.nframes; ++i)
         {
             pinocchio::Frame const & frame = model.frames[i];
             jointIndex_t const & parent = frame.parent;
@@ -3717,75 +3714,9 @@ namespace jiminy
         {
             // Define some proxies for convenience
             matrix6N_t & jointJacobian = systemData.jointJacobian;
-            vectorN_t & lo = systemData.lo;
-            vectorN_t & hi = systemData.hi;
-            std::vector<std::vector<int32_t> > & fIndices = systemData.fIndices;
 
             // Compute kinematic constraints
             system.robot->computeConstraints(q, v);
-
-            // Extract updated jacobian, drift and multipliers
-            auto constraintsJacobian = system.robot->getConstraintsJacobian();
-            auto constraintsDrift = system.robot->getConstraintsDrift();
-            data.lambda_c = system.robot->getConstraintsLambda();
-
-            // Compute constraints bounds
-            lo.setConstant(constraintsDrift.size(), -INF);
-            hi.setConstant(constraintsDrift.size(), +INF);
-            fIndices = std::vector<std::vector<int32_t> >(constraintsDrift.size());
-
-            uint64_t constraintIdx = 0U;
-            auto constraintIt = systemData.constraintsHolder.boundJoints.begin();
-            auto activeDirIt = systemData.boundJointsActiveDir.begin();
-            for ( ; constraintIt != systemData.constraintsHolder.boundJoints.end() ;
-                ++constraintIt, ++activeDirIt)
-            {
-                auto const & constraint = constraintIt->second;
-                if (!constraint->getIsEnabled())
-                {
-                    continue;
-                }
-                if (*activeDirIt)
-                {
-                    hi[constraintIdx] = 0.0;
-                }
-                else
-                {
-                    lo[constraintIdx] = 0.0;
-                }
-                constraintIdx += constraint->getDim();
-            }
-
-            std::array<constraintsHolderType_t, 2> holderTypes {{
-                constraintsHolderType_t::CONTACT_FRAMES, constraintsHolderType_t::COLLISION_BODIES}};
-            for (constraintsHolderType_t holderType : holderTypes)
-            {
-                systemData.constraintsHolder.foreach(holderType,
-                    [&lo, &hi, &fIndices, &constraintIdx,
-                     &contactOptions = const_cast<contactOptions_t &>(engineOptions_->contacts)](  // capturing const reference is not properly supported by gcc<7.3
-                        std::shared_ptr<AbstractConstraintBase> const & constraint,
-                        constraintsHolderType_t const & /* holderType */)
-                    {
-                        if (!constraint || !constraint->getIsEnabled())
-                        {
-                            return;
-                        }
-
-                        // Torsional friction around normal axis
-                        hi[constraintIdx + 3] = contactOptions.torsion;
-                        fIndices[constraintIdx + 3] = {static_cast<int32_t>(constraintIdx)};
-
-                        // Friction cone in tangential plane
-                        hi[constraintIdx + 2] = contactOptions.friction;
-                        fIndices[constraintIdx + 2] = {static_cast<int32_t>(constraintIdx),
-                                                       static_cast<int32_t>(constraintIdx + 1)};
-
-                        // Non-penetration normal force
-                        lo[constraintIdx] = 0.0;
-
-                        constraintIdx += constraint->getDim();
-                    });
-            }
 
             // Project external forces from cartesian space to joint space
             data.u = u;
@@ -3806,30 +3737,11 @@ namespace jiminy
             // Call forward dynamics
             constraintSolver_->BoxedForwardDynamics(model,
                                                     data,
-                                                    data.u,
-                                                    constraintsJacobian,
-                                                    constraintsDrift,
-                                                    engineOptions_->constraints.regularization,
-                                                    lo,
-                                                    hi,
-                                                    fIndices);
-
-            // Update lagrangian multipliers associated with the constraint
-            constraintIdx = 0U;
-            systemData.constraintsHolder.foreach(
-                [&lambda_c = const_cast<vectorN_t &>(data.lambda_c),
-                 &constraintIdx](
-                    std::shared_ptr<AbstractConstraintBase> const & constraint,
-                    constraintsHolderType_t const & /* holderType */)
-                {
-                    if (!constraint->getIsEnabled())
-                    {
-                        return;
-                    }
-                    uint64_t const constraintDim = constraint->getDim();
-                    constraint->lambda_ = lambda_c.segment(constraintIdx, constraintDim);
-                    constraintIdx += constraintDim;
-                });
+                                                    systemData.constraintsHolder,
+                                                    systemData.boundJointsActiveDir,
+                                                    engineOptions_->contacts.friction,
+                                                    engineOptions_->contacts.torsion,
+                                                    engineOptions_->constraints.regularization);
 
             // Restore contact frame forces and bounds internal efforts
             systemData.constraintsHolder.foreach(
@@ -3846,14 +3758,13 @@ namespace jiminy
                     }
 
                     vectorN_t & uJoint = constraint->lambda_;
-
                     auto const & jointConstraint = static_cast<JointConstraint const &>(*constraint.get());
                     auto const & jointModel = joints[jointConstraint.getJointIdx()];
                     jointModel.jointVelocitySelector(uInternal) += uJoint;
                     jointModel.jointVelocitySelector(u) += uJoint;
                 });
 
-            constraintIt = systemData.constraintsHolder.contactFrames.begin();
+            auto constraintIt = systemData.constraintsHolder.contactFrames.begin();
             auto forceIt = system.robot->contactForces_.begin();
             for ( ; constraintIt != systemData.constraintsHolder.contactFrames.end() ;
                 ++constraintIt, ++forceIt)
@@ -3867,7 +3778,7 @@ namespace jiminy
 
                 // Extract force in local reference-frame-aligned from lagrangian multipliers
                 pinocchio::Force fextInLocal(
-                    frameConstraint.lambda_.head<3>().reverse(),
+                    frameConstraint.lambda_.head<3>(),
                     frameConstraint.lambda_[3] * vector3_t::UnitZ());
 
                 // Compute force in local world aligned frame
@@ -3902,7 +3813,7 @@ namespace jiminy
 
                     // Extract force in world frame from lagrangian multipliers
                     pinocchio::Force fextInLocal(
-                        frameConstraint.lambda_.head<3>().reverse(),
+                        frameConstraint.lambda_.head<3>(),
                         frameConstraint.lambda_[3] * vector3_t::UnitZ());
 
                     // Compute force in world frame
