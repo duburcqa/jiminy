@@ -27,8 +27,7 @@ namespace jiminy
     b_(),
     y_(),
     dy_(),
-    yPrev_(),
-    xPrev_()
+    yPrev_()
     {
         // Empty on purpose.
     }
@@ -37,9 +36,6 @@ namespace jiminy
                                              vectorN_t const & b,
                                              vectorN_t & x)
     {
-        // Backup previous solution
-        xPrev_ = x;
-
         // Update every coefficients only once
         for (uint32_t i = 0; i < fIndices_.size(); ++i)
         {
@@ -48,43 +44,35 @@ namespace jiminy
             std::size_t const fSize = fIdx.size();
             float64_t const & hi = hi_[i];
             float64_t const & lo = lo_[i];
+            int32_t const i0 = fIdx[0];
 
             // Update the coefficient if relevant
             if ((fSize == 1 && (hi - lo > EPS)) || (hi > EPS))
             {
-                if (fSize < 3)
+                float64_t scale = A(i0, i0);
+                y_[i0] = b[i0] - A.col(i0).dot(x);
+                for (uint32_t j = 1; j < fSize - 1; ++j)
                 {
-                    uint32_t const j = fIdx[0];
-                    x[j] += (b[j] - A.col(j).dot(x)) / A(j, j);
+                    int32_t const & k = fIdx[j];
+                    y_[k] = b[k] - A.col(k).dot(x);
+                    float64_t const A_k = A(k, k);
+                    if (A_k > scale)
+                    {
+                        scale = A_k;
+                    }
                 }
-                else
+                x[i0] += y_[i0] / scale;
+                for (uint32_t j = 1; j < fSize - 1; ++j)
                 {
-                    vectorN_t dx(fSize - 1);
-                    float64_t scale = 0;
-                    for (uint32_t j = 0; j < fSize - 1; ++j)
-                    {
-                        float64_t const A_j = A(j, j);
-                        if (A_j > scale)
-                        {
-                            scale = A_j;
-                        }
-                    }
-                    for (uint32_t j = 0; j < fSize - 1; ++j)
-                    {
-                        uint32_t const k = fIdx[j];
-                        dx[j] = (b[k] - A.col(k).dot(x)) / scale;
-                    }
-                    for (uint32_t j = 0; j < fSize - 1; ++j)
-                    {
-                        x[fIdx[j]] += dx[j];
-                    }
+                    int32_t const & k = fIdx[j];
+                    x[k] += y_[k] / scale;
                 }
             }
 
             // Project the coefficient between lower and upper bounds
             if (fSize == 1)
             {
-                float64_t & e = x[fIdx[0]];
+                float64_t & e = x[i0];
                 e = clamp(e, lo, hi);
             }
             else
@@ -95,7 +83,7 @@ namespace jiminy
                     if (fSize == 2)
                     {
                         // Specialization for speedup and numerical stability
-                        float64_t & e = x[fIdx[0]];
+                        float64_t & e = x[i0];
                         e = clamp(e, -thr, thr);
                     }
                     else
@@ -135,20 +123,16 @@ namespace jiminy
     {
         assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
 
-        // Initialize the residuals
-        y_ = - b;
-        y_.noalias() += A * x;
-
         // Perform multiple PGS loop until convergence or max iter reached
         for (uint32_t iter = 0; iter < maxIter_; ++iter)
         {
+            // Backup previous residuals
+            yPrev_ = y_;
+
             // Do a single iteration
             ProjectedGaussSeidelIter(A, b, x);
 
             // Check if terminate conditions are satisfied
-            yPrev_ = y_;
-            y_ = - b;
-            y_.noalias() += A * x;
             dy_ = y_ - yPrev_;
             if ((dy_.array().abs() < tolAbs_ || (dy_.array() / y_.array()).abs() < tolRel_).all())
             {
@@ -190,6 +174,7 @@ namespace jiminy
         J_.resize(constraintsRows, model.nv);
         gamma_.resize(constraintsRows);
         data.lambda_c.resize(constraintsRows);
+        y_.setZero(constraintsRows);
 
         // Update constraints bounds
         Eigen::Index constraintRow = 0U;

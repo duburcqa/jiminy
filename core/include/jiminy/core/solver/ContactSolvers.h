@@ -70,7 +70,6 @@ namespace jiminy
         vectorN_t y_;
         vectorN_t dy_;
         vectorN_t yPrev_;
-        vectorN_t xPrev_;
     };
 }
 
