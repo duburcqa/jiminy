@@ -132,20 +132,15 @@ namespace jiminy
         auto rotInvLocal = rotationLocal_.transpose();
 
         // Get jacobian in local frame
-        getFrameJacobian(model->pncModel_,
-                         model->pncData_,
-                         frameIdx_,
-                         pinocchio::LOCAL_WORLD_ALIGNED,
-                         frameJacobian_);
-
+        pinocchio::SE3 transformLocal(rotationLocal_, model->pncData_.oMf[frameIdx_].translation());
         pinocchio::Frame const & frame = model->pncModel_.frames[frameIdx_];
         pinocchio::JointModel const & joint = model->pncModel_.joints[frame.parent];
         int32_t const colRef = joint.nv() + joint.idx_v() - 1;
         for (Eigen::DenseIndex j=colRef; j>=0; j=model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
         {
-            pinocchio::MotionRef<matrix6N_t::ColXpr> J_col(frameJacobian_.col(j));
-            J_col.linear() = rotInvLocal * J_col.linear();
-            J_col.angular() = rotInvLocal * J_col.angular();
+            pinocchio::MotionRef<matrix6N_t::ColXpr> vIn(model->pncData_.J.col(j));
+            pinocchio::MotionRef<matrix6N_t::ColXpr> vOut(frameJacobian_.col(j));
+            vOut = transformLocal.actInv(vIn);
         }
 
         // Get drift in world frame

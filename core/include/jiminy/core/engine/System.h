@@ -13,6 +13,7 @@
 namespace jiminy
 {
     class Robot;
+    class AbstractConstraintSolver;
     class AbstractConstraintBase;
     class AbstractController;
     class LockGuardLocal;
@@ -147,8 +148,8 @@ namespace jiminy
         std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;  ///< Iterator related to the time of the next breakpoint associated with the impulse forces
         std::vector<bool_t> forcesImpulseActive;                       ///< Flag to active the forces. This is used to handle t-, t+ properly. Otherwise, it is impossible to determine at time t if the force is active or not.
 
+        std::unique_ptr<AbstractConstraintSolver> constraintSolver;
         constraintsHolder_t constraintsHolder;                         ///< Store copy of constraints register for fast access.
-        std::vector<int32_t> boundJointsActiveDir;                     ///< Store the active "direction" of the bound (0 for lower, 1 for higher)
         forceVector_t contactFramesForces;                             ///< Contact forces for each contact frames in local frame
         vector_aligned_t<forceVector_t> collisionBodiesForces;         ///< Contact forces for each geometries of each collision bodies in local frame
         matrix6N_t jointJacobian;                                      ///< Buffer used for intermediary computation of `data.u`

@@ -45,7 +45,6 @@ namespace jiminy
     class Timer;
     class Robot;
     class AbstractConstraintBase;
-    class AbstractContactSolver;
     class AbstractController;
     class AbstractStepper;
     class TelemetryData;
@@ -671,7 +670,6 @@ namespace jiminy
     private:
         std::unique_ptr<Timer> timer_;
         contactModel_t contactModel_;
-        std::unique_ptr<AbstractContactSolver> constraintSolver_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;

@@ -73,9 +73,6 @@ namespace jiminy
     using vector3_t = Eigen::Matrix<float64_t, 3, 1>;
     using vector6_t = Eigen::Matrix<float64_t, 6, 1>;
 
-    using constMatrixBlock_t = Eigen::Block<matrixN_t const, Eigen::Dynamic, Eigen::Dynamic> const;
-    using constVectorBlock_t = Eigen::VectorBlock<vectorN_t const, Eigen::Dynamic> const;
-
     using quaternion_t = Eigen::Quaternion<float64_t>;
 
     // Pinocchio types

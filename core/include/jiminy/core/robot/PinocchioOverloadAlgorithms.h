@@ -505,9 +505,9 @@ namespace pinocchio_overload
     }
 
     template<typename RhsType>
-    inline RhsType solveJMinvJtv(pinocchio::Data & data,
-                                 Eigen::MatrixBase<RhsType> const & v,
-                                 bool_t const & updateDecomposition = true)
+    inline auto solveJMinvJtv(pinocchio::Data & data,
+                              Eigen::MatrixBase<RhsType> const & v,
+                              bool_t const & updateDecomposition = true)
     {
         // Compute Cholesky decomposition of JMinvJt
         if (updateDecomposition)
