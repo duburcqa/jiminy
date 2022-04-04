@@ -85,7 +85,7 @@ namespace pinocchio_overload
          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
          Eigen::MatrixBase<ConfigVectorType>                      const & q)
     {
-        (void) pinocchio::crbaMinimal(model, data, q);
+        (void) pinocchio::crba(model, data, q);
         data.M.diagonal() += model.rotorInertia;
         return data.M;
     }
@@ -480,15 +480,22 @@ namespace pinocchio_overload
     }
 
     template<typename JacobianType>
-    inline matrixN_t & computeJMinvJt(pinocchio::Model const & model,
-                                      pinocchio::Data & data,
-                                      Eigen::MatrixBase<JacobianType> const & J,
-                                      bool_t const & updateDecomposition = true)
+    inline hresult_t computeJMinvJt(pinocchio::Model const & model,
+                                    pinocchio::Data & data,
+                                    Eigen::MatrixBase<JacobianType> const & J,
+                                    bool_t const & updateDecomposition = true)
     {
         // Compute the Cholesky decomposition of mass matrix M if requested
         if (updateDecomposition)
         {
             pinocchio::cholesky::decompose(model, data);
+        }
+
+        // Make sure the decomposition of the mass matrix is valid
+        if ((data.Dinv.array() < 0.0).any())
+        {
+            PRINT_ERROR("The inertia matrix is not strictly positive definite.");
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T
@@ -501,7 +508,7 @@ namespace pinocchio_overload
         data.JMinvJt.triangularView<Eigen::Lower>().setZero();
         data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(data.sDUiJt.transpose());
 
-        return data.JMinvJt;
+        return hresult_t::SUCCESS;
     }
 
     template<typename RhsType>
