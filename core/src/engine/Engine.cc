@@ -30,7 +30,7 @@ namespace jiminy
         }
 
         // Remove the existing system if already initialized
-        if(isInitialized_)
+        if (isInitialized_)
         {
             removeSystem("");  // It cannot fail at this point
             robot_ = nullptr;

@@ -42,7 +42,7 @@ class PipelineControl(unittest.TestCase):
             :, self.env.controller.motor_to_encoder]
 
         # Run the simulation
-        while self.env.stepper_state.t < 16.0:
+        while self.env.stepper_state.t < 19.0:
             self.env.step(action_init)
 
         # Get the final posture of the robot as an RGB array

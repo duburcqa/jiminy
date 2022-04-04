@@ -120,7 +120,7 @@ namespace jiminy
 
     bool_t constraintsHolder_t::exist(std::string const & key) const
     {
-        for (constraintsHolderType_t const & holderType : constraintsHolderTypeRange)
+        for (constraintsHolderType_t const & holderType : constraintsHolderTypesAll)
         {
             if (exist(key, holderType))
             {
@@ -145,7 +145,7 @@ namespace jiminy
     std::shared_ptr<AbstractConstraintBase> constraintsHolder_t::get(std::string const & key)
     {
         std::shared_ptr<AbstractConstraintBase> constraint;
-        for (constraintsHolderType_t const & holderType : constraintsHolderTypeRange)
+        for (constraintsHolderType_t const & holderType : constraintsHolderTypesAll)
         {
             constraint = get(key, holderType);
             if (constraint)
@@ -217,10 +217,6 @@ namespace jiminy
     flexibleJointsNames_(),
     flexibleJointsModelIdx_(),
     constraintsHolder_(),
-    constraintsMask_(0),
-    constraintsJacobian_(),
-    constraintsDrift_(),
-    constraintsLambda_(),
     positionLimitMin_(),
     positionLimitMax_(),
     velocityLimit_(),
@@ -253,10 +249,6 @@ namespace jiminy
         {
             // Clear existing constraints
             constraintsHolder_.clear();
-            constraintsMask_ = 0;
-            constraintsJacobian_.resize(0, 0);
-            constraintsDrift_.resize(0);
-            constraintsLambda_.resize(0);
             jointsAcceleration_.clear();
 
             // Reset URDF info
@@ -865,9 +857,6 @@ namespace jiminy
                     constraintItem.second->disable();
                 }
             }
-
-            // Required to resize constraintsJacobian_ to the right size
-            returnCode = refreshConstraintsProxies();
         }
 
         return returnCode;
@@ -919,9 +908,6 @@ namespace jiminy
             // Remove the constraint from the holder
             constraintsMapPtr->erase(constraintIt);
         }
-
-        // Required to resize constraintsJacobian_ to the right size.
-        refreshConstraintsProxies();
 
         return hresult_t::SUCCESS;
     }
@@ -994,14 +980,16 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            auto lambda = [](std::shared_ptr<AbstractConstraintBase> const & constraint,
-                             constraintsHolderType_t const & /* holderType */)
-                          {
-                              constraint->disable();
-                          };
-            constraintsHolder_.foreach(constraintsHolderType_t::BOUNDS_JOINTS, lambda);
-            constraintsHolder_.foreach(constraintsHolderType_t::CONTACT_FRAMES, lambda);
-            constraintsHolder_.foreach(constraintsHolderType_t::COLLISION_BODIES, lambda);
+            constraintsHolder_.foreach(
+                std::array<constraintsHolderType_t, 3> {{
+                    constraintsHolderType_t::BOUNDS_JOINTS,
+                    constraintsHolderType_t::CONTACT_FRAMES,
+                    constraintsHolderType_t::COLLISION_BODIES}},
+                [](std::shared_ptr<AbstractConstraintBase> const & constraint,
+                   constraintsHolderType_t const & /* holderType */)
+                {
+                    constraint->disable();
+                });
         }
 
         return returnCode;
@@ -1035,7 +1023,7 @@ namespace jiminy
         flexibleJointsNames_.clear();
         flexibleJointsModelIdx_.clear();
         pncModelFlexibleOrig_ = pncModelOrig_;
-        for(flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
+        for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
             // Check if joint name exists
             std::string const & frameName = flexibleJoint.frameName;
@@ -1073,7 +1061,7 @@ namespace jiminy
         }
 
         // Add flexibility armuture-like inertia to the model
-        for(flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
+        for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
             std::string const & frameName = flexibleJoint.frameName;
             std::string flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
@@ -1193,10 +1181,10 @@ namespace jiminy
             return;
         }
 
-        // Compute joint jacobian manually since not done by engine for efficiency
-        pinocchio::computeJointJacobians(pncModel_, pncData_);
-
-        // Compute inertia matrix, taking into account armature
+        /* Compute inertia matrix, taking into account armature.
+           Note that it is based on `crbaMinimal` instead of the classical `crba`
+           algorithm. The former also compute the joint jacobian, so it is not
+           necessary to call `computeJointJacobians` manually. */
         pinocchio_overload::crba(pncModel_, pncData_, q);
 
         // Compute the mass matrix decomposition, since it may be used for
@@ -1211,7 +1199,6 @@ namespace jiminy
             pncModel_, pncData_, vectorN_t::Zero(pncModel_.nv));
 
         // Compute sequentially the jacobian and drift of each enabled constraint
-        constraintsMask_ = 0;
         constraintsHolder_.foreach(
             [&](std::shared_ptr<AbstractConstraintBase> const & constraint,
                 constraintsHolderType_t const & /* holderType */)
@@ -1223,27 +1210,7 @@ namespace jiminy
                 }
 
                 // Compute constraint jacobian and drift
-                Eigen::Index const constraintDimPrev = static_cast<Eigen::Index>(constraint->getDim());
                 constraint->computeJacobianAndDrift(q, v);
-
-                // Resize matrix if needed
-                Eigen::Index const constraintDim = static_cast<Eigen::Index>(constraint->getDim());
-                if (constraintDimPrev != constraintDim)
-                {
-                    constraintsJacobian_.conservativeResize(
-                        constraintsJacobian_.rows() + constraintDim - constraintDimPrev,
-                        Eigen::NoChange);
-                    constraintsDrift_.conservativeResize(
-                        constraintsDrift_.size() + constraintDim - constraintDimPrev);
-                    constraintsLambda_.conservativeResize(
-                        constraintsLambda_.size() + constraintDim - constraintDimPrev);
-                }
-
-                // Update global jacobian and drift of all constraints
-                constraintsJacobian_.block(constraintsMask_, 0, constraintDim, pncModel_.nv) = constraint->getJacobian();
-                constraintsDrift_.segment(constraintsMask_, constraintDim) = constraint->getDrift();
-                constraintsLambda_.segment(constraintsMask_, constraintDim) = constraint->lambda_;
-                constraintsMask_ += constraintDim;
             });
 
         // Restore true acceleration
@@ -1566,7 +1533,6 @@ namespace jiminy
         // Initialize backup joint space acceleration
         jointsAcceleration_ = motionVector_t(pncData_.a.size(), pinocchio::Motion::Zero());
 
-        uint64_t constraintSize = 0;
         constraintsHolder_.foreach(
             [&](std::shared_ptr<AbstractConstraintBase> const & constraint,
                 constraintsHolderType_t const & /* holderType */)
@@ -1596,23 +1562,8 @@ namespace jiminy
                                     "inconsistent jacobian and drift (size mismatch).");
                         returnCode = hresult_t::ERROR_GENERIC;
                     }
-
-                    // Store constraint size
-                    if (returnCode == hresult_t::SUCCESS)
-                    {
-                        constraintSize += constraint->getDim();
-                    }
                 }
             });
-
-        // Reset jacobian and drift
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            constraintsMask_ = 0;
-            constraintsJacobian_.setZero(constraintSize, pncModel_.nv);
-            constraintsDrift_.setZero(constraintSize);
-            constraintsLambda_.setZero(constraintSize);
-        }
 
         return returnCode;
     }
@@ -2046,24 +1997,6 @@ namespace jiminy
         {
             return flexibleJointsModelIdxEmpty;
         }
-    }
-
-    /// \brief Get jacobian of the constraints.
-    constMatrixBlock_t Model::getConstraintsJacobian(void) const
-    {
-        return constraintsJacobian_.topRows(constraintsMask_);
-    }
-
-    /// \brief Get drift of the constraints.
-    constVectorBlock_t Model::getConstraintsDrift(void) const
-    {
-        return constraintsDrift_.head(constraintsMask_);
-    }
-
-    /// \brief Get drift of the constraints.
-    constVectorBlock_t Model::getConstraintsLambda(void) const
-    {
-        return constraintsLambda_.head(constraintsMask_);
     }
 
     /// \brief Returns true if at least one constraint is active on the robot.

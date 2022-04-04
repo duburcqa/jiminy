@@ -37,6 +37,9 @@ namespace jiminy
         void setReferenceConfiguration(vectorN_t const & configurationRef);
         vectorN_t const & getReferenceConfiguration(void) const;
 
+        void setRotationDir(bool_t isReversed);
+        bool_t getRotationDir();
+
         virtual hresult_t reset(vectorN_t const & q,
                                 vectorN_t const & v) override final;
 
@@ -44,9 +47,10 @@ namespace jiminy
                                                   vectorN_t const & v) override final;
 
     private:
-        std::string jointName_;       ///< Name of the joint on which the constraint operates.
-        jointIndex_t jointIdx_;       ///< Corresponding joint index.
-        vectorN_t configurationRef_;  ///< Reference position of the joint to enforce.
+        std::string jointName_;        ///< Name of the joint on which the constraint operates.
+        jointIndex_t jointIdx_;        ///< Corresponding joint index.
+        vectorN_t configurationRef_;   ///< Reference position of the joint to enforce.
+        bool_t isReversed_;            ///< Whether or not to reverse the sign of the constraint.
     };
 }
 

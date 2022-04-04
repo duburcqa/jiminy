@@ -229,7 +229,7 @@ namespace jiminy
 
         // Body
         uint32_t const * blocks = reinterpret_cast<uint32_t const *>(data + nblocks * 4);
-        for(int32_t i = -nblocks; i; ++i)
+        for (int32_t i = -nblocks; i; ++i)
         {
             uint32_t k1 = blocks[i];
             k1 *= c1;
@@ -243,7 +243,7 @@ namespace jiminy
         // Tail
         uint8_t const * tail = reinterpret_cast<uint8_t const *>(data + nblocks * 4);
         uint32_t k1 = 0U;
-        switch(len & 3)
+        switch (len & 3)
         {
         case 3:
             k1 ^= tail[2] << 16;

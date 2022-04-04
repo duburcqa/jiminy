@@ -39,7 +39,7 @@
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/control/ControllerFunctor.h"
-#include "jiminy/core/solver/LCPSolvers.h"
+#include "jiminy/core/solver/ConstraintSolvers.h"
 #include "jiminy/core/stepper/AbstractStepper.h"
 #include "jiminy/core/stepper/EulerExplicitStepper.h"
 #include "jiminy/core/stepper/RungeKuttaDOPRIStepper.h"
@@ -62,7 +62,6 @@ namespace jiminy
     engineOptionsHolder_(),
     timer_(std::make_unique<Timer>()),
     contactModel_(contactModel_t::NONE),
-    constraintSolver_(nullptr),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
@@ -898,16 +897,6 @@ namespace jiminy
             systemData.state.clear();
             systemData.statePrev.clear();
         }
-
-        // Instantiate desired LCP solver
-        std::string const & constraintSolver = engineOptions_->constraints.solver;
-        if (CONSTRAINT_SOLVERS_MAP.at(constraintSolver) == constraintSolver_t::PGS)
-        {
-            constraintSolver_ = std::make_unique<PGSSolver>(
-                PGS_MAX_ITERATIONS,
-                engineOptions_->constraints.tolAbs,
-                engineOptions_->constraints.tolRel);
-        }
     }
 
     void computeExtraTerms(systemHolder_t           & system,
@@ -1219,12 +1208,9 @@ namespace jiminy
                 new EulerExplicitStepper(systemOde, robots));
         }
 
-        // Set the initial time step
-        float64_t dt = engineOptions_->stepper.dtMax;
-
         // Initialize the stepper state
         float64_t const t = 0.0;
-        stepperState_.reset(dt, qSplit, vSplit, aSplit);
+        stepperState_.reset(SIMULATION_MIN_TIMESTEP, qSplit, vSplit, aSplit);
 
         // Initialize previous joints forces and accelerations
         fPrev_.clear();
@@ -1301,8 +1287,6 @@ namespace jiminy
             systemDataIt->constraintsHolder = systemIt->robot->getConstraints();
 
             // Initialize contacts forces in local frame
-            systemDataIt->boundJointsActiveDir = std::vector<int32_t>(
-                systemIt->robot->getRigidJointsModelIdx().size(), false);
             std::vector<frameIndex_t> const & contactFramesIdx = systemIt->robot->getContactFramesIdx();
             systemDataIt->contactFramesForces = forceVector_t(
                 contactFramesIdx.size(), pinocchio::Force::Zero());
@@ -1317,23 +1301,16 @@ namespace jiminy
             }
 
             // Set Baumgarte stabilization natural frequency for contact constraints
-            std::array<constraintsHolderType_t, 3> holderTypes {{
-                constraintsHolderType_t::BOUNDS_JOINTS,
-                constraintsHolderType_t::CONTACT_FRAMES,
-                constraintsHolderType_t::COLLISION_BODIES}};
-            for (constraintsHolderType_t holderType : holderTypes)
-            {
-                systemDataIt->constraintsHolder.foreach(holderType,
-                    [freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
-                        std::shared_ptr<AbstractConstraintBase> const & constraint,
-                        constraintsHolderType_t const & /* holderType */)
+            systemDataIt->constraintsHolder.foreach(
+                [freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
+                    std::shared_ptr<AbstractConstraintBase> const & constraint,
+                    constraintsHolderType_t const & /* holderType */)
+                {
+                    if (constraint)
                     {
-                        if (constraint)
-                        {
-                            constraint->setBaumgarteFreq(freq);  // It cannot fail at this point
-                        }
-                    });
-            }
+                        constraint->setBaumgarteFreq(freq);  // It cannot fail at this point
+                    }
+                });
 
             // Initialize some addition buffers used by impulse contact solver
             systemDataIt->jointJacobian.setZero(6, systemIt->robot->pncModel_.nv);
@@ -1411,6 +1388,26 @@ namespace jiminy
                 vectorN_t & uInternal = systemDataIt->state.uInternal;
                 vectorN_t & uCustom = systemDataIt->state.uCustom;
                 forceVector_t & fext = systemDataIt->state.fExternal;
+
+                // Instantiate desired LCP solver
+                std::string const & constraintSolverType = engineOptions_->constraints.solver;
+                switch(CONSTRAINT_SOLVERS_MAP.at(constraintSolverType))
+                {
+                case constraintSolver_t::PGS:
+                    systemDataIt->constraintSolver = std::make_unique<PGSSolver>(
+                        &systemIt->robot->pncModel_,
+                        &systemIt->robot->pncData_,
+                        &systemDataIt->constraintsHolder,
+                        engineOptions_->contacts.friction,
+                        engineOptions_->contacts.torsion,
+                        engineOptions_->stepper.tolAbs,
+                        engineOptions_->stepper.tolRel,
+                        PGS_MAX_ITERATIONS);
+                        break;
+                    case constraintSolver_t::NONE:
+                    default:
+                        break;
+                }
 
                 // Initialize the sensor data
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
@@ -2595,8 +2592,8 @@ namespace jiminy
 
         // Make sure the contacts options are fine
         configHolder_t constraintsOptions = boost::get<configHolder_t>(engineOptions.at("constraints"));
-        std::string const & constraintSolver = boost::get<std::string>(constraintsOptions.at("solver"));
-        auto const constraintSolverIt = CONSTRAINT_SOLVERS_MAP.find(constraintSolver);
+        std::string const & constraintSolverType = boost::get<std::string>(constraintsOptions.at("solver"));
+        auto const constraintSolverIt = CONSTRAINT_SOLVERS_MAP.find(constraintSolverType);
         if (constraintSolverIt == CONSTRAINT_SOLVERS_MAP.end())
         {
             PRINT_ERROR("The requested constraint solver is not available.");
@@ -2835,7 +2832,7 @@ namespace jiminy
         pinocchio::forwardKinematics(model, data, q, v, a);
 
         // Update frame placements (avoiding redundant computations)
-        for(int32_t i=1; i < model.nframes; ++i)
+        for (int32_t i=1; i < model.nframes; ++i)
         {
             pinocchio::Frame const & frame = model.frames[i];
             jointIndex_t const & parent = frame.parent;
@@ -3157,10 +3154,9 @@ namespace jiminy
                                       vectorN_t const & /* v */,
                                       vectorN_t const & /* positionLimitMin */,
                                       vectorN_t const & /* positionLimitMax */,
-                                      std::tuple<EngineMultiRobot::jointOptions_t const & /* jointOptions */,
-                                                 contactModel_t const & /* contactModel */>,
+                                      EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+                                      contactModel_t const & /* contactModel */,
                                       std::shared_ptr<AbstractConstraintBase> & /* constraint */,
-                                      int32_t & /* activeBoundDir */,
                                       vectorN_t & /* u */> ArgsType;
 
         template<typename JointModel>
@@ -3174,16 +3170,11 @@ namespace jiminy
              vectorN_t const & v,
              vectorN_t const & positionLimitMin,
              vectorN_t const & positionLimitMax,
-             std::tuple<EngineMultiRobot::jointOptions_t const &,
-                        contactModel_t const &> jointOptionsAndContactModel,
+             EngineMultiRobot::jointOptions_t const & jointOptions,
+             contactModel_t const & contactModel,
              std::shared_ptr<AbstractConstraintBase> & constraint,
-             int32_t & activeBoundDir,
              vectorN_t & u)
         {
-            // Split input tuple
-            EngineMultiRobot::jointOptions_t const & jointOptions = std::get<0>(jointOptionsAndContactModel);
-            contactModel_t const & contactModel = std::get<1>(jointOptionsAndContactModel);
-
             // Define some proxies for convenience
             jointIndex_t const & jointIdx = joint.id();
             uint32_t const & positionIdx = joint.idx_q();
@@ -3220,16 +3211,13 @@ namespace jiminy
             {
                 if (qJointMax < qJoint || qJoint < qJointMin)
                 {
-                    /* Update active bound direction.
-                       It will be used later to enforce force direction. */
-                    activeBoundDir = (qJointMax < qJoint);
-
                     // Enable fixed joint constraint and reset it if it was disable
                     if (!constraint->getIsEnabled())
                     {
                         constraint->enable();
                         auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
                         jointConstraint.setReferenceConfiguration(joint.jointConfigSelector(q));
+                        jointConstraint.setRotationDir(qJointMax < qJoint);
                     }
                 }
                 else /* if (qJoint < qJointMax - engineOptions_->contacts.transitionEps */
@@ -3250,10 +3238,9 @@ namespace jiminy
              vectorN_t const & /* v */,
              vectorN_t const & /* positionLimitMin */,
              vectorN_t const & /* positionLimitMax */,
-             std::tuple<EngineMultiRobot::jointOptions_t const &,
-                        contactModel_t const &> /* jointOptionsAndContactModel */,
+             EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+             contactModel_t const & /* contactModel */,
              std::shared_ptr<AbstractConstraintBase> & /* constraint */,
-             int32_t & /* activeBoundDir */,
              vectorN_t & /* u */)
         {
             // Empty on purpose.
@@ -3273,10 +3260,9 @@ namespace jiminy
              vectorN_t const & /* v */,
              vectorN_t const & /* positionLimitMin */,
              vectorN_t const & /* positionLimitMax */,
-             std::tuple<EngineMultiRobot::jointOptions_t const &,
-                        contactModel_t const &> /* jointOptionsAndContactModel */,
+             EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+             contactModel_t const & /* contactModel */,
              std::shared_ptr<AbstractConstraintBase> & /* constraint */,
-             int32_t & /* activeBoundDir */,
              vectorN_t & /* u */)
         {
             PRINT_WARNING("No position bounds implemented for this type of joint.");
@@ -3384,13 +3370,11 @@ namespace jiminy
             for (std::size_t i = 0; i < rigidJointsIdx.size(); ++i)
             {
                 auto & constraint = systemData.constraintsHolder.boundJoints[i].second;
-                int32_t & activeBoundDir = systemData.boundJointsActiveDir[i];
                 computePositionLimitsForcesAlgo::run(pncModel.joints[rigidJointsIdx[i]],
                     typename computePositionLimitsForcesAlgo::ArgsType(
                         pncData, q, v, positionLimitMin, positionLimitMax,
-                        std::tuple<EngineMultiRobot::jointOptions_t const &,
-                                   contactModel_t const &>(jointOptions, contactModel_),
-                        constraint, activeBoundDir, uInternal));
+                        jointOptions, contactModel_,
+                        constraint, uInternal));
             }
         }
 
@@ -3717,75 +3701,9 @@ namespace jiminy
         {
             // Define some proxies for convenience
             matrix6N_t & jointJacobian = systemData.jointJacobian;
-            vectorN_t & lo = systemData.lo;
-            vectorN_t & hi = systemData.hi;
-            std::vector<std::vector<int32_t> > & fIndices = systemData.fIndices;
 
             // Compute kinematic constraints
             system.robot->computeConstraints(q, v);
-
-            // Extract updated jacobian, drift and multipliers
-            auto constraintsJacobian = system.robot->getConstraintsJacobian();
-            auto constraintsDrift = system.robot->getConstraintsDrift();
-            data.lambda_c = system.robot->getConstraintsLambda();
-
-            // Compute constraints bounds
-            lo.setConstant(constraintsDrift.size(), -INF);
-            hi.setConstant(constraintsDrift.size(), +INF);
-            fIndices = std::vector<std::vector<int32_t> >(constraintsDrift.size());
-
-            uint64_t constraintIdx = 0U;
-            auto constraintIt = systemData.constraintsHolder.boundJoints.begin();
-            auto activeDirIt = systemData.boundJointsActiveDir.begin();
-            for ( ; constraintIt != systemData.constraintsHolder.boundJoints.end() ;
-                ++constraintIt, ++activeDirIt)
-            {
-                auto const & constraint = constraintIt->second;
-                if (!constraint->getIsEnabled())
-                {
-                    continue;
-                }
-                if (*activeDirIt)
-                {
-                    hi[constraintIdx] = 0.0;
-                }
-                else
-                {
-                    lo[constraintIdx] = 0.0;
-                }
-                constraintIdx += constraint->getDim();
-            }
-
-            std::array<constraintsHolderType_t, 2> holderTypes {{
-                constraintsHolderType_t::CONTACT_FRAMES, constraintsHolderType_t::COLLISION_BODIES}};
-            for (constraintsHolderType_t holderType : holderTypes)
-            {
-                systemData.constraintsHolder.foreach(holderType,
-                    [&lo, &hi, &fIndices, &constraintIdx,
-                     &contactOptions = const_cast<contactOptions_t &>(engineOptions_->contacts)](  // capturing const reference is not properly supported by gcc<7.3
-                        std::shared_ptr<AbstractConstraintBase> const & constraint,
-                        constraintsHolderType_t const & /* holderType */)
-                    {
-                        if (!constraint || !constraint->getIsEnabled())
-                        {
-                            return;
-                        }
-
-                        // Torsional friction around normal axis
-                        hi[constraintIdx + 3] = contactOptions.torsion;
-                        fIndices[constraintIdx + 3] = {static_cast<int32_t>(constraintIdx)};
-
-                        // Friction cone in tangential plane
-                        hi[constraintIdx + 2] = contactOptions.friction;
-                        fIndices[constraintIdx + 2] = {static_cast<int32_t>(constraintIdx),
-                                                       static_cast<int32_t>(constraintIdx + 1)};
-
-                        // Non-penetration normal force
-                        lo[constraintIdx] = 0.0;
-
-                        constraintIdx += constraint->getDim();
-                    });
-            }
 
             // Project external forces from cartesian space to joint space
             data.u = u;
@@ -3804,32 +3722,8 @@ namespace jiminy
             pinocchio::nonLinearEffects(model, data, q, v);
 
             // Call forward dynamics
-            constraintSolver_->BoxedForwardDynamics(model,
-                                                    data,
-                                                    data.u,
-                                                    constraintsJacobian,
-                                                    constraintsDrift,
-                                                    engineOptions_->constraints.regularization,
-                                                    lo,
-                                                    hi,
-                                                    fIndices);
-
-            // Update lagrangian multipliers associated with the constraint
-            constraintIdx = 0U;
-            systemData.constraintsHolder.foreach(
-                [&lambda_c = const_cast<vectorN_t &>(data.lambda_c),
-                 &constraintIdx](
-                    std::shared_ptr<AbstractConstraintBase> const & constraint,
-                    constraintsHolderType_t const & /* holderType */)
-                {
-                    if (!constraint->getIsEnabled())
-                    {
-                        return;
-                    }
-                    uint64_t const constraintDim = constraint->getDim();
-                    constraint->lambda_ = lambda_c.segment(constraintIdx, constraintDim);
-                    constraintIdx += constraintDim;
-                });
+            systemData.constraintSolver->SolveBoxedForwardDynamics(
+                engineOptions_->constraints.regularization);
 
             // Restore contact frame forces and bounds internal efforts
             systemData.constraintsHolder.foreach(
@@ -3846,14 +3740,13 @@ namespace jiminy
                     }
 
                     vectorN_t & uJoint = constraint->lambda_;
-
                     auto const & jointConstraint = static_cast<JointConstraint const &>(*constraint.get());
                     auto const & jointModel = joints[jointConstraint.getJointIdx()];
                     jointModel.jointVelocitySelector(uInternal) += uJoint;
                     jointModel.jointVelocitySelector(u) += uJoint;
                 });
 
-            constraintIt = systemData.constraintsHolder.contactFrames.begin();
+            auto constraintIt = systemData.constraintsHolder.contactFrames.begin();
             auto forceIt = system.robot->contactForces_.begin();
             for ( ; constraintIt != systemData.constraintsHolder.contactFrames.end() ;
                 ++constraintIt, ++forceIt)
@@ -3867,7 +3760,7 @@ namespace jiminy
 
                 // Extract force in local reference-frame-aligned from lagrangian multipliers
                 pinocchio::Force fextInLocal(
-                    frameConstraint.lambda_.head<3>().reverse(),
+                    frameConstraint.lambda_.head<3>(),
                     frameConstraint.lambda_[3] * vector3_t::UnitZ());
 
                 // Compute force in local world aligned frame
@@ -3902,7 +3795,7 @@ namespace jiminy
 
                     // Extract force in world frame from lagrangian multipliers
                     pinocchio::Force fextInLocal(
-                        frameConstraint.lambda_.head<3>().reverse(),
+                        frameConstraint.lambda_.head<3>(),
                         frameConstraint.lambda_[3] * vector3_t::UnitZ());
 
                     // Compute force in world frame

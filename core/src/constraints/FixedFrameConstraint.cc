@@ -1,5 +1,4 @@
 #include "pinocchio/algorithm/frames.hpp"    // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
-#include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
 
 #include "jiminy/core/robot/Model.h"
 #include "jiminy/core/utilities/Pinocchio.h"
@@ -18,22 +17,18 @@ namespace jiminy
     frameName_(frameName),
     frameIdx_(0),
     dofsFixed_(),
-    isFixedPositionXY_(maskFixed.head<2>().all()),
     transformRef_(),
     normal_(),
     rotationLocal_(matrix3_t::Identity()),
     frameJacobian_(),
-    frameDrift_(),
-    UiJt_()
+    frameDrift_()
     {
-        dofsFixed_.resize(static_cast<std::size_t>(maskFixed.cast<int32_t>().array().sum()));
-        uint32_t dofIndex = 0;
-        for (uint32_t const & i : std::array<uint32_t, 6>{{2, 1, 0, 3, 4, 5}})
+        dofsFixed_.clear();
+        for (uint32_t i = 0; i < 6; ++i)
         {
             if (maskFixed[i])
             {
-                dofsFixed_[dofIndex] = i;
-                ++dofIndex;
+                dofsFixed_.push_back(i);
             }
         }
     }
@@ -137,20 +132,15 @@ namespace jiminy
         auto rotInvLocal = rotationLocal_.transpose();
 
         // Get jacobian in local frame
-        getFrameJacobian(model->pncModel_,
-                         model->pncData_,
-                         frameIdx_,
-                         pinocchio::LOCAL_WORLD_ALIGNED,
-                         frameJacobian_);
-
+        pinocchio::SE3 transformLocal(rotationLocal_, model->pncData_.oMf[frameIdx_].translation());
         pinocchio::Frame const & frame = model->pncModel_.frames[frameIdx_];
         pinocchio::JointModel const & joint = model->pncModel_.joints[frame.parent];
         int32_t const colRef = joint.nv() + joint.idx_v() - 1;
-        for(Eigen::DenseIndex j=colRef; j>=0; j=model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
+        for (Eigen::DenseIndex j=colRef; j>=0; j=model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
         {
-            pinocchio::MotionRef<matrix6N_t::ColXpr> J_col(frameJacobian_.col(j));
-            J_col.linear() = rotInvLocal * J_col.linear();
-            J_col.angular() = rotInvLocal * J_col.angular();
+            pinocchio::MotionRef<matrix6N_t::ColXpr> vIn(model->pncData_.J.col(j));
+            pinocchio::MotionRef<matrix6N_t::ColXpr> vOut(frameJacobian_.col(j));
+            vOut = transformLocal.actInv(vIn);
         }
 
         // Get drift in world frame
@@ -170,19 +160,6 @@ namespace jiminy
                                                       frameIdx_,
                                                       pinocchio::LOCAL_WORLD_ALIGNED);
 
-        // Correct bias of PGS solver in tangential plane
-        if (isFixedPositionXY_)
-        {
-            UiJt_ = frameJacobian_.topRows<2>().transpose();
-            pinocchio::cholesky::Uiv(model->pncModel_, model->pncData_, UiJt_);
-            vector2_t a;
-            a << model->pncData_.D[1] * UiJt_.col(0).squaredNorm(),
-                 model->pncData_.D[0] * UiJt_.col(1).squaredNorm();
-            a /= a.array().maxCoeff();
-            velocity.linear().head<2>().array() *= a.array();
-            deltaPosition.head<2>().array() *= a.array();
-        }
-
         // Add Baumgarte stabilization to drift in world frame
         frameDrift_.linear() += kp_ * deltaPosition;
         frameDrift_.angular() += kp_ * framePose.rotation() * pinocchio::log3(deltaRotation);
@@ -193,7 +170,7 @@ namespace jiminy
         frameDrift_.angular() = rotInvLocal * frameDrift_.angular();
 
         // Extract masked jacobian and drift, only containing fixed dofs
-        for (uint32_t i=0; i < dofsFixed_.size(); ++i)
+        for (uint32_t i = 0; i < dofsFixed_.size(); ++i)
         {
             uint32_t const & dofIndex = dofsFixed_[i];
             jacobian_.row(i) = frameJacobian_.row(dofIndex);

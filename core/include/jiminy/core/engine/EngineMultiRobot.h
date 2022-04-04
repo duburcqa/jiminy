@@ -45,7 +45,6 @@ namespace jiminy
     class Timer;
     class Robot;
     class AbstractConstraintBase;
-    class AbstractLCPSolver;
     class AbstractController;
     class AbstractStepper;
     class TelemetryData;
@@ -115,8 +114,6 @@ namespace jiminy
         {
             configHolder_t config;
             config["solver"] = std::string("PGS");   // ["PGS",]
-            config["tolAbs"] = 1.0e-5;
-            config["tolRel"] = 1.0e-7;
             config["regularization"] = 1.0e-3;       // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
             config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
 
@@ -209,15 +206,11 @@ namespace jiminy
         struct constraintOptions_t
         {
             std::string const solver;
-            float64_t const tolAbs;
-            float64_t const tolRel;
             float64_t const regularization;
             float64_t const stabilizationFreq;
 
             constraintOptions_t(configHolder_t const & options) :
             solver(boost::get<std::string>(options.at("solver"))),
-            tolAbs(boost::get<float64_t>(options.at("tolAbs"))),
-            tolRel(boost::get<float64_t>(options.at("tolRel"))),
             regularization(boost::get<float64_t>(options.at("regularization"))),
             stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq")))
             {
@@ -671,7 +664,6 @@ namespace jiminy
     private:
         std::unique_ptr<Timer> timer_;
         contactModel_t contactModel_;
-        std::unique_ptr<AbstractLCPSolver> constraintSolver_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;

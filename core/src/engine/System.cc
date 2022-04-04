@@ -2,6 +2,7 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"  // `pinocchio::neutral`
 
 #include "jiminy/core/robot/Robot.h"
+#include "jiminy/core/solver/ConstraintSolvers.h"
 #include "jiminy/core/constraints/AbstractConstraint.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/utilities/Helpers.h"
@@ -170,14 +171,11 @@ namespace jiminy
     forcesImpulseBreaks(),
     forcesImpulseBreakNextIt(),
     forcesImpulseActive(),
+    constraintSolver(nullptr),
     constraintsHolder(),
-    boundJointsActiveDir(),
     contactFramesForces(),
     collisionBodiesForces(),
     jointJacobian(),
-    lo(),
-    hi(),
-    fIndices(),
     positionFieldnames(),
     velocityFieldnames(),
     accelerationFieldnames(),

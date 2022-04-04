@@ -968,7 +968,7 @@ namespace jiminy
         {
             try
             {
-                for (uint32_t i=0; i<geomModel.geometryObjects.size(); ++i)
+                for (uint32_t i = 0; i < geomModel.geometryObjects.size(); ++i)
                 {
                     auto & geometry = geomModel.geometryObjects[i].geometry;
                     if (geometry->getObjectType() == hpp::fcl::OT_BVH)
