@@ -220,6 +220,10 @@ namespace jiminy
                                                  vectorN_t const & b,
                                                  vectorN_t::SegmentReturnType x)
     {
+        /* For some reason, it is impossible to get a better accuracy than 1e-5
+           for the absolute tolerance, even if unconstrained. It seems to be
+           related to compunding of errors, maybe due to the recursive computations. */
+
         assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
 
         // Reset the residuals
@@ -236,7 +240,7 @@ namespace jiminy
 
             // Check if terminate conditions are satisfied
             dy_ = y_ - yPrev_;
-            if ((dy_.array().abs() < tolAbs_ || (dy_.array() / y_.array()).abs() < tolRel_).all())
+            if ((dy_.array().abs() < tolAbs_ || (dy_.array() / (y_.array() + EPS)).abs() < tolRel_).all())
             {
                 return true;
             }
@@ -248,13 +252,6 @@ namespace jiminy
 
     bool_t PGSSolver::SolveBoxedForwardDynamics(float64_t const & inv_damping)
     {
-        // Check if problem is bounded
-        bool_t isBounded = std::any_of(
-            constraintsData_.cbegin(), constraintsData_.cend(),
-            [](ConstraintData const & constraintData){
-                return constraintData.isBounded;
-            });
-
         // Update constraints start indices, jacobian, drift and multipliers
         Eigen::Index constraintRows = 0U;
         for (auto & constraintData : constraintsData_)
@@ -272,6 +269,13 @@ namespace jiminy
             constraintData.startIdx = constraintRows;
             constraintRows += constraintDim;
         };
+
+        // Check if problem is bounded
+        bool_t isBounded = std::any_of(
+            constraintsData_.cbegin(), constraintsData_.cend(),
+            [](ConstraintData const & constraintData){
+                return constraintData.isActive && constraintData.isBounded;
+            });
 
         // Compute JMinvJt, including cholesky decomposition of inertia matrix
         matrixN_t & A = pinocchio_overload::computeJMinvJt(
