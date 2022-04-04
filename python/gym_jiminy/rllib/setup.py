@@ -35,7 +35,8 @@ setup(
         # Python >= 3.8.
         # - 1.9.0: Breaking changes
         # - 1.10.0: Breaking changes
-        "ray[default,rllib]>=1.10.0",
+        # - 1.11.0: Breaking changes
+        "ray[default,rllib]>=1.10.0,<1.11.0",
         "plotext"
     ],
     zip_safe=False
