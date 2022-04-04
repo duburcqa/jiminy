@@ -1208,12 +1208,9 @@ namespace jiminy
                 new EulerExplicitStepper(systemOde, robots));
         }
 
-        // Set the initial time step
-        float64_t dt = engineOptions_->stepper.dtMax;
-
         // Initialize the stepper state
         float64_t const t = 0.0;
-        stepperState_.reset(dt, qSplit, vSplit, aSplit);
+        stepperState_.reset(SIMULATION_MIN_TIMESTEP, qSplit, vSplit, aSplit);
 
         // Initialize previous joints forces and accelerations
         fPrev_.clear();
