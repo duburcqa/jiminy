@@ -1302,10 +1302,6 @@ namespace jiminy
 
             // Set Baumgarte stabilization natural frequency for contact constraints
             systemDataIt->constraintsHolder.foreach(
-                std::array<constraintsHolderType_t, 3> {{
-                    constraintsHolderType_t::BOUNDS_JOINTS,
-                    constraintsHolderType_t::CONTACT_FRAMES,
-                    constraintsHolderType_t::COLLISION_BODIES}},
                 [freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
                     std::shared_ptr<AbstractConstraintBase> const & constraint,
                     constraintsHolderType_t const & /* holderType */)
