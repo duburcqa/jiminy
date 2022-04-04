@@ -32,7 +32,7 @@ namespace jiminy
         // Remove the existing system if already initialized
         if (isInitialized_)
         {
-            removeSystem("");  // It cannot fail at this point
+            EngineMultiRobot::removeSystem("");  // It cannot fail at this point
             robot_ = nullptr;
             controller_ = nullptr;
             isInitialized_ = false;

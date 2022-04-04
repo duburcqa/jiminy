@@ -920,20 +920,31 @@ namespace jiminy
            computations here instead of 'computeForwardKinematics', we are
            doing the assumption that it is varying slowly enough to consider
            it constant during one integration step. */
+        if (!system.robot->hasConstraints())
+        {
+            for (int32_t i = 1; i < model.njoints; ++i)
+            {
+                data.Ycrb[i] = model.inertias[i];
+            }
+            for (int32_t i = model.njoints - 1; i > 0; --i)
+            {
+                jointIndex_t const & jointIdx = model.joints[i].id();
+                jointIndex_t const & parentIdx = model.parents[jointIdx];
+                if (parentIdx > 0)
+                {
+                    data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
+                }
+            }
+        }
         data.oYcrb[0].setZero();
         for (int32_t i = 1; i < model.njoints; ++i)
         {
-            data.Ycrb[i] = model.inertias[i];
             data.oYcrb[i] = data.oMi[i].act(model.inertias[i]);
         }
         for (int32_t i = model.njoints - 1; i > 0; --i)
         {
             jointIndex_t const & jointIdx = model.joints[i].id();
             jointIndex_t const & parentIdx = model.parents[jointIdx];
-            if (parentIdx > 0)
-            {
-                data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
-            }
             data.oYcrb[parentIdx] += data.oYcrb[i];
         }
 
@@ -2056,6 +2067,14 @@ namespace jiminy
                         // Increment the failed iteration counters
                         ++successiveIterFailed;
                         ++stepperState_.iterFailed;
+                    }
+
+                    /* If the integrator is failing miserably, then rely on some
+                       very basic heuristic to try to recover. */
+                    if (std::isnan(dtLargest))
+                    {
+                        std::cout << "dtLargest is NaN !" << std::endl;
+                        dtLargest = 0.1 * dt;
                     }
 
                     // Initialize the next dt

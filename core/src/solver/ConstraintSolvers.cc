@@ -277,9 +277,18 @@ namespace jiminy
                 return constraintData.isActive && constraintData.isBounded;
             });
 
-        // Compute JMinvJt, including cholesky decomposition of inertia matrix
-        matrixN_t & A = pinocchio_overload::computeJMinvJt(
+        /* Compute JMinvJt, including cholesky decomposition of inertia matrix.
+           Abort computation if the inertia matrix is not positive definite,
+           which is never supposed to happen in theory but in practice it is
+           not sure because of compunding of errors. */
+        hresult_t returnCode = pinocchio_overload::computeJMinvJt(
             *model_, *data_, J_.topRows(constraintRows), false);
+        if (returnCode != hresult_t::SUCCESS)
+        {
+            data_->ddq.setConstant(qNAN);
+            return false;
+        }
+        matrixN_t & A = data_->JMinvJt;
 
         /* Add regularization term in case A is not invertible.
            Note that Mujoco defines an impedance function that depends on

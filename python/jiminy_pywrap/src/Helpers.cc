@@ -227,8 +227,7 @@ namespace python
 
         bp::def("computeJMinvJt",
                 &pinocchio_overload::computeJMinvJt<matrixN_t>,
-                (bp::arg("pinocchio_model"), "pinocchio_data", "J", bp::arg("update_decomposition") = true),
-                bp::return_value_policy<result_converter<false> >());
+                (bp::arg("pinocchio_model"), "pinocchio_data", "J", bp::arg("update_decomposition") = true));
         bp::def("solveJMinvJtv", &solveJMinvJtv,
                 (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true));
     }
