@@ -51,9 +51,7 @@ namespace jiminy
                     // The joint is blocked in only one direction
                     block.lo = 0;
                     block.hi = INF;
-                    block.fIndices = std::vector<int32_t> {
-                        static_cast<int32_t>(0)
-                    };
+                    block.fIndices = std::vector<Eigen::Index> {0};
                     constraintData.blocks.push_back(block);
                     break;
                 case constraintsHolderType_t::CONTACT_FRAMES:
@@ -61,44 +59,30 @@ namespace jiminy
                     // Non-penetration normal force
                     block.lo = 0;
                     block.hi = INF;
-                    block.fIndices = std::vector<int32_t> {
-                        static_cast<int32_t>(2)
-                    };
+                    block.fIndices = std::vector<Eigen::Index> {2};
                     constraintData.blocks.push_back(block);
 
                     // Torsional friction around normal axis
                     block.lo = qNAN;
                     block.hi = torsion;
-                    block.fIndices = std::vector<int32_t> {
-                        static_cast<int32_t>(3),
-                        static_cast<int32_t>(2)
-                    };
+                    block.isZero = (torsion < EPS);
+                    block.fIndices = std::vector<Eigen::Index> {3, 2};
                     constraintData.blocks.push_back(block);
 
                     // Friction cone in tangential plane
                     block.lo = qNAN;
                     block.hi = friction;
-                    block.fIndices = std::vector<int32_t> {
-                        static_cast<int32_t>(0),
-                        static_cast<int32_t>(1),
-                        static_cast<int32_t>(2)
-                    };
+                    block.isZero = (friction < EPS);
+                    block.fIndices = std::vector<Eigen::Index> {0, 1, 2};
                     constraintData.blocks.push_back(block);
                     break;
                 case constraintsHolderType_t::USER:
-                    for (Eigen::Index i = 0; i < constraintDim; ++i)
-                    {
-                        block.lo = -INF;
-                        block.hi = INF;
-                        block.fIndices = std::vector<int32_t> {
-                            static_cast<int32_t>(i)
-                        };
-                        constraintData.blocks.push_back(block);
-                    }
+                    constraintData.isBounded = false;
                     break;
                 default:
                     break;
                 }
+                constraintData.dim = constraintDim;
                 constraintData.constraint = constraint.get();
                 constraintsData_.emplace_back(std::move(constraintData));
                 constraintsRowsMax += constraintDim;
@@ -119,52 +103,80 @@ namespace jiminy
                                              vectorN_t const & b,
                                              vectorN_t::SegmentReturnType x)
     {
-        /* Update width first instead of depth to converge faster. The deeper
-           is it the more nested it gets, so it is better to updated those
-           coefficients at the very end.
-           Note that the maximum number of blocks per constraint is 3. */
+        // First, loop over all unbounded constraints
+        for (ConstraintData const & constraintData : constraintsData_)
+        {
+            // Bypass inactive constraints
+            if (!constraintData.isActive || constraintData.isBounded)
+            {
+                continue;
+            }
+
+            // Loop over all coefficients individually
+            Eigen::Index i = constraintData.startIdx;
+            Eigen::Index const endIdx = i + constraintData.dim;
+            for (; i < endIdx ; ++i)
+            {
+                y_[i] = b[i] - A.col(i).dot(x);
+                x[i] += y_[i] / A(i, i);
+            }
+        }
+
+        /* Second, loop over all bounds constraints.
+           Update breadth-first to converge faster. The deeper is it the more
+           coefficients at the very end. Note that the maximum number of blocks
+           per constraint is 3. */
         for (std::size_t i = 0; i < 3 ; ++i)
         {
             for (ConstraintData const & constraintData : constraintsData_)
             {
-                // Bypass inactive constraints or no block left
-                int32_t const & o = constraintData.startIdx;
-                if (o < 0 || constraintData.blocks.size() <= i)
+                // Bypass inactive or unbounded constraints or no block left
+                if (!constraintData.isActive || !constraintData.isBounded ||
+                    constraintData.blocks.size() <= i)
                 {
                     continue;
                 }
 
-                // Extract current group of indices
+                // Extract block data
                 ConstraintBlock const & block = constraintData.blocks[i];
-                std::vector<int32_t> const & fIdx = block.fIndices;
+                std::vector<Eigen::Index> const & fIdx = block.fIndices;
+                Eigen::Index const fSize = static_cast<Eigen::Index>(fIdx.size());
+                Eigen::Index const & o = constraintData.startIdx;
+                Eigen::Index const i0 = o + fIdx[0];
                 float64_t const & hi = block.hi;
                 float64_t const & lo = block.lo;
-                int32_t const i0 = o + fIdx[0];
                 float64_t & e = x[i0];
 
-                // Update the coefficient if relevant
-                int32_t const fSize = static_cast<int32_t>(fIdx.size());
-                if ((fSize == 1 && (hi - lo > EPS)) || (hi > EPS))
+                // Bypass zero-ed coefficients
+                if (block.isZero)
                 {
-                    // Update several coefficients at once with the same step
-                    float64_t scale = A(i0, i0);
-                    y_[i0] = b[i0] - A.col(i0).dot(x);
-                    for (int32_t j = 1; j < fSize - 1; ++j)
+                    // Specialization for speed-up
+                    e *= 0;
+                    for (Eigen::Index j = 1; j < fSize - 1; ++j)
                     {
-                        int32_t const & k = o + fIdx[j];
-                        y_[k] = b[k] - A.col(k).dot(x);
-                        float64_t const & A_kk = A(k, k);
-                        if (A_kk > scale)
-                        {
-                            scale = A_kk;
-                        }
+                        x[o + fIdx[j]] *= 0;
                     }
-                    e += y_[i0] / scale;
-                    for (int32_t j = 1; j < fSize - 1; ++j)
+                    continue;
+                }
+
+                // Update several coefficients at once with the same step
+                float64_t A_max = A(i0, i0);
+                y_[i0] = b[i0] - A.col(i0).dot(x);
+                for (Eigen::Index j = 1; j < fSize - 1; ++j)
+                {
+                    Eigen::Index const k = o + fIdx[j];
+                    y_[k] = b[k] - A.col(k).dot(x);
+                    float64_t const & A_kk = A(k, k);
+                    if (A_kk > A_max)
                     {
-                        int32_t const & k = o + fIdx[j];
-                        x[k] += y_[k] / scale;
+                        A_max = A_kk;
                     }
+                }
+                e += y_[i0] / A_max;
+                for (Eigen::Index j = 1; j < fSize - 1; ++j)
+                {
+                    Eigen::Index const k = o + fIdx[j];
+                    x[k] += y_[k] / A_max;
                 }
 
                 // Project the coefficient between lower and upper bounds
@@ -175,40 +187,28 @@ namespace jiminy
                 else
                 {
                     float64_t const thr = hi * x[o + fIdx[fSize - 1]];
-                    if (thr > EPS)
+                    if (fSize == 2)
                     {
-                        if (fSize == 2)
-                        {
-                            // Specialization for speedup and numerical stability
-                            e = clamp(e, -thr, thr);
-                        }
-                        else
-                        {
-                            // Generic case
-                            float64_t squaredNorm = e * e;
-                            for (int32_t j = 1; j < fSize - 1; ++j)
-                            {
-                                float64_t const f = x[o + fIdx[j]];
-                                squaredNorm += f * f;
-                            }
-                            if (squaredNorm > thr * thr)
-                            {
-                                float64_t const scale = thr / std::sqrt(squaredNorm);
-                                e *= scale;
-                                for (int32_t j = 1; j < fSize - 1; ++j)
-                                {
-                                    x[o + fIdx[j]] *= scale;
-                                }
-                            }
-                        }
+                        // Specialization for speedup and numerical stability
+                        e = clamp(e, -thr, thr);
                     }
                     else
                     {
-                        // Specialization for speed-up
-                        e *= 0;
-                        for (int32_t j = 1; j < fSize - 1; ++j)
+                        // Generic case
+                        float64_t squaredNorm = e * e;
+                        for (Eigen::Index j = 1; j < fSize - 1; ++j)
                         {
-                            x[o + fIdx[j]] *= 0;
+                            float64_t const f = x[o + fIdx[j]];
+                            squaredNorm += f * f;
+                        }
+                        if (squaredNorm > thr * thr)
+                        {
+                            float64_t const scale = thr / std::sqrt(squaredNorm);
+                            e *= scale;
+                            for (Eigen::Index j = 1; j < fSize - 1; ++j)
+                            {
+                                x[o + fIdx[j]] *= scale;
+                            }
                         }
                     }
                 }
@@ -249,34 +249,27 @@ namespace jiminy
     bool_t PGSSolver::SolveBoxedForwardDynamics(float64_t const & inv_damping)
     {
         // Check if problem is bounded
-        bool_t isBounded = false;
-        for (ConstraintData const & constraintData : constraintsData_)
-        {
-            for (ConstraintBlock const & block : constraintData.blocks)
-            {
-                if (!(std::isinf(block.lo) && std::isinf(block.hi)))
-                {
-                    isBounded = true;
-                    break;
-                }
-            }
-        }
+        bool_t isBounded = std::any_of(
+            constraintsData_.cbegin(), constraintsData_.cend(),
+            [](ConstraintData const & constraintData){
+                return constraintData.isBounded;
+            });
 
         // Update constraints start indices, jacobian, drift and multipliers
         Eigen::Index constraintRows = 0U;
         for (auto & constraintData : constraintsData_)
         {
             AbstractConstraintBase * constraint = constraintData.constraint;
-            if (!constraint->getIsEnabled())
+            constraintData.isActive = constraint->getIsEnabled();
+            if (!constraintData.isActive)
             {
-                constraintData.startIdx = -1;
                 continue;
             }
-            Eigen::Index const constraintDim = static_cast<Eigen::Index>(constraint->getDim());
+            Eigen::Index const constraintDim = constraintData.dim;
             J_.middleRows(constraintRows, constraintDim) = constraint->getJacobian();
             gamma_.segment(constraintRows, constraintDim) = constraint->getDrift();
             lambda_.segment(constraintRows, constraintDim) = constraint->lambda_;
-            constraintData.startIdx = static_cast<int32_t>(constraintRows);
+            constraintData.startIdx = constraintRows;
             constraintRows += constraintDim;
         };
 

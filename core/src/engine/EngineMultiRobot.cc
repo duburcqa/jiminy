@@ -1407,8 +1407,8 @@ namespace jiminy
                         &systemDataIt->constraintsHolder,
                         engineOptions_->contacts.friction,
                         engineOptions_->contacts.torsion,
-                        engineOptions_->constraints.tolAbs,
-                        engineOptions_->constraints.tolRel,
+                        engineOptions_->stepper.tolAbs,
+                        engineOptions_->stepper.tolRel,
                         PGS_MAX_ITERATIONS);
                         break;
                     case constraintSolver_t::NONE:

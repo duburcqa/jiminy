@@ -7,7 +7,7 @@
 namespace jiminy
 {
     class AbstractConstraintBase;
-    class constraintsHolder_t;
+    struct constraintsHolder_t;
 
     struct ConstraintBlock
     {
@@ -15,6 +15,7 @@ namespace jiminy
         ConstraintBlock(void):
         lo(-INF),
         hi(INF),
+        isZero(false),
         fIndices()
         {
             // Empty on purpose
@@ -23,7 +24,8 @@ namespace jiminy
     public:
         float64_t lo;
         float64_t hi;
-        std::vector<int32_t> fIndices;
+        bool_t isZero;
+        std::vector<Eigen::Index> fIndices;
     };
 
     struct ConstraintData
@@ -32,6 +34,9 @@ namespace jiminy
         ConstraintData(void):
         constraint(nullptr),
         startIdx(0),
+        isBounded(true),
+        isActive(true),
+        dim(0),
         blocks()
         {
             // Empty on purpose
@@ -42,7 +47,10 @@ namespace jiminy
 
     public:
         AbstractConstraintBase * constraint;
-        int32_t startIdx;
+        Eigen::Index startIdx;
+        bool_t isBounded;
+        bool_t isActive;
+        Eigen::Index dim;
         std::vector<ConstraintBlock> blocks;
     };
 
