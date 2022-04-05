@@ -562,6 +562,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             raise RuntimeError(
                 "The memory address of the low-level has changed.")
 
+        # Re-initialize some shared memories.
+        # It must be done because the robot may have changed.
+        self.sensors_data = dict(self.robot.sensors_data)
+
         # Enforce the low-level controller.
         # The robot may have changed, for example it could be randomly
         # generated, which would corrupt the old controller. As a result, it is
@@ -581,10 +585,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Do NOT remove all forces since it has already been done before, and
         # because it would make it impossible to register forces in  `_setup`.
         self.simulator.reset(remove_all_forces=False)
-
-        # Re-initialize some shared memories.
-        # It must be done because the robot may have changed.
-        self.sensors_data = dict(self.robot.sensors_data)
 
         # Set default action.
         # It will be used for the initial step.
