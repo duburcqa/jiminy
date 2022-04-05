@@ -936,17 +936,6 @@ namespace jiminy
                 }
             }
         }
-        data.oYcrb[0].setZero();
-        for (int32_t i = 1; i < model.njoints; ++i)
-        {
-            data.oYcrb[i] = data.oMi[i].act(model.inertias[i]);
-        }
-        for (int32_t i = model.njoints - 1; i > 0; --i)
-        {
-            jointIndex_t const & jointIdx = model.joints[i].id();
-            jointIndex_t const & parentIdx = model.parents[jointIdx];
-            data.oYcrb[parentIdx] += data.oYcrb[i];
-        }
 
         /* Neither 'aba' nor 'forwardDynamics' are computing simultaneously the actual
            joint accelerations, joint forces and body forces, so it must be done separately:
@@ -962,7 +951,6 @@ namespace jiminy
             data.h[i] = model.inertias[i] * data.v[i];
             data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
         }
-
         for (int32_t i = model.njoints - 1; i > 0; --i)
         {
             jointIndex_t const & parentIdx = model.parents[i];
@@ -970,18 +958,15 @@ namespace jiminy
             data.f[parentIdx] += data.liMi[i].act(data.f[i]);
         }
 
-        /* Now that `data.oYcrb` and `data.h` are available, one can get directly
+        /* Now that `data.Ycrb` and `data.h` are available, one can get directly
            the position and velocity of the center of mass of each subtrees. */
-        data.Ig.mass() = data.oYcrb[0].mass();
-        data.Ig.lever().setZero();
-        data.Ig.inertia() = data.oYcrb[0].inertia();
-        data.com[0] = data.oYcrb[0].lever();
-        data.vcom[0].noalias() = data.h[0].linear() / data.mass[0];
-        for (int32_t i = 1; i < model.njoints; ++i)
+        for (int32_t i = 0; i < model.njoints; ++i)
         {
-            data.com[i] = data.oMi[i].actInv(data.oYcrb[i].lever());
+            data.com[i] = data.Ycrb[i].lever();
             data.vcom[i].noalias() = data.h[i].linear() / data.mass[i];
         }
+        data.com[0] = data.liMi[1].act(data.com[1]);
+        data.vcom[0].noalias() = data.h[0].linear() / data.mass[0];
 
         // Compute centrodial dynamics and its derivative
         data.hg = data.h[0];
