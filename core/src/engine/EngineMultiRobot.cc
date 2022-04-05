@@ -897,6 +897,8 @@ namespace jiminy
             systemData.state.clear();
             systemData.statePrev.clear();
         }
+
+        isTelemetryConfigured_ = false;
     }
 
     void computeExtraTerms(systemHolder_t           & system,
@@ -1155,6 +1157,13 @@ namespace jiminy
             }
         }
 
+        // Call reset if not done before
+        if (isTelemetryConfigured_)
+        {
+            reset(false, false);
+        }
+
+        // Reset the internal state of the robot and controller
         auto systemIt = systems_.begin();
         auto systemDataIt = systemsDataHolder_.begin();
         for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
@@ -2229,7 +2238,6 @@ namespace jiminy
         telemetryData_->reset();
 
         // Update some internal flags
-        isTelemetryConfigured_ = false;
         isSimulationRunning_ = false;
     }
 

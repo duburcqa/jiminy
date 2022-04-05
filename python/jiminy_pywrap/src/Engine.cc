@@ -746,7 +746,7 @@ namespace python
                 logDataPy = std::make_unique<bp::tuple>(formatLogData(*logData));
 
                 /* Reference counter must be incremented to avoid calling deleter by Boost
-                   Python after runtime finialization. */
+                   Python after runtime finalization. */
                 bp::incref(logDataPy->ptr());
 
                 // Update log data backup
