@@ -1305,23 +1305,44 @@ namespace jiminy
                     collisionPairsIdx[i].size(), pinocchio::Force::Zero());
             }
 
-            // Set Baumgarte stabilization natural frequency for contact constraints
-            systemDataIt->constraintsHolder.foreach(
-                [freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
-                    std::shared_ptr<AbstractConstraintBase> const & constraint,
-                    constraintsHolderType_t const & /* holderType */)
-                {
-                    if (constraint)
-                    {
-                        constraint->setBaumgarteFreq(freq);  // It cannot fail at this point
-                    }
-                });
-
             // Initialize some addition buffers used by impulse contact solver
             systemDataIt->jointJacobian.setZero(6, systemIt->robot->pncModel_.nv);
 
             // Reset the constraints
             returnCode = systemIt->robot->resetConstraints(q, v);
+
+            /* Set Baumgarte stabilization natural frequency for contact constraints
+               Enable all contact constraints by default, it will be disable automatically
+               if not in contact. It is useful to start in post-hysteresis state to avoid
+               discontinuities at init. */
+            systemDataIt->constraintsHolder.foreach(
+                [contactModel = contactModel_,
+                 enablePositionLimit = systemIt->robot->mdlOptions_->joints.enablePositionLimit,
+                 enableVelocityLimit = systemIt->robot->mdlOptions_->joints.enableVelocityLimit,
+                 freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
+                    std::shared_ptr<AbstractConstraintBase> const & constraint,
+                    constraintsHolderType_t const & holderType)
+                {
+                    constraint->setBaumgarteFreq(freq);  // It cannot fail
+                    if (contactModel == contactModel_t::CONSTRAINT)
+                    {
+                        switch (holderType)
+                        {
+                        case constraintsHolderType_t::BOUNDS_JOINTS:
+                            if (!enablePositionLimit && !enableVelocityLimit)
+                            {
+                                return;
+                            }
+                            /* Falls through. */  // [[fallthrough]] is not supported by gcc<7.3
+                        case constraintsHolderType_t::CONTACT_FRAMES:
+                        case constraintsHolderType_t::COLLISION_BODIES:
+                            constraint->enable();
+                        case constraintsHolderType_t::USER:
+                        default:
+                            break;
+                        }
+                    }
+                });
 
             if (contactModel_ == contactModel_t::SPRING_DAMPER)
             {
@@ -1418,7 +1439,6 @@ namespace jiminy
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
 
                 // Compute the actual motor effort
-                command.setZero();
                 computeCommand(*systemIt, t, q, v, command);
 
                 // Compute the actual motor effort
@@ -1848,7 +1868,6 @@ namespace jiminy
                         vectorN_t const & q = systemDataIt->state.q;
                         vectorN_t const & v = systemDataIt->state.v;
                         vectorN_t & command = systemDataIt->state.command;
-                        command.setZero();
                         computeCommand(*systemIt, t, q, v, command);
                     }
                     hasDynamicsChanged = true;
@@ -2067,7 +2086,7 @@ namespace jiminy
                        very basic heuristic to try to recover. */
                     if (std::isnan(dtLargest))
                     {
-                        std::cout << "dtLargest is NaN !" << std::endl;
+                        PRINT_WARNING("Something is wrong with the physics. Try decreasing timestep.");
                         dtLargest = 0.1 * dt;
                     }
 
@@ -3041,10 +3060,7 @@ namespace jiminy
             else
             {
                 // Enable fixed frame constraint
-                if (!constraint->getIsEnabled())
-                {
-                    constraint->enable();
-                }
+                constraint->enable();
             }
         }
         else
@@ -3166,7 +3182,7 @@ namespace jiminy
                                       vectorN_t const & /* v */,
                                       vectorN_t const & /* positionLimitMin */,
                                       vectorN_t const & /* positionLimitMax */,
-                                      EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+                                      std::unique_ptr<EngineMultiRobot::engineOptions_t const> const & /* engineOptions */,
                                       contactModel_t const & /* contactModel */,
                                       std::shared_ptr<AbstractConstraintBase> & /* constraint */,
                                       vectorN_t & /* u */> ArgsType;
@@ -3182,7 +3198,7 @@ namespace jiminy
              vectorN_t const & v,
              vectorN_t const & positionLimitMin,
              vectorN_t const & positionLimitMax,
-             EngineMultiRobot::jointOptions_t const & jointOptions,
+             std::unique_ptr<EngineMultiRobot::engineOptions_t const> const & engineOptions,
              contactModel_t const & contactModel,
              std::shared_ptr<AbstractConstraintBase> & constraint,
              vectorN_t & u)
@@ -3197,6 +3213,9 @@ namespace jiminy
             float64_t const & vJoint = v[velocityIdx];
             float64_t const & Ia = getSubtreeInertiaProj(
                 joint.derived(), pncData.Ycrb[jointIdx]);
+            float64_t const & stiffness = engineOptions->joints.boundStiffness;
+            float64_t const & damping = engineOptions->joints.boundDamping;
+            float64_t const & transitionEps = engineOptions->contacts.transitionEps;
 
             // Check if out-of-bounds
             if (contactModel == contactModel_t::SPRING_DAMPER)
@@ -3206,14 +3225,12 @@ namespace jiminy
                 if (qJoint > qJointMax)
                 {
                     float64_t const qJointError = qJoint - qJointMax;
-                    accelJoint = - std::max(jointOptions.boundStiffness * qJointError +
-                                            jointOptions.boundDamping * vJoint, 0.0);
+                    accelJoint = - std::max(stiffness * qJointError + damping * vJoint, 0.0);
                 }
                 else if (qJoint < qJointMin)
                 {
                     float64_t const qJointError = qJoint - qJointMin;
-                    accelJoint = - std::min(jointOptions.boundStiffness * qJointError +
-                                            jointOptions.boundDamping * vJoint, 0.0);
+                    accelJoint = - std::min(stiffness * qJointError + damping * vJoint, 0.0);
                 }
 
                 // Apply the resulting force
@@ -3224,16 +3241,13 @@ namespace jiminy
                 if (qJointMax < qJoint || qJoint < qJointMin)
                 {
                     // Enable fixed joint constraint and reset it if it was disable
-                    if (!constraint->getIsEnabled())
-                    {
-                        constraint->enable();
-                        auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
-                        jointConstraint.setReferenceConfiguration(joint.jointConfigSelector(q));
-                        jointConstraint.setRotationDir(qJointMax < qJoint);
-                    }
+                    constraint->enable();
+                    auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
+                    jointConstraint.setReferenceConfiguration(
+                        Eigen::Matrix<float64_t, 1, 1>(clamp(qJoint, qJointMin, qJointMax)));
+                    jointConstraint.setRotationDir(qJointMax < qJoint);
                 }
-                else /* if (qJoint < qJointMax - engineOptions_->contacts.transitionEps */
-                     /*  || qJointMin + engineOptions_->contacts.transitionEps < qJoint) */
+                else if (qJointMin + transitionEps < qJoint && qJoint < qJointMax - transitionEps)
                 {
                     // Disable fixed joint constraint
                     constraint->disable();
@@ -3250,12 +3264,16 @@ namespace jiminy
              vectorN_t const & /* v */,
              vectorN_t const & /* positionLimitMin */,
              vectorN_t const & /* positionLimitMax */,
-             EngineMultiRobot::jointOptions_t const & /* jointOptions */,
-             contactModel_t const & /* contactModel */,
-             std::shared_ptr<AbstractConstraintBase> & /* constraint */,
+             std::unique_ptr<EngineMultiRobot::engineOptions_t const> const & /* engineOptions */,
+             contactModel_t const & contactModel,
+             std::shared_ptr<AbstractConstraintBase> & constraint,
              vectorN_t & /* u */)
         {
-            // Empty on purpose.
+            if (contactModel == contactModel_t::CONSTRAINT)
+            {
+                // Disable fixed joint constraint
+                constraint->disable();
+            }
         }
 
         template<typename JointModel>
@@ -3272,12 +3290,17 @@ namespace jiminy
              vectorN_t const & /* v */,
              vectorN_t const & /* positionLimitMin */,
              vectorN_t const & /* positionLimitMax */,
-             EngineMultiRobot::jointOptions_t const & /* jointOptions */,
-             contactModel_t const & /* contactModel */,
-             std::shared_ptr<AbstractConstraintBase> & /* constraint */,
+             std::unique_ptr<EngineMultiRobot::engineOptions_t const> const & /* engineOptions */,
+             contactModel_t const & contactModel,
+             std::shared_ptr<AbstractConstraintBase> & constraint,
              vectorN_t & /* u */)
         {
             PRINT_WARNING("No position bounds implemented for this type of joint.");
+            if (contactModel == contactModel_t::CONSTRAINT)
+            {
+                // Disable fixed joint constraint
+                constraint->disable();
+            }
         }
     };
 
@@ -3287,7 +3310,7 @@ namespace jiminy
         typedef boost::fusion::vector<pinocchio::Data const & /* pncData */,
                                       vectorN_t const & /* v */,
                                       vectorN_t const & /* velocityLimitMax */,
-                                      EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+                                      std::unique_ptr<EngineMultiRobot::engineOptions_t const> const & /* engineOptions */,
                                       contactModel_t const & /* contactModel */,
                                       vectorN_t & /* u */> ArgsType;
         template<typename JointModel>
@@ -3301,7 +3324,7 @@ namespace jiminy
              pinocchio::Data const & pncData,
              vectorN_t const & v,
              vectorN_t const & velocityLimitMax,
-             EngineMultiRobot::jointOptions_t const & jointOptions,
+             std::unique_ptr<EngineMultiRobot::engineOptions_t const> const & engineOptions,
              contactModel_t const & contactModel,
              vectorN_t & u)
         {
@@ -3313,6 +3336,7 @@ namespace jiminy
             float64_t const & vJointMax = velocityLimitMax[velocityIdx];
             float64_t const & Ia = getSubtreeInertiaProj(
                 joint.derived(), pncData.Ycrb[jointIdx]);
+            float64_t const & damping = engineOptions->joints.boundDamping;
 
             // Check if out-of-bounds
             if (contactModel == contactModel_t::SPRING_DAMPER)
@@ -3333,7 +3357,7 @@ namespace jiminy
                 }
 
                 // Generate acceleration in the opposite direction if out-of-bounds
-                float64_t const accelJoint = - 2.0 * jointOptions.boundDamping * vJointError;
+                float64_t const accelJoint = - 2.0 * damping * vJointError;
 
                 // Apply the resulting force
                 u[velocityIdx] += Ia * accelJoint;
@@ -3352,7 +3376,7 @@ namespace jiminy
              pinocchio::Data const & /* pncData */,
              vectorN_t const & /* v */,
              vectorN_t const & /* velocityLimitMax */,
-             EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+             std::unique_ptr<EngineMultiRobot::engineOptions_t const> const & /* engineOptions */,
              contactModel_t const & /* contactModel */,
              vectorN_t & /* u */)
         {
@@ -3369,7 +3393,6 @@ namespace jiminy
     {
 
         // Define some proxies
-        jointOptions_t const & jointOptions = engineOptions_->joints;
         pinocchio::Model const & pncModel = system.robot->pncModel_;
         pinocchio::Data const & pncData = system.robot->pncData_;
 
@@ -3385,8 +3408,7 @@ namespace jiminy
                 computePositionLimitsForcesAlgo::run(pncModel.joints[rigidJointsIdx[i]],
                     typename computePositionLimitsForcesAlgo::ArgsType(
                         pncData, q, v, positionLimitMin, positionLimitMax,
-                        jointOptions, contactModel_,
-                        constraint, uInternal));
+                        engineOptions_, contactModel_, constraint, uInternal));
             }
         }
 
@@ -3398,7 +3420,7 @@ namespace jiminy
             {
                 computeVelocityLimitsForcesAlgo::run(pncModel.joints[rigidIdx],
                     typename computeVelocityLimitsForcesAlgo::ArgsType(
-                        pncData, v, velocityLimitMax, jointOptions, contactModel_, uInternal));
+                        pncData, v, velocityLimitMax, engineOptions_, contactModel_, uInternal));
             }
         }
 
@@ -3668,7 +3690,6 @@ namespace jiminy
                Make sure that the sensor state has been updated beforehand. */
             if (engineOptions_->stepper.controllerUpdatePeriod < EPS)
             {
-                command.setZero();
                 computeCommand(*systemIt, t, *qIt, *vIt, command);
             }
 
@@ -3799,7 +3820,7 @@ namespace jiminy
                     std::shared_ptr<AbstractConstraintBase> & constraint,
                     constraintsHolderType_t const & /* holderType */)
                 {
-                    if (!constraint || !constraint->getIsEnabled())
+                    if (!constraint->getIsEnabled())
                     {
                         return;
                     }
