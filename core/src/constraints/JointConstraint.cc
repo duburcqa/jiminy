@@ -47,22 +47,14 @@ namespace jiminy
 
     void JointConstraint::setRotationDir(bool_t isReversed)
     {
+        // Update the Jacobian
+        if (isReversed_ != isReversed)
+        {
+            jacobian_ *= -1;
+        }
+
         // Update active dir
         isReversed_ = isReversed;
-
-        // Update the Jacobian if the model exists
-        auto model = model_.lock();
-        if (model)
-        {
-            jointIdx_ = model->pncModel_.getJointId(jointName_);
-            pinocchio::JointModel const & jointModel = model->pncModel_.joints[jointIdx_];
-            jacobian_.setZero(jointModel.nv(), model->pncModel_.nv);
-            jacobian_.middleCols(jointModel.idx_v(), jointModel.nv()).setIdentity();
-            if (isReversed_)
-            {
-                jacobian_ *= -1;
-            }
-        }
     }
 
     bool_t JointConstraint::getRotationDir(void)
@@ -102,7 +94,9 @@ namespace jiminy
             // Initialize the jacobian. It is simply the velocity selector mask.
             setRotationDir(isReversed_);
 
-            // Initialize drift and multipliers
+            // Initialize constraint jacobian, drift and multipliers
+            jacobian_.setZero(jointModel.nv(), model->pncModel_.nv);
+            jacobian_.middleCols(jointModel.idx_v(), jointModel.nv()).setIdentity();
             drift_.setZero(jointModel.nv());
             lambda_.setZero(jointModel.nv());
 

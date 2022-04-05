@@ -967,11 +967,6 @@ namespace jiminy
             [&q, &v, &returnCode](std::shared_ptr<AbstractConstraintBase> const & constraint,
                                   constraintsHolderType_t const & /* holderType */)
             {
-                if (!constraint)
-                {
-                    return;
-                }
-
                 if (returnCode == hresult_t::SUCCESS)
                 {
                     returnCode = constraint->reset(q, v);
@@ -1542,12 +1537,6 @@ namespace jiminy
             [&](std::shared_ptr<AbstractConstraintBase> const & constraint,
                 constraintsHolderType_t const & /* holderType */)
             {
-                // Early return if no constraint is defined (nullptr)
-                if (!constraint)
-                {
-                    return;
-                }
-
                 if (returnCode == hresult_t::SUCCESS)
                 {
                     // Reset constraint using neutral configuration and zero velocity
