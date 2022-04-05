@@ -24,10 +24,11 @@ from tensorboard.program import TensorBoard
 import ray
 import ray.cloudpickle as pickle
 from ray import ray_constants
+from ray.state import GlobalState
 from ray._private import services
 from ray._private.gcs_utils import AvailableResources
 from ray._private.test_utils import monitor_memory_usage
-from ray._raylet import GlobalStateAccessor  # type: ignore[attr-defined]
+from ray._raylet import GcsClientOptions
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
@@ -128,9 +129,13 @@ def initialize(num_cpus: int,
     if redis_addresses:
         for redis_address in redis_addresses:
             # Connect to redis global state accessor
-            global_state_accessor = GlobalStateAccessor(
+            state = GlobalState()
+            options = GcsClientOptions.from_redis_address(
                 redis_address, ray_constants.REDIS_DEFAULT_PASSWORD)
-            global_state_accessor.connect()
+            state._initialize_global_state(options)
+            state._really_init_global_state()
+            global_state_accessor = state.global_state_accessor
+            assert global_state_accessor is not None
 
             # Get available resources
             resources: Dict[str, int] = defaultdict(int)
@@ -142,7 +147,7 @@ def initialize(num_cpus: int,
 
             # Disconnect global state accessor
             time.sleep(0.1)
-            global_state_accessor.disconnect()
+            state.disconnect()
 
             # Check if enough computation resources are available
             is_cluster_running = (resources["CPU"] >= num_cpus and
@@ -532,7 +537,6 @@ def train(train_agent: Trainer,
                 log_files_tmp = []
                 test_env = train_agent.env_creator(
                     train_agent.config["env_config"])
-                assert isinstance(test_env, BaseJiminyEnv)
                 seed = train_agent.config["seed"] or 0
                 for i in range(evaluation_num):
                     # Evaluate the policy once
@@ -644,7 +648,6 @@ def test(test_agent: Trainer,
     if test_env is None:
         test_env = test_agent.env_creator(EnvContext(
             **test_agent.config["env_config"], **kwargs))
-    assert isinstance(test_env, BaseJiminyEnv)
 
     # Get policy model
     policy = test_agent.get_policy()
