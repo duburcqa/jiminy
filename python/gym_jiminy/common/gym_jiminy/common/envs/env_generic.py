@@ -576,7 +576,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # used because it enables to define observer and controller handles
         # seperately, while dealing with all the logics internally. This extra
         # layer of indirection makes it computionally less efficient than
-        # `jiminy.BaseControllerFunctor` but it is a small price to pay.
+        # `jiminy.ControllerFunctor` but it is a small price to pay.
         controller = BaseJiminyObserverController()
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)

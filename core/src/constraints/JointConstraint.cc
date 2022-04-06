@@ -57,7 +57,7 @@ namespace jiminy
         isReversed_ = isReversed;
     }
 
-    bool_t JointConstraint::getRotationDir(void)
+    bool_t const & JointConstraint::getRotationDir(void)
     {
         return isReversed_;
     }

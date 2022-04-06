@@ -38,7 +38,7 @@ namespace jiminy
         vectorN_t const & getReferenceConfiguration(void) const;
 
         void setRotationDir(bool_t isReversed);
-        bool_t getRotationDir();
+        bool_t const & getRotationDir();
 
         virtual hresult_t reset(vectorN_t const & q,
                                 vectorN_t const & v) override final;
