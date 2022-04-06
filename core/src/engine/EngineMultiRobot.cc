@@ -3034,7 +3034,7 @@ namespace jiminy
         float64_t const & zGround = std::get<float64_t>(ground);
         vector3_t & nGround = std::get<vector3_t>(ground);
         nGround.normalize();  // Make sure the ground normal is normalized
-        float64_t const depth = (posFrame[2] - zGround) * nGround[2];  // First-order projection (exact assuming flat surface)
+        float64_t const depth = (posFrame[2] - zGround) * nGround[2];  // First-order projection (exact assuming no curvature)
 
         // Only compute the ground reaction force if the penetration depth is negative
         if (depth < 0.0)
@@ -3085,7 +3085,7 @@ namespace jiminy
             auto & frameConstraint = static_cast<FixedFrameConstraint &>(*constraint.get());
             frameConstraint.setReferenceTransform({
                 system.robot->pncData_.oMf[frameIdx].rotation(),
-                (vector3_t() << posFrame.head<2>(), zGround).finished()
+                posFrame - depth * nGround
             });
             frameConstraint.setNormal(nGround);
         }
