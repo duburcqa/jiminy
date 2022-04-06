@@ -151,7 +151,7 @@ setup(
           # Python static type checker
           "mypy>=0.931",
           # Fix dependency issue with 'sphinx'
-          "jinja2>=3.0",
+          "jinja2>=3.0,<3.1",
           # Generate Python docs and render '.rst' nicely
           "sphinx",
           # 'Read the Docs' Sphinx docs style
