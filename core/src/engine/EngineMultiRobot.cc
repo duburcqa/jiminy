@@ -3104,9 +3104,8 @@ namespace jiminy
         {
             auto & frameConstraint = static_cast<FixedFrameConstraint &>(*constraint.get());
             frameConstraint.setReferenceTransform({
-                system.robot->pncData_.oMf[frameIdx].rotation(),
-                posFrame - depth * nGround
-            });
+                transformFrameInWorld.rotation(),
+                posFrame - depth * nGround});
             frameConstraint.setNormal(nGround);
         }
     }
