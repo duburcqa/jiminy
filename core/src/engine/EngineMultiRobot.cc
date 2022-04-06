@@ -1738,8 +1738,9 @@ namespace jiminy
         std::vector<vectorN_t> & vSplit = stepperState_.vSplit;
         std::vector<vectorN_t> & aSplit = stepperState_.aSplit;
 
-        // Successive iteration failure
+        // Monitor iteration failure
         uint32_t successiveIterFailed = 0;
+        bool_t isNan = false;
 
         /* Flag monitoring if the current time step depends of a breakpoint
            or the integration tolerance. It will be used by the restoration
@@ -2022,7 +2023,20 @@ namespace jiminy
                     // Set the timestep to be tried by the stepper
                     dtLargest = dt;
 
-                    if (stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest))
+                    // Try doing one integration step
+                    bool_t isStepSuccessful = stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
+
+                    /* Check if the integrator failed miserably even if successfully.
+                       It would happen if integration failed because of nan and the
+                       timestep is not adaptive. */
+                    isNan = std::isnan(dtLargest);
+                    if (isNan)
+                    {
+                        break;
+                    }
+
+                    // Update buffer if really successful
+                    if (isStepSuccessful)
                     {
                         // Reset successive iteration failure counter
                         successiveIterFailed = 0;
@@ -2081,14 +2095,6 @@ namespace jiminy
                         ++stepperState_.iterFailed;
                     }
 
-                    /* If the integrator is failing miserably, then rely on some
-                       very basic heuristic to try to recover. */
-                    if (std::isnan(dtLargest))
-                    {
-                        PRINT_WARNING("Something is wrong with the physics. Try decreasing timestep.");
-                        dtLargest = 0.1 * dt;
-                    }
-
                     // Initialize the next dt
                     dt = min(dtLargest, engineOptions_->stepper.dtMax);
                 }
@@ -2120,6 +2126,13 @@ namespace jiminy
 
                     // Try to do a step
                     isStepSuccessful = stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
+
+                    // Check if the integrator failed miserably even if successfully
+                    isNan = std::isnan(dtLargest);
+                    if (isNan)
+                    {
+                        break;
+                    }
 
                     if (isStepSuccessful)
                     {
@@ -2168,50 +2181,57 @@ namespace jiminy
                 }
             }
 
-            // Update sensors data if necessary, namely if time-continuous or breakpoint
-            float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-            bool_t mustUpdateSensors = sensorsUpdatePeriod < EPS;
-            float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-            if (!mustUpdateSensors)
+            // Exception handling
+            if (isNan)
             {
-                mustUpdateSensors = dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
-                                 || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < STEPPER_MIN_TIMESTEP;
+                PRINT_ERROR("Something is wrong with the physics. Aborting integration.");
+                returnCode = hresult_t::ERROR_GENERIC;
             }
-            if (mustUpdateSensors)
-            {
-                auto systemIt = systems_.begin();
-                auto systemDataIt = systemsDataHolder_.begin();
-                for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
-                {
-                    vectorN_t const & q = systemDataIt->state.q;
-                    vectorN_t const & v = systemDataIt->state.v;
-                    vectorN_t const & a = systemDataIt->state.a;
-                    vectorN_t const & uMotor = systemDataIt->state.uMotor;
-                    forceVector_t const & fext = systemDataIt->state.fExternal;
-                    systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
-                }
-            }
-
             if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
             {
                 PRINT_ERROR("Too many successive iteration failures. Probably something is "
                             "going wrong with the physics. Aborting integration.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
-
             if (dt < STEPPER_MIN_TIMESTEP)
             {
                 PRINT_ERROR("The internal time step is getting too small. Impossible to "
                             "integrate physics further in time.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
-
             timer_->toc();
             if (EPS < engineOptions_->stepper.timeout
                 && engineOptions_->stepper.timeout < timer_->dt)
             {
                 PRINT_ERROR("Step computation timeout.");
                 returnCode = hresult_t::ERROR_GENERIC;
+            }
+
+            // Update sensors data if necessary, namely if time-continuous or breakpoint
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
+                bool_t mustUpdateSensors = sensorsUpdatePeriod < EPS;
+                float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
+                if (!mustUpdateSensors)
+                {
+                    mustUpdateSensors = dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                                     || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < STEPPER_MIN_TIMESTEP;
+                }
+                if (mustUpdateSensors)
+                {
+                    auto systemIt = systems_.begin();
+                    auto systemDataIt = systemsDataHolder_.begin();
+                    for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+                    {
+                        vectorN_t const & q = systemDataIt->state.q;
+                        vectorN_t const & v = systemDataIt->state.v;
+                        vectorN_t const & a = systemDataIt->state.a;
+                        vectorN_t const & uMotor = systemDataIt->state.uMotor;
+                        forceVector_t const & fext = systemDataIt->state.fExternal;
+                        systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
+                    }
+                }
             }
         }
 
