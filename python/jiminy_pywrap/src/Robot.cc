@@ -62,10 +62,7 @@ namespace python
                                          (bp::arg("self"), "constraint_name"))
                 .add_property("has_constraints", &Model::hasConstraints)
                 .add_property("constraints", PyModelVisitor::getConstraints)
-                .def("get_constraints_jacobian", &PyModelVisitor::getConstraintsJacobian,
-                                                 bp::return_value_policy<result_converter<true> >())
-                .def("get_constraints_drift", &PyModelVisitor::getConstraintsDrift)
-                .def("get_constraints_lambda", &PyModelVisitor::getConstraintsLambda)
+                .def("get_constraints_jacobian_and_drift", &PyModelVisitor::getConstraintsJacobianAndDrift)
                 .def("compute_constraints", &Model::computeConstraints,
                                             (bp::arg("self"), "q", "v"))
 
@@ -199,19 +196,39 @@ namespace python
             return std::make_shared<constraintsHolder_t>(self.getConstraints());
         }
 
-        static matrixN_t getConstraintsJacobian(Model & self)
+        static bp::tuple getConstraintsJacobianAndDrift(Model & self)
         {
-            return self.getConstraintsJacobian();
-        }
-
-        static vectorN_t getConstraintsDrift(Model & self)
-        {
-            return self.getConstraintsDrift();
-        }
-
-        static vectorN_t getConstraintsLambda(Model & self)
-        {
-            return self.getConstraintsLambda();
+            Eigen::Index constraintRow = 0;
+            Eigen::Index constraintsRows = 0;
+            constraintsHolder_t constraintsHolder = self.getConstraints();
+            constraintsHolder.foreach(
+                [&constraintsRows](
+                    std::shared_ptr<AbstractConstraintBase> const & constraint,
+                    constraintsHolderType_t const & /* holderType */)
+                {
+                    if (!constraint->getIsEnabled())
+                    {
+                        return;
+                    }
+                    constraintsRows += static_cast<Eigen::Index>(constraint->getDim());
+                });
+            matrixN_t J(constraintsRows, self.nv());
+            vectorN_t gamma(constraintsRows);
+            constraintsHolder.foreach(
+                [&J, &gamma, &constraintRow](
+                    std::shared_ptr<AbstractConstraintBase> const & constraint,
+                    constraintsHolderType_t const & /* holderType */)
+                {
+                    if (!constraint->getIsEnabled())
+                    {
+                        return;
+                    }
+                    Eigen::Index const constraintDim = static_cast<Eigen::Index>(constraint->getDim());
+                    J.middleRows(constraintRow, constraintDim) = constraint->getJacobian();
+                    gamma.segment(constraintRow, constraintDim) = constraint->getDrift();
+                    constraintRow += constraintDim;
+                });
+            return bp::make_tuple(J, gamma);
         }
 
         static vectorN_t getFlexibleConfigurationFromRigid(Model           & self,

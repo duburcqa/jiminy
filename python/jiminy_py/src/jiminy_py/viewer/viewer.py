@@ -88,44 +88,52 @@ logger = logging.getLogger(__name__)
 logger.addFilter(_DuplicateFilter())
 
 
-# Determine set the of available backends
-backends_available = {'meshcat': MeshcatVisualizer,
-                      'panda3d': Panda3dVisualizer}
-try:
-    from .panda3d.panda3d_widget import Panda3dQWidget
-    backends_available['panda3d-qt'] = Panda3dVisualizer
-except ImportError:
-    pass
+def get_backends_available() -> Dict[str, type]:
+    """Determine the set of available backends.
+    """
+    # In must be a function, otherwise it would only be run once at import by
+    # the main thread only.
+    backends_available = {'panda3d-sync': Panda3dVisualizer}
+    if not multiprocessing.current_process().daemon:
+        backends_available.update({'meshcat': MeshcatVisualizer,
+                                   'panda3d': Panda3dVisualizer})
+        try:
+            from .panda3d.panda3d_widget import Panda3dQWidget  # noqa: F401
+            backends_available['panda3d-qt'] = Panda3dVisualizer
+        except ImportError:
+            pass
+    return backends_available
 
 
-def default_backend() -> str:
+def check_display_available() -> bool:
+    """Check if graphical server is available for onscreen rendering.
+    """
+    if multiprocessing.current_process().daemon:
+        return False
+    if not (sys.platform.startswith("win") or os.environ.get("DISPLAY")):
+        return False
+    return True
+
+
+def get_default_backend() -> str:
     """Determine the default backend viewer, depending eventually on the
     running environment, hardware, and set of available backends.
 
-    Meshcat will always be prefered in interactive mode, i.e. in Jupyter
-    notebooks, Panda3d otherwise.
+    Meshcat will always be favored in interactive mode, i.e. in Jupyter
+    notebooks, Panda3d otherwise. For Panda3d, synchronous mode without
+    subprocess is preferred if onscreen display is impossible.
 
     .. note::
         Both Meshcat and Panda3d supports Nvidia EGL rendering without
-        X11-server. Besides, both can fallback to software rendering if
-        necessary, but Panda3d offers only very limited support of it.
+        graphical server. Besides, both can fallback to software rendering if
+        necessary, although Panda3d offers only very limited support of it.
     """
     if interactive_mode():
         return 'meshcat'
-    else:
+    elif check_display_available():
         return 'panda3d'
-
-
-def _get_backend_exceptions(
-        backend: Optional[str] = None) -> Sequence[Exception]:
-    """Get the list of exceptions that may be raised by a given backend.
-    """
-    if backend is None:
-        backend = default_backend()
-    elif backend.startswith('panda3d'):
-        return (ViewerClosedError,)
     else:
-        return (zmq.error.Again, zmq.error.ZMQError)
+        return 'panda3d-sync'
 
 
 def sleep(dt: float) -> None:
@@ -275,11 +283,10 @@ class Viewer:
         The environment variable 'JIMINY_VIEWER_INTERACTIVE_DISABLE' can be
         used to force disabling interactive display.
     """
-    backend = default_backend()
+    backend = None
     window_name = 'jiminy'
     _has_gui = False
     _backend_obj = None
-    _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
     _backend_robot_names = set()
     _backend_robot_colors = {}
@@ -324,18 +331,19 @@ class Viewer:
                      `None` to use the unique lock of the current thread.
                      Optional: `None` by default.
         :param backend: Name of the rendering backend to use. It can be either
-                        'panda3d', 'panda3d-qt', 'meshcat'.
-                        None to keep using to one already running if any, or
-                        the default one otherwise. Note that the default is
-                        hardware and environment dependent.
-                        See `viewer.default_backend` method for details.
+                        'panda3d', 'panda3d-qt', 'meshcat'. None to keep using
+                        to one already running if any, or the default one
+                        otherwise. Note that the default is hardware and
+                        environment dependent. See `viewer.default_backend`
+                        method for details.
                         Optional: `None` by default.
         :param open_gui_if_parent: Open GUI if new viewer's backend server is
                                    started. `None` to fallback to default.
                                    Optional: Do not open gui for 'meshcat'
                                    backend in interactive mode with already one
-                                   display cell already opened, open gui in
-                                   any other case by default.
+                                   display cell already opened, open gui by
+                                   default in any other case if graphical
+                                   server is available.
         :param delete_robot_on_close: Enable automatic deletion of the robot
                                       when closing.
                                       Optional: False by default.
@@ -371,7 +379,55 @@ class Viewer:
             uniq_id = next(tempfile._get_candidate_names())
             robot_name = "_".join(("robot", uniq_id))
 
-        # Make sure user arguments are valid
+        if backend is None:
+            if Viewer.backend is not None:
+                backend = Viewer.backend
+            else:
+                backend = get_default_backend()
+
+        # Access the current backend or create one if none is available
+        self.__is_open = False
+        self.is_backend_parent = not Viewer.is_alive()
+        try:
+            # Start viewer backend
+            Viewer.connect_backend(backend)
+
+            # Decide whether or not to open gui
+            if open_gui_if_parent is None:
+                if not check_display_available():
+                    open_gui_if_parent = False
+                elif backend == 'meshcat':
+                    # Opening a new display cell automatically if there is
+                    # no other display cell already opened.
+                    open_gui_if_parent = interactive_mode() and (
+                        Viewer._backend_obj is None or
+                        not Viewer._backend_obj.comm_manager.n_comm)
+                elif backend == 'panda3d':
+                    open_gui_if_parent = not interactive_mode()
+                else:
+                    open_gui_if_parent = False
+
+            # Keep track of the backend process associated to the viewer.
+            # The destructor of this instance must adapt its behavior to the
+            # case where the backend process has changed in the meantime.
+            self._gui = Viewer._backend_obj.gui
+            self._backend_proc = Viewer._backend_proc
+            self.__is_open = True
+
+            # Open gui if requested
+            try:
+                if open_gui_if_parent:
+                    Viewer.open_gui()
+            except RuntimeError as e:
+                # Convert exception into warning if it fails. It is probably
+                # because no display is available.
+                logger.warning(str(e))
+        except Exception as e:
+            self.close()
+            raise RuntimeError(
+                "Impossible to create backend or connect to it.") from e
+
+        # Enforce some arguments based on available features
         if not Viewer.backend.startswith('panda3d'):
             if display_com or display_dcm or display_contact_frames or \
                     display_contact_forces:
@@ -411,39 +467,6 @@ class Viewer:
         self.f_external.extend([
             pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
 
-        # Select the desired backend
-        if backend is None:
-            backend = Viewer.backend
-        else:
-            backend = backend.lower()  # Make sure backend's name is lowercase
-            if backend not in backends_available:
-                raise ValueError("%s backend not available." % backend)
-
-        # Update the backend currently running, if any
-        if Viewer.backend != backend and Viewer.is_alive():
-            Viewer.close()
-            logging.warning("Different backend already running. Closing it...")
-        Viewer.backend = backend
-
-        # Configure exception handling
-        Viewer._backend_exceptions = _get_backend_exceptions(backend)
-
-        # Check if the backend is still working, not just alive, if any
-        if Viewer.is_alive():
-            is_backend_running = True
-            if not Viewer.is_open():
-                is_backend_running = False
-            if not is_backend_running:
-                Viewer._backend_obj = None
-                Viewer._backend_proc = None
-                Viewer._backend_exception = None
-        else:
-            is_backend_running = False
-
-        # Reset some class attribute if backend not available
-        if not is_backend_running:
-            Viewer.close()
-
         # Make sure that the windows, scene and robot names are valid
         if scene_name == Viewer.window_name:
             raise ValueError(
@@ -458,55 +481,11 @@ class Viewer:
         self._tempdir = tempfile.mkdtemp(
             prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
 
-        # Access the current backend or create one if none is available
-        self.__is_open = False
-        self.is_backend_parent = False
-        try:
-            # Connect viewer backend
-            if not Viewer.is_alive():
-                # Handling of default argument(s)
-                if open_gui_if_parent is None:
-                    if Viewer.backend == 'meshcat':
-                        # Opening a new display cell automatically if there is
-                        # no other display cell already opened. The user is
-                        # probably expecting a display cell to open in such
-                        # cases, but there is no fixed rule.
-                        open_gui_if_parent = interactive_mode() and (
-                            Viewer._backend_obj is None or
-                            not Viewer._backend_obj.comm_manager.n_comm)
-                    elif Viewer.backend.startswith('panda3d'):
-                        open_gui_if_parent = not interactive_mode()
-                    else:
-                        open_gui_if_parent = True
-
-                # Start viewer backend, eventually with graphical window
-                try:
-                    Viewer.__connect_backend(
-                        start_if_needed=True, open_gui=open_gui_if_parent)
-                except RuntimeError as e:
-                    # It may raise an exception if no display is available.
-                    # In such a case, convert it into a warning.
-                    logger.warning(str(e))
-
-                # Update some flags
-                self.is_backend_parent = True
-            self._gui = Viewer._backend_obj.gui
-            self.__is_open = True
-
-            # Keep track of the backend process associated to the viewer.
-            # The destructor of this instance must adapt its behavior to the
-            # case where the backend process has changed in the meantime.
-            self._backend_proc = Viewer._backend_proc
-
-            # Load the robot
-            self._setup(robot, self.robot_color)
-            Viewer._backend_robot_names.add(self.robot_name)
-            Viewer._backend_robot_colors.update({
-                self.robot_name: self.robot_color})
-        except Exception as e:
-            self.close()
-            raise RuntimeError(
-                "Impossible to create backend or connect to it.") from e
+        # Load the robot
+        self._setup(robot, self.robot_color)
+        Viewer._backend_robot_names.add(self.robot_name)
+        Viewer._backend_robot_colors.update({
+            self.robot_name: self.robot_color})
 
         # Set default camera pose
         if self.is_backend_parent:
@@ -596,7 +575,7 @@ class Viewer:
                 pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
 
         # Create backend wrapper to get (almost) backend-independent API
-        self._client = backends_available[Viewer.backend](
+        self._client = get_backends_available()[Viewer.backend](
             pinocchio_model, robot.collision_model, robot.visual_model)
         self._client.data = pinocchio_data
         self._client.collision_data = robot.collision_data
@@ -751,24 +730,23 @@ class Viewer:
             self.display_external_forces(self._display_f_external)
 
     @staticmethod
+    @__must_be_open
     @__with_lock
-    def open_gui(start_if_needed: bool = False) -> bool:
-        """Open a new viewer graphical interface.
+    def open_gui() -> bool:
+        """Open a new viewer graphical interface. It is only possible if a
+        backend is already running.
 
         .. note::
             Only one graphical interface can be opened locally for efficiency.
         """
-        # Start backend if needed
-        if not Viewer.is_alive():
-            Viewer.__connect_backend(start_if_needed)
-
         # If a graphical window is already open, do nothing
         if Viewer.has_gui():
             return
 
-        if Viewer.backend == 'panda3d-qt':
+        if Viewer.backend in ('panda3d-qt', 'panda3d-sync'):
             # No instance is considered manager of the unique window
-            pass
+            raise RuntimeError(
+                f"Impossible to open gui with '{Viewer.backend}' backend.")
         elif Viewer.backend == 'panda3d':
             Viewer._backend_obj.gui.open_window()
         elif Viewer.backend == 'meshcat':
@@ -910,108 +888,121 @@ class Viewer:
             in closing every viewer somehow. It results in the same outcome
             than calling this method without specifying any viewer instance.
         """
-        try:
-            if self is None:
-                self = Viewer
+        if self is None:
+            self = Viewer
 
-            if self is Viewer:
-                # NEVER closing backend automatically if closing instances,
-                # even for the parent. It will be closed at Python exit
-                # automatically. One must call `Viewer.close` to do otherwise.
-                Viewer._backend_robot_names.clear()
-                Viewer._backend_robot_colors.clear()
-                Viewer._camera_xyzrpy = list(
-                    deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
-                Viewer.detach_camera()
-                Viewer.remove_camera_motion()
-                if Viewer.is_alive():
-                    if Viewer.backend in 'meshcat':
-                        Viewer._backend_obj.close()
-                    elif Viewer.backend.startswith('panda3d'):
-                        Viewer._backend_obj.stop()
-                    Viewer._backend_proc.kill()
-                atexit.unregister(Viewer.close)
-                Viewer._backend_obj = None
-                Viewer._backend_proc = None
-                Viewer._has_gui = False
-            else:
-                # Disable travelling if associated with this viewer instance
-                if (Viewer._camera_travelling is not None and
-                        Viewer._camera_travelling['viewer'] is self):
-                    Viewer.detach_camera()
-
-                # Check if the backend process has changed, which may happend
-                # if it has been closed manually in the meantime. If so, there
-                # is nothing left to do.
-                if Viewer._backend_proc is not self._backend_proc:
-                    return
-
-                # Make sure zmq does not hang
-                if Viewer.backend == 'meshcat' and Viewer.is_alive():
-                    Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = 50
-
-                # Consider that the robot name is now available, no matter
-                # whether the robot has actually been deleted or not.
-                Viewer._backend_robot_names.discard(self.robot_name)
-                Viewer._backend_robot_colors.pop(self.robot_name)
-                if self.delete_robot_on_close:
-                    Viewer._delete_nodes_viewer([
-                        self._client.visual_group,
-                        self._client.collision_group,
-                        self._markers_group])
-
-                # Restore zmq socket timeout, which is disable by default
+        if self is Viewer:
+            # NEVER closing backend automatically if closing instances,
+            # even for the parent. It will be closed at Python exit
+            # automatically. One must call `Viewer.close` to do otherwise.
+            Viewer._backend_robot_names.clear()
+            Viewer._backend_robot_colors.clear()
+            Viewer._camera_xyzrpy = list(
+                deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
+            Viewer.detach_camera()
+            Viewer.remove_camera_motion()
+            if Viewer.is_alive():
                 if Viewer.backend == 'meshcat':
-                    Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
-
-                # Delete temporary directory
-                if self._tempdir.startswith(tempfile.gettempdir()):
+                    Viewer._backend_obj.close()
+                elif Viewer.backend.startswith('panda3d'):
                     try:
-                        shutil.rmtree(self._tempdir)
-                    except FileNotFoundError:
+                        Viewer._backend_obj.stop()
+                    except ViewerClosedError:
                         pass
-        except Exception:  # Do not fail under any circumstances
-            pass
+                Viewer._backend_proc.kill()
+            atexit.unregister(Viewer.close)
+            Viewer.backend = None
+            Viewer._backend_obj = None
+            Viewer._backend_proc = None
+            Viewer._has_gui = False
+        else:
+            # Disable travelling if associated with this viewer instance
+            if (Viewer._camera_travelling is not None and
+                    Viewer._camera_travelling['viewer'] is self):
+                Viewer.detach_camera()
+
+            # Check if the backend process has changed or the viewer instance
+            # has already been closed, which may happend if it has been closed
+            # manually in the meantime. If so, there is nothing left to do.
+            if Viewer._backend_proc is not self._backend_proc or \
+                    not self.__is_open:
+                return
+
+            # Make sure zmq does not hang
+            if Viewer.backend == 'meshcat' and Viewer.is_alive():
+                Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = 200
+
+            # Consider that the robot name is now available, no matter
+            # whether the robot has actually been deleted or not.
+            Viewer._backend_robot_names.discard(self.robot_name)
+            Viewer._backend_robot_colors.pop(self.robot_name)
+            if self.delete_robot_on_close:
+                Viewer._delete_nodes_viewer([
+                    self._client.visual_group,
+                    self._client.collision_group,
+                    self._markers_group])
+
+            # Restore zmq socket timeout, which is disable by default
+            if Viewer.backend == 'meshcat':
+                Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
+
+            # Delete temporary directory
+            if self._tempdir.startswith(tempfile.gettempdir()):
+                try:
+                    shutil.rmtree(self._tempdir)
+                except FileNotFoundError:
+                    pass
 
         # At this point, consider the viewer has been closed, no matter what
         self.__is_open = False
 
     @staticmethod
     @__with_lock
-    def __connect_backend(start_if_needed: bool = False,
-                          open_gui: Optional[bool] = None,
-                          close_at_exit: bool = True,
-                          timeout: int = 2000) -> None:
+    def connect_backend(backend: Optional[str] = None,
+                        close_at_exit: bool = True) -> None:
         """Get the running process of backend client.
 
         This method can be used to open a new process if necessary.
 
-        :param start_if_needed: Whether a new process must be created if no
-                                running process is found.
-                                Optional: False by default
-        :param timeout: Wait some millisecond before considering starting new
-                        server has failed.
-                        Optional: 1s by default
+        :param backend: Name of the rendering backend to use. It can be either
+                        'panda3d', 'panda3d-qt', 'meshcat'.
+                        Optional: The default is hardware and environment
+                        dependent. See `viewer.default_backend` for details.
         :param close_at_exit: Terminate backend server at Python exit.
                               Optional: True by default
 
         :returns: Pointer to the running backend Client and its PID.
         """
-        if Viewer.backend.startswith('panda3d'):
-            # handle default argument(s)
-            if open_gui is None:
-                open_gui = True
+        # Handle default arguments
+        if backend is None:
+            backend = get_default_backend()
 
-            # Make sure that creating a new client is allowed
-            if not start_if_needed:
-                raise RuntimeError(
-                    "'panda3d' backend does not support connecting to already "
-                    "running client.")
+        # Sanitize user arguments
+        backend = backend.lower()
+        if backend not in get_backends_available():
+            raise ValueError("%s backend not available." % backend)
 
+        # Update the backend currently running, if any
+        if Viewer.backend != backend and Viewer.is_alive():
+            logging.warning("Different backend already running. Closing it...")
+            Viewer.close()
+
+        # Nothing to do if already connected
+        if Viewer.is_alive():
+            return
+
+        # Reset some class attribute if backend not available
+        Viewer.close()
+
+        if backend.startswith('panda3d'):
             # Instantiate client with onscreen rendering capability enabled.
             # Note that it fallbacks to software rendering if necessary.
-            if Viewer.backend == 'panda3d-qt':
+            if backend == 'panda3d-qt':
+                from .panda3d.panda3d_widget import Panda3dQWidget
                 client = Panda3dQWidget()
+                proc = _ProcessWrapper(client, close_at_exit)
+            elif backend == 'panda3d-sync':
+                client = Panda3dApp()
                 proc = _ProcessWrapper(client, close_at_exit)
             else:
                 client = Panda3dViewer(window_type='onscreen',
@@ -1021,10 +1012,6 @@ class Viewer:
             # The gui is the client itself
             client.gui = client
         else:
-            # handle default argument(s)
-            if open_gui is None:
-                open_gui = True
-
             # List of connections likely to correspond to Meshcat servers
             meshcat_candidate_conn = {}
             for pid in psutil.pids():
@@ -1079,12 +1066,6 @@ class Viewer:
                 if zmq_url is not None:
                     break
 
-            # Check if backend server was found
-            if not start_if_needed and zmq_url is None:
-                raise RuntimeError(
-                    "No backend server to connect to but 'start_if_needed' is "
-                    "set to False")
-
             # Create a meshcat server if needed and connect to it
             client = MeshcatWrapper(zmq_url)
             if client.server_proc is None:
@@ -1093,21 +1074,18 @@ class Viewer:
                 proc = client.server_proc
             proc = _ProcessWrapper(proc, close_at_exit)
 
+        # Make sure the backend process is alive
+        assert proc.is_alive(), (
+            "Something went wrong. Impossible to instantiate viewer backend.")
+
         # Update global state
+        Viewer.backend = backend
         Viewer._backend_obj = client
         Viewer._backend_proc = proc
 
         # Make sure to close cleanly the viewer at exit
         if close_at_exit:
             atexit.register(Viewer.close)
-
-        # Make sure the backend process is alive
-        assert Viewer.is_alive(), (
-            "Something went wrong. Impossible to instantiate viewer backend.")
-
-        # Open gui if requested
-        if open_gui:
-            Viewer.open_gui()
 
     @staticmethod
     @__must_be_open
@@ -1228,7 +1206,7 @@ class Viewer:
 
         .. warning::
             It returns the previous requested camera transform for meshcat,
-            since it is impossible to get acces to this information. Thus
+            since it is impossible to get access to this information. Thus
             this method is valid as long as the user does not move the
             camera manually using mouse camera control.
         """
@@ -1269,7 +1247,7 @@ class Viewer:
             - **None:** absolute.
             - **'camera':** relative to current camera pose.
             - **other:** relative to a robot frame, not accounting for the
-              rotation of the frame during travalling. It supports both frame
+              rotation of the frame during travelling. It supports both frame
               name and index in model.
         :param wait: Whether or not to wait for rendering to finish.
         """
@@ -1280,8 +1258,7 @@ class Viewer:
             position = position_camera
         if rotation is None:
             rotation = rotation_camera
-        position = np.asarray(position)
-        rotation = np.asarray(rotation)
+        position, rotation = np.asarray(position), np.asarray(rotation)
 
         # Compute associated rotation matrix
         rotation_mat = rpyToMatrix(rotation)
@@ -1334,7 +1311,7 @@ class Viewer:
                           position: Tuple3FType,
                           relative: Optional[Union[str, int]] = None,
                           wait: bool = False) -> None:
-        """Set the camera look-up position.
+        """Set the camera look-at position.
 
         .. note::
             It preserve the relative camera pose wrt the lookup position.
@@ -1590,8 +1567,7 @@ class Viewer:
                 return buffer
 
             # Return numpy array RGB
-            rgb_array = np.frombuffer(buffer, np.uint8)
-            return np.flipud(rgb_array.reshape((height, width, 3)))
+            return np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
         else:
             # Send capture frame request to the background recorder process
             img_html = Viewer._backend_obj.capture_frame(width, height)
@@ -1606,8 +1582,8 @@ class Viewer:
                 return buffer
 
             # Return numpy array RGB
-            img_obj = Image.open(io.BytesIO(buffer))
-            rgba_array = np.array(img_obj)
+            with Image.open(io.BytesIO(buffer)) as img_obj:
+                rgba_array = np.array(img_obj)
             return rgba_array[:, :, :-1]
 
     @__must_be_open
@@ -2113,7 +2089,7 @@ class Viewer:
 
         .. note::
             Specifying 'udpate_hook' is necessary to be able to display sensor
-            information usch as contact forces. It will be automatically
+            information such as contact forces. It will be automatically
             disable otherwise.
 
         .. warning::
@@ -2204,7 +2180,7 @@ class Viewer:
                 # Stop the simulation if final time is reached
                 if t_simu > time_interval[1]:
                     break
-            except Viewer._backend_exceptions:
+            except (ViewerClosedError, zmq.error.Again, zmq.error.ZMQError):
                 # Make sure the viewer is properly closed if exception is
                 # raised during replay.
                 Viewer.close()

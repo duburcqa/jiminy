@@ -103,6 +103,7 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
+        isTelemetryConfigured_ = false;
         if (returnCode == hresult_t::SUCCESS)
         {
             telemetryData_ = telemetryData;

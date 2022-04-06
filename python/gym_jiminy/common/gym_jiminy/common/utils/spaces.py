@@ -9,26 +9,30 @@ import numpy as np
 from numpy.random.mtrand import _rand as global_randstate
 
 
-ValueType = TypeVar('ValueType')
-StructNested = Union[Dict[str, 'StructNested'],  # type: ignore
-                     Sequence['StructNested'],  # type: ignore
-                     ValueType]
-FieldNested = StructNested[str]  # type: ignore
-DataNested = StructNested[np.ndarray]  # type: ignore
+ValueT = TypeVar('ValueT')
+StructNested = Union[Dict[str, 'StructNested'],  # type: ignore[misc]
+                     Sequence['StructNested'],  # type: ignore[misc]
+                     ValueT]
+FieldNested = StructNested[str]  # type: ignore[misc]
+DataNested = StructNested[np.ndarray]  # type: ignore[misc]
 
 
-def _space_nested_raw(space_nested: gym.Space) -> StructNested[gym.Space]:
-    """Replace any `gym.spaces.Dict` by the raw `OrderedDict` dict it contains.
+if tuple(map(int, (gym.__version__.split(".", 4)[:3]))) < (0, 23, 0):
+    def _space_nested_raw(space_nested: gym.Space) -> gym.Space:
+        """Replace any `gym.spaces.Dict|Tuple` by a native collection type for
+        inter-operability with gym<0.23.0.
 
-    .. note::
-        It is necessary because non primitive objects must inherit from
-        `collection.abc.Mapping|Sequence` for `dm-tree` to operate on them.
-        # TODO: support of gym.spaces.Tuple is expected for gym>=0.23.0.
-    """
-    return tree.traverse(
-        lambda space: _space_nested_raw(space.spaces) if isinstance(
-            space, (gym.spaces.Dict, gym.spaces.Tuple)) else None,
-        space_nested)
+        .. note::
+            It is necessary because non primitive objects must inherit from
+            `collection.abc.Mapping|Sequence` for `dm-tree` to operate on them.
+        """
+        return tree.traverse(
+            lambda space: _space_nested_raw(space.spaces) if isinstance(
+                space, (gym.spaces.Dict, gym.spaces.Tuple)) else None,
+            space_nested)
+else:
+    def _space_nested_raw(space_nested: gym.Space) -> gym.Space:
+        return space_nested
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,

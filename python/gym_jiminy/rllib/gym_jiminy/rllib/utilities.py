@@ -24,10 +24,11 @@ from tensorboard.program import TensorBoard
 import ray
 import ray.cloudpickle as pickle
 from ray import ray_constants
+from ray.state import GlobalState
 from ray._private import services
 from ray._private.gcs_utils import AvailableResources
 from ray._private.test_utils import monitor_memory_usage
-from ray._raylet import GlobalStateAccessor
+from ray._raylet import GcsClientOptions
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
@@ -41,6 +42,7 @@ from ray.rllib.env.env_context import EnvContext
 from ray.rllib.evaluation.worker_set import WorkerSet
 
 from jiminy_py.viewer import play_logs_files
+from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import clip, DataNested
 
 try:
@@ -127,9 +129,13 @@ def initialize(num_cpus: int,
     if redis_addresses:
         for redis_address in redis_addresses:
             # Connect to redis global state accessor
-            global_state_accessor = GlobalStateAccessor(
+            state = GlobalState()
+            options = GcsClientOptions.from_redis_address(
                 redis_address, ray_constants.REDIS_DEFAULT_PASSWORD)
-            global_state_accessor.connect()
+            state._initialize_global_state(options)
+            state._really_init_global_state()
+            global_state_accessor = state.global_state_accessor
+            assert global_state_accessor is not None
 
             # Get available resources
             resources: Dict[str, int] = defaultdict(int)
@@ -141,7 +147,7 @@ def initialize(num_cpus: int,
 
             # Disconnect global state accessor
             time.sleep(0.1)
-            global_state_accessor.disconnect()
+            state.disconnect()
 
             # Check if enough computation resources are available
             is_cluster_running = (resources["CPU"] >= num_cpus and
@@ -608,9 +614,9 @@ def test(test_agent: Trainer,
          n_frames_stack: int = 1,
          enable_stats: bool = True,
          enable_replay: bool = True,
-         test_env: Optional[gym.Env] = None,
+         test_env: Optional[BaseJiminyEnv] = None,
          viewer_kwargs: Optional[Dict[str, Any]] = None,
-         **kwargs: Any) -> Union[gym.Env, List[Dict[str, Any]]]:
+         **kwargs: Any) -> Union[BaseJiminyEnv, List[Dict[str, Any]]]:
     """Test a model on a specific environment using a given agent.
 
     .. note::

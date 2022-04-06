@@ -162,8 +162,6 @@ def make_gradient_skybox(sky_color: Tuple3FType,
     prism.set_bin("background", 0)
     prism.set_depth_write(False)
     prism.set_depth_test(False)
-    prism.set_light_off()
-    prism.set_shader_off()
 
     return prism
 
@@ -273,12 +271,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('aux-display',
                          'p3headlessgl'
                          '\naux-display pandadx9'
-                         '\naux-display pandadx8'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
+        config.set_value('sync-video', '0')
         config.set_value('default-near', 0.1)
         config.set_value('gl-version', '3 1')
-        config.set_value('notify-level', 'error')
+        config.set_value('notify-level', 'fatal')
         config.set_value('notify-level-x11display', 'fatal')
         config.set_value('notify-level-device', 'fatal')
         config.set_value('default-directnotify-level', 'error')
@@ -300,7 +298,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Disable the task manager loop for now. Only useful if onscreen.
         self.shutdown()
 
-        # Active enhanced rendering if dedicated NVIDIA GPU is used.
+        # Active enhanced rendering if discrete NVIDIA GPU is used.
         # Note that shadow resolution larger than 1024 significantly affects
         # the frame rate on Intel GPU chipsets: going from 1024 to 2048 makes
         # it drop from 60FPS to 30FPS.
@@ -309,20 +307,20 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         else:
             self._shadow_size = 1024
 
-        # Make sure we have AA for if/when MSAA is enabled
-        self.render.set_antialias(
-            AntialiasAttrib.M_auto | AntialiasAttrib.M_faster)
+        # Enable antialiasing
+        self.render.set_antialias(AntialiasAttrib.MMultisample)
 
         # Configure lighting and shadows
         self._spotlight = self.config.GetBool('enable-spotlight', False)
         self._lights_mask = [True, True]
 
-        # Enable physics-based shader if discrete NVIDIA GPU is used
-        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+        # Create physics-based shader and adapt lighting accordingly.
+        # It slows down the rendering by about 30% on discrete NVIDIA GPU.
+        # Note that EGL graphical pipeline does not support shader for now.
+        if self.pipe.get_type().name != "eglGraphicsPipe":
             shader_options = {
-                'MAX_LIGHTS': 2,
-                'USE_NORMAL_MAP': '',
                 'ENABLE_SHADOWS': '',
+                'USE_EMISSION_MAP': '',
                 'USE_OCCLUSION_MAP': ''
             }
             pbr_vert = simplepbr._load_shader_str(
@@ -336,7 +334,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                             self._make_light_direct(
                                 1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
         else:
-            self.render.set_shader_auto()
             self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
                             self._make_light_direct(
                                 1, (0.5, 0.5, 0.5), pos=(8.0, -8.0, 10.0))]
@@ -345,15 +342,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._camera_defaults = CAMERA_POS_DEFAULT
         self.reset_camera(*self._camera_defaults)
 
-        # Define clock. It will be used later to limit framerate.
+        # Define clock. It will be used later to limit framerate
         self.clock = ClockObject.get_global_clock()
         self.framerate = None
-
-        # Create default scene objects
-        self._fog = self._make_fog()
-        self._axes = self._make_axes()
-        self._grid = self._make_grid()
-        self._floor = self._make_floor()
 
         # Create scene tree
         self._scene_root = self.render.attach_new_node('scene_root')
@@ -361,10 +352,20 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._scene_root.set_scale(self._scene_scale)
         self._groups = {}
 
+        # Create default scene objects
+        self._fog = self._make_fog()
+        self._axes = self._make_axes()
+        self._grid = self._make_grid()
+        self._floor = self._make_floor()
+
         # Create gradient for skybox
         sky_color = (0.53, 0.8, 0.98, 1.0)
         ground_color = (0.1, 0.1, 0.43, 1.0)
         self.skybox = make_gradient_skybox(sky_color, ground_color, 0.7)
+        if self.pipe.get_type().name != "eglGraphicsPipe":
+            self.skybox.set_shader_auto(True)
+        self.skybox.set_light_off()
+        self.skybox.hide(self.LightMask)
 
         # The background needs to be parented to an intermediary node to which
         # a compass effect is applied to keep it at the same position as the
@@ -441,7 +442,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.click_mouse_x = 0.0
         self.click_mouse_y = 0.0
 
-        # Create resizeable offscreen buffer
+        # Create resizeable offscreen buffer.
+        # Note that a resizable buffer is systematically created, no matter
+        # if the main window is an offscreen non-resizable window or an
+        # onscreen resizeable graphical window. It avoids having to handle
+        # the two cases separately, especially for screenshot resizing and
+        # selective overlay information display. However, it affects the
+        # performance significantly. At least 20% on discrete NVIDIA GPU and
+        # 50% on integrated Intel GPU.
         self._open_offscreen_window(WINDOW_SIZE_DEFAULT)
 
         # Set default options
@@ -452,9 +460,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_axes(True)
         self.show_grid(False)
         self.show_floor(True)
-
-        # Force rendering the scene to finalize initialization of the GSG
-        self.graphics_engine.render_frame()
 
     def has_gui(self) -> bool:
         return any(isinstance(win, GraphicsWindow) for win in self.winList)
@@ -547,18 +552,20 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         flags = GraphicsPipe.BF_refuse_window | GraphicsPipe.BF_refuse_parasite
         flags |= GraphicsPipe.BF_resizeable
 
-        # Create new offscreen buffer and attach a texture
+        # Create new offscreen buffer
         # Note that it is impossible to create resizeable buffer without an
-        # already existing host for some reason...
+        # already existing host.
         win = self.graphicsEngine.make_output(
             self.pipe, "offscreen_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
-        texture = Texture()
-        win.addRenderTexture(texture, GraphicsOutput.RTMCopyRam)
         self.buff = win
 
         # Append buffer to the list of windows managed by the ShowBase
         self.winList.append(win)
+
+        # Attach a texture as screenshot requires copying GPU data to RAM
+        texture = Texture()
+        self.buff.add_render_texture(texture, GraphicsOutput.RTM_copy_ram)
 
         # Create 3D camera region for the scene.
         # Set near distance of camera lens to allow seeing model from close.
@@ -574,6 +581,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Adjust aspect ratio
         self._adjust_offscreen_window_aspect_ratio()
+
+        # Force rendering the scene to finalize initialization of the GSG
+        self.graphics_engine.render_frame()
+
+        # The buffer must be flipped upside-down manually because using the
+        # global option `copy-texture-inverted` distorts the shadows of the
+        # onscreen window for some reason. Moreover, it must be done after
+        # calling `render_frame` at least once.
+        self.buff.inverted = True
 
     def _adjust_offscreen_window_aspect_ratio(self) -> None:
         """Adjust aspect ratio of offscreen window.
@@ -774,9 +790,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return light_path
 
     def _make_axes(self) -> NodePath:
-        node = super()._make_axes()
+        model = GeomNode('axes')
+        model.add_geom(geometry.make_axes())
+        node = self.render.attach_new_node(model)
+        node.set_render_mode_wireframe()
+        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+            node.set_render_mode_thickness(4)
+        node.set_antialias(AntialiasAttrib.MLine)
+        if self.pipe.get_type().name != "eglGraphicsPipe":
+            node.set_shader_auto(True)
+        node.set_light_off()
+        node.hide(self.LightMask)
         node.set_scale(0.3)
-        node.set_shader_off()
         return node
 
     def _make_floor(self,
@@ -813,9 +838,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # from below.
         node.set_two_sided(True)
 
-        # simplepbr shader must be by-passed to avoid having to specify a
-        # material instead of a color.
-        node.set_shader_auto(True)
+        # Enable default shader but disable light casting
+        if self.pipe.get_type().name != "eglGraphicsPipe":
+            node.set_shader_auto(True)
+        node.hide(self.LightMask)
+
+        # Adjust frustum of the lights to project shadow over the whole scene
+        for light_path in self._lights[1:]:
+            bmin, bmax = node.get_tight_bounds(light_path)
+            lens = light_path.get_node(0).get_lens()
+            lens.set_film_offset((bmin.xz + bmax.xz) * 0.5)
+            lens.set_film_size(bmax.xz - bmin.xz)
+            lens.set_near_far(bmin.y, bmax.y)
 
         return node
 
@@ -842,14 +876,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Hide the floor if is was previously hidden
         if is_hidden:
             self._floor.hide()
-
-        # Adjust frustum of the lights to project shadow over the whole scene
-        for light_path in self._lights[1:]:
-            bmin, bmax = self._floor.get_tight_bounds(light_path)
-            lens = light_path.get_node(0).get_lens()
-            lens.set_film_offset((bmin.xz + bmax.xz) * 0.5)
-            lens.set_film_size(bmax.xz - bmin.xz)
-            lens.set_near_far(bmin.y, bmax.y)
 
     def append_group(self,
                      root_path: str,
@@ -885,7 +911,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     RenderModeAttrib.get_class_slot())
                 node.set_attrib(RenderModeAttrib.make(
                     RenderModeAttrib.M_filled_wireframe,
-                    1.5,  # thickness (1.0 by default)
+                    1.0,  # thickness (1.0 by default)
                     render_attrib.perspective,
                     (2.0, 2.0, 2.0, 1.0)  # wireframe_color
                 ))
@@ -903,12 +929,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         model = GeomNode('axes')
         model.add_geom(geometry.make_axes())
         node = NodePath(model)
-        node.set_light_off()
         node.set_render_mode_wireframe()
-        node.set_render_mode_thickness(4)
+        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+            node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
+        if self.pipe.get_type().name != "eglGraphicsPipe":
+            node.set_shader_auto(True)
+        node.set_light_off()
         node.hide(self.LightMask)
-        node.set_shader_off()
         self.append_node(root_path, name, node, frame)
 
     def append_cone(self,
@@ -1115,7 +1143,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         bbox_inches = bbox.from_extents(bbox_pixels / LEGEND_DPI)
 
         # Export the figure, limiting the bounding box to the legend area,
-        # slighly extended to ensure the surrounding rounded corner box of
+        # slightly extended to ensure the surrounding rounded corner box of
         # is not cropped. Transparency is enabled, so it is not an issue.
         io_buf = io.BytesIO()
         fig.savefig(io_buf, format='rgba', dpi=LEGEND_DPI, transparent=True,
@@ -1214,7 +1242,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      disable_material: bool = False) -> None:
         """Patched to avoid raising an exception if node does not exist, and to
         clear color if not specified. In addition, an optional argument to
-        disable texture and has been added.
+        disable texture has been added, and a physics-based shader is used if
+        available.
         """
         node = self._groups[root_path].find(name)
         if node:
@@ -1314,7 +1343,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.camera_lookat = np.asarray(pos)
 
     def set_window_size(self, width: int, height: int) -> None:
-        self.buff.setSize(width, height)
+        self.buff.set_size(width, height)
         self._adjust_offscreen_window_aspect_ratio()
 
     def set_framerate(self, framerate: Optional[float] = None) -> None:
@@ -1350,6 +1379,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if not self.buff.get_screenshot(image):
             return False
 
+        # Flip the image if the buffer is also flipped to revert the effect
+        if self.buff.inverted:
+            image.flip(flip_x=False, flip_y=True, transpose=False)
+
         # Remove alpha if format does not support it
         if not filename.lower().endswith('.png'):
             image.remove_alpha()
@@ -1361,7 +1394,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return True
 
     def get_screenshot(self,
-                       requested_format: str = 'RGBA',
+                       requested_format: str = 'RGB',
                        raw: bool = False) -> Union[np.ndarray, bytes]:
         """Patched to take screenshot of the last window available instead of
         the main one, and to add raw data return mode for efficient
@@ -1373,7 +1406,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             scheduler. The framerate limit must be disable manually to avoid
             such limitation.
 
-        :param requested_format: Desired export format (e.g. 'RGBA' or 'RGB')
+        .. note::
+            Internally, Panda3d uses BGRA, so using it is slightly faster than
+            RGBA, but not RGB since there is one channel missing.
+
+        :param requested_format: Desired export format (e.g. 'RGB' or 'BGRA')
         :param raw: whether to return a raw memory view of bytes, of a
                     structured `np.ndarray` of uint8 with dimensions [W, H, D].
         """
@@ -1386,16 +1423,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Extract raw array buffer from texture
         image = texture.get_ram_image_as(requested_format)
 
-        # Return raw texture if requested
+        # Return raw buffer if requested
         if raw:
             return image.get_data()
 
         # Convert raw texture to numpy array if requested
-        xsize = texture.get_x_size()
-        ysize = texture.get_y_size()
-        dsize = len(requested_format)
-        array = np.frombuffer(image, np.uint8).reshape((ysize, xsize, dsize))
-        return np.flipud(array)
+        xsize, ysize = texture.get_x_size(), texture.get_y_size()
+        return np.frombuffer(image, np.uint8).reshape((ysize, xsize, -1))
 
     def enable_shadow(self, enable: bool) -> None:
         for light in self._lights:

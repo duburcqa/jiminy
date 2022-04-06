@@ -12,8 +12,6 @@ randomSeed = 0
 
 [engine.constraints]
 solver = "PGS"
-tolAbs = 1.0e-5
-tolRel = 1.0e-7
 regularization = 2.0e-3
 stabilizationFreq = 20.0
 

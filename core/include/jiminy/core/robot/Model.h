@@ -29,7 +29,7 @@ namespace jiminy
         USER = 3
     };
 
-    std::array<constraintsHolderType_t, 4> const constraintsHolderTypeRange = {{
+    std::array<constraintsHolderType_t, 4> const constraintsHolderTypesAll = {{
         constraintsHolderType_t::BOUNDS_JOINTS,
         constraintsHolderType_t::CONTACT_FRAMES,
         constraintsHolderType_t::COLLISION_BODIES,
@@ -103,13 +103,19 @@ namespace jiminy
             }
         }
 
-        template<typename Function>
-        void foreach(Function && lambda)
+        template<typename Function, std::size_t N>
+        void foreach(std::array<constraintsHolderType_t, N> constraintsHolderTypes, Function && lambda)
         {
-            for (constraintsHolderType_t const & holderType : constraintsHolderTypeRange)
+            for (constraintsHolderType_t const & holderType : constraintsHolderTypes)
             {
                 foreach(holderType, std::forward<Function>(lambda));
             }
+        }
+
+        template<typename Function>
+        void foreach(Function && lambda)
+        {
+            foreach(constraintsHolderTypesAll, std::forward<Function>(lambda));
         }
 
     public:
@@ -310,15 +316,6 @@ namespace jiminy
         void computeConstraints(vectorN_t const & q,
                                 vectorN_t const & v);
 
-        /// \brief Get jacobian of the constraints.
-        constMatrixBlock_t getConstraintsJacobian(void) const;
-
-        /// \brief Get drift of the constraints.
-        constVectorBlock_t getConstraintsDrift(void) const;
-
-        /// \brief Get lambda multipliers of the constraints.
-        constVectorBlock_t getConstraintsLambda(void) const;
-
         /// \brief Returns true if at least one constraint is active on the robot.
         bool_t hasConstraints(void) const;
 
@@ -431,10 +428,6 @@ namespace jiminy
         std::vector<jointIndex_t> flexibleJointsModelIdx_;          ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
 
         constraintsHolder_t constraintsHolder_;                 ///< Store constraints
-        Eigen::Index constraintsMask_;                          ///< Mask used to filter out disable constraints from full jacobian and drift
-        matrixN_t constraintsJacobian_;                         ///< Matrix holding the jacobian of the constraints
-        vectorN_t constraintsDrift_;                            ///< Vector holding the drift of the constraints
-        vectorN_t constraintsLambda_;                           ///< Vector holding the lambda multipliers of the constraints
 
         vectorN_t positionLimitMin_;                            ///< Upper position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
         vectorN_t positionLimitMax_;                            ///< Lower position limit of the whole configuration vector

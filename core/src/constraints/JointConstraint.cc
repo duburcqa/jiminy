@@ -14,7 +14,8 @@ namespace jiminy
     AbstractConstraintTpl(),
     jointName_(jointName),
     jointIdx_(0),
-    configurationRef_()
+    configurationRef_(),
+    isReversed_(false)
     {
         // Empty on purpose
     }
@@ -42,6 +43,23 @@ namespace jiminy
     vectorN_t const & JointConstraint::getReferenceConfiguration(void) const
     {
         return configurationRef_;
+    }
+
+    void JointConstraint::setRotationDir(bool_t isReversed)
+    {
+        // Update the Jacobian
+        if (isReversed_ != isReversed)
+        {
+            jacobian_ *= -1;
+        }
+
+        // Update active dir
+        isReversed_ = isReversed;
+    }
+
+    bool_t JointConstraint::getRotationDir(void)
+    {
+        return isReversed_;
     }
 
     hresult_t JointConstraint::reset(vectorN_t const & q,
@@ -74,10 +92,11 @@ namespace jiminy
             pinocchio::JointModel const & jointModel = model->pncModel_.joints[jointIdx_];
 
             // Initialize the jacobian. It is simply the velocity selector mask.
+            setRotationDir(isReversed_);
+
+            // Initialize constraint jacobian, drift and multipliers
             jacobian_.setZero(jointModel.nv(), model->pncModel_.nv);
             jacobian_.middleCols(jointModel.idx_v(), jointModel.nv()).setIdentity();
-
-            // Initialize drift and multipliers
             drift_.setZero(jointModel.nv());
             lambda_.setZero(jointModel.nv());
 
@@ -163,6 +182,10 @@ namespace jiminy
         vectorN_t const deltaPosition = difference(
             jointModel, configurationRef_, jointModel.jointConfigSelector(q));
         drift_ = kp_ * deltaPosition + kd_ * jointModel.jointVelocitySelector(v);
+        if (isReversed_)
+        {
+            drift_ *= -1;
+        }
 
         return hresult_t::SUCCESS;
     }

@@ -310,7 +310,7 @@ class Simulator:
         """
         out[()] = True
 
-    def seed(self, seed: int) -> None:
+    def seed(self, seed: np.uint32) -> None:
         """Set the seed of the simulation and reset the simulation.
 
         .. warning::
@@ -461,6 +461,7 @@ class Simulator:
                camera_xyzrpy: Optional[Tuple[
                    Union[Tuple[float, float, float], np.ndarray],
                    Union[Tuple[float, float, float], np.ndarray]]] = None,
+               update_ground_profile: Optional[bool] = None,
                **kwargs: Any) -> Optional[np.ndarray]:
         """Render the current state of the simulation. One can display it
                or return an RGB array instead.
@@ -472,13 +473,22 @@ class Simulator:
         :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch,
                               Yaw] corresponding to the absolute pose of the
                               camera. None to disable.
-                              Optional:None by default.
+                              Optional: None by default.
+        :param update_ground_profile: Whether to update the ground profile. It
+                                      must be called manually only if necessary
+                                      because it is costly.
+                                      Optional: True by default if no viewer
+                                      available, False otherwise.
         :param kwargs: Extra keyword arguments to forward at `Viewer`
                        initialization.
 
         :returns: Rendering as an RGB array (3D numpy array), if enabled, None
                   otherwise.
         """
+        # Handle default arguments
+        if update_ground_profile is None:
+            update_ground_profile = not self.is_viewer_available
+
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not self.is_viewer_available:
@@ -491,18 +501,19 @@ class Simulator:
                 robot_name = self.viewer.robot_name
                 scene_name = self.viewer.scene_name
 
-            # Handling of default backend
-            self.viewer_backend = self.viewer_backend or Viewer.backend
-
             # Create new viewer instance
+            viewer_backend = self.viewer_backend or Viewer.backend
             self.viewer = Viewer(self.robot,
                                  use_theoretical_model=False,
                                  open_gui_if_parent=False,
                                  **{'scene_name': scene_name,
                                     'robot_name': robot_name,
-                                    'backend': self.viewer_backend,
+                                    'backend': viewer_backend,
                                     'delete_robot_on_close': True,
                                     **kwargs})
+
+            # Backup current backend
+            self.viewer_backend = self.viewer_backend or Viewer.backend
 
             # Share the external force buffer of the viewer with the engine
             if self.is_simulation_running:
@@ -536,6 +547,12 @@ class Simulator:
             # Initialize camera pose
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
+
+        # Enable the ground profile is requested and available
+        if self.viewer_backend.startswith('panda3d') and update_ground_profile:
+            engine_options = self.engine.get_options()
+            ground_profile = engine_options["world"]["groundProfile"]
+            self.viewer.update_floor(ground_profile, show_meshes=False)
 
         # Set the camera pose if requested
         if camera_xyzrpy is not None:
@@ -598,13 +615,8 @@ class Simulator:
         self.render(**{
             'return_rgb_array': kwargs.get(
                 'record_video_path', None) is not None,
+            'update_floor': True,
             **kwargs})
-
-        # Enable the ground profile if possible
-        if self.viewer_backend.startswith('panda3d'):
-            engine_options = self.engine.get_options()
-            ground_profile = engine_options["world"]["groundProfile"]
-            self.viewer.update_floor(ground_profile, show_meshes=False)
 
         # Define sequence of viewer instances
         viewers = [self.viewer, *[None for _ in trajectories[:-1]]]

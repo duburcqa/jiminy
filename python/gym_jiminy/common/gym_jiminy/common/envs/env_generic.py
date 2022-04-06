@@ -15,7 +15,6 @@ import tree
 import numpy as np
 import gym
 from gym import logger, spaces
-from gym.utils.seeding import _int_list_from_bigint, hash_seed
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
@@ -23,7 +22,8 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL, Viewer
+from jiminy_py.viewer.viewer import (
+    DEFAULT_CAMERA_XYZRPY_REL, check_display_available, Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.log import extract_data_from_log
@@ -92,13 +92,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     to implement one. It has been designed to be highly flexible and easy to
     customize by overloading it to fit the vast majority of users' needs.
     """
-    metadata = {
-        'render.modes': ['human', 'rgb_array'],
-    }
-
-    observation_space: spaces.Space
-    action_space: spaces.Space
-
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
@@ -134,6 +127,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
+        # Set the available rendering modes
+        self.metadata['render.modes'] = ['rgb_array']
+        if check_display_available():
+            self.metadata['render.modes'].append('human')
+
         # Define some proxies for fast access
         self.engine: jiminy.EngineMultiRobot = self.simulator.engine
         self.stepper_state: jiminy.StepperState = self.engine.stepper_state
@@ -148,13 +146,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Internal buffers for physics computations
         self._seed: List[np.uint32] = []
-        self.rg = np.random.Generator(np.random.Philox())
+        self.rg = np.random.Generator(np.random.SFC64())
         self.log_path: Optional[str] = None
 
-        # Whether or not evaluation mode is active
+        # Whether evaluation mode is active
         self.is_training = True
 
-        # Whether or not play interactive mode is active
+        # Whether play interactive mode is active
         self._is_interactive = False
 
         # Information about the learning process
@@ -564,6 +562,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             raise RuntimeError(
                 "The memory address of the low-level has changed.")
 
+        # Re-initialize some shared memories.
+        # It must be done because the robot may have changed.
+        self.sensors_data = dict(self.robot.sensors_data)
+
         # Enforce the low-level controller.
         # The robot may have changed, for example it could be randomly
         # generated, which would corrupt the old controller. As a result, it is
@@ -583,10 +585,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Do NOT remove all forces since it has already been done before, and
         # because it would make it impossible to register forces in  `_setup`.
         self.simulator.reset(remove_all_forces=False)
-
-        # Re-initialize some shared memories.
-        # It must be done because the robot may have changed.
-        self.sensors_data = dict(self.robot.sensors_data)
 
         # Set default action.
         # It will be used for the initial step.
@@ -708,15 +706,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         :returns: Updated seed of the environment
         """
-        # Generate a 8 bytes (uint64) seed using gym utils, then convert it
-        # into sequence of 4 bytes uint32 seeds. Backup only the first one.
-        # Note that hashing is used to get rid off possible correlation in the
-        # presence of concurrency.
-        seed = hash_seed(seed)
-        self._seed = list(map(np.uint32, _int_list_from_bigint(seed)))
+        # Generate a sequence of 3 bytes uint32 seeds
+        self._seed = list(np.random.SeedSequence(seed).generate_state(3))
 
         # Instantiate a new random number generator based on the provided seed
-        self.rg = np.random.Generator(np.random.Philox(self._seed))
+        self.rg = np.random.Generator(np.random.SFC64(self._seed))
 
         # Reset the seed of Jiminy Engine
         self.simulator.seed(self._seed[0])
@@ -832,31 +826,36 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return obs, reward, done, deepcopy(self._info)
 
     def render(self,
-               mode: str = 'human',
+               mode: Optional[str] = None,
                **kwargs: Any) -> Optional[np.ndarray]:
-        """Render the current state of the robot.
-
-        .. note::
-            Do not suport Multi-Rendering RGB output for now.
+        """Render the world.
 
         :param mode: Rendering mode. It can be either 'human' to display the
-                     current simulation state, or 'rgb_array' to return
-                     instead a snapshot of it as an RGB array without showing
-                     it on the screen.
+                     current simulation state, or 'rgb_array' to return a
+                     snapshot as an RGB array without showing it on the screen.
+                     Optional: 'human' by default if available, 'rgb_array'
+                     otherwise.
         :param kwargs: Extra keyword arguments to forward to
                        `jiminy_py.simulator.Simulator.render` method.
 
         :returns: RGB array if 'mode' is 'rgb_array', None otherwise.
         """
-        if mode == 'human':
-            return_rgb_array = False
-        elif mode == 'rgb_array':
-            return_rgb_array = True
-        else:
-            raise ValueError(f"Rendering mode {mode} not supported.")
+        # Handling of default rendering mode
+        if mode is None:
+            if 'human' in self.metadata['render.modes']:
+                mode = 'human'
+            else:
+                mode = 'rgb_array'
 
-        return self.simulator.render(**{
-            'return_rgb_array': return_rgb_array, **kwargs})
+        # Make sure the rendering mode is valid.
+        # Note that it is not possible to raise an exception, because the
+        # default is overwritten by gym wrappers by mistake to 'human'.
+        if mode not in self.metadata['render.modes']:
+            mode = 'rgb_array'
+
+        # Call base implementation
+        return self.simulator.render(
+            return_rgb_array=(mode == 'rgb_array'), **kwargs)
 
     def plot(self, **kwargs: Any) -> None:
         """Display common simulation data and action over time.
@@ -903,7 +902,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     log_data, action_headers, as_dict=True).items()})
 
         # Add action tab
-        self.figure.add_tab("Action", t, tab_data)
+        self.simulator.figure.add_tab("Action", t, tab_data)
 
     def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
         """Replay the current episode until now.
@@ -942,8 +941,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             kwargs["camera_xyzrpy"] = (*DEFAULT_CAMERA_XYZRPY_REL, root_name)
 
         # Call render before replay in order to take into account custom
-        # backend viewer instantiation options, such as initial camera pose.
-        self.render(**kwargs)
+        # backend viewer instantiation options, such as initial camera pose,
+        # and to update the ground profile.
+        self.render(update_ground_profile=True, **kwargs)
 
         # Set default travelling options
         if enable_travelling and self.robot.has_freeflyer:
@@ -1003,16 +1003,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # forces with the robot automatically.
         if not (self.simulator.is_viewer_available and
                 self.simulator.viewer.has_gui()):
-            env.render()
+            env.render(update_ground_profile=False)
 
-        # Reset the environement
+        # Reset the environnement
         obs = env.reset()
         reward = None
 
         # Refresh the ground profile
-        engine_options = self.engine.get_options()
-        ground_profile = engine_options["world"]["groundProfile"]
-        self.viewer.update_floor(ground_profile, show_meshes=False)
+        env.render(update_ground_profile=True)
 
         # Enable travelling
         if enable_travelling is None:
@@ -1379,6 +1377,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
+        # Assertion(s) for type checker
+        assert self.action_space is not None
+
         # Check if the action is out-of-bounds, in debug mode only
         if self.debug and not self.action_space.contains(action):
             logger.warn("The action is out-of-bounds.")
@@ -1467,12 +1468,15 @@ BaseJiminyEnv.compute_reward.__doc__ = \
     """
 
 
-class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
-    """Base class to train a robot in Gym OpenAI using a user-specified Jiminy
-    Engine for physics computations.
-
-    It creates an Gym environment wrapping Jiminy Engine and behaves like any
-    other Gym goal-environment.
+class BaseJiminyGoalEnv(BaseJiminyEnv):
+    """A goal-based environment. It functions just as any regular OpenAI Gym
+    environment but it imposes a required structure on the observation_space.
+    More concretely, the observation space is required to contain at least
+    three elements, namely `observation`, `desired_goal`, and `achieved_goal`.
+    Here, `desired_goal` specifies the goal that the agent should attempt to
+    achieve. `achieved_goal` is the goal that it currently achieved instead.
+    `observation` contains the actual observations of the environment as per
+    usual.
     """
     def __init__(self,
                  simulator: Optional[Simulator],
@@ -1577,7 +1581,11 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                        achieved_goal: Optional[DataNested] = None,
                        desired_goal: Optional[DataNested] = None,
                        *, info: Dict[str, Any]) -> float:
-        """Compute the reward for any given episode state.
+        """Compute the step reward. This externalizes the reward function and
+        makes it dependent on a desired goal and the one that was achieved. If
+        you wish to include additional rewards that are independent of the
+        goal, you can include the necessary values to derive it in 'info' and
+        compute it accordingly.
 
         :param achieved_goal: Achieved goal. `None` to evalute the reward for
                               currently achieved goal.
@@ -1585,7 +1593,14 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                              currently desired goal.
         :param info: Dictionary of extra information for monitoring.
 
-        :returns: Total reward.
+        Returns:
+            The reward that corresponds to the provided achieved goal wrt to
+            the desired goal. Note that the following should always hold true:
+            ```
+            obs, reward, done, info = env.step()
+            assert reward == env.compute_reward(
+                obs['achieved_goal'], obs['desired_goal'], info=info)
+            ```
         """
         # pylint: disable=arguments-differ
 

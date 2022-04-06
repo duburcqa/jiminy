@@ -22,7 +22,8 @@ def train(train_agent: BaseAlgorithm,
             reward_threshold=spec.reward_threshold)
         eval_callback = EvalCallback(
             train_agent.eval_env, callback_on_new_best=callback_reward,
-            eval_freq=10000, n_eval_episodes=10, verbose=False)
+            eval_freq=10000 // train_agent.n_envs, n_eval_episodes=10,
+            verbose=False)
     else:
         eval_callback = None
 
