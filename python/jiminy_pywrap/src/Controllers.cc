@@ -370,12 +370,12 @@ namespace python
         {
             bp::class_<CtrlFunctor, bp::bases<AbstractController>,
                        std::shared_ptr<CtrlFunctor>,
-                       boost::noncopyable>("_ControllerFunctor", bp::no_init)
+                       boost::noncopyable>("AbstractControllerFunctor", bp::no_init)
                 .def(PyControllerFunctorVisitor());
 
             bp::class_<CtrlFunctorWrapper, bp::bases<CtrlFunctor>,
                        std::shared_ptr<CtrlFunctorWrapper>,
-                       boost::noncopyable>("BaseControllerFunctor", bp::no_init)
+                       boost::noncopyable>("ControllerFunctor", bp::no_init)
                 .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
                                  bp::default_call_policies(),
                                 (bp::arg("compute_command") = bp::object(),

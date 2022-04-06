@@ -48,6 +48,13 @@ namespace jiminy
     bool_t RungeKuttaDOPRIStepper::adjustStepImpl(float64_t const & error,
                                                   float64_t       & dt)
     {
+        // Make sure the error is defined, otherwise rely on a simple heuristic
+        if (std::isnan(error))
+        {
+            dt *= 0.1;
+            return false;
+        }
+
         // Adjustment algorithm from boost implementation.
         if (error < 1.0)
         {

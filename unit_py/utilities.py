@@ -72,7 +72,7 @@ def setup_controller_and_engine(
     @details The goal of this function is to ease the configuration of
              jiminy.Engine by doing the following operations:
                - Wrapping the control law and internal dynamics in a
-                 jiminy.BaseControllerFunctor.
+                 jiminy.ControllerFunctor.
                - Register the system robot/controller in the engine to
                  integrate its dynamics.
 
@@ -88,8 +88,7 @@ def setup_controller_and_engine(
                               Optional: No internal dynamics by default.
     """
     # Instantiate the controller
-    controller = jiminy.BaseControllerFunctor(
-        compute_command, internal_dynamics)
+    controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
 
     # Initialize the controller
     if controller is not None:

@@ -19,7 +19,7 @@ namespace jiminy
         stateDerivative = f(t, state);
         state.sumInPlace(stateDerivative, dt);
 
-        /* By default INF is retuned in case of fixed time step, so that the
+        /* By default INF is returned in case of fixed time step, so that the
            engine will always try to perform the latest timestep possible,
            or stop to the next breakpoint otherwise. */
         dt = INF;

@@ -59,7 +59,7 @@ sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgr
 sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade setuptools auditwheel && \
 sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade flake8 pylint mypy types-toml && \
 sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade \
-    pygments colorama sphinx sphinx_rtd_theme recommonmark nbsphinx breathe aafigure
+    pygments colorama "jinja2>=3.0,<3.1" sphinx sphinx_rtd_theme recommonmark nbsphinx breathe aafigure
 
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc

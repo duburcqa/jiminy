@@ -3,7 +3,9 @@ macro(create_component_docs)
     find_package(Doxygen COMPONENTS dot)
     find_package(Sphinx)
     if (NOT Sphinx_FOUND OR NOT Doxygen_FOUND)
-        message(WARNING "Doxygen or Sphinx not available. Not creating 'docs' cmake component.")
+        install(CODE "message(FATAL_ERROR \"Doxygen or Sphinx not available.\")"
+                COMPONENT docs
+                EXCLUDE_FROM_ALL)
         return()
     endif()
 
@@ -63,13 +65,9 @@ macro(create_component_docs)
     # Nice named target so we can run the job easily
     add_custom_target(sphinx DEPENDS ${DOXYGEN_INDEX_FILE} ${SPHINX_INDEX_FILE})
 
-    # Install both documentations (if doxygen and sphinx are available).
-    if(${Doxygen_FOUND} AND ${Sphinx_FOUND})
-        install(CODE "execute_process(COMMAND ${CMAKE_MAKE_PROGRAM} doxygen)
-                      execute_process(COMMAND ${CMAKE_MAKE_PROGRAM} sphinx)"
-                COMPONENT docs
-                EXCLUDE_FROM_ALL)
-    else()
-        message(WARNING "Doxygen with Dot component not found. Documentation generation disabled.")
-    endif()
+    # Install both documentations
+    install(CODE "execute_process(COMMAND ${CMAKE_MAKE_PROGRAM} doxygen)
+                  execute_process(COMMAND ${CMAKE_MAKE_PROGRAM} sphinx)"
+            COMPONENT docs
+            EXCLUDE_FROM_ALL)
 ENDMACRO()

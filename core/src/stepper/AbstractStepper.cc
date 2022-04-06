@@ -14,24 +14,42 @@ namespace jiminy
         // Empty on purpose.
     }
 
-    bool_t AbstractStepper::tryStep(std::vector<vectorN_t> & q,
-                                    std::vector<vectorN_t> & v,
-                                    std::vector<vectorN_t> & a,
+    bool_t AbstractStepper::tryStep(std::vector<vectorN_t> & qSplit,
+                                    std::vector<vectorN_t> & vSplit,
+                                    std::vector<vectorN_t> & aSplit,
                                     float64_t              & t,
                                     float64_t              & dt)
     {
+        // Update buffers
         float64_t t_next = t + dt;
-        state_.q = q;
-        state_.v = v;
-        stateDerivative_.v = v;
-        stateDerivative_.a = a;
+        state_.q = qSplit;
+        state_.v = vSplit;
+        stateDerivative_.v = vSplit;
+        stateDerivative_.a = aSplit;
+
+        // Try doing a single step
         bool_t result = tryStepImpl(state_, stateDerivative_, t, dt);
+
+        // Make sure everything went fine
+        if (result)
+        {
+            for (vectorN_t const & a : stateDerivative_.a)
+            {
+                if ((a.array() != a.array()).any())
+                {
+                    dt = qNAN;
+                    result = false;
+                }
+            }
+        }
+
+        // Update output if successfull
         if (result)
         {
             t = t_next;
-            q = state_.q;
-            v = state_.v;
-            a = stateDerivative_.a;
+            qSplit = state_.q;
+            vSplit = state_.v;
+            aSplit = stateDerivative_.a;
         }
         return result;
     }

@@ -381,7 +381,7 @@ class SimulateTwoMasses(unittest.TestCase):
                     u_custom[6:] = - self.k * q[7:] - self.nu * v[6:]
 
             controller = Controller(k[i, :], nu[i, :])
-            controller = jiminy.BaseControllerFunctor(
+            controller = jiminy.ControllerFunctor(
                 controller.compute_command, controller.internal_dynamics)
             controller.initialize(robots[i])
 

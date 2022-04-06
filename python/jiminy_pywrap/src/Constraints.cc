@@ -125,7 +125,7 @@ namespace python
         {
             bp::class_<AbstractConstraintBase,
                        std::shared_ptr<AbstractConstraintBase>,
-                       boost::noncopyable>("AbstractConstraintBase", bp::no_init)
+                       boost::noncopyable>("AbstractConstraint", bp::no_init)
                 .def(PyConstraintVisitor())
                 .def("reset", &AbstractConstraintBase::reset,
                               (bp::arg("self"), "q", "v"))
@@ -150,7 +150,10 @@ namespace python
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("reference_configuration", bp::make_function(&JointConstraint::getReferenceConfiguration,
                                                          bp::return_value_policy<result_converter<false> >()),
-                                                         &JointConstraint::setReferenceConfiguration);
+                                                         &JointConstraint::setReferenceConfiguration)
+                .add_property("is_enabled", bp::make_function(&JointConstraint::getRotationDir,
+                                            bp::return_value_policy<bp::copy_const_reference>()),
+                                            &JointConstraint::setRotationDir);
 
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<FixedFrameConstraint>,
