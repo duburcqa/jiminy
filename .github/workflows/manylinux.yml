@@ -28,6 +28,7 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
+      CMAKE_CXX_FLAGS: "-march=sandybridge"
 
     #####################################################################################
 
@@ -70,12 +71,12 @@ jobs:
         cd "$RootDir/build"
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
         # Bundle the boost python dependencies with jiminy
@@ -110,16 +111,6 @@ jobs:
       with:
         name: jiminy_py-${{ matrix.PYTHON_VERSION }}-wheel
         path: build/wheelhouse
-
-    #####################################################################################
-
-    - name: Run unit tests
-      run: |
-        cd "$RootDir/build"
-        ctest
-
-        cd "$RootDir/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     #####################################################################################
 
