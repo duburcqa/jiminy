@@ -25,6 +25,8 @@ jobs:
             PYTHON_VERSION: '3.8'
           - os: macos-11
             PYTHON_VERSION: '3.9'
+          - os: macos-11
+            PYTHON_VERSION: '3.10'
 
     defaults:
       run:

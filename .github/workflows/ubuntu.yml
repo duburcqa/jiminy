@@ -21,6 +21,8 @@ jobs:
             BUILD_TYPE: 'Debug'
           - os: ubuntu-20.04
             BUILD_TYPE: 'Release'
+          - os: ubuntu-22.04
+            BUILD_TYPE: 'Release'
 
     defaults:
       run:
