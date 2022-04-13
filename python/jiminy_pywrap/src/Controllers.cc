@@ -147,8 +147,7 @@ namespace python
             // Note that const qualifier is not supported by PyArray_DATA
 
             // Get Eigen::Map from Numpy array
-            auto pair = getEigenReference(dataPy);  // Structured bindings is not supported by gcc<7.3, and tie cannot be used since Eigen::Map has no default constructor
-            auto returnCode = std::get<0>(pair); auto data = std::get<1>(pair);
+            auto [returnCode, data] = getEigenReference(dataPy);
 
             if (returnCode == hresult_t::SUCCESS)
             {

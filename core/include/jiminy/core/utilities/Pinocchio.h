@@ -116,7 +116,7 @@ namespace jiminy
                                   std::vector<std::string> const & meshPackageDirs,
                                   pinocchio::Model & pncModel,
                                   pinocchio::GeometryModel & collisionModel,
-                                  boost::optional<pinocchio::GeometryModel &> visualModel = boost::none,
+                                  std::optional<std::reference_wrapper<pinocchio::GeometryModel> > visualModel = std::nullopt,
                                   bool_t const & loadVisualMeshes = false);
 
     void buildReducedModel(pinocchio::Model const & inputModel,

@@ -104,10 +104,10 @@ namespace jiminy
                                                  bool_t const & isStateTheoretical,
                                                  vectorN_t const & qInit,
                                                  vectorN_t const & vInit,
-                                                 boost::optional<vectorN_t> const & aInit,
+                                                 std::optional<vectorN_t> const & aInit,
                                                  std::map<std::string, vectorN_t> & qInitList,
                                                  std::map<std::string, vectorN_t> & vInitList,
-                                                 boost::optional<std::map<std::string, vectorN_t> > & aInitList)
+                                                 std::optional<std::map<std::string, vectorN_t> > & aInitList)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -158,7 +158,7 @@ namespace jiminy
 
     hresult_t Engine::start(vectorN_t const & qInit,
                             vectorN_t const & vInit,
-                            boost::optional<vectorN_t> const & aInit,
+                            std::optional<vectorN_t> const & aInit,
                             bool_t    const & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -171,7 +171,7 @@ namespace jiminy
 
         std::map<std::string, vectorN_t> qInitList;
         std::map<std::string, vectorN_t> vInitList;
-        boost::optional<std::map<std::string, vectorN_t> > aInitList = boost::none;
+        std::optional<std::map<std::string, vectorN_t> > aInitList = std::nullopt;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = singleToMultipleSystemsInitialData(
@@ -189,7 +189,7 @@ namespace jiminy
     hresult_t Engine::simulate(float64_t const & tEnd,
                                vectorN_t const & qInit,
                                vectorN_t const & vInit,
-                               boost::optional<vectorN_t> const & aInit,
+                               std::optional<vectorN_t> const & aInit,
                                bool_t    const & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -202,7 +202,7 @@ namespace jiminy
 
         std::map<std::string, vectorN_t> qInitList;
         std::map<std::string, vectorN_t> vInitList;
-        boost::optional<std::map<std::string, vectorN_t> > aInitList = boost::none;
+        std::optional<std::map<std::string, vectorN_t> > aInitList = std::nullopt;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = singleToMultipleSystemsInitialData(

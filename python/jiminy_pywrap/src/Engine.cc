@@ -546,7 +546,7 @@ namespace python
                                bp::object       const & vInitPy,
                                bp::object       const & aInitPy)
         {
-            boost::optional<std::map<std::string, vectorN_t> > aInit = boost::none;
+            std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<std::map<std::string, vectorN_t> >(aInitPy));
@@ -569,7 +569,7 @@ namespace python
                                   bp::object       const & vInitPy,
                                   bp::object       const & aInitPy)
         {
-            boost::optional<std::map<std::string, vectorN_t> > aInit = boost::none;
+            std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<std::map<std::string, vectorN_t> >(aInitPy));
@@ -998,7 +998,7 @@ namespace python
                                bp::object const & aInitPy,
                                bool_t     const & isStateTheoretical)
         {
-            boost::optional<vectorN_t> aInit = boost::none;
+            std::optional<vectorN_t> aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<vectorN_t>(aInitPy));
@@ -1013,7 +1013,7 @@ namespace python
                                   bp::object const & aInitPy,
                                   bool_t     const & isStateTheoretical)
         {
-            boost::optional<vectorN_t> aInit = boost::none;
+            std::optional<vectorN_t> aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<vectorN_t>(aInitPy));
