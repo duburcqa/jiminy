@@ -109,8 +109,8 @@ namespace jiminy
     }
 
     void PGSSolver::ProjectedGaussSeidelIter(matrixN_t const & A,
-                                             vectorN_t const & b,
-                                             vectorN_t::SegmentReturnType x)
+                                             vectorN_t::SegmentReturnType const & b,
+                                             vectorN_t::SegmentReturnType & x)
     {
         // First, loop over all unbounded constraints
         for (ConstraintData const & constraintData : constraintsData_)
@@ -192,7 +192,7 @@ namespace jiminy
                 auto xConst = x.segment(o, constraintData.dim);
                 if (fSize == 1)
                 {
-                    e = std::clamp(e, lo, hi);
+                    e = clamp(e, lo, hi);
                 }
                 else
                 {
@@ -200,7 +200,7 @@ namespace jiminy
                     if (fSize == 2)
                     {
                         // Specialization for speedup and numerical stability
-                        e = std::clamp(e, -thr, thr);
+                        e = clamp(e, -thr, thr);
                     }
                     else
                     {
@@ -227,8 +227,8 @@ namespace jiminy
     }
 
     bool_t PGSSolver::ProjectedGaussSeidelSolver(matrixN_t const & A,
-                                                 vectorN_t const & b,
-                                                 vectorN_t::SegmentReturnType x)
+                                                 vectorN_t::SegmentReturnType const & b,
+                                                 vectorN_t::SegmentReturnType & x)
     {
         /* For some reason, it is impossible to get a better accuracy than 1e-5
            for the absolute tolerance, even if unconstrained. It seems to be
@@ -280,6 +280,12 @@ namespace jiminy
             constraintRows += constraintDim;
         };
 
+        // Extract active rows
+        auto J = J_.topRows(constraintRows);
+        auto lambda = lambda_.head(constraintRows);
+        auto gamma = gamma_.head(constraintRows);
+        auto b = b_.head(constraintRows);
+
         // Check if problem is bounded
         bool_t isBounded = std::any_of(
             constraintsData_.cbegin(), constraintsData_.cend(),
@@ -292,7 +298,7 @@ namespace jiminy
            which is never supposed to happen in theory but in practice it is
            not sure because of compunding of errors. */
         hresult_t returnCode = pinocchio_overload::computeJMinvJt(
-            *model_, *data_, J_.topRows(constraintRows), false);
+            *model_, *data_, J, false);
         if (returnCode != hresult_t::SUCCESS)
         {
             data_->ddq.setConstant(qNAN);
@@ -315,8 +321,8 @@ namespace jiminy
         pinocchio::cholesky::solve(*model_, *data_, data_->torque_residual);
 
         // Compute b
-        b_ = - gamma_;
-        b_.noalias() -= J_ * data_->torque_residual;
+        b = - gamma;
+        b.noalias() -= J * data_->torque_residual;
 
         // Compute resulting forces solving forward dynamics
         bool_t isSuccess = false;
@@ -330,8 +336,7 @@ namespace jiminy
                See https://github.com/stack-of-tasks/pinocchio/blob/master/src/algorithm/contact-dynamics.hxx */
 
             // Compute the Lagrange Multipliers
-            lambda_.head(constraintRows) = pinocchio_overload::solveJMinvJtv(
-                *data_, b_.head(constraintRows), true);
+            lambda = pinocchio_overload::solveJMinvJtv(*data_, b, true);
 
             // Always successful
             isSuccess = true;
@@ -342,7 +347,7 @@ namespace jiminy
             A.triangularView<Eigen::Upper>() = A.transpose();
 
             // Run standard PGS algorithm
-            isSuccess = ProjectedGaussSeidelSolver(A, b_, lambda_.head(constraintRows));
+            isSuccess = ProjectedGaussSeidelSolver(A, b, lambda);
         }
 
         // Update lagrangian multipliers associated with the constraint
@@ -360,7 +365,7 @@ namespace jiminy
         };
 
         // Compute resulting acceleration, no matter if computing forces was successful
-        data_->ddq.noalias() = J_.topRows(constraintRows).transpose() * lambda_.head(constraintRows);
+        data_->ddq.noalias() = J.transpose() * lambda;
         pinocchio::cholesky::solve(*model_, *data_, data_->ddq);
         data_->ddq += data_->torque_residual;
 

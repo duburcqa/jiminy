@@ -97,11 +97,11 @@ namespace jiminy
 
     private:
         void ProjectedGaussSeidelIter(matrixN_t const & A,
-                                      vectorN_t const & b,
-                                      vectorN_t::SegmentReturnType x);
+                                      vectorN_t::SegmentReturnType const & b,
+                                      vectorN_t::SegmentReturnType & x);
         bool_t ProjectedGaussSeidelSolver(matrixN_t const & A,
-                                          vectorN_t const & b,
-                                          vectorN_t::SegmentReturnType x);
+                                          vectorN_t::SegmentReturnType const & b,
+                                          vectorN_t::SegmentReturnType & x);
 
     private:
         pinocchio::Model const * model_;
@@ -111,9 +111,9 @@ namespace jiminy
         float64_t tolAbs_;
         float64_t tolRel_;
 
-        matrixN_t J_;                 ///< Matrix holding the jacobian of the constraints
-        vectorN_t gamma_;             ///< Vector holding the drift of the constraints
-        vectorN_t lambda_;            ///< Vector holding the multipliers of the constraints
+        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> J_;  ///< Matrix holding the jacobian of the constraints
+        vectorN_t gamma_;   ///< Vector holding the drift of the constraints
+        vectorN_t lambda_;  ///< Vector holding the multipliers of the constraints
         std::vector<ConstraintData> constraintsData_;
 
         vectorN_t b_;
