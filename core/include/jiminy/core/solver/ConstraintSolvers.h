@@ -16,7 +16,8 @@ namespace jiminy
         lo(-INF),
         hi(INF),
         isZero(false),
-        fIndices()
+        fIdx(),
+        fSize(0)
         {
             // Empty on purpose
         }
@@ -25,7 +26,8 @@ namespace jiminy
         float64_t lo;
         float64_t hi;
         bool_t isZero;
-        std::vector<Eigen::Index> fIndices;
+        Eigen::Index fIdx[3];
+        std::uint_fast8_t fSize;
     };
 
     struct ConstraintData
@@ -37,7 +39,8 @@ namespace jiminy
         isBounded(true),
         isActive(true),
         dim(0),
-        blocks()
+        blocks(),
+        nBlocks(0)
         {
             // Empty on purpose
         }
@@ -51,7 +54,8 @@ namespace jiminy
         bool_t isBounded;
         bool_t isActive;
         Eigen::Index dim;
-        std::vector<ConstraintBlock> blocks;
+        ConstraintBlock blocks[3];
+        std::uint_fast8_t nBlocks;
     };
 
     class AbstractConstraintSolver

@@ -1416,7 +1416,7 @@ namespace jiminy
 
                 // Instantiate desired LCP solver
                 std::string const & constraintSolverType = engineOptions_->constraints.solver;
-                switch(CONSTRAINT_SOLVERS_MAP.at(constraintSolverType))
+                switch (CONSTRAINT_SOLVERS_MAP.at(constraintSolverType))
                 {
                 case constraintSolver_t::PGS:
                     systemDataIt->constraintSolver = std::make_unique<PGSSolver>(

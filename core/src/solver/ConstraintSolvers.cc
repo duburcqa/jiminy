@@ -51,30 +51,39 @@ namespace jiminy
                     // The joint is blocked in only one direction
                     block.lo = 0;
                     block.hi = INF;
-                    block.fIndices = std::vector<Eigen::Index> {0};
-                    constraintData.blocks.push_back(block);
+                    block.fIdx[0] = 0;
+                    block.fSize = 1;
+                    constraintData.blocks[0] = block;
+                    constraintData.nBlocks = 1;
                     break;
                 case constraintsHolderType_t::CONTACT_FRAMES:
                 case constraintsHolderType_t::COLLISION_BODIES:
                     // Non-penetration normal force
                     block.lo = 0;
                     block.hi = INF;
-                    block.fIndices = std::vector<Eigen::Index> {2};
-                    constraintData.blocks.push_back(block);
+                    block.fIdx[0] = 2;
+                    block.fSize = 1;
+                    constraintData.blocks[0] = block;
 
                     // Torsional friction around normal axis
                     block.lo = qNAN;
                     block.hi = torsion;
                     block.isZero = (torsion < EPS);
-                    block.fIndices = std::vector<Eigen::Index> {3, 2};
-                    constraintData.blocks.push_back(block);
+                    block.fIdx[0] = 3;
+                    block.fIdx[1] = 2;
+                    block.fSize = 2;
+                    constraintData.blocks[1] = block;
 
                     // Friction cone in tangential plane
                     block.lo = qNAN;
                     block.hi = friction;
                     block.isZero = (friction < EPS);
-                    block.fIndices = std::vector<Eigen::Index> {0, 1, 2};
-                    constraintData.blocks.push_back(block);
+                    block.fIdx[0] = 0;
+                    block.fIdx[1] = 1;
+                    block.fIdx[2] = 2;
+                    block.fSize = 3;
+                    constraintData.blocks[2] = block;
+                    constraintData.nBlocks = 3;
                     break;
                 case constraintsHolderType_t::USER:
                     constraintData.isBounded = false;
@@ -132,15 +141,15 @@ namespace jiminy
             {
                 // Bypass inactive or unbounded constraints or no block left
                 if (!constraintData.isActive || !constraintData.isBounded ||
-                    constraintData.blocks.size() <= i)
+                    constraintData.nBlocks <= i)
                 {
                     continue;
                 }
 
                 // Extract block data
                 ConstraintBlock const & block = constraintData.blocks[i];
-                std::vector<Eigen::Index> const & fIdx = block.fIndices;
-                Eigen::Index const fSize = static_cast<Eigen::Index>(fIdx.size());
+                Eigen::Index const * fIdx = block.fIdx;
+                std::uint_fast8_t const & fSize = block.fSize;
                 Eigen::Index const & o = constraintData.startIdx;
                 Eigen::Index const i0 = o + fIdx[0];
                 float64_t const & hi = block.hi;
@@ -152,7 +161,7 @@ namespace jiminy
                 {
                     // Specialization for speed-up
                     e *= 0;
-                    for (Eigen::Index j = 1; j < fSize - 1; ++j)
+                    for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                     {
                         x[o + fIdx[j]] *= 0;
                     }
@@ -162,7 +171,7 @@ namespace jiminy
                 // Update several coefficients at once with the same step
                 float64_t A_max = A(i0, i0);
                 y_[i0] = b[i0] - A.col(i0).dot(x);
-                for (Eigen::Index j = 1; j < fSize - 1; ++j)
+                for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                 {
                     Eigen::Index const k = o + fIdx[j];
                     y_[k] = b[k] - A.col(k).dot(x);
@@ -173,41 +182,42 @@ namespace jiminy
                     }
                 }
                 e += y_[i0] / A_max;
-                for (Eigen::Index j = 1; j < fSize - 1; ++j)
+                for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                 {
                     Eigen::Index const k = o + fIdx[j];
                     x[k] += y_[k] / A_max;
                 }
 
                 // Project the coefficient between lower and upper bounds
+                auto xConst = x.segment(o, constraintData.dim);
                 if (fSize == 1)
                 {
-                    e = clamp(e, lo, hi);
+                    e = std::clamp(e, lo, hi);
                 }
                 else
                 {
-                    float64_t const thr = hi * x[o + fIdx[fSize - 1]];
+                    float64_t const thr = hi * xConst[fIdx[fSize - 1]];
                     if (fSize == 2)
                     {
                         // Specialization for speedup and numerical stability
-                        e = clamp(e, -thr, thr);
+                        e = std::clamp(e, -thr, thr);
                     }
                     else
                     {
                         // Generic case
                         float64_t squaredNorm = e * e;
-                        for (Eigen::Index j = 1; j < fSize - 1; ++j)
+                        for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                         {
-                            float64_t const f = x[o + fIdx[j]];
+                            float64_t const & f = xConst[fIdx[j]];
                             squaredNorm += f * f;
                         }
                         if (squaredNorm > thr * thr)
                         {
                             float64_t const scale = thr / std::sqrt(squaredNorm);
                             e *= scale;
-                            for (Eigen::Index j = 1; j < fSize - 1; ++j)
+                            for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                             {
-                                x[o + fIdx[j]] *= scale;
+                                xConst[fIdx[j]] *= scale;
                             }
                         }
                     }
