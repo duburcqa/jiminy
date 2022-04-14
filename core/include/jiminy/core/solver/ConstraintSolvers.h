@@ -16,7 +16,8 @@ namespace jiminy
         lo(-INF),
         hi(INF),
         isZero(false),
-        fIndices()
+        fIdx(),
+        fSize(0)
         {
             // Empty on purpose
         }
@@ -25,7 +26,8 @@ namespace jiminy
         float64_t lo;
         float64_t hi;
         bool_t isZero;
-        std::vector<Eigen::Index> fIndices;
+        Eigen::Index fIdx[3];
+        std::uint_fast8_t fSize;
     };
 
     struct ConstraintData
@@ -37,7 +39,8 @@ namespace jiminy
         isBounded(true),
         isActive(true),
         dim(0),
-        blocks()
+        blocks(),
+        nBlocks(0)
         {
             // Empty on purpose
         }
@@ -51,7 +54,8 @@ namespace jiminy
         bool_t isBounded;
         bool_t isActive;
         Eigen::Index dim;
-        std::vector<ConstraintBlock> blocks;
+        ConstraintBlock blocks[3];
+        std::uint_fast8_t nBlocks;
     };
 
     class AbstractConstraintSolver
@@ -93,11 +97,11 @@ namespace jiminy
 
     private:
         void ProjectedGaussSeidelIter(matrixN_t const & A,
-                                      vectorN_t const & b,
-                                      vectorN_t::SegmentReturnType x);
+                                      vectorN_t::SegmentReturnType const & b,
+                                      vectorN_t::SegmentReturnType & x);
         bool_t ProjectedGaussSeidelSolver(matrixN_t const & A,
-                                          vectorN_t const & b,
-                                          vectorN_t::SegmentReturnType x);
+                                          vectorN_t::SegmentReturnType const & b,
+                                          vectorN_t::SegmentReturnType & x);
 
     private:
         pinocchio::Model const * model_;
@@ -107,9 +111,9 @@ namespace jiminy
         float64_t tolAbs_;
         float64_t tolRel_;
 
-        matrixN_t J_;                 ///< Matrix holding the jacobian of the constraints
-        vectorN_t gamma_;             ///< Vector holding the drift of the constraints
-        vectorN_t lambda_;            ///< Vector holding the multipliers of the constraints
+        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> J_;  ///< Matrix holding the jacobian of the constraints
+        vectorN_t gamma_;   ///< Vector holding the drift of the constraints
+        vectorN_t lambda_;  ///< Vector holding the multipliers of the constraints
         std::vector<ConstraintData> constraintsData_;
 
         vectorN_t b_;

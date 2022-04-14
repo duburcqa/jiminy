@@ -498,15 +498,23 @@ namespace pinocchio_overload
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T
-        data.sDUiJt = J.transpose();
-        pinocchio::cholesky::Uiv(model, data, data.sDUiJt);
-        data.sDUiJt.array().colwise() *= data.Dinv.array().sqrt();
+        /* Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T
+           - Use row-major for sDUiJt and U to enable vectorization
+           - Implement custom cholesky::Uiv to compute all columns at once (faster SIMD) */
+        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> sDUiJt = J.transpose();
+        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U = data.U;
+        std::vector<int> const & nvt = data.nvSubtree_fromRow;
+        for(int k = model.nv - 2; k >= 0; --k)  // You can start from nv-2 (no child in nv-1)
+        {
+            sDUiJt.row(k).noalias() -= U.row(k).segment(k + 1, nvt[static_cast<std::size_t>(k)] - 1) *
+                sDUiJt.middleRows(k + 1, nvt[static_cast<std::size_t>(k)] - 1);
+        }
+        sDUiJt.array().colwise() *= data.Dinv.array().sqrt();
 
         // Compute JMinvJt := sDUiJt.T * sDUiJt
         data.JMinvJt.resize(J.rows(), J.rows());
         data.JMinvJt.triangularView<Eigen::Lower>().setZero();
-        data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(data.sDUiJt.transpose());
+        data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(sDUiJt.transpose());
 
         return hresult_t::SUCCESS;
     }
