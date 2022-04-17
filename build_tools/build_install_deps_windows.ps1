@@ -40,19 +40,16 @@ if (Test-Path env:Boost_ROOT) {
 
 ################################## Checkout the dependencies ###########################################
 
-### Checkout boost and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
-#   Note that Boost 1.72 is not yet officially supported by Cmake 3.16, which is the "default" version used
-#   on Windows 10.
+### Checkout boost and its submodules
+#   Boost >= 1.78 is required to compile with MSVC 2022.
 if (-not (Test-Path -PathType Container "$RootDir/boost")) {
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 }
 Set-Location -Path "$RootDir/boost"
 git reset --hard
-git checkout --force "boost-1.71.0"
+git checkout --force "boost-1.78.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-Set-Location -Path "libs/python"
-git checkout --force "boost-1.76.0"
 
 ### Checkout eigen3
 if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {
@@ -62,12 +59,13 @@ Set-Location -Path "$RootDir/eigen3"
 git checkout --force "3.3.9"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
+#   eigenpy >= 2.6.8 is required to support Boost >= 1.77
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
   git clone https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 }
 Set-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git checkout --force "v2.6.4"
+git checkout --force "v2.6.8"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
@@ -81,7 +79,7 @@ Set-Location -Path "$RootDir/tinyxml"
 git reset --hard
 git checkout --force "master"
 
-### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
+### Checkout console_bridge
 if (-not (Test-Path -PathType Container "$RootDir/console_bridge")) {
   git clone https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 }
@@ -97,7 +95,7 @@ Set-Location -Path "$RootDir/urdfdom_headers"
 git reset --hard
 git checkout --force "1.0.5"
 
-### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
+### Checkout urdfdom, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom")) {
   git clone https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 }
@@ -107,7 +105,7 @@ git checkout --force "1.0.4"
 dos2unix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
-### Checkout assimp
+### Checkout assimp, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/assimp")) {
   git clone https://github.com/assimp/assimp.git "$RootDir/assimp"
 }
@@ -117,7 +115,7 @@ git checkout --force "v5.0.1"
 dos2unix "$RootDir/build_tools/patch_deps_windows/assimp.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/assimp.patch"
 
-### Checkout hpp-fcl
+### Checkout hpp-fcl, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
   git clone https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
   git config --global url."https://".insteadOf git://
@@ -132,7 +130,7 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/hpp
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull"
 git checkout --force "v8.0.2"
 
-### Checkout pinocchio and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
+### Checkout pinocchio and its submodules, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
   git clone https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
   git config --global url."https://".insteadOf git://
@@ -178,13 +176,13 @@ if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
          --with-filesystem --with-atomic --with-serialization --with-thread `
          --build-type=minimal architecture=x86 address-model=64 threading=single `
          --layout=system --lto=off link=static runtime-link=shared debug-symbols=off `
-         toolset=msvc-14.2 cxxflags="-std=c++17 ${env:CMAKE_CXX_FLAGS}" `
+         toolset=msvc-14.3 cxxflags="-std=c++17 ${env:CMAKE_CXX_FLAGS}" `
          variant="$BuildTypeB2" install -q -d0 -j2
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
          --with-python `
          --build-type=minimal architecture=x86 address-model=64 threading=single `
          --layout=system --lto=off link=shared runtime-link=shared debug-symbols=off `
-         toolset=msvc-14.2 cxxflags="-std=c++17 ${env:CMAKE_CXX_FLAGS}" `
+         toolset=msvc-14.3 cxxflags="-std=c++17 ${env:CMAKE_CXX_FLAGS}" `
          variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
@@ -193,7 +191,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigen3/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/eigen3/build"
 }
 Set-Location -Path "$RootDir/eigen3/build"
-cmake "$RootDir/eigen3" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/eigen3" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS}"
 cmake --build . --target INSTALL --config "${env:BUILD_TYPE}" --parallel 2
@@ -205,14 +203,15 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/eigenpy/build"
 }
 Set-Location -Path "$RootDir/eigenpy/build"
-cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} -DBOOST_ALL_NO_LIB -DEIGENPY_STATIC"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} -DBOOST_ALL_NO_LIB $(
+)     -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC"
 cmake --build . --target INSTALL --config "${env:BUILD_TYPE}" --parallel 2
 
 ################################## Build and install tinyxml ###########################################
@@ -221,7 +220,7 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/tinyxml/build"
 }
 Set-Location -Path "$RootDir/tinyxml/build"
-cmake "$RootDir/tinyxml" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/tinyxml" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} -DTIXML_USE_STL"
@@ -234,7 +233,7 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/console_bridge/build"
 }
 Set-Location -Path "$RootDir/console_bridge/build"
-cmake "$RootDir/console_bridge" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/console_bridge" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS}"
@@ -247,7 +246,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom_headers/build"
 }
 Set-Location -Path "$RootDir/urdfdom_headers/build"
-cmake "$RootDir/urdfdom_headers" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/urdfdom_headers" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS}"
 cmake --build . --target INSTALL --config "${env:BUILD_TYPE}" --parallel 2
 
@@ -258,7 +257,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom/build"
 }
 Set-Location -Path "$RootDir/urdfdom/build"
-cmake "$RootDir/urdfdom" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/urdfdom" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF `
@@ -272,7 +271,7 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/assimp/build"
 }
 Set-Location -Path "$RootDir/assimp/build"
-cmake "$RootDir/assimp" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/assimp" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF `
@@ -287,7 +286,7 @@ cmake --build . --target INSTALL --config "${env:BUILD_TYPE}" --parallel 2
 #   add the desired flag at the end of CMAKE_CXX_FLAGS ("/MT", "/MD"...). It will take precedence over
 #   any existing flag if any.
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
-cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
       -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS}" -DCMAKE_C_FLAGS="${env:CMAKE_CXX_FLAGS}"
@@ -298,7 +297,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/build"
 }
 Set-Location -Path "$RootDir/hpp-fcl/build"
-cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
@@ -307,7 +306,7 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_G
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON `
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} /wd4068 /wd4267 /wd4005 $(
-)     -DBOOST_ALL_NO_LIB -DEIGENPY_STATIC -DHPP_FCL_STATIC"
+)     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DHPP_FCL_STATIC"
 cmake --build . --target INSTALL --config "${env:BUILD_TYPE}" --parallel 2
 
 ################################ Build and install Pinocchio ##########################################
@@ -317,7 +316,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/pinocchio/build"
 }
 Set-Location -Path "$RootDir/pinocchio/build"
-cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 17 2022" -T "v143" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
@@ -327,5 +326,6 @@ cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE
       -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF `
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} /wd4068 /wd4715 /wd4834 /wd4005 $(
-)     -DBOOST_ALL_NO_LIB -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
+)     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC $(
+)     -DPINOCCHIO_STATIC"
 cmake --build . --target INSTALL --config "${env:BUILD_TYPE}" --parallel 2
