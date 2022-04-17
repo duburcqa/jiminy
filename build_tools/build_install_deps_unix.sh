@@ -28,7 +28,7 @@ if [ "${BUILD_TYPE}" == "Release" ]; then
 else
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
 fi
-echo "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}."
+echo "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 
 ### Get the fullpath of Jiminy project
 ScriptDir="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"

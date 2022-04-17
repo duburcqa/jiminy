@@ -1187,10 +1187,6 @@ namespace jiminy
            and com[0] is "wrongly defined"). So using it must be avoided. */
         pinocchio_overload::crba(pncModel_, pncData_, q);
 
-        // Compute the mass matrix decomposition, since it may be used for
-        // constraint stabilization.
-        pinocchio::cholesky::decompose(pncModel_, pncData_);
-
         /* Computing forward kinematics without acceleration to get the drift.
            Note that it will alter the actual joints spatial accelerations, so
            it is necessary to do a backup first to restore it later on. */

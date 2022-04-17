@@ -672,7 +672,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     nle = pnc_data.nle
 
     # Compute constraint forces
-    jiminy.computeJMinvJt(pnc_model, pnc_data, J, False)
+    jiminy.computeJMinvJt(pnc_model, pnc_data, J)
     a_f = jiminy.solveJMinvJtv(pnc_data, - drift + J @ M_inv @ nle)
     B_f = jiminy.solveJMinvJtv(
         pnc_data, - J @ M_inv[:, motors_velocity_idx], False)
