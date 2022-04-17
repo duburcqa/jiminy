@@ -20,6 +20,7 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
+      CMAKE_CXX_FLAGS: "/arch:AVX2 /fp:fast -D__FMA__"
 
     strategy:
       matrix:
@@ -79,9 +80,9 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-              -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus -D_USE_MATH_DEFINES $(
-              ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC -DURDFDOM_STATIC $(
-              ) -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
+              -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus $(
+              ) -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC $(
+              ) -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
         cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
@@ -90,7 +91,7 @@ jobs:
         Copy-Item -Force -Recurse -Path "$InstallDir/lib/site-packages/*" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
 
-        $env:Path += ";$InstallDir/lib"
+        ${env:Path} += ";$InstallDir/lib"
         cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"
 
     #####################################################################################
@@ -101,7 +102,7 @@ jobs:
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
         $InstallDir = "$RootDir/install"
 
-        $env:Path += ";$InstallDir/lib"
+        ${env:Path} += ";$InstallDir/lib"
 
         Set-Location -Path "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
@@ -140,7 +141,7 @@ jobs:
         cd "$RootDir/examples/cpp/pip_extension/build"
 
         $JIMINY_LIB_DIR = (python -c "import os, jiminy_py ; print(os.path.dirname(jiminy_py.get_libraries()))")
-        $env:Path += ";$JIMINY_LIB_DIR"
+        ${env:Path} += ";$JIMINY_LIB_DIR"
 
         cmake "$RootDir/examples/cpp/pip_extension" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
