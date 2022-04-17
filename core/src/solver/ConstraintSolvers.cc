@@ -32,7 +32,6 @@ namespace jiminy
     constraintsData_(),
     b_(),
     y_(),
-    dy_(),
     yPrev_()
     {
         Eigen::Index constraintsRowsMax = 0U;
@@ -101,10 +100,8 @@ namespace jiminy
         J_.resize(constraintsRowsMax, model_->nv);
         gamma_.resize(constraintsRowsMax);
         lambda_.resize(constraintsRowsMax);
-        y_.resize(constraintsRowsMax);
         b_.resize(constraintsRowsMax);
         y_.resize(constraintsRowsMax);
-        dy_.resize(constraintsRowsMax);
         yPrev_.resize(constraintsRowsMax);
     }
 
@@ -249,8 +246,8 @@ namespace jiminy
             ProjectedGaussSeidelIter(A, b, x);
 
             // Check if terminate conditions are satisfied
-            dy_ = y_ - yPrev_;
-            if ((dy_.array().abs() < tolAbs_ || (dy_.array() / (y_.array() + EPS)).abs() < tolRel_).all())
+            float64_t const tol = tolAbs_ + tolRel_ * y_.cwiseAbs().maxCoeff();
+            if (((y_ - yPrev_).array().abs() < tol).all())
             {
                 return true;
             }
@@ -297,7 +294,7 @@ namespace jiminy
            Abort computation if the inertia matrix is not positive definite,
            which is never supposed to happen in theory but in practice it is
            not sure because of compunding of errors. */
-        hresult_t returnCode = pinocchio_overload::computeJMinvJt(*model_, *data_, J, false);
+        hresult_t returnCode = pinocchio_overload::computeJMinvJt(*model_, *data_, J);
         if (returnCode != hresult_t::SUCCESS)
         {
             data_->ddq.setConstant(qNAN);
@@ -343,7 +340,7 @@ namespace jiminy
         else
         {
             // Full matrix is needed to enable vectorization
-            A.triangularView<Eigen::Upper>() = A.transpose();
+            A.triangularView<Eigen::StrictlyUpper>() = A.transpose();
 
             // Run standard PGS algorithm
             isSuccess = ProjectedGaussSeidelSolver(A, b, lambda);
