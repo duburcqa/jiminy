@@ -1,3 +1,4 @@
+from pkg_resources import get_distribution
 from setuptools import setup, dist, find_packages
 from setuptools.command.install import install
 
@@ -17,6 +18,14 @@ class InstallPlatlib(install):
         super().finalize_options()
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
+
+
+# Enforce the right numpy version
+np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
+if np_ver < (1, 20):
+    np_req = "numpy<1.20"
+else:
+    np_req = "numpy>=1.20,!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
 
 
 setup(
@@ -80,7 +89,9 @@ setup(
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
-        "numpy",
+        # >=1.20 breaks ABI
+        # >=1.21,<1.21.5 is causing segfault with boost::python
+        np_req,
         # Use to operate on nested data structure conveniently
         # - 0.1.5 introduces `tree.traverse` method that it used to operate on
         # `gym.spaces.Dict`.

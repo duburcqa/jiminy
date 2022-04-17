@@ -31,12 +31,12 @@ jobs:
     - name: Configure Pagefile
       uses: al-cheb/configure-pagefile-action@v1.2
     - name: Checkout jiminy
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     #####################################################################################
 
     - name: Configure Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
         architecture: 'x64'
@@ -90,7 +90,7 @@ jobs:
         Copy-Item -Force -Recurse -Path "$InstallDir/lib/site-packages/*" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
 
-        $env:Path += ";$InstallDir/lib"
+        ${env:Path} += ";$InstallDir/lib"
         cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"
 
     #####################################################################################
@@ -101,7 +101,7 @@ jobs:
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
         $InstallDir = "$RootDir/install"
 
-        $env:Path += ";$InstallDir/lib"
+        ${env:Path} += ";$InstallDir/lib"
 
         Set-Location -Path "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
@@ -140,7 +140,7 @@ jobs:
         cd "$RootDir/examples/cpp/pip_extension/build"
 
         $JIMINY_LIB_DIR = (python -c "import os, jiminy_py ; print(os.path.dirname(jiminy_py.get_libraries()))")
-        $env:Path += ";$JIMINY_LIB_DIR"
+        ${env:Path} += ";$JIMINY_LIB_DIR"
 
         cmake "$RootDir/examples/cpp/pip_extension" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `

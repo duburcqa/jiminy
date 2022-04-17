@@ -108,9 +108,6 @@ jobs:
     #####################################################################################
 
     - name: Python linter and static type checker
-      # Ubuntu 18 is distributed with Python3.6, which is not supported by Numpy>=1.20.
-      # The new type check support of Numpy is raising pylint and mypy errors, so Ubuntu 18
-      # is used to do type checking for now.
       if: matrix.os == 'ubuntu-20.04'
       run: |
         gym_modules=(
