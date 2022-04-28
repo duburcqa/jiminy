@@ -304,6 +304,7 @@ namespace python
 
         std::pair<float64_t, vector3_t> operator() (vector3_t const & posFrame)
         {
+            *out1Ptr_ = qNAN;
             if (heightmapType_ == heightmapType_t::STAIRS)
             {
                 bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
@@ -311,6 +312,7 @@ namespace python
             }
             else if (heightmapType_ == heightmapType_t::GENERIC)
             {
+                out2Ptr_->setConstant(qNAN);
                 bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
                 bp::handle<> out2Py(bp::borrowed(out2PyPtr_));
                 handlePyPtr_(posFrame[0], posFrame[1], out1Py, out2Py);
