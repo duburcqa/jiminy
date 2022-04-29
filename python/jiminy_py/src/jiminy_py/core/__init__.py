@@ -5,7 +5,7 @@ import ctypes as _ctypes
 import inspect as _inspect
 import importlib as _importlib
 from contextlib import redirect_stderr as _redirect_stderr
-from distutils.sysconfig import get_config_var as _get_config_var
+from sysconfig import get_config_var as _get_config_var
 
 
 # Define the (ordered) list of boost python dependencies to preload before

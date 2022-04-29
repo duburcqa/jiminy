@@ -619,6 +619,8 @@ namespace jiminy
                             collisionConstraintsMap.emplace_back(geom.name, std::make_shared<FixedFrameConstraint>(
                                 geom.name, (Eigen::Matrix<bool_t, 6, 1>() << true, true, true, false, false, true).finished()));
                         }
+
+                        // TODO: Add warning or error to notify that a geometry has been ignored
                     }
                 }
             }

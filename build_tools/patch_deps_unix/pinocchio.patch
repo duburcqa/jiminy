@@ -71,11 +71,20 @@ index 3286da3..a142198 100644
  
 -      FIND_PACKAGE("Python${_PYTHON_VERSION_MAJOR}" REQUIRED COMPONENTS Interpreter Development)
 +      FIND_PACKAGE("Python${_PYTHON_VERSION_MAJOR}" COMPONENTS Interpreter)
-+      execute_process(COMMAND "${Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE}" -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())"
++      execute_process(COMMAND "${Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE}" -c "import sysconfig as sysconfig; print(sysconfig.get_path('include'))"
 +                      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIRS)
      ELSE()
        # No hind was provided. We can then check for first Python 2, then Python 3
        FIND_PACKAGE(Python2 QUIET COMPONENTS Interpreter Development)
+@@ -191,7 +193,7 @@ 
+     OPTION(PYTHON_STANDARD_LAYOUT "Enable standard Python package layout" OFF)
+ 
+     IF(PYTHON_STANDARD_LAYOUT)
+-      SET(PYTHON_SITELIB_CMD "import sys, os; print(os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages']))")
++      SET(PYTHON_SITELIB_CMD "import sys, os; print(os.sep.join(['lib', 'python' + '.'.join(sys.version.split('.')[:2]), 'site-packages']))")
+     ELSE(PYTHON_STANDARD_LAYOUT)
+       SET(PYTHON_SITELIB_CMD "from distutils import sysconfig; print(sysconfig.get_python_lib(prefix='', plat_specific=False))")
+     ENDIF(PYTHON_STANDARD_LAYOUT)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index b18e001f..d6ce025d 100644
 --- a/src/CMakeLists.txt

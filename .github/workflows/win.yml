@@ -49,7 +49,13 @@ jobs:
         python -m pip uninstall -y pipx  # Uninstall unecessary packages causing conflicts with the new resolver
     - name: Build project dependencies
       run: |
-        python -m pip install "torch==1.8.0+cpu" -f https://download.pytorch.org/whl/torch_stable.html
+        $PYTHON_VERSION = (python -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")
+        if ("${PYTHON_VERSION}" -eq "3.6") {
+          $TORCH_VERSION = "1.10.0"
+        } else {
+          $TORCH_VERSION = "1.11.0"
+        }
+        python -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
         python -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
         & "./build_tools/build_install_deps_windows.ps1"
 
