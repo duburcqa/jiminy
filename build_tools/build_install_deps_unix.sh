@@ -171,7 +171,7 @@ cd "$RootDir/boost"
 #   to specify Python included dir manually, since it is not detected
 #   successfully in some cases.
 PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
-PYTHON_INCLUDE_DIRS="$(${PYTHON_EXECUTABLE} -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())")"
+PYTHON_INCLUDE_DIRS="$(${PYTHON_EXECUTABLE} -c "import sysconfig as sysconfig; print(sysconfig.get_path('include'))")"
 PYTHON_CONFIG_JAM="using python : ${PYTHON_VERSION} : ${PYTHON_EXECUTABLE} : ${PYTHON_INCLUDE_DIRS} ;"
 sed -i.old "/using python/c\\
 ${PYTHON_CONFIG_JAM}

@@ -71,7 +71,7 @@ index 3286da3..a142198 100644
  
 -      FIND_PACKAGE("Python${_PYTHON_VERSION_MAJOR}" REQUIRED COMPONENTS Interpreter Development)
 +      FIND_PACKAGE("Python${_PYTHON_VERSION_MAJOR}" COMPONENTS Interpreter)
-+      execute_process(COMMAND "${Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE}" -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())"
++      execute_process(COMMAND "${Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE}" -c "import sysconfig as sysconfig; print(sysconfig.get_path('include'))"
 +                      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIRS)
      ELSE()
        # No hind was provided. We can then check for first Python 2, then Python 3

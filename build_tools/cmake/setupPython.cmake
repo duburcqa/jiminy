@@ -76,7 +76,7 @@ endif()
 # Get PYTHON_EXT_SUFFIX
 set(PYTHON_EXT_SUFFIX "")
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                        "from distutils.sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'), end='')"
+                        "from sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'), end='')"
                 OUTPUT_VARIABLE PYTHON_EXT_SUFFIX)
 if("${PYTHON_EXT_SUFFIX}" STREQUAL "")
     if(WIN32)
@@ -88,7 +88,7 @@ endif()
 
 # Include Python headers
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                        "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc(), end='')"
+                        "import sysconfig as sysconfig; print(sysconfig.get_path('include'), end='')"
                 OUTPUT_VARIABLE Python_INCLUDE_DIRS)
 
 # Add Python library directory to search path on Windows
