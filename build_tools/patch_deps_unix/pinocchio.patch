@@ -76,6 +76,15 @@ index 3286da3..a142198 100644
      ELSE()
        # No hind was provided. We can then check for first Python 2, then Python 3
        FIND_PACKAGE(Python2 QUIET COMPONENTS Interpreter Development)
+@@ -191,7 +193,7 @@ 
+     OPTION(PYTHON_STANDARD_LAYOUT "Enable standard Python package layout" OFF)
+ 
+     IF(PYTHON_STANDARD_LAYOUT)
+-      SET(PYTHON_SITELIB_CMD "import sys, os; print(os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages']))")
++      SET(PYTHON_SITELIB_CMD "import sys, os; print(os.sep.join(['lib', 'python' + '.'.join(sys.version.split('.')[:2]), 'site-packages']))")
+     ELSE(PYTHON_STANDARD_LAYOUT)
+       SET(PYTHON_SITELIB_CMD "from distutils import sysconfig; print(sysconfig.get_python_lib(prefix='', plat_specific=False))")
+     ENDIF(PYTHON_STANDARD_LAYOUT)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index b18e001f..d6ce025d 100644
 --- a/src/CMakeLists.txt
