@@ -113,7 +113,7 @@ class BlockInterface:
 
 
 class BaseObserverBlock(ObserverInterface, BlockInterface):
-    r"""Base class to implement observe that can be used compute observation
+    """Base class to implement observe that can be used compute observation
     features of a `BaseJiminyEnv` environment, through any number of
     lower-level observer.
 
@@ -185,7 +185,7 @@ class BaseObserverBlock(ObserverInterface, BlockInterface):
 
 
 class BaseControllerBlock(ControllerInterface, BlockInterface):
-    r"""Base class to implement controller that can be used compute targets to
+    """Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of
     lower-level controllers.
 

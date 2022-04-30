@@ -112,7 +112,7 @@ def generate_default_hardware_description_file(
         hardware_path: Optional[str] = None,
         default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE,
         verbose: bool = True):
-    """Generate a default hardware description file, based on the information
+    r"""Generate a default hardware description file, based on the information
     grabbed from the URDF when available, using educated guess otherwise.
 
     If no IMU sensor is found, a single one is added on the root body of the
@@ -152,7 +152,7 @@ def generate_default_hardware_description_file(
     :param urdf_path: Fullpath of the URDF file.
     :param hardware_path: Fullpath of the hardware description file.
                           Optional: By default, it is the same location than
-                          the URDF file, using '*_hardware.toml' extension.
+                          the URDF file, using '\*_hardware.toml' extension.
     :param default_update_rate: Default update rate of the sensors and the
                                 controller in Hz. It will be used for sensors
                                 whose the update rate is unspecified. 0.0 for
@@ -803,11 +803,11 @@ class BaseJiminyRobot(jiminy.Robot):
                    has_freeflyer: bool = True,
                    avoid_instable_collisions: bool = True,
                    verbose: bool = True) -> None:
-        """Initialize the robot.
+        r"""Initialize the robot.
 
         :param urdf_path: Path of the URDF file of the robot.
         :param hardware_path: Path of Jiminy hardware description toml file.
-                              Optional: Looking for '*_hardware.toml' file in
+                              Optional: Looking for '\*_hardware.toml' file in
                               the same folder and with the same name. If not
                               found, then no hardware is added to the robot,
                               which is valid and can be used for display.

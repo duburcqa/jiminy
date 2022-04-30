@@ -3,7 +3,8 @@ macro(create_component_docs)
     find_package(Doxygen COMPONENTS dot)
     find_package(Sphinx)
     if (NOT Sphinx_FOUND OR NOT Doxygen_FOUND)
-        install(CODE "message(FATAL_ERROR \"Doxygen or Sphinx not available.\")"
+        install(CODE "message(FATAL_ERROR \"Doxygen or Sphinx was not available at configuration time. \"
+                                          \"Please install them and run cmake once again.\")"
                 COMPONENT docs
                 EXCLUDE_FROM_ALL)
         return()

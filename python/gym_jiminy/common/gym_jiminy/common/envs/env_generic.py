@@ -1569,19 +1569,19 @@ class BaseJiminyGoalEnv(BaseJiminyEnv):
         compute it accordingly.
 
         :param achieved_goal: Achieved goal. `None` to evalute the reward for
-                              currently achieved goal.
+            currently achieved goal.
         :param desired_goal: Desired goal. `None` to evalute the reward for
-                             currently desired goal.
+            currently desired goal.
         :param info: Dictionary of extra information for monitoring.
 
-        Returns:
-            The reward that corresponds to the provided achieved goal wrt to
-            the desired goal. Note that the following should always hold true:
-            ```
-            obs, reward, done, info = env.step()
-            assert reward == env.compute_reward(
-                obs['achieved_goal'], obs['desired_goal'], info=info)
-            ```
+        :returns: The reward that corresponds to the provided achieved goal wrt
+            to the desired goal. The following should always hold true:
+
+            .. code-block:: python
+
+                obs, reward, done, info = env.step()
+                assert reward == env.compute_reward(
+                    obs['achieved_goal'], obs['desired_goal'], info=info)
         """
         # pylint: disable=arguments-differ
 

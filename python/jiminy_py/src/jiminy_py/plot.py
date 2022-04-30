@@ -20,7 +20,7 @@ from typing_extensions import TypedDict
 EXPORT_DPI = 300
 
 
-class ButtonBlit(Button):
+class _ButtonBlit(Button):
     def _motion(self, event):
         if self.ignore(event):
             return
@@ -50,7 +50,7 @@ class TabData(TypedDict, total=True):
     # manually, but only copied/restored when needed.
     nav_pos: int
     # Button associated with the tab, on which to click to switch between tabs.
-    button: ButtonBlit
+    button: _ButtonBlit
     # Axe of the button, used internally to define the position and size of
     # the button.
     button_axcut: Axes
@@ -308,9 +308,9 @@ class TabbedFigure:
         # Add buttons to show/hide information
         uniq_label = '_'.join((tab_name, "button"))
         button_axcut = plt.axes([0.0, 0.0, 0.0, 0.0], label=uniq_label)
-        button = ButtonBlit(button_axcut,
-                            tab_name.replace(' ', '\n'),
-                            color='white')
+        button = _ButtonBlit(button_axcut,
+                             tab_name.replace(' ', '\n'),
+                             color='white')
 
         # Register buttons events
         button.on_clicked(self.__click)

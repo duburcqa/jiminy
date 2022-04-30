@@ -58,7 +58,7 @@ extensions = [
     'myst_parser'
 ]
 
-# Breathe Configuration
+# Breathe configuration
 breathe_default_project = project
 
 breathe_default_members = ('members', 'undoc-members')
@@ -67,6 +67,11 @@ breathe_implementation_filename_extensions = ['.tpp', '.cpp']
 
 breathe_show_define_initializer = False
 
+# MyST configuration
+myst_heading_anchors = 3
+
+# Suppress some warnings
+suppress_warnings = ["myst.header"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

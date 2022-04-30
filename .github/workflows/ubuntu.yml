@@ -140,6 +140,7 @@ jobs:
     - name: Generate and install Doxygen documentation
       run: |
         cd build
+        cmake .  # Reconfigure cmake since sphinx has been installed in the meantime
         cmake . -DCOMPONENT=docs -P ./cmake_install.cmake
     - name: Deploy to GitHub Pages
       if:  >-

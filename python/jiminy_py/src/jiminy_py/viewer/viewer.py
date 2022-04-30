@@ -1674,8 +1674,8 @@ class Viewer:
         :param color: Color of the marker. It supports both RGBA codes as a
                       list of 4 floating-point values ranging from 0.0 and 1.0,
                       and a few named colors.
-                      Optional: Robot's color by default if overridden,
-                                'white' otherwise, except for 'frame'.
+                      Optional: Robot's color by default if overridden, 'white'
+                      otherwise, except for 'frame'.
         :param auto_refresh: Whether or not to refresh the scene after adding
                              the marker. Useful for adding a bunch of markers
                              and only refresh once. Note that the marker will
@@ -1871,7 +1871,7 @@ class Viewer:
             the angular part for now.
 
         .. warning::
-            It corresponds to the attribute ``viewer.f_external`. Calling
+            It corresponds to the attribute `viewer.f_external`. Calling
             `Viewer.display` will NOT update its value automatically.  It is up
             to the user to keep it up-to-date.
 
@@ -2103,11 +2103,15 @@ class Viewer:
                             Optional: No time dilation by default (1.0).
         :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
-                           OPtional: None by default.
+                           Optional: None by default.
         :param update_hook: Callable that will be called periodically between
                             every state update. `None` to disable, otherwise it
                             must have the following signature:
+
+                            .. code-block:: python
+
                                 f(t:float, q: ndarray, v: ndarray) -> None
+
                             Optional: No update hook by default.
         :param wait: Whether or not to wait for rendering to finish.
         """

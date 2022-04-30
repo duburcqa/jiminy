@@ -176,7 +176,8 @@ setup(
           # Render markdown in sphinx docs
           "myst_parser",
           # Render Jupyter Notebooks in sphinx docs
-          "nbsphinx",
+          # v0.8.8 introduces a bug for empty 'raw' directives
+          "nbsphinx!=0.8.8",
           # Render ASCII art diagram (https://aafigure.readthedocs.io)
           "aafigure",
           # Bridge between doxygen and sphinx. Used to generate C++ API docs
