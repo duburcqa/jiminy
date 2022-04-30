@@ -352,10 +352,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                        angular) [Fx, Fy, Fz, Mx, My, Mz].
         """
         # pylint: disable=unused-argument
-
-        # Assertion(s) for type checker
-        assert self._f_xy_profile is not None
-
         wrench[0] = F_PROFILE_SCALE * self._f_xy_profile[0](t)
         wrench[1] = F_PROFILE_SCALE * self._f_xy_profile[1](t)
         wrench[:2] *= self.std_ratio['disturbance']

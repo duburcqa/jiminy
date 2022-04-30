@@ -396,7 +396,6 @@ class ObservedJiminyEnv(BasePipelineWrapper):
             if not self.simulator.is_simulation_running:
                 features = self.observer.get_observation()
                 if self.augment_observation:
-                    # Assertion(s) for type checker
                     assert isinstance(self._observation, dict)
                     # Make sure to store references
                     if isinstance(obs, gym.spaces.Dict):
@@ -629,7 +628,6 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         if not self.simulator.is_simulation_running:
             obs = self.env.get_observation()
             if self.augment_observation:
-                # Assertion(s) for type checker
                 assert isinstance(self._observation, dict)
                 # Make sure to store references
                 if isinstance(obs, dict):
