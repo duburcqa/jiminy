@@ -37,7 +37,10 @@ setup(
         # - 1.10.0: Breaking changes
         # - 1.11.0: Breaking changes
         "ray[default,rllib]>=1.10.0,<1.11.0",
-        "plotext"
+        # Used for logging
+        "tensorboardX",
+        # Plot data directly in terminal to monitor stats without X-server
+        "plotext>=5.0.0"
     ],
     zip_safe=False
 )

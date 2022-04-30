@@ -63,6 +63,7 @@ setup(
         # - 0.18.0: dtype handling of flatten space
         # - >=0.18.0,<0.18.3 requires Pillow<8.0 to work, not compatible with
         #   Python 3.9.
+        # - >= 0.22.0 advanced typing
         "gym>=0.18.3,<0.24.0"
     ],
     extras_require=extras,

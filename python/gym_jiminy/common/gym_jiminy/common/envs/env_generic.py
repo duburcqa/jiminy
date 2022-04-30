@@ -181,10 +181,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._initialize_action_space()
         self._initialize_observation_space()
 
-        # Assertion(s) for type checker
-        assert (isinstance(self.observation_space, spaces.Space) and
-                isinstance(self.action_space, spaces.Space))
-
         # Initialize some internal buffers.
         # Note that float64 dtype must be enforced for the action, otherwise
         # it would be impossible to register action to controller's telemetry.
@@ -241,7 +237,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         command[:] = self.compute_command(
             self.get_observation(), self._action)
 
-    def _get_time_space(self) -> gym.Space:
+    def _get_time_space(self) -> spaces.Box:
         """Get time space.
         """
         return spaces.Box(
@@ -250,7 +246,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
     def _get_state_space(self,
                          use_theoretical_model: Optional[bool] = None
-                         ) -> gym.Space:
+                         ) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
@@ -310,7 +306,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                          high=velocity_limit,
                          dtype=np.float64)))
 
-    def _get_sensors_space(self) -> gym.Space:
+    def _get_sensors_space(self) -> spaces.Dict:
         """Get sensor space.
 
         It gathers the sensors data in a dictionary. It maps each available
@@ -543,10 +539,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # pylint: disable=arguments-differ
 
-        # Assertion(s) for type checker
-        assert self.observation_space is not None
-        assert self._action is not None
-
         # Stop the simulator
         self.simulator.stop()
 
@@ -732,9 +724,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information
         """
-        # Assertion(s) for type checker
-        assert self._action is not None
-
         # Make sure a simulation is already running
         if not self.simulator.is_simulation_running:
             raise RuntimeError(
@@ -986,23 +975,20 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # Get unwrapped environment
         if isinstance(env, gym.Wrapper):
-            self = env.unwrapped
-        else:
-            self = env
-
-        # Make sure the unwrapped environment derive from this class
-        assert isinstance(self, BaseJiminyEnv), (
-            "Unwrapped environment must derived from `BaseJiminyEnv`.")
+            # Make sure the unwrapped environment derive from this class
+            assert isinstance(env.unwrapped, BaseJiminyEnv), (
+                "Unwrapped environment must derived from `BaseJiminyEnv`.")
+            env = env.unwrapped
 
         # Enable play interactive flag and make sure training flag is disabled
-        is_training = self.is_training
-        self._is_interactive = True
-        self.is_training = False
+        is_training = env.is_training
+        env._is_interactive = True
+        env.is_training = False
 
         # Make sure viewer gui is open, so that the viewer will shared external
         # forces with the robot automatically.
-        if not (self.simulator.is_viewer_available and
-                self.simulator.viewer.has_gui()):
+        if not (env.simulator.is_viewer_available and
+                env.simulator.viewer.has_gui()):
             env.render(update_ground_profile=False)
 
         # Reset the environnement
@@ -1015,11 +1001,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Enable travelling
         if enable_travelling is None:
             enable_travelling = \
-                self.simulator.viewer.backend.startswith('panda3d')
-        enable_travelling = enable_travelling and self.robot.has_freeflyer
+                env.simulator.viewer.backend.startswith('panda3d')
+        enable_travelling = enable_travelling and env.robot.has_freeflyer
         if enable_travelling:
-            tracked_frame = self.robot.pinocchio_model.frames[2].name
-            self.simulator.viewer.attach_camera(tracked_frame)
+            tracked_frame = env.robot.pinocchio_model.frames[2].name
+            env.simulator.viewer.attach_camera(tracked_frame)
 
         # Refresh the scene once again to update camera placement
         env.render()
@@ -1027,7 +1013,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
             nonlocal obs, reward, enable_is_done
-            action = self._key_to_action(
+            action = env._key_to_action(
                 key, obs, reward, **{"verbose": verbose, **kwargs})
             obs, reward, done, _ = env.step(action)
             env.render()
@@ -1036,25 +1022,25 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             return done
 
         # Run interactive loop
-        loop_interactive(max_rate=self.step_dt,
+        loop_interactive(max_rate=env.step_dt,
                          start_paused=start_paused,
                          verbose=verbose)(_interact)()
 
         # Disable travelling if it enabled
         if enable_travelling:
-            self.simulator.viewer.detach_camera()
+            env.simulator.viewer.detach_camera()
 
         # Stop the simulation to unlock the robot.
         # It will enable to display contact forces for replay.
-        if self.simulator.is_simulation_running:
-            self.simulator.stop()
+        if env.simulator.is_simulation_running:
+            env.simulator.stop()
 
         # Disable play interactive mode flag and restore training flag
-        self._is_interactive = False
-        self.is_training = is_training
+        env._is_interactive = False
+        env.is_training = is_training
 
     @staticmethod
-    def evaluate(env: gym.Env,
+    def evaluate(env: Union["BaseJiminyEnv", gym.Wrapper],
                  policy_fn: Callable[
                      [DataNested, Optional[float]], DataNested],
                  seed: Optional[int] = None,
@@ -1092,7 +1078,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments to forward to the `replay`
                        method if replay is requested.
         """
-        # Initialize frame stack
+        # Get unwrapped environment
+        if isinstance(env, gym.Wrapper):
+            # Make sure the unwrapped environment derive from this class
+            assert isinstance(env.unwrapped, BaseJiminyEnv), (
+                "Unwrapped environment must derived from `BaseJiminyEnv`.")
 
         # Make sure evaluation mode is enabled
         is_training = env.is_training
@@ -1206,7 +1196,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             method, alongside `refresh_observation`, must be overwritten in
             order to define a custom observation space.
         """
-        observation_spaces = OrderedDict()
+        observation_spaces: Dict[str, spaces.Space] = OrderedDict()
         observation_spaces['t'] = self._get_time_space()
         observation_spaces['state'] = self._get_state_space()
         if self.sensors_data:
@@ -1343,9 +1333,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # pylint: disable=arguments-differ
 
-        # Assertion(s) for type checker
         assert isinstance(self._observation, dict)
-
         self._observation['t'][0] = self.stepper_state.t
         if not self.simulator.is_simulation_running:
             (self._observation['state']['Q'],
@@ -1377,9 +1365,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
-        # Assertion(s) for type checker
-        assert self.action_space is not None
-
         # Check if the action is out-of-bounds, in debug mode only
         if self.debug and not self.action_space.contains(action):
             logger.warn("The action is out-of-bounds.")
@@ -1407,10 +1392,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments. See 'args'.
         """
         # pylint: disable=unused-argument
-
-        # Assertion(s) for type checker
-        assert self.observation_space is not None
-
         return not self.observation_space.contains(self._observation)
 
     def _key_to_action(self,

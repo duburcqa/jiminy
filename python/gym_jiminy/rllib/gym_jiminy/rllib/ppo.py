@@ -1,5 +1,7 @@
 """ TODO: Write documentation.
 """
+# pylint: disable=not-callable
+
 import math
 import operator
 from functools import reduce

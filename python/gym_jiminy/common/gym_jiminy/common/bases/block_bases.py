@@ -8,7 +8,7 @@ It implements:
     - the base controller block
     - the base observer block
 """
-from typing import Optional, Any, List
+from typing import Any, List
 
 import gym
 
@@ -25,8 +25,8 @@ class BlockInterface:
     any number of subsequent blocks, or directly to a `BaseJiminyEnv`
     environment.
     """
-    observation_space: Optional[gym.Space]
-    action_space: Optional[gym.Space]
+    observation_space: gym.Space
+    action_space: gym.Space
 
     def __init__(self,
                  env: BaseJiminyEnv,
@@ -57,10 +57,6 @@ class BlockInterface:
         # Refresh the observation and action spaces
         self._initialize_observation_space()
         self._initialize_action_space()
-
-        # Assertion(s) for type checker
-        assert (self.observation_space is not None and
-                self.action_space is not None)  # type: ignore[unreachable]
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -272,9 +268,6 @@ class BaseControllerBlock(ControllerInterface, BlockInterface):
             This method is not supposed to be called before `reset`, so that
             the controller should be already initialized at this point.
         """
-        # Assertion(s) for type checker
-        assert self.action_space is not None
-
         return get_fieldnames(self.action_space)
 
 

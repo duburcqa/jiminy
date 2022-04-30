@@ -9,7 +9,7 @@ from typing import Optional, Sequence, Union, Callable, Dict, Any
 
 import gym
 import torch
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 from tensorboard.program import TensorBoard
 
 from tianshou.utils import tqdm_config, MovAvg

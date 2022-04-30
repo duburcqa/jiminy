@@ -15,10 +15,11 @@ StructNested = Union[Dict[str, 'StructNested'],  # type: ignore[misc]
                      ValueT]
 FieldNested = StructNested[str]  # type: ignore[misc]
 DataNested = StructNested[np.ndarray]  # type: ignore[misc]
+SpaceNested = StructNested[gym.Space]  # type: ignore[misc]
 
 
 if tuple(map(int, (gym.__version__.split(".", 4)[:3]))) < (0, 23, 0):
-    def _space_nested_raw(space_nested: gym.Space) -> gym.Space:
+    def _space_nested_raw(space_nested: SpaceNested) -> SpaceNested:
         """Replace any `gym.spaces.Dict|Tuple` by a native collection type for
         inter-operability with gym<0.23.0.
 
@@ -31,7 +32,7 @@ if tuple(map(int, (gym.__version__.split(".", 4)[:3]))) < (0, 23, 0):
                 space, (gym.spaces.Dict, gym.spaces.Tuple)) else None,
             space_nested)
 else:
-    def _space_nested_raw(space_nested: gym.Space) -> gym.Space:
+    def _space_nested_raw(space_nested: SpaceNested) -> SpaceNested:
         return space_nested
 
 

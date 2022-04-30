@@ -53,7 +53,7 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel auditwheel cmake
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel cmake
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
     - name: Build project dependencies
       run: |

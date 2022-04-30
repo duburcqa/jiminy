@@ -20,9 +20,6 @@
 import jiminy_py
 import sphinx_rtd_theme
 
-# Temporary workaround to remove multiple build warnings.
-from recommonmark.parser import CommonMarkParser
-
 # -- Project information -----------------------------------------------------
 
 project = u'jiminy'
@@ -57,7 +54,8 @@ extensions = [
     'sphinx.ext.githubpages',
     'aafigure.sphinxext',
     'nbsphinx',
-    "breathe"
+    'breathe',
+    'myst_parser'
 ]
 
 # Breathe Configuration
@@ -232,14 +230,3 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
-
-
-# -- Setup configuration ----------------------------------------------
-
-class CustomCommonMarkParser(CommonMarkParser):
-    def visit_document(self, node):
-        pass
-
-
-def setup(app) -> None:
-    app.add_source_parser(CustomCommonMarkParser)

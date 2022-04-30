@@ -19,7 +19,6 @@ from typing import Optional, Callable, Dict, Any, Tuple, Union, List
 import gym
 import numpy as np
 import plotext as plt
-from tensorboard.program import TensorBoard
 
 import ray
 import ray.cloudpickle as pickle
@@ -184,12 +183,17 @@ def initialize(num_cpus: int,
 
     # Configure Tensorboard
     if launch_tensorboard:
-        tb = TensorBoard()
-        tb.configure(host="0.0.0.0", logdir=os.path.abspath(log_root_path))
-        url = tb.launch()
-        if verbose:
-            print(f"Started Tensorboard {url}.",
-                  f"Root directory: {log_root_path}")
+        try:
+            # pylint: disable=import-outside-toplevel,import-error
+            from tensorboard.program import TensorBoard
+            tb = TensorBoard()
+            tb.configure(host="0.0.0.0", logdir=os.path.abspath(log_root_path))
+            url = tb.launch()
+            if verbose:
+                print(f"Started Tensorboard {url}.",
+                      f"Root directory: {log_root_path}")
+        except ImportError:
+            logger.warning("Tensorboard not available. Cannot start server.")
 
     # Monitor memory usage in debug
     if debug:
@@ -572,7 +576,7 @@ def train(train_agent: Trainer,
                 # Ascii histogram if requested
                 if verbose:
                     try:
-                        plt.clp()
+                        plt.clear_figure()
                         plt.subplots(1, 2)
                         for i, (title, data) in enumerate(zip(
                                 ("Episode duration", "Total reward"),
