@@ -92,7 +92,11 @@ def play_trajectories(trajs_data: Union[
                          emulate sensors data from log using the hook provided
                          by `emulate_sensors_data_from_log` method. `None` to
                          disable, otherwise it must have the signature:
+
+                         .. code-block:: python
+
                              f(t:float, q: ndarray, v: ndarray) -> None
+
                          Optional: None by default.
     :param time_interval: Replay only timesteps in this interval of time.
                           It does not have to be finite.

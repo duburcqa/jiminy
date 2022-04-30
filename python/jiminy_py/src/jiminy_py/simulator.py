@@ -130,12 +130,12 @@ class Simulator:
               avoid_instable_collisions: bool = True,
               debug: bool = False,
               **kwargs) -> 'Simulator':
-        """Create a new simulator instance from scratch, based on configuration
+        r"""Create a new simulator instance from scratch, based on configuration
         files only.
 
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
-                              Optional: Looking for '*_hardware.toml' file in
+                              Optional: Looking for '\*_hardware.toml' file in
                               the same folder and with the same name.
         :param mesh_path: Path to the folder containing the model meshes.
                           Optional: Env variable 'JIMINY_DATA_PATH' will be
@@ -147,7 +147,7 @@ class Simulator:
                             imported AFTER loading the hardware description
                             file. It can be automatically generated from an
                             instance by calling `export_config_file` method.
-                            Optional: Looking for '*_options.toml' file in the
+                            Optional: Looking for '\*_options.toml' file in the
                             same folder and with the same name. If not found,
                             using default configuration.
         :param avoid_instable_collisions: Prevent numerical instabilities by

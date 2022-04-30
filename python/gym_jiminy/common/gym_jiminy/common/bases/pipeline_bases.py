@@ -1,15 +1,13 @@
-
 """This method gathers base implementations for blocks to be used in pipeline
 control design.
 
 It implements:
 
-    - the concept of block that can be connected to a `BaseJiminyEnv`
-      environment through any level of indirection
-    - a base controller block, along with a concret PD controller
-    - a wrapper to combine a controller block and a `BaseJiminyEnv`
-      environment, eventually already wrapped, so that it appears as a single,
-      unified environment.
+- the concept of block that can be connected to a `BaseJiminyEnv` environment
+  through any level of indirection
+- a base controller block, along with a concret PD controller
+- a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
+  eventually already wrapped, so that it appears as a black-box environment.
 """
 from copy import deepcopy
 from collections import OrderedDict
