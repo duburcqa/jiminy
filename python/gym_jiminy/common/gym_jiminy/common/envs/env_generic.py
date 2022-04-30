@@ -181,10 +181,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._initialize_action_space()
         self._initialize_observation_space()
 
-        # Assertion(s) for type checker
-        assert (isinstance(self.observation_space, spaces.Space) and
-                isinstance(self.action_space, spaces.Space))
-
         # Initialize some internal buffers.
         # Note that float64 dtype must be enforced for the action, otherwise
         # it would be impossible to register action to controller's telemetry.
@@ -543,10 +539,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # pylint: disable=arguments-differ
 
-        # Assertion(s) for type checker
-        assert self.observation_space is not None
-        assert self._action is not None
-
         # Stop the simulator
         self.simulator.stop()
 
@@ -732,9 +724,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information
         """
-        # Assertion(s) for type checker
-        assert self._action is not None
-
         # Make sure a simulation is already running
         if not self.simulator.is_simulation_running:
             raise RuntimeError(
@@ -1376,9 +1365,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
-        # Assertion(s) for type checker
-        assert self.action_space is not None
-
         # Check if the action is out-of-bounds, in debug mode only
         if self.debug and not self.action_space.contains(action):
             logger.warn("The action is out-of-bounds.")
@@ -1406,10 +1392,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments. See 'args'.
         """
         # pylint: disable=unused-argument
-
-        # Assertion(s) for type checker
-        assert self.observation_space is not None
-
         return not self.observation_space.contains(self._observation)
 
     def _key_to_action(self,
