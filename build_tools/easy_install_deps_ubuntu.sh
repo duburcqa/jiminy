@@ -56,8 +56,9 @@ sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgr
 sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade "numpy>=1.16,<1.22"
 
 # Install Python 3 toolsuite for testing and documentation generation
+# pylint (and astroid) versions are pinned to avoid spurious segfaults.
 sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade setuptools auditwheel && \
-sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade flake8 pylint mypy types-toml && \
+sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade flake8 astroid==2.11.2 pylint==2.13.4 mypy types-toml && \
 sudo -u $(id -nu "${SUDO_UID}") env "PATH=${PATH}" python3 -m pip install --upgrade \
     pygments colorama "jinja2>=3.0,<3.1" sphinx sphinx_rtd_theme recommonmark nbsphinx breathe aafigure
 
