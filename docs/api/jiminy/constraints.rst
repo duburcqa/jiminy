@@ -1,12 +1,27 @@
 analytical constraints
 ======================
 
-.. doxygenclass:: jiminy::AbstractConstraint
+.. doxygenclass:: jiminy::AbstractConstraintBase
+   :project: jiminy
+   :members:
+   :undoc-members:
+
+.. doxygenclass:: jiminy::JointConstraint
    :project: jiminy
    :members:
    :undoc-members:
 
 .. doxygenclass:: jiminy::FixedFrameConstraint
+   :project: jiminy
+   :members:
+   :undoc-members:
+
+.. doxygenclass:: jiminy::DistanceConstraint
+   :project: jiminy
+   :members:
+   :undoc-members:
+
+.. doxygenclass:: jiminy::SphereConstraint
    :project: jiminy
    :members:
    :undoc-members:
