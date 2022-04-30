@@ -36,13 +36,7 @@ jobs:
 
     - name: Setup minimal build environment
       run: |
-        if [ ${{ matrix.os }} == "ubuntu-18.04" ] ; then
-          PYTHON_EXECUTABLE="/usr/bin/python3.6"
-        else
-          PYTHON_EXECUTABLE="/usr/bin/python3.8"
-        fi
-        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
-
+        echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
@@ -55,7 +49,7 @@ jobs:
         else
           TORCH_VERSION="1.11.0"
         fi
-        sudo env "PATH=$PATH" "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
+        sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" --trusted-host pypi.org \
         --trusted-host pytorch.org --trusted-host download.pytorch.org --trusted-host files.pypi.org \

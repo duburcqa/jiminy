@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 3.10)
 #Look for an executable called sphinx-build
 find_program(SPHINX_EXECUTABLE
              NAMES sphinx-build
-             DOC "Path to sphinx-build executable")
+             DOC "Path to sphinx-build executable"
+             CMAKE_FIND_ROOT_PATH_BOTH)
 
 include(FindPackageHandleStandardArgs)
 

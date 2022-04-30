@@ -54,7 +54,8 @@ extensions = [
     'sphinx.ext.githubpages',
     'aafigure.sphinxext',
     'nbsphinx',
-    "breathe"
+    'breathe',
+    'myst_parser'
 ]
 
 # Breathe Configuration

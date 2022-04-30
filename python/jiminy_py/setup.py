@@ -173,6 +173,8 @@ setup(
           "sphinx",
           # 'Read the Docs' Sphinx docs style
           "sphinx_rtd_theme",
+          # Render markdown in sphinx docs
+          "myst_parser",
           # Render Jupyter Notebooks in sphinx docs
           "nbsphinx",
           # Render ASCII art diagram (https://aafigure.readthedocs.io)
