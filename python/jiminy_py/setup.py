@@ -157,18 +157,22 @@ setup(
           "types-toml",
           # Check PEP8 conformance of Python native code
           "flake8",
-          # Python linter
-          "pylint>=2.12.2",
+          # Python linter dependency (Pinned to avoid segfault)
+          "astroid==2.11.2",
+          # Python linter (Pinned to avoid segfault)
+          "pylint==2.13.4",
           # Python static type checker
           "mypy>=0.931",
           # Fix dependency issue with 'sphinx'
           "jinja2>=3.0,<3.1",
+          # Dependency for documentation generation
+          "pygments",
+          # Dependency for documentation generation
+          "colorama",
           # Generate Python docs and render '.rst' nicely
           "sphinx",
           # 'Read the Docs' Sphinx docs style
           "sphinx_rtd_theme",
-          # Render markdown in sphinx docs
-          "recommonmark",
           # Render Jupyter Notebooks in sphinx docs
           "nbsphinx",
           # Render ASCII art diagram (https://aafigure.readthedocs.io)
