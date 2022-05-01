@@ -12,7 +12,7 @@ jobs:
     name: >-
       (Windows) (${{ matrix.python-version }}) Build the dependencies.
       Build the project and run the unit tests.
-    runs-on: [windows-2019]
+    runs-on: windows-2019
 
     defaults:
       run:

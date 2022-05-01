@@ -16,13 +16,11 @@ jobs:
 
     strategy:
       matrix:
+        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
+        BUILD_TYPE: ['Release']
         include:
-          - os: ubuntu-18.04
-            BUILD_TYPE: 'Debug'
-          - os: ubuntu-20.04
-            BUILD_TYPE: 'Release'
-          - os: ubuntu-22.04
-            BUILD_TYPE: 'Release'
+          - os: [ubuntu-20.04]
+            BUILD_TYPE: ['Debug']
 
     defaults:
       run:
