@@ -34,7 +34,7 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
 from .. import core as jiminy
 from ..core import ContactSensor as contact, discretize_heightmap
-from ..state import State
+from ..dynamics import State
 from .meshcat.utilities import interactive_mode
 from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, Panda3dApp, Panda3dViewer, Panda3dVisualizer)

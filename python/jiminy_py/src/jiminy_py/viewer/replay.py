@@ -17,8 +17,8 @@ from tqdm import tqdm
 from scipy.interpolate import interp1d
 
 from .. import core as jiminy
-from ..log import (TrajectoryDataType,
-                   read_log,
+from ..dynamics import TrajectoryDataType
+from ..log import (read_log,
                    build_robot_from_log,
                    extract_trajectory_data_from_log,
                    emulate_sensors_data_from_log)

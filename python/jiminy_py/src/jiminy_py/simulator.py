@@ -8,7 +8,6 @@ from collections import OrderedDict
 from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
 
 import numpy as np
-from matplotlib.figure import Figure
 
 import pinocchio as pin
 from . import core as jiminy
@@ -19,10 +18,11 @@ from .core import (EncoderSensor as encoder,
                    ImuSensor as imu)
 from .robot import (generate_default_hardware_description_file,
                     BaseJiminyRobot)
-from .plot import TabbedFigure
-from .log import read_log, build_robot_from_log, extract_data_from_log
-from .viewer import (TrajectoryDataType,
-                     interactive_mode,
+from .dynamics import TrajectoryDataType
+from .log import (read_log,
+                  build_robot_from_log,
+                  extract_data_from_log)
+from .viewer import (interactive_mode,
                      extract_replay_data_from_log_data,
                      play_trajectories,
                      Viewer)
@@ -115,7 +115,7 @@ class Simulator:
         self.__pbar: Optional[tqdm] = None
 
         # Figure holder
-        self.figure: Optional[Figure] = None
+        self.figure = None
 
         # Reset the low-level jiminy engine
         self.reset()
@@ -661,6 +661,13 @@ class Simulator:
             Optional: False by default.
         :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
         """
+        # Make sure plot submodule is available
+        try:
+            from .plot import TabbedFigure
+        except ImportError:
+            raise ImportError(
+                "Method not supported. Please install 'jiminy_py[plot]'.")
+
         # Extract log data
         log_data, log_constants = self.log_data, self.log_constants
         if not log_constants:

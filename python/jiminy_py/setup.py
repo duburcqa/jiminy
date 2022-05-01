@@ -21,13 +21,13 @@ class InstallPlatlib(install):
 
 
 # Enforce the right numpy version
-# https://github.com/boostorg/python/issues/376
-# >= 1.22 is not supported for now because of breaking API for compiled libs.
 np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
 if np_ver < (1, 20):
     np_req = "numpy<1.20"
 else:
-    np_req = "numpy>=1.20,!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4,<1.22"
+    np_req = "numpy>=1.20,!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
+    if np_ver < (1, 22):
+        np_req += ",<1.22"
 
 
 setup(
@@ -77,7 +77,7 @@ setup(
     ],
     include_package_data=True,
     entry_points={"console_scripts": [
-        "jiminy_plot=jiminy_py.log:plot_log",
+        "jiminy_plot=jiminy_py.plot:plot_log",
         ("jiminy_meshcat_server="
          "jiminy_py.meshcat.server:start_meshcat_server_standalone"),
         "jiminy_replay=jiminy_py.viewer.replay:_play_logs_files_entrypoint"
@@ -90,7 +90,9 @@ setup(
         "tqdm",
         # Standard library for matrix algebra.
         # >=1.20 breaks ABI
-        # >=1.21,<1.21.5 is causing segfault with boost::python
+        # >=1.21,<1.21.5 is causing segfault with boost::python.
+        #     See issue: https://github.com/boostorg/python/issues/376
+        # >= 1.22 breaks API for compiled libs.
         np_req,
         # Parser for Jiminy's hardware description file.
         "toml",
@@ -101,9 +103,7 @@ setup(
         "h5py",
         # Use to operate conveniently on nested log data.
         "dm-tree",
-        # Standard library to generate figures.
-        "matplotlib",
-        # Used internally by Viewer to perform linear interpolation.
+        # Used internally by Viewer to perform 1D polynomial interpolations.
         "scipy",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
@@ -121,6 +121,10 @@ setup(
         "av"
     ],
     extras_require={
+        "plot": [
+            # Standard library to generate figures.
+            "matplotlib"
+        ],
         "meshcat": [
             # Web-based mesh visualizer used as Viewer's backend.
             # 0.0.18 introduces many new features, including loading generic

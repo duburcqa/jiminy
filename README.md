@@ -68,7 +68,7 @@ Jiminy and Gym Jiminy support Linux, Mac and Windows, and is compatible with Pyt
 
 ```bash
 # For installing Jiminy
-python -m pip install --prefer-binary jiminy_py[meshcat]
+python -m pip install --prefer-binary jiminy_py[meshcat,plot]
 
 # For installing Gym Jiminy
 python -m pip install --prefer-binary gym_jiminy[all]

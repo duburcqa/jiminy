@@ -92,7 +92,7 @@ buildPythonWheel("python/${LIBRARY_NAME}_py"
                  "${CMAKE_BINARY_DIR}/pypi/dist/${LIBRARY_NAME}_py")
 
 # Install Python package jiminy_py
-deployPythonPackage("${LIBRARY_NAME}_py[meshcat,dev]")
+deployPythonPackage("${LIBRARY_NAME}_py[meshcat,plot,dev]")
 
 ################ gym_jiminy ################
 
