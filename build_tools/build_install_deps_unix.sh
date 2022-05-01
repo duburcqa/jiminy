@@ -23,10 +23,10 @@ fi
 
 ### Set common CMAKE_C/CXX_FLAGS
 CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -fPIC"
-if [ "${BUILD_TYPE}" == "Release" ]; then
-  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
-else
+if [ "${BUILD_TYPE}" == "Debug" ]; then
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
+else
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
 fi
 echo "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 
@@ -179,13 +179,22 @@ ${PYTHON_CONFIG_JAM}
 
 ### Build and install and install boost
 #   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
-BuildTypeB2="$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')"
+if [ "${BUILD_TYPE}" == "Release" ]; then
+  BuildTypeB2="release"
+elif [ "${BUILD_TYPE}" == "Debug" ]; then
+  BuildTypeB2="debug"
+# elif [ "${BUILD_TYPE}" == "RelWithDebInfo" ]; then
+#   BuildTypeB2="profile"
+else
+  echo "Build type '${BUILD_TYPE}' not supported." >&2
+  exit 1
+fi
 CMAKE_CXX_FLAGS_B2="-std=c++17"
 if [ "${OSTYPE//[0-9.]/}" == "darwin" ]; then
   CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
 fi
 if grep -q ";" <<< "${OSX_ARCHITECTURES}" ; then
-    CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} $(echo "-arch ${OSX_ARCHITECTURES}" | sed "s/;/ -arch /g")"
+  CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} $(echo "-arch ${OSX_ARCHITECTURES}" | sed "s/;/ -arch /g")"
 fi
 
 mkdir -p "$RootDir/boost/build"

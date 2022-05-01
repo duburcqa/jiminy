@@ -21,6 +21,7 @@ class InstallPlatlib(install):
 
 
 # Enforce the right numpy version
+# https://github.com/boostorg/python/issues/376
 np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
 if np_ver < (1, 20):
     np_req = "numpy<1.20"

@@ -12,10 +12,10 @@ if (-not (Test-Path env:BUILD_TYPE)) {
 
 ### Set common CMAKE_C/CXX_FLAGS
 ${env:CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -D_USE_MATH_DEFINES -DNOMINMAX"
-if (${env:BUILD_TYPE} -eq "Release") {
-  ${env:CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /O2 /Ob3 -DNDEBUG"
-} else {
+if (${env:BUILD_TYPE} -eq "Debug") {
   ${env:CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /Od -g"
+} else {
+  ${env:CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /O2 /Ob3 -DNDEBUG"
 }
 Write-Output "CMAKE_CXX_FLAGS: ${env:CMAKE_CXX_FLAGS}"
 
@@ -169,7 +169,15 @@ Set-Location -Path "$RootDir/boost"
 #   C++ runtime  library Windows (aka (U)CRT) ships as part of Windows 10.
 #   Note that static linkage is still possible on windows but Jamroot must be edited
 #   to remove line "<conditional>@handle-static-runtime".
-$BuildTypeB2 = ${env:BUILD_TYPE}.ToLower()
+if (${env:BUILD_TYPE} -eq "Release") {
+  $BuildTypeB2 = "release"
+} else if (${env:BUILD_TYPE} -eq "Debug") {
+  $BuildTypeB2 = "debug"
+# } else if (${env:BUILD_TYPE} -eq "RelWithDebInfo") {
+#   $BuildTypeB2 = "profile"
+} else {
+  Write-Error "Build type '${BUILD_TYPE}' not supported." -ErrorAction:Stop
+}
 if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
 }
