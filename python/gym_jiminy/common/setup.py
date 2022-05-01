@@ -58,6 +58,11 @@ setup(
         # >=0.53 is required to support Python 3.9.
         # >=0.54 does not support Python 3.6 anymore.
         "numba",
+        # Use to operate on nested data structure conveniently.
+        # - 0.1.5 introduces `tree.traverse` method that it used to operate on
+        # `gym.spaces.Dict`.
+        # - 0.1.6 unifies API method naming.
+        "dm-tree>=0.1.6",
         # Standard interface library for reinforcement learning.
         # - 0.17.3 introduces iterable space dict
         # - 0.18.0: dtype handling of flatten space

@@ -171,9 +171,9 @@ Set-Location -Path "$RootDir/boost"
 #   to remove line "<conditional>@handle-static-runtime".
 if (${env:BUILD_TYPE} -eq "Release") {
   $BuildTypeB2 = "release"
-} else if (${env:BUILD_TYPE} -eq "Debug") {
+} elseif (${env:BUILD_TYPE} -eq "Debug") {
   $BuildTypeB2 = "debug"
-# } else if (${env:BUILD_TYPE} -eq "RelWithDebInfo") {
+# } elseif (${env:BUILD_TYPE} -eq "RelWithDebInfo") {
 #   $BuildTypeB2 = "profile"
 } else {
   Write-Error "Build type '${BUILD_TYPE}' not supported." -ErrorAction:Stop

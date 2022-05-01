@@ -2,9 +2,15 @@
 """
 from typing import Optional, Tuple, Any
 
-from matplotlib.backends.qt_compat import QtCore, QtWidgets, QtGui
+from matplotlib.backends.qt_compat import (
+    QT_API, QT_API_PYSIDE6, QT_API_PYQT5, QtCore, QtWidgets, QtGui)
 
 from .panda3d_visualizer import Panda3dApp
+
+
+if QT_API not in (QT_API_PYSIDE6, QT_API_PYQT5):
+    raise ImportError(
+        f"Only '{QT_API_PYSIDE6}' and '{QT_API_PYQT5}' Qt API are supported.")
 
 
 FRAMERATE = 30
@@ -23,7 +29,8 @@ class Panda3dQWidget(Panda3dApp, QtWidgets.QWidget):
         Panda3dApp.__init__(self)
 
         # Only accept focus by clicking on widget
-        self.setFocusPolicy(QtCore.Qt.ClickFocus)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy(
+            QtCore.Qt.ClickFocus | QtCore.Qt.WheelFocus))
 
         # Configure mouse control
         self.setMouseTracking(True)
@@ -33,7 +40,7 @@ class Panda3dQWidget(Panda3dApp, QtWidgets.QWidget):
 
         # Start event loop
         self.clock = QtCore.QTimer()
-        self.clock.setInterval(1000.0 / FRAMERATE)
+        self.clock.setInterval(1000 // FRAMERATE)
         self.clock.timeout.connect(self.update)
         self.clock.start()
 
