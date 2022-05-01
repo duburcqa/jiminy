@@ -22,12 +22,10 @@ from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
 
 import psutil
 import numpy as np
-from PIL import Image
 from scipy.interpolate import interp1d
 from typing_extensions import TypedDict
 
 import zmq
-import meshcat.transformations as mtf
 from panda3d_viewer.viewer_errors import ViewerClosedError
 
 import pinocchio as pin
@@ -35,17 +33,11 @@ from pinocchio import SE3, SE3ToXYZQUAT
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
 from .. import core as jiminy
-from ..core import (ContactSensor as contact,
-                    discretize_heightmap)
-from ..state import State
+from ..core import ContactSensor as contact, discretize_heightmap
+from ..dynamics import State
 from .meshcat.utilities import interactive_mode
-from .meshcat.wrapper import MeshcatWrapper
-from .meshcat.meshcat_visualizer import MeshcatVisualizer
-from .panda3d.panda3d_visualizer import (Tuple3FType,
-                                         Tuple4FType,
-                                         Panda3dApp,
-                                         Panda3dViewer,
-                                         Panda3dVisualizer)
+from .panda3d.panda3d_visualizer import (
+    Tuple3FType, Tuple4FType, Panda3dApp, Panda3dViewer, Panda3dVisualizer)
 
 
 REPLAY_FRAMERATE = 40
@@ -88,23 +80,6 @@ logger = logging.getLogger(__name__)
 logger.addFilter(_DuplicateFilter())
 
 
-def get_backends_available() -> Dict[str, type]:
-    """Determine the set of available backends.
-    """
-    # In must be a function, otherwise it would only be run once at import by
-    # the main thread only.
-    backends_available = {'panda3d-sync': Panda3dVisualizer}
-    if not multiprocessing.current_process().daemon:
-        backends_available.update({'meshcat': MeshcatVisualizer,
-                                   'panda3d': Panda3dVisualizer})
-        try:
-            from .panda3d.panda3d_widget import Panda3dQWidget  # noqa: F401
-            backends_available['panda3d-qt'] = Panda3dVisualizer
-        except ImportError:
-            pass
-    return backends_available
-
-
 def check_display_available() -> bool:
     """Check if graphical server is available for onscreen rendering.
     """
@@ -134,6 +109,40 @@ def get_default_backend() -> str:
         return 'panda3d'
     else:
         return 'panda3d-sync'
+
+
+def get_backend_entrypoint(backend_name: str) -> type:
+    """Determine the set of available backends.
+
+    .. note::
+        It must be a function because otherwise it would only be run once at
+        import by the main thread only.
+    """
+    if backend_name == "panda3d-sync":
+        return Panda3dVisualizer
+    if multiprocessing.current_process().daemon:
+        raise RuntimeError(
+            "Please use backend 'panda3d-sync' in daemon thread.")
+    if backend_name == "panda3d":
+        return Panda3dVisualizer
+    if backend_name == "panda3d-qt":
+        try:
+            from .panda3d.panda3d_widget import Panda3dQWidget  # noqa: F401
+            return Panda3dVisualizer
+        except ImportError as e:
+            raise ImportError(
+                "'panda3d-qt' backend is not available. Please install either "
+                "'pyqt5' or 'pyside6'.") from e
+    if backend_name == "meshcat":
+        try:
+            from PIL import Image  # noqa: F401
+            from .meshcat.wrapper import MeshcatWrapper  # noqa: F401
+            from .meshcat.meshcat_visualizer import MeshcatVisualizer
+            return MeshcatVisualizer
+        except ImportError:
+            raise ImportError(
+                "'meshcat' backend is not available. Please install "
+                "'jiminy[meshcat]'.")
 
 
 def sleep(dt: float) -> None:
@@ -575,7 +584,7 @@ class Viewer:
                 pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
 
         # Create backend wrapper to get (almost) backend-independent API
-        self._client = get_backends_available()[Viewer.backend](
+        self._client = get_backend_entrypoint(Viewer.backend)(
             pinocchio_model, robot.collision_model, robot.visual_model)
         self._client.data = pinocchio_data
         self._client.collision_data = robot.collision_data
@@ -979,8 +988,7 @@ class Viewer:
 
         # Sanitize user arguments
         backend = backend.lower()
-        if backend not in get_backends_available():
-            raise ValueError("%s backend not available." % backend)
+        get_backend_entrypoint(backend)
 
         # Update the backend currently running, if any
         if Viewer.backend != backend and Viewer.is_alive():
@@ -1067,6 +1075,7 @@ class Viewer:
                     break
 
             # Create a meshcat server if needed and connect to it
+            from .meshcat.wrapper import MeshcatWrapper
             client = MeshcatWrapper(zmq_url)
             if client.server_proc is None:
                 proc = psutil.Process(pid)
@@ -1291,6 +1300,7 @@ class Viewer:
         elif Viewer.backend == 'meshcat':
             # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
             # usual convention in robotics.
+            import meshcat.transformations as mtf
             position_meshcat = CAMERA_INV_TRANSFORM_MESHCAT @ position
             rotation_meshcat = matrixToRpy(
                 CAMERA_INV_TRANSFORM_MESHCAT @ rotation_mat)
@@ -1566,7 +1576,7 @@ class Viewer:
             if raw_data:
                 return buffer
 
-            # Return numpy array RGB
+            # Extract and return numpy array RGB
             return np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
         else:
             # Send capture frame request to the background recorder process
@@ -1581,9 +1591,12 @@ class Viewer:
             if raw_data:
                 return buffer
 
-            # Return numpy array RGB
+            # Extract numpy array RGBA
+            from PIL import Image
             with Image.open(io.BytesIO(buffer)) as img_obj:
                 rgba_array = np.array(img_obj)
+
+            # Return numpy array RGB
             return rgba_array[:, :, :-1]
 
     @__must_be_open

@@ -11,9 +11,6 @@ from pathlib import PureWindowsPath
 from typing import Callable, Optional, Dict, Tuple, Union, Sequence, Any, List
 
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import font_manager
-from matplotlib.patches import Patch
 
 import simplepbr
 from panda3d.core import (
@@ -1107,6 +1104,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def set_legend(self,
                    items: Optional[Sequence[
                        Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
+        # Make sure plot submodule is available
+        try:
+            import matplotlib.pyplot as plt
+            from matplotlib.patches import Patch
+        except ImportError:
+            raise ImportError(
+                "Method not supported. Please install 'jiminy_py[plot]'.")
+
         # Remove existing watermark, if any
         if self._legend is not None:
             self._legend.remove_node()
@@ -1190,6 +1195,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
     def set_clock(self, time: Optional[float] = None) -> None:
+        # Make sure plot submodule is available
+        try:
+            from matplotlib import font_manager
+        except ImportError:
+            raise ImportError(
+                "Method not supported. Please install 'jiminy_py[plot]'.")
+
         # Remove existing watermark, if any
         if time is None:
             if self._clock is not None:
