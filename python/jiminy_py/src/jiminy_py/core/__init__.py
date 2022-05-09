@@ -93,10 +93,11 @@ def get_include():
 
 
 def get_libraries():
+    ver_short = '.'.join(__version__.split('.')[:2])
     lib_dir = _os.path.join(_os.path.dirname(__file__), "lib")
     libraries_fullpath = []
     for library_filename in _os.listdir(lib_dir):
-        if _re.search(r'\.(dll|dylib|so[0-9\.]*)$', library_filename):
+        if _re.search(f'\\.(dll|dylib|so.{ver_short})$', library_filename):
             libraries_fullpath.append(_os.path.join(lib_dir, library_filename))
     return ";".join(libraries_fullpath)
 
