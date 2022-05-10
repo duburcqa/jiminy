@@ -22,7 +22,8 @@ jobs:
 
     env:
       PYTHON_VERSION: 3.8
-      CMAKE_CXX_FLAGS: "-march=haswell"
+      # Pinocchio bindings do not support memory alignment for now.
+      # CMAKE_CXX_FLAGS: "-march=haswell"
       BUILD_TYPE: "Release"
 
     #####################################################################################

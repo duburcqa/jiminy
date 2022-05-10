@@ -20,7 +20,8 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
-      CMAKE_CXX_FLAGS: "/arch:AVX2 -D__FMA__"  # Must add `/fp:contract` for MSVC > 2019
+      # Pinocchio bindings do not support memory alignment for now.
+      # CMAKE_CXX_FLAGS: "/arch:AVX2 -D__FMA__"  # Must add `/fp:contract` for MSVC > 2019
 
     strategy:
       matrix:
