@@ -146,12 +146,14 @@ function(deployPythonPackage)
         endif()
 
         # Install package with optional requirements if any
+        # Note that it is not possible to throw an error because `pip`
+        # flags some warnings as error, e.g. incompatible dependencies.
         install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} --upgrade .${PKG_DEPS}
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${PKG_NAME}
                                       ERROR_VARIABLE ERROR_MSG)
                       if(ERROR_MSG MATCHES \"ERROR:.*\")
                           message(\"\${ERROR_MSG}\")
-                          message(FATAL_ERROR \"Python installation of '${PKG_SPEC}' failed.\")
+                          message(WARNING \"Python installation of '${PKG_SPEC}' failed.\")
                       endif()")
     endforeach()
 endfunction()
@@ -164,7 +166,7 @@ function(deployPythonPackageDevelop)
                                       ERROR_VARIABLE ERROR_MSG)
                       if(ERROR_MSG MATCHES \"ERROR:.*\")
                           message(\"\${ERROR_MSG}\")
-                          message(FATAL_ERROR \"Python installation of '${PKG_NAME}' failed.\")
+                          message(WARNING \"Python installation of '${PKG_NAME}' failed.\")
                       endif()")
     endforeach()
 endfunction()
