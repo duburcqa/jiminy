@@ -80,11 +80,13 @@ list(GET jiminy_LIBRARIES 0 jiminy_CORE_LIBRARY)
 
 # Define compilation options and definitions
 set(jiminy_DEFINITIONS
-    BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON BOOST_MPL_LIMIT_VECTOR_SIZE=30 BOOST_MPL_LIMIT_LIST_SIZE=30
+    BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON
+    BOOST_MPL_LIMIT_VECTOR_SIZE=30
+    BOOST_MPL_LIMIT_LIST_SIZE=30
 )
 if(WIN32)
     list(APPEND jiminy_DEFINITIONS
-        _USE_MATH_DEFINES=1 NOMINMAX
+        _USE_MATH_DEFINES NOMINMAX
         EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC
     )
     set(jiminy_OPTIONS /EHsc /bigobj /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
@@ -95,6 +97,13 @@ else()
                     OUTPUT_VARIABLE CHECK_NEW_CXX11_ABI)
     list(APPEND jiminy_DEFINITIONS _GLIBCXX_USE_CXX11_ABI=$<BOOL:${CHECK_NEW_CXX11_ABI}>)
     set(jiminy_OPTIONS -fPIC)
+endif()
+
+# Set architecture flags.
+list(APPEND jiminy_OPTIONS ${jiminy_OPTIONS} @CMAKE_CXX_ARCH@)
+if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
+    list(APPEND jiminy_OPTIONS /wd9002 /fp:contract)
+    list(APPEND jiminy_DEFINITIONS __FMA__)
 endif()
 
 # Define imported target
@@ -109,6 +118,7 @@ set_target_properties(jiminy::core PROPERTIES
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
+
 if(WIN32)
     get_filename_component(jiminy_LIBDIR "${jiminy_CORE_LIBRARY}" DIRECTORY)
     get_filename_component(jiminy_LIBNAME "${jiminy_CORE_LIBRARY}" NAME_WE)

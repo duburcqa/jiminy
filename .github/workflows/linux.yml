@@ -21,8 +21,9 @@ jobs:
         shell: bash
 
     env:
-      BUILD_TYPE: "Release"
       PYTHON_VERSION: 3.8
+      CMAKE_CXX_FLAGS: "-march=haswell"
+      BUILD_TYPE: "Release"
 
     #####################################################################################
 
@@ -78,7 +79,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="-fPIC -DBOOST_BIND_GLOBAL_PLACEHOLDERS" \
+              -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2
 

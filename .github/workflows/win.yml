@@ -20,6 +20,7 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
+      CMAKE_CXX_FLAGS: "/arch:AVX2 -D__FMA__"  # Must add `/fp:contract` for MSVC > 2019
 
     strategy:
       matrix:
@@ -85,9 +86,9 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-              -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus -D_USE_MATH_DEFINES $(
-              ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC -DURDFDOM_STATIC $(
-              ) -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
+              -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
+              ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
+              ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
         cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {

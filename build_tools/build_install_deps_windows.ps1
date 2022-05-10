@@ -40,9 +40,8 @@ if (Test-Path env:Boost_ROOT) {
 
 ################################## Checkout the dependencies ###########################################
 
-### Checkout boost and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
-#   Note that Boost 1.72 is not yet officially supported by Cmake 3.16, which is the "default" version used
-#   on Windows 10.
+### Checkout boost and its submodules
+#   Boost >= 1.78 is required to compile with MSVC 2022.
 if (-not (Test-Path -PathType Container "$RootDir/boost")) {
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 }
@@ -62,6 +61,7 @@ Set-Location -Path "$RootDir/eigen3"
 git checkout --force "3.3.9"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
+#   eigenpy >= 2.6.8 is required to support Boost >= 1.77
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
   git clone https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 }
@@ -220,7 +220,8 @@ cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_G
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} -DBOOST_ALL_NO_LIB -DEIGENPY_STATIC"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} -DBOOST_ALL_NO_LIB $(
+)     -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC"
 cmake --build . --target INSTALL --config "${env:BUILD_TYPE}" --parallel 2
 
 ################################## Build and install tinyxml ###########################################
@@ -315,7 +316,7 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_G
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON `
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} /wd4068 /wd4267 /wd4005 $(
-)     -DBOOST_ALL_NO_LIB -DEIGENPY_STATIC -DHPP_FCL_STATIC"
+)     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DHPP_FCL_STATIC"
 cmake --build . --target INSTALL --config "${env:BUILD_TYPE}" --parallel 2
 
 ################################ Build and install Pinocchio ##########################################
@@ -335,5 +336,6 @@ cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE
       -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF `
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} /wd4068 /wd4715 /wd4834 /wd4005 $(
-)     -DBOOST_ALL_NO_LIB -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
+)     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC $(
+)     -DPINOCCHIO_STATIC"
 cmake --build . --target INSTALL --config "${env:BUILD_TYPE}" --parallel 2
