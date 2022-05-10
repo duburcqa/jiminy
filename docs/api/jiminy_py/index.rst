@@ -7,9 +7,8 @@ Jiminy Python API
    core/index
    robot
    simulator
-   dynamics
-   plot
    viewer
-   processing
-   state
    log
+   plot
+   dynamics
+   state

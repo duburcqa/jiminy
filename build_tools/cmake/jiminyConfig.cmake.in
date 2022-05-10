@@ -62,7 +62,7 @@ if (NOT Python_NumPy_INCLUDE_DIRS)
         HINTS "${__numpy_path}" "${Python_INCLUDE_DIRS}" NO_DEFAULT_PATH)
 endif()
 
-# Find jiminy library and headers.
+# Find jiminy libraries and headers.
 # Note that jiminy is compiled under C++17 using either old or new CXX11 ABI.
 # Make sure very project dependencies are compiled for the same CXX11 ABI
 # otherwise segfaults may occur. It should be fine for the standard library,
@@ -75,18 +75,23 @@ execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 "import jiminy_py; print(jiminy_py.get_libraries(), end='')"
                 OUTPUT_VARIABLE jiminy_LIBRARIES)
 
+# For now, there is only one libary (core), so just pick the most recent one
+list(GET jiminy_LIBRARIES 0 jiminy_CORE_LIBRARY)
+
 # Define compilation options and definitions
 set(jiminy_DEFINITIONS
-    BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON BOOST_MPL_LIMIT_VECTOR_SIZE=30 BOOST_MPL_LIMIT_LIST_SIZE=30
+    BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON
+    BOOST_MPL_LIMIT_VECTOR_SIZE=30
+    BOOST_MPL_LIMIT_LIST_SIZE=30
 )
 if(WIN32)
     list(APPEND jiminy_DEFINITIONS
-        _USE_MATH_DEFINES=1 NOMINMAX
+        _USE_MATH_DEFINES NOMINMAX
         EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC
     )
     set(jiminy_OPTIONS /EHsc /bigobj /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
 else()
-    execute_process(COMMAND readelf --version-info "${jiminy_LIBRARIES}"
+    execute_process(COMMAND readelf --version-info "${jiminy_CORE_LIBRARY}"
                     COMMAND grep -c "Name: CXXABI_1.3.9\\\|Name: GLIBCXX_3.4.21"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE CHECK_NEW_CXX11_ABI)
@@ -94,10 +99,17 @@ else()
     set(jiminy_OPTIONS -fPIC)
 endif()
 
+# Set architecture flags.
+list(APPEND jiminy_OPTIONS ${jiminy_OPTIONS} @CMAKE_CXX_ARCH@)
+if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
+    list(APPEND jiminy_OPTIONS /wd9002 /fp:contract)
+    list(APPEND jiminy_DEFINITIONS __FMA__)
+endif()
+
 # Define imported target
 add_library(jiminy::core SHARED IMPORTED GLOBAL)
 set_target_properties(jiminy::core PROPERTIES
-    IMPORTED_LOCATION "${jiminy_LIBRARIES}"
+    IMPORTED_LOCATION "${jiminy_CORE_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${jiminy_INCLUDE_DIRS}"
     INTERFACE_COMPILE_DEFINITIONS "${jiminy_DEFINITIONS}"
     INTERFACE_COMPILE_OPTIONS "${jiminy_OPTIONS}"
@@ -106,13 +118,14 @@ set_target_properties(jiminy::core PROPERTIES
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
+
 if(WIN32)
-    get_filename_component(jiminy_LIBDIR "${jiminy_LIBRARIES}" DIRECTORY)
-    get_filename_component(jiminy_LIBNAME "${jiminy_LIBRARIES}" NAME_WE)
+    get_filename_component(jiminy_LIBDIR "${jiminy_CORE_LIBRARY}" DIRECTORY)
+    get_filename_component(jiminy_LIBNAME "${jiminy_CORE_LIBRARY}" NAME_WE)
     set_target_properties(jiminy::core PROPERTIES
         IMPORTED_IMPLIB "${jiminy_LIBDIR}/${jiminy_LIBNAME}.lib"
     )
 endif()
 
 # Display import is success
-message(STATUS "Found jiminy ('${jiminy_VERSION}'): ${jiminy_INCLUDE_DIRS} (${jiminy_LIBRARIES})")
+message(STATUS "Found jiminy ('${jiminy_VERSION}'): ${jiminy_INCLUDE_DIRS} (${jiminy_CORE_LIBRARY})")

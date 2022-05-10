@@ -17,8 +17,8 @@ from tqdm import tqdm
 from scipy.interpolate import interp1d
 
 from .. import core as jiminy
-from ..log import (TrajectoryDataType,
-                   read_log,
+from ..dynamics import TrajectoryDataType
+from ..log import (read_log,
                    build_robot_from_log,
                    extract_trajectory_data_from_log,
                    emulate_sensors_data_from_log)
@@ -27,6 +27,7 @@ from .viewer import (COLORS,
                      Tuple4FType,
                      CameraPoseType,
                      CameraMotionType,
+                     get_default_backend,
                      Viewer)
 from .meshcat.utilities import interactive_mode
 
@@ -92,7 +93,11 @@ def play_trajectories(trajs_data: Union[
                          emulate sensors data from log using the hook provided
                          by `emulate_sensors_data_from_log` method. `None` to
                          disable, otherwise it must have the signature:
+
+                         .. code-block:: python
+
                              f(t:float, q: ndarray, v: ndarray) -> None
+
                          Optional: None by default.
     :param time_interval: Replay only timesteps in this interval of time.
                           It does not have to be finite.
@@ -210,7 +215,7 @@ def play_trajectories(trajs_data: Union[
         viewers = None
 
     # Make sure the viewers are still running if specified
-    if not Viewer.is_open():
+    if not Viewer.is_alive():
         viewers = None
     if viewers is not None:
         for i, viewer in enumerate(viewers):
@@ -218,8 +223,15 @@ def play_trajectories(trajs_data: Union[
                 viewers[i] = None
                 break
 
+    # Get backend
+    if backend is None:
+        if viewers is None:
+            backend = get_default_backend()
+        else:
+            backend = Viewer.backend
+
     # Handling of default options if no viewer is available
-    if viewers is None and Viewer.backend.startswith('panda3d'):
+    if viewers is None and backend.startswith('panda3d'):
         # Delete robot by default only if not in notebook
         if delete_robot_on_close is None:
             delete_robot_on_close = not interactive_mode()

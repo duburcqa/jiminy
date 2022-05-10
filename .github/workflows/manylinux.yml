@@ -52,7 +52,7 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel auditwheel cmake
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel cmake
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
     - name: Build project dependencies
       run: |
@@ -70,7 +70,7 @@ jobs:
         cd "$RootDir/build"
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
@@ -110,16 +110,6 @@ jobs:
       with:
         name: jiminy_py-${{ matrix.PYTHON_VERSION }}-wheel
         path: build/wheelhouse
-
-    #####################################################################################
-
-    - name: Run unit tests
-      run: |
-        cd "$RootDir/build"
-        ctest
-
-        cd "$RootDir/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     #####################################################################################
 

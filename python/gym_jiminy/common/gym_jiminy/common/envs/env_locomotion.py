@@ -91,7 +91,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         r"""
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
-                              Optional: Looking for '*_hardware.toml' file in
+                              Optional: Looking for '\*_hardware.toml' file in
                               the same folder and with the same name.
         :param mesh_path: Path to the folder containing the model meshes.
                           Optional: Env variable 'JIMINY_DATA_PATH' will be
@@ -110,7 +110,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                             imported AFTER loading the hardware description
                             file. It can be automatically generated from an
                             instance by calling `export_config_file` method.
-                            Optional: Looking for '*_options.toml' file in the
+                            Optional: Looking for '\*_options.toml' file in the
                             same folder and with the same name. If not found,
                             using default configuration.
         :param avoid_instable_collisions: Prevent numerical instabilities by
@@ -352,10 +352,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                        angular) [Fx, Fy, Fz, Mx, My, Mz].
         """
         # pylint: disable=unused-argument
-
-        # Assertion(s) for type checker
-        assert self._f_xy_profile is not None
-
         wrench[0] = F_PROFILE_SCALE * self._f_xy_profile[0](t)
         wrench[1] = F_PROFILE_SCALE * self._f_xy_profile[1](t)
         wrench[:2] *= self.std_ratio['disturbance']

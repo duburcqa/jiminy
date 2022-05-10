@@ -1168,7 +1168,8 @@ namespace jiminy
         auto systemDataIt = systemsDataHolder_.begin();
         for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
         {
-            // Propagate the user-defined gravity at Pinocchio model level
+            // Propagate the user-defined gravity at robot level
+            systemIt->robot->pncModelOrig_.gravity = engineOptions_->world.gravity;
             systemIt->robot->pncModel_.gravity = engineOptions_->world.gravity;
 
             /* Reinitialize the system state buffers, since the robot kinematic may have changed.
@@ -1416,7 +1417,7 @@ namespace jiminy
 
                 // Instantiate desired LCP solver
                 std::string const & constraintSolverType = engineOptions_->constraints.solver;
-                switch(CONSTRAINT_SOLVERS_MAP.at(constraintSolverType))
+                switch (CONSTRAINT_SOLVERS_MAP.at(constraintSolverType))
                 {
                 case constraintSolver_t::PGS:
                     systemDataIt->constraintSolver = std::make_unique<PGSSolver>(

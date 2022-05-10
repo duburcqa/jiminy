@@ -306,16 +306,26 @@ namespace python
         {
             if (heightmapType_ == heightmapType_t::STAIRS)
             {
+                *out1Ptr_ = qNAN;
                 bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
                 handlePyPtr_(posFrame[0], posFrame[1], out1Py);
             }
             else if (heightmapType_ == heightmapType_t::GENERIC)
             {
+                *out1Ptr_ = qNAN;
+                out2Ptr_->setConstant(qNAN);
                 bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
                 bp::handle<> out2Py(bp::borrowed(out2PyPtr_));
                 handlePyPtr_(posFrame[0], posFrame[1], out1Py, out2Py);
             }
-
+            if (std::isnan(*out1Ptr_))
+            {
+                throw std::runtime_error("Heightmap height output not set.");
+            }
+            if ((out2Ptr_->array() != out2Ptr_->array()).any())
+            {
+                throw std::runtime_error("Heightmap normal output not set.");
+            }
             return {*out1Ptr_, *out2Ptr_};
         }
 

@@ -35,6 +35,11 @@ if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom versi
 endif()
 add_definitions("${COMPILE_FLAGS}")
 
+# Specialize jiminy core configuration file
+set(JIMINY_CONFIG_IN ${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake.in)
+set(JIMINY_CONFIG_OUT ${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake)
+configure_file(${JIMINY_CONFIG_IN} ${JIMINY_CONFIG_OUT} @ONLY)
+
 # Enable all warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")
 
@@ -128,7 +133,8 @@ foreach(target "${PROJECT_NAME}" "${LIBRARY_NAME}")
     # Propagate include directories from object manually is necessary for Cmake < 3.12
     target_include_directories(${target}
         SYSTEM PUBLIC
-        $<TARGET_PROPERTY:${PROJECT_NAME}-object,INTERFACE_INCLUDE_DIRECTORIES>)
+        $<TARGET_PROPERTY:${PROJECT_NAME}-object,INTERFACE_INCLUDE_DIRECTORIES>
+    )
 
     # Re-activate C++17 because it does not propagate properly for Cmake < 3.12
     set_target_properties(${target} PROPERTIES

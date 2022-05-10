@@ -8,7 +8,6 @@ from collections import OrderedDict
 from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
 
 import numpy as np
-from matplotlib.figure import Figure
 
 import pinocchio as pin
 from . import core as jiminy
@@ -19,10 +18,11 @@ from .core import (EncoderSensor as encoder,
                    ImuSensor as imu)
 from .robot import (generate_default_hardware_description_file,
                     BaseJiminyRobot)
-from .plot import TabbedFigure
-from .log import read_log, build_robot_from_log, extract_data_from_log
-from .viewer import (TrajectoryDataType,
-                     interactive_mode,
+from .dynamics import TrajectoryDataType
+from .log import (read_log,
+                  build_robot_from_log,
+                  extract_data_from_log)
+from .viewer import (interactive_mode,
                      extract_replay_data_from_log_data,
                      play_trajectories,
                      Viewer)
@@ -115,7 +115,7 @@ class Simulator:
         self.__pbar: Optional[tqdm] = None
 
         # Figure holder
-        self.figure: Optional[Figure] = None
+        self.figure = None
 
         # Reset the low-level jiminy engine
         self.reset()
@@ -130,12 +130,12 @@ class Simulator:
               avoid_instable_collisions: bool = True,
               debug: bool = False,
               **kwargs) -> 'Simulator':
-        """Create a new simulator instance from scratch, based on configuration
+        r"""Create a new simulator instance from scratch, based on configuration
         files only.
 
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
-                              Optional: Looking for '*_hardware.toml' file in
+                              Optional: Looking for '\*_hardware.toml' file in
                               the same folder and with the same name.
         :param mesh_path: Path to the folder containing the model meshes.
                           Optional: Env variable 'JIMINY_DATA_PATH' will be
@@ -147,7 +147,7 @@ class Simulator:
                             imported AFTER loading the hardware description
                             file. It can be automatically generated from an
                             instance by calling `export_config_file` method.
-                            Optional: Looking for '*_options.toml' file in the
+                            Optional: Looking for '\*_options.toml' file in the
                             same folder and with the same name. If not found,
                             using default configuration.
         :param avoid_instable_collisions: Prevent numerical instabilities by
@@ -661,6 +661,13 @@ class Simulator:
             Optional: False by default.
         :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
         """
+        # Make sure plot submodule is available
+        try:
+            from .plot import TabbedFigure
+        except ImportError:
+            raise ImportError(
+                "Method not supported. Please install 'jiminy_py[plot]'.")
+
         # Extract log data
         log_data, log_constants = self.log_data, self.log_constants
         if not log_constants:

@@ -156,9 +156,6 @@ class StackedJiminyEnv(BasePipelineWrapper):
         # Instantiate wrapper
         self.wrapper = FilteredFrameStack(env, **kwargs)
 
-        # Assertion(s) for type checker
-        assert self.env.action_space is not None
-
         # Define the observation and action spaces
         self.action_space = self.env.action_space
         self.observation_space = self.wrapper.observation_space

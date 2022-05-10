@@ -63,7 +63,7 @@ else()
                     OUTPUT_VARIABLE HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB)
 endif()
 
-set(PYTHON_INSTALL_FLAGS " --prefer-binary ")
+set(PYTHON_INSTALL_FLAGS " --no-warn-script-location --prefer-binary ")
 if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
     set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
     set(Python_SITELIB "${Python_USER_SITELIB}")
@@ -76,7 +76,7 @@ endif()
 # Get PYTHON_EXT_SUFFIX
 set(PYTHON_EXT_SUFFIX "")
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                        "from distutils.sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'), end='')"
+                        "from sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'), end='')"
                 OUTPUT_VARIABLE PYTHON_EXT_SUFFIX)
 if("${PYTHON_EXT_SUFFIX}" STREQUAL "")
     if(WIN32)
@@ -88,7 +88,7 @@ endif()
 
 # Include Python headers
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                        "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc(), end='')"
+                        "import sysconfig as sysconfig; print(sysconfig.get_path('include'), end='')"
                 OUTPUT_VARIABLE Python_INCLUDE_DIRS)
 
 # Add Python library directory to search path on Windows
@@ -133,17 +133,40 @@ message(STATUS "Boost Python Libs: ${BOOST_PYTHON_LIB}")
 
 # Define Python install helpers
 function(deployPythonPackage)
-    # The input arguments are [TARGET_NAME...]
-    foreach(TARGET_NAME IN LISTS ARGN)
-        install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} --upgrade .
-                                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
+    # The input arguments are [PKG_SPEC...]
+    foreach(PKG_SPEC IN LISTS ARGN)
+        # Split package specification to into name and requirement
+        string(FIND "${PKG_SPEC}" "[" PKG_DEPS_DELIM)
+        if(PKG_DEPS_DELIM GREATER -1)
+            string(SUBSTRING "${PKG_SPEC}" 0 ${PKG_DEPS_DELIM} PKG_NAME)
+            string(SUBSTRING "${PKG_SPEC}" ${PKG_DEPS_DELIM} -1 PKG_DEPS)
+        else()
+            set(PKG_NAME "${PKG_SPEC}")
+            set(PKG_DEPS "")
+        endif()
+
+        # Install package with optional requirements if any
+        # Note that it is not possible to throw an error because `pip`
+        # flags some warnings as error, e.g. incompatible dependencies.
+        install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} --upgrade .${PKG_DEPS}
+                                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${PKG_NAME}
+                                      ERROR_VARIABLE ERROR_MSG)
+                      if(ERROR_MSG MATCHES \"ERROR:.*\")
+                          message(\"\${ERROR_MSG}\")
+                          message(WARNING \"Python installation of '${PKG_SPEC}' failed.\")
+                      endif()")
     endforeach()
 endfunction()
 
 function(deployPythonPackageDevelop)
-    # The input arguments are [TARGET_NAME...]
-    foreach(TARGET_NAME IN LISTS ARGN)
+    # The input arguments are [PKG_NAME...]
+    foreach(PKG_NAME IN LISTS ARGN)
         install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
-                                      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
+                                      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${PKG_NAME}
+                                      ERROR_VARIABLE ERROR_MSG)
+                      if(ERROR_MSG MATCHES \"ERROR:.*\")
+                          message(\"\${ERROR_MSG}\")
+                          message(WARNING \"Python installation of '${PKG_NAME}' failed.\")
+                      endif()")
     endforeach()
 endfunction()

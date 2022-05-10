@@ -29,7 +29,14 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        f"gym_jiminy_toolbox=={version}"
+        f"gym_jiminy=={version}",
+        # Used to compute convex hull.
+        # No wheel is distributed for PyPy on pypi, and pip is only able to
+        # build from source after install `libatlas-base-dev` system
+        # dependency.
+        # 1.2.0 fixes `fmin_slsqp` optimizer returning wrong `imode` output.
+        # 1.8.0: `scipy.spatial.qhull._Qhull` is no longer exposed.
+        "scipy>=1.2.0,<1.8.0"
     ],
     zip_safe=False
 )

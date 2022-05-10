@@ -20,9 +20,6 @@
 import jiminy_py
 import sphinx_rtd_theme
 
-# Temporary workaround to remove multiple build warnings.
-from recommonmark.parser import CommonMarkParser
-
 # -- Project information -----------------------------------------------------
 
 project = u'jiminy'
@@ -57,10 +54,11 @@ extensions = [
     'sphinx.ext.githubpages',
     'aafigure.sphinxext',
     'nbsphinx',
-    "breathe"
+    'breathe',
+    'myst_parser'
 ]
 
-# Breathe Configuration
+# Breathe configuration
 breathe_default_project = project
 
 breathe_default_members = ('members', 'undoc-members')
@@ -69,6 +67,11 @@ breathe_implementation_filename_extensions = ['.tpp', '.cpp']
 
 breathe_show_define_initializer = False
 
+# MyST configuration
+myst_heading_anchors = 3
+
+# Suppress some warnings
+suppress_warnings = ["myst.header"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -232,14 +235,3 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
-
-
-# -- Setup configuration ----------------------------------------------
-
-class CustomCommonMarkParser(CommonMarkParser):
-    def visit_document(self, node):
-        pass
-
-
-def setup(app) -> None:
-    app.add_source_parser(CustomCommonMarkParser)

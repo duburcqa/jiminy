@@ -10,7 +10,7 @@ import numba as nb
 
 import jiminy_py.core as jiminy
 
-from .spaces import FieldNested, DataNested, zeros
+from .spaces import FieldNested, DataNested, SpaceNested, zeros
 
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     return False
 
 
-def get_fieldnames(structure: Union[FieldNested, DataNested],
+def get_fieldnames(structure: Union[SpaceNested, DataNested],
                    namespace: str = "") -> FieldNested:
     """Generate generic fieldnames from `gym..Space`, so that it can be used
     in conjunction with `register_variables`, to register any value from gym

@@ -75,7 +75,7 @@ install(CODE "foreach(target_source \"${CORE_SOURCE_DIR}\" \"${PYWRAP_SOURCE_DIR
                   file(COPY \"\${CORE_OBJ_REAL}/\"
                        DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/lib/\${CORE_OBJ_NAME}\")
               endif()
-              file(COPY \"${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake\"
+              file(COPY \"${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake\"
                    DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/cmake\")
               include(CMakePackageConfigHelpers)
               write_basic_package_version_file(
@@ -92,7 +92,7 @@ buildPythonWheel("python/${LIBRARY_NAME}_py"
                  "${CMAKE_BINARY_DIR}/pypi/dist/${LIBRARY_NAME}_py")
 
 # Install Python package jiminy_py
-deployPythonPackage("${LIBRARY_NAME}_py")
+deployPythonPackage("${LIBRARY_NAME}_py[meshcat,plot,dev]")
 
 ################ gym_jiminy ################
 

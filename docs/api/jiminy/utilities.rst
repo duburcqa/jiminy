@@ -19,7 +19,7 @@ IO file and Directory
 Conversion from/to JSON
 -----------------------
 
-.. doxygenfunction:: jiminy::convertToJson(T const &value)
+.. doxygenfunction:: jiminy::convertToJson(configHolder_t const &value)
    :project: jiminy
 
 .. doxygenfunction:: jiminy::convertFromJson(Json::Value const &value)
@@ -51,10 +51,10 @@ Telemetry
 Pinocchio
 ---------
 
-.. doxygenfunction:: jiminy::getJointNameFromPositionIdx
+.. doxygenfunction:: jiminy::getJointNameFromPositionIdx(pinocchio::Model const &model, int32_t const &idx, std::string &jointNameOut)
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getJointNameFromVelocityIdx
+.. doxygenfunction:: jiminy::getJointNameFromVelocityIdx(pinocchio::Model const &model, int32_t const &idIn, std::string &jointNameOut)
    :project: jiminy
 
 .. doxygenfunction:: jiminy::getJointTypeFromIdx
@@ -105,5 +105,5 @@ Pinocchio
 Math
 ----
 
-.. doxygenfunction:: jiminy::clamp(Eigen::Ref<vectorN_t const> const &data, float64_t const &minThr = -INF, float64_t const &maxThr = +INF)
+.. doxygenfunction:: jiminy::clamp(Eigen::MatrixBase<DerivedType> const &data, float64_t const &minThr = -INF, float64_t const &maxThr = +INF)
    :project: jiminy

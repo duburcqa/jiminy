@@ -1,8 +1,8 @@
 """Controller and observer abstract interfaces from reinforcement learning,
 specifically design for Jiminy engine, and defined as mixin classes. Any
-observer/controller block must inherite and implement those interfaces.
+observer/controller block must inherit and implement those interfaces.
 """
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 import numpy as np
 import gym
@@ -16,9 +16,9 @@ from ..utils import DataNested, is_breakpoint
 class ObserverInterface:
     """Observer interface for both observers and environments.
     """
-    observe_dt: float
-    observation_space: Optional[gym.Space]
-    _observation: Optional[DataNested]
+    observe_dt: float = -1
+    observation_space: gym.Space
+    _observation: DataNested
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observation interface.
@@ -29,11 +29,6 @@ class ObserverInterface:
                      multiple inheritance through multiple inheritance.
         :param kwargs: Extra keyword arguments. See 'args'.
         """
-        # Define some attributes
-        self.observe_dt = -1
-        self.observation_space = None
-        self._observation = None
-
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
 
@@ -50,8 +45,6 @@ class ObserverInterface:
             In most cases, it is not necessary to overloaded this method, and
             doing so may lead to unexpected behavior if not done carefully.
         """
-        # Assertion(s) for type checker
-        assert self._observation is not None
         return self._observation
 
     # methods to override:
@@ -83,9 +76,9 @@ class ObserverInterface:
 class ControllerInterface:
     """Controller interface for both controllers and environments.
     """
-    control_dt: float
-    action_space: Optional[gym.Space]
-    _action: Optional[DataNested]
+    control_dt: float = -1
+    action_space: gym.Space
+    _action: DataNested
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the control interface.
@@ -96,11 +89,7 @@ class ControllerInterface:
                      multiple inheritance through multiple inheritance.
         :param kwargs: Extra keyword arguments. See 'args'.
         """
-        # Define some attributes
-        self.control_dt = -1
-        self.action_space = None
-        self._action = None
-
+        # Define some attribute(s)
         self.enable_reward_terminal = (
             self.compute_reward_terminal.  # type: ignore[attr-defined]
             __func__ is not ControllerInterface.compute_reward_terminal)
@@ -178,20 +167,14 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
-    simulator: Optional[Simulator]
-    stepper_state: Optional[jiminy.StepperState]
-    system_state: Optional[jiminy.SystemState]
-    sensors_data: Optional[Dict[str, np.ndarray]]
+    simulator: Simulator
+    stepper_state: jiminy.StepperState
+    system_state: jiminy.SystemState
+    sensors_data: Dict[str, np.ndarray]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        # Define some attributes
-        self.simulator = None
-        self.stepper_state = None
-        self.system_state = None
-        self.sensors_data = None
-
         # Define some internal buffers
-        self._dt_eps: Optional[float] = None
+        self._dt_eps: float = -1
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
@@ -203,9 +186,6 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
             This method must be called once, after the environment has been
             reset. This is done automatically when calling `reset` method.
         """
-        # Assertion(s) for type checker
-        assert isinstance(self.simulator, Simulator)
-
         # Reset the control and observation update periods
         self.observe_dt = -1
         self.control_dt = -1

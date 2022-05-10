@@ -619,6 +619,8 @@ namespace jiminy
                             collisionConstraintsMap.emplace_back(geom.name, std::make_shared<FixedFrameConstraint>(
                                 geom.name, (Eigen::Matrix<bool_t, 6, 1>() << true, true, true, false, false, true).finished()));
                         }
+
+                        // TODO: Add warning or error to notify that a geometry has been ignored
                     }
                 }
             }
@@ -1186,10 +1188,6 @@ namespace jiminy
            numerically, and it messes some variables (Ycrb[0] keeps accumulating
            and com[0] is "wrongly defined"). So using it must be avoided. */
         pinocchio_overload::crba(pncModel_, pncData_, q);
-
-        // Compute the mass matrix decomposition, since it may be used for
-        // constraint stabilization.
-        pinocchio::cholesky::decompose(pncModel_, pncData_);
 
         /* Computing forward kinematics without acceleration to get the drift.
            Note that it will alter the actual joints spatial accelerations, so

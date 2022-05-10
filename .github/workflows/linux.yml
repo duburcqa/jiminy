@@ -21,8 +21,10 @@ jobs:
         shell: bash
 
     env:
+      PYTHON_VERSION: 3.8
+      # Pinocchio bindings do not support memory alignment for now.
+      # CMAKE_CXX_FLAGS: "-march=haswell"
       BUILD_TYPE: "Release"
-      PYTHON_VERSION: 3.6
 
     #####################################################################################
 
@@ -56,13 +58,13 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install torch==1.8.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        "${PYTHON_EXECUTABLE}" -m pip install torch==1.11.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
         PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"
         echo "${InstallDir}/lib/python${PYTHON_VERSION}/site-packages" \
-        >> "${PYTHON_USER_SITELIB}/user_site.pth"
+        > "${PYTHON_USER_SITELIB}/user_site.pth"
 
     #####################################################################################
 
@@ -78,7 +80,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="-fPIC -DBOOST_BIND_GLOBAL_PLACEHOLDERS" \
+              -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2
 

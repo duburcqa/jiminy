@@ -7,3 +7,4 @@ Pipeline
    :private-members:
    :inherited-members:
    :show-inheritance:
+   :exclude-members: metadata

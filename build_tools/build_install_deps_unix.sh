@@ -23,11 +23,12 @@ fi
 
 ### Set common CMAKE_C/CXX_FLAGS
 CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -fPIC"
-if [ "${BUILD_TYPE}" == "Release" ]; then
-  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
-else
+if [ "${BUILD_TYPE}" == "Debug" ]; then
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
+else
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
 fi
+echo "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 
 ### Get the fullpath of Jiminy project
 ScriptDir="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"
@@ -41,7 +42,7 @@ mkdir -p "$InstallDir"
 #   cmake helper to detect Python executable, which is not working
 #   properly when several executables exist.
 if [ -z ${PYTHON_EXECUTABLE} ]; then
-  PYTHON_EXECUTABLE=$(python -c "import sys; sys.stdout.write(sys.executable)")
+  PYTHON_EXECUTABLE=$(python3 -c "import sys; sys.stdout.write(sys.executable)")
   echo "PYTHON_EXECUTABLE is unset. Defaulting to '${PYTHON_EXECUTABLE}'."
 fi
 
@@ -170,7 +171,7 @@ cd "$RootDir/boost"
 #   to specify Python included dir manually, since it is not detected
 #   successfully in some cases.
 PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
-PYTHON_INCLUDE_DIRS="$(${PYTHON_EXECUTABLE} -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())")"
+PYTHON_INCLUDE_DIRS="$(${PYTHON_EXECUTABLE} -c "import sysconfig as sysconfig; print(sysconfig.get_path('include'))")"
 PYTHON_CONFIG_JAM="using python : ${PYTHON_VERSION} : ${PYTHON_EXECUTABLE} : ${PYTHON_INCLUDE_DIRS} ;"
 sed -i.old "/using python/c\\
 ${PYTHON_CONFIG_JAM}
@@ -178,13 +179,22 @@ ${PYTHON_CONFIG_JAM}
 
 ### Build and install and install boost
 #   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
-BuildTypeB2="$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')"
+if [ "${BUILD_TYPE}" == "Release" ]; then
+  BuildTypeB2="release"
+elif [ "${BUILD_TYPE}" == "Debug" ]; then
+  BuildTypeB2="debug"
+# elif [ "${BUILD_TYPE}" == "RelWithDebInfo" ]; then
+#   BuildTypeB2="profile"
+else
+  echo "Build type '${BUILD_TYPE}' not supported." >&2
+  exit 1
+fi
 CMAKE_CXX_FLAGS_B2="-std=c++17"
 if [ "${OSTYPE//[0-9.]/}" == "darwin" ]; then
   CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
 fi
 if grep -q ";" <<< "${OSX_ARCHITECTURES}" ; then
-    CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} $(echo "-arch ${OSX_ARCHITECTURES}" | sed "s/;/ -arch /g")"
+  CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} $(echo "-arch ${OSX_ARCHITECTURES}" | sed "s/;/ -arch /g")"
 fi
 
 mkdir -p "$RootDir/boost/build"
@@ -210,7 +220,7 @@ mkdir -p "$RootDir/boost/build"
 
 mkdir -p "$RootDir/eigen3/build"
 cd "$RootDir/eigen3/build"
-cmake "$RootDir/eigen3" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/eigen3" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
@@ -219,7 +229,7 @@ make install -j2
 
 mkdir -p "$RootDir/eigenpy/build"
 cd "$RootDir/eigenpy/build"
-cmake "$RootDir/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
@@ -233,7 +243,7 @@ make install -j2
 
 mkdir -p "$RootDir/tinyxml/build"
 cd "$RootDir/tinyxml/build"
-cmake "$RootDir/tinyxml" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/tinyxml" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DBUILD_SHARED_LIBS=OFF \
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DTIXML_USE_STL" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
@@ -243,7 +253,7 @@ make install -j2
 
 mkdir -p "$RootDir/console_bridge/build"
 cd "$RootDir/console_bridge/build"
-cmake "$RootDir/console_bridge" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/console_bridge" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DBUILD_SHARED_LIBS=OFF \
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
@@ -260,7 +270,7 @@ make install -j2
 
 mkdir -p "$RootDir/urdfdom/build"
 cd "$RootDir/urdfdom/build"
-cmake "$RootDir/urdfdom" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/urdfdom" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DBUILD_TESTING=OFF \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DBUILD_SHARED_LIBS=OFF \
@@ -271,7 +281,7 @@ make install -j2
 
 mkdir -p "$RootDir/assimp/build"
 cd "$RootDir/assimp/build"
-cmake "$RootDir/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" \
@@ -284,7 +294,7 @@ make install -j2
 
 mkdir -p "$RootDir/hpp-fcl/third-parties/qhull/build"
 cd "$RootDir/hpp-fcl/third-parties/qhull/build"
-cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DBUILD_STATIC_LIBS=ON \
       -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-conversion" \
@@ -293,7 +303,7 @@ make install -j2
 
 mkdir -p "$RootDir/hpp-fcl/build"
 cd "$RootDir/hpp-fcl/build"
-cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
@@ -310,7 +320,7 @@ make install -j2
 ### Build and install pinocchio, finally !
 mkdir -p "$RootDir/pinocchio/build"
 cd "$RootDir/pinocchio/build"
-cmake "$RootDir/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
