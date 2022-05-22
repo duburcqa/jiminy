@@ -358,7 +358,7 @@ class TabbedFigure:
         # Update figure and show it without blocking
         self.adjust_layout(refresh_canvas=refresh_canvas)
         if not self.offscreen:
-            self.figure.show()
+            self.figure.show(block=False)
 
     def set_active_tab(self, tab_name: str) -> None:
         event = LocationEvent("click", self.figure.canvas, 0, 0)
