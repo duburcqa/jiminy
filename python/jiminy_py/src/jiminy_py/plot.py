@@ -31,9 +31,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 from .log import read_log
 
 
-EXPORT_DPI = 300
-
-
 class _ButtonBlit(Button):
     def _motion(self, event):
         if self.ignore(event):
@@ -42,6 +39,10 @@ class _ButtonBlit(Button):
         if not colors.same_color(c, self.ax.get_facecolor()):
             self.ax.set_facecolor(c)
             if self.drawon:
+                # It is necessary to flush events beforehand to make sure
+                # figure refresh cannot get interrupted by button blitting.
+                # Otherwise the figure would be blank.
+                self.ax.figure.canvas.flush_events()
                 self.ax.draw_artist(self.ax)
                 self.ax.figure.canvas.blit(self.ax.bbox)
 
@@ -77,8 +78,8 @@ class TabbedFigure:
     .. note::
         It has been designed to be cross-platform, and supported by any
         Matplotlib backend. So it can be used on-the-spot right after fresh
-        install of Python and `jiminy_py`, without requiering elevated
-        priviledge to install Qt4/5 or Tkinter.
+        install of Python and `jiminy_py`, without requiring elevated
+        privilege to install Qt4/5 or Tkinter.
 
     .. warning::
         It only supports plotting time-dependent data, the later corresponding
@@ -248,6 +249,9 @@ class TabbedFigure:
         """
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
+        # button = self.tab_active["button"]
+        # button.ax.draw_artist(button.ax)
+        # button.ax.figure.canvas.blit(button.ax.bbox)
 
     def add_tab(self,
                 tab_name: str,
@@ -358,7 +362,7 @@ class TabbedFigure:
         # Update figure and show it without blocking
         self.adjust_layout(refresh_canvas=refresh_canvas)
         if not self.offscreen:
-            self.figure.show(block=False)
+            self.figure.show()
 
     def set_active_tab(self, tab_name: str) -> None:
         event = LocationEvent("click", self.figure.canvas, 0, 0)
@@ -408,22 +412,20 @@ class TabbedFigure:
             self.remove_tab(tab_name, refresh_canvas=False)
         self.refresh()
 
-    def save_tab(self, image_path: str) -> None:
+    def save_tab(self, pdf_path: str) -> None:
         """Export current tab, limiting the bounding box to the subplots.
 
-        :param image_path: Desired location for generated image. Note that
-                           only '.png' format is supported for now.
+        :param pdf_path: Desired location for generated pdf file.
         """
-        image_path = str(pathlib.Path(image_path).with_suffix('.png'))
+        pdf_path = str(pathlib.Path(pdf_path).with_suffix('.png'))
         self.figure.savefig(
-            image_path, format='png', dpi=EXPORT_DPI, transparent=False,
-            bbox_inches=self.bbox_inches)
+            pdf_path, format='pdf', bbox_inches=self.bbox_inches)
 
     def save_all_tabs(self, pdf_path: str) -> List[str]:
         """Export every tabs in a signle pdf, limiting systematically the
         bounding box to the subplots and legend.
 
-        :param image_path: Desired location for generated pdf file.
+        :param pdf_path: Desired location for generated pdf file.
         """
         pdf_path = str(pathlib.Path(pdf_path).with_suffix('.pdf'))
         with PdfPages(pdf_path) as pdf:
@@ -436,21 +438,21 @@ class TabbedFigure:
              time: np.ndarray,
              tabs_data: Dict[str, Union[np.ndarray, Dict[str, Union[
                     Dict[str, np.ndarray], np.ndarray]]]],
-             image_path: Optional[str] = None,
+             pdf_path: Optional[str] = None,
              **kwargs) -> "TabbedFigure":
         """ TODO: Write documentation.
 
-        :param image_path: It specified, the figure will be exported to pdf
-                           without rendering on screen.
+        :param pdf_path: It specified, the figure will be exported to pdf
+                         without rendering on screen.
         :param kwargs: Extra keyword arguments to forward to `add_tab` method.
         """
-        tabbed_figure = cls(**{"offscreen": image_path is not None, **kwargs})
+        tabbed_figure = cls(**{"offscreen": pdf_path is not None, **kwargs})
         for name, data in tabs_data.items():
             tabbed_figure.add_tab(
                 name, time, data, **kwargs, refresh_canvas=False)
         tabbed_figure.refresh()
-        if image_path is not None:
-            tabbed_figure.save_all_tabs(image_path)
+        if pdf_path is not None:
+            tabbed_figure.save_all_tabs(pdf_path)
         return tabbed_figure
 
 
@@ -638,4 +640,4 @@ def plot_log():
             fig.canvas.draw()
         fig.canvas.mpl_connect('pick_event', legend_clicked)
 
-    plt.show()
+    plt.show(block=True)

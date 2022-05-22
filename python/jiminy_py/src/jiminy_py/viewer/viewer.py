@@ -103,7 +103,7 @@ def get_default_backend() -> str:
         graphical server. Besides, both can fallback to software rendering if
         necessary, although Panda3d offers only very limited support of it.
     """
-    if interactive_mode():
+    if interactive_mode() >= 2:
         return 'meshcat'
     elif check_display_available():
         return 'panda3d'
@@ -289,7 +289,7 @@ class Viewer:
     """ TODO: Write documentation.
 
     .. note::
-        The environment variable 'JIMINY_VIEWER_INTERACTIVE_DISABLE' can be
+        The environment variable 'JIMINY_INTERACTIVE_DISABLE' can be
         used to force disabling interactive display.
     """
     backend = None
@@ -408,11 +408,11 @@ class Viewer:
                 elif backend == 'meshcat':
                     # Opening a new display cell automatically if there is
                     # no other display cell already opened.
-                    open_gui_if_parent = interactive_mode() and (
+                    open_gui_if_parent = interactive_mode() >= 2 and (
                         Viewer._backend_obj is None or
                         not Viewer._backend_obj.comm_manager.n_comm)
                 elif backend == 'panda3d':
-                    open_gui_if_parent = not interactive_mode()
+                    open_gui_if_parent = interactive_mode() < 2
                 else:
                     open_gui_if_parent = False
 
@@ -761,7 +761,7 @@ class Viewer:
         elif Viewer.backend == 'meshcat':
             viewer_url = Viewer._backend_obj.gui.url()
 
-            if interactive_mode():
+            if interactive_mode() >= 2:
                 from IPython.core.display import HTML, display
 
                 # Scrap the viewer html content, including javascript
@@ -800,7 +800,7 @@ class Viewer:
                 html_content = html_content.replace(
                     "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
-                if interactive_mode() == 1:
+                if interactive_mode() == 2:
                     # Embed HTML in iframe on Jupyter, since it is not
                     # possible to load HTML/Javascript content directly.
                     html_content = html_content.replace(
@@ -1042,7 +1042,7 @@ class Viewer:
             # message on ipython ports will throw a low-level exception, that
             # is not blocking on Jupyter, but is on Google Colab.
             excluded_ports = []
-            if interactive_mode():
+            if interactive_mode() >= 2:
                 try:
                     excluded_ports += list(
                         get_ipython().kernel._recorded_ports.values())
