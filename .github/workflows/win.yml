@@ -162,7 +162,7 @@ jobs:
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
 
         Set-Location -Path "$RootDir/build"
-        ctest
+        ctest --output-on-failure
 
         Set-Location -Path "$RootDir/unit_py"
         python -m unittest discover -v

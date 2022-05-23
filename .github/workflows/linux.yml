@@ -106,7 +106,7 @@ jobs:
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
         cd "$RootDir/build"
-        ctest
+        ctest --output-on-failure
 
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

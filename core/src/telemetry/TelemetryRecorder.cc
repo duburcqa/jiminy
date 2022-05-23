@@ -281,7 +281,7 @@ namespace jiminy
                 }
 
                 // In header, look for timeUnit constant - if not found, use default time unit.
-                float64_t timeUnit = TELEMETRY_DEFAULT_TIME_UNIT;
+                float64_t timeUnit = STEPPER_MIN_TIMESTEP;
                 auto const lastConstantIt = std::find(logData.header.begin(), logData.header.end(), START_COLUMNS);
                 for (auto constantIt = logData.header.begin() ; constantIt != lastConstantIt ; ++constantIt)
                 {

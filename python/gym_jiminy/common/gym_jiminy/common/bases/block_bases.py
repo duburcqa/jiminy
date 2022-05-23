@@ -213,7 +213,7 @@ class BaseControllerBlock(ControllerInterface, BlockInterface):
             The space in which the command must be contained is completely
             determined by the action space of the next block (another
             controller or the environment to ultimately control). Thus, it does
-            not have to be defined explicitely.
+            not have to be defined explicitly.
 
             On the contrary, the action space of the controller 'action_ctrl'
             is free and it is up to the user to define it.

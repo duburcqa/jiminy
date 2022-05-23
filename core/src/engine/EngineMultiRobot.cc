@@ -1540,7 +1540,7 @@ namespace jiminy
             telemetrySender_.registerConstant("options", allOptionsString);
 
             // Write the header: this locks the registration of new variables
-            telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
+            telemetryRecorder_->initialize(telemetryData_.get(), getTelemetryTimeUnit());
 
             // At this point, consider that the simulation is running
             isSimulationRunning_ = true;
@@ -2584,15 +2584,6 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        // Make sure that the selected time unit for logging makes sense
-        configHolder_t telemetryOptions = boost::get<configHolder_t>(engineOptions.at("telemetry"));
-        float64_t const & timeUnit = boost::get<float64_t>(telemetryOptions.at("timeUnit"));
-        if (SIMULATION_MAX_TIMESTEP + EPS < timeUnit || timeUnit < STEPPER_MIN_TIMESTEP - EPS)
-        {
-            PRINT_ERROR("'timeUnit' is out of range.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
         // Make sure the dtMax is not out of range
         configHolder_t stepperOptions = boost::get<configHolder_t>(engineOptions.at("stepper"));
         float64_t const & dtMax = boost::get<float64_t>(stepperOptions.at("dtMax"));
@@ -2813,7 +2804,12 @@ namespace jiminy
 
     float64_t EngineMultiRobot::getMaxSimulationDuration(void) const
     {
-        return TelemetryRecorder::getMaximumLogTime(engineOptions_->telemetry.timeUnit);
+        return TelemetryRecorder::getMaximumLogTime(getTelemetryTimeUnit());
+    }
+
+    float64_t EngineMultiRobot::getTelemetryTimeUnit(void) const
+    {
+        return STEPPER_MIN_TIMESTEP;
     }
 
     // ========================================================

@@ -454,6 +454,7 @@ namespace python
                                                bp::return_internal_reference<>()))
                 .add_property("is_simulation_running", &PyEngineMultiRobotVisitor::getIsSimulationRunning)
                 .add_property("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
+                .add_property("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
                 ;
         }
 
