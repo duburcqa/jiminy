@@ -640,7 +640,7 @@ namespace python
             if (!logData.timestamps.empty())
             {
                 vectorN_t timeBuffer = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-                    logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
+                    logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() * logData.timeUnit;
                 timePy = convertToPython(timeBuffer, true);
                 PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(timePy.ptr()), NPY_ARRAY_WRITEABLE);
             }

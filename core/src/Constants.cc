@@ -9,7 +9,7 @@ namespace jiminy
 
     std::string const TELEMETRY_FIELDNAME_DELIMITER = ".";
     std::string const TELEMETRY_CONSTANT_DELIMITER = "=";
-    float64_t const TELEMETRY_DEFAULT_TIME_UNIT = 1e6;  // Log the time rounded to the closest µs
+    float64_t const TELEMETRY_DEFAULT_TIME_UNIT = 1e-6;  // Log the time rounded to the closest µs
     int64_t const TELEMETRY_MIN_BUFFER_SIZE = 256U * 1024U;  // 256Ko
 
     uint8_t const DELAY_MIN_BUFFER_RESERVE = 20U;

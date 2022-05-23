@@ -118,7 +118,7 @@ def read_log(fullpath: str,
                 const_dict[key] = parse_constant(key, value)
 
             # Extract time
-            time = f['Global.Time'][()] / f['Global.Time'].attrs['unit']
+            time = f['Global.Time'][()] * f['Global.Time'].attrs['unit']
 
             # Load variables (1D time-series)
             data_dict = {'Global.Time': time}

@@ -2587,7 +2587,7 @@ namespace jiminy
         // Make sure that the selected time unit for logging makes sense
         configHolder_t telemetryOptions = boost::get<configHolder_t>(engineOptions.at("telemetry"));
         float64_t const & timeUnit = boost::get<float64_t>(telemetryOptions.at("timeUnit"));
-        if (1.0 / (STEPPER_MIN_TIMESTEP - EPS) < timeUnit || timeUnit < 1.0 / (SIMULATION_MAX_TIMESTEP + EPS))
+        if (SIMULATION_MAX_TIMESTEP + EPS < timeUnit || timeUnit < STEPPER_MIN_TIMESTEP - EPS)
         {
             PRINT_ERROR("'timeUnit' is out of range.");
             return hresult_t::ERROR_BAD_INPUT;
@@ -3882,7 +3882,7 @@ namespace jiminy
         // Never empty since it contains at least the initial state
         logMatrix.resize(logData.timestamps.size(), 1U + logData.numInt + logData.numFloat);
         logMatrix.col(0) = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-            logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
+            logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() * logData.timeUnit;
         for (std::size_t i=0; i<logData.intData.size(); ++i)
         {
             logMatrix.block(i, 1, 1, logData.numInt) =

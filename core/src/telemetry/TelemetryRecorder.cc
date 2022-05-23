@@ -5,8 +5,10 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include <math.h>
+#include <cmath>
 #include <iomanip>
 #include <fstream>
+
 
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
@@ -28,7 +30,7 @@ namespace jiminy
     integerSectionSize_(0),
     floatsAddress_(),
     floatSectionSize_(0),
-    timeUnit_(0.0)
+    timeUnitInv_(1.0)
     {
         // Empty on purpose
     }
@@ -51,9 +53,12 @@ namespace jiminy
             PRINT_ERROR("TelemetryRecorder already initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
-        // Log the time unit as constant.
-        timeUnit_ = timeUnit;
-        telemetryData->registerConstant(TIME_UNIT, std::to_string(timeUnit_));
+        // Log the time unit as constant
+        timeUnitInv_ = 1.0 / timeUnit;
+        std::ostringstream timeUnitStr;
+        int precision = - static_cast<int>(std::ceil(std::log10(STEPPER_MIN_TIMESTEP)));
+        timeUnitStr << std::scientific << std::setprecision(precision) << timeUnit;
+        telemetryData->registerConstant(TIME_UNIT, timeUnitStr.str());
 
         std::vector<char_t> header;
         if (returnCode == hresult_t::SUCCESS)
@@ -94,12 +99,12 @@ namespace jiminy
 
     float64_t TelemetryRecorder::getMaximumLogTime(float64_t const & timeUnit)
     {
-        return static_cast<float64_t>(std::numeric_limits<int64_t>::max()) / timeUnit;
+        return static_cast<float64_t>(std::numeric_limits<int64_t>::max()) * timeUnit;
     }
 
     float64_t TelemetryRecorder::getMaximumLogTime(void) const
     {
-        return getMaximumLogTime(timeUnit_);
+        return getMaximumLogTime(1.0 / timeUnitInv_);
     }
 
     bool_t const & TelemetryRecorder::getIsInitialized(void)
@@ -164,7 +169,7 @@ namespace jiminy
             flows_.back().write(START_LINE_TOKEN);
 
             // Write time
-            flows_.back().write(static_cast<int64_t>(std::round(timestamp * timeUnit_)));
+            flows_.back().write(static_cast<int64_t>(std::round(timestamp * timeUnitInv_)));
 
             // Write data, integers first
             flows_.back().write(reinterpret_cast<uint8_t const *>(integersAddress_), integerSectionSize_);
@@ -280,7 +285,8 @@ namespace jiminy
                     std::size_t const delimiter = constantIt->find(TELEMETRY_CONSTANT_DELIMITER);
                     if (constantIt->substr(0, delimiter) == TIME_UNIT)
                     {
-                        timeUnit = std::stof(constantIt->substr(delimiter + 1));
+                        std::istringstream totalSString(constantIt->substr(delimiter + 1));
+                        totalSString >> timeUnit;
                         break;
                     }
                 }

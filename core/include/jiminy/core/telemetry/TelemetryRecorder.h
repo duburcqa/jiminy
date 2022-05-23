@@ -21,7 +21,7 @@ namespace jiminy
         logData_t(void) :
         header(),
         version(0),
-        timeUnit(0.0),
+        timeUnit(1.0),
         numInt(0U),
         numFloat(0U),
         timestamps(),
@@ -58,7 +58,7 @@ namespace jiminy
         /// \brief Initialize the recorder.
         /// \param[in] telemetryData Data to log.
         /// \param[in] timeUnit Unit with which the time will be logged.
-        ///                     Note that time is logged as an int.
+        ///                     Note that time is logged.
         ////////////////////////////////////////////////////////////////////////
         hresult_t initialize(TelemetryData       * telemetryData,
                              float64_t     const & timeUnit);
@@ -72,6 +72,7 @@ namespace jiminy
         /// \brief Get the maximum time that can be logged with the given precision.
         /// \return Max time, in second.
         static float64_t getMaximumLogTime(float64_t const & timeUnit);
+        static float64_t getMaximumLogTime(uint64_t const & timeUnitInv);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the recorder.
@@ -122,7 +123,7 @@ namespace jiminy
 
         char_t const * floatsAddress_;      ///< Address of the float data section.
         int64_t floatSectionSize_;          ///< Size in byte of the float data section.
-        float64_t timeUnit_;                ///< Precision to use when logging the time.
+        float64_t timeUnitInv_;             ///< Precision to use when logging the time.
     };
 }
 

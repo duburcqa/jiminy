@@ -186,7 +186,7 @@ namespace jiminy
             config["enableCommand"] = true;
             config["enableMotorEffort"] = true;
             config["enableEnergy"] = true;
-            config["timeUnit"] = 1.0e9;
+            config["timeUnit"] = 1.0e-9;
             return config;
         };
 
@@ -321,7 +321,7 @@ namespace jiminy
             enableCommand(boost::get<bool_t>(options.at("enableCommand"))),
             enableMotorEffort(boost::get<bool_t>(options.at("enableMotorEffort"))),
             enableEnergy(boost::get<bool_t>(options.at("enableEnergy"))),
-            timeUnit(boost::get<float64_t>(options.at("timeUnit")))
+            timeUnit(std::round(boost::get<float64_t>(options.at("timeUnit")) / STEPPER_MIN_TIMESTEP) * STEPPER_MIN_TIMESTEP)
             {
                 // Empty.
             }
