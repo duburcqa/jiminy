@@ -1663,6 +1663,7 @@ class Viewer:
                                 Callable[[], np.ndarray]] = 1.0,
                    color: Union[Optional[Union[str, Tuple4FType]],
                                 Callable[[], Tuple4FType]] = None,
+                   always_foreground: bool = True,
                    remove_if_exists: bool = False,
                    auto_refresh: bool = True,
                    *shape_args: Any,
@@ -1689,6 +1690,9 @@ class Viewer:
                       and a few named colors.
                       Optional: Robot's color by default if overridden, 'white'
                       otherwise, except for 'frame'.
+        :param always_foreground: Whether to force rendering the marker on
+                                  foreground.
+                                  Optional: True by default.
         :param auto_refresh: Whether or not to refresh the scene after adding
                              the marker. Useful for adding a bunch of markers
                              and only refresh once. Note that the marker will
@@ -1744,7 +1748,8 @@ class Viewer:
 
         # Make sure the marker always display in front of the model
         self._gui.show_node(
-            self._markers_group, name, True, always_foreground=True)
+            self._markers_group, name, True,
+            always_foreground=always_foreground)
 
         # Refresh the scene if desired
         if auto_refresh:

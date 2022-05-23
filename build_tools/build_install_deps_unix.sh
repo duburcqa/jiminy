@@ -204,7 +204,7 @@ mkdir -p "$RootDir/boost/build"
      --with-chrono --with-timer --with-date_time --with-system --with-test \
      --with-filesystem --with-atomic --with-serialization --with-thread \
      --build-type=minimal --layout=system --lto=off \
-     architecture=${B2_ARCHITECTURE_TYPE} address-model=64 \
+     architecture= address-model=64 \
      threading=single link=static runtime-link=static debug-symbols=off \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
      linkflags="${CMAKE_CXX_FLAGS_B2}" \
@@ -212,7 +212,7 @@ mkdir -p "$RootDir/boost/build"
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-python \
      --build-type=minimal --layout=system --lto=off \
-     architecture=${B2_ARCHITECTURE_TYPE} address-model=64 \
+     architecture= address-model=64 \
      threading=single link=shared runtime-link=shared debug-symbols=off \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
      linkflags="${CMAKE_CXX_FLAGS_B2}" \

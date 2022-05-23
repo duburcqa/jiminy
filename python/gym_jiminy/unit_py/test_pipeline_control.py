@@ -6,6 +6,7 @@ import base64
 import warnings
 import unittest
 from glob import glob
+from tempfile import mkstemp
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -44,6 +45,11 @@ class PipelineControl(unittest.TestCase):
         # Run the simulation
         while self.env.stepper_state.t < 19.0:
             self.env.step(action_init)
+
+        # Export figure
+        fd, pdf_path = mkstemp(prefix="plot_", suffix=".pdf")
+        os.close(fd)
+        self.env.plot(pdf_path=pdf_path)
 
         # Get the final posture of the robot as an RGB array
         rgb_array = self.env.render(
