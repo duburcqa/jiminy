@@ -23,10 +23,12 @@ fi
 
 ### Set common CMAKE_C/CXX_FLAGS
 CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -fPIC"
-if [ "${BUILD_TYPE}" == "Debug" ]; then
-  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
-else
+if [ "${BUILD_TYPE}" == "Release" ]; then
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
+elif [ "${BUILD_TYPE}" == "Debug" ]; then
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
+elif [ "${BUILD_TYPE}" == "RelWithDebInfo" ]; then
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O2 -g -DNDEBUG"
 fi
 echo "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 

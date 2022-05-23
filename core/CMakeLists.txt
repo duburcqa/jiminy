@@ -55,6 +55,7 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/FileDevice.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/JsonLoader.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/JsonWriter.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/Serialization.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryData.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetrySender.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryRecorder.cc"

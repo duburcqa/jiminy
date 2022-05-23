@@ -82,6 +82,15 @@ namespace jiminy
 
     // ******************* Telemetry utilities **********************
 
+    bool_t endsWith(std::string const & fullString, std::string const & ending)
+    {
+        if (fullString.length() >= ending.length())
+        {
+            return fullString.compare(fullString.length() - ending.length(), ending.length(), ending) == 0;
+        }
+        return false;
+    }
+
     std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
                                                      uint32_t    const & size)
     {

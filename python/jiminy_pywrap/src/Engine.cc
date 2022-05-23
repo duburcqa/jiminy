@@ -1,9 +1,11 @@
+#include "jiminy/core/io/Serialization.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
+#include "jiminy/core/utilities/Helpers.h"
 
 #include <boost/optional.hpp>
 
@@ -633,7 +635,25 @@ namespace python
             for (std::ptrdiff_t i = 1; i < lastConstantIdx; ++i)
             {
                 std::size_t const delimiter = logData.header[i].find(TELEMETRY_CONSTANT_DELIMITER);
-                constants[logData.header[i].substr(0, delimiter)] = logData.header[i].substr(delimiter + 1);
+                // `std::string_view` is not supported by gcc<7.1
+                auto const key = logData.header[i].substr(0, delimiter);
+                auto const dump = logData.header[i].substr(delimiter + 1);
+                if (endsWith(key, ".pinocchio_model"))
+                {
+                    pinocchio::Model pncModel;
+                    pinocchio::serialization::loadFromString(pncModel, dump);
+                    constants[key] = pncModel;
+                }
+                else if (endsWith(key, ".collision_model") || endsWith(key, ".visual_model"))
+                {
+                    pinocchio::GeometryModel geomModel;
+                    pinocchio::serialization::loadFromString(geomModel, dump);
+                    constants[key] = geomModel;
+                }
+                else
+                {
+                    constants[key] = dump;
+                }
             }
 
             // Get Global.Time

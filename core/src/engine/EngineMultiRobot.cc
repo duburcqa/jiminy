@@ -22,12 +22,12 @@
 #include "pinocchio/algorithm/energy.hpp"                   // `pinocchio::computePotentialEnergy`
 #include "pinocchio/algorithm/joint-configuration.hpp"      // `pinocchio::normalize`
 #include "pinocchio/algorithm/geometry.hpp"                 // `pinocchio::computeCollisions`
-#include "pinocchio/serialization/model.hpp"                // `pinocchio::ModelTpl<T>.serialize`
 
 #include "H5Cpp.h"
 #include "json/json.h"
 
 #include "jiminy/core/io/FileDevice.h"
+#include "jiminy/core/io/Serialization.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
@@ -1511,14 +1511,34 @@ namespace jiminy
                     meshPackageDirsString = meshPackageDirsStream.str();
                     meshPackageDirsString.pop_back();
                 }
-                telemetrySender_.registerConstant(
-                    telemetryMeshPackageDirs, meshPackageDirsString);
+                telemetrySender_.registerConstant(telemetryMeshPackageDirs, meshPackageDirsString);
 
-                // Backup the Pinocchio Model used for the simulation
-                std::string const telemetryModelName = addCircumfix(
+                // Backup the Pinocchio Model
+                std::string telemetryModelName = addCircumfix(
                     "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                std::string modelString = system.robot->pncModel_.saveToString();
-                telemetrySender_.registerConstant(telemetryModelName, modelString);
+                std::string dump = pinocchio::serialization::saveToString(system.robot->pncModel_);
+                telemetrySender_.registerConstant(telemetryModelName, dump);
+
+                /* Backup the Pinocchio GeometryModel for collisions and visuals.
+                   It may fail because of missing serialization methods for convex,
+                   or because it cannot fit into memory (return code). */
+                try
+                {
+                    telemetryModelName = addCircumfix(
+                        "collision_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                    dump = pinocchio::serialization::saveToString(system.robot->collisionModel_);
+                    telemetrySender_.registerConstant(telemetryModelName, dump);
+
+                    telemetryModelName = addCircumfix(
+                        "visual_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                    dump = pinocchio::serialization::saveToString(system.robot->visualModel_);
+                    telemetrySender_.registerConstant(telemetryModelName, dump);
+                }
+                catch (std::exception const & e)
+                {
+                    PRINT_WARNING("Impossible to log collision and visual model.\n"
+                                  "Raised from exception: ", e.what());
+                }
             }
 
             // Log all options

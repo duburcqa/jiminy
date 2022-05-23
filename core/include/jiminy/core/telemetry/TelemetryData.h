@@ -27,9 +27,9 @@ namespace jiminy
     std::string const START_LINE_TOKEN("StartLine");      ///< Marker of the beginning of a line of data.
     std::string const START_DATA("StartData");            ///< Marker of the beginning of the data section.
 
-    std::size_t const CONSTANTS_MEM_SIZE = 1U * 1024U * 1024U;
-    std::size_t const INTEGERS_MEM_SIZE  = 32U * 1024U;
-    std::size_t const FLOATS_MEM_SIZE    = 64U * 1024U;
+    std::size_t const CONSTANTS_MEM_SIZE = 512U * 1024U * 1024U;  ///< Max header (Key-Value list) size for string constants: 512Mo
+    std::size_t const INTEGERS_MEM_SIZE  = 32U * 1024U;           ///< Max header (Key list) size for integer variables: 32Ko
+    std::size_t const FLOATS_MEM_SIZE    = 64U * 1024U;           ///< Max header (Key list) size for float variables: 64Ko
 
     struct memHeader
     {
