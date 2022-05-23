@@ -235,7 +235,7 @@ namespace jiminy
             logData.numFloat = static_cast<std::size_t>(floatSectionSize) / sizeof(float64_t);
             floatDataLine.resize(logData.numFloat);
 
-            bool_t isReadingHeaderDone = false;
+            uint8_t isReadingHeaderState = 0U;
             for (auto & flow : flows)
             {
                 // Save the cursor position and move it to the beginning
@@ -243,7 +243,7 @@ namespace jiminy
                 flow->seek(0);
 
                 // Dealing with version flag, constants, header, and descriptor
-                if (!isReadingHeaderDone)
+                if (isReadingHeaderState == 0)
                 {
                     // Read version flag and check if valid
                     int32_t version;
@@ -254,10 +254,13 @@ namespace jiminy
                         return hresult_t::ERROR_BAD_INPUT;
                     }
                     logData.version = version;
-
+                    isReadingHeaderState = 1;
+                }
+                if (isReadingHeaderState == 1)
+                {
                     // Read the rest of the header
                     std::vector<char_t> headerCharBuffer;
-                    headerCharBuffer.resize(static_cast<std::size_t>(headerSize) - sizeof(int32_t));
+                    headerCharBuffer.resize(static_cast<std::size_t>(headerSize - flow->pos()));
                     flow->read(headerCharBuffer);
 
                     // Parse header
@@ -274,7 +277,7 @@ namespace jiminy
                             break;
                         }
                     }
-                    isReadingHeaderDone = true;
+                    isReadingHeaderState = 2;
                 }
 
                 // In header, look for timeUnit constant - if not found, use default time unit.
@@ -312,7 +315,7 @@ namespace jiminy
 
                     if (startLineTokenBuffer[0] != START_LINE_TOKEN[0])
                     {
-                        // The buffer is not full, must stop reading !
+                        // The buffer is full, must stop reading !
                         break;
                     }
 

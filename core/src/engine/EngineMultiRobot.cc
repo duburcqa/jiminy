@@ -4181,7 +4181,7 @@ namespace jiminy
 
             // Get the names of the logged variables
             while (std::getline(file, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != (START_DATA + START_LINE_TOKEN))
+                   subHeaderBuffer != START_DATA)
             {
                 // Do nothing
             }
@@ -4204,7 +4204,7 @@ namespace jiminy
             // Deduce the parameters required to parse the whole binary log file
             integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
             floatSectionSize = NumFloatEntries * sizeof(float64_t);
-            headerSize = static_cast<int64_t>(file.tellg()) - START_LINE_TOKEN.size() - 1;
+            headerSize = static_cast<int64_t>(file.tellg());  // Last char is '\0'
 
             // Close the file
             file.close();
