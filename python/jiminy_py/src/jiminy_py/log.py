@@ -247,11 +247,11 @@ def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
 
 def build_robot_from_log(
         log_constants: Dict[str, str],
-        mesh_package_dirs: Union[str, Sequence[str]] = ()) -> jiminy.Robot:
+        mesh_package_dirs: Union[str, Sequence[str]] = ()) -> jiminy.Model:
     """Build robot from log constants.
 
     .. note::
-        model options and `robot.pinocchio_model` are guarentee to be the same
+        model options and `robot.pinocchio_model` are guarantee to be the same
         as during the simulation until the next call to `reset` method.
 
     .. note::
@@ -265,7 +265,7 @@ def build_robot_from_log(
         archive for now.
 
     :param log_file: Path of the simulation log file, in any format.
-    :param mesh_package_dirs: Prepend custom mesh package seach path
+    :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
                               generated on a different environment.
@@ -276,29 +276,44 @@ def build_robot_from_log(
     # Make sure provided 'mesh_package_dirs' is a list
     mesh_package_dirs = list(mesh_package_dirs)
 
-    # Extract robot info
-    pinocchio_model_str = log_constants[
-        "HighLevelController.pinocchio_model"]
-    urdf_file = log_constants["HighLevelController.urdf_file"]
-    has_freeflyer = int(log_constants["HighLevelController.has_freeflyer"])
-    if "HighLevelController.mesh_package_dirs" in log_constants.keys():
-        mesh_package_dirs += log_constants[
-            "HighLevelController.mesh_package_dirs"].split(";")
+    # Instantiate empty robot
+    robot = jiminy.Robot()
+
+    # Extract common info
+    pinocchio_model = log_constants["HighLevelController.pinocchio_model"]
     all_options = jiminy.load_config_json_string(
         log_constants["HighLevelController.options"])
 
-    # Create temporary URDF file
-    fd, urdf_path = tempfile.mkstemp(suffix=".urdf")
-    os.write(fd, urdf_file.encode())
-    os.close(fd)
+    try:
+        # Extract geometry models
+        collision_model = log_constants["HighLevelController.collision_model"]
+        visual_model = log_constants["HighLevelController.visual_model"]
 
-    # Build robot
-    robot = jiminy.Robot()
-    robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
-    robot.set_options(all_options["system"]["robot"])
-    robot.pinocchio_model.loadFromString(pinocchio_model_str)
-    robot.pinocchio_data.loadFromString(
-        robot.pinocchio_model.createData().saveToString())
+        # Initialize the model
+        robot.initialize(pinocchio_model, collision_model, visual_model)
+        robot.set_options(all_options["system"]["robot"])
+    except KeyError:
+        # Extract initialization arguments
+        urdf_file = log_constants["HighLevelController.urdf_file"]
+        has_freeflyer = int(log_constants["HighLevelController.has_freeflyer"])
+        if "HighLevelController.mesh_package_dirs" in log_constants.keys():
+            mesh_package_dirs += log_constants[
+                "HighLevelController.mesh_package_dirs"].split(";")
+
+        # Create temporary URDF file
+        fd, urdf_path = tempfile.mkstemp(suffix=".urdf")
+        os.write(fd, urdf_file.encode())
+        os.close(fd)
+
+        # Initialize model
+        robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
+        robot.set_options(all_options["system"]["robot"])
+
+        # Update model and data.
+        # Dirty hack based on serialization/deserialization to update in-place.
+        robot.pinocchio_model.loadFromString(pinocchio_model.saveToString())
+        robot.pinocchio_data.loadFromString(
+            pinocchio_model.createData().saveToString())
 
     return robot
 

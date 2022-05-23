@@ -182,10 +182,9 @@ class PipelineDesign(unittest.TestCase):
 
         env.reset(controller_hook=configure_telemetry)
         env.step()
-        log_data, _ = env.get_log()
 
         # Check that the command is updated 1/2 low-level controller update
         self.assertTrue(env.control_dt == 2 * env.unwrapped.control_dt)
-        u_log = log_data['HighLevelController.currentCommandLF_HAA']
+        u_log = env.log_data['HighLevelController.currentCommandLF_HAA']
         self.assertTrue(np.all(u_log[:2] == 0.0))
         self.assertTrue(u_log[1] != u_log[2] and u_log[2] == u_log[3])
