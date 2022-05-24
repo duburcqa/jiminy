@@ -3,7 +3,8 @@ import re as _re
 import sys as _sys
 import ctypes as _ctypes
 import inspect as _inspect
-import importlib as _importlib
+from importlib import import_module as _import_module
+from importlib.util import find_spec as _find_spec
 from contextlib import redirect_stderr as _redirect_stderr
 from sysconfig import get_config_var as _get_config_var
 
@@ -16,7 +17,7 @@ BOOST_PYTHON_DEPENDENCIES = ("eigenpy", "hppfcl", "pinocchio")
 # system. The system dependencies will be used instead of the one embedded with
 # jiminy if and only if all of them are available.
 use_system_dependencies = not any(
-    _importlib.util.find_spec(module_name) is None
+    _find_spec(module_name) is None
     for module_name in BOOST_PYTHON_DEPENDENCIES)
 
 # Special dlopen flags are used when loading Boost Python shared library
@@ -53,9 +54,9 @@ if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
 # Import dependencies, using embedded versions only if necessary
 for module_name in BOOST_PYTHON_DEPENDENCIES:
     if use_system_dependencies:
-        _importlib.import_module(module_name)
+        _import_module(module_name)
     else:
-        _module = _importlib.import_module(".".join((__name__, module_name)))
+        _module = _import_module(".".join((__name__, module_name)))
         _sys.modules[module_name] = _module
 
 # Register pinocchio_pywrap to avoid importing bindings twice, which messes up

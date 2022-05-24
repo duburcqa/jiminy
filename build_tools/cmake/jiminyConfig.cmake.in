@@ -42,7 +42,7 @@ endif()
 
 # Make sure jiminy Python module is available
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
-                "import importlib; print(int(importlib.util.find_spec('jiminy_py') is not None), end='')"
+                "from importlib.util import find_spec; print(int(find_spec('jiminy_py') is not None), end='')"
                 OUTPUT_VARIABLE jiminy_FOUND)
 if(NOT jiminy_FOUND)
     if (jiminy_FIND_REQUIRED)

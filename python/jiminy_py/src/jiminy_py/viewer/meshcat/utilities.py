@@ -1,9 +1,9 @@
 import os
 import sys
-import importlib
+from importlib.util import find_spec
 
 
-if importlib.util.find_spec("IPython") is not None:
+if find_spec("IPython") is not None:
     def interactive_mode() -> int:
         """Determine what kind of process is running Python kernel.
 
