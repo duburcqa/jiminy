@@ -1,9 +1,6 @@
 
 #include "jiminy/core/io/Serialization.h"
 
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
-
 
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::TriangleP)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Sphere)

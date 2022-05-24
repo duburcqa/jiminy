@@ -79,13 +79,8 @@ namespace jiminy
     int64_t MemoryDevice::readData(void    * data,
                                    int64_t   dataSize)
     {
-        // Read no more than availables bytes.
-        int64_t toRead = bytesAvailable();
-        if (dataSize < toRead)
-        {
-            toRead = dataSize;
-        }
-
+        // Read no more than available bytes
+        int64_t toRead = std::min(dataSize, bytesAvailable());
         std::memcpy(data, buffer_.data() + currentPos_, static_cast<std::size_t>(toRead));
         currentPos_ += toRead;
         return toRead;
@@ -94,16 +89,10 @@ namespace jiminy
     int64_t MemoryDevice::writeData(void    const * data,
                                     int64_t         dataSize)
     {
-        // Write no more than availables bytes.
-        int64_t toWrite = bytesAvailable();
-        if (dataSize < toWrite)
-        {
-            toWrite = dataSize;
-        }
-
+        // Write no more than available bytes
+        int64_t toWrite = std::min(dataSize, bytesAvailable());
         std::memcpy(buffer_.data() + currentPos_, data, static_cast<std::size_t>(toWrite));
         currentPos_ += toWrite;
-
         return toWrite;
     }
 

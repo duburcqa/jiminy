@@ -1,6 +1,8 @@
 #ifndef JIMINY_SERIALIZATION_TPP
 #define JIMINY_SERIALIZATION_TPP
 
+#include <sstream>
+
 #include "pinocchio/multibody/fcl.hpp"          // `pinocchio::CollisionPair`
 #include "pinocchio/multibody/geometry.hpp"     // `pinocchio::GeometryModel`
 #include "pinocchio/serialization/model.hpp"    // `serialize<pinocchio::Model>`
@@ -10,27 +12,41 @@
 #include "hpp/fcl/serialization/geometric_shapes.h"  // `serialize<hpp::fcl::ShapeBase>`
 #include "hpp/fcl/serialization/BVH_model.h"         // `serialize<hpp::fcl::BVHModel>`
 
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+
 
 namespace jiminy
 {
     template<typename T>
-    void loadFromBinary(T & object, std::string const & str)
+    std::string saveToBinary(T const & obj)
     {
-        std::istringstream is(str);
-        boost::archive::binary_iarchive ia(is, boost::archive::no_header);
-        ia >> object;
+        std::ostringstream os;
+        {
+            boost::archive::binary_oarchive oa(os, boost::archive::no_header);
+            oa << obj;
+            return os.str();
+        }
     }
 
     template<typename T>
-    std::string saveToBinary(T const & object)
+    void loadFromBinary(T & obj, std::string const & str)
     {
-        std::ostringstream os;
-        boost::archive::binary_oarchive oa(os, boost::archive::no_header);
-        oa << object;
-        std::string str = os.str();
-        return str;
+        std::istringstream is(str);
+        {
+            boost::archive::binary_iarchive ia(is, boost::archive::no_header);
+            ia >> obj;
+        }
     }
 }
+
+#ifdef _MSC_VER
+namespace Eigen { namespace internal {
+template<> struct traits<boost::archive::xml_iarchive> {enum {Flags=0};};
+template<> struct traits<boost::archive::text_iarchive> {enum {Flags=0};};
+template<> struct traits<boost::archive::binary_iarchive> {enum {Flags=0};};
+} }
+#endif
 
 
 namespace boost

@@ -26,9 +26,9 @@ namespace jiminy
     recordedBytesDataLine_(0),
     recordedBytes_(0),
     headerSize_(0),
-    integersAddress_(),
+    integersRegistry_(nullptr),
     integerSectionSize_(0),
-    floatsAddress_(),
+    floatsRegistry_(nullptr),
     floatSectionSize_(0),
     timeUnitInv_(1.0)
     {
@@ -67,10 +67,10 @@ namespace jiminy
             flows_.clear();
 
             // Get telemetry data infos
-            telemetryData->getData(integersAddress_,
-                                   integerSectionSize_,
-                                   floatsAddress_,
-                                   floatSectionSize_);
+            integersRegistry_ = telemetryData->getRegistry<int64_t>();
+            integerSectionSize_ = sizeof(int64_t) * integersRegistry_->size();
+            floatsRegistry_ = telemetryData->getRegistry<float64_t>();
+            floatSectionSize_ = sizeof(float64_t) * floatsRegistry_->size();
             recordedBytesDataLine_ = integerSectionSize_ + floatSectionSize_
                                    + static_cast<int64_t>(START_LINE_TOKEN.size() + sizeof(uint64_t));  // uint64_t for Global.Time
 
@@ -141,7 +141,7 @@ namespace jiminy
            size is used for the log data. */
         int64_t isHeaderThere = flows_.empty();
         int64_t maxBufferSize = std::max(TELEMETRY_MIN_BUFFER_SIZE, isHeaderThere * headerSize_);
-        int64_t maxRecordedDataLines = ((maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_);
+        int64_t maxRecordedDataLines = (maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_;
         recordedBytesLimits_ = isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
         returnCode = flows_.back().open(openMode_t::READ_WRITE);
@@ -172,10 +172,16 @@ namespace jiminy
             flows_.back().write(static_cast<int64_t>(std::round(timestamp * timeUnitInv_)));
 
             // Write data, integers first
-            flows_.back().write(reinterpret_cast<uint8_t const *>(integersAddress_), integerSectionSize_);
+            for (std::pair<std::string, int64_t> const & keyValue : *integersRegistry_)
+            {
+                flows_.back().write(keyValue.second);
+            }
 
             // Write data, floats last
-            flows_.back().write(reinterpret_cast<uint8_t const *>(floatsAddress_), floatSectionSize_);
+            for (std::pair<std::string, float64_t> const & keyValue : *floatsRegistry_)
+            {
+                flows_.back().write(keyValue.second);
+            }
 
             // Update internal counter
             recordedBytes_ += recordedBytesDataLine_;
@@ -213,12 +219,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t TelemetryRecorder::getData(logData_t                                  & logData,
-                                         std::vector<AbstractIODevice *>            & flows,
-                                         int64_t                              const & integerSectionSize,
-                                         int64_t                              const & floatSectionSize,
-                                         int64_t                              const & headerSize,
-                                         int64_t                                      recordedBytesDataLine)
+    hresult_t TelemetryRecorder::getData(logData_t & logData,
+                                         std::vector<AbstractIODevice *> & flows,
+                                         int64_t const & integerSectionSize,
+                                         int64_t const & floatSectionSize,
+                                         int64_t const & headerSize,
+                                         int64_t const & recordedBytesDataLine)
     {
         logData.constants.clear();
         logData.fieldnames.clear();
