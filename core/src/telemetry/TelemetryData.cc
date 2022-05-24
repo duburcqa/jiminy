@@ -87,7 +87,7 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        std::string const fullConstant = variableNameIn + TELEMETRY_CONSTANT_DELIMITER + constantValueIn;
+        std::string const fullConstant = START_LINE_TOKEN + variableNameIn + TELEMETRY_CONSTANT_DELIMITER + constantValueIn;
         if ((header->nextFreeNameOffset + static_cast<int64_t>(fullConstant.size()) + 1) >= header->startDataSection)
         {
             PRINT_ERROR("Maximum number of registration exceeded.");
@@ -158,11 +158,11 @@ namespace jiminy
 
         // Record entries numbers
         std::string entriesNumbers;
-        entriesNumbers += NUM_INTS;
+        entriesNumbers += START_LINE_TOKEN + NUM_INTS;
         entriesNumbers += std::to_string((integersHeader_->nextFreeDataOffset - integersHeader_->startDataSection) /
                                          static_cast<int64_t>(sizeof(int64_t)) + 1);  // +1 because we add Global.Time
         entriesNumbers += '\0';
-        entriesNumbers += NUM_FLOATS;
+        entriesNumbers += START_LINE_TOKEN + NUM_FLOATS;
         entriesNumbers += std::to_string((floatsHeader_->nextFreeDataOffset - floatsHeader_->startDataSection) /
                                          static_cast<int64_t>(sizeof(float64_t)));
         entriesNumbers += '\0';

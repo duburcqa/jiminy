@@ -163,19 +163,16 @@ namespace jiminy
     }
 
     Eigen::Ref<vectorN_t const> getLogFieldValue(std::string              const & fieldName,
-                                                 std::vector<std::string> const & header,
+                                                 std::vector<std::string> const & fieldnames,
                                                  matrixN_t                const & logData)
     {
         static vectorN_t fieldDataEmpty;
-
-        auto iterator = std::find(header.begin(), header.end(), fieldName);
-        if (iterator == header.end())
+        auto iterator = std::find(fieldnames.begin(), fieldnames.end(), fieldName);
+        if (iterator == fieldnames.end())
         {
             PRINT_ERROR("Field does not exist.");
             return fieldDataEmpty;
         }
-
-        auto start = std::find(header.begin(), header.end(), "StartColumns");
-        return logData.col(std::distance(start, iterator) - 1);
+        return logData.col(std::distance(fieldnames.begin(), iterator));
     }
 }

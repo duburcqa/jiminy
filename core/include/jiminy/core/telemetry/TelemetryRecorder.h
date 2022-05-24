@@ -19,7 +19,8 @@ namespace jiminy
     {
     public:
         logData_t(void) :
-        header(),
+        constants(),
+        fieldnames(),
         version(0),
         timeUnit(1.0),
         numInt(0U),
@@ -32,7 +33,8 @@ namespace jiminy
         }
 
     public:
-        std::vector<std::string> header;
+        static_map_t<std::string, std::string> constants;
+        std::vector<std::string> fieldnames;
         int32_t version;
         float64_t timeUnit;
         std::size_t numInt;

@@ -220,7 +220,8 @@ namespace jiminy
                                          int64_t                              const & headerSize,
                                          int64_t                                      recordedBytesDataLine)
     {
-        logData.header.clear();
+        logData.constants.clear();
+        logData.fieldnames.clear();
         logData.timestamps.clear();
         logData.intData.clear();
         logData.floatData.clear();
@@ -235,15 +236,15 @@ namespace jiminy
             logData.numFloat = static_cast<std::size_t>(floatSectionSize) / sizeof(float64_t);
             floatDataLine.resize(logData.numFloat);
 
-            uint8_t isReadingHeaderState = 0U;
+            bool_t isReadingHeaderDone = false;
             for (auto & flow : flows)
             {
                 // Save the cursor position and move it to the beginning
                 int64_t const pos_old = flow->pos();
                 flow->seek(0);
 
-                // Dealing with version flag, constants, header, and descriptor
-                if (isReadingHeaderState == 0)
+                // Dealing with version flag, constants, and variable names
+                if (!isReadingHeaderDone)
                 {
                     // Read version flag and check if valid
                     int32_t version;
@@ -254,41 +255,82 @@ namespace jiminy
                         return hresult_t::ERROR_BAD_INPUT;
                     }
                     logData.version = version;
-                    isReadingHeaderState = 1;
-                }
-                if (isReadingHeaderState == 1)
-                {
+
                     // Read the rest of the header
                     std::vector<char_t> headerCharBuffer;
                     headerCharBuffer.resize(static_cast<std::size_t>(headerSize - flow->pos()));
                     flow->read(headerCharBuffer);
 
-                    // Parse header
-                    char_t const * pHeader = &headerCharBuffer[0];
-                    std::size_t posHeader = 0;
-                    std::string fieldHeader(pHeader);
+                    // Parse constants
+                    bool_t isLastConstant = false;
+                    auto posHeaderIt = headerCharBuffer.begin();
+                    posHeaderIt += START_CONSTANTS.size() + 1 + START_LINE_TOKEN.size();  // Skip tokens
                     while (true)
                     {
-                        logData.header.push_back(std::move(fieldHeader));
-                        posHeader += logData.header.back().size() + 1;
-                        fieldHeader = std::string(pHeader + posHeader);
-                        if (fieldHeader.size() == 0 || posHeader >= headerCharBuffer.size())
+                        // Find position of the next constant
+                        auto posHeaderNextIt = std::search(
+                            posHeaderIt,
+                            headerCharBuffer.end(),
+                            START_LINE_TOKEN.begin(),
+                            START_LINE_TOKEN.end());
+                        isLastConstant = posHeaderNextIt == headerCharBuffer.end();
+                        if (isLastConstant)
+                        {
+                            posHeaderNextIt = std::search(
+                                posHeaderIt,
+                                headerCharBuffer.end(),
+                                START_COLUMNS.begin(),
+                                START_COLUMNS.end());
+                        }
+
+                        // Split key and value
+                        auto posDelimiterIt = std::search(
+                            posHeaderIt,
+                            posHeaderNextIt,
+                            TELEMETRY_CONSTANT_DELIMITER.begin(),
+                            TELEMETRY_CONSTANT_DELIMITER.end());
+                        std::string const key(posHeaderIt, posDelimiterIt);
+                        std::string const value(
+                            posDelimiterIt + TELEMETRY_CONSTANT_DELIMITER.size(),
+                            posHeaderNextIt - 1);  // Last char is '\0'
+                        logData.constants.emplace_back(key, value);
+
+                        // Stop if it was the last one
+                        if (isLastConstant)
+                        {
+                            posHeaderIt = posHeaderNextIt + START_COLUMNS.size() + 1;  // Skip last '\0'
+                            break;
+                        }
+                        posHeaderIt = posHeaderNextIt + START_LINE_TOKEN.size();
+                    }
+
+                    // Parse variable names
+                    char_t const * pHeader = &(*posHeaderIt);
+                    std::size_t posHeader = 0;
+                    while (true)
+                    {
+                        // std::string constructor automatically reads till next '\0'
+                        std::string const fieldname = std::string(pHeader + posHeader);
+                        if (fieldname == START_DATA)
                         {
                             break;
                         }
+                        posHeader += fieldname.size() + 1;  // Skip last '\0'
+                        logData.fieldnames.push_back(fieldname);
                     }
-                    isReadingHeaderState = 2;
+
+                    isReadingHeaderDone = true;
                 }
 
-                // In header, look for timeUnit constant - if not found, use default time unit.
+                // Look for timeUnit constant - if not found, use default time unit
                 float64_t timeUnit = STEPPER_MIN_TIMESTEP;
-                auto const lastConstantIt = std::find(logData.header.begin(), logData.header.end(), START_COLUMNS);
-                for (auto constantIt = logData.header.begin() ; constantIt != lastConstantIt ; ++constantIt)
+                for (auto const & keyValue : logData.constants)  // Structured bindings is not supported by gcc<7.3
                 {
-                    std::size_t const delimiter = constantIt->find(TELEMETRY_CONSTANT_DELIMITER);
-                    if (constantIt->substr(0, delimiter) == TIME_UNIT)
+                    std::string const & key = keyValue.first;
+                    std::string const & value = keyValue.second;
+                    if (key == TIME_UNIT)
                     {
-                        std::istringstream totalSString(constantIt->substr(delimiter + 1));
+                        std::istringstream totalSString(value);
                         totalSString >> timeUnit;
                         break;
                     }

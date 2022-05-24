@@ -28,8 +28,8 @@ BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::BVHModel<hpp::fcl::KDOP<24> >)
     template void serialize(A &, T &, const unsigned int);
 
 #define EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(T) \
-    EXPL_TPL_INST_SERIALIZE_IMPL(boost::archive::text_iarchive, T) \
-    EXPL_TPL_INST_SERIALIZE_IMPL(boost::archive::text_oarchive, T)
+    EXPL_TPL_INST_SERIALIZE_IMPL(boost::archive::binary_iarchive, T) \
+    EXPL_TPL_INST_SERIALIZE_IMPL(boost::archive::binary_oarchive, T)
 
 namespace boost
 {

@@ -135,9 +135,9 @@ int main(int /* argc */, char_t * /* argv */[])
     std::cout << "Simulation time: " << (timer.dt * 1.0e3) << "ms" << std::endl;
 
     // Write the log file
-    std::vector<std::string> header;
+    std::vector<std::string> fieldnames;
     matrixN_t log;
-    engine->getLogData(header, log);
+    engine->getLogData(fieldnames, log);
     std::cout << log.rows() << " log points" << std::endl;
     std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
     timer.tic();

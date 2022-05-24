@@ -1516,7 +1516,7 @@ namespace jiminy
                 // Backup the Pinocchio Model
                 std::string telemetryModelName = addCircumfix(
                     "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                std::string dump = pinocchio::serialization::saveToString(system.robot->pncModel_);
+                std::string dump = saveToBinary(system.robot->pncModel_);
                 telemetrySender_.registerConstant(telemetryModelName, dump);
 
                 /* Backup the Pinocchio GeometryModel for collisions and visuals.
@@ -1526,12 +1526,12 @@ namespace jiminy
                 {
                     telemetryModelName = addCircumfix(
                         "collision_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                    dump = pinocchio::serialization::saveToString(system.robot->collisionModel_);
+                    dump = saveToBinary(system.robot->collisionModel_);
                     telemetrySender_.registerConstant(telemetryModelName, dump);
 
                     telemetryModelName = addCircumfix(
                         "visual_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                    dump = pinocchio::serialization::saveToString(system.robot->visualModel_);
+                    dump = saveToBinary(system.robot->visualModel_);
                     telemetrySender_.registerConstant(telemetryModelName, dump);
                 }
                 catch (std::exception const & e)
@@ -3930,7 +3930,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::getLogData(std::vector<std::string> & header,
+    hresult_t EngineMultiRobot::getLogData(std::vector<std::string> & fieldnames,
                                            matrixN_t                & logMatrix)
     {
         std::shared_ptr<logData_t const> logData;
@@ -3940,7 +3940,7 @@ namespace jiminy
             if (!logData->timestamps.empty())
             {
                 logDataToEigenMatrix(*logData, logMatrix);
-                header = logData->header;  // copy instead of move, to not alter the buffer
+                fieldnames = logData->fieldnames;  // copy instead of move, to not alter the buffer
             }
         }
 
@@ -3949,12 +3949,12 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::writeLogCsv(std::string const & filename)
     {
-        std::vector<std::string> header;
+        std::vector<std::string> fieldnames;
         matrixN_t logMatrix;
-        hresult_t returnCode = getLogData(header, logMatrix);
+        hresult_t returnCode = getLogData(fieldnames, logMatrix);
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (header.empty())
+            if (fieldnames.empty())
             {
                 PRINT_ERROR("No data available. Please start a simulation before writing log.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -3963,9 +3963,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            std::ofstream file = std::ofstream(filename,
-                                                std::ios::out |
-                                                std::ofstream::trunc);
+            std::ofstream file = std::ofstream(filename, std::ios::out | std::ofstream::trunc);
 
             if (!file.is_open())
             {
@@ -3974,19 +3972,10 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
-            std::copy(header.begin() + 1,
-                    indexConstantEnd - 1,
-                    std::ostream_iterator<std::string>(file, ", "));  // Discard the first one (start constant flag)
-            std::copy(indexConstantEnd - 1,
-                    indexConstantEnd,
-                    std::ostream_iterator<std::string>(file, "\n"));
-            std::copy(indexConstantEnd + 1,
-                    header.end() - 2,
-                    std::ostream_iterator<std::string>(file, ", "));
-            std::copy(header.end() - 2,
-                    header.end() - 1,
-                    std::ostream_iterator<std::string>(file, "\n"));  // Discard the last one (start data flag)
+            std::copy(fieldnames.begin(), fieldnames.end() - 1,
+                      std::ostream_iterator<std::string>(file, ", "));
+            std::copy(fieldnames.end() - 1, fieldnames.end(),
+                      std::ostream_iterator<std::string>(file, "\n"));
             Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
             file << logMatrix.format(CSVFormat);
 
@@ -4050,24 +4039,18 @@ namespace jiminy
 
             // Add group "constants"
             H5::Group constantsGroup(file->createGroup("constants"));
-            std::ptrdiff_t const lastConstantIdx = std::distance(logData->header.begin(), std::find(
-                logData->header.begin(), logData->header.end(), START_COLUMNS));
-            for (std::ptrdiff_t i = 1; i < lastConstantIdx; ++i)
+            for (auto const & keyValue : logData->constants)  // Structured bindings is not supported by gcc<7.3
             {
-                std::string const & constantDescr = logData->header[i];
-                std::size_t const delimiterIdx = constantDescr.find(TELEMETRY_CONSTANT_DELIMITER);
-                std::string const key = constantDescr.substr(0, delimiterIdx);
-                char_t const * value = constantDescr.c_str() + (delimiterIdx + 1);
-
+                std::string const & key = keyValue.first;
+                std::string const & value = keyValue.second;
                 H5::DataSpace constantSpace = H5::DataSpace(H5S_SCALAR);  // There is only one string !
-                hsize_t valueSize = constantDescr.size() - (delimiterIdx + 1);
-                if (valueSize > 0)
+                if (value.size() > 0)
                 {
                     // Impossible to register empty string variable
-                    H5::StrType stringType(H5::PredType::C_S1, valueSize);
+                    H5::StrType stringType(H5::PredType::C_S1, value.size());
                     H5::DataSet constantDataSet = constantsGroup.createDataSet(
                         key, stringType, constantSpace);
-                    constantDataSet.write(value, stringType);
+                    constantDataSet.write(value.c_str(), stringType);
                 }
             }
 
@@ -4083,7 +4066,7 @@ namespace jiminy
             H5::Group variablesGroup(file->createGroup("variables"));
             for (std::size_t i=0; i < logData->numInt; ++i)
             {
-                std::string const & key = logData->header[i + (lastConstantIdx + 1U) + 1U];
+                std::string const & key = logData->fieldnames[i + 1];
 
                 // Create group for field
                 H5::Group fieldGroup(variablesGroup.createGroup(key));
@@ -4113,7 +4096,7 @@ namespace jiminy
             }
             for (std::size_t i = 0; i < logData->numFloat; ++i)
             {
-                std::string const & key = logData->header[i + (lastConstantIdx + 1U) + 1U + logData->numInt];
+                std::string const & key = logData->fieldnames[i + 1 + logData->numInt];
 
                 // Create group for field
                 H5::Group fieldGroup(variablesGroup.createGroup(key));
@@ -4188,6 +4171,13 @@ namespace jiminy
             std::vector<std::string> headerBuffer;
             std::string subHeaderBuffer;
 
+            // Reach the beginning of the constants
+            while (std::getline(file, subHeaderBuffer, '\0').good() &&
+                   subHeaderBuffer != START_CONSTANTS)
+            {
+                // Empty on purpose
+            }
+
             // Get all the logged constants
             while (std::getline(file, subHeaderBuffer, '\0').good() &&
                    subHeaderBuffer != START_COLUMNS)
@@ -4220,7 +4210,7 @@ namespace jiminy
             // Deduce the parameters required to parse the whole binary log file
             integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
             floatSectionSize = NumFloatEntries * sizeof(float64_t);
-            headerSize = static_cast<int64_t>(file.tellg());  // Last char is '\0'
+            headerSize = static_cast<int64_t>(file.tellg()) + 1; // Last '\0' is included
 
             // Close the file
             file.close();

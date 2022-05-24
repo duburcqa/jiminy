@@ -624,35 +624,31 @@ namespace python
             bp::dict variables, constants;
 
             // Early return if empty
-            if (logData.header.empty())
+            if (logData.constants.empty())
             {
                 return bp::make_tuple(variables, constants);
             }
 
             // Get constants
-            std::ptrdiff_t const lastConstantIdx = std::distance(
-                logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
-            for (std::ptrdiff_t i = 1; i < lastConstantIdx; ++i)
+            for (auto const & keyValue : logData.constants)  // Structured bindings is not supported by gcc<7.3
             {
-                std::size_t const delimiter = logData.header[i].find(TELEMETRY_CONSTANT_DELIMITER);
-                // `std::string_view` is not supported by gcc<7.1
-                auto const key = logData.header[i].substr(0, delimiter);
-                auto const dump = logData.header[i].substr(delimiter + 1);
+                std::string const & key = keyValue.first;
+                std::string const & value = keyValue.second;
                 if (endsWith(key, ".pinocchio_model"))
                 {
                     pinocchio::Model pncModel;
-                    pinocchio::serialization::loadFromString(pncModel, dump);
+                    ::jiminy::loadFromBinary(pncModel, value);
                     constants[key] = pncModel;
                 }
                 else if (endsWith(key, ".collision_model") || endsWith(key, ".visual_model"))
                 {
                     pinocchio::GeometryModel geomModel;
-                    pinocchio::serialization::loadFromString(geomModel, dump);
+                    ::jiminy::loadFromBinary(geomModel, value);
                     constants[key] = geomModel;
                 }
                 else
                 {
-                    constants[key] = dump;
+                    constants[key] = value;
                 }
             }
 
@@ -670,9 +666,9 @@ namespace python
                 npy_intp dims[1] = {npy_intp(0)};
                 timePy = bp::object(bp::handle<>(PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
             }
-            variables[logData.header[lastConstantIdx + 1]] = timePy;
+            variables[logData.fieldnames[0]] = timePy;
 
-            // Get intergers
+            // Get integers
             if (!logData.intData.empty())
             {
                 Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
@@ -680,7 +676,7 @@ namespace python
 
                 for (std::size_t i = 0; i < logData.numInt; ++i)
                 {
-                    std::string const & header_i = logData.header[i + (lastConstantIdx + 1) + 1];
+                    std::string const & header_i = logData.fieldnames[i + 1];
                     for (std::size_t j = 0; j < logData.intData.size(); ++j)
                     {
                         intVector[j] = logData.intData[j][i];
@@ -695,7 +691,7 @@ namespace python
                 npy_intp dims[1] = {npy_intp(0)};
                 for (std::size_t i = 0; i < logData.numInt; ++i)
                 {
-                    std::string const & header_i = logData.header[i + (lastConstantIdx + 1) + 1];
+                    std::string const & header_i = logData.fieldnames[i + 1];
                     variables[header_i] = bp::object(bp::handle<>(
                         PyArray_SimpleNew(1, dims, NPY_INT64)));
                 }
@@ -709,8 +705,7 @@ namespace python
 
                 for (std::size_t i = 0; i < logData.numFloat; ++i)
                 {
-                    std::string const & header_i =
-                        logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
+                    std::string const & header_i = logData.fieldnames[i + 1 + logData.numInt];
                     for (std::size_t j = 0; j < logData.floatData.size(); ++j)
                     {
                         floatVector[j] = logData.floatData[j][i];
@@ -725,8 +720,7 @@ namespace python
                 npy_intp dims[1] = {npy_intp(0)};
                 for (std::size_t i = 0; i < logData.numFloat; ++i)
                 {
-                    std::string const & header_i =
-                        logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
+                    std::string const & header_i = logData.fieldnames[i + 1 + logData.numInt];
                     variables[header_i] = bp::object(bp::handle<>(
                         PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
                 }
