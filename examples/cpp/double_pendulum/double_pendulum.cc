@@ -88,6 +88,7 @@ int main(int /* argc */, char_t * /* argv */[])
     // Instantiate and configuration the engine
     auto engine = std::make_shared<Engine>();
     configHolder_t simuOptions = engine->getOptions();
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableGeometry")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableConfiguration")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableVelocity")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableAcceleration")) = true;

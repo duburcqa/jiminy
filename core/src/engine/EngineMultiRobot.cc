@@ -1522,22 +1522,25 @@ namespace jiminy
                 /* Backup the Pinocchio GeometryModel for collisions and visuals.
                    It may fail because of missing serialization methods for convex,
                    or because it cannot fit into memory (return code). */
-                try
+                if (engineOptions_->telemetry.enableGeometry)
                 {
-                    telemetryModelName = addCircumfix(
-                        "collision_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                    dump = saveToBinary(system.robot->collisionModel_);
-                    telemetrySender_.registerConstant(telemetryModelName, dump);
+                    try
+                    {
+                        telemetryModelName = addCircumfix(
+                            "collision_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                        dump = saveToBinary(system.robot->collisionModel_);
+                        telemetrySender_.registerConstant(telemetryModelName, dump);
 
-                    telemetryModelName = addCircumfix(
-                        "visual_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                    dump = saveToBinary(system.robot->visualModel_);
-                    telemetrySender_.registerConstant(telemetryModelName, dump);
-                }
-                catch (std::exception const & e)
-                {
-                    PRINT_WARNING("Impossible to log collision and visual model.\n"
-                                  "Raised from exception: ", e.what());
+                        telemetryModelName = addCircumfix(
+                            "visual_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                        dump = saveToBinary(system.robot->visualModel_);
+                        telemetrySender_.registerConstant(telemetryModelName, dump);
+                    }
+                    catch (std::exception const & e)
+                    {
+                        PRINT_ERROR("Impossible to log collision and visual model.\n"
+                                    "Raised from exception: ", e.what());
+                    }
                 }
             }
 
