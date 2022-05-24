@@ -20,13 +20,15 @@ from bisect import bisect_right
 from threading import RLock
 from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
 
-import psutil
 import numpy as np
 from scipy.interpolate import interp1d
 from typing_extensions import TypedDict
 
-import zmq
 from panda3d_viewer.viewer_errors import ViewerClosedError
+try:
+    from psutil import Process
+except ImportError:
+    Process = type(None)
 
 import pinocchio as pin
 from pinocchio import SE3, SE3ToXYZQUAT
@@ -196,7 +198,7 @@ class _ProcessWrapper:
     def __init__(self,
                  proc: Union[
                      multiprocessing.process.BaseProcess, subprocess.Popen,
-                     psutil.Process, Panda3dApp],
+                     Panda3dApp, Process],
                  kill_at_exit: bool = False):
         self._proc = proc
         # Make sure the process is killed at Python exit
@@ -204,14 +206,15 @@ class _ProcessWrapper:
             atexit.register(self.kill)
 
     def is_parent(self) -> bool:
-        return not isinstance(self._proc, psutil.Process)
+        return not isinstance(self._proc, Process)
 
     def is_alive(self) -> bool:
         if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.is_alive()
         elif isinstance(self._proc, subprocess.Popen):
             return self._proc.poll() is None
-        elif isinstance(self._proc, psutil.Process):
+        elif isinstance(self._proc, Process):
+            import psutil
             try:
                 return self._proc.status() in [
                     psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
@@ -225,7 +228,7 @@ class _ProcessWrapper:
         if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.join(timeout)
         elif isinstance(self._proc, (
-                subprocess.Popen, psutil.Process)):
+                subprocess.Popen, Process)):
             return self._proc.wait(timeout)
         elif isinstance(self._proc, Panda3dApp):
             self._proc.step()
@@ -245,8 +248,9 @@ class _ProcessWrapper:
                     pass
 
                 # Force kill if necessary and reap the zombies
+                import psutil
                 try:
-                    psutil.Process(self._proc.pid).kill()
+                    Process(self._proc.pid).kill()
                     os.waitpid(self._proc.pid, 0)
                     os.waitpid(os.getpid(), 0)
                 except (psutil.NoSuchProcess, ChildProcessError):
@@ -785,7 +789,7 @@ class Viewer:
                 kernel = get_ipython().kernel
                 conn_file = kernel.config['IPKernelApp']['connection_file']
                 kernel_id = conn_file.split('-', 1)[1].split('.')[0]
-                server_pid = psutil.Process(os.getpid()).parent().pid
+                server_pid = Process(os.getpid()).parent().pid
                 server_list = list(notebookapp.list_running_servers())
                 try:
                     from jupyter_server import serverapp
@@ -1021,10 +1025,11 @@ class Viewer:
             client.gui = client
         else:
             # List of connections likely to correspond to Meshcat servers
+            import psutil
             meshcat_candidate_conn = {}
             for pid in psutil.pids():
                 try:
-                    proc = psutil.Process(pid)
+                    proc = Process(pid)
                     for conn in proc.connections("tcp4"):
                         if conn.status != 'LISTEN' or \
                                 conn.laddr.ip != '127.0.0.1':
@@ -1043,6 +1048,7 @@ class Viewer:
             # is not blocking on Jupyter, but is on Google Colab.
             excluded_ports = []
             if interactive_mode() >= 2:
+                from IPython import get_ipython
                 try:
                     excluded_ports += list(
                         get_ipython().kernel._recorded_ports.values())
@@ -1050,6 +1056,7 @@ class Viewer:
                     pass  # No Ipython kernel running
 
             # Use the first port responding to zmq request, if any
+            import zmq
             zmq_url = None
             context = zmq.Context.instance()
             for pid, conn in meshcat_candidate_conn.items():
@@ -1078,7 +1085,7 @@ class Viewer:
             from .meshcat.wrapper import MeshcatWrapper
             client = MeshcatWrapper(zmq_url)
             if client.server_proc is None:
-                proc = psutil.Process(pid)
+                proc = Process(pid)
             else:
                 proc = client.server_proc
             proc = _ProcessWrapper(proc, close_at_exit)
@@ -2202,11 +2209,18 @@ class Viewer:
                 # Stop the simulation if final time is reached
                 if t_simu > time_interval[1]:
                     break
-            except (ViewerClosedError, zmq.error.Again, zmq.error.ZMQError):
-                # Make sure the viewer is properly closed if exception is
-                # raised during replay.
+            except Exception as e:
+                # Make sure the viewer is always properly closed
                 Viewer.close()
-                return
+                # Re-raise the original exception if unexpected
+                if Viewer.backend.startswith('panda3d'):
+                    if isinstance(e, ViewerClosedError):
+                        return
+                elif Viewer.backend == 'meshcat':
+                    import zmq
+                    if isinstance(e, (zmq.error.Again, zmq.error.ZMQError)):
+                        return
+                raise e
 
         # Restore Viewer's state if it has been altered
         if Viewer.is_alive():
