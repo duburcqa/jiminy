@@ -201,12 +201,13 @@ class TabbedFigure:
         if not force_update and self.tab_active is self.tabs_data[tab_name]:
             return
 
-        # Backup navigation history
-        cur_stack = self.figure.canvas.toolbar._nav_stack
-        for tab in self.tabs_data.values():
-            if self.sync_tabs or tab is self.tab_active:
-                tab["nav_stack"] = cur_stack._elements.copy()
-                tab["nav_pos"] = cur_stack._pos
+        # Backup navigation history if any
+        if not self.offscreen:
+            cur_stack = self.figure.canvas.toolbar._nav_stack
+            for tab in self.tabs_data.values():
+                if self.sync_tabs or tab is self.tab_active:
+                    tab["nav_stack"] = cur_stack._elements.copy()
+                    tab["nav_pos"] = cur_stack._pos
 
         # Update axes and title
         for ax in self.tab_active["axes"]:
@@ -225,9 +226,10 @@ class TabbedFigure:
                 bbox_to_anchor=(0.99, 0.5))
 
         # Restore navigation history and toolbar state if necessary
-        cur_stack._elements = self.tab_active["nav_stack"]
-        cur_stack._pos = self.tab_active["nav_pos"]
-        self.figure.canvas.toolbar.set_history_buttons()
+        if not self.offscreen:
+            cur_stack._elements = self.tab_active["nav_stack"]
+            cur_stack._pos = self.tab_active["nav_pos"]
+            self.figure.canvas.toolbar.set_history_buttons()
 
         # Update buttons style
         for tab in self.tabs_data.values():
