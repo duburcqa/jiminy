@@ -170,7 +170,7 @@ class MeshcatVisualizer(BaseVisualizer):
             obj = meshcat.geometry.Sphere(geom.radius)
         elif isinstance(geom, hppfcl.Cone):
             obj = Cone(2. * geom.halfLength, geom.radius)
-        elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelOBBRSS)):
+        elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelBase)):
             # Extract vertices and faces from geometry
             if isinstance(geom, hppfcl.Convex):
                 vertices = np.vstack([
@@ -180,8 +180,11 @@ class MeshcatVisualizer(BaseVisualizer):
             else:
                 vertices = np.vstack([geom.vertices(i)
                                       for i in range(geom.num_vertices)])
-                faces = np.vstack([np.array(geom.tri_indices(i))
-                                   for i in range(geom.num_tris)])
+                faces = np.empty((geom.num_tris, 3), dtype=int)
+                for i in range(geom.num_tris):
+                    tri = geom.tri_indices(i)
+                    for j in range(3):
+                        faces[i, j] = tri[j]
 
             # Create primitive triangle geometry
             obj = TriangularMeshGeometry(vertices, faces)
@@ -234,14 +237,12 @@ class MeshcatVisualizer(BaseVisualizer):
         try:
             # Trying to load mesh preferably if available
             mesh_path = geometry_object.meshPath
-            if '\\' in mesh_path or '/' in mesh_path:
+            if any(char in mesh_path for char in ('\\', '/', '.')):
+                # Assuming it is an actual path if it has a least one slash.
+                # It is way faster than checking the path actually exists.
                 obj = self.loadMesh(geometry_object)
-            elif isinstance(geometry_object.geometry, hppfcl.ShapeBase):
-                obj = self.loadPrimitive(geometry_object)
             else:
-                obj = None
-            if obj is None:
-                return
+                obj = self.loadPrimitive(geometry_object)
         except Exception as e:
             msg = ("Error while loading geometry object: %s\nError message:\n"
                    "%s") % (geometry_object.name, e)

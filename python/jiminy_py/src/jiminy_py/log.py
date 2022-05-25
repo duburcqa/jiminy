@@ -294,26 +294,32 @@ def build_robot_from_log(
         robot.set_options(all_options["system"]["robot"])
     except KeyError:
         # Extract initialization arguments
-        urdf_file = log_constants["HighLevelController.urdf_file"]
+        urdf_data = log_constants["HighLevelController.urdf_file"]
         has_freeflyer = int(log_constants["HighLevelController.has_freeflyer"])
         if "HighLevelController.mesh_package_dirs" in log_constants.keys():
             mesh_package_dirs += log_constants[
                 "HighLevelController.mesh_package_dirs"].split(";")
 
-        # Create temporary URDF file
-        fd, urdf_path = tempfile.mkstemp(suffix=".urdf")
-        os.write(fd, urdf_file.encode())
+        # Create temporary dump file
+        fd, tmp_path = tempfile.mkstemp()
+        os.write(fd, urdf_data.encode())
         os.close(fd)
 
         # Initialize model
-        robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
+        robot.initialize(tmp_path, has_freeflyer, mesh_package_dirs)
         robot.set_options(all_options["system"]["robot"])
 
         # Update model and data.
-        # Dirty hack based on serialization/deserialization to update in-place.
-        robot.pinocchio_model.loadFromString(pinocchio_model.saveToString())
-        robot.pinocchio_data.loadFromString(
-            pinocchio_model.createData().saveToString())
+        # Dirty hack based on serialization/deserialization to update in-place,
+        # and string archive cannot be used because it is not reliable and
+        # fails on windows for some reason.
+        pinocchio_model.saveToBinary(tmp_path)
+        robot.pinocchio_model.loadFromBinary(tmp_path)
+        pinocchio_model.createData().saveToBinary(tmp_path)
+        robot.pinocchio_data.loadFromBinary(tmp_path)
+
+        # Delete temporary file
+        os.remove(tmp_path)
 
     return robot
 

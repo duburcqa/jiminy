@@ -64,7 +64,7 @@ def _sanitize_path(path: str) -> str:
     not support several features on Windows. First, it does not support
     symlinks, then the hard drive prefix must be `/x/` instead of `X:\\`,
     folder's name must respect the case, and backslashes must be used as
-    delimiter instead of forwardslashes.
+    delimiter instead of forward slashes.
 
     :param path: Path to sanitize.
     """
@@ -171,27 +171,23 @@ def make_cone(num_sides: int = 16) -> Geom:
     https://en.wikipedia.org/wiki/Regular_polygon
     """
     # Define vertex format
-    vformat = GeomVertexFormat.get_v3n3t2()
+    vformat = GeomVertexFormat.get_v3n3()
     vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
     vdata.unclean_set_num_rows(num_sides + 3)
     vertex = GeomVertexWriter(vdata, 'vertex')
     normal = GeomVertexWriter(vdata, 'normal')
-    tcoord = GeomVertexWriter(vdata, 'texcoord')
 
     # Add radial points
     for u in np.linspace(0.0, 2 * np.pi, num_sides + 1):
         x, y = math.cos(u), math.sin(u)
         vertex.addData3(x, y, 0.0)
         normal.addData3(x, y, 0.0)
-        tcoord.addData2(x, y)
 
     # Add top and bottom points
     vertex.addData3(0.0, 0.0, 1.0)
     normal.addData3(0.0, 0.0, 1.0)
-    tcoord.addData2(0.0, 0.0)
     vertex.addData3(0.0, 0.0, 0.0)
     normal.addData3(0.0, 0.0, -1.0)
-    tcoord.addData2(0.0, 0.0)
 
     # Make triangles.
     # Note that by default, rendering is one-sided. It only renders the outside
@@ -199,6 +195,7 @@ def make_cone(num_sides: int = 16) -> Geom:
     # the triangles. For reference, see:
     # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2
     prim = GeomTriangles(Geom.UH_static)
+    prim.reserveNumVertices(6 * num_sides)
     for i in range(num_sides):
         prim.add_vertices(i, i + 1, num_sides + 1)
         prim.add_vertices(i + 1, i, num_sides + 2)
@@ -1253,9 +1250,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      texture_path: str = '',
                      disable_material: bool = False) -> None:
         """Patched to avoid raising an exception if node does not exist, and to
-        clear color if not specified. In addition, an optional argument to
-        disable texture has been added, and a physics-based shader is used if
-        available.
+        clear color if not specified. In addition, texture are disabled if the
+        color is specified, and a physics-based shader is used if available.
         """
         node = self._groups[root_path].find(name)
         if node:
@@ -1569,22 +1565,22 @@ class Panda3dVisualizer(BaseVisualizer):
         # Get node name
         node_name = self.getViewerNodeName(geometry_object, geometry_type)
 
-        # Create panda3d object based on the geometry and add it to the scene
-        geom = geometry_object.geometry
-
         # Try to load mesh from path first, to take advantage of very effective
         # Panda3d model caching procedure.
         is_success = True
+        geom = geometry_object.geometry
+        color = geometry_object.meshColor
         mesh_path = geometry_object.meshPath
-        if any(char in mesh_path for char in ('\\', '/', '.')):
-            # Assuming it is an actual path if it has a least on slash. It is
-            # way faster than actually checking if the path actually exists.
-            mesh_path = _sanitize_path(geometry_object.meshPath)
-
+        if os.path.exists(mesh_path):
             # append a mesh
+            mesh_path = _sanitize_path(geometry_object.meshPath)
             scale = npToTuple(geometry_object.meshScale)
             self.viewer.append_mesh(*node_name, mesh_path, scale)
-        elif isinstance(geom, hppfcl.ShapeBase):
+        else:
+            # Suppose texture path does not exists and overwrite color if none
+            if color is None:
+                color = np.array([0.5, 0.5, 0.5, 1.0])
+
             # append a primitive geometry
             if isinstance(geom, hppfcl.Capsule):
                 self.viewer.append_capsule(
@@ -1599,41 +1595,57 @@ class Panda3dVisualizer(BaseVisualizer):
                 self.viewer.append_box(*node_name, 2.0 * geom.halfSide)
             elif isinstance(geom, hppfcl.Sphere):
                 self.viewer.append_sphere(*node_name, geom.radius)
-            elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelOBBRSS)):
+            elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelBase)):
                 # Extract vertices and faces from geometry
                 if isinstance(geom, hppfcl.Convex):
                     vertices = [geom.points(i) for i in range(geom.num_points)]
                     faces = [np.array(geom.polygons(i))
                              for i in range(geom.num_polygons)]
                 else:
-                    vertices = [geom.vertices(i)
-                                for i in range(geom.num_vertices)]
-                    faces = [np.array(geom.tri_indices(i))
-                             for i in range(geom.num_tris)]
+                    vertices = np.empty((geom.num_vertices, 3))
+                    for i in range(geom.num_vertices):
+                        vertices[i] = geom.vertices(i)
+                    faces = np.empty((geom.num_tris, 3), dtype=np.int32)
+                    for i in range(geom.num_tris):
+                        tri = geom.tri_indices(i)
+                        for j in range(3):
+                            faces[i, j] = tri[j]
 
-                # Create primitive triangle geometry
-                vformat = GeomVertexFormat.get_v3()
+                # Create primitive triangle geometry.
+                # Note that the redundant vertices are added for efficiency
+                # because avoiding duplication requires expensive search.
+                vformat = GeomVertexFormat.get_v3n3()
                 vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
-                vdata.unclean_set_num_rows(geom.num_points)
+                vdata.unclean_set_num_rows(3 * len(faces))
                 vwriter = GeomVertexWriter(vdata, 'vertex')
-                for vertex in vertices:
-                    vwriter.addData3(*vertex)
+                nwriter = GeomVertexWriter(vdata, "normal")
+                normals = np.empty((len(faces), 3))
+                for i, face in enumerate(faces):
+                    pts = vertices[face]
+                    v1, v2 = pts[1] - pts[0], pts[2] - pts[1]
+                    normals[i] = np.cross(v1, v2)
+                    for pt in pts:
+                        vwriter.add_data3(*pt)
+                normals /= np.linalg.norm(normals, axis=0)
+                for normal in normals:
+                    for i in range(3):
+                        nwriter.add_data3(*normal)
                 prim = GeomTriangles(Geom.UHStatic)
+                prim.reserveNumVertices(len(faces))
+                faces.flat[:] = np.arange(faces.size)
                 for face in faces:
                     prim.addVertices(*face)
-                    prim.addVertices(*face[[1, 0, 2]])  # Necessary but why ?
                 obj = Geom(vdata)
                 obj.addPrimitive(prim)
 
                 # Add the primitive geometry to the scene
-                geom_node = GeomNode('convex')
+                geom_node = GeomNode(geometry_object.name)
                 geom_node.add_geom(obj)
                 node = NodePath(geom_node)
+                node.set_two_sided(True)
                 self.viewer.append_node(*node_name, node)
             else:
                 is_success = False
-        else:
-            is_success = False
 
         # Early return if impossible to load the geometry for some reason
         if not is_success:

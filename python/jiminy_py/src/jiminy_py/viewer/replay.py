@@ -16,6 +16,8 @@ import numpy as np
 from tqdm import tqdm
 from scipy.interpolate import interp1d
 
+import pinocchio as pin
+
 from .. import core as jiminy
 from ..dynamics import TrajectoryDataType
 from ..log import (read_log,
@@ -299,6 +301,13 @@ def play_trajectories(trajs_data: Union[
                 open_gui_if_parent=(record_video_path is None))
             viewers[i] = viewer
 
+        # Reset the configuration of the robot
+        if traj['use_theoretical_model']:
+            model = traj['robot'].pinocchio_model_th
+        else:
+            model = traj['robot'].pinocchio_model
+        viewer.display(pin.neutral(model))
+
         # Reset robot model in viewer if requested color has changed
         if color is not None and color != viewer.robot_color:
             viewer._setup(traj['robot'], color)
@@ -318,6 +327,7 @@ def play_trajectories(trajs_data: Union[
 
     # Early return if nothing to replay
     if all(not len(traj['evolution_robot']) for traj in trajs_data):
+        logger.debug("Nothing to replay.")
         return viewers
 
     # Enable camera motion if requested
