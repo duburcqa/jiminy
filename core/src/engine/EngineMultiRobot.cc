@@ -1522,7 +1522,7 @@ namespace jiminy
                 /* Backup the Pinocchio GeometryModel for collisions and visuals.
                    It may fail because of missing serialization methods for convex,
                    or because it cannot fit into memory (return code). */
-                if (engineOptions_->telemetry.enableGeometry)
+                if (engineOptions_->telemetry.isPersistent)
                 {
                     try
                     {

@@ -42,9 +42,10 @@ namespace jiminy
         detachMotors({});
     }
 
-    hresult_t Robot::initialize(std::string              const & urdfPath,
-                                bool_t                   const & hasFreeflyer,
-                                std::vector<std::string> const & meshPackageDirs)
+    hresult_t Robot::initialize(std::string const & urdfPath,
+                                bool_t const & hasFreeflyer,
+                                std::vector<std::string> const & meshPackageDirs,
+                                bool_t const & loadVisualMeshes)
     {
         // Detach all the motors and sensors
         detachSensors({});
@@ -52,10 +53,10 @@ namespace jiminy
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
-        return Model::initialize(urdfPath, hasFreeflyer, meshPackageDirs);
+        return Model::initialize(urdfPath, hasFreeflyer, meshPackageDirs, loadVisualMeshes);
     }
 
-    hresult_t Robot::initialize(pinocchio::Model         const & pncModel,
+    hresult_t Robot::initialize(pinocchio::Model const & pncModel,
                                 pinocchio::GeometryModel const & collisionModel,
                                 pinocchio::GeometryModel const & visualModel)
     {

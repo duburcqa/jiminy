@@ -179,7 +179,7 @@ namespace jiminy
         configHolder_t getDefaultTelemetryOptions()
         {
             configHolder_t config;
-            config["enableGeometry"] = false;
+            config["isPersistent"] = false;
             config["enableConfiguration"] = true;
             config["enableVelocity"] = true;
             config["enableAcceleration"] = true;
@@ -304,7 +304,7 @@ namespace jiminy
 
         struct telemetryOptions_t
         {
-            bool_t const enableGeometry;
+            bool_t const isPersistent;
             bool_t const enableConfiguration;
             bool_t const enableVelocity;
             bool_t const enableAcceleration;
@@ -314,7 +314,7 @@ namespace jiminy
             bool_t const enableEnergy;
 
             telemetryOptions_t(configHolder_t const & options) :
-            enableGeometry(boost::get<bool_t>(options.at("enableGeometry"))),
+            isPersistent(boost::get<bool_t>(options.at("isPersistent"))),
             enableConfiguration(boost::get<bool_t>(options.at("enableConfiguration"))),
             enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
             enableAcceleration(boost::get<bool_t>(options.at("enableAcceleration"))),

@@ -185,8 +185,9 @@ class Simulator:
 
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
-        robot.initialize(urdf_path, hardware_path, mesh_path, has_freeflyer,
-                         avoid_instable_collisions, verbose=debug)
+        robot.initialize(
+            urdf_path, hardware_path, mesh_path, has_freeflyer,
+            avoid_instable_collisions, load_visual_meshes=debug, verbose=debug)
 
         # Instantiate and initialize the engine
         simulator = Simulator.__new__(cls)

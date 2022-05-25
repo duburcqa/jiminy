@@ -46,7 +46,7 @@ engine_options = engine.get_options()
 ctrl_options = controller.get_options()
 
 robot_options["telemetry"]["enableImuSensors"] = True
-engine_options["telemetry"]["enableGeometry"] = True
+engine_options["telemetry"]["isPersistent"] = True
 engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True
 engine_options["telemetry"]["enableAcceleration"] = True

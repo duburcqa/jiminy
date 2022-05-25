@@ -1177,6 +1177,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         engine_options["stepper"]["iterMax"] = 0
         engine_options["stepper"]["timeout"] = 0.0
         engine_options["stepper"]["logInternalStepperSteps"] = False
+
+        # Enable logging of geometries in debug mode
+        if self.debug:
+            engine_options["telemetry"]["isPersistent"] = True
+
+        # Update engine options
         self.simulator.engine.set_options(engine_options)
 
         # Set robot in neutral configuration

@@ -98,6 +98,6 @@ class PipelineControl(unittest.TestCase):
     def test_pid_standing(self):
         for backend in ['meshcat', 'panda3d']:
             for Env in [AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv]:
-                self.env = Env(debug=False, viewer_backend=backend)
+                self.env = Env(debug=True, viewer_backend=backend)
                 self._test_pid_standing()
                 Viewer.close()

@@ -301,7 +301,8 @@ namespace python
                 .def("initialize", &PyRobotVisitor::initialize,
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false,
-                                    bp::arg("mesh_package_dirs") = bp::list()))
+                                    bp::arg("mesh_package_dirs") = bp::list(),
+                                    bp::arg("load_visual_meshes") = false))
                 .def("initialize",
                     static_cast<
                         hresult_t (Robot::*)(pinocchio::Model const &, pinocchio::GeometryModel const &, pinocchio::GeometryModel const &)
@@ -379,10 +380,11 @@ namespace python
         static hresult_t initialize(Robot             & self,
                                     std::string const & urdfPath,
                                     bool_t      const & hasFreeflyer,
-                                    bp::list    const & meshPackageDirsPy)
+                                    bp::list    const & meshPackageDirsPy,
+                                    bool_t      const & loadVisualMeshes)
         {
             auto meshPackageDirs = convertFromPython<std::vector<std::string> >(meshPackageDirsPy);
-            return self.initialize(urdfPath, hasFreeflyer, meshPackageDirs);
+            return self.initialize(urdfPath, hasFreeflyer, meshPackageDirs, loadVisualMeshes);
         }
 
         static hresult_t detachMotors(Robot          & self,
