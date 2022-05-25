@@ -120,7 +120,6 @@ jobs:
                          "$RootDir/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
-      if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
         name: jiminy_py-${{ matrix.os }}-${{ matrix.PYTHON_VERSION }}-wheel

@@ -63,7 +63,7 @@ jobs:
 
         PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"
-        echo "${InstallDir}/lib/python${PYTHON_VERSION}/site-packages" \
+        echo "$InstallDir/lib/python${PYTHON_VERSION}/site-packages" \
         > "${PYTHON_USER_SITELIB}/user_site.pth"
 
     #####################################################################################
@@ -74,7 +74,6 @@ jobs:
 
         mkdir "$RootDir/build"
         cd "$RootDir/build"
-        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
@@ -84,14 +83,99 @@ jobs:
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2
 
+        echo "LD_LIBRARY_PATH=$InstallDir/lib:$InstallDir/lib64:/usr/local/lib" >> $GITHUB_ENV
+
+    #####################################################################################
+
+    - name: Run Jiminy unit tests on dev environment
+      run: |
+        "$InstallDir/bin/jiminy_double_pendulum"
+
+        cd "$RootDir/build"
+        ctest --output-on-failure
+
+        cd "$RootDir/unit_py"
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+    - name: Run Gym Jiminy unit tests on dev environment
+      if: matrix.os == 'ubuntu-18.04'
+      run: |
+        cd "$RootDir/python/gym_jiminy/unit_py"
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+    #####################################################################################
+
+    - name: Generate the wheels
+      if: matrix.os == 'ubuntu-20.04'
+      run: |
+        cd "$RootDir/build"
+        cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
+    - name: Upload the wheels
+      if: matrix.os == 'ubuntu-20.04'
+      uses: actions/upload-artifact@v1
+      with:
+        name: wheelhouse
+        path: build/pypi/dist
+
+    #########################################################################################
+
+  test-user-linux:
+    name: (ubuntu-20.04) Build a pip extension and run the unit tests.
+    needs: build-and-test-linux
+    runs-on: ubuntu-20.04
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      PYTHON_VERSION: 3.8
+      BUILD_TYPE: "Release"
+
+    #####################################################################################
+
+    steps:
+    - name: Checkout jiminy
+      uses: actions/checkout@v2
+    - name: Setup minimal build environment
+      run: |
+        PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
+        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
+        echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+        echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
+
+        echo "/home/runner/.local/bin" >> $GITHUB_PATH
+    - name: Installing requirements
+      run: |
+        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
+        if [[ ${PYTHON_VERSION:2} -lt 10 ]] ; then
+          TORCH_VERSION="1.8.1"  # pylint segfault with newer versions for some reason ...
+        else
+          TORCH_VERSION="1.11.0"
+        fi
+        sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
+        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" --trusted-host pypi.org \
+        --trusted-host pytorch.org --trusted-host download.pytorch.org --trusted-host files.pypi.org \
+        --trusted-host files.pytorch.org -f https://download.pytorch.org/whl/torch_stable.html
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+
+    #####################################################################################
+
+    - name: Download the wheels previously generated
+      uses: actions/download-artifact@v1
+      with:
+        name: wheelhouse
+        path: wheelhouse
+    - name: Install the wheels previously generated
+      run: |
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "wheelhouse/jiminy_py/"*.whl
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "wheelhouse/gym_jiminy/"*.whl
+
     #####################################################################################
 
     - name: Build extension module
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
-
-        "$InstallDir/bin/jiminy_double_pendulum"
-
         mkdir -p "$RootDir/examples/cpp/pip_extension/build"
         cd "$RootDir/examples/cpp/pip_extension/build"
         cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
@@ -101,15 +185,13 @@ jobs:
 
         "$InstallDir/bin/pip_double_pendulum"
 
-    - name: Run unit tests
+    #####################################################################################
+
+    - name: Run unit tests on user environment
+      if: matrix.os == 'ubuntu-18.04'
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
-
-        cd "$RootDir/build"
-        ctest --output-on-failure
-
-        cd "$RootDir/unit_py"
+        cd "${GITHUB_WORKSPACE}/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
-        cd "$RootDir/python/gym_jiminy/unit_py"
+        cd "${GITHUB_WORKSPACE}/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

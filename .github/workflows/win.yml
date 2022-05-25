@@ -104,7 +104,6 @@ jobs:
     #####################################################################################
 
     - name: Generating the Python Pip wheels
-      if: success() && github.repository == 'duburcqa/jiminy'
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
         $InstallDir = "$RootDir/install"
@@ -126,7 +125,6 @@ jobs:
             python -m pip install --force-reinstall --no-deps $wheel_path
         }
     - name: Upload the wheel for Windows of jiminy_py
-      if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
         name: jiminy_py${{ matrix.python-version }}-wheel

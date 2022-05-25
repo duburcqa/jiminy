@@ -104,8 +104,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_repair_linux.py" repair \
             -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
-    - name: Upload the wheel for Linux of Jiminy_py
-      if: success() && github.repository == 'duburcqa/jiminy'
+    - name: Upload the wheel of Jiminy for Linux
       uses: actions/upload-artifact@v1
       with:
         name: jiminy_py-${{ matrix.PYTHON_VERSION }}-wheel
@@ -113,7 +112,7 @@ jobs:
 
     #####################################################################################
 
-    - name: Publish on PyPi the wheel for Linux of Jiminy_py
+    - name: Publish on PyPi the wheel of Jiminy for Linux
       if: >-
         success() &&
         github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
