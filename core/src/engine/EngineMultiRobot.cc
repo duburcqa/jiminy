@@ -4135,6 +4135,14 @@ namespace jiminy
     hresult_t EngineMultiRobot::writeLog(std::string const & filename,
                                          std::string const & format)
     {
+        // Make sure there is something to write
+        if (!telemetryRecorder_->getIsInitialized())
+        {
+            PRINT_ERROR("The telemetry is empty. Please run a simulation before writing log.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Pick the appropriate format
         if (format == "binary")
         {
             return telemetryRecorder_->writeDataBinary(filename);
