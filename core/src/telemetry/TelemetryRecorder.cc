@@ -223,8 +223,7 @@ namespace jiminy
                                          std::vector<AbstractIODevice *> & flows,
                                          int64_t const & integerSectionSize,
                                          int64_t const & floatSectionSize,
-                                         int64_t const & headerSize,
-                                         int64_t const & recordedBytesDataLine)
+                                         int64_t const & headerSize)
     {
         logData.constants.clear();
         logData.fieldnames.clear();
@@ -343,30 +342,29 @@ namespace jiminy
                 }
                 logData.timeUnit = timeUnit;
 
-                // Dealing with data lines, starting with new line flag, time, integers, and ultimately floats
-                if (recordedBytesDataLine > 0)
-                {
-                    uint32_t numberLines = static_cast<uint32_t>(flow->bytesAvailable() / recordedBytesDataLine);
-                    logData.timestamps.reserve(logData.timestamps.size() + numberLines);
-                    logData.intData.reserve(logData.intData.size() + numberLines);
-                    logData.floatData.reserve(logData.floatData.size() + numberLines);
-                }
-
-                std::vector<char_t> startLineTokenBuffer;
-                startLineTokenBuffer.resize(START_LINE_TOKEN.size());
+                // Read all available data lines: [token, time, integers, floats]
+                char_t startLineTokenBuffer;
+                int64_t const startLineTokenSize = static_cast<int64_t>(START_LINE_TOKEN.size());
+                int64_t const recordedBytesDataLine = integerSectionSize + floatSectionSize
+                    + startLineTokenSize + static_cast<int64_t>(sizeof(uint64_t));
+                std::size_t const numberLines = static_cast<std::size_t>(
+                    flow->bytesAvailable() / recordedBytesDataLine);
+                logData.timestamps.reserve(logData.timestamps.size() + numberLines);
                 while (flow->bytesAvailable() > 0)
                 {
-                    flow->read(startLineTokenBuffer);
+                    // Check if actual data are still available.
+                    // It is necessary because a pre-allocated memory may not be full.
+                    flow->readData(&startLineTokenBuffer, 1);
+                    if (startLineTokenBuffer != START_LINE_TOKEN[0])
+                    {
+                        break;
+                    }
+                    flow->seek(flow->pos() + startLineTokenSize - 1);
+
+                    // Read data line
                     flow->readData(&timestamp, sizeof(int64_t));
                     flow->readData(intDataLine.data(), integerSectionSize);
                     flow->readData(floatDataLine.data(), floatSectionSize);
-
-                    if (startLineTokenBuffer[0] != START_LINE_TOKEN[0])
-                    {
-                        // The buffer is full, must stop reading !
-                        break;
-                    }
-
                     logData.timestamps.emplace_back(timestamp);
                     logData.intData.emplace_back(intDataLine);
                     logData.floatData.emplace_back(floatDataLine);
@@ -392,7 +390,6 @@ namespace jiminy
                        abstractFlows_,
                        integerSectionSize_,
                        floatSectionSize_,
-                       headerSize_,
-                       recordedBytesDataLine_);
+                       headerSize_);
     }
 }

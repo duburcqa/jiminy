@@ -127,7 +127,7 @@ jobs:
     - name: Upload the wheel for Windows of jiminy_py
       uses: actions/upload-artifact@v1
       with:
-        name: jiminy_py${{ matrix.python-version }}-wheel
+        name: wheelhouse
         path: build/wheelhouse
 
     #####################################################################################
@@ -176,17 +176,13 @@ jobs:
     runs-on: ubuntu-20.04
     if: github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
 
-    strategy:
-      matrix:
-        python-version: ['3.6', '3.7', '3.8', '3.9']
-
     steps:
-    - name: Download the wheel previously generated
+    - name: Download the wheels previously generated
       uses: actions/download-artifact@v1
       with:
-        name: jiminy_py${{ matrix.python-version }}-wheel
+        name: wheelhouse
         path: wheelhouse
-    - name: Publish the wheel
+    - name: Publish on PyPi the wheels
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__

@@ -4136,9 +4136,9 @@ namespace jiminy
                                          std::string const & format)
     {
         // Make sure there is something to write
-        if (!telemetryRecorder_->getIsInitialized())
+        if (!isTelemetryConfigured_)
         {
-            PRINT_ERROR("The telemetry is empty. Please run a simulation before writing log.");
+            PRINT_ERROR("Telemetry not configured. Please run a simulation before writing log.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -4221,7 +4221,7 @@ namespace jiminy
             // Deduce the parameters required to parse the whole binary log file
             integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
             floatSectionSize = NumFloatEntries * sizeof(float64_t);
-            headerSize = static_cast<int64_t>(file.tellg()) + 1; // Last '\0' is included
+            headerSize = static_cast<int64_t>(file.tellg());  // Last '\0' is included
 
             // Close the file
             file.close();

@@ -213,8 +213,8 @@ def meshcat_recorder(meshcat_url: str,
         client.html.render(keep_page=True)
         message_shm.value = f"{session._browser.process.pid}"
     except BrowserError as e:
-        message_shm.value = str(e)
         request_shm.value = "quit"
+        message_shm.value = str(e)
 
     # Stop the animation loop by default, since it is not relevant for
     # recording only
@@ -280,14 +280,18 @@ class MeshcatRecorder:
     parallel asyncio loop execution, which is necessary to support recording in
     Jupyter notebook.
     """
-    def __init__(self, url: str):
+    def __new__(cls, *args: Any, **kwargs: Any) -> "MeshcatRecorder":
+        self = super().__new__(cls)
         self.is_open = False
         self.is_recording = False
-        self.url = url
         self.__manager = None
         self.__shm = None
         self.proc = None
         self.__browser_pid = None
+        return self
+
+    def __init__(self, url: str):
+        self.url = url
 
     def open(self) -> None:
         self.__manager = multiprocessing.managers.SyncManager()
@@ -312,9 +316,7 @@ class MeshcatRecorder:
         if self.__shm['request'].value == "quit":
             msg = "Impossible to start chromimum browser in background"
             if not sys.platform.startswith("win"):
-                msg = (
-                    f"{msg}.\nTry installing 'libnss3' using your package "
-                    "manager (`apt` on Ubuntu)")
+                msg = f"{msg}.\nTry installing missing chrome dependencies."
             raise RuntimeError(f"{msg}:\n    {self.__shm['message'].value}")
         elif time_waiting > PYPPETEER_STARTUP_TIMEOUT:
             raise RuntimeError("Pupetter chromimum browser not responding.")

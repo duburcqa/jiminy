@@ -42,8 +42,8 @@ namespace jiminy
         std::size_t numInt;
         std::size_t numFloat;
         std::vector<int64_t> timestamps;
-        std::vector<std::vector<int64_t> > intData;
-        std::vector<std::vector<float64_t> > floatData;
+        std::deque<std::vector<int64_t> > intData;
+        std::deque<std::vector<float64_t> > floatData;
     };
 
     ////////////////////////////////////////////////////////////////////////
@@ -96,8 +96,7 @@ namespace jiminy
                                  std::vector<AbstractIODevice *> & flows,
                                  int64_t const & integerSectionSize,
                                  int64_t const & floatSectionSize,
-                                 int64_t const & headerSize,
-                                 int64_t const & recordedBytesDataLine = -1);
+                                 int64_t const & headerSize);
         hresult_t getData(logData_t & logData);
     private:
         ////////////////////////////////////////////////////////////////////////

@@ -1577,11 +1577,11 @@ class Panda3dVisualizer(BaseVisualizer):
             scale = npToTuple(geometry_object.meshScale)
             self.viewer.append_mesh(*node_name, mesh_path, scale)
         else:
-            # Suppose texture path does not exists and overwrite color if none
-            if color is None:
+            # Each geometry must have at least a color or a texture
+            if color is None and not geometry_object.overrideMaterial:
                 color = np.array([0.5, 0.5, 0.5, 1.0])
 
-            # append a primitive geometry
+            # Append a primitive geometry
             if isinstance(geom, hppfcl.Capsule):
                 self.viewer.append_capsule(
                     *node_name, geom.radius, 2.0 * geom.halfLength)
@@ -1654,13 +1654,15 @@ class Panda3dVisualizer(BaseVisualizer):
                 f"({type(geom)})", category=UserWarning, stacklevel=2)
             return
 
-        # Set material color from URDF
-        if color is not None:
-            self.viewer.set_material(*node_name, color)
-        elif geometry_object.overrideMaterial:
-            color = geometry_object.meshColor
-            path = geometry_object.meshTexturePath
-            self.viewer.set_material(*node_name, color, path)
+        # Set material
+        texture_path = ""
+        if geometry_object.overrideMaterial:
+            # Set material from URDF
+            if os.path.exists(geometry_object.meshTexturePath):
+                texture_path = geometry_object.meshTexturePath
+            if color is None:
+                color = geometry_object.meshColor
+        self.viewer.set_material(*node_name, color, texture_path)
 
     def loadViewerModel(self,
                         rootNodeName: str,
