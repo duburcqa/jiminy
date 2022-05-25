@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.7.10)
+set(BUILD_VERSION 1.7.11)
 
 # Set compatibility
 if(CMAKE_VERSION VERSION_GREATER "3.11.0")
