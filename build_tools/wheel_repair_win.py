@@ -18,15 +18,17 @@ import pefile
 from machomachomangler.pe import redll
 
 
+WHITE_LIST_DEPS = ("boost_python", "boost_numpy", "eigenpy", "hpp-fcl", "pinocchio")
+
+
 def hash_filename(filepath, blocksize=65536):
     # Split original filename from extension
     root, ext = os.path.splitext(filepath)
     filename = os.path.basename(root)
 
     # Do NOT hash filename to make it unique in the particular case of boost
-    # python modules, since otherwise it will be impossible to share a common
-    # registery, which is necessary for cross module interoperability.
-    if "boost_python" in filepath:
+    # python modules. It is necessary for cross-module interoperability.
+    if any(pattern in filepath for pattern in WHITE_LIST_DEPS):
         return f"{filename}{ext}"
 
     # Compute unique hash based on file's content
