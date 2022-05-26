@@ -802,6 +802,7 @@ class BaseJiminyRobot(jiminy.Robot):
                    mesh_path: Optional[str] = None,
                    has_freeflyer: bool = True,
                    avoid_instable_collisions: bool = True,
+                   load_visual_meshes: bool = False,
                    verbose: bool = True) -> None:
         r"""Initialize the robot.
 
@@ -822,6 +823,10 @@ class BaseJiminyRobot(jiminy.Robot):
                                           of associated minimal volume bounding
                                           box, primitive box by its vertices,
                                           and primitive sphere by its center.
+        :param load_visual_meshes: Load visual and collision geometries when
+                                   creating the robot. It will allow for
+                                   dumping standalone log files that are
+                                   safe to carry around but larger.
         :param verbose: Whether or not to print warnings.
         """
         # Backup the original URDF path
@@ -840,7 +845,7 @@ class BaseJiminyRobot(jiminy.Robot):
         if mesh_env_path is not None:
             mesh_root_dirs += [mesh_env_path]
         return_code = super().initialize(
-            urdf_path, has_freeflyer, mesh_root_dirs)
+            urdf_path, has_freeflyer, mesh_root_dirs, load_visual_meshes)
 
         if return_code != jiminy.hresult_t.SUCCESS:
             raise ValueError(

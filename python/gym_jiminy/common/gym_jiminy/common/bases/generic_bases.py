@@ -191,8 +191,7 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
         self.control_dt = -1
 
         # Get the temporal resolution of simulator steps
-        engine_options = self.simulator.engine.get_options()
-        self._dt_eps = 1.0 / engine_options["telemetry"]["timeUnit"]
+        self._dt_eps = self.simulator.engine.telemetry_time_unit
 
     def _observer_handle(self,
                          t: float,

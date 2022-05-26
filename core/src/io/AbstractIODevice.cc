@@ -180,7 +180,7 @@ namespace jiminy
             if (writtenBytes <= 0)
             {
                 lastError_ = hresult_t::ERROR_GENERIC;
-                PRINT_ERROR("Something went wrong. No data was written.");
+                PRINT_ERROR("No data was written. The device is full is probably full.");
                 return lastError_;
             }
             toWrite -= writtenBytes;
@@ -201,7 +201,7 @@ namespace jiminy
             if (readBytes <= 0)
             {
                 lastError_ = hresult_t::ERROR_GENERIC;
-                PRINT_ERROR("Something went wrong. No data was read.");
+                PRINT_ERROR("No data was read. The device is full is probably empty.");
                 return lastError_;
             }
             toRead -= readBytes;

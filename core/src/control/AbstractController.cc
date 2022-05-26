@@ -221,11 +221,11 @@ namespace jiminy
 
         // Check in local cache before.
         auto variableIt = std::find_if(registeredVariables_.begin(),
-                                        registeredVariables_.end(),
-                                        [&fieldName](auto const & element)
-                                        {
-                                            return element.first == fieldName;
-                                        });
+                                       registeredVariables_.end(),
+                                       [&fieldName](auto const & element)
+                                       {
+                                           return element.first == fieldName;
+                                       });
         if (variableIt != registeredVariables_.end())
         {
             PRINT_ERROR("Variable already registered.");

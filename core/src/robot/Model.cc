@@ -343,7 +343,8 @@ namespace jiminy
 
     hresult_t Model::initialize(std::string              const & urdfPath,
                                 bool_t                   const & hasFreeflyer,
-                                std::vector<std::string> const & meshPackageDirs)
+                                std::vector<std::string> const & meshPackageDirs,
+                                bool_t                   const & loadVisualMeshes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -352,7 +353,8 @@ namespace jiminy
         pinocchio::GeometryModel pncCollisionModel;
         pinocchio::GeometryModel pncVisualModel;
         returnCode = buildModelsFromUrdf(
-            urdfPath, hasFreeflyer, meshPackageDirs, pncModel, pncCollisionModel, pncVisualModel);
+            urdfPath, hasFreeflyer, meshPackageDirs, pncModel,
+            pncCollisionModel, pncVisualModel, loadVisualMeshes);
 
         // Initialize jiminy model
         if (returnCode == hresult_t::SUCCESS)

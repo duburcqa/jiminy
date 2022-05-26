@@ -257,9 +257,13 @@ namespace jiminy
         Model(void);
         ~Model(void) = default;
 
+        hresult_t initialize(pinocchio::Model         const & pncModel,
+                             pinocchio::GeometryModel const & collisionModel,
+                             pinocchio::GeometryModel const & visualModel);
         hresult_t initialize(std::string              const & urdfPath,
                              bool_t                   const & hasFreeflyer = true,
-                             std::vector<std::string> const & meshPackageDirs = {});
+                             std::vector<std::string> const & meshPackageDirs = {},
+                             bool_t                   const & loadVisualMeshes = false);
 
         /// \brief Add a frame in the kinematic tree, attached to the frame of an existing body.
         ///
@@ -366,10 +370,6 @@ namespace jiminy
                                                vectorN_t       & vRigid) const;
 
     protected:
-        hresult_t initialize(pinocchio::Model         const & pncModel,
-                             pinocchio::GeometryModel const & collisionModel,
-                             pinocchio::GeometryModel const & visualModel);
-
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
 

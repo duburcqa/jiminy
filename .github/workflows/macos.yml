@@ -120,10 +120,9 @@ jobs:
                          "$RootDir/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
-      if: success() && github.repository == 'duburcqa/jiminy'
       uses: actions/upload-artifact@v1
       with:
-        name: jiminy_py-${{ matrix.os }}-${{ matrix.PYTHON_VERSION }}-wheel
+        name: wheelhouse
         path: build/wheelhouse
 
     #####################################################################################
@@ -131,7 +130,7 @@ jobs:
     - name: Run unit tests
       run: |
         cd "$RootDir/build"
-        ctest
+        ctest --output-on-failure
 
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
@@ -147,23 +146,11 @@ jobs:
     runs-on: ubuntu-20.04
     if: github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
 
-    strategy:
-      matrix:
-        include:
-          - os: macos-10.15
-            PYTHON_VERSION: '3.6'
-          - os: macos-10.15
-            PYTHON_VERSION: '3.7'
-          - os: macos-11
-            PYTHON_VERSION: '3.8'
-          - os: macos-11
-            PYTHON_VERSION: '3.9'
-
     steps:
     - name: Download the wheel previously generated
       uses: actions/download-artifact@v1
       with:
-        name: jiminy_py-${{ matrix.os }}-${{ matrix.PYTHON_VERSION }}-wheel
+        name: wheelhouse
         path: wheelhouse
     - name: Publish the wheel
       uses: pypa/gh-action-pypi-publish@master

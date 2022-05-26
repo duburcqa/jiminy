@@ -12,14 +12,16 @@ from auditwheel.patcher import ElfPatcher
 from auditwheel.main import main
 
 
+WHITE_LIST_DEPS = ("boost_python",)
+
+
 copylib_orig = auditwheel.repair.copylib
 
 def copylib(src_path: str, dest_dir: str,
             patcher: ElfPatcher) -> Tuple[str, str]:
     # Do NOT hash filename to make it unique in the particular case of boost
-    # python modules, since otherwise it will be impossible to share a common
-    # registry, which is necessary for cross module interoperability.
-    if "libboost_python" in src_path:
+    # python modules. It is necessary for cross-module interoperability.
+    if any(pattern in src_path for pattern in WHITE_LIST_DEPS):
         src_name = os.path.basename(src_path)
         dest_path = os.path.join(dest_dir, src_name)
         if os.path.exists(dest_path):

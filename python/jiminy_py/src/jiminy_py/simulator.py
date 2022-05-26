@@ -27,7 +27,7 @@ from .viewer import (interactive_mode,
                      play_trajectories,
                      Viewer)
 
-if interactive_mode():
+if interactive_mode() >= 2:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
@@ -185,8 +185,9 @@ class Simulator:
 
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
-        robot.initialize(urdf_path, hardware_path, mesh_path, has_freeflyer,
-                         avoid_instable_collisions, verbose=debug)
+        robot.initialize(
+            urdf_path, hardware_path, mesh_path, has_freeflyer,
+            avoid_instable_collisions, load_visual_meshes=debug, verbose=debug)
 
         # Instantiate and initialize the engine
         simulator = Simulator.__new__(cls)
@@ -668,6 +669,7 @@ class Simulator:
         # Make sure plot submodule is available
         try:
             from .plot import TabbedFigure
+            import matplotlib.pyplot as plt
         except ImportError:
             raise ImportError(
                 "Method not supported. Please install 'jiminy_py[plot]'.")
@@ -773,8 +775,8 @@ class Simulator:
             time, tabs_data, **{"plot_method": "plot", **kwargs})
 
         # Block if needed
-        if block:
-            self.figure.show(block=True)
+        if block and not self.figure.offscreen:
+            plt.show(block=True)
 
     def get_controller_options(self) -> dict:
         """Getter of the options of Jiminy Controller.

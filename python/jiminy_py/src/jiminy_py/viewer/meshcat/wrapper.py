@@ -21,7 +21,7 @@ from .server import start_meshcat_server
 from .recorder import MeshcatRecorder
 
 
-if interactive_mode():
+if interactive_mode() >= 2:
     # Google colab is using an older version of ipykernel (4.10), which is
     # not compatible with >= 5.0. The new API is more flexible and enable
     # to process only the relevant messages because every incoming messages
@@ -304,7 +304,7 @@ class MeshcatWrapper:
         # the original ones to avoid altering too much the original
         # implementation of Meshcat.
         self.comm_manager = None
-        if must_launch_server and interactive_mode():
+        if must_launch_server and interactive_mode() >= 2:
             self.comm_manager = CommManager(comm_url)
 
         # Make sure the server is properly closed

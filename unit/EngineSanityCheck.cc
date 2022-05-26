@@ -112,12 +112,12 @@ TEST(EngineSanity, EnergyConservation)
     Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
-    std::vector<std::string> header;
+    std::vector<std::string> fieldnames;
     matrixN_t data;
-    engine->getLogData(header, data);
-    auto timeCont = getLogFieldValue("Global.Time", header, data);
+    engine->getLogData(fieldnames, data);
+    auto timeCont = getLogFieldValue("Global.Time", fieldnames, data);
     ASSERT_DOUBLE_EQ(timeCont[timeCont.size()-1], tf);
-    auto energyCont = getLogFieldValue("HighLevelController.energy", header, data);
+    auto energyCont = getLogFieldValue("HighLevelController.energy", fieldnames, data);
     ASSERT_GT(energyCont.size(), 0);
 
     // Check that energy is constant
@@ -139,10 +139,10 @@ TEST(EngineSanity, EnergyConservation)
     Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
-    engine->getLogData(header, data);
-    auto timeDisc = getLogFieldValue("Global.Time", header, data);
+    engine->getLogData(fieldnames, data);
+    auto timeDisc = getLogFieldValue("Global.Time", fieldnames, data);
     ASSERT_DOUBLE_EQ(timeDisc[timeDisc.size()-1], tf);
-    auto energyDisc = getLogFieldValue("HighLevelController.energy", header, data);
+    auto energyDisc = getLogFieldValue("HighLevelController.energy", fieldnames, data);
     ASSERT_GT(energyDisc.size(), 0);
 
     // Check that energy is constant

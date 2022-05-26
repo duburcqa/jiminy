@@ -1,9 +1,11 @@
+#include "jiminy/core/io/Serialization.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
+#include "jiminy/core/utilities/Helpers.h"
 
 #include <boost/optional.hpp>
 
@@ -454,6 +456,7 @@ namespace python
                                                bp::return_internal_reference<>()))
                 .add_property("is_simulation_running", &PyEngineMultiRobotVisitor::getIsSimulationRunning)
                 .add_property("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
+                .add_property("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
                 ;
         }
 
@@ -621,18 +624,32 @@ namespace python
             bp::dict variables, constants;
 
             // Early return if empty
-            if (logData.header.empty())
+            if (logData.constants.empty())
             {
                 return bp::make_tuple(variables, constants);
             }
 
             // Get constants
-            std::ptrdiff_t const lastConstantIdx = std::distance(
-                logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
-            for (std::ptrdiff_t i = 1; i < lastConstantIdx; ++i)
+            for (auto const & keyValue : logData.constants)  // Structured bindings is not supported by gcc<7.3
             {
-                std::size_t const delimiter = logData.header[i].find(TELEMETRY_CONSTANT_DELIMITER);
-                constants[logData.header[i].substr(0, delimiter)] = logData.header[i].substr(delimiter + 1);
+                std::string const & key = keyValue.first;
+                std::string const & value = keyValue.second;
+                if (endsWith(key, ".pinocchio_model"))
+                {
+                    pinocchio::Model pncModel;
+                    ::jiminy::loadFromBinary(pncModel, value);
+                    constants[key] = pncModel;
+                }
+                else if (endsWith(key, ".collision_model") || endsWith(key, ".visual_model"))
+                {
+                    pinocchio::GeometryModel geomModel;
+                    ::jiminy::loadFromBinary(geomModel, value);
+                    constants[key] = geomModel;
+                }
+                else
+                {
+                    constants[key] = value;
+                }
             }
 
             // Get Global.Time
@@ -640,7 +657,7 @@ namespace python
             if (!logData.timestamps.empty())
             {
                 vectorN_t timeBuffer = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-                    logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
+                    logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() * logData.timeUnit;
                 timePy = convertToPython(timeBuffer, true);
                 PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(timePy.ptr()), NPY_ARRAY_WRITEABLE);
             }
@@ -649,9 +666,9 @@ namespace python
                 npy_intp dims[1] = {npy_intp(0)};
                 timePy = bp::object(bp::handle<>(PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
             }
-            variables[logData.header[lastConstantIdx + 1]] = timePy;
+            variables[logData.fieldnames[0]] = timePy;
 
-            // Get intergers
+            // Get integers
             if (!logData.intData.empty())
             {
                 Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
@@ -659,7 +676,7 @@ namespace python
 
                 for (std::size_t i = 0; i < logData.numInt; ++i)
                 {
-                    std::string const & header_i = logData.header[i + (lastConstantIdx + 1) + 1];
+                    std::string const & header_i = logData.fieldnames[i + 1];
                     for (std::size_t j = 0; j < logData.intData.size(); ++j)
                     {
                         intVector[j] = logData.intData[j][i];
@@ -674,7 +691,7 @@ namespace python
                 npy_intp dims[1] = {npy_intp(0)};
                 for (std::size_t i = 0; i < logData.numInt; ++i)
                 {
-                    std::string const & header_i = logData.header[i + (lastConstantIdx + 1) + 1];
+                    std::string const & header_i = logData.fieldnames[i + 1];
                     variables[header_i] = bp::object(bp::handle<>(
                         PyArray_SimpleNew(1, dims, NPY_INT64)));
                 }
@@ -688,8 +705,7 @@ namespace python
 
                 for (std::size_t i = 0; i < logData.numFloat; ++i)
                 {
-                    std::string const & header_i =
-                        logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
+                    std::string const & header_i = logData.fieldnames[i + 1 + logData.numInt];
                     for (std::size_t j = 0; j < logData.floatData.size(); ++j)
                     {
                         floatVector[j] = logData.floatData[j][i];
@@ -704,8 +720,7 @@ namespace python
                 npy_intp dims[1] = {npy_intp(0)};
                 for (std::size_t i = 0; i < logData.numFloat; ++i)
                 {
-                    std::string const & header_i =
-                        logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
+                    std::string const & header_i = logData.fieldnames[i + 1 + logData.numInt];
                     variables[header_i] = bp::object(bp::handle<>(
                         PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
                 }

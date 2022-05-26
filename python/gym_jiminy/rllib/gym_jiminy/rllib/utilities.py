@@ -27,7 +27,8 @@ from ray.state import GlobalState
 from ray._private import services
 from ray._private.gcs_utils import AvailableResources
 from ray._private.test_utils import monitor_memory_usage
-from ray._raylet import GcsClientOptions
+from ray._raylet import (  # pylint: disable=no-name-in-module,import-error
+    GcsClientOptions)
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
