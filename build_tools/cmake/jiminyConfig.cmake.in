@@ -42,7 +42,7 @@ endif()
 
 # Make sure the right version of pinocchio, and eigen are available
 find_package(pinocchio @pinocchio_VERSION@ EXACT REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
-find_package(hpp-fcl 1.7.3 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
+find_package(hpp-fcl 1.7.1 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)
 
 # Make sure jiminy Python module is available
