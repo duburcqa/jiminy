@@ -40,6 +40,11 @@ if(NOT Python_EXECUTABLE)
     endif()
 endif()
 
+# On windows, pinocchio is not able to find boost components for some reasons
+if(WIN32)
+    find_package(Boost REQUIRED COMPONENTS chrono system filesystem serialization date_time thread atomic)
+endif()
+
 # Make sure the right version of pinocchio, and eigen are available
 find_package(pinocchio @pinocchio_VERSION@ EXACT REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
 find_package(hpp-fcl 1.7.1 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)

@@ -36,11 +36,16 @@ if use_system_dependencies:
     else:
         lib_prefix = "lib"
         lib_suffix = _get_config_var('SHLIB_SUFFIX')
-    boost_python_lib = f"{lib_prefix}boost_python{pyver_suffix}{lib_suffix}"
-    try:
-        _ctypes.CDLL(boost_python_lib, _ctypes.RTLD_GLOBAL)
-    except OSError:
-        pass
+    use_system_dependencies = False
+    for boost_python_lib in (
+            f"{lib_prefix}boost_python{pyver_suffix}{lib_suffix}",
+            f"{lib_prefix}boost_python3-py{pyver_suffix}{lib_suffix}"):
+        try:
+            _ctypes.CDLL(boost_python_lib, _ctypes.RTLD_GLOBAL)
+            use_system_dependencies = True
+            break
+        except OSError:
+            pass
 
 # Since Python >= 3.8, PATH and the current working directory are no longer
 # used for DLL resolution on Windows OS. One is expected to explicitly call
@@ -59,9 +64,8 @@ for module_name in BOOST_PYTHON_DEPENDENCIES:
         _module = _import_module(".".join((__name__, module_name)))
         _sys.modules[module_name] = _module
 
-# Register pinocchio_pywrap to avoid importing bindings twice, which messes up
-# with boost python converters. In addition, submodules search path needs to be
-# fixed for releases older than 2.5.6.
+# Register pinocchio_pywrap and submodules to avoid importing bindings twice,
+# which messes up with boost python converters.
 submodules = _inspect.getmembers(
     _sys.modules["pinocchio"].pinocchio_pywrap, _inspect.ismodule)
 for module_name, module_obj in submodules:

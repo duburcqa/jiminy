@@ -12,7 +12,8 @@ from auditwheel.patcher import ElfPatcher
 from auditwheel.main import main
 
 
-WHITE_LIST_DEPS = ("boost_python",)
+WHITE_LIST_DEPS = (
+    "boost_python",) #"boost_numpy", "eigenpy", "hpp-fcl", "pinocchio")
 
 
 copylib_orig = auditwheel.repair.copylib
