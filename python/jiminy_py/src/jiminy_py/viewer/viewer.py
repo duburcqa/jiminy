@@ -1176,6 +1176,11 @@ class Viewer:
         if labels is not None:
             assert len(labels) == len(Viewer._backend_robot_colors)
 
+        # Make sure all robots have a specific color
+        if any(color is None for color in Viewer._backend_robot_colors):
+            raise RuntimeError(
+                "All robot must have a specific color when setting a legend.")
+
         if Viewer.backend.startswith('panda3d'):
             if labels is None:
                 items = None
@@ -1504,6 +1509,8 @@ class Viewer:
                         color = geom.meshColor
                     self._gui.set_material(
                         *node_name, color, disable_material=color_ is not None)
+            self.robot_color = color
+            Viewer._backend_robot_colors[self.robot_name] = color
         else:
             logger.warning("This method is only supported by Panda3d.")
 
