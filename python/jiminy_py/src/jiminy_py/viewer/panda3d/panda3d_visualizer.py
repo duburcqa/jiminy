@@ -1103,6 +1103,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._watermark.set_pos(
             WIDGET_MARGIN_REL + width_rel, 0, WIDGET_MARGIN_REL + height_rel)
 
+        if self.buff.inverted:
+            self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
+
     def set_legend(self,
                    items: Optional[Sequence[
                        Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
@@ -1194,7 +1197,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Flip the vertical axis and enable transparency
         self._legend.set_transparency(TransparencyAttrib.MAlpha)
-        self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
+        if self.buff.inverted:
+            self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
     def set_clock(self, time: Optional[float] = None) -> None:
         # Make sure plot submodule is available
