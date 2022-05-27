@@ -14,52 +14,36 @@
 namespace jiminy
 {
     template<typename T>
-    hresult_t TelemetryData::internalRegisterVariable(struct memHeader       *   header,
-                                                      std::string      const   & variableName,
-                                                      T                      * & positionInBufferOut)
+    hresult_t TelemetryData::registerVariable(std::string const & variableName,
+                                              T * & positionInBufferOut)
     {
-        char_t * const memAddress = reinterpret_cast<char_t *>(header);
+        // Get the right registry
+        std::deque<std::pair<std::string, T> > * registry = getRegistry<T>();
 
-        // Check in local cache
-        auto entry = entriesMap_.find(variableName);
-        if (entry != entriesMap_.end())
+        // Check if already in memory
+        auto variableIt = std::find_if(
+            registry->begin(),
+            registry->end(),
+            [&variableName](std::pair<std::string, T> const & element) -> bool_t
+            {
+                return element.first == variableName;
+            });
+        if (variableIt != registry->end())
         {
-            positionInBufferOut = static_cast<T *>(entry->second);
+            positionInBufferOut = &(variableIt->second);
             return hresult_t::SUCCESS;
         }
 
-        // Check in memory
-        int32_t positionInBuffer = findEntry(header, variableName);
-        if (positionInBuffer != -1)
+        // Check if registration is possible
+        if (!isRegisteringAvailable_)
         {
-            char_t * address = memAddress + header->startDataSection + sizeof(T) * static_cast<uint32_t>(positionInBuffer);
-            entriesMap_[variableName] = static_cast<void *>(address);
-            positionInBufferOut = static_cast<T *>(entriesMap_[variableName]);
-            return hresult_t::SUCCESS;
-        }
-
-        if (!header->isRegisteringAvailable)
-        {
-            PRINT_ERROR("Entry not found: register it if possible.");
+            PRINT_ERROR("Entry not found and registration is not available.");
             return hresult_t::ERROR_GENERIC;
         }
 
-        if (header->nextFreeNameOffset + static_cast<int64_t>(variableName.size()) + 1 >= header->startDataSection)
-        {
-            PRINT_ERROR("Trying to allocate too much memory to hold telemetry constants and variables. "
-                        "Try using shorter names or register less variables.");
-            return hresult_t::ERROR_GENERIC;
-        }
-
-        char_t * const namePos = memAddress + header->nextFreeNameOffset;  // Compute record address
-        memcpy(namePos, variableName.data(), variableName.size());
-        header->nextFreeNameOffset += variableName.size();
-        header->nextFreeNameOffset += 1U;  // Null-terminated.
-
-        char_t * const dataPos = memAddress + header->nextFreeDataOffset;
-        entriesMap_[variableName] = static_cast<void *>(dataPos);
-        positionInBufferOut = static_cast<T *>(entriesMap_[variableName]);
-        header->nextFreeDataOffset += sizeof(T);
+        // Create new variable in registry
+        registry->push_back({variableName, {}});
+        positionInBufferOut = &(registry->back().second);
 
         return hresult_t::SUCCESS;
     }

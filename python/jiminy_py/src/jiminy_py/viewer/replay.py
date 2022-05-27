@@ -16,6 +16,8 @@ import numpy as np
 from tqdm import tqdm
 from scipy.interpolate import interp1d
 
+import pinocchio as pin
+
 from .. import core as jiminy
 from ..dynamics import TrajectoryDataType
 from ..log import (read_log,
@@ -234,7 +236,7 @@ def play_trajectories(trajs_data: Union[
     if viewers is None and backend.startswith('panda3d'):
         # Delete robot by default only if not in notebook
         if delete_robot_on_close is None:
-            delete_robot_on_close = not interactive_mode()
+            delete_robot_on_close = interactive_mode() < 2
 
         # Handling of default display of CoM, DCM and contact forces
         if display_com is None:
@@ -299,6 +301,13 @@ def play_trajectories(trajs_data: Union[
                 open_gui_if_parent=(record_video_path is None))
             viewers[i] = viewer
 
+        # Reset the configuration of the robot
+        if traj['use_theoretical_model']:
+            model = traj['robot'].pinocchio_model_th
+        else:
+            model = traj['robot'].pinocchio_model
+        viewer.display(pin.neutral(model))
+
         # Reset robot model in viewer if requested color has changed
         if color is not None and color != viewer.robot_color:
             viewer._setup(traj['robot'], color)
@@ -318,6 +327,7 @@ def play_trajectories(trajs_data: Union[
 
     # Early return if nothing to replay
     if all(not len(traj['evolution_robot']) for traj in trajs_data):
+        logger.debug("Nothing to replay.")
         return viewers
 
     # Enable camera motion if requested
@@ -364,15 +374,15 @@ def play_trajectories(trajs_data: Union[
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:
         if Viewer.backend == 'meshcat':
-            if verbose and not interactive_mode():
+            if verbose and interactive_mode() < 2:
                 print("Waiting for meshcat client in browser to connect: "
                       f"{Viewer._backend_obj.gui.url()}")
             Viewer.wait(require_client=True)
-            if verbose and not interactive_mode():
+            if verbose and interactive_mode() < 2:
                 print("Browser connected! Replaying simulation...")
 
     # Handle start-in-pause mode
-    if start_paused and record_video_path is None and not interactive_mode():
+    if start_paused and record_video_path is None and interactive_mode() < 2:
         input("Press Enter to continue...")
         if not Viewer.is_alive():
             return viewers

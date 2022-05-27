@@ -150,10 +150,9 @@ function(deployPythonPackage)
         # flags some warnings as error, e.g. incompatible dependencies.
         install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} --upgrade .${PKG_DEPS}
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${PKG_NAME}
-                                      ERROR_VARIABLE ERROR_MSG)
-                      if(ERROR_MSG MATCHES \"ERROR:.*\")
-                          message(\"\${ERROR_MSG}\")
-                          message(WARNING \"Python installation of '${PKG_SPEC}' failed.\")
+                                      RESULT_VARIABLE RETURN_CODE)
+                      if(NOT RETURN_CODE EQUAL 0)
+                          message(FATAL_ERROR \"Python installation of '${PKG_SPEC}' failed.\")
                       endif()")
     endforeach()
 endfunction()
@@ -163,10 +162,9 @@ function(deployPythonPackageDevelop)
     foreach(PKG_NAME IN LISTS ARGN)
         install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
                                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${PKG_NAME}
-                                      ERROR_VARIABLE ERROR_MSG)
-                      if(ERROR_MSG MATCHES \"ERROR:.*\")
-                          message(\"\${ERROR_MSG}\")
-                          message(WARNING \"Python installation of '${PKG_NAME}' failed.\")
+                                      RESULT_VARIABLE RETURN_CODE)
+                      if(NOT RETURN_CODE EQUAL 0)
+                          message(FATAL_ERROR \"Python installation of '${PKG_NAME}' failed.\")
                       endif()")
     endforeach()
 endfunction()

@@ -48,7 +48,6 @@ jobs:
         sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade wheel
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
 
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
@@ -63,7 +62,7 @@ jobs:
 
         PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"
-        echo "${InstallDir}/lib/python${PYTHON_VERSION}/site-packages" \
+        echo "$InstallDir/lib/python${PYTHON_VERSION}/site-packages" \
         > "${PYTHON_USER_SITELIB}/user_site.pth"
 
     #####################################################################################
@@ -74,7 +73,6 @@ jobs:
 
         mkdir "$RootDir/build"
         cd "$RootDir/build"
-        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
@@ -84,12 +82,12 @@ jobs:
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2
 
+        echo "LD_LIBRARY_PATH=$InstallDir/lib:$InstallDir/lib64:/usr/local/lib" >> $GITHUB_ENV
+
     #####################################################################################
 
     - name: Build extension module
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
-
         "$InstallDir/bin/jiminy_double_pendulum"
 
         mkdir -p "$RootDir/examples/cpp/pip_extension/build"
@@ -101,12 +99,12 @@ jobs:
 
         "$InstallDir/bin/pip_double_pendulum"
 
+    #####################################################################################
+
     - name: Run unit tests
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
-
         cd "$RootDir/build"
-        ctest
+        ctest --output-on-failure
 
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

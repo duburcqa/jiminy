@@ -20,13 +20,15 @@ from bisect import bisect_right
 from threading import RLock
 from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
 
-import psutil
 import numpy as np
 from scipy.interpolate import interp1d
 from typing_extensions import TypedDict
 
-import zmq
 from panda3d_viewer.viewer_errors import ViewerClosedError
+try:
+    from psutil import Process
+except ImportError:
+    Process = type(None)
 
 import pinocchio as pin
 from pinocchio import SE3, SE3ToXYZQUAT
@@ -103,7 +105,7 @@ def get_default_backend() -> str:
         graphical server. Besides, both can fallback to software rendering if
         necessary, although Panda3d offers only very limited support of it.
     """
-    if interactive_mode():
+    if interactive_mode() >= 2:
         return 'meshcat'
     elif check_display_available():
         return 'panda3d'
@@ -196,7 +198,7 @@ class _ProcessWrapper:
     def __init__(self,
                  proc: Union[
                      multiprocessing.process.BaseProcess, subprocess.Popen,
-                     psutil.Process, Panda3dApp],
+                     Panda3dApp, Process],
                  kill_at_exit: bool = False):
         self._proc = proc
         # Make sure the process is killed at Python exit
@@ -204,14 +206,15 @@ class _ProcessWrapper:
             atexit.register(self.kill)
 
     def is_parent(self) -> bool:
-        return not isinstance(self._proc, psutil.Process)
+        return not isinstance(self._proc, Process)
 
     def is_alive(self) -> bool:
         if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.is_alive()
         elif isinstance(self._proc, subprocess.Popen):
             return self._proc.poll() is None
-        elif isinstance(self._proc, psutil.Process):
+        elif isinstance(self._proc, Process):
+            import psutil
             try:
                 return self._proc.status() in [
                     psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
@@ -225,7 +228,7 @@ class _ProcessWrapper:
         if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.join(timeout)
         elif isinstance(self._proc, (
-                subprocess.Popen, psutil.Process)):
+                subprocess.Popen, Process)):
             return self._proc.wait(timeout)
         elif isinstance(self._proc, Panda3dApp):
             self._proc.step()
@@ -245,8 +248,9 @@ class _ProcessWrapper:
                     pass
 
                 # Force kill if necessary and reap the zombies
+                import psutil
                 try:
-                    psutil.Process(self._proc.pid).kill()
+                    Process(self._proc.pid).kill()
                     os.waitpid(self._proc.pid, 0)
                     os.waitpid(os.getpid(), 0)
                 except (psutil.NoSuchProcess, ChildProcessError):
@@ -289,7 +293,7 @@ class Viewer:
     """ TODO: Write documentation.
 
     .. note::
-        The environment variable 'JIMINY_VIEWER_INTERACTIVE_DISABLE' can be
+        The environment variable 'JIMINY_INTERACTIVE_DISABLE' can be
         used to force disabling interactive display.
     """
     backend = None
@@ -408,11 +412,11 @@ class Viewer:
                 elif backend == 'meshcat':
                     # Opening a new display cell automatically if there is
                     # no other display cell already opened.
-                    open_gui_if_parent = interactive_mode() and (
+                    open_gui_if_parent = interactive_mode() >= 2 and (
                         Viewer._backend_obj is None or
                         not Viewer._backend_obj.comm_manager.n_comm)
                 elif backend == 'panda3d':
-                    open_gui_if_parent = not interactive_mode()
+                    open_gui_if_parent = interactive_mode() < 2
                 else:
                     open_gui_if_parent = False
 
@@ -761,7 +765,7 @@ class Viewer:
         elif Viewer.backend == 'meshcat':
             viewer_url = Viewer._backend_obj.gui.url()
 
-            if interactive_mode():
+            if interactive_mode() >= 2:
                 from IPython.core.display import HTML, display
 
                 # Scrap the viewer html content, including javascript
@@ -785,7 +789,7 @@ class Viewer:
                 kernel = get_ipython().kernel
                 conn_file = kernel.config['IPKernelApp']['connection_file']
                 kernel_id = conn_file.split('-', 1)[1].split('.')[0]
-                server_pid = psutil.Process(os.getpid()).parent().pid
+                server_pid = Process(os.getpid()).parent().pid
                 server_list = list(notebookapp.list_running_servers())
                 try:
                     from jupyter_server import serverapp
@@ -800,7 +804,7 @@ class Viewer:
                 html_content = html_content.replace(
                     "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
-                if interactive_mode() == 1:
+                if interactive_mode() == 2:
                     # Embed HTML in iframe on Jupyter, since it is not
                     # possible to load HTML/Javascript content directly.
                     html_content = html_content.replace(
@@ -1021,10 +1025,11 @@ class Viewer:
             client.gui = client
         else:
             # List of connections likely to correspond to Meshcat servers
+            import psutil
             meshcat_candidate_conn = {}
             for pid in psutil.pids():
                 try:
-                    proc = psutil.Process(pid)
+                    proc = Process(pid)
                     for conn in proc.connections("tcp4"):
                         if conn.status != 'LISTEN' or \
                                 conn.laddr.ip != '127.0.0.1':
@@ -1042,7 +1047,8 @@ class Viewer:
             # message on ipython ports will throw a low-level exception, that
             # is not blocking on Jupyter, but is on Google Colab.
             excluded_ports = []
-            if interactive_mode():
+            if interactive_mode() >= 2:
+                from IPython import get_ipython
                 try:
                     excluded_ports += list(
                         get_ipython().kernel._recorded_ports.values())
@@ -1050,6 +1056,7 @@ class Viewer:
                     pass  # No Ipython kernel running
 
             # Use the first port responding to zmq request, if any
+            import zmq
             zmq_url = None
             context = zmq.Context.instance()
             for pid, conn in meshcat_candidate_conn.items():
@@ -1078,7 +1085,7 @@ class Viewer:
             from .meshcat.wrapper import MeshcatWrapper
             client = MeshcatWrapper(zmq_url)
             if client.server_proc is None:
-                proc = psutil.Process(pid)
+                proc = Process(pid)
             else:
                 proc = client.server_proc
             proc = _ProcessWrapper(proc, close_at_exit)
@@ -1663,6 +1670,7 @@ class Viewer:
                                 Callable[[], np.ndarray]] = 1.0,
                    color: Union[Optional[Union[str, Tuple4FType]],
                                 Callable[[], Tuple4FType]] = None,
+                   always_foreground: bool = True,
                    remove_if_exists: bool = False,
                    auto_refresh: bool = True,
                    *shape_args: Any,
@@ -1689,6 +1697,9 @@ class Viewer:
                       and a few named colors.
                       Optional: Robot's color by default if overridden, 'white'
                       otherwise, except for 'frame'.
+        :param always_foreground: Whether to force rendering the marker on
+                                  foreground.
+                                  Optional: True by default.
         :param auto_refresh: Whether or not to refresh the scene after adding
                              the marker. Useful for adding a bunch of markers
                              and only refresh once. Note that the marker will
@@ -1744,7 +1755,8 @@ class Viewer:
 
         # Make sure the marker always display in front of the model
         self._gui.show_node(
-            self._markers_group, name, True, always_foreground=True)
+            self._markers_group, name, True,
+            always_foreground=always_foreground)
 
         # Refresh the scene if desired
         if auto_refresh:
@@ -2197,11 +2209,18 @@ class Viewer:
                 # Stop the simulation if final time is reached
                 if t_simu > time_interval[1]:
                     break
-            except (ViewerClosedError, zmq.error.Again, zmq.error.ZMQError):
-                # Make sure the viewer is properly closed if exception is
-                # raised during replay.
+            except Exception as e:
+                # Make sure the viewer is always properly closed
                 Viewer.close()
-                return
+                # Re-raise the original exception if unexpected
+                if Viewer.backend.startswith('panda3d'):
+                    if isinstance(e, ViewerClosedError):
+                        return
+                elif Viewer.backend == 'meshcat':
+                    import zmq
+                    if isinstance(e, (zmq.error.Again, zmq.error.ZMQError)):
+                        return
+                raise e
 
         # Restore Viewer's state if it has been altered
         if Viewer.is_alive():

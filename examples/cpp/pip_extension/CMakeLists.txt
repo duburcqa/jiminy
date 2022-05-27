@@ -29,8 +29,6 @@ find_package(jiminy REQUIRED)
 if(WIN32)
     find_package(Boost REQUIRED COMPONENTS chrono system filesystem serialization date_time thread atomic)
 endif()
-find_package(pinocchio 2.5.2 REQUIRED NO_MODULE)
-find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)
 
 # Make executables
 add_executable(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/double_pendulum.cc")

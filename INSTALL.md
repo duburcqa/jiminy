@@ -1,4 +1,4 @@
-# Easy-install on Ubuntu 18+ and Debian 8+
+# Easy-install on Ubuntu 18+
 
 ## Jiminy
 
@@ -46,7 +46,7 @@ python3 -m pip install tianshou==0.3.0
 python -m pip install --prefer-binary gym-jiminy[all]
 ```
 
-# Build Jiminy from source
+# Building from source
 
 ## Excluding dependencies on Ubuntu 18+
 

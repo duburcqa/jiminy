@@ -24,10 +24,10 @@ class InstallPlatlib(install):
 np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
 if np_ver < (1, 20):
     np_req = "numpy<1.20"
+elif np_ver < (1, 22):
+    np_req = "numpy>=1.20,!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4,<1.22"
 else:
-    np_req = "numpy>=1.20,!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
-    if np_ver < (1, 22):
-        np_req += ",<1.22"
+    np_req = "numpy>=1.22"
 
 
 setup(

@@ -3,7 +3,8 @@ import re as _re
 import sys as _sys
 import ctypes as _ctypes
 import inspect as _inspect
-import importlib as _importlib
+from importlib import import_module as _import_module
+from importlib.util import find_spec as _find_spec
 from contextlib import redirect_stderr as _redirect_stderr
 from sysconfig import get_config_var as _get_config_var
 
@@ -16,7 +17,7 @@ BOOST_PYTHON_DEPENDENCIES = ("eigenpy", "hppfcl", "pinocchio")
 # system. The system dependencies will be used instead of the one embedded with
 # jiminy if and only if all of them are available.
 use_system_dependencies = not any(
-    _importlib.util.find_spec(module_name) is None
+    _find_spec(module_name) is None
     for module_name in BOOST_PYTHON_DEPENDENCIES)
 
 # Special dlopen flags are used when loading Boost Python shared library
@@ -35,11 +36,16 @@ if use_system_dependencies:
     else:
         lib_prefix = "lib"
         lib_suffix = _get_config_var('SHLIB_SUFFIX')
-    boost_python_lib = f"{lib_prefix}boost_python{pyver_suffix}{lib_suffix}"
-    try:
-        _ctypes.CDLL(boost_python_lib, _ctypes.RTLD_GLOBAL)
-    except OSError:
-        pass
+    use_system_dependencies = False
+    for boost_python_lib in (
+            f"{lib_prefix}boost_python{pyver_suffix}{lib_suffix}",
+            f"{lib_prefix}boost_python3-py{pyver_suffix}{lib_suffix}"):
+        try:
+            _ctypes.CDLL(boost_python_lib, _ctypes.RTLD_GLOBAL)
+            use_system_dependencies = True
+            break
+        except OSError:
+            pass
 
 # Since Python >= 3.8, PATH and the current working directory are no longer
 # used for DLL resolution on Windows OS. One is expected to explicitly call
@@ -53,14 +59,13 @@ if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
 # Import dependencies, using embedded versions only if necessary
 for module_name in BOOST_PYTHON_DEPENDENCIES:
     if use_system_dependencies:
-        _importlib.import_module(module_name)
+        _import_module(module_name)
     else:
-        _module = _importlib.import_module(".".join((__name__, module_name)))
+        _module = _import_module(".".join((__name__, module_name)))
         _sys.modules[module_name] = _module
 
-# Register pinocchio_pywrap to avoid importing bindings twice, which messes up
-# with boost python converters. In addition, submodules search path needs to be
-# fixed for releases older than 2.5.6.
+# Register pinocchio_pywrap and submodules to avoid importing bindings twice,
+# which messes up with boost python converters.
 submodules = _inspect.getmembers(
     _sys.modules["pinocchio"].pinocchio_pywrap, _inspect.ismodule)
 for module_name, module_obj in submodules:

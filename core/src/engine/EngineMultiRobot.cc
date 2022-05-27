@@ -22,12 +22,12 @@
 #include "pinocchio/algorithm/energy.hpp"                   // `pinocchio::computePotentialEnergy`
 #include "pinocchio/algorithm/joint-configuration.hpp"      // `pinocchio::normalize`
 #include "pinocchio/algorithm/geometry.hpp"                 // `pinocchio::computeCollisions`
-#include "pinocchio/serialization/model.hpp"                // `pinocchio::ModelTpl<T>.serialize`
 
 #include "H5Cpp.h"
 #include "json/json.h"
 
 #include "jiminy/core/io/FileDevice.h"
+#include "jiminy/core/io/Serialization.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
@@ -1511,14 +1511,37 @@ namespace jiminy
                     meshPackageDirsString = meshPackageDirsStream.str();
                     meshPackageDirsString.pop_back();
                 }
-                telemetrySender_.registerConstant(
-                    telemetryMeshPackageDirs, meshPackageDirsString);
+                telemetrySender_.registerConstant(telemetryMeshPackageDirs, meshPackageDirsString);
 
-                // Backup the Pinocchio Model used for the simulation
-                std::string const telemetryModelName = addCircumfix(
+                // Backup the Pinocchio Model
+                std::string telemetryModelName = addCircumfix(
                     "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                std::string modelString = system.robot->pncModel_.saveToString();
-                telemetrySender_.registerConstant(telemetryModelName, modelString);
+                std::string dump = saveToBinary(system.robot->pncModel_);
+                telemetrySender_.registerConstant(telemetryModelName, dump);
+
+                /* Backup the Pinocchio GeometryModel for collisions and visuals.
+                   It may fail because of missing serialization methods for convex,
+                   or because it cannot fit into memory (return code). */
+                if (engineOptions_->telemetry.isPersistent)
+                {
+                    try
+                    {
+                        telemetryModelName = addCircumfix(
+                            "collision_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                        dump = saveToBinary(system.robot->collisionModel_);
+                        telemetrySender_.registerConstant(telemetryModelName, dump);
+
+                        telemetryModelName = addCircumfix(
+                            "visual_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                        dump = saveToBinary(system.robot->visualModel_);
+                        telemetrySender_.registerConstant(telemetryModelName, dump);
+                    }
+                    catch (std::exception const & e)
+                    {
+                        PRINT_ERROR("Impossible to log collision and visual model.\n"
+                                    "Raised from exception: ", e.what());
+                    }
+                }
             }
 
             // Log all options
@@ -1540,7 +1563,7 @@ namespace jiminy
             telemetrySender_.registerConstant("options", allOptionsString);
 
             // Write the header: this locks the registration of new variables
-            telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
+            telemetryRecorder_->initialize(telemetryData_.get(), getTelemetryTimeUnit());
 
             // At this point, consider that the simulation is running
             isSimulationRunning_ = true;
@@ -2584,15 +2607,6 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        // Make sure that the selected time unit for logging makes sense
-        configHolder_t telemetryOptions = boost::get<configHolder_t>(engineOptions.at("telemetry"));
-        float64_t const & timeUnit = boost::get<float64_t>(telemetryOptions.at("timeUnit"));
-        if (1.0 / (STEPPER_MIN_TIMESTEP - EPS) < timeUnit || timeUnit < 1.0 / (SIMULATION_MAX_TIMESTEP + EPS))
-        {
-            PRINT_ERROR("'timeUnit' is out of range.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
         // Make sure the dtMax is not out of range
         configHolder_t stepperOptions = boost::get<configHolder_t>(engineOptions.at("stepper"));
         float64_t const & dtMax = boost::get<float64_t>(stepperOptions.at("dtMax"));
@@ -2813,7 +2827,12 @@ namespace jiminy
 
     float64_t EngineMultiRobot::getMaxSimulationDuration(void) const
     {
-        return TelemetryRecorder::getMaximumLogTime(engineOptions_->telemetry.timeUnit);
+        return TelemetryRecorder::getMaximumLogTime(getTelemetryTimeUnit());
+    }
+
+    float64_t EngineMultiRobot::getTelemetryTimeUnit(void) const
+    {
+        return STEPPER_MIN_TIMESTEP;
     }
 
     // ========================================================
@@ -3882,7 +3901,7 @@ namespace jiminy
         // Never empty since it contains at least the initial state
         logMatrix.resize(logData.timestamps.size(), 1U + logData.numInt + logData.numFloat);
         logMatrix.col(0) = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-            logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
+            logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() * logData.timeUnit;
         for (std::size_t i=0; i<logData.intData.size(); ++i)
         {
             logMatrix.block(i, 1, 1, logData.numInt) =
@@ -3914,7 +3933,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::getLogData(std::vector<std::string> & header,
+    hresult_t EngineMultiRobot::getLogData(std::vector<std::string> & fieldnames,
                                            matrixN_t                & logMatrix)
     {
         std::shared_ptr<logData_t const> logData;
@@ -3924,7 +3943,7 @@ namespace jiminy
             if (!logData->timestamps.empty())
             {
                 logDataToEigenMatrix(*logData, logMatrix);
-                header = logData->header;  // copy instead of move, to not alter the buffer
+                fieldnames = logData->fieldnames;  // copy instead of move, to not alter the buffer
             }
         }
 
@@ -3933,12 +3952,12 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::writeLogCsv(std::string const & filename)
     {
-        std::vector<std::string> header;
+        std::vector<std::string> fieldnames;
         matrixN_t logMatrix;
-        hresult_t returnCode = getLogData(header, logMatrix);
+        hresult_t returnCode = getLogData(fieldnames, logMatrix);
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (header.empty())
+            if (fieldnames.empty())
             {
                 PRINT_ERROR("No data available. Please start a simulation before writing log.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -3947,9 +3966,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            std::ofstream file = std::ofstream(filename,
-                                                std::ios::out |
-                                                std::ofstream::trunc);
+            std::ofstream file = std::ofstream(filename, std::ios::out | std::ofstream::trunc);
 
             if (!file.is_open())
             {
@@ -3958,19 +3975,10 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
-            std::copy(header.begin() + 1,
-                    indexConstantEnd - 1,
-                    std::ostream_iterator<std::string>(file, ", "));  // Discard the first one (start constant flag)
-            std::copy(indexConstantEnd - 1,
-                    indexConstantEnd,
-                    std::ostream_iterator<std::string>(file, "\n"));
-            std::copy(indexConstantEnd + 1,
-                    header.end() - 2,
-                    std::ostream_iterator<std::string>(file, ", "));
-            std::copy(header.end() - 2,
-                    header.end() - 1,
-                    std::ostream_iterator<std::string>(file, "\n"));  // Discard the last one (start data flag)
+            std::copy(fieldnames.begin(), fieldnames.end() - 1,
+                      std::ostream_iterator<std::string>(file, ", "));
+            std::copy(fieldnames.end() - 1, fieldnames.end(),
+                      std::ostream_iterator<std::string>(file, "\n"));
             Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
             file << logMatrix.format(CSVFormat);
 
@@ -4034,24 +4042,18 @@ namespace jiminy
 
             // Add group "constants"
             H5::Group constantsGroup(file->createGroup("constants"));
-            std::ptrdiff_t const lastConstantIdx = std::distance(logData->header.begin(), std::find(
-                logData->header.begin(), logData->header.end(), START_COLUMNS));
-            for (std::ptrdiff_t i = 1; i < lastConstantIdx; ++i)
+            for (auto const & keyValue : logData->constants)  // Structured bindings is not supported by gcc<7.3
             {
-                std::string const & constantDescr = logData->header[i];
-                std::size_t const delimiterIdx = constantDescr.find(TELEMETRY_CONSTANT_DELIMITER);
-                std::string const key = constantDescr.substr(0, delimiterIdx);
-                char_t const * value = constantDescr.c_str() + (delimiterIdx + 1);
-
+                std::string const & key = keyValue.first;
+                std::string const & value = keyValue.second;
                 H5::DataSpace constantSpace = H5::DataSpace(H5S_SCALAR);  // There is only one string !
-                hsize_t valueSize = constantDescr.size() - (delimiterIdx + 1);
-                if (valueSize > 0)
+                if (value.size() > 0)
                 {
                     // Impossible to register empty string variable
-                    H5::StrType stringType(H5::PredType::C_S1, valueSize);
+                    H5::StrType stringType(H5::PredType::C_S1, value.size());
                     H5::DataSet constantDataSet = constantsGroup.createDataSet(
                         key, stringType, constantSpace);
-                    constantDataSet.write(value, stringType);
+                    constantDataSet.write(value.c_str(), stringType);
                 }
             }
 
@@ -4067,7 +4069,7 @@ namespace jiminy
             H5::Group variablesGroup(file->createGroup("variables"));
             for (std::size_t i=0; i < logData->numInt; ++i)
             {
-                std::string const & key = logData->header[i + (lastConstantIdx + 1U) + 1U];
+                std::string const & key = logData->fieldnames[i + 1];
 
                 // Create group for field
                 H5::Group fieldGroup(variablesGroup.createGroup(key));
@@ -4097,7 +4099,7 @@ namespace jiminy
             }
             for (std::size_t i = 0; i < logData->numFloat; ++i)
             {
-                std::string const & key = logData->header[i + (lastConstantIdx + 1U) + 1U + logData->numInt];
+                std::string const & key = logData->fieldnames[i + 1 + logData->numInt];
 
                 // Create group for field
                 H5::Group fieldGroup(variablesGroup.createGroup(key));
@@ -4133,6 +4135,14 @@ namespace jiminy
     hresult_t EngineMultiRobot::writeLog(std::string const & filename,
                                          std::string const & format)
     {
+        // Make sure there is something to write
+        if (!isTelemetryConfigured_)
+        {
+            PRINT_ERROR("Telemetry not configured. Please run a simulation before writing log.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Pick the appropriate format
         if (format == "binary")
         {
             return telemetryRecorder_->writeDataBinary(filename);
@@ -4172,6 +4182,13 @@ namespace jiminy
             std::vector<std::string> headerBuffer;
             std::string subHeaderBuffer;
 
+            // Reach the beginning of the constants
+            while (std::getline(file, subHeaderBuffer, '\0').good() &&
+                   subHeaderBuffer != START_CONSTANTS)
+            {
+                // Empty on purpose
+            }
+
             // Get all the logged constants
             while (std::getline(file, subHeaderBuffer, '\0').good() &&
                    subHeaderBuffer != START_COLUMNS)
@@ -4181,7 +4198,7 @@ namespace jiminy
 
             // Get the names of the logged variables
             while (std::getline(file, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != (START_DATA + START_LINE_TOKEN))
+                   subHeaderBuffer != START_DATA)
             {
                 // Do nothing
             }
@@ -4204,7 +4221,7 @@ namespace jiminy
             // Deduce the parameters required to parse the whole binary log file
             integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
             floatSectionSize = NumFloatEntries * sizeof(float64_t);
-            headerSize = static_cast<int64_t>(file.tellg()) - START_LINE_TOKEN.size() - 1;
+            headerSize = static_cast<int64_t>(file.tellg());  // Last '\0' is included
 
             // Close the file
             file.close();

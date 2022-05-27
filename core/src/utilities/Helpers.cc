@@ -82,6 +82,15 @@ namespace jiminy
 
     // ******************* Telemetry utilities **********************
 
+    bool_t endsWith(std::string const & fullString, std::string const & ending)
+    {
+        if (fullString.length() >= ending.length())
+        {
+            return fullString.compare(fullString.length() - ending.length(), ending.length(), ending) == 0;
+        }
+        return false;
+    }
+
     std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
                                                      uint32_t    const & size)
     {
@@ -154,19 +163,16 @@ namespace jiminy
     }
 
     Eigen::Ref<vectorN_t const> getLogFieldValue(std::string              const & fieldName,
-                                                 std::vector<std::string> const & header,
+                                                 std::vector<std::string> const & fieldnames,
                                                  matrixN_t                const & logData)
     {
         static vectorN_t fieldDataEmpty;
-
-        auto iterator = std::find(header.begin(), header.end(), fieldName);
-        if (iterator == header.end())
+        auto iterator = std::find(fieldnames.begin(), fieldnames.end(), fieldName);
+        if (iterator == fieldnames.end())
         {
             PRINT_ERROR("Field does not exist.");
             return fieldDataEmpty;
         }
-
-        auto start = std::find(header.begin(), header.end(), "StartColumns");
-        return logData.col(std::distance(start, iterator) - 1);
+        return logData.col(std::distance(fieldnames.begin(), iterator));
     }
 }

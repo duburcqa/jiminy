@@ -23,10 +23,12 @@ fi
 
 ### Set common CMAKE_C/CXX_FLAGS
 CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -fPIC"
-if [ "${BUILD_TYPE}" == "Debug" ]; then
-  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
-else
+if [ "${BUILD_TYPE}" == "Release" ]; then
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
+elif [ "${BUILD_TYPE}" == "Debug" ]; then
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
+elif [ "${BUILD_TYPE}" == "RelWithDebInfo" ]; then
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O2 -g -DNDEBUG"
 fi
 echo "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 
@@ -202,7 +204,7 @@ mkdir -p "$RootDir/boost/build"
      --with-chrono --with-timer --with-date_time --with-system --with-test \
      --with-filesystem --with-atomic --with-serialization --with-thread \
      --build-type=minimal --layout=system --lto=off \
-     architecture=${B2_ARCHITECTURE_TYPE} address-model=64 \
+     architecture= address-model=64 \
      threading=single link=static runtime-link=static debug-symbols=off \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
      linkflags="${CMAKE_CXX_FLAGS_B2}" \
@@ -210,7 +212,7 @@ mkdir -p "$RootDir/boost/build"
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-python \
      --build-type=minimal --layout=system --lto=off \
-     architecture=${B2_ARCHITECTURE_TYPE} address-model=64 \
+     architecture= address-model=64 \
      threading=single link=shared runtime-link=shared debug-symbols=off \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
      linkflags="${CMAKE_CXX_FLAGS_B2}" \
@@ -329,6 +331,6 @@ cmake "$RootDir/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREF
       -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF \
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DBUILD_SHARED_LIBS=ON \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS -Wno-unused-local-typedefs $(
-      ) -Wno-uninitialized" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
+      ) -Wno-unused-local-typedefs -Wno-uninitialized" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2

@@ -179,6 +179,7 @@ namespace jiminy
         configHolder_t getDefaultTelemetryOptions()
         {
             configHolder_t config;
+            config["isPersistent"] = false;
             config["enableConfiguration"] = true;
             config["enableVelocity"] = true;
             config["enableAcceleration"] = true;
@@ -186,7 +187,6 @@ namespace jiminy
             config["enableCommand"] = true;
             config["enableMotorEffort"] = true;
             config["enableEnergy"] = true;
-            config["timeUnit"] = 1.0e9;
             return config;
         };
 
@@ -304,6 +304,7 @@ namespace jiminy
 
         struct telemetryOptions_t
         {
+            bool_t const isPersistent;
             bool_t const enableConfiguration;
             bool_t const enableVelocity;
             bool_t const enableAcceleration;
@@ -311,17 +312,16 @@ namespace jiminy
             bool_t const enableCommand;
             bool_t const enableMotorEffort;
             bool_t const enableEnergy;
-            float64_t const timeUnit;
 
             telemetryOptions_t(configHolder_t const & options) :
+            isPersistent(boost::get<bool_t>(options.at("isPersistent"))),
             enableConfiguration(boost::get<bool_t>(options.at("enableConfiguration"))),
             enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
             enableAcceleration(boost::get<bool_t>(options.at("enableAcceleration"))),
             enableForceExternal(boost::get<bool_t>(options.at("enableForceExternal"))),
             enableCommand(boost::get<bool_t>(options.at("enableCommand"))),
             enableMotorEffort(boost::get<bool_t>(options.at("enableMotorEffort"))),
-            enableEnergy(boost::get<bool_t>(options.at("enableEnergy"))),
-            timeUnit(boost::get<float64_t>(options.at("timeUnit")))
+            enableEnergy(boost::get<bool_t>(options.at("enableEnergy")))
             {
                 // Empty.
             }
@@ -511,6 +511,7 @@ namespace jiminy
         stepperState_t const & getStepperState(void) const;
         bool_t const & getIsSimulationRunning(void) const;
         float64_t getMaxSimulationDuration(void) const;
+        float64_t getTelemetryTimeUnit(void) const;
 
         static void computeForwardKinematics(systemHolder_t  & system,
                                              vectorN_t const & q,

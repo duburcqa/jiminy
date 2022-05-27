@@ -27,7 +27,7 @@ from .viewer import (interactive_mode,
                      play_trajectories,
                      Viewer)
 
-if interactive_mode():
+if interactive_mode() >= 2:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
@@ -185,8 +185,9 @@ class Simulator:
 
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
-        robot.initialize(urdf_path, hardware_path, mesh_path, has_freeflyer,
-                         avoid_instable_collisions, verbose=debug)
+        robot.initialize(
+            urdf_path, hardware_path, mesh_path, has_freeflyer,
+            avoid_instable_collisions, load_visual_meshes=debug, verbose=debug)
 
         # Instantiate and initialize the engine
         simulator = Simulator.__new__(cls)
@@ -644,6 +645,7 @@ class Simulator:
 
     def plot(self,
              enable_flexiblity_data: bool = False,
+             block: Optional[bool] = None,
              **kwargs: Any) -> None:
         """Display common simulation data over time.
 
@@ -659,14 +661,22 @@ class Simulator:
             Enable display of flexible joints in robot's configuration,
             velocity and acceleration subplots.
             Optional: False by default.
+        :parem block: Whether to wait for the figure to be closed before
+                      returning.
+                      Optional: False in interactive mode, True otherwise.
         :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
         """
         # Make sure plot submodule is available
         try:
             from .plot import TabbedFigure
+            import matplotlib.pyplot as plt
         except ImportError:
             raise ImportError(
                 "Method not supported. Please install 'jiminy_py[plot]'.")
+
+        # Blocking by default if not interactive
+        if block is None:
+            block = not interactive_mode()
 
         # Extract log data
         log_data, log_constants = self.log_data, self.log_constants
@@ -763,6 +773,10 @@ class Simulator:
         # Create figure, without closing the existing one
         self.figure = TabbedFigure.plot(
             time, tabs_data, **{"plot_method": "plot", **kwargs})
+
+        # Block if needed
+        if block and not self.figure.offscreen:
+            plt.show(block=True)
 
     def get_controller_options(self) -> dict:
         """Getter of the options of Jiminy Controller.
