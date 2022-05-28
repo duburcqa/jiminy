@@ -14,15 +14,15 @@ import numpy as np
 
 import simplepbr
 from panda3d.core import (
-    NodePath, Point3, Vec3, Mat4, Quat, LQuaternion, Geom, GeomEnums, GeomNode,
-    GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
-    GeomVertexWriter, GraphicsWindow, PNMImage, RenderModeAttrib, InternalName,
-    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, Material,
-    Texture, TextureStage, PNMImageHeader, TransparencyAttrib, TextNode, PGTop,
-    Camera, PerspectiveLens, OrthographicLens, Shader, ShaderAttrib,
-    AntialiasAttrib, CollisionNode, CollisionRay, CollisionTraverser,
-    CollisionHandlerQueue, ClockObject, GraphicsPipe, GraphicsOutput,
-    WindowProperties, FrameBufferProperties, loadPrcFileData)
+    NodePath, Point3, Vec3, Vec4, Mat4, Quat, LQuaternion, Geom, GeomEnums,
+    GeomNode, GeomTriangles, GeomVertexData, GeomVertexArrayFormat,
+    GeomVertexFormat, GeomVertexWriter, PNMImage, PNMImageHeader, TextNode,
+    OmniBoundingVolume, CompassEffect, BillboardEffect, InternalName, Filename,
+    Material, Texture, TextureStage, TransparencyAttrib, PGTop, Camera,
+    PerspectiveLens, OrthographicLens, Shader, ShaderAttrib, AntialiasAttrib,
+    CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
+    ClockObject, GraphicsPipe, GraphicsOutput, GraphicsWindow,
+    RenderModeAttrib, WindowProperties, FrameBufferProperties, loadPrcFileData)
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
@@ -310,27 +310,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Create physics-based shader and adapt lighting accordingly.
         # It slows down the rendering by about 30% on discrete NVIDIA GPU.
-        # Note that EGL graphical pipeline does not support shader for now.
-        if self.pipe.get_type().name != "eglGraphicsPipe":
-            shader_options = {
-                'ENABLE_SHADOWS': '',
-                'USE_EMISSION_MAP': '',
-                'USE_OCCLUSION_MAP': ''
-            }
-            pbr_vert = simplepbr._load_shader_str(
-                'simplepbr.vert', shader_options)
-            pbr_frag = simplepbr._load_shader_str(
-                'simplepbr.frag', shader_options)
-            pbrshader = Shader.make(
-                Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
-            self.render.set_attrib(ShaderAttrib.make(pbrshader))
-            self._lights = [self._make_light_ambient((0.6, 0.6, 0.6)),
-                            self._make_light_direct(
-                                1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
-        else:
-            self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
-                            self._make_light_direct(
-                                1, (0.5, 0.5, 0.5), pos=(8.0, -8.0, 10.0))]
+        pbr_vert = simplepbr._load_shader_str(
+            'simplepbr.vert', {'ENABLE_SHADOWS': ''})
+        pbr_frag = simplepbr._load_shader_str(
+            'simplepbr.frag', {'ENABLE_SHADOWS': ''})
+        pbrshader = Shader.make(
+            Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
+        self.render.set_attrib(ShaderAttrib.make(pbrshader))
+        self._lights = [self._make_light_ambient((0.6, 0.6, 0.6)),
+                        self._make_light_direct(
+                            1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
 
         # Define default camera pos
         self._camera_defaults = CAMERA_POS_DEFAULT
@@ -356,8 +345,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         sky_color = (0.53, 0.8, 0.98, 1.0)
         ground_color = (0.1, 0.1, 0.43, 1.0)
         self.skybox = make_gradient_skybox(sky_color, ground_color, 0.7)
-        if self.pipe.get_type().name != "eglGraphicsPipe":
-            self.skybox.set_shader_auto(True)
+        self.skybox.set_shader_auto(True)
         self.skybox.set_light_off()
         self.skybox.hide(self.LightMask)
 
@@ -791,8 +779,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
-        if self.pipe.get_type().name != "eglGraphicsPipe":
-            node.set_shader_auto(True)
+        node.set_shader_auto(True)
         node.set_light_off()
         node.hide(self.LightMask)
         node.set_scale(0.3)
@@ -831,13 +818,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Make the floor two-sided to not see through from below
         node.set_two_sided(True)
 
-        # Enable default shader or set material to render shadows if supported
-        if self.pipe.get_type().name != "eglGraphicsPipe":
-            node.set_shader_auto(True)
-        else:
-            material = Material()
-            material.set_roughness(0.4)
-            node.set_material(material, True)
+        # Set material to render shadows if supported
+        material = Material()
+        material.set_base_color((1.25, 1.25, 1.25, 1.0))
+        node.set_material(material, True)
 
         # Disable light casting
         node.hide(self.LightMask)
@@ -932,8 +916,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
-        if self.pipe.get_type().name != "eglGraphicsPipe":
-            node.set_shader_auto(True)
+        node.set_shader_auto(True)
         node.set_light_off()
         node.hide(self.LightMask)
         self.append_node(root_path, name, node, frame)
@@ -1269,9 +1252,30 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             else:
                 node.clear_texture()
                 node.clear_material()
-            super().set_material(root_path, name, color, texture_path)
+
+            material = Material()
+            material.set_base_color((1.2, 1.2, 1.2, 1.0))
+
             if color is None:
                 node.clear_color()
+            else:
+                node.set_color(Vec4(*color))
+
+                material.set_ambient(Vec4(*color))
+                material.set_diffuse(Vec4(*color))
+                material.set_specular(Vec3(1, 1, 1))
+                material.set_roughness(0.4)
+
+                if color[3] < 1:
+                    node.set_transparency(TransparencyAttrib.M_alpha)
+                else:
+                    node.set_transparency(TransparencyAttrib.M_none)
+
+            node.set_material(material, True)
+
+            if texture_path:
+                texture = self.loader.load_texture(texture_path)
+                node.set_texture(texture)
 
     def set_scale(self,
                   root_path: str,
