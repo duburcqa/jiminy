@@ -317,9 +317,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         pbrshader = Shader.make(
             Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
         self.render.set_attrib(ShaderAttrib.make(pbrshader))
-        self._lights = [self._make_light_ambient((0.6, 0.6, 0.6)),
+        self._lights = [self._make_light_ambient((0.5, 0.5, 0.5)),
                         self._make_light_direct(
-                            1, (0.7, 0.7, 0.7), pos=(8.0, -8.0, 10.0))]
+                            1, (1.0, 1.0, 1.0), pos=(8.0, -8.0, 10.0))]
 
         # Define default camera pos
         self._camera_defaults = CAMERA_POS_DEFAULT
@@ -820,7 +820,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Set material to render shadows if supported
         material = Material()
-        material.set_base_color((1.25, 1.25, 1.25, 1.0))
+        material.set_base_color((1.35, 1.35, 1.35, 1.0))
         node.set_material(material, True)
 
         # Disable light casting
