@@ -1253,23 +1253,25 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 node.clear_texture()
                 node.clear_material()
 
+            material = Material()
+            material.set_base_color((1.2, 1.2, 1.2, 1.0))
+
             if color is None:
                 node.clear_color()
             else:
                 node.set_color(Vec4(*color))
 
-                material = Material()
-                material.set_base_color((1.2, 1.2, 1.2, 1.0))
                 material.set_ambient(Vec4(*color))
                 material.set_diffuse(Vec4(*color))
                 material.set_specular(Vec3(1, 1, 1))
                 material.set_roughness(0.4)
-                node.set_material(material, 1)
 
                 if color[3] < 1:
                     node.set_transparency(TransparencyAttrib.M_alpha)
                 else:
                     node.set_transparency(TransparencyAttrib.M_none)
+
+            node.set_material(material, True)
 
             if texture_path:
                 texture = self.loader.load_texture(texture_path)
