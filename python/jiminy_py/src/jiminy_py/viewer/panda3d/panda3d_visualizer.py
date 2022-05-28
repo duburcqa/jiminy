@@ -17,12 +17,12 @@ from panda3d.core import (
     NodePath, Point3, Vec3, Mat4, Quat, LQuaternion, Geom, GeomEnums, GeomNode,
     GeomVertexData, GeomTriangles, GeomVertexArrayFormat, GeomVertexFormat,
     GeomVertexWriter, GraphicsWindow, PNMImage, RenderModeAttrib, InternalName,
-    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, TextNode,
-    Texture, TextureStage, PNMImageHeader, PGTop, Camera, PerspectiveLens,
-    TransparencyAttrib, OrthographicLens, ClockObject, Shader, ShaderAttrib,
-    AntialiasAttrib, GraphicsPipe, WindowProperties, FrameBufferProperties,
-    CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
-    GraphicsOutput, loadPrcFileData)
+    OmniBoundingVolume, CompassEffect, BillboardEffect, Filename, Material,
+    Texture, TextureStage, PNMImageHeader, TransparencyAttrib, TextNode, PGTop,
+    Camera, PerspectiveLens, OrthographicLens, Shader, ShaderAttrib,
+    AntialiasAttrib, CollisionNode, CollisionRay, CollisionTraverser,
+    CollisionHandlerQueue, ClockObject, GraphicsPipe, GraphicsOutput,
+    WindowProperties, FrameBufferProperties, loadPrcFileData)
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
@@ -828,13 +828,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     (0.7, 0.7, 0.7, 1.0)  # wireframe_color
                 ))
 
-        # Make the floor two-sided, so that it is not possible to see through
-        # from below.
+        # Make the floor two-sided to not see through from below
         node.set_two_sided(True)
 
-        # Enable default shader but disable light casting
+        # Enable default shader or set material to render shadows if supported
         if self.pipe.get_type().name != "eglGraphicsPipe":
             node.set_shader_auto(True)
+        else:
+            material = Material()
+            material.set_roughness(0.4)
+            node.set_material(material, True)
+
+        # Disable light casting
         node.hide(self.LightMask)
 
         # Adjust frustum of the lights to project shadow over the whole scene
@@ -1098,6 +1103,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._watermark.set_pos(
             WIDGET_MARGIN_REL + width_rel, 0, WIDGET_MARGIN_REL + height_rel)
 
+        if self.buff.inverted:
+            self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
+
     def set_legend(self,
                    items: Optional[Sequence[
                        Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
@@ -1189,7 +1197,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Flip the vertical axis and enable transparency
         self._legend.set_transparency(TransparencyAttrib.MAlpha)
-        self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
+        if self.buff.inverted:
+            self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
     def set_clock(self, time: Optional[float] = None) -> None:
         # Make sure plot submodule is available

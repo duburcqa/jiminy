@@ -4015,28 +4015,28 @@ namespace jiminy
             }
 
             // Add "VERSION" attribute
-            H5::DataSpace versionSpace = H5::DataSpace(H5S_SCALAR);
-            H5::Attribute versionAttrib = file->createAttribute(
+            H5::DataSpace const versionSpace = H5::DataSpace(H5S_SCALAR);
+            H5::Attribute const versionAttrib = file->createAttribute(
                 "VERSION", H5::PredType::NATIVE_INT, versionSpace);
             versionAttrib.write(H5::PredType::NATIVE_INT, &logData->version);
 
             // Add "START_TIME" attribute
             int64_t time = std::time(nullptr);
-            H5::DataSpace startTimeSpace = H5::DataSpace(H5S_SCALAR);
-            H5::Attribute startTimeAttrib = file->createAttribute(
+            H5::DataSpace const startTimeSpace = H5::DataSpace(H5S_SCALAR);
+            H5::Attribute const startTimeAttrib = file->createAttribute(
                 "START_TIME", H5::PredType::NATIVE_LONG, startTimeSpace);
             startTimeAttrib.write(H5::PredType::NATIVE_LONG, &time);
 
             // Add GLOBAL_TIME vector
-            hsize_t vectorDims[1] = {hsize_t(logData->timestamps.size())};
-            H5::DataSpace globalTimeSpace = H5::DataSpace(1, vectorDims);
-            H5::DataSet globalTimeDataSet = file->createDataSet(
+            hsize_t const timeDims[1] = {hsize_t(logData->timestamps.size())};
+            H5::DataSpace const globalTimeSpace = H5::DataSpace(1, timeDims);
+            H5::DataSet const globalTimeDataSet = file->createDataSet(
                 GLOBAL_TIME, H5::PredType::NATIVE_LONG, globalTimeSpace);
             globalTimeDataSet.write(logData->timestamps.data(), H5::PredType::NATIVE_LONG);
 
             // Add "unit" attribute to GLOBAL_TIME vector
-            H5::DataSpace unitSpace = H5::DataSpace(H5S_SCALAR);
-            H5::Attribute unitAttrib = globalTimeDataSet.createAttribute(
+            H5::DataSpace const unitSpace = H5::DataSpace(H5S_SCALAR);
+            H5::Attribute const unitAttrib = globalTimeDataSet.createAttribute(
                 "unit", H5::PredType::NATIVE_DOUBLE, unitSpace);
             unitAttrib.write(H5::PredType::NATIVE_DOUBLE, &logData->timeUnit);
 
@@ -4046,15 +4046,18 @@ namespace jiminy
             {
                 std::string const & key = keyValue.first;
                 std::string const & value = keyValue.second;
-                H5::DataSpace constantSpace = H5::DataSpace(H5S_SCALAR);  // There is only one string !
-                if (value.size() > 0)
-                {
-                    // Impossible to register empty string variable
-                    H5::StrType stringType(H5::PredType::C_S1, value.size());
-                    H5::DataSet constantDataSet = constantsGroup.createDataSet(
-                        key, stringType, constantSpace);
-                    constantDataSet.write(value.c_str(), stringType);
-                }
+
+                // Define a dataset with a single string of fixed length
+                H5::DataSpace const constantSpace = H5::DataSpace(H5S_SCALAR);
+                H5::StrType stringType(H5::PredType::C_S1, std::max(value.size(), std::size_t(1)));
+
+                // To tell parser continue reading if '\0' is encountered
+                stringType.setStrpad(H5T_str_t::H5T_STR_NULLPAD);
+
+                // Write the constant
+                H5::DataSet constantDataSet = constantsGroup.createDataSet(
+                    key, stringType, constantSpace);
+                constantDataSet.write(value, stringType);
             }
 
             /* Convert std:vector<std:vector<>> to Eigen Matrix for efficient transpose.
@@ -4086,7 +4089,7 @@ namespace jiminy
                 fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
 
                 // Create variable dataset
-                H5::DataSpace valueSpace = H5::DataSpace(1, vectorDims);
+                H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);
                 H5::DataSet valueDataset = fieldGroup.createDataSet(
                     "value", H5::PredType::NATIVE_LONG, valueSpace, plist);
 
@@ -4116,7 +4119,7 @@ namespace jiminy
                 fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
 
                 // Create variable dataset
-                H5::DataSpace valueSpace = H5::DataSpace(1, vectorDims);
+                H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);
                 H5::DataSet valueDataset = fieldGroup.createDataSet(
                     "value", H5::PredType::NATIVE_DOUBLE, valueSpace, plist);
 

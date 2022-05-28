@@ -10,6 +10,8 @@ import h5py
 import tree
 import numpy as np
 
+import pinocchio as pin
+
 from . import core as jiminy
 from .dynamics import State, TrajectoryDataType
 
@@ -21,10 +23,6 @@ FieldNested = Union[
 
 def _is_log_binary(fullpath: str) -> bool:
     """Return True if the given fullpath appears to be binary log file.
-
-    File is considered to be binary log if it contains a NULL byte.
-
-    See https://stackoverflow.com/a/11301631/4820605 for reference.
     """
     try:
         with open(fullpath, 'rb') as f:
@@ -73,21 +71,8 @@ def read_log(fullpath: str,
         # Read binary file using C++ parser.
         data_dict, const_dict = jiminy.Engine.read_log_binary(fullpath)
     elif file_format == 'csv':
-        # Read text csv file.
-        const_dict = {}
+        # Read data from the log file
         with open(fullpath, 'r') as log:
-            const_str = next(log).split(', ')
-            for c in const_str:
-                # Extract the name and value of the constant.
-                # Note that newline is stripped at the end of the value.
-                name, value = c.split('=')
-                value = value.strip('\n')
-
-                # Gather the constants in a dictionary.
-                const_dict[name] = value.strip('\n')
-
-            # Read data from the log file, skipping the first line, namely the
-            # constants definition.
             data = {}
             reader = DictReader(log)
             for key, value in reader.__next__().items():
@@ -100,12 +85,20 @@ def read_log(fullpath: str,
 
         # Convert every element to array to provide same API as the C++ parser,
         # removing spaces present before the keys.
-        data_dict = {k.strip(): np.array(v) for k, v in data.items()}
+        data_dict = {k: np.array(v) for k, v in data.items()}
     elif file_format == 'hdf5':
         def parse_constant(key: str, value: str) -> Any:
             """Process some particular constants based on its name or type.
             """
-            if isinstance(value, bytes):
+            if ".pinocchio_model" in key:
+                model = pin.Model()
+                jiminy.load_from_binary(model, value)
+                return value
+            elif ".visual_model" in key or ".collision_model" in key:
+                geometry_model = pin.GeometryModel()
+                jiminy.load_from_binary(geometry_model, value)
+                return geometry_model
+            elif isinstance(value, bytes):
                 return value.decode()
             return value
 
@@ -113,7 +106,11 @@ def read_log(fullpath: str,
             # Load constants
             const_dict = {}
             for key, dataset in f['constants'].items():
-                const_dict[key] = parse_constant(key, dataset[()])
+                # Null padding is used, which means that null char '\0' must
+                # be added at the end to match the true length of the string.
+                value = bytes(dataset[()])
+                value += b'\0' * (dataset.nbytes - len(value))
+                const_dict[key] = parse_constant(key, value)
             for key, value in dict(f['constants'].attrs).items():
                 const_dict[key] = parse_constant(key, value)
 
