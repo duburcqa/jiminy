@@ -16,7 +16,7 @@ BOOST_CLASS_EXPORT_KEY(hpp::fcl::Cone)
 BOOST_CLASS_EXPORT_KEY(hpp::fcl::Cylinder)
 BOOST_CLASS_EXPORT_KEY(hpp::fcl::Halfspace)
 BOOST_CLASS_EXPORT_KEY(hpp::fcl::Plane)
-// BOOST_CLASS_EXPORT_KEY(hpp::fcl::ConvexBase)  // Convex are not serializable for now
+BOOST_CLASS_EXPORT_KEY(hpp::fcl::Convex<hpp::fcl::Triangle>)
 
 BOOST_CLASS_EXPORT_KEY(hpp::fcl::BVHModel<hpp::fcl::AABB>)
 BOOST_CLASS_EXPORT_KEY(hpp::fcl::BVHModel<hpp::fcl::OBB>)

@@ -93,7 +93,7 @@ def read_log(fullpath: str,
             if ".pinocchio_model" in key:
                 model = pin.Model()
                 jiminy.load_from_binary(model, value)
-                return value
+                return model
             elif ".visual_model" in key or ".collision_model" in key:
                 geometry_model = pin.GeometryModel()
                 jiminy.load_from_binary(geometry_model, value)
