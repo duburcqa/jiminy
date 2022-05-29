@@ -1579,11 +1579,11 @@ class Panda3dVisualizer(BaseVisualizer):
         geom = geometry_object.geometry
         mesh_path = geometry_object.meshPath
         texture_path = ""
-        if (geometry_object.overrideMaterial and
-                os.path.exists(geometry_object.meshTexturePath)):
+        if geometry_object.overrideMaterial:
             # Get material from URDF. The color is only used if no texture or
             # if its value is not the default because meshColor is never unset.
-            texture_path = geometry_object.meshTexturePath
+            if os.path.exists(geometry_object.meshTexturePath):
+                texture_path = geometry_object.meshTexturePath
             if color is None and (not texture_path or any(
                     geometry_object.meshColor != [0.9, 0.9, 0.9, 1.0])):
                 color = geometry_object.meshColor
