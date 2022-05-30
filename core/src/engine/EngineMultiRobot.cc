@@ -4043,11 +4043,8 @@ namespace jiminy
 
             // Add group "constants"
             H5::Group constantsGroup(file->createGroup("constants"));
-            for (auto const & keyValue : logData->constants)  // Structured bindings is not supported by gcc<7.3
+            for (auto const & [key, value] : logData->constants)
             {
-                std::string const & key = keyValue.first;
-                std::string const & value = keyValue.second;
-
                 // Define a dataset with a single string of fixed length
                 H5::DataSpace const constantSpace = H5::DataSpace(H5S_SCALAR);
                 H5::StrType stringType(H5::PredType::C_S1, std::max(value.size(), std::size_t(1)));

@@ -75,6 +75,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.10' && 'OFF') || 'ON' }} \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make -j2
 
@@ -112,7 +113,7 @@ jobs:
 
     #####################################################################################
 
-    - name: Run unit tests
+    - name: Run unit tests for jiminy
       run: |
         cd "$RootDir/build"
         ctest --output-on-failure
@@ -120,6 +121,9 @@ jobs:
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
+    - name: Run unit tests for gym jiminy
+      if: matrix.PYTHON_VERSION != '3.10'
+      run: |
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 

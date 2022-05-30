@@ -38,8 +38,16 @@ else:
     # a midrange dedicated GPU.
     os.environ['PYPPETEER_CHROMIUM_REVISION'] = '943836'
 
+    # Disable certificate for downloading chromium for old pyppeteer versions
+    os.environ['PYPPETEER_DOWNLOAD_HOST'] = 'http://storage.googleapis.com'
+    import pyppeteer
+    import pyppeteer.chromium_downloader
+    if (not pyppeteer.chromium_downloader.check_chromium() and
+            int(pyppeteer.__version__[0]) < 1):
+        logging.warning("Disabling certificate check to download chromium.")
 
-# `requests_html` must be imported after setting the chromimum release to be
+
+# `requests_html` must be imported after setting the chromium release to be
 # used because it is importing `pyppeteer` itself.
 from requests_html import HTMLSession, HTMLResponse
 

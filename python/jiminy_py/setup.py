@@ -143,7 +143,8 @@ setup(
             "psutil",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
-            "pyppeteer",
+            # 0.2.6 changes the API for `get_ws_entrypoint`
+            "pyppeteer>=0.2.6",
             # Used internally by Viewer to send/receive Javascript requests for
             # recording video using Meshcat backend.
             # `HTMLSession` is available since 0.3.4.

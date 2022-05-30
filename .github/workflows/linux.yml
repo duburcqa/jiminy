@@ -21,7 +21,6 @@ jobs:
         shell: bash
 
     env:
-      PYTHON_VERSION: 3.8
       # Pinocchio bindings do not support memory alignment for now.
       # CMAKE_CXX_FLAGS: "-march=haswell"
       BUILD_TYPE: "Release"
@@ -34,30 +33,33 @@ jobs:
 
     #####################################################################################
 
-    - name: Configure Python
-      uses: actions/setup-python@v1
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        architecture: 'x64'
+    - name: Define environment variables
+      run: |
+        echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
+        echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+        echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
+
+        echo "/home/runner/.local/bin" >> $GITHUB_PATH
     - name: Setup minimal build environment
       run: |
-        PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
-        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
-
         sudo apt update
         sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade setuptools
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
-
-        echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
-        echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
+        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
+        if [[ ${PYTHON_VERSION:2} -lt 7 ]] ; then
+          TORCH_VERSION="1.10.2"  # New versions do not support python 3.6
+        else
+          TORCH_VERSION="1.11.0"
+        fi
         ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install torch==1.11.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
 
         PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
@@ -79,6 +81,7 @@ jobs:
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.os == 'ubuntu-22.04' && 'OFF') || 'ON' }} \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2
 
@@ -101,7 +104,7 @@ jobs:
 
     #####################################################################################
 
-    - name: Run unit tests
+    - name: Run unit tests for jiminy
       run: |
         cd "$RootDir/build"
         ctest --output-on-failure
@@ -109,5 +112,8 @@ jobs:
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
+    - name: Run unit tests for gym_jiminy
+      if: matrix.os != 'ubuntu-22.04'
+      run: |
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
