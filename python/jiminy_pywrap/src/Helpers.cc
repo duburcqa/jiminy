@@ -1,3 +1,4 @@
+#include "jiminy/core/io/Serialization.h"
 #include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/constraints/AbstractConstraint.h"
@@ -176,6 +177,11 @@ namespace python
                                            bp::arg("mesh_package_dirs") = bp::list(),
                                            bp::arg("build_visual_model") = false,
                                            bp::arg("load_visual_meshes") = false));
+
+        bp::def("load_from_binary", &::jiminy::loadFromBinary<pinocchio::Model>,
+                                   (bp::arg("model"), "dump"));
+        bp::def("load_from_binary", &::jiminy::loadFromBinary<pinocchio::GeometryModel>,
+                                   (bp::arg("model"), "dump"));
 
         bp::def("build_reduced_models", &buildReducedModels,
                                         (bp::arg("pinocchio_model"), "collision_model",

@@ -110,7 +110,7 @@ jobs:
         name: wheelhouse
         path: build/wheelhouse
     - name: Upload the wheels of Gym Jiminy
-      if: success() && matrix.container == 'quay.io/pypa/manylinux2014_x86_64' && matrix.PYTHON_VERSION == 'cp36'
+      if: success() && matrix.container == 'quay.io/pypa/manylinux2014_x86_64:latest' && matrix.PYTHON_VERSION == 'cp36'
       uses: actions/upload-artifact@v1
       with:
         name: wheelhouse

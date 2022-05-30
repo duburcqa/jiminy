@@ -1,6 +1,8 @@
-
 #include "jiminy/core/io/Serialization.h"
 
+#ifdef _MSC_VER  /* Microsoft Visual C++ -- warning level 3 */
+#pragma warning(disable : 4267)  /* conversion from 'size_t' to 'unsigned int' */
+#endif
 
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::TriangleP)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Sphere)
@@ -10,7 +12,7 @@ BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Cone)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Cylinder)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Halfspace)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Plane)
-// BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::ConvexBase)  // Convex are not serializable for now
+BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Convex<hpp::fcl::Triangle>)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::BVHModel<hpp::fcl::AABB>)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::BVHModel<hpp::fcl::OBB>)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::BVHModel<hpp::fcl::RSS>)
@@ -21,12 +23,12 @@ BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::BVHModel<hpp::fcl::KDOP<18> >)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::BVHModel<hpp::fcl::KDOP<24> >)
 
 // Explicit template instantiation for serialization
-#define EXPL_TPL_INST_SERIALIZE_IMPL(A, T) \
-    template void serialize(A &, T &, const unsigned int);
+#define EXPL_TPL_INST_SERIALIZE_IMPL(A, ...) \
+    template void serialize(A &, __VA_ARGS__ &, const unsigned int);
 
-#define EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(T) \
-    EXPL_TPL_INST_SERIALIZE_IMPL(boost::archive::binary_iarchive, T) \
-    EXPL_TPL_INST_SERIALIZE_IMPL(boost::archive::binary_oarchive, T)
+#define EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(...) \
+    EXPL_TPL_INST_SERIALIZE_IMPL(boost::archive::binary_iarchive, __VA_ARGS__) \
+    EXPL_TPL_INST_SERIALIZE_IMPL(boost::archive::binary_oarchive, __VA_ARGS__)
 
 namespace boost
 {
