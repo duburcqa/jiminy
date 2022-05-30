@@ -113,7 +113,7 @@ def get_default_backend() -> str:
         return 'panda3d-sync'
 
 
-def get_backend_entrypoint(backend_name: str) -> type:
+def get_backend_type(backend_name: str) -> type:
     """Determine the set of available backends.
 
     .. note::
@@ -473,12 +473,11 @@ class Viewer:
 
         # Initialize external forces
         if self.use_theoretical_model:
-            pinocchio_model = robot.pinocchio_model_th
+            njoints = robot.pinocchio_model_th.njoints
         else:
-            pinocchio_model = robot.pinocchio_model
+            njoints = robot.pinocchio_model.njoints
         self.f_external = pin.StdVec_Force()
-        self.f_external.extend([
-            pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
+        self.f_external.extend([pin.Force.Zero() for _ in range(njoints - 1)])
 
         # Make sure that the windows, scene and robot names are valid
         if scene_name == Viewer.window_name:
@@ -573,25 +572,27 @@ class Viewer:
         # Backup desired color
         self.robot_color = get_color_code(robot_color)
 
-        # Extract the right Pinocchio model
+        # Create backend wrapper to get (almost) backend-independent API.
+        backend_type = get_backend_type(Viewer.backend)
         if self.use_theoretical_model:
-            pinocchio_model = robot.pinocchio_model_th
-            pinocchio_data = robot.pinocchio_data_th
+            self._client = backend_type(robot.pinocchio_model_th,
+                                        robot.collision_model_th,
+                                        robot.visual_model_th)
         else:
-            pinocchio_model = robot.pinocchio_model
-            pinocchio_data = robot.pinocchio_data
+            self._client = backend_type(robot.pinocchio_model,
+                                        robot.collision_model,
+                                        robot.visual_model)
+            # It is irrelevant to share memory for the visual model since it is
+            # never updated by the engine.
+            self._client.data = robot.pinocchio_data
+            self._client.collision_data = robot.collision_data
 
         # Reset external force buffer iif it is necessary
-        if len(self.f_external) != pinocchio_model.njoints - 1:
+        njoints = self._client.model.njoints
+        if len(self.f_external) != njoints - 1:
             self.f_external = pin.StdVec_Force()
             self.f_external.extend([
-                pin.Force.Zero() for _ in range(pinocchio_model.njoints - 1)])
-
-        # Create backend wrapper to get (almost) backend-independent API
-        self._client = get_backend_entrypoint(Viewer.backend)(
-            pinocchio_model, robot.collision_model, robot.visual_model)
-        self._client.data = pinocchio_data
-        self._client.collision_data = robot.collision_data
+                pin.Force.Zero() for _ in range(njoints - 1)])
 
         # Initialize the viewer
         self._client.initViewer(viewer=self._gui, loadModel=False)
@@ -712,7 +713,7 @@ class Viewer:
                 length = min(f_ext_norm / EXTERNAL_FORCE_SCALE, 1.0)
                 return (1.0, 1.0, length)
 
-            for joint_name in pinocchio_model.names[1:]:
+            for joint_name in self._client.model.names[1:]:
                 joint_idx = self._client.model.getJointId(joint_name)
                 joint_pose = self._client.data.oMi[joint_idx]
                 pose_fn = partial(get_force_pose,
@@ -730,7 +731,6 @@ class Viewer:
                                 length=0.7)
 
             # Check if external forces visibility is deprecated
-            njoints = pinocchio_model.njoints
             if isinstance(self._display_f_external, (list, tuple)):
                 if len(self._display_f_external) != njoints - 1:
                     self._display_f_external = None
@@ -990,9 +990,9 @@ class Viewer:
         if backend is None:
             backend = get_default_backend()
 
-        # Sanitize user arguments
+        # Sanitize user arguments and check requested backend is available
         backend = backend.lower()
-        get_backend_entrypoint(backend)
+        get_backend_type(backend)
 
         # Update the backend currently running, if any
         if Viewer.backend != backend and Viewer.is_alive():

@@ -79,7 +79,11 @@ namespace python
                                                     bp::return_internal_reference<>()))
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
                                                  bp::return_internal_reference<>()))
+                .add_property("collision_model_th", bp::make_getter(&Model::collisionModelOrig_,
+                                                    bp::return_internal_reference<>()))
                 .add_property("collision_model", bp::make_getter(&Model::collisionModel_,
+                                                 bp::return_internal_reference<>()))
+                .add_property("visual_model_th", bp::make_getter(&Model::visualModelOrig_,
                                                  bp::return_internal_reference<>()))
                 .add_property("visual_model", bp::make_getter(&Model::visualModel_,
                                               bp::return_internal_reference<>()))
