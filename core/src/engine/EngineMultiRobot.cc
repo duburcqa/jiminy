@@ -1014,7 +1014,7 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::start(std::map<std::string, vectorN_t> const & qInit,
                                       std::map<std::string, vectorN_t> const & vInit,
-                                      boost::optional<std::map<std::string, vectorN_t> > const & aInit)
+                                      std::optional<std::map<std::string, vectorN_t> > const & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1333,10 +1333,11 @@ namespace jiminy
                             {
                                 return;
                             }
-                            /* Falls through. */  // [[fallthrough]] is not supported by gcc<7.3
+                            [[fallthrough]];
                         case constraintsHolderType_t::CONTACT_FRAMES:
                         case constraintsHolderType_t::COLLISION_BODIES:
                             constraint->enable();
+                            [[fallthrough]];
                         case constraintsHolderType_t::USER:
                         default:
                             break;
@@ -1575,7 +1576,7 @@ namespace jiminy
     hresult_t EngineMultiRobot::simulate(float64_t                        const & tEnd,
                                          std::map<std::string, vectorN_t> const & qInit,
                                          std::map<std::string, vectorN_t> const & vInit,
-                                         boost::optional<std::map<std::string, vectorN_t> > const & aInit)
+                                         std::optional<std::map<std::string, vectorN_t> > const & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -3282,7 +3283,7 @@ namespace jiminy
                     constraint->enable();
                     auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
                     jointConstraint.setReferenceConfiguration(
-                        Eigen::Matrix<float64_t, 1, 1>(clamp(qJoint, qJointMin, qJointMax)));
+                        Eigen::Matrix<float64_t, 1, 1>(std::clamp(qJoint, qJointMin, qJointMax)));
                     jointConstraint.setRotationDir(qJointMax < qJoint);
                 }
                 else if (qJointMin + transitionEps < qJoint && qJoint < qJointMax - transitionEps)
@@ -4042,11 +4043,8 @@ namespace jiminy
 
             // Add group "constants"
             H5::Group constantsGroup(file->createGroup("constants"));
-            for (auto const & keyValue : logData->constants)  // Structured bindings is not supported by gcc<7.3
+            for (auto const & [key, value] : logData->constants)
             {
-                std::string const & key = keyValue.first;
-                std::string const & value = keyValue.second;
-
                 // Define a dataset with a single string of fixed length
                 H5::DataSpace const constantSpace = H5::DataSpace(H5S_SCALAR);
                 H5::StrType stringType(H5::PredType::C_S1, std::max(value.size(), std::size_t(1)));

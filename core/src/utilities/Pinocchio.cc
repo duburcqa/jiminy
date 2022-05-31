@@ -993,7 +993,7 @@ namespace jiminy
                                   std::vector<std::string> const & meshPackageDirs,
                                   pinocchio::Model & pncModel,
                                   pinocchio::GeometryModel & collisionModel,
-                                  boost::optional<pinocchio::GeometryModel &> visualModel,
+                                  std::optional<std::reference_wrapper<pinocchio::GeometryModel> > visualModel,
                                   bool_t const & loadVisualMeshes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -1040,12 +1040,12 @@ namespace jiminy
         // Build visual model
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (visualModel.is_initialized())
+            if (visualModel)
             {
                 returnCode = buildGeomFromUrdf(pncModel,
                                                urdfPath,
                                                pinocchio::VISUAL,
-                                               visualModel.value(),
+                                               *visualModel,
                                                meshPackageDirs,
                                                loadVisualMeshes,
                                                false);

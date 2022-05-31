@@ -546,7 +546,7 @@ namespace python
                                bp::object       const & vInitPy,
                                bp::object       const & aInitPy)
         {
-            boost::optional<std::map<std::string, vectorN_t> > aInit = boost::none;
+            std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<std::map<std::string, vectorN_t> >(aInitPy));
@@ -569,7 +569,7 @@ namespace python
                                   bp::object       const & vInitPy,
                                   bp::object       const & aInitPy)
         {
-            boost::optional<std::map<std::string, vectorN_t> > aInit = boost::none;
+            std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<std::map<std::string, vectorN_t> >(aInitPy));
@@ -630,10 +630,8 @@ namespace python
             }
 
             // Get constants
-            for (auto const & keyValue : logData.constants)  // Structured bindings is not supported by gcc<7.3
+            for (auto const & [key, value] : logData.constants)
             {
-                std::string const & key = keyValue.first;
-                std::string const & value = keyValue.second;
                 if (endsWith(key, ".pinocchio_model"))
                 {
                     pinocchio::Model pncModel;
@@ -998,7 +996,7 @@ namespace python
                                bp::object const & aInitPy,
                                bool_t     const & isStateTheoretical)
         {
-            boost::optional<vectorN_t> aInit = boost::none;
+            std::optional<vectorN_t> aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<vectorN_t>(aInitPy));
@@ -1013,7 +1011,7 @@ namespace python
                                   bp::object const & aInitPy,
                                   bool_t     const & isStateTheoretical)
         {
-            boost::optional<vectorN_t> aInit = boost::none;
+            std::optional<vectorN_t> aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
                 aInit.emplace(convertFromPython<vectorN_t>(aInitPy));

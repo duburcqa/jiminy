@@ -64,7 +64,7 @@ Pre-configured environments for some well-known toys models and reference roboti
 
 ## Getting started
 
-Jiminy and Gym Jiminy support Linux, Mac and Windows, and is compatible with Python3.6+. Pre-compiled binaries are distributed on PyPi for Python 3.6/3.7/3.8/3.9. They can be installed using `pip >= 20.3`:
+Jiminy and Gym Jiminy support Linux, Mac and Windows, and is compatible with Python3.6+. Pre-compiled binaries are distributed on PyPi. They can be installed using `pip>=20.3`:
 
 ```bash
 # For installing Jiminy

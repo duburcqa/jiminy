@@ -89,10 +89,10 @@ namespace python
         pinocchio::Model model;
         pinocchio::GeometryModel collisionModel;
         pinocchio::GeometryModel visualModel;
-        boost::optional<pinocchio::GeometryModel &> visualModelOptionalRef = boost::none;
+        std::optional<std::reference_wrapper<pinocchio::GeometryModel> > visualModelOptional = std::nullopt;
         if (buildVisualModel)
         {
-            visualModelOptionalRef = visualModel;
+            visualModelOptional = visualModel;
         }
         auto packageDirs = convertFromPython<std::vector<std::string> >(packageDirsPy);
         ::jiminy::buildModelsFromUrdf(urdfPath,
@@ -100,7 +100,7 @@ namespace python
                                       packageDirs,
                                       model,
                                       collisionModel,
-                                      visualModelOptionalRef,
+                                      visualModelOptional,
                                       loadVisualMeshes);
         if (buildVisualModel)
         {

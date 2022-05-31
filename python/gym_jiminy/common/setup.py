@@ -31,7 +31,7 @@ setup(
                   "@PROJECT_VERSION@.tar.gz"),
     maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.6,<3.10",
+    python_requires=">=3.6,<3.11",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -41,7 +41,8 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9"
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10"
     ],
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
@@ -58,6 +59,8 @@ setup(
         # >=0.53 is required to support Python 3.9.
         # >=0.54 does not support Python 3.6 anymore.
         "numba",
+        # Numba requires colorama
+        "colorama>=0.3.9",
         # Use to operate on nested data structure conveniently.
         # - 0.1.5 introduces `tree.traverse` method that it used to operate on
         # `gym.spaces.Dict`.

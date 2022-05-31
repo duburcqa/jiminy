@@ -442,7 +442,7 @@ namespace jiminy
         /// \param[in] aInit Initial acceleration of every system. Optional: Zero by default.
         hresult_t start(std::map<std::string, vectorN_t> const & qInit,
                         std::map<std::string, vectorN_t> const & vInit,
-                        boost::optional<std::map<std::string, vectorN_t> > const & aInit = boost::none);
+                        std::optional<std::map<std::string, vectorN_t> > const & aInit = std::nullopt);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -471,7 +471,7 @@ namespace jiminy
         hresult_t simulate(float64_t const & tEnd,
                            std::map<std::string, vectorN_t> const & qInit,
                            std::map<std::string, vectorN_t> const & vInit,
-                           boost::optional<std::map<std::string, vectorN_t> > const & aInit = boost::none);
+                           std::optional<std::map<std::string, vectorN_t> > const & aInit = std::nullopt);
 
         /// \brief Apply an impulse force on a frame for a given duration at the desired time.
         ///        The force must be given in the world frame.

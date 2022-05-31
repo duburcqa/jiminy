@@ -552,7 +552,7 @@ class Viewer:
             This method must be called after calling `engine.reset` since at
             this point the viewer has dangling references to the collision
             model and data of robot. Indeed, a new robot is generated at each
-            reset to add some stockasticity to the mass distribution and some
+            reset to add some stochasticity to the mass distribution and some
             other parameters. This is done automatically if  one is using
             `simulator.Simulator` instead of `jiminy_py.core.Engine` directly.
 
@@ -582,8 +582,10 @@ class Viewer:
             self._client = backend_type(robot.pinocchio_model,
                                         robot.collision_model,
                                         robot.visual_model)
-            # It is irrelevant to share memory for the visual model since it is
-            # never updated by the engine.
+            # The viewer is sharing memory with the engine for the dynamical
+            # and collision models. It avoids having to keep track of the
+            # current state of the system and to update the internal state for
+            # the viewer accordingly every time it changes.
             self._client.data = robot.pinocchio_data
             self._client.collision_data = robot.collision_data
 
