@@ -13,7 +13,7 @@ if (-not (Test-Path env:BUILD_TYPE)) {
 }
 
 ### Set common CMAKE_C/CXX_FLAGS
-${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -D_USE_MATH_DEFINES -DNOMINMAX"
+${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX"
 if (${BUILD_TYPE} -eq "Debug") {
   ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Od -g"
 } else {
@@ -43,24 +43,26 @@ if (Test-Path env:Boost_ROOT) {
 ################################## Checkout the dependencies ###########################################
 
 ### Checkout boost and its submodules
-#   Boost >= 1.78 is required to compile with MSVC 2022.
+#   - Boost >= 1.78 is required to support MSVC 2022
+#   - Boost >= 1.78 defines `BOOST_CORE_USE_GENERIC_CMATH` that prevents wrong substitution for
+#     `boost::math::copysign` with MSVC
 if (-not (Test-Path -PathType Container "$RootDir/boost")) {
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 }
 Set-Location -Path "$RootDir/boost"
 git reset --hard
-git checkout --force "boost-1.71.0"
+git fetch --all
+git checkout --force "boost-1.78.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-Set-Location -Path "libs/python"
-git checkout --force "boost-1.76.0"
 
 ### Checkout eigen3
+#   A specific commit (post 3.4.0) is supposed to fix CXX STANDARD detection with MSVC
 if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {
   git clone https://gitlab.com/libeigen/eigen.git "$RootDir/eigen3"
 }
 Set-Location -Path "$RootDir/eigen3"
-git checkout --force "3.3.9"
+git checkout --force eeacbd26c8838869a491ee89ab5cf0fe7dac016f
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 #   eigenpy >= 2.6.8 is required to support Boost >= 1.77
@@ -69,7 +71,8 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 }
 Set-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git checkout --force "v2.6.4"
+git fetch --all
+git checkout --force "v2.7.6"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
@@ -81,6 +84,7 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml")) {
 }
 Set-Location -Path "$RootDir/tinyxml"
 git reset --hard
+git fetch --all
 git checkout --force "master"
 
 ### Checkout console_bridge
@@ -89,6 +93,7 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge")) {
 }
 Set-Location -Path "$RootDir/console_bridge"
 git reset --hard
+git fetch --all
 git checkout --force "0.4.4"
 
 ### Checkout urdfdom_headers
@@ -97,6 +102,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers")) {
 }
 Set-Location -Path "$RootDir/urdfdom_headers"
 git reset --hard
+git fetch --all
 git checkout --force "1.0.5"
 
 ### Checkout urdfdom, then apply some patches
@@ -105,6 +111,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom")) {
 }
 Set-Location -Path "$RootDir/urdfdom"
 git reset --hard
+git fetch --all
 git checkout --force "1.0.4"
 dos2unix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
@@ -115,9 +122,8 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp")) {
 }
 Set-Location -Path "$RootDir/assimp"
 git reset --hard
-git checkout --force "v5.0.1"
-dos2unix "$RootDir/build_tools/patch_deps_windows/assimp.patch"
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/assimp.patch"
+git fetch --all
+git checkout --force "v5.2.4"
 
 ### Checkout hpp-fcl, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
@@ -126,7 +132,8 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 }
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
-git checkout --force "v1.7.4"
+git fetch --all
+git checkout --force "v1.8.1"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
@@ -141,7 +148,8 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 }
 Set-Location -Path "$RootDir/pinocchio"
 git reset --hard
-git checkout --force "v2.5.6"
+git fetch --all
+git checkout --force "v2.6.7"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"

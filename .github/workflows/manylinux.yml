@@ -147,9 +147,6 @@ jobs:
     - name: Installing requirements
       run: |
         sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
-        sudo apt-get install -y --allow-downgrades --allow-unauthenticated \
-        robotpkg-octomap=1.9.0 robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=1.7.1 robotpkg-pinocchio=2.5.6 \
-        robotpkg-py3*-eigenpy=2.6.2 robotpkg-py3*-hpp-fcl=1.7.1 robotpkg-py3*-pinocchio=2.5.6
 
     #####################################################################################
 
