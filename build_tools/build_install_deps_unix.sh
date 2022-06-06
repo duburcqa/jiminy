@@ -74,7 +74,7 @@ if [ ! -d "$RootDir/eigen3" ]; then
 fi
 cd "$RootDir/eigen3"
 git reset --hard
-git checkout --force "3.3.9"
+git checkout --force "3.4.0"
 
 ### Checkout eigenpy and its submodules
 if [ ! -d "$RootDir/eigenpy" ]; then
@@ -82,7 +82,8 @@ if [ ! -d "$RootDir/eigenpy" ]; then
 fi
 cd "$RootDir/eigenpy"
 git reset --hard
-git checkout --force "v2.6.4"
+git fetch --all
+git checkout --force "v2.7.6"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
@@ -93,6 +94,7 @@ if [ ! -d "$RootDir/tinyxml" ]; then
 fi
 cd "$RootDir/tinyxml"
 git reset --hard
+git fetch --all
 git checkout --force "master"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/tinyxml.patch"
 
@@ -102,6 +104,7 @@ if [ ! -d "$RootDir/console_bridge" ]; then
 fi
 cd "$RootDir/console_bridge"
 git reset --hard
+git fetch --all
 git checkout --force "0.4.4"
 
 ### Checkout urdfdom_headers
@@ -110,6 +113,7 @@ if [ ! -d "$RootDir/urdfdom_headers" ]; then
 fi
 cd "$RootDir/urdfdom_headers"
 git reset --hard
+git fetch --all
 git checkout --force "1.0.5"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
@@ -119,6 +123,7 @@ fi
 cd "$RootDir/urdfdom"
 git checkout --force "1.0.4"
 git reset --hard
+git fetch --all
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/urdfdom.patch"
 
 ### Checkout assimp
@@ -127,8 +132,8 @@ if [ ! -d "$RootDir/assimp" ]; then
 fi
 cd "$RootDir/assimp"
 git reset --hard
-git checkout --force "v5.0.1"
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/assimp.patch"
+git fetch --all
+git checkout --force "v5.2.4"
 
 ### Checkout hpp-fcl
 if [ ! -d "$RootDir/hpp-fcl" ]; then
@@ -137,7 +142,8 @@ if [ ! -d "$RootDir/hpp-fcl" ]; then
 fi
 cd "$RootDir/hpp-fcl"
 git reset --hard
-git checkout --force "v1.7.4"
+git fetch --all
+git checkout --force "v1.8.1"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/hppfcl.patch"
@@ -151,7 +157,8 @@ if [ ! -d "$RootDir/pinocchio" ]; then
 fi
 cd "$RootDir/pinocchio"
 git reset --hard
-git checkout --force "v2.5.6"
+git fetch --all
+git checkout --force "v2.6.7"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"

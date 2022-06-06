@@ -2,12 +2,10 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index d675c2c..c503cf1 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -70,38 +70,31 @@ COMPUTE_PROJECT_ARGS(PROJECT_ARGS LANGUAGES CXX)
- PROJECT(${PROJECT_NAME} ${PROJECT_ARGS})
+@@ -91,43 +91,34 @@
+ #ENDIF(WIN32)
  
  ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED PKG_CONFIG_REQUIRES "eigen3 >= 3.0.0")
-+ADD_PROJECT_DEPENDENCY(zlib REQUIRED "zlib" NO_MODULE)
-+ADD_PROJECT_DEPENDENCY(IrrXML REQUIRED "IrrXML" NO_MODULE)
 +ADD_PROJECT_DEPENDENCY(assimp REQUIRED "assimp >= 5.0.0" NO_MODULE)
  
  if(BUILD_PYTHON_INTERFACE)
@@ -51,16 +49,22 @@ index d675c2c..c503cf1 100644
  
  option(HPP_FCL_HAS_QHULL "use qhull library to compute convex hulls." FALSE)
  if(HPP_FCL_HAS_QHULL)
-@@ -119,7 +112,7 @@ if(HPP_FCL_HAS_QHULL)
-     PATHS ${Qhull_PREFIX}
-     )
-   find_library(Qhull_r_LIBRARY
--    NAMES libqhull_r.so
-+    NAMES libqhullstatic_r.a
-     PATHS ${Qhull_PREFIX}
-     )
- endif()
-@@ -188,12 +181,10 @@ SET(${PROJECT_NAME}_HEADERS
+   CHECK_MINIMAL_CXX_STANDARD(11 ENFORCE)
+-  find_package(Qhull COMPONENTS qhull_r qhullcpp)
++  ADD_PROJECT_DEPENDENCY(Qhull REQUIRED COMPONENTS qhullstatic_r qhullcpp)
+   if(Qhull_FOUND)
+     set(HPP_FCL_USE_SYSTEM_QHULL TRUE)
+   else()
+@@ -143,7 +134,7 @@
+       PATHS ${Qhull_PREFIX}
+       )
+     find_library(Qhull_r_LIBRARY
+-      NAMES libqhull_r.so
++      NAMES libqhullstatic_r.a
+       PATHS ${Qhull_PREFIX}
+       )
+     if(NOT Qhull_r_LIBRARY)
+@@ -221,12 +212,10 @@ SET(${PROJECT_NAME}_HEADERS
    include/hpp/fcl/timings.h
    )
 
@@ -73,6 +77,45 @@ index d675c2c..c503cf1 100644
 
  pkg_config_append_libs("hpp-fcl")
  IF(HPP_FCL_HAS_OCTOMAP)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 043d18b..dcc79be 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -153,7 +153,6 @@ FOREACH(header ${${PROJECT_NAME}_HEADERS})
+ ENDFOREACH()
+ LIST(APPEND PROJECT_HEADERS_FULL_PATH ${PROJECT_BINARY_DIR}/include/hpp/fcl/config.hh)
+ add_library(${LIBRARY_NAME}
+-  SHARED
+   ${PROJECT_HEADERS_FULL_PATH}
+   ${${LIBRARY_NAME}_SOURCES}
+   )
+@@ -162,6 +161,7 @@ add_library(${LIBRARY_NAME}
+ ADD_SOURCE_GROUP(${LIBRARY_NAME}_SOURCES)
+ ADD_HEADER_GROUP(PROJECT_HEADERS_FULL_PATH)
+
++ADD_PROJECT_DEPENDENCY(assimp REQUIRED)
+ TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME}
+   SYSTEM PUBLIC
+   ${Boost_INCLUDE_DIRS}
+@@ -169,8 +169,7 @@
+
+ TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
+   PRIVATE
+-  ${assimp_LIBRARIES}
+-  # assimp::assimp # Not working
++  Boost::boost assimp::assimp
+   )
+
+ TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
+@@ -190,7 +189,7 @@
+ if(HPP_FCL_HAS_QHULL)
+   target_compile_definitions(${LIBRARY_NAME} PRIVATE -DHPP_FCL_HAS_QHULL)
+   if (HPP_FCL_USE_SYSTEM_QHULL)
+-    target_link_libraries(${LIBRARY_NAME} PRIVATE Qhull::qhull_r Qhull::qhullcpp)
++    target_link_libraries(${LIBRARY_NAME} PRIVATE Qhull::qhullstatic_r Qhull::qhullcpp)
+   else()
+     target_include_directories(${LIBRARY_NAME} SYSTEM PRIVATE
+       ${Qhull_r_INCLUDE_DIR} ${Qhullcpp_PREFIX})
 diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 index bea38e4..3dcfbf6 100644
 --- a/cmake/boost.cmake
@@ -96,38 +139,6 @@ index bea38e4..3dcfbf6 100644
      SET(Boost_NO_BOOST_CMAKE ON)
    ENDIF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
  
-diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 043d18b..dcc79be 100644
---- a/src/CMakeLists.txt
-+++ b/src/CMakeLists.txt
-@@ -152,7 +152,6 @@ FOREACH(header ${${PROJECT_NAME}_HEADERS})
- ENDFOREACH()
- LIST(APPEND PROJECT_HEADERS_FULL_PATH ${PROJECT_BINARY_DIR}/include/hpp/fcl/config.hh)
- add_library(${LIBRARY_NAME}
--  SHARED
-   ${PROJECT_HEADERS_FULL_PATH}
-   ${${LIBRARY_NAME}_SOURCES}
-   )
-@@ -161,6 +160,9 @@ add_library(${LIBRARY_NAME}
- ADD_SOURCE_GROUP(${LIBRARY_NAME}_SOURCES)
- ADD_HEADER_GROUP(PROJECT_HEADERS_FULL_PATH)
-
-+find_package(zlib NO_MODULE)
-+find_package(IrrXML NO_MODULE)
-+find_package(assimp NO_MODULE)
- TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME}
-   SYSTEM PUBLIC
-   ${Boost_INCLUDE_DIRS}
-@@ -168,8 +170,7 @@ TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME}
-
- TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
-   PRIVATE
--  ${assimp_LIBRARIES}
--  # assimp::assimp # Not working
-+  Boost::boost assimp::assimp IrrXML::IrrXML zlib::zlib
-   )
-
- TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
 diff --git a/cmake/python.cmake b/cmake/python.cmake
 index 3286da3..a142198 100644
 --- a/cmake/python.cmake
@@ -143,12 +154,3 @@ index 3286da3..a142198 100644
      ELSE()
        # No hind was provided. We can then check for first Python 2, then Python 3
        FIND_PACKAGE(Python2 QUIET COMPONENTS Interpreter Development)
-@@ -191,7 +193,7 @@ 
-     OPTION(PYTHON_STANDARD_LAYOUT "Enable standard Python package layout" OFF)
- 
-     IF(PYTHON_STANDARD_LAYOUT)
--      SET(PYTHON_SITELIB_CMD "import sys, os; print(os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages']))")
-+      SET(PYTHON_SITELIB_CMD "import sys, os; print(os.sep.join(['lib', 'python' + '.'.join(sys.version.split('.')[:2]), 'site-packages']))")
-     ELSE(PYTHON_STANDARD_LAYOUT)
-       SET(PYTHON_SITELIB_CMD "from distutils import sysconfig; print(sysconfig.get_python_lib(prefix='', plat_specific=False))")
-     ENDIF(PYTHON_STANDARD_LAYOUT)
