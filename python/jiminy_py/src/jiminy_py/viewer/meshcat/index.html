@@ -14,6 +14,9 @@
         <script type="text/javascript" src="webm-writer-0.3.0.js"></script>
         <script type="text/javascript" src="widgets.js"></script>
         <script>
+            // Enable cache for efficiency
+            MeshCat.THREE.Cache.enabled = true;
+
             // Instantiate a new Meshcat viewer
             var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
 
@@ -21,8 +24,36 @@
             // to add support of custom 'ready' command, which is used to
             // determine  if all the meshes have finish loading. Indeed,
             // commands are only processed once every meshes are loaded.
+            var preloaded_resources = {};
+            function loadImageAsync(key, url) {
+                if(preloaded_resources[key] == undefined) {
+                    preloaded_resources[key] = new Promise((resolve, reject) => {
+                        let img = new Image();
+                        img.onload = () => {
+                            MeshCat.THREE.Cache.add(key, img);
+                            resolve();
+                        }
+                        img.onerror = reject
+                        img.src = url;
+                    })
+                }
+                return preloaded_resources[key];
+            }
+
             var handle_command = viewer.handle_command;
-            viewer.handle_command = function(cmd) {
+            viewer.handle_command = async function(cmd) {
+                if (cmd.type == "set_object") {
+                    // Store/Load resources in cache
+                    let resources = cmd.object.object.resources;
+                    if (resources !== undefined) {
+                        let promiseTab = [];
+                        for (const [key, url] of Object.entries(resources)) {
+                            promiseTab.push(loadImageAsync(key, url));
+                        }
+                        await Promise.all(promiseTab);
+                        cmd.object.object.resources = {};
+                    }
+                }
                 if (cmd.type == "ready") {
                     viewer.connection.send("meshcat:ok");
                 } else if (cmd.type == "legend") {
