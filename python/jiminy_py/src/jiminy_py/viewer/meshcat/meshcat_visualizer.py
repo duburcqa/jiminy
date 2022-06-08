@@ -3,13 +3,13 @@ import math
 import base64
 import warnings
 import xml.etree.ElementTree as Et
-from typing import Optional, Any, Dict, Union, Type
+from typing import Optional, Any, Dict, Union, Type, Set
 
 import numpy as np
 
 import meshcat
 from meshcat.geometry import (
-    ReferenceSceneElement, Geometry, TriangularMeshGeometry, pack_numpy_array)
+    ReferenceSceneElement, Geometry, TriangularMeshGeometry)
 
 import hppfcl
 import pinocchio as pin
@@ -56,7 +56,7 @@ class Capsule(TriangularMeshGeometry):
         for side, rng in enumerate([
                 range(int(N // 4) + 1), range(int(N // 4), int(N // 2) + 1)]):
             for i in rng:
-                for j in range(N + 1):
+                for j in range(N):
                     theta = j * 2 * math.pi / N
                     phi = math.pi * (i / (N // 2) - 1 / 2)
                     vertex = np.empty(3)
@@ -71,26 +71,22 @@ class Capsule(TriangularMeshGeometry):
         faces = []
         for i in range(int(N//2) + 1):
             for j in range(N):
-                vec = np.array([i * (N + 1) + j,
-                                i * (N + 1) + (j + 1),
-                                (i + 1) * (N + 1) + (j + 1),
-                                (i + 1) * (N + 1) + j])
-                if i == N // 4:
-                    faces.append(vec[[0, 2, 3]])
-                    faces.append(vec[[0, 1, 2]])
-                else:
-                    faces.append(vec[[0, 1, 2]])
-                    faces.append(vec[[0, 2, 3]])
+                vec = np.array([i * N + j,
+                                i * N + (j + 1) % N,
+                                (i + 1) * N + (j + 1) % N,
+                                (i + 1) * N + j])
+                faces.append(vec[[0, 1, 2]])
+                faces.append(vec[[0, 2, 3]])
         faces = np.vstack(faces)
 
         # Init base class
         super().__init__(vertices, faces)
 
-# TODO: Make the cache local to the meshcat server
-all_textures = set()
 
 class DaeMeshGeometryWithTexture(ReferenceSceneElement):
-    def __init__(self, dae_path: str) -> None:
+    def __init__(self,
+                 dae_path: str,
+                 cache: Optional[Set[str]] = None) -> None:
         """Load Collada files with texture images.
 
         Inspired from
@@ -117,13 +113,17 @@ class DaeMeshGeometryWithTexture(ReferenceSceneElement):
                 e.text for e in img_lib_element.iter()
                 if e.tag.count('init_from')]
 
-        # Encode each texture in base64 for Three.js ColladaLoader to load it
+        # Convert textures to data URL for Three.js ColladaLoader to load them
         self.img_resources = {}
         for img_path in img_resource_paths:
-            if img_path in all_textures:
-                self.img_resources[img_path] = ""
-                continue
-            all_textures.add(img_path)
+            # Return empty string if already in cache
+            if cache is not None:
+                if img_path in cache:
+                    self.img_resources[img_path] = ""
+                    continue
+                cache.add(img_path)
+
+            # Encode texture in base64
             img_path_abs = img_path
             if not os.path.isabs(img_path):
                 img_path_abs = os.path.normpath(
@@ -148,10 +148,10 @@ class DaeMeshGeometryWithTexture(ReferenceSceneElement):
                 'materials': [],
                 'object': {
                     'uuid': self.uuid,
-                    'type':'_meshfile_object',
+                    'type': '_meshfile_object',
                     'format': 'dae',
                     'data': self.dae_raw,
-                    'resources': self.img_resources  # Very costly
+                    'resources': self.img_resources
                 }
             }
         }
@@ -169,13 +169,16 @@ class MeshcatVisualizer(BaseVisualizer):
     """  # noqa: E501
     def initViewer(self,
                    viewer: meshcat.Visualizer = None,
+                   cache: Optional[Set[str]] = None,
                    loadModel: bool = False,
-                   mustOpen: bool = False):
+                   mustOpen: bool = False,
+                   **kwargs: Any) -> None:
         """Start a new MeshCat server and client.
         Note: the server can also be started separately using the
         "meshcat-server" command in a terminal: this enables the server to
         remain active after the current script ends.
         """
+        self.cache = cache
         self.root_name = None
         self.visual_group = None
         self.collision_group = None
@@ -255,24 +258,23 @@ class MeshcatVisualizer(BaseVisualizer):
 
     def loadMesh(self, geometry_object: hppfcl.CollisionGeometry):
         # Mesh path is empty if Pinocchio is built without HPP-FCL bindings
-        if geometry_object.meshPath == "":
+        mesh_path = geometry_object.meshPath
+        if mesh_path == "":
             msg = ("Display of geometric primitives is supported only if "
                    "pinocchio is build with HPP-FCL bindings.")
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             return None
 
         # Get file type from filename extension
-        _, file_extension = os.path.splitext(geometry_object.meshPath)
+        _, file_extension = os.path.splitext(mesh_path)
         if file_extension.lower() == ".dae":
-            obj = DaeMeshGeometryWithTexture(geometry_object.meshPath)
+            obj = DaeMeshGeometryWithTexture(mesh_path, self.cache)
         elif file_extension.lower() == ".obj":
-            obj = meshcat.geometry.ObjMeshGeometry.from_file(
-                geometry_object.meshPath)
+            obj = meshcat.geometry.ObjMeshGeometry.from_file(mesh_path)
         elif file_extension.lower() == ".stl":
-            obj = meshcat.geometry.StlMeshGeometry.from_file(
-                geometry_object.meshPath)
+            obj = meshcat.geometry.StlMeshGeometry.from_file(mesh_path)
         else:
-            msg = f"Unknown mesh file format: {geometry_object.meshPath}."
+            msg = f"Unknown mesh file format: {mesh_path}."
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             obj = None
 
