@@ -1537,7 +1537,8 @@ class Panda3dVisualizer(BaseVisualizer):
     """  # noqa: E501
     def initViewer(self,
                    viewer: Optional[Union[Panda3dViewer, Panda3dApp]] = None,
-                   loadModel: bool = False) -> None:
+                   loadModel: bool = False,
+                   **kwargs: Any) -> None:
         """Init the viewer by attaching to / creating a GUI viewer.
         """
         self.visual_group = None

@@ -1,12 +1,15 @@
-
 import os
 import math
+import base64
 import warnings
+import xml.etree.ElementTree as Et
+from typing import Optional, Any, Dict, Union, Type, Set
+
 import numpy as np
-from typing import Optional, Any, Dict, Union, Type
 
 import meshcat
-from meshcat.geometry import Geometry, TriangularMeshGeometry, pack_numpy_array
+from meshcat.geometry import (
+    ReferenceSceneElement, Geometry, TriangularMeshGeometry)
 
 import hppfcl
 import pinocchio as pin
@@ -37,75 +40,124 @@ class Cone(Geometry):
         }
 
 
-class Capsule(Geometry):
+class Capsule(TriangularMeshGeometry):
     """A capsule of a given radius and height.
 
     Inspired from
     https://gist.github.com/aceslowman/d2fbad8b0f21656007e337543866539c,
     itself inspired from http://paulbourke.net/geometry/spherical/.
     """
-    __slots__ = [
-        "radius", "height", "radialSegments", "vertices", "faces", "normals"]
-
-    def __init__(self, height: float, radius: float):
-        super().__init__()
-        self.radius = radius
-        self.height = height
-        self.radialSegments = 32
-        self.build_triangles()
-
-    def build_triangles(self) -> None:
+    def __init__(self, height: float, radius: float, num_segments: int = 32):
         # Define proxy for convenience
-        N = self.radialSegments
-
-        # Initialize internal buffers
-        vertices, faces = [], []
+        N = num_segments
 
         # Top and bottom caps vertices
-        for e, rng in enumerate([
-                range(int(N//4) + 1), range(int(N//4), int(N//2) + 1)]):
+        vertices = []
+        for side, rng in enumerate([
+                range(int(N // 4) + 1), range(int(N // 4), int(N // 2) + 1)]):
             for i in rng:
-                for j in range(N + 1):
+                for j in range(N):
                     theta = j * 2 * math.pi / N
                     phi = math.pi * (i / (N // 2) - 1 / 2)
                     vertex = np.empty(3)
-                    vertex[0] = self.radius * math.cos(phi) * math.cos(theta)
-                    vertex[1] = self.radius * math.cos(phi) * math.sin(theta)
-                    vertex[2] = self.radius * math.sin(phi)
-                    vertex[2] += (2.0 * (e - 0.5)) * self.height / 2
+                    vertex[0] = radius * math.cos(phi) * math.cos(theta)
+                    vertex[1] = radius * math.cos(phi) * math.sin(theta)
+                    vertex[2] = radius * math.sin(phi)
+                    vertex[2] += (2.0 * (side - 0.5)) * height / 2
                     vertices.append(vertex)
+        vertices = np.vstack(vertices)
 
-        # Faces
+        # Vertex indices for faces
+        faces = []
         for i in range(int(N//2) + 1):
             for j in range(N):
-                vec = np.array([i * (N + 1) + j,
-                                i * (N + 1) + (j + 1),
-                                (i + 1) * (N + 1) + (j + 1),
-                                (i + 1) * (N + 1) + j])
-                if (i == N//4):
-                    faces.append(vec[[0, 2, 3]])
-                    faces.append(vec[[0, 1, 2]])
-                else:
-                    faces.append(vec[[0, 1, 2]])
-                    faces.append(vec[[0, 2, 3]])
+                vec = np.array([i * N + j,
+                                i * N + (j + 1) % N,
+                                (i + 1) * N + (j + 1) % N,
+                                (i + 1) * N + j])
+                faces.append(vec[[0, 1, 2]])
+                faces.append(vec[[0, 2, 3]])
+        faces = np.vstack(faces)
 
-        # Convert to array
-        self.vertices = np.vstack(vertices).astype(np.float32)
-        self.faces = np.vstack(faces).astype(np.uint32)
-        self.normals = self.vertices
+        # Init base class
+        super().__init__(vertices, faces)
 
-    def lower(self, object_data: Any) -> MsgType:
-        return {
-            u"uuid": self.uuid,
-            u"type": u"BufferGeometry",
-            u"data": {
-                u"attributes": {
-                    u"position": pack_numpy_array(self.vertices.T),
-                    u"normal": pack_numpy_array(self.normals.T)
-                },
-                u"index": pack_numpy_array(self.faces.T)
+
+class DaeMeshGeometryWithTexture(ReferenceSceneElement):
+    def __init__(self,
+                 dae_path: str,
+                 cache: Optional[Set[str]] = None) -> None:
+        """Load Collada files with texture images.
+
+        Inspired from
+        https://gist.github.com/danzimmerman/a392f8eadcf1166eb5bd80e3922dbdc5
+        """
+        # Init base class
+        super().__init__()
+
+        # Attributes to be specified by the user
+        self.path = None
+        self.material = None
+
+        # Raw file content
+        dae_dir = os.path.dirname(dae_path)
+        with open(dae_path, 'r') as text_file:
+            self.dae_raw = text_file.read()
+
+        # Parse the image resource in Collada file
+        img_resource_paths = []
+        img_lib_element = Et.parse(dae_path).find(
+            "{http://www.collada.org/2005/11/COLLADASchema}library_images")
+        if img_lib_element:
+            img_resource_paths = [
+                e.text for e in img_lib_element.iter()
+                if e.tag.count('init_from')]
+
+        # Convert textures to data URL for Three.js ColladaLoader to load them
+        self.img_resources = {}
+        for img_path in img_resource_paths:
+            # Return empty string if already in cache
+            if cache is not None:
+                if img_path in cache:
+                    self.img_resources[img_path] = ""
+                    continue
+                cache.add(img_path)
+
+            # Encode texture in base64
+            img_path_abs = img_path
+            if not os.path.isabs(img_path):
+                img_path_abs = os.path.normpath(
+                    os.path.join(dae_dir, img_path_abs))
+            if not os.path.isfile(img_path_abs):
+                raise UserWarning(f"Texture '{img_path}' not found.")
+            with open(img_path_abs, 'rb') as img_file:
+                img_data = base64.b64encode(img_file.read())
+            img_uri = f"data:image/png;base64,{img_data.decode('utf-8')}"
+            self.img_resources[img_path] = img_uri
+
+    def lower(self) -> Dict[str, Any]:
+        """Pack data into a dictionary of the format that must be passed to
+        `Visualizer.window.send`.
+        """
+        data = {
+            'type': 'set_object',
+            'path': self.path.lower() if self.path is not None else "",
+            'object': {
+                'metadata': {'version': 4.5, 'type': 'Object'},
+                'geometries': [],
+                'materials': [],
+                'object': {
+                    'uuid': self.uuid,
+                    'type': '_meshfile_object',
+                    'format': 'dae',
+                    'data': self.dae_raw,
+                    'resources': self.img_resources
+                }
             }
         }
+        if self.material is not None:
+            self.material.lower_in_object(data)
+        return data
 
 
 class MeshcatVisualizer(BaseVisualizer):
@@ -117,13 +169,16 @@ class MeshcatVisualizer(BaseVisualizer):
     """  # noqa: E501
     def initViewer(self,
                    viewer: meshcat.Visualizer = None,
+                   cache: Optional[Set[str]] = None,
                    loadModel: bool = False,
-                   mustOpen: bool = False):
+                   mustOpen: bool = False,
+                   **kwargs: Any) -> None:
         """Start a new MeshCat server and client.
         Note: the server can also be started separately using the
         "meshcat-server" command in a terminal: this enables the server to
         remain active after the current script ends.
         """
+        self.cache = cache
         self.root_name = None
         self.visual_group = None
         self.collision_group = None
@@ -203,26 +258,23 @@ class MeshcatVisualizer(BaseVisualizer):
 
     def loadMesh(self, geometry_object: hppfcl.CollisionGeometry):
         # Mesh path is empty if Pinocchio is built without HPP-FCL bindings
-        if geometry_object.meshPath == "":
+        mesh_path = geometry_object.meshPath
+        if mesh_path == "":
             msg = ("Display of geometric primitives is supported only if "
                    "pinocchio is build with HPP-FCL bindings.")
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             return None
 
-        # Get file type from filename extension.
-        _, file_extension = os.path.splitext(geometry_object.meshPath)
+        # Get file type from filename extension
+        _, file_extension = os.path.splitext(mesh_path)
         if file_extension.lower() == ".dae":
-            obj = meshcat.geometry.DaeMeshGeometry.from_file(
-                geometry_object.meshPath)
+            obj = DaeMeshGeometryWithTexture(mesh_path, self.cache)
         elif file_extension.lower() == ".obj":
-            obj = meshcat.geometry.ObjMeshGeometry.from_file(
-                geometry_object.meshPath)
+            obj = meshcat.geometry.ObjMeshGeometry.from_file(mesh_path)
         elif file_extension.lower() == ".stl":
-            obj = meshcat.geometry.StlMeshGeometry.from_file(
-                geometry_object.meshPath)
+            obj = meshcat.geometry.StlMeshGeometry.from_file(mesh_path)
         else:
-            msg = "Unknown mesh file format: {}.".format(
-                geometry_object.meshPath)
+            msg = f"Unknown mesh file format: {mesh_path}."
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             obj = None
 
@@ -270,7 +322,13 @@ class MeshcatVisualizer(BaseVisualizer):
 
         # Add meshcat object to the scene
         v = self.viewer[node_name]
-        v.set_object(obj, material)
+        if isinstance(obj, DaeMeshGeometryWithTexture):
+            obj.path = v.path
+            if geometry_object.overrideMaterial:
+                obj.material = material
+            v.window.send(obj)
+        else:
+            v.set_object(obj, material)
 
     def loadViewerModel(self,
                         rootNodeName: str,

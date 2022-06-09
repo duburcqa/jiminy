@@ -298,6 +298,7 @@ class Viewer:
     """
     backend = None
     window_name = 'jiminy'
+    _cache = set()
     _has_gui = False
     _backend_obj = None
     _backend_proc = None
@@ -597,7 +598,8 @@ class Viewer:
                 pin.Force.Zero() for _ in range(njoints - 1)])
 
         # Initialize the viewer
-        self._client.initViewer(viewer=self._gui, loadModel=False)
+        self._client.initViewer(
+            viewer=self._gui, cache=Viewer._cache, loadModel=False)
 
         # Create the scene and load robot
         self._client.loadViewerModel(
@@ -930,6 +932,7 @@ class Viewer:
             Viewer._backend_obj = None
             Viewer._backend_proc = None
             Viewer._has_gui = False
+            Viewer._cache.clear()
         else:
             # Disable travelling if associated with this viewer instance
             if (Viewer._camera_travelling is not None and
