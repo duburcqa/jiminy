@@ -379,7 +379,7 @@ namespace jiminy
         systemHolder_t * system2;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getSystem(systemName1, system1);
+            returnCode = getSystem(systemName2, system2);
         }
 
         frameIndex_t frameIdx1, frameIdx2;
@@ -457,7 +457,8 @@ namespace jiminy
                                                                              std::string const & frameName1,
                                                                              std::string const & frameName2,
                                                                              float64_t   const & stiffness,
-                                                                             float64_t   const & damping)
+                                                                             float64_t   const & damping,
+                                                                             float64_t   const & restLength)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -520,13 +521,21 @@ namespace jiminy
                                                                 pinocchio::LOCAL_WORLD_ALIGNED);
 
                 // Compute the linear force coupling them
-                vector3_t const dir12 = oMf2.translation() - oMf1.translation();
-                if ((dir12.array().abs() > EPS).any())
+                vector3_t dir12 = oMf2.translation() - oMf1.translation();
+                float64_t const length = dir12.norm();
+                auto vel12 = oVf2.linear() - oVf1.linear();
+                if (length > EPS)
                 {
-                    auto vel12 = oVf2.linear() - oVf1.linear();
-                    auto vel12Proj = vel12.dot(dir12) / dir12.squaredNorm() * dir12;
-                    return pinocchio::Force(
-                        stiffness * dir12 + damping * vel12Proj, vector3_t::Zero());
+                    dir12 /= length;
+                    auto vel12Proj = vel12.dot(dir12);
+                    return {(stiffness * (length - restLength) + damping * vel12Proj) * dir12,
+                            vector3_t::Zero()};
+                }
+                else
+                {
+                    /* The direction between frames is ill-defined, so applying
+                       force in the direction of the velocity instead. */
+                    return {damping * vel12, vector3_t::Zero()};
                 }
                 return pinocchio::Force::Zero();
             };
@@ -542,10 +551,11 @@ namespace jiminy
                                                                              std::string const & frameName1,
                                                                              std::string const & frameName2,
                                                                              float64_t   const & stiffness,
-                                                                             float64_t   const & damping)
+                                                                             float64_t   const & damping,
+                                                                             float64_t   const & restLength)
     {
         return registerViscoElasticDirectionalForceCoupling(
-            systemName, systemName, frameName1, frameName2, stiffness, damping);
+            systemName, systemName, frameName1, frameName2, stiffness, damping, restLength);
     }
 
     hresult_t EngineMultiRobot::removeForcesCoupling(std::string const & systemName1,

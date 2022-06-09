@@ -84,7 +84,8 @@ namespace jiminy
         hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & frameName1,
                                                                std::string const & frameName2,
                                                                float64_t   const & stiffness,
-                                                               float64_t   const & damping);
+                                                               float64_t   const & damping,
+                                                               float64_t   const & restLength = 0.0);
 
         hresult_t removeForcesCoupling(void);
 

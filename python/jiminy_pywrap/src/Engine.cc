@@ -338,10 +338,11 @@ namespace python
                             std::string const &,
                             std::string const &,
                             float64_t   const &,
+                            float64_t   const &,
                             float64_t   const &)
                     >(&EngineMultiRobot::registerViscoElasticDirectionalForceCoupling),
-                    (bp::arg("self"), "system_name_1", "system_name_2",
-                     "frame_name_1", "frame_name_2", "stiffness", "damping"))
+                    (bp::arg("self"), "system_name_1", "system_name_2", "frame_name_1", "frame_name_2",
+		     "stiffness", "damping", bp::arg("rest_length") = 0.0))
                 .def("register_viscoelastic_directional_force_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
@@ -349,10 +350,11 @@ namespace python
                             std::string const &,
                             std::string const &,
                             float64_t   const &,
+                            float64_t   const &,
                             float64_t   const &)
                     >(&EngineMultiRobot::registerViscoElasticDirectionalForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
-                     "stiffness", "damping"))
+                     "stiffness", "damping", bp::arg("rest_length") = 0.0))
                 .def("remove_forces_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(std::string const &, std::string const &)
@@ -865,15 +867,23 @@ namespace python
                 .def("register_viscoelastic_force_coupling",
                     static_cast<
                         hresult_t (Engine::*)(
-                            std::string const &, std::string const &, vector6_t const &, vector6_t const &)
+                            std::string const &,
+                            std::string const &,
+                            vector6_t   const &,
+                            vector6_t   const &)
                     >(&Engine::registerViscoElasticForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping"))
                 .def("register_viscoelastic_directional_force_coupling",
                     static_cast<
                         hresult_t (Engine::*)(
-                            std::string const &, std::string const &, float64_t const &, float64_t const &)
+                            std::string const &,
+                            std::string const &,
+                            float64_t   const &,
+                            float64_t   const &,
+                            float64_t   const &)
                     >(&Engine::registerViscoElasticDirectionalForceCoupling),
-                    (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping"))
+                    (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping",
+		     bp::arg("rest_length") = 0.0))
 
                 .add_property("forces_impulse", bp::make_function(
                                                 static_cast<
