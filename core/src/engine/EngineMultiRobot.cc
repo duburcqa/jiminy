@@ -306,6 +306,7 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
+        // Get system and frame indices
         int32_t systemIdx1;
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -321,15 +322,27 @@ namespace jiminy
         frameIndex_t frameIdx1;
         if (returnCode == hresult_t::SUCCESS)
         {
-            systemHolder_t const & system = systems_[systemIdx1];
-            returnCode = getFrameIdx(system.robot->pncModel_, frameName1, frameIdx1);
+            returnCode = getFrameIdx(systems_[systemIdx1].robot->pncModel_,
+                                     frameName1,
+                                     frameIdx1);
         }
 
         frameIndex_t frameIdx2;
         if (returnCode == hresult_t::SUCCESS)
         {
-            systemHolder_t const & system = systems_[systemIdx2];
-            returnCode = getFrameIdx(system.robot->pncModel_, frameName2, frameIdx2);
+            returnCode = getFrameIdx(systems_[systemIdx2].robot->pncModel_,
+                                     frameName2,
+                                     frameIdx2);
+        }
+
+        // Make sure it is not coupling the exact same frame
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (systemIdx1 == systemIdx2 && frameIdx1 == frameIdx2)
+            {
+                PRINT_ERROR("A coupling force requires different frames.");
+                returnCode = hresult_t::ERROR_GENERIC;
+            }
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -352,8 +365,8 @@ namespace jiminy
                                                                   std::string const & systemName2,
                                                                   std::string const & frameName1,
                                                                   std::string const & frameName2,
-                                                                  vectorN_t   const & stiffness,
-                                                                  vectorN_t   const & damping)
+                                                                  vector6_t   const & stiffness,
+                                                                  vector6_t   const & damping)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -363,28 +376,17 @@ namespace jiminy
             returnCode = getSystem(systemName1, system1);
         }
 
-        frameIndex_t frameIdx1;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getFrameIdx(system1->robot->pncModel_, frameName1, frameIdx1);
-        }
-
         systemHolder_t * system2;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getSystem(systemName2, system2);
+            returnCode = getSystem(systemName1, system1);
         }
 
-        frameIndex_t frameIdx2;
+        frameIndex_t frameIdx1, frameIdx2;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(system2->robot->pncModel_, frameName2, frameIdx2);
-        }
-
-        if (stiffness.size() != 6 || damping.size() != 6)
-        {
-            PRINT_ERROR("'stiffness' and 'damping' must have size 6.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            getFrameIdx(system1->robot->pncModel_, frameName1, frameIdx1);
+            getFrameIdx(system2->robot->pncModel_, frameName2, frameIdx2);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -443,8 +445,8 @@ namespace jiminy
     hresult_t EngineMultiRobot::registerViscoElasticForceCoupling(std::string const & systemName,
                                                                   std::string const & frameName1,
                                                                   std::string const & frameName2,
-                                                                  vectorN_t   const & stiffness,
-                                                                  vectorN_t   const & damping)
+                                                                  vector6_t   const & stiffness,
+                                                                  vector6_t   const & damping)
     {
         return registerViscoElasticForceCoupling(
             systemName, systemName, frameName1, frameName2, stiffness, damping);

@@ -404,13 +404,13 @@ namespace jiminy
                                                     std::string const & systemName2,
                                                     std::string const & frameName1,
                                                     std::string const & frameName2,
-                                                    vectorN_t   const & stiffness,
-                                                    vectorN_t   const & damping);
+                                                    vector6_t   const & stiffness,
+                                                    vector6_t   const & damping);
         hresult_t registerViscoElasticForceCoupling(std::string const & systemName,
                                                     std::string const & frameName1,
                                                     std::string const & frameName2,
-                                                    vectorN_t   const & stiffness,
-                                                    vectorN_t   const & damping);
+                                                    vector6_t   const & stiffness,
+                                                    vector6_t   const & damping);
         hresult_t removeForcesCoupling(std::string const & systemName1,
                                        std::string const & systemName2);
         hresult_t removeForcesCoupling(std::string const & systemName);

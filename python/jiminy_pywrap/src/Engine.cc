@@ -314,8 +314,8 @@ namespace python
                             std::string const &,
                             std::string const &,
                             std::string const &,
-                            vectorN_t   const &,
-                            vectorN_t   const &)
+                            vector6_t   const &,
+                            vector6_t   const &)
                     >(&EngineMultiRobot::registerViscoElasticForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2",
                      "frame_name_1", "frame_name_2", "stiffness", "damping"))
@@ -325,8 +325,8 @@ namespace python
                             std::string const &,
                             std::string const &,
                             std::string const &,
-                            vectorN_t   const &,
-                            vectorN_t   const &)
+                            vector6_t   const &,
+                            vector6_t   const &)
                     >(&EngineMultiRobot::registerViscoElasticForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
                      "stiffness", "damping"))
@@ -865,7 +865,7 @@ namespace python
                 .def("register_viscoelastic_force_coupling",
                     static_cast<
                         hresult_t (Engine::*)(
-                            std::string const &, std::string const &, vectorN_t const &, vectorN_t const &)
+                            std::string const &, std::string const &, vector6_t const &, vector6_t const &)
                     >(&Engine::registerViscoElasticForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping"))
                 .def("register_viscoelastic_directional_force_coupling",
