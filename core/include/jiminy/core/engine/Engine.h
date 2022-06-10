@@ -79,12 +79,13 @@ namespace jiminy
                                         forceProfileFunctor_t forceFct);
         hresult_t registerViscoElasticForceCoupling(std::string const & frameName1,
                                                     std::string const & frameName2,
-                                                    vectorN_t   const & stiffness,
-                                                    vectorN_t   const & damping);
+                                                    vector6_t   const & stiffness,
+                                                    vector6_t   const & damping);
         hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & frameName1,
                                                                std::string const & frameName2,
                                                                float64_t   const & stiffness,
-                                                               float64_t   const & damping);
+                                                               float64_t   const & damping,
+                                                               float64_t   const & restLength = 0.0);
 
         hresult_t removeForcesCoupling(void);
 

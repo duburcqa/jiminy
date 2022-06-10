@@ -274,8 +274,8 @@ namespace jiminy
 
     hresult_t Engine::registerViscoElasticForceCoupling(std::string const & frameName1,
                                                         std::string const & frameName2,
-                                                        vectorN_t   const & stiffness,
-                                                        vectorN_t   const & damping)
+                                                        vector6_t   const & stiffness,
+                                                        vector6_t   const & damping)
     {
         return EngineMultiRobot::registerViscoElasticForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping);
@@ -284,10 +284,11 @@ namespace jiminy
     hresult_t Engine::registerViscoElasticDirectionalForceCoupling(std::string const & frameName1,
                                                                    std::string const & frameName2,
                                                                    float64_t   const & stiffness,
-                                                                   float64_t   const & damping)
+                                                                   float64_t   const & damping,
+                                                                   float64_t   const & restLength)
     {
         return EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(
-            "", "", frameName1, frameName2, stiffness, damping);
+            "", "", frameName1, frameName2, stiffness, damping, restLength);
     }
 
     hresult_t Engine::removeForcesCoupling(void)
