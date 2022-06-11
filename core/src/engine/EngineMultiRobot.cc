@@ -1474,6 +1474,14 @@ namespace jiminy
                 // Compute dynamics
                 a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext);
 
+                // Make sure there is no nan at this point
+                if ((a.array() != a.array()).any())
+                {
+                    PRINT_ERROR("Impossible to compute the acceleration. Probably a "
+                                "subtree has zero inertia along an articulated axis.");
+                    return hresult_t::ERROR_GENERIC;
+                }
+
                 // Compute joints accelerations and forces
                 computeExtraTerms(*systemIt, *systemDataIt);
                 syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
