@@ -19,9 +19,9 @@ if(urdfdom_VERSION)
 else()
     message(STATUS "Found urdfdom")
 endif()
-find_package(pinocchio 2.5.6 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio v2.5.6 fixes 'aba' overwritting 'data.a_gf'
-find_package(hpp-fcl 1.7.3 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)    # hpp-fcl >= 1.7.3 adds serialization of shapes
-find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)                          # It adds the target Eigen3::Eigen
+find_package(pinocchio 2.6.0 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio 2.6.0 adds inertia information to frames
+find_package(hpp-fcl 1.7.3 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)    # hpp-fcl 1.7.3 adds serialization of shapes
+find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)
 
 # Pinocchio-specific stuffs
 set(COMPILE_FLAGS "-DPINOCCHIO_WITH_URDFDOM -DPINOCCHIO_WITH_HPP_FCL")

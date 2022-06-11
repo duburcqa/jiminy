@@ -80,10 +80,8 @@ namespace jiminy
                                                   std::string      const & childJointNameIn,
                                                   std::string      const & newJointNameIn);
 
-    hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model         & modelInOut,
-                                                   std::string        const & frameNameIn,
-                                                   pinocchio::Inertia const & childBodyInertiaIn,
-                                                   std::string        const & newJointNameIn);
+    hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model       & modelInOut,
+                                                   std::string      const & frameNameIn);
 
     hresult_t interpolate(pinocchio::Model const & modelIn,
                           vectorN_t        const & timesIn,

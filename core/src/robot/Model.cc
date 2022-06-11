@@ -994,34 +994,13 @@ namespace jiminy
         return returnCode;
     }
 
-    static pinocchio::Inertia convertFromUrdf(::urdf::Inertial const & Y)
-    {
-        ::urdf::Vector3 const & p = Y.origin.position;
-        vector3_t const com(p.x, p.y, p.z);
-        ::urdf::Rotation const & q = Y.origin.rotation;
-        matrix3_t const R = Eigen::Quaterniond(q.w, q.x, q.y, q.z).matrix();
-        matrix3_t I;
-        I << Y.ixx, Y.ixy, Y.ixz,
-             Y.ixy, Y.iyy, Y.iyz,
-             Y.ixz, Y.iyz, Y.izz;
-        return {Y.mass, com, R*I*R.transpose()};
-    }
-
-    static pinocchio::Inertia getChildBodyInertiaFromUrdf(std::string const & urdfPath,
-                                                          std::string const & frameName)
-    {
-        ::urdf::ModelInterfaceSharedPtr urdfTree = ::urdf::parseURDFFile(urdfPath);
-        ::urdf::JointConstSharedPtr joint = urdfTree->getJoint(frameName);
-        std::string const & child_link_name = joint->child_link_name;
-        ::urdf::LinkConstSharedPtr child_link = urdfTree->getLink(child_link_name);
-        return convertFromUrdf(*child_link->inertial);
-    }
-
     hresult_t Model::generateModelFlexible(void)
     {
-        flexibleJointsNames_.clear();
-        flexibleJointsModelIdx_.clear();
+        // Copy the original model
         pncModelFlexibleOrig_ = pncModelOrig_;
+
+        // Add all the flexible joints
+        flexibleJointsNames_.clear();
         for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
             // Check if joint name exists
@@ -1033,21 +1012,18 @@ namespace jiminy
             }
 
             // Add joint to model, differently depending on its type
+            std::string flexName;
             frameIndex_t frameIdx;
             ::jiminy::getFrameIdx(pncModelFlexibleOrig_, frameName, frameIdx);
-            std::string flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
             if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::FIXED_JOINT)
             {
-                // Get the child inertia from the urdf, since it cannot be recovered from the model
-                // https://github.com/stack-of-tasks/pinocchio/issues/741
-                pinocchio::Inertia const childInertia = getChildBodyInertiaFromUrdf(urdfPath_, frameName);
-
                 // Insert flexible joint at fixed frame, splitting "composite" body inertia
-                insertFlexibilityAtFixedFrameInModel(
-                    pncModelFlexibleOrig_, frameName, childInertia, flexName);
+                flexName = frameName;
+                insertFlexibilityAtFixedFrameInModel(pncModelFlexibleOrig_, frameName);
             }
             else if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::JOINT)
             {
+                flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
                 insertFlexibilityBeforeJointInModel(pncModelFlexibleOrig_, frameName, flexName);
             }
             else
@@ -1055,21 +1031,16 @@ namespace jiminy
                 PRINT_ERROR("Flexible joint can only be inserted at fixed or joint frames.");
                 return hresult_t::ERROR_GENERIC;
             }
+            flexibleJointsNames_.push_back(flexName);
 
-            flexibleJointsNames_.emplace_back(flexName);
-        }
-
-        // Add flexibility armuture-like inertia to the model
-        for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
-        {
-            std::string const & frameName = flexibleJoint.frameName;
-            std::string flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
+            // Add flexibility armature-like inertia to the model
             int32_t jointVelocityIdx;
             ::jiminy::getJointVelocityIdx(pncModelFlexibleOrig_, flexName, jointVelocityIdx);
             pncModelFlexibleOrig_.rotorInertia.segment<3>(jointVelocityIdx) = flexibleJoint.inertia;
         }
 
         // Compute flexible joint indices
+        flexibleJointsModelIdx_.clear();
         getJointsModelIdx(pncModelFlexibleOrig_, flexibleJointsNames_, flexibleJointsModelIdx_);
 
         return hresult_t::SUCCESS;
