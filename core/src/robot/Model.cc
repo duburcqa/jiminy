@@ -1607,6 +1607,11 @@ namespace jiminy
                 PRINT_ERROR("All joint or frame names in flexibility configuration must be unique.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
+            if (std::find(flexibilityNames.begin(), flexibilityNames.end(), "universe") != flexibilityNames.end())
+            {
+                PRINT_ERROR("No one can make the universe itself flexible.");
+                return hresult_t::ERROR_BAD_INPUT;
+            }
 
             // Check if the position or velocity limits have changed, and refresh proxies if so
             bool_t enablePositionLimit = boost::get<bool_t>(jointOptionsHolder.at("enablePositionLimit"));
