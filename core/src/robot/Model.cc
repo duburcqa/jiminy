@@ -1012,13 +1012,12 @@ namespace jiminy
             }
 
             // Add joint to model, differently depending on its type
-            std::string flexName;
+            std::string flexName = frameName;
             frameIndex_t frameIdx;
             ::jiminy::getFrameIdx(pncModelFlexibleOrig_, frameName, frameIdx);
             if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::FIXED_JOINT)
             {
                 // Insert flexible joint at fixed frame, splitting "composite" body inertia
-                flexName = frameName;
                 insertFlexibilityAtFixedFrameInModel(pncModelFlexibleOrig_, frameName);
             }
             else if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::JOINT)
@@ -1592,6 +1591,23 @@ namespace jiminy
                 internalBuffersMustBeUpdated |= (jointsVelocityLimitDiff.array().abs() >= EPS).all();
             }
 
+            // Check if deformation points are all associated with different joints/frames
+            configHolder_t & dynOptionsHolder = boost::get<configHolder_t>(modelOptions.at("dynamics"));
+            flexibilityConfig_t const & flexibilityConfig =
+                boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
+            std::set<std::string> flexibilityNames;
+            std::transform(flexibilityConfig.begin(), flexibilityConfig.end(),
+                           std::inserter(flexibilityNames, flexibilityNames.begin()),
+                           [](flexibleJointData_t const & flexiblePoint) -> std::string
+                           {
+                               return flexiblePoint.frameName;
+                           });
+            if (flexibilityNames.size() != flexibilityConfig.size())
+            {
+                PRINT_ERROR("All joint or frame names in flexibility configuration must be unique.");
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+
             // Check if the position or velocity limits have changed, and refresh proxies if so
             bool_t enablePositionLimit = boost::get<bool_t>(jointOptionsHolder.at("enablePositionLimit"));
             bool_t enableVelocityLimit = boost::get<bool_t>(jointOptionsHolder.at("enableVelocityLimit"));
@@ -1613,10 +1629,7 @@ namespace jiminy
             }
 
             // Check if the flexible model and its proxies must be regenerated
-            configHolder_t & dynOptionsHolder = boost::get<configHolder_t>(modelOptions.at("dynamics"));
             bool_t const & enableFlexibleModel = boost::get<bool_t>(dynOptionsHolder.at("enableFlexibleModel"));
-            flexibilityConfig_t const & flexibilityConfig =
-                boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
             if (mdlOptions_
             && (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size()
                 || !std::equal(flexibilityConfig.begin(),

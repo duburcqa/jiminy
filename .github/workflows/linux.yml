@@ -21,7 +21,7 @@ jobs:
         shell: bash
 
     env:
-      # Pinocchio bindings do not support memory alignment for now.
+      # Python bindings for Pinocchio 2.X does not fully support memory alignment
       # CMAKE_CXX_FLAGS: "-march=haswell"
       BUILD_TYPE: "Release"
 
