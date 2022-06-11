@@ -495,7 +495,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         @details This test asserts that, by adding a flexibility and a rotor
                  inertia, the output is 'sufficiently close' to a SEA system:
-                 see 'note_on_flexibilty_model.pdf' for more information as to
+                 see 'note_on_flexibility_model.pdf' for more information as to
                  why this is not a true equality.
         """
         # Physical parameters: rotor inertia, spring stiffness and damping.
@@ -510,7 +510,7 @@ class SimulateSimplePendulum(unittest.TestCase):
             'frameName': "PendulumJoint",
             'stiffness': k * np.ones(3),
             'damping': nu * np.ones(3),
-            'inertia': np.zeros(3)
+            'inertia': 1e-5 * np.ones(3)
         }]
         self.robot.set_model_options(model_options)
 

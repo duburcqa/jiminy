@@ -730,16 +730,8 @@ namespace jiminy
             modelInOut.subtrees[newJointIdx].push_back(modelInOut.subtrees[childJointIdx][i]);
         }
 
-        /* Add weightless body.
-           In practice having a zero inertia makes some of pinocchio algorithm
-           crash, so we set a very small value instead: 1g. Anything below
-           creates numerical instability. */
-        float64_t const mass = 1.0e-3;
-        float64_t const lengthSemiAxis = 1.0;
-        pinocchio::Inertia const inertia = pinocchio::Inertia::FromEllipsoid(
-            mass, lengthSemiAxis, lengthSemiAxis, lengthSemiAxis);
-
-        modelInOut.appendBodyToJoint(newJointIdx, inertia, SE3::Identity());
+        // Add weightless body
+        modelInOut.appendBodyToJoint(newJointIdx, pinocchio::Inertia::Zero(), SE3::Identity());
 
         /* Pinocchio requires that joints are in increasing order as we move to the
            leaves of the kinematic tree. Here this is no longer the case, as an

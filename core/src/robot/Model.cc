@@ -997,7 +997,6 @@ namespace jiminy
     hresult_t Model::generateModelFlexible(void)
     {
         // Check that the frames exist
-        std::vector<pinocchio::FrameIndex> flexibilityFrameIndices;
         for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
             std::string const & frameName = flexibleJoint.frameName;
@@ -1013,19 +1012,23 @@ namespace jiminy
 
         // Add all the flexible joints
         flexibleJointsNames_.clear();
+        flexibleJointsModelIdx_.clear();
         for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
-            // Add joint to model, differently depending on its type
+            // Extract some proxies
             std::string const & frameName = flexibleJoint.frameName;
             std::string flexName = frameName;
             pinocchio::FrameIndex frameIdx = pncModelFlexibleOrig_.getFrameId(frameName);
-            pinocchio::FrameType const & frameType = pncModelFlexibleOrig_.frames[frameIdx].type;
-            if (frameType == pinocchio::FrameType::FIXED_JOINT)
+            pinocchio::Frame const & frame = pncModelFlexibleOrig_.frames[frameIdx];
+
+            // Add joint to model, differently depending on its type
+            if (frame.type == pinocchio::FrameType::FIXED_JOINT)
             {
+
                 // Insert flexible joint at fixed frame, splitting "composite" body inertia
                 insertFlexibilityAtFixedFrameInModel(pncModelFlexibleOrig_, frameName);
             }
-            else if (frameType == pinocchio::FrameType::JOINT)
+            else if (frame.type == pinocchio::FrameType::JOINT)
             {
                 flexName += FLEXIBLE_JOINT_SUFFIX;
                 insertFlexibilityBeforeJointInModel(pncModelFlexibleOrig_, frameName, flexName);
@@ -1037,15 +1040,29 @@ namespace jiminy
             }
             flexibleJointsNames_.push_back(flexName);
 
+            // Get flexible joint index
+            pinocchio::JointIndex const flexibleJointModelIdx = pncModelFlexibleOrig_.getJointId(flexName);
+            flexibleJointsModelIdx_.push_back(flexibleJointModelIdx);
+
             // Add flexibility armature-like inertia to the model
-            int32_t jointVelocityIdx;
-            ::jiminy::getJointVelocityIdx(pncModelFlexibleOrig_, flexName, jointVelocityIdx);
-            pncModelFlexibleOrig_.rotorInertia.segment<3>(jointVelocityIdx) = flexibleJoint.inertia;
+            pinocchio::JointModel & jmodel = pncModelFlexibleOrig_.joints[flexibleJointModelIdx];
+            jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia) = flexibleJoint.inertia;
         }
 
-        // Compute flexible joint indices
-        flexibleJointsModelIdx_.clear();
-        getJointsModelIdx(pncModelFlexibleOrig_, flexibleJointsNames_, flexibleJointsModelIdx_);
+        for (pinocchio::JointIndex const & flexibleJointModelIdx : flexibleJointsModelIdx_)
+        {
+            // Check that the armature inertia is valid
+            pinocchio::JointModel & jmodel = pncModelFlexibleOrig_.joints[flexibleJointModelIdx];
+            pinocchio::Inertia const & flexibleInertia = pncModelFlexibleOrig_.inertias[flexibleJointModelIdx];
+            vector3_t const inertiaDiag = jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia)
+                                        + flexibleInertia.inertia().matrix().diagonal();
+            if ((inertiaDiag.array() < 1e-5).any())
+            {
+                PRINT_ERROR("The subtree diagonal inertia for flexibility joint ", flexibleJointModelIdx,
+                            " must be than 1e-5 for numerical stability: ", inertiaDiag.transpose());
+                return hresult_t::ERROR_GENERIC;
+            }
+        }
 
         return hresult_t::SUCCESS;
     }
@@ -1616,6 +1633,16 @@ namespace jiminy
             {
                 PRINT_ERROR("No one can make the universe itself flexible.");
                 return hresult_t::ERROR_BAD_INPUT;
+            }
+            for (flexibleJointData_t const & flexibleJoint : flexibilityConfig)
+            {
+                if ((flexibleJoint.stiffness.array() < 0.0).any() ||
+                    (flexibleJoint.damping.array() < 0.0).any() ||
+                    (flexibleJoint.inertia.array() < 0.0).any())
+                {
+                    PRINT_ERROR("The stiffness, damping and inertia of flexibility must be positive.");
+                    return hresult_t::ERROR_GENERIC;
+                }
             }
 
             // Check if the position or velocity limits have changed, and refresh proxies if so
