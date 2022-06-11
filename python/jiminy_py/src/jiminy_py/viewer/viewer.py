@@ -2109,7 +2109,7 @@ class Viewer:
             update_hook()
 
         # Refresh the viewer
-        self.refresh(wait)
+        self.refresh(wait=wait)
 
     @__must_be_open
     def replay(self,

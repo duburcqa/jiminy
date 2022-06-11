@@ -58,6 +58,22 @@ class Simulator:
     user only as to create a robot and associated controller if any, and
     give high-level instructions to the simulator.
     """
+    def __new__(cls, *args: Any, **kwargs: Any) -> "Simulator":
+        # Instantiate base class
+        self = super().__new__(cls)
+
+        # Viewer management
+        self.viewer = None
+        self._viewers = []
+
+        # Internal buffer for progress bar management
+        self.__pbar: Optional[tqdm] = None
+
+        # Figure holder
+        self.figure = None
+
+        return self
+
     def __init__(self,
                  robot: jiminy.Robot,
                  controller: Optional[jiminy.AbstractController] = None,
@@ -106,16 +122,6 @@ class Simulator:
         self.stepper_state = self.engine.stepper_state
         self.system_state = self.engine.system_state
         self.sensors_data = self.robot.sensors_data
-
-        # Viewer management
-        self.viewer = None
-        self._viewers = []
-
-        # Internal buffer for progress bar management
-        self.__pbar: Optional[tqdm] = None
-
-        # Figure holder
-        self.figure = None
 
         # Reset the low-level jiminy engine
         self.reset()
