@@ -1425,8 +1425,23 @@ namespace jiminy
                 {
                     for (pinocchio::GeometryObject & geom : model->geometryObjects)
                     {
-                        geom.parentFrame = pncModel_.getFrameId(pncModelOrig_.frames[geom.parentFrame].name);
-                        geom.parentJoint = pncModel_.getJointId(pncModelOrig_.names[geom.parentJoint]);
+                        // Only the frame name remains unchanged no matter what
+                        pinocchio::Frame const & frameOrig = pncModelOrig_.frames[geom.parentFrame];
+                        pinocchio::JointIndex const jointIdxOrig = frameOrig.parent;
+                        pinocchio::FrameIndex const frameIdx = pncModel_.getFrameId(frameOrig.name);
+                        pinocchio::Frame const & frame = pncModel_.frames[frameIdx];
+                        pinocchio::JointIndex const jointIdx = frame.parent;
+                        geom.parentFrame = frameIdx;
+                        geom.parentJoint = jointIdx;
+
+                        /* Compute the relative displacement between the new and old joint placement
+                           wrt their common parent joint. */
+                        pinocchio::SE3 geomPlacementRef = pinocchio::SE3::Identity();
+                        for(pinocchio::JointIndex i=jointIdx; i >= jointIdxOrig && i > 0; i=pncModel_.parents[i])
+                        {
+                            geomPlacementRef = pncModel_.jointPlacements[i] * geomPlacementRef;
+                        }
+                        geom.placement = geomPlacementRef.actInv(pncModelOrig_.jointPlacements[frameOrig.parent]).act(geom.placement);
                     }
                 }
             }
