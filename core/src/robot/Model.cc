@@ -996,6 +996,18 @@ namespace jiminy
 
     hresult_t Model::generateModelFlexible(void)
     {
+        // Check that the frames exist
+        std::vector<pinocchio::FrameIndex> flexibilityFrameIndices;
+        for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
+        {
+            std::string const & frameName = flexibleJoint.frameName;
+            if (!pncModelOrig_.existFrame(frameName))
+            {
+                PRINT_ERROR("Frame '", frameName, "' does not exists. Impossible to insert flexible joint on it.");
+                return hresult_t::ERROR_GENERIC;
+            }
+        }
+
         // Copy the original model
         pncModelFlexibleOrig_ = pncModelOrig_;
 
@@ -1003,26 +1015,19 @@ namespace jiminy
         flexibleJointsNames_.clear();
         for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
-            // Check if joint name exists
-            std::string const & frameName = flexibleJoint.frameName;
-            if (!pncModelFlexibleOrig_.existFrame(frameName))
-            {
-                PRINT_ERROR("Frame '", frameName, "' does not exists. Impossible to insert flexible joint on it.");
-                return hresult_t::ERROR_GENERIC;
-            }
-
             // Add joint to model, differently depending on its type
+            std::string const & frameName = flexibleJoint.frameName;
             std::string flexName = frameName;
-            frameIndex_t frameIdx;
-            ::jiminy::getFrameIdx(pncModelFlexibleOrig_, frameName, frameIdx);
-            if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::FIXED_JOINT)
+            pinocchio::FrameIndex frameIdx = pncModelFlexibleOrig_.getFrameId(frameName);
+            pinocchio::FrameType const & frameType = pncModelFlexibleOrig_.frames[frameIdx].type;
+            if (frameType == pinocchio::FrameType::FIXED_JOINT)
             {
                 // Insert flexible joint at fixed frame, splitting "composite" body inertia
                 insertFlexibilityAtFixedFrameInModel(pncModelFlexibleOrig_, frameName);
             }
-            else if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::JOINT)
+            else if (frameType == pinocchio::FrameType::JOINT)
             {
-                flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
+                flexName += FLEXIBLE_JOINT_SUFFIX;
                 insertFlexibilityBeforeJointInModel(pncModelFlexibleOrig_, frameName, flexName);
             }
             else

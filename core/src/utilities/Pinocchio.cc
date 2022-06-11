@@ -764,8 +764,7 @@ namespace jiminy
             PRINT_ERROR("Frame does not exist.");
             return hresult_t::ERROR_GENERIC;
         }
-        frameIndex_t frameIdx;
-        ::jiminy::getFrameIdx(modelInOut, frameNameIn, frameIdx);
+        frameIndex_t const frameIdx = modelInOut.getFrameId(frameNameIn);
         Model::Frame & frame = modelInOut.frames[frameIdx];
         if (frame.type != FIXED_JOINT)
         {
@@ -781,40 +780,71 @@ namespace jiminy
         std::vector<frameIndex_t> childFramesIdx;
         for (frameIndex_t i = 1; i < static_cast<frameIndex_t>(modelInOut.nframes); ++i)
         {
-            if (modelInOut.frames[i].parent == parentJointIdx)
+            // Skip joints and frames not having the right parent joint
+            if (modelInOut.frames[i].type == JOINT)
             {
-                frameIndex_t childFrameIdx = i;
-                do
+                jointIndex_t const & jointIdx = modelInOut.frames[i].parent;
+                if (modelInOut.parents[jointIdx] != parentJointIdx)
                 {
-                    childFrameIdx = modelInOut.frames[childFrameIdx].previousFrame;
-                    if (childFrameIdx == frameIdx)
-                    {
-                        childFramesIdx.push_back(i);
-                        break;
-                    }
+                    continue;
                 }
-                while (childFrameIdx > 0 && modelInOut.frames[childFrameIdx].type != JOINT);
             }
+            else if (modelInOut.frames[i].parent != parentJointIdx)
+            {
+                continue;
+            }
+
+            // Check if the candidate frame is really a child
+            frameIndex_t childFrameIdx = i;
+            do
+            {
+                childFrameIdx = modelInOut.frames[childFrameIdx].previousFrame;
+                if (childFrameIdx == frameIdx)
+                {
+                    childFramesIdx.push_back(i);
+                    break;
+                }
+            }
+            while (childFrameIdx > 0 && modelInOut.frames[childFrameIdx].type != JOINT);
+        }
+
+        // TODO: The inertia of the newly created joint is the one of all child frames
+        Inertia childBodyInertia = frame.inertia.se3Action(frame.placement);
+        for (frameIndex_t const & childFrameIdx : childFramesIdx)
+        {
+            pinocchio::Frame const & childFrame = modelInOut.frames[childFrameIdx];
+            childBodyInertia += childFrame.inertia.se3Action(childFrame.placement);
         }
 
         // Remove inertia of child body from composite body
-        Inertia const & childBodyInertia = frame.inertia;
         Inertia const childBodyInertiaInv(- childBodyInertia.mass(),
                                           childBodyInertia.lever(),
                                           Symmetric3(- childBodyInertia.inertia().data()));
-        modelInOut.appendBodyToJoint(parentJointIdx,
-                                     childBodyInertiaInv,
-                                     frame.placement);
-        modelInOut.nbodies--;  // No need to increment the number of bodies
+        if (childBodyInertia.mass() - modelInOut.inertias[parentJointIdx].mass() > 0.0)
+        {
+            PRINT_ERROR("Frame inertia too large to be subtracted to joint inertia.");
+            return hresult_t::ERROR_GENERIC;
+        }
+        modelInOut.inertias[parentJointIdx] += childBodyInertiaInv;
 
         // Create flexible joint
         jointIndex_t const newJointIdx = modelInOut.addJoint(parentJointIdx,
                                                              JointModelSpherical(),
                                                              frame.placement,
                                                              frame.name);
-        modelInOut.appendBodyToJoint(newJointIdx, childBodyInertia, SE3::Identity());
-        modelInOut.nbodies--;  // No need to increment the number of bodies
+        modelInOut.inertias[newJointIdx] = childBodyInertia.se3Action(frame.placement.inverse());
 
+        // Get min child joint index for swapping
+        jointIndex_t childMinJointIdx = newJointIdx;
+        for (frameIndex_t const & childFrameIdx : childFramesIdx)
+        {
+            if (modelInOut.frames[childFrameIdx].type == JOINT)
+            {
+                childMinJointIdx = std::min(childMinJointIdx, modelInOut.frames[childFrameIdx].parent);
+            }
+        }
+
+        // Update information for child joints
         for (frameIndex_t const & childFrameIdx : childFramesIdx)
         {
             // Get joint index for frames that are actual joints
@@ -837,9 +867,16 @@ namespace jiminy
             }
         }
 
-        // Update parent joint and previous frame for child frames
+        // Update information for child frames
         for (frameIndex_t const & childFrameIdx : childFramesIdx)
         {
+            // Skip actual joints
+            if (modelInOut.frames[childFrameIdx].type == JOINT)
+            {
+                continue;
+            }
+
+            // Set child frame to be a child of the new joint
             modelInOut.frames[childFrameIdx].parent = newJointIdx;
             modelInOut.frames[childFrameIdx].placement = frame.placement.actInv(
                 modelInOut.frames[childFrameIdx].placement);
@@ -855,15 +892,7 @@ namespace jiminy
            the kinematic tree. Here this is no longer the case, as an intermediate
            joint was appended at the end. We move it back this at the correct place
            by doing successive permutations. */
-        jointIndex_t childJointIdx = newJointIdx;
-        for (frameIndex_t const & childFrameIdx : childFramesIdx)
-        {
-            if (modelInOut.frames[childFrameIdx].type == JOINT)
-            {
-                childJointIdx = std::min(childJointIdx, modelInOut.frames[childFrameIdx].parent);
-            }
-        }
-        for (jointIndex_t i = childJointIdx; i < newJointIdx; ++i)
+        for (jointIndex_t i = childMinJointIdx; i < newJointIdx; ++i)
         {
             switchJoints(modelInOut, i, newJointIdx);
         }
