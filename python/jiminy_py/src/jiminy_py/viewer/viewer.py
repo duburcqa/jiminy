@@ -2222,13 +2222,17 @@ class Viewer:
                 if t_simu > time_interval[1]:
                     break
             except Exception as e:
+                # Get backend before closing
+                backend = Viewer.backend
+
                 # Make sure the viewer is always properly closed
                 Viewer.close()
+
                 # Re-raise the original exception if unexpected
-                if Viewer.backend.startswith('panda3d'):
+                if backend.startswith('panda3d'):
                     if isinstance(e, ViewerClosedError):
                         return
-                elif Viewer.backend == 'meshcat':
+                elif backend == 'meshcat':
                     import zmq
                     if isinstance(e, (zmq.error.Again, zmq.error.ZMQError)):
                         return
