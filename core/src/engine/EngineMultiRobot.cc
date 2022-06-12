@@ -2925,7 +2925,7 @@ namespace jiminy
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
         pinocchio::GeometryModel const & geomModel = system.robot->collisionModel_;
-        pinocchio::GeometryData & geomData = *system.robot->collisionData_;
+        pinocchio::GeometryData & geomData = system.robot->collisionData_;
 
         // Update forward kinematics
         pinocchio::forwardKinematics(model, data, q, v, a);
@@ -2967,8 +2967,8 @@ namespace jiminy
             }
         }
 
-        /* Update collision informations (selectively, only for geometries involved
-           in at least one collision pair). */
+        /* Update collision information selectively,
+           ie only for geometries involved in at least one collision pair. */
         std::unordered_set<geomIndex_t> activeGeometriesIdx;
         for (auto const & pair : geomModel.collisionPairs)
         {
@@ -3004,7 +3004,7 @@ namespace jiminy
         jointIndex_t const & parentJointIdx = system.robot->collisionModel_.geometryObjects[geometryIdx].parentJoint;
 
         // Extract collision and distance results
-        hpp::fcl::CollisionResult const & collisionResult = system.robot->collisionData_->collisionResults[collisionPairIdx];
+        hpp::fcl::CollisionResult const & collisionResult = system.robot->collisionData_.collisionResults[collisionPairIdx];
 
         fextLocal.setZero();
 

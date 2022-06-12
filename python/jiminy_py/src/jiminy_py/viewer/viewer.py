@@ -580,14 +580,17 @@ class Viewer:
                                         robot.collision_model_th,
                                         robot.visual_model_th)
         else:
+            # The viewer is sharing memory with the engine. It avoids having to
+            # keep track of the current state of the system and to update the
+            # internal state for the viewer accordingly every time it changes.
+            # It spares computational resources by avoiding computing twice the
+            # same quantities and it enables to display quantities that cannot
+            # be recovered from the current state only, eg the contact forces.
             self._client = backend_type(robot.pinocchio_model,
                                         robot.collision_model,
                                         robot.visual_model)
-            # The viewer is sharing memory with the engine for the dynamical
-            # and collision models. It avoids having to keep track of the
-            # current state of the system and to update the internal state for
-            # the viewer accordingly every time it changes.
             self._client.data = robot.pinocchio_data
+            self._client.visual_data = robot.visual_data
             self._client.collision_data = robot.collision_data
 
         # Reset external force buffer iif it is necessary

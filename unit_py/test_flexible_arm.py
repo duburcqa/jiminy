@@ -56,7 +56,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         # Generate temporary log file
         ext = format if format != "binary" else "data"
         fd, log_path = tempfile.mkstemp(
-            prefix=f"{self.urdf_name}_", suffix=f"_log.{ext}")
+            prefix=f"{os.path.splitext(self.urdf_name)[0]}_", suffix=f".{ext}")
         os.close(fd)
 
         # Run the simulation
@@ -66,7 +66,7 @@ class SimulateFlexibleArm(unittest.TestCase):
 
         # Generate temporary video file
         fd, video_path = tempfile.mkstemp(
-            prefix=f"{self.urdf_name}_", suffix=f"_video.mp4")
+            prefix=f"{os.path.splitext(self.urdf_name)[0]}_", suffix=f".mp4")
         os.close(fd)
 
         # Record the result
@@ -76,6 +76,10 @@ class SimulateFlexibleArm(unittest.TestCase):
                                      record_video_path=video_path,
                                      verbose=False)
         viewer.close()
+
+        # Remove tempory log and video file
+        os.remove(log_path)
+        os.remove(video_path)
 
         return True
 

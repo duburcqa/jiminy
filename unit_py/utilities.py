@@ -42,13 +42,19 @@ def load_urdf_default(urdf_name: str,
 
     # Create temporary urdf if requested
     if use_temporay_urdf:
-        f = tempfile.NamedTemporaryFile(delete=True)
-        shutil.copy2(urdf_path, f.name)
-        urdf_path = f.name
+        fd, tmp_path = tempfile.mkstemp(
+            prefix=f"{os.path.splitext(urdf_name)[0]}_", suffix=".urdf")
+        os.close(fd)
+        shutil.copy2(urdf_path, tmp_path)
+        urdf_path = tmp_path
 
     # Create and initialize the robot
     robot = jiminy.Robot()
     robot.initialize(urdf_path, has_freeflyer, [data_root_dir])
+
+    # Remove temporary file
+    if use_temporay_urdf:
+        os.remove(urdf_path)
 
     # Add motors to the robot
     for joint_name in motor_names:

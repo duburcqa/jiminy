@@ -588,7 +588,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Create a new log file
         if self.debug:
-            fd, self.log_path = tempfile.mkstemp(prefix="log_", suffix=".data")
+            fd, self.log_path = tempfile.mkstemp(suffix=".data")
             os.close(fd)
 
         # Extract the observer/controller update period.

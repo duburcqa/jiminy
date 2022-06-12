@@ -404,7 +404,8 @@ namespace jiminy
         pinocchio::GeometryModel visualModel_;
         pinocchio::Data pncDataOrig_;
         mutable pinocchio::Data pncData_;
-        mutable std::unique_ptr<pinocchio::GeometryData> collisionData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes Pinocchio segfault at least up to v2.5.6
+        mutable pinocchio::GeometryData collisionData_;
+        mutable pinocchio::GeometryData visualData_;
         std::unique_ptr<modelOptions_t const> mdlOptions_;
         forceVector_t contactForces_;                       ///< Buffer storing the contact forces
 

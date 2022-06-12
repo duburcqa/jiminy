@@ -195,7 +195,8 @@ namespace jiminy
     visualModel_(),
     pncDataOrig_(),
     pncData_(),
-    collisionData_(nullptr),
+    collisionData_(),
+    visualData_(),
     mdlOptions_(nullptr),
     contactForces_(),
     isInitialized_(false),
@@ -1481,22 +1482,16 @@ namespace jiminy
                 }
             }
 
-            // Update geometry data object after changing the collision pairs
-            if (collisionData_.get())
-            {
-                // No object stored at this point, so created a new one
-                *collisionData_ = pinocchio::GeometryData(collisionModel_);
-            }
-            else
-            {
-                /* Use copy assignment to avoid changing memory pointers, which would
-                   result in dangling reference at Python-side. */
-                collisionData_ = std::make_unique<pinocchio::GeometryData>(collisionModel_);
-            }
-            pinocchio::updateGeometryPlacements(pncModel_, pncData_, collisionModel_, *collisionData_);
+            /* Update geometry data object after changing the collision pairs
+               Note that copy assignment is used to avoid changing memory pointers,
+               which would result in dangling reference at Python-side. */
+            collisionData_ = pinocchio::GeometryData(collisionModel_);
+            pinocchio::updateGeometryPlacements(pncModel_, pncData_, collisionModel_, collisionData_);
+            visualData_ = pinocchio::GeometryData(visualModel_);
+            pinocchio::updateGeometryPlacements(pncModel_, pncData_, visualModel_, visualData_);
 
             // Set the max number of contact points per collision pairs
-            for (hpp::fcl::CollisionRequest & collisionRequest : collisionData_->collisionRequests)
+            for (hpp::fcl::CollisionRequest & collisionRequest : collisionData_.collisionRequests)
             {
                 collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
             }
