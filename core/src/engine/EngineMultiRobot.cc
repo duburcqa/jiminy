@@ -1561,13 +1561,14 @@ namespace jiminy
                     }
                     catch (std::exception const & e)
                     {
-                        PRINT_ERROR("Impossible to log collision and visual model.\n"
-                                    "Raised from exception: ", e.what());
+                        std::string msg = "Failed to log the collision and/or visual model.\n"
+                                          "Make sure jiminy_py is imported first because pinocchio if raise from python.\n";
                         if (system.robot->getUrdfPath() == "")
                         {
-                            // It is blocking if no URDF is associated with the robot
-                            return hresult_t::ERROR_GENERIC;
+                            msg += "It will be impossible to replay log files because no URDF file is available as fallback.\n";
                         }
+                        msg += "Raised from exception: ";
+                        PRINT_ERROR(msg, e.what());
                     }
                 }
             }

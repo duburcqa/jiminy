@@ -56,13 +56,26 @@ if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
         if _os.path.exists(path):
             _os.add_dll_directory(path)
 
+# Import core submodule
+from .core import *  # noqa: F403
+from .core import __version__, __raw_version__
+
+# Update core submodule to appear as member of current module
+__all__ = []
+for name in dir(core):
+    attrib = getattr(core, name)
+    if not name.startswith("_") and isinstance(attrib, type):
+        __all__.append(name)
+        attrib.__module__ = __name__
+
 # Import dependencies, using embedded versions only if necessary
-for module_name in BOOST_PYTHON_DEPENDENCIES:
-    if use_system_dependencies:
-        _import_module(module_name)
-    else:
-        _module = _import_module(".".join((__name__, module_name)))
-        _sys.modules[module_name] = _module
+with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
+    for module_name in BOOST_PYTHON_DEPENDENCIES:
+        if use_system_dependencies:
+            _import_module(module_name)
+        else:
+            _module = _import_module(".".join((__name__, module_name)))
+            _sys.modules[module_name] = _module
 
 # Register pinocchio_pywrap and submodules to avoid importing bindings twice,
 # which messes up with boost python converters.
@@ -73,19 +86,6 @@ for module_name, module_obj in submodules:
     _sys.modules[module_real_path] = module_obj
     module_sym_path = ".".join(('pinocchio', module_name))
     _sys.modules[module_sym_path] = module_obj
-
-# Import core submodule once every dependencies have been preloaded
-with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
-    from .core import *  # noqa: F403
-    from .core import __version__, __raw_version__
-
-# Update core submodule to appear as member of current module
-__all__ = []
-for name in dir(core):
-    attrib = getattr(core, name)
-    if not name.startswith("_") and isinstance(attrib, type):
-        __all__.append(name)
-        attrib.__module__ = __name__
 
 
 # Define helpers to build extension modules
