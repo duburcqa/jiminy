@@ -996,6 +996,11 @@ namespace jiminy
 
     hresult_t Model::generateModelFlexible(void)
     {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Copy the original model
+        pncModelFlexibleOrig_ = pncModelOrig_;
+
         // Check that the frames exist
         for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
@@ -1003,68 +1008,79 @@ namespace jiminy
             if (!pncModelOrig_.existFrame(frameName))
             {
                 PRINT_ERROR("Frame '", frameName, "' does not exists. Impossible to insert flexible joint on it.");
-                return hresult_t::ERROR_GENERIC;
+                returnCode = hresult_t::ERROR_GENERIC;
+                break;
             }
         }
 
-        // Copy the original model
-        pncModelFlexibleOrig_ = pncModelOrig_;
-
-        // Add all the flexible joints
-        flexibleJointsNames_.clear();
-        flexibleJointsModelIdx_.clear();
-        for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
+        if (returnCode == hresult_t::SUCCESS)
         {
-            // Extract some proxies
-            std::string const & frameName = flexibleJoint.frameName;
-            std::string flexName = frameName;
-            pinocchio::FrameIndex frameIdx = pncModelFlexibleOrig_.getFrameId(frameName);
-            pinocchio::Frame const & frame = pncModelFlexibleOrig_.frames[frameIdx];
-
-            // Add joint to model, differently depending on its type
-            if (frame.type == pinocchio::FrameType::FIXED_JOINT)
+            // Add all the flexible joints
+            flexibleJointsNames_.clear();
+            for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
             {
+                // Extract some proxies
+                std::string const & frameName = flexibleJoint.frameName;
+                std::string flexName = frameName;
+                pinocchio::FrameIndex frameIdx = pncModelFlexibleOrig_.getFrameId(frameName);
+                pinocchio::Frame const & frame = pncModelFlexibleOrig_.frames[frameIdx];
 
-                // Insert flexible joint at fixed frame, splitting "composite" body inertia
-                insertFlexibilityAtFixedFrameInModel(pncModelFlexibleOrig_, frameName);
+                // Add joint to model, differently depending on its type
+                if (frame.type == pinocchio::FrameType::FIXED_JOINT)
+                {
+                    // Insert flexible joint at fixed frame, splitting "composite" body inertia
+                    returnCode = insertFlexibilityAtFixedFrameInModel(pncModelFlexibleOrig_, frameName);
+                }
+                else if (frame.type == pinocchio::FrameType::JOINT)
+                {
+                    flexName += FLEXIBLE_JOINT_SUFFIX;
+                    insertFlexibilityBeforeJointInModel(pncModelFlexibleOrig_, frameName, flexName);  // It cannot fail.
+                }
+                else
+                {
+                    PRINT_ERROR("Flexible joint can only be inserted at fixed or joint frames.");
+                    returnCode = hresult_t::ERROR_GENERIC;
+                }
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    flexibleJointsNames_.push_back(flexName);
+                }
             }
-            else if (frame.type == pinocchio::FrameType::JOINT)
-            {
-                flexName += FLEXIBLE_JOINT_SUFFIX;
-                insertFlexibilityBeforeJointInModel(pncModelFlexibleOrig_, frameName, flexName);
-            }
-            else
-            {
-                PRINT_ERROR("Flexible joint can only be inserted at fixed or joint frames.");
-                return hresult_t::ERROR_GENERIC;
-            }
-            flexibleJointsNames_.push_back(flexName);
+        }
 
-            // Get flexible joint index
-            pinocchio::JointIndex const flexibleJointModelIdx = pncModelFlexibleOrig_.getJointId(flexName);
-            flexibleJointsModelIdx_.push_back(flexibleJointModelIdx);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Compute flexible joint indices
+            flexibleJointsModelIdx_.clear();
+            getJointsModelIdx(pncModelFlexibleOrig_, flexibleJointsNames_, flexibleJointsModelIdx_);
 
             // Add flexibility armature-like inertia to the model
-            pinocchio::JointModel & jmodel = pncModelFlexibleOrig_.joints[flexibleJointModelIdx];
-            jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia) = flexibleJoint.inertia;
-        }
-
-        for (pinocchio::JointIndex const & flexibleJointModelIdx : flexibleJointsModelIdx_)
-        {
-            // Check that the armature inertia is valid
-            pinocchio::JointModel & jmodel = pncModelFlexibleOrig_.joints[flexibleJointModelIdx];
-            pinocchio::Inertia const & flexibleInertia = pncModelFlexibleOrig_.inertias[flexibleJointModelIdx];
-            vector3_t const inertiaDiag = jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia)
-                                        + flexibleInertia.inertia().matrix().diagonal();
-            if ((inertiaDiag.array() < 1e-5).any())
+            for (std::size_t i = 0; i < flexibleJointsModelIdx_.size(); ++i)
             {
-                PRINT_ERROR("The subtree diagonal inertia for flexibility joint ", flexibleJointModelIdx,
-                            " must be than 1e-5 for numerical stability: ", inertiaDiag.transpose());
-                return hresult_t::ERROR_GENERIC;
+                flexibleJointData_t const & flexibleJoint = mdlOptions_->dynamics.flexibilityConfig[i];
+                pinocchio::JointModel const & jmodel = pncModelFlexibleOrig_.joints[flexibleJointsModelIdx_[i]];
+                jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia) = flexibleJoint.inertia;
+            }
+
+            // Check that the armature inertia is valid
+            for (pinocchio::JointIndex const & flexibleJointModelIdx : flexibleJointsModelIdx_)
+            {
+                pinocchio::Inertia const & flexibleInertia = pncModelFlexibleOrig_.inertias[flexibleJointModelIdx];
+                pinocchio::JointModel const & jmodel = pncModelFlexibleOrig_.joints[flexibleJointModelIdx];
+                // std::cout << flexibleInertia << std::endl;
+                vector3_t const inertiaDiag = jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia)
+                                            + flexibleInertia.inertia().matrix().diagonal();
+                if ((inertiaDiag.array() < 1e-5).any())
+                {
+                    PRINT_ERROR("The subtree diagonal inertia for flexibility joint ", flexibleJointModelIdx,
+                                " must be than 1e-5 for numerical stability: ", inertiaDiag.transpose());
+                    returnCode = hresult_t::ERROR_GENERIC;
+                    break;
+                }
             }
         }
 
-        return hresult_t::SUCCESS;
+        return returnCode;
     }
 
     hresult_t Model::generateModelBiased(void)
