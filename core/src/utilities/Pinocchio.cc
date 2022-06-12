@@ -811,9 +811,14 @@ namespace jiminy
         Inertia const childBodyInertiaInv(- childBodyInertia.mass(),
                                           childBodyInertia.lever(),
                                           Symmetric3(- childBodyInertia.inertia().data()));
+        if (childBodyInertia.mass() < EPS)
+        {
+            PRINT_ERROR("Child body mass must be larger than 0.");
+            return hresult_t::ERROR_GENERIC;
+        }
         if (childBodyInertia.mass() - modelInOut.inertias[parentJointIdx].mass() > 0.0)
         {
-            PRINT_ERROR("Frame inertia too large to be subtracted to joint inertia.");
+            PRINT_ERROR("Child body mass too large to be subtracted to joint mass.");
             return hresult_t::ERROR_GENERIC;
         }
         modelInOut.inertias[parentJointIdx] += childBodyInertiaInv;

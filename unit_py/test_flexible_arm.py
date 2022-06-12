@@ -32,7 +32,8 @@ class SimulateFlexibleArm(unittest.TestCase):
         # Load URDF, create model.
         self.urdf_name = 'flexible_arm.urdf'
         self.motors_names = ["base_to_link1"]
-        robot = load_urdf_default(self.urdf_name, self.motors_names)
+        robot = load_urdf_default(
+            self.urdf_name, self.motors_names, use_temporay_urdf=True)
 
         # Camera pose
         self.camera_xyzrpy = ([0.0, -2.0, 0.0], [np.pi/2, 0.0, 0])
@@ -103,7 +104,7 @@ class SimulateFlexibleArm(unittest.TestCase):
             self.assertTrue(self._read_write_replay_log(format))
 
         # Make sure the scene is empty now
-        self.assertTrue(len(Viewer._backend_robot_names) == 0)
+        self.assertEqual(len(Viewer._backend_robot_names), 0)
 
     def test_rigid_vs_flex_at_frame(self):
         """
@@ -173,7 +174,17 @@ class SimulateFlexibleArm(unittest.TestCase):
                     img_obj.save(raw_bytes, "PNG")
                     raw_bytes.seek(0)
                     print(f"{name}:", base64.b64encode(raw_bytes.read()))
-            self.assertFalse(img_diff > IMAGE_DIFF_THRESHOLD)
+            self.assertLessEqual(img_diff, IMAGE_DIFF_THRESHOLD)
+
+        # Check that the flexible models are identicals
+        for i in range(len(visual_model_flex) - 1):
+            self.assertEqual(visual_model_flex[i], visual_model_flex[i+1])
+        for i in range(len(pnc_model_flex) - 1):
+            for I1, I2 in zip(
+                    pnc_model_flex[i].inertias, pnc_model_flex[i+1].inertias):
+                self.assertTrue(np.allclose(I1.toDynamicParameters(),
+                                            I2.toDynamicParameters(),
+                                            atol=TOLERANCE))
 
 
 if __name__ == '__main__':

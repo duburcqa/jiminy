@@ -81,7 +81,7 @@ class PipelineControl(unittest.TestCase):
             raw_bytes.seek(0)
             print(f"{self.env.robot.name} - {self.env.viewer.backend}:",
                   base64.b64encode(raw_bytes.read()))
-        self.assertTrue(img_diff < IMAGE_DIFF_THRESHOLD)
+        self.assertLessEqual(img_diff, IMAGE_DIFF_THRESHOLD)
 
         # Get the simulation log
         log_data = self.env.log_data

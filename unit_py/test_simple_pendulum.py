@@ -297,8 +297,8 @@ class SimulateSimplePendulum(unittest.TestCase):
             SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
 
         # Compare sensor signals
-        self.assertTrue(
-            np.mean(imu_jiminy_delayed_0 - imu_jiminy_shifted_0) < 1.0e-5)
+        self.assertLessEqual(
+            np.mean(imu_jiminy_delayed_0 - imu_jiminy_shifted_0), 1.0e-5)
         self.assertTrue(np.allclose(
             imu_jiminy_delayed_1, imu_jiminy_shifted_1, atol=TOLERANCE))
 
