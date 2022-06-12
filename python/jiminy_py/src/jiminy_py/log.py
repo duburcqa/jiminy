@@ -1,10 +1,9 @@
-import os
 import pathlib
 import tempfile
 from csv import DictReader
 from bisect import bisect_right
 from collections import OrderedDict
-from typing import Callable, Tuple, Dict, Optional, Any, Sequence, Union
+from typing import Callable, Tuple, Dict, Optional, Sequence, Union
 
 import h5py
 import tree
@@ -14,6 +13,9 @@ import pinocchio as pin
 
 from . import core as jiminy
 from .dynamics import State, TrajectoryDataType
+
+
+ENGINE_NAMESPACE = "HighLevelController"
 
 
 FieldNested = Union[
@@ -87,21 +89,6 @@ def read_log(fullpath: str,
         # removing spaces present before the keys.
         data_dict = {k: np.array(v) for k, v in data.items()}
     elif file_format == 'hdf5':
-        def parse_constant(key: str, value: str) -> Any:
-            """Process some particular constants based on its name or type.
-            """
-            if ".pinocchio_model" in key:
-                model = pin.Model()
-                jiminy.load_from_binary(model, value)
-                return model
-            elif ".visual_model" in key or ".collision_model" in key:
-                geometry_model = pin.GeometryModel()
-                jiminy.load_from_binary(geometry_model, value)
-                return geometry_model
-            elif isinstance(value, bytes):
-                return value.decode()
-            return value
-
         with h5py.File(fullpath, 'r') as f:
             # Load constants
             const_dict = {}
@@ -110,9 +97,9 @@ def read_log(fullpath: str,
                 # be added at the end to match the true length of the string.
                 value = bytes(dataset[()])
                 value += b'\0' * (dataset.nbytes - len(value))
-                const_dict[key] = parse_constant(key, value)
+                const_dict[key] = value
             for key, value in dict(f['constants'].attrs).items():
-                const_dict[key] = parse_constant(key, value)
+                const_dict[key] = value
 
             # Extract time
             time = f['Global.Time'][()] * f['Global.Time'].attrs['unit']
@@ -122,12 +109,27 @@ def read_log(fullpath: str,
             for key, value in f['variables'].items():
                 data_dict[key] = value['value'][()]
 
+    # Helper to cast special constants based on its type or name
+    for key, value in const_dict.items():
+        if ".pinocchio_model" in key:
+            model = pin.Model()
+            jiminy.load_from_binary(model, value)
+            const_dict[key] = model
+        elif ".visual_model" in key or ".collision_model" in key:
+            geometry_model = pin.GeometryModel()
+            jiminy.load_from_binary(geometry_model, value)
+            const_dict[key] = geometry_model
+        elif ".mesh_package_dirs" in key:
+            const_dict[key] = list(filter(None, value.decode().split(";")))
+        elif isinstance(value, bytes):
+            const_dict[key] = value.decode()
+
     return data_dict, const_dict
 
 
 def extract_data_from_log(log_data: Dict[str, np.ndarray],
                           fieldnames: FieldNested,
-                          namespace: Optional[str] = 'HighLevelController',
+                          namespace: Optional[str] = ENGINE_NAMESPACE,
                           *,
                           as_dict: bool = False) -> Optional[Union[
                               Tuple[Optional[np.ndarray], ...],
@@ -135,10 +137,10 @@ def extract_data_from_log(log_data: Dict[str, np.ndarray],
     """Extract values associated with a set of fieldnames in a specific
     namespace.
 
-    :param log_data: Data from the log file, in a dictionnary.
+    :param log_data: Data from the log file, in a dictionary.
     :param fieldnames: Structured fieldnames.
     :param namespace: Namespace of the fieldnames. None to disable.
-                      Optional: 'HighLevelController' by default.
+                      Optional: ENGINE_TELEMETRY_NAMESPACE by default.
     :param keep_structure: Whether or not to return a dictionary mapping
                            flattened fieldnames to values.
                            Optional: True by default.
@@ -192,13 +194,13 @@ def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
     try:
         # Extract the joint positions, velocities and external forces over time
         positions = np.stack([
-            log_data.get(".".join(("HighLevelController", field)), [])
+            log_data.get(".".join((ENGINE_NAMESPACE, field)), [])
             for field in robot.logfile_position_headers], axis=-1)
         velocities = np.stack([
-            log_data.get(".".join(("HighLevelController", field)), [])
+            log_data.get(".".join((ENGINE_NAMESPACE, field)), [])
             for field in robot.logfile_velocity_headers], axis=-1)
         forces = np.stack([
-            log_data.get(".".join(("HighLevelController", field)), [])
+            log_data.get(".".join((ENGINE_NAMESPACE, field)), [])
             for field in robot.logfile_f_external_headers], axis=-1)
 
         # Determine available data
@@ -277,46 +279,49 @@ def build_robot_from_log(
     robot = jiminy.Robot()
 
     # Extract common info
-    pinocchio_model = log_constants["HighLevelController.pinocchio_model"]
-    all_options = jiminy.load_config_json_string(
-        log_constants["HighLevelController.options"])
+    pinocchio_model = log_constants[
+        ".".join((ENGINE_NAMESPACE, "pinocchio_model"))]
 
     try:
         # Extract geometry models
-        collision_model = log_constants["HighLevelController.collision_model"]
-        visual_model = log_constants["HighLevelController.visual_model"]
+        collision_model = log_constants[
+            ".".join((ENGINE_NAMESPACE, "collision_model"))]
+        visual_model = log_constants[
+            ".".join((ENGINE_NAMESPACE, "visual_model"))]
 
         # Initialize the model
         robot.initialize(pinocchio_model, collision_model, visual_model)
-        robot.set_options(all_options["system"]["robot"])
     except KeyError:
         # Extract initialization arguments
-        urdf_data = log_constants["HighLevelController.urdf_file"]
-        has_freeflyer = int(log_constants["HighLevelController.has_freeflyer"])
-        if "HighLevelController.mesh_package_dirs" in log_constants.keys():
-            mesh_package_dirs += log_constants[
-                "HighLevelController.mesh_package_dirs"].split(";")
+        urdf_data = log_constants[
+            ".".join((ENGINE_NAMESPACE, "urdf_file"))]
+        has_freeflyer = int(log_constants[
+            ".".join((ENGINE_NAMESPACE, "has_freeflyer"))])
+        mesh_package_dirs += log_constants.get(
+            ".".join((ENGINE_NAMESPACE, "mesh_package_dirs")), [])
 
-        # Create temporary dump file
-        fd, tmp_path = tempfile.mkstemp()
-        os.write(fd, urdf_data.encode())
-        os.close(fd)
+        with tempfile.NamedTemporaryFile() as f:
+            # Create temporary urdf file
+            f.write(urdf_data.encode())
+            f.flush()
 
-        # Initialize model
-        robot.initialize(tmp_path, has_freeflyer, mesh_package_dirs)
+            # Initialize model
+            robot.initialize(f.name, has_freeflyer, mesh_package_dirs)
+
+        # Load the options
+        all_options = jiminy.load_config_json_string(log_constants[
+            ".".join((ENGINE_NAMESPACE, "options"))])
         robot.set_options(all_options["system"]["robot"])
 
         # Update model and data.
-        # Dirty hack based on serialization/deserialization to update in-place,
-        # and string archive cannot be used because it is not reliable and
-        # fails on windows for some reason.
-        pinocchio_model.saveToBinary(tmp_path)
-        robot.pinocchio_model.loadFromBinary(tmp_path)
-        pinocchio_model.createData().saveToBinary(tmp_path)
-        robot.pinocchio_data.loadFromBinary(tmp_path)
-
-        # Delete temporary file
-        os.remove(tmp_path)
+        # Dirty hack based on serialization/deserialization to update in-place.
+        # Note that string archive cannot be used because it is not reliable
+        # and fails on windows for some reason.
+        buff = pin.serialization.StreamBuffer()
+        pin.serialization.saveToBinary(pinocchio_model, buff)
+        pin.serialization.loadFromBinary(robot.pinocchio_model, buff)
+        pin.serialization.saveToBinary(pinocchio_model.createData(), buff)
+        pin.serialization.loadFromBinary(robot.pinocchio_data, buff)
 
     return robot
 

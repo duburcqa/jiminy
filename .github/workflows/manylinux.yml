@@ -147,6 +147,7 @@ jobs:
     - name: Installing requirements
       run: |
         sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary pillow
 
     #####################################################################################
 
