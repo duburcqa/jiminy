@@ -994,60 +994,43 @@ namespace jiminy
         return returnCode;
     }
 
-    static pinocchio::Inertia convertFromUrdf(::urdf::Inertial const & Y)
-    {
-        ::urdf::Vector3 const & p = Y.origin.position;
-        vector3_t const com(p.x, p.y, p.z);
-        ::urdf::Rotation const & q = Y.origin.rotation;
-        matrix3_t const R = Eigen::Quaterniond(q.w, q.x, q.y, q.z).matrix();
-        matrix3_t I;
-        I << Y.ixx, Y.ixy, Y.ixz,
-             Y.ixy, Y.iyy, Y.iyz,
-             Y.ixz, Y.iyz, Y.izz;
-        return {Y.mass, com, R*I*R.transpose()};
-    }
-
-    static pinocchio::Inertia getChildBodyInertiaFromUrdf(std::string const & urdfPath,
-                                                          std::string const & frameName)
-    {
-        ::urdf::ModelInterfaceSharedPtr urdfTree = ::urdf::parseURDFFile(urdfPath);
-        ::urdf::JointConstSharedPtr joint = urdfTree->getJoint(frameName);
-        std::string const & child_link_name = joint->child_link_name;
-        ::urdf::LinkConstSharedPtr child_link = urdfTree->getLink(child_link_name);
-        return convertFromUrdf(*child_link->inertial);
-    }
-
     hresult_t Model::generateModelFlexible(void)
     {
-        flexibleJointsNames_.clear();
-        flexibleJointsModelIdx_.clear();
-        pncModelFlexibleOrig_ = pncModelOrig_;
+        // Check that the frames exist
         for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
-            // Check if joint name exists
             std::string const & frameName = flexibleJoint.frameName;
-            if (!pncModelFlexibleOrig_.existFrame(frameName))
+            if (!pncModelOrig_.existFrame(frameName))
             {
                 PRINT_ERROR("Frame '", frameName, "' does not exists. Impossible to insert flexible joint on it.");
                 return hresult_t::ERROR_GENERIC;
             }
+        }
+
+        // Copy the original model
+        pncModelFlexibleOrig_ = pncModelOrig_;
+
+        // Add all the flexible joints
+        flexibleJointsNames_.clear();
+        flexibleJointsModelIdx_.clear();
+        for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
+        {
+            // Extract some proxies
+            std::string const & frameName = flexibleJoint.frameName;
+            std::string flexName = frameName;
+            pinocchio::FrameIndex frameIdx = pncModelFlexibleOrig_.getFrameId(frameName);
+            pinocchio::Frame const & frame = pncModelFlexibleOrig_.frames[frameIdx];
 
             // Add joint to model, differently depending on its type
-            frameIndex_t frameIdx;
-            ::jiminy::getFrameIdx(pncModelFlexibleOrig_, frameName, frameIdx);
-            std::string flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
-            if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::FIXED_JOINT)
+            if (frame.type == pinocchio::FrameType::FIXED_JOINT)
             {
-                // Get the child inertia from the urdf, since it cannot be recovered from the model
-                // https://github.com/stack-of-tasks/pinocchio/issues/741
-                pinocchio::Inertia const childInertia = getChildBodyInertiaFromUrdf(urdfPath_, frameName);
 
                 // Insert flexible joint at fixed frame, splitting "composite" body inertia
-                insertFlexibilityAtFixedFrameInModel(
-                    pncModelFlexibleOrig_, frameName, childInertia, flexName);
+                insertFlexibilityAtFixedFrameInModel(pncModelFlexibleOrig_, frameName);
             }
-            else if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::JOINT)
+            else if (frame.type == pinocchio::FrameType::JOINT)
             {
+                flexName += FLEXIBLE_JOINT_SUFFIX;
                 insertFlexibilityBeforeJointInModel(pncModelFlexibleOrig_, frameName, flexName);
             }
             else
@@ -1055,22 +1038,31 @@ namespace jiminy
                 PRINT_ERROR("Flexible joint can only be inserted at fixed or joint frames.");
                 return hresult_t::ERROR_GENERIC;
             }
+            flexibleJointsNames_.push_back(flexName);
 
-            flexibleJointsNames_.emplace_back(flexName);
+            // Get flexible joint index
+            pinocchio::JointIndex const flexibleJointModelIdx = pncModelFlexibleOrig_.getJointId(flexName);
+            flexibleJointsModelIdx_.push_back(flexibleJointModelIdx);
+
+            // Add flexibility armature-like inertia to the model
+            pinocchio::JointModel & jmodel = pncModelFlexibleOrig_.joints[flexibleJointModelIdx];
+            jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia) = flexibleJoint.inertia;
         }
 
-        // Add flexibility armuture-like inertia to the model
-        for (flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
+        for (pinocchio::JointIndex const & flexibleJointModelIdx : flexibleJointsModelIdx_)
         {
-            std::string const & frameName = flexibleJoint.frameName;
-            std::string flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
-            int32_t jointVelocityIdx;
-            ::jiminy::getJointVelocityIdx(pncModelFlexibleOrig_, flexName, jointVelocityIdx);
-            pncModelFlexibleOrig_.rotorInertia.segment<3>(jointVelocityIdx) = flexibleJoint.inertia;
+            // Check that the armature inertia is valid
+            pinocchio::JointModel & jmodel = pncModelFlexibleOrig_.joints[flexibleJointModelIdx];
+            pinocchio::Inertia const & flexibleInertia = pncModelFlexibleOrig_.inertias[flexibleJointModelIdx];
+            vector3_t const inertiaDiag = jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia)
+                                        + flexibleInertia.inertia().matrix().diagonal();
+            if ((inertiaDiag.array() < 1e-5).any())
+            {
+                PRINT_ERROR("The subtree diagonal inertia for flexibility joint ", flexibleJointModelIdx,
+                            " must be than 1e-5 for numerical stability: ", inertiaDiag.transpose());
+                return hresult_t::ERROR_GENERIC;
+            }
         }
-
-        // Compute flexible joint indices
-        getJointsModelIdx(pncModelFlexibleOrig_, flexibleJointsNames_, flexibleJointsModelIdx_);
 
         return hresult_t::SUCCESS;
     }
@@ -1454,8 +1446,23 @@ namespace jiminy
                 {
                     for (pinocchio::GeometryObject & geom : model->geometryObjects)
                     {
-                        geom.parentFrame = pncModel_.getFrameId(pncModelOrig_.frames[geom.parentFrame].name);
-                        geom.parentJoint = pncModel_.getJointId(pncModelOrig_.names[geom.parentJoint]);
+                        // Only the frame name remains unchanged no matter what
+                        pinocchio::Frame const & frameOrig = pncModelOrig_.frames[geom.parentFrame];
+                        pinocchio::JointIndex const jointIdxOrig = frameOrig.parent;
+                        pinocchio::FrameIndex const frameIdx = pncModel_.getFrameId(frameOrig.name);
+                        pinocchio::Frame const & frame = pncModel_.frames[frameIdx];
+                        pinocchio::JointIndex const jointIdx = frame.parent;
+                        geom.parentFrame = frameIdx;
+                        geom.parentJoint = jointIdx;
+
+                        /* Compute the relative displacement between the new and old joint placement
+                           wrt their common parent joint. */
+                        pinocchio::SE3 geomPlacementRef = pinocchio::SE3::Identity();
+                        for(pinocchio::JointIndex i=jointIdx; i >= jointIdxOrig && i > 0; i=pncModel_.parents[i])
+                        {
+                            geomPlacementRef = pncModel_.jointPlacements[i] * geomPlacementRef;
+                        }
+                        geom.placement = geomPlacementRef.actInv(pncModelOrig_.jointPlacements[frameOrig.parent]).act(geom.placement);
                     }
                 }
             }
@@ -1606,6 +1613,38 @@ namespace jiminy
                 internalBuffersMustBeUpdated |= (jointsVelocityLimitDiff.array().abs() >= EPS).all();
             }
 
+            // Check if deformation points are all associated with different joints/frames
+            configHolder_t & dynOptionsHolder = boost::get<configHolder_t>(modelOptions.at("dynamics"));
+            flexibilityConfig_t const & flexibilityConfig =
+                boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
+            std::set<std::string> flexibilityNames;
+            std::transform(flexibilityConfig.begin(), flexibilityConfig.end(),
+                           std::inserter(flexibilityNames, flexibilityNames.begin()),
+                           [](flexibleJointData_t const & flexiblePoint) -> std::string
+                           {
+                               return flexiblePoint.frameName;
+                           });
+            if (flexibilityNames.size() != flexibilityConfig.size())
+            {
+                PRINT_ERROR("All joint or frame names in flexibility configuration must be unique.");
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+            if (std::find(flexibilityNames.begin(), flexibilityNames.end(), "universe") != flexibilityNames.end())
+            {
+                PRINT_ERROR("No one can make the universe itself flexible.");
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+            for (flexibleJointData_t const & flexibleJoint : flexibilityConfig)
+            {
+                if ((flexibleJoint.stiffness.array() < 0.0).any() ||
+                    (flexibleJoint.damping.array() < 0.0).any() ||
+                    (flexibleJoint.inertia.array() < 0.0).any())
+                {
+                    PRINT_ERROR("The stiffness, damping and inertia of flexibility must be positive.");
+                    return hresult_t::ERROR_GENERIC;
+                }
+            }
+
             // Check if the position or velocity limits have changed, and refresh proxies if so
             bool_t enablePositionLimit = boost::get<bool_t>(jointOptionsHolder.at("enablePositionLimit"));
             bool_t enableVelocityLimit = boost::get<bool_t>(jointOptionsHolder.at("enableVelocityLimit"));
@@ -1627,10 +1666,7 @@ namespace jiminy
             }
 
             // Check if the flexible model and its proxies must be regenerated
-            configHolder_t & dynOptionsHolder = boost::get<configHolder_t>(modelOptions.at("dynamics"));
             bool_t const & enableFlexibleModel = boost::get<bool_t>(dynOptionsHolder.at("enableFlexibleModel"));
-            flexibilityConfig_t const & flexibilityConfig =
-                boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
             if (mdlOptions_
             && (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size()
                 || !std::equal(flexibilityConfig.begin(),
