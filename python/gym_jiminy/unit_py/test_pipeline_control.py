@@ -53,7 +53,8 @@ class PipelineControl(unittest.TestCase):
 
         # Get the final posture of the robot as an RGB array
         rgb_array = self.env.render(
-            mode='rgb_array', display_com=False, display_contacts=False)
+            mode='rgb_array', width=500, height=500, display_com=False,
+            display_contacts=False)
 
         # Check that the final posture matches the expected one
         data_dir = os.path.join(os.path.dirname(__file__), "data")
