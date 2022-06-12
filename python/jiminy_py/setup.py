@@ -151,6 +151,8 @@ setup(
             "requests_html>=0.3.4"
         ],
         "dev": [
+            # Use indirectly to convert images to base64 after test failure
+            "pillow",
             # Stub for static type checking
             "types-toml",
             # Check PEP8 conformance of Python native code

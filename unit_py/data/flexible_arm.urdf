@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<robot name="flexible_arm">
+  <!-- world -->
+  <link name="world"/>
+
+  <!-- flexible arm modeled using virtual link method -->
+  <link name="link1">
+    <visual>
+      <origin rpy="0 0 0" xyz ="0.05 0 0"/>
+      <geometry>
+        <box size="0.1 0.025 0.01"/>
+      </geometry>
+      <material name="">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <mass value="0.8" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0.002" />
+    </inertial>
+  </link>
+
+  <joint name="base_to_link1" type="revolute">
+    <parent link="world"/>
+    <child link="link1"/>
+    <axis xyz="0 0 1"/>
+    <origin xyz="0 0 0" rpy="1.57079632679489661923 0 0"/>
+    <limit effort="100.0" lower="-3.14159" upper="3.14159" velocity="3.14"/>
+  </joint>
+
+  <link name="link2">
+    <visual>
+      <origin xyz ="0.05 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.025 0.01"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.0 1.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <mass value="0.8" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0.0" iyz="0" izz="0.002" />
+    </inertial>
+  </link>
+
+  <joint name="link1_to_link2" type="fixed">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0.1 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="link3">
+    <visual>
+      <origin xyz ="0.05 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.025 0.01"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.0 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <mass value="0.8" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0.002" />
+    </inertial>
+  </link>
+
+  <joint name="link2_to_link3" type="fixed">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0.1 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="link4">
+    <visual>
+      <origin xyz ="0.05 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.025 0.01"/>
+      </geometry>
+      <material name="">
+        <color rgba="1.0 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <mass value="0.8" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0.002" />
+    </inertial>
+  </link>
+
+  <joint name="link3_to_link4" type="fixed">
+    <parent link="link3"/>
+    <child link="link4"/>
+    <origin xyz="0.1 0 0" rpy="0 0 0"/>
+  </joint>
+</robot>
