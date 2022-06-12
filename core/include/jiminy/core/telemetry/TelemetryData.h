@@ -7,7 +7,6 @@
 #ifndef JIMINY_TELEMETRY_DATA_H
 #define JIMINY_TELEMETRY_DATA_H
 
-#include <iostream>
 #include <deque>
 
 #include "jiminy/core/telemetry/TelemetrySender.h"

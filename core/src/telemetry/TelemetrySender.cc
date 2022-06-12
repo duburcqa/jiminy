@@ -4,8 +4,6 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
-
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/Constants.h"
 

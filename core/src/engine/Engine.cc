@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 

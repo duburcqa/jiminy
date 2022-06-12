@@ -3,14 +3,16 @@
 
 #include <sstream>
 
-#include "pinocchio/multibody/fcl.hpp"          // `pinocchio::CollisionPair`
-#include "pinocchio/multibody/geometry.hpp"     // `pinocchio::GeometryModel`
-#include "pinocchio/serialization/model.hpp"    // `serialize<pinocchio::Model>`
+#include "pinocchio/multibody/fcl.hpp"           // `pinocchio::CollisionPair`
+#include "pinocchio/multibody/geometry.hpp"      // `pinocchio::GeometryModel`
+#include "pinocchio/serialization/model.hpp"     // `serialize<pinocchio::Model>`
+#include "pinocchio/serialization/geometry.hpp"  // `serialize<pinocchio::CollisionPair>`
 
-#define HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
 #include "hpp/fcl/shape/convex.h"                    // `serialize<hpp::fcl::Convex>
+#define HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
 #include "hpp/fcl/serialization/geometric_shapes.h"  // `serialize<hpp::fcl::ShapeBase>`
 #include "hpp/fcl/serialization/BVH_model.h"         // `serialize<hpp::fcl::BVHModel>`
+#undef HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
 
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
@@ -53,56 +55,6 @@ namespace boost
 {
   namespace serialization
   {
-        // ================ Copied from `hpp/fcl/serialization/eigen.h` ====================
-        #if !(PINOCCHIO_VERSION_AT_LEAST(2,6,0))
-
-        template <class Archive, typename PlainObjectBase, int MapOptions, typename StrideType>
-        void save(Archive & ar,
-                  Eigen::Map<PlainObjectBase,MapOptions,StrideType> const & m,
-                  unsigned int const /*version*/)
-        {
-            Eigen::DenseIndex rows(m.rows()), cols(m.cols());
-            if (PlainObjectBase::RowsAtCompileTime == Eigen::Dynamic)
-            {
-                ar << BOOST_SERIALIZATION_NVP(rows);
-            }
-            if (PlainObjectBase::ColsAtCompileTime == Eigen::Dynamic)
-            {
-                ar << BOOST_SERIALIZATION_NVP(cols);
-            }
-            ar << make_nvp("data", make_array(m.data(), static_cast<size_t>(m.size())));
-        }
-
-        template <class Archive, typename PlainObjectBase, int MapOptions, typename StrideType>
-        void load(Archive & ar,
-                  Eigen::Map<PlainObjectBase,MapOptions,StrideType> & m,
-                  unsigned int const /*version*/)
-        {
-            Eigen::DenseIndex rows = PlainObjectBase::RowsAtCompileTime;
-            Eigen::DenseIndex cols = PlainObjectBase::ColsAtCompileTime;
-            if (PlainObjectBase::RowsAtCompileTime == Eigen::Dynamic)
-            {
-                ar >> BOOST_SERIALIZATION_NVP(rows);
-            }
-            if (PlainObjectBase::ColsAtCompileTime == Eigen::Dynamic)
-            {
-                ar >> BOOST_SERIALIZATION_NVP(cols);
-            }
-            m.resize(rows, cols);
-            ar >> make_nvp("data", make_array(m.data(), static_cast<size_t>(m.size())));
-        }
-
-        template <class Archive, typename PlainObjectBase, int MapOptions, typename StrideType>
-        void serialize(Archive & ar,
-                       Eigen::Map<PlainObjectBase,MapOptions,StrideType> & m,
-                       unsigned int const version)
-        {
-            split_free(ar, m, version);
-        }
-
-        #endif
-        // =================================================================================
-
         template<class Archive>
         void load_construct_data(Archive & /* ar */,
                                  hpp::fcl::Sphere * spherePtr,
@@ -190,27 +142,9 @@ namespace boost
         }
 
         template<class Archive>
-        void load_construct_data(Archive & /* ar */,
-                                 pinocchio::CollisionPair * collisionPairPtr,
-                                 unsigned int const /* version */)
-        {
-            ::new(collisionPairPtr) pinocchio::CollisionPair(0, 1);
-        }
-
-        template<class Archive>
         void serialize(Archive & ar,
                        pinocchio::GeometryObject & geom,
                        unsigned int const /* version */);
-
-        template<class Archive>
-        void serialize(Archive & ar,
-                       pinocchio::CollisionPair & collisionPair,
-                       unsigned int const /* version */)
-        {
-            using GeomIndexPair_t = std::pair<pinocchio::GeomIndex, pinocchio::GeomIndex>;
-            ar & make_nvp(BOOST_PP_STRINGIZE(GeomIndexPair_t),
-                boost::serialization::base_object<GeomIndexPair_t>(collisionPair));
-        }
 
         template <class Archive>
         void serialize(Archive & ar,

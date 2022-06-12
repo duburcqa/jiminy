@@ -4,8 +4,6 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
-
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/io/AbstractIODevice.h"
 
