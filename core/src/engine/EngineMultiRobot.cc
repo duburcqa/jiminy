@@ -1534,33 +1534,40 @@ namespace jiminy
                 }
                 telemetrySender_.registerConstant(telemetryMeshPackageDirs, meshPackageDirsString);
 
-                // Backup the Pinocchio Model
-                std::string telemetryModelName = addCircumfix(
+                // Backup the true and theoretical Pinocchio::Model
+                std::string key = addCircumfix(
                     "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                std::string dump = saveToBinary(system.robot->pncModel_);
-                telemetrySender_.registerConstant(telemetryModelName, dump);
+                std::string value = saveToBinary(system.robot->pncModel_);
+                telemetrySender_.registerConstant(key, value);
 
                 /* Backup the Pinocchio GeometryModel for collisions and visuals.
                    It may fail because of missing serialization methods for convex,
-                   or because it cannot fit into memory (return code). */
-                if (engineOptions_->telemetry.isPersistent)
+                   or because it cannot fit into memory (return code).
+                   Persistent mode is automatically enforced if no URDF is associated
+                   with the robot.*/
+                if (engineOptions_->telemetry.isPersistent || system.robot->getUrdfPath() == "")
                 {
                     try
                     {
-                        telemetryModelName = addCircumfix(
+                        key = addCircumfix(
                             "collision_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                        dump = saveToBinary(system.robot->collisionModel_);
-                        telemetrySender_.registerConstant(telemetryModelName, dump);
+                        value = saveToBinary(system.robot->collisionModel_);
+                        telemetrySender_.registerConstant(key, value);
 
-                        telemetryModelName = addCircumfix(
+                        key = addCircumfix(
                             "visual_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                        dump = saveToBinary(system.robot->visualModel_);
-                        telemetrySender_.registerConstant(telemetryModelName, dump);
+                        value = saveToBinary(system.robot->visualModel_);
+                        telemetrySender_.registerConstant(key, value);
                     }
                     catch (std::exception const & e)
                     {
                         PRINT_ERROR("Impossible to log collision and visual model.\n"
                                     "Raised from exception: ", e.what());
+                        if (system.robot->getUrdfPath() == "")
+                        {
+                            // It is blocking if no URDF is associated with the robot
+                            return hresult_t::ERROR_GENERIC;
+                        }
                     }
                 }
             }
