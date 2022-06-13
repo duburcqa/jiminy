@@ -1559,13 +1559,12 @@ namespace jiminy
                     }
                     catch (std::exception const & e)
                     {
-                        std::string msg = "Failed to log the collision and/or visual model. "
-                                          "Make sure jiminy_py is imported first because pinocchio if raise from python.\n";
+                        std::string msg = "Failed to log the collision and/or visual model.";
                         if (urdfFileString.empty())
                         {
-                            msg += "It will be impossible to replay log files because no URDF file is available as fallback.\n";
+                            msg += " It will be impossible to replay log files because no URDF file is available as fallback.";
                         }
-                        msg += "Raised from exception: ";
+                        msg += "\nRaised from exception: ";
                         PRINT_ERROR(msg, e.what());
                     }
                 }

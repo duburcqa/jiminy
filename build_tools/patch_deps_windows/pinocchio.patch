@@ -10,7 +10,7 @@ index cf984477..db497fb7 100644
 
  IF(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "The Python bindings of Pinocchio will be compiled along the main library. If you want to disable this feature, please set the option BUILD_PYTHON_INTERFACE to OFF.")
-@@ -165,19 +164,18 @@
+@@ -165,19 +164,19 @@
  ELSE(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "Pinocchio won't be compiled with its Python bindings. If you want to enable this feature, please set the option BUILD_PYTHON_INTERFACE to ON.")
  ENDIF(BUILD_PYTHON_INTERFACE)
@@ -32,7 +32,7 @@ index cf984477..db497fb7 100644
 -      ERROR_QUIET)
 -    IF(_hpp_fcl_python_bindings_not_found EQUAL 0)
 +    IF(EXISTS "${PYTHON_SITELIB}/hppfcl")
--      SET(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS TRUE)
+       SET(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS TRUE)
        MESSAGE(STATUS "Found hpp-fcl Python bindings.")
      ELSE()
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt

@@ -101,10 +101,10 @@ namespace boost
                                         hpp::fcl::Convex<PolygonT> const * convexPtr,
                                         unsigned int const /* version */)
         {
-            ar << make_nvp("num_points", convexPtr->num_points);
-            ar << make_nvp("num_polygons", convexPtr->num_polygons);
-            ar << make_nvp("points", make_array(convexPtr->points, convexPtr->num_points));
-            ar << make_nvp("polygons", make_array(convexPtr->polygons, convexPtr->num_polygons));
+            ar & make_nvp("num_points", convexPtr->num_points);
+            ar & make_nvp("num_polygons", convexPtr->num_polygons);
+            ar & make_nvp("points", make_array(convexPtr->points, convexPtr->num_points));
+            ar & make_nvp("polygons", make_array(convexPtr->polygons, convexPtr->num_polygons));
         }
 
         template<class Archive, typename PolygonT>
@@ -113,12 +113,12 @@ namespace boost
                                         unsigned int const /* version */)
         {
             int numPoints, numPolygons;
-            ar >> make_nvp("num_points", numPoints);
-            ar >> make_nvp("num_polygons", numPolygons);
+            ar & make_nvp("num_points", numPoints);
+            ar & make_nvp("num_polygons", numPolygons);
             hpp::fcl::Vec3f * points = new hpp::fcl::Vec3f[numPoints];
             PolygonT * polygons = new PolygonT[numPolygons];
-            ar >> make_nvp("points", make_array(points, numPoints));
-            ar >> make_nvp("polygons", make_array(polygons, numPolygons));
+            ar & make_nvp("points", make_array(points, numPoints));
+            ar & make_nvp("polygons", make_array(polygons, numPolygons));
             ::new(convexPtr) hpp::fcl::Convex<PolygonT>(
                 true, points, numPoints, polygons, numPolygons);
         }
