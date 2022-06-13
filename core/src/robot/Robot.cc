@@ -1414,8 +1414,11 @@ namespace jiminy
         armatures.setZero();
         for (auto const & motor : motorsHolder_)
         {
-            int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            armatures[motorsVelocityIdx] = motor->getArmature();
+            if (motor->getIsInitialized())
+            {
+                int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
+                armatures[motorsVelocityIdx] = motor->getArmature();
+            }
         }
 
         return armatures;
