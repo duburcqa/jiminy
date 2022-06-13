@@ -1045,7 +1045,7 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Make sure the URDF file exists
-        if (!std::ifstream(urdfPath.c_str()).good())
+        if (!std::ifstream(urdfPath).good())
         {
             PRINT_ERROR("The URDF file does not exist. Impossible to load it.");
             return hresult_t::ERROR_BAD_INPUT;

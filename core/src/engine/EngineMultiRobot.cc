@@ -1508,9 +1508,7 @@ namespace jiminy
                 // Backup URDF file
                 std::string const telemetryUrdfFile = addCircumfix(
                     "urdf_file", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                std::ifstream urdfFileStream(system.robot->getUrdfPath());
-                std::string const urdfFileString((std::istreambuf_iterator<char_t>(urdfFileStream)),
-                                                 std::istreambuf_iterator<char_t>());
+                std::string const & urdfFileString = system.robot->getUrdfAsString();
                 telemetrySender_.registerConstant(telemetryUrdfFile, urdfFileString);
 
                 // Backup 'has_freeflyer' option
@@ -1545,7 +1543,7 @@ namespace jiminy
                    or because it cannot fit into memory (return code).
                    Persistent mode is automatically enforced if no URDF is associated
                    with the robot.*/
-                if (engineOptions_->telemetry.isPersistent || system.robot->getUrdfPath() == "")
+                if (engineOptions_->telemetry.isPersistent || urdfFileString.empty())
                 {
                     try
                     {
@@ -1561,9 +1559,9 @@ namespace jiminy
                     }
                     catch (std::exception const & e)
                     {
-                        std::string msg = "Failed to log the collision and/or visual model.\n"
+                        std::string msg = "Failed to log the collision and/or visual model. "
                                           "Make sure jiminy_py is imported first because pinocchio if raise from python.\n";
-                        if (system.robot->getUrdfPath() == "")
+                        if (urdfFileString.empty())
                         {
                             msg += "It will be impossible to replay log files because no URDF file is available as fallback.\n";
                         }

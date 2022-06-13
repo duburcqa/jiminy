@@ -39,8 +39,10 @@ for boost_python_lib in (
 # Check if all the boost python dependencies are already available on the
 # system. The system dependencies will be used instead of the one embedded with
 # jiminy if and only if all of them are available.
-if not is_boost_shared and any(_find_spec(module_name) is None
-        for module_name in ("eigenpy", "hppfcl", "pinocchio")):
+is_dependency_available = any(
+    _find_spec(module_name) is not None
+    for module_name in ("eigenpy", "hppfcl", "pinocchio"))
+if not is_boost_shared and is_dependency_available:
     _logging.warning(
         "Boost::Python not found on the system. Impossible to import "
         "system-wide jiminy dependencies.")
@@ -67,8 +69,9 @@ else:
 # For some reason, the serialization registration of pinocchio for hpp-fcl
 # `exposeFCL` is conflicting with the one implemented by jiminy. It is
 # necessary to import jiminy first to make it work.
-from .core import *  # noqa: F403
-from .core import __version__, __raw_version__
+with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
+    from .core import *  # noqa: F403
+    from .core import __version__, __raw_version__
 
 # Import other dependencies to hide boost python converter errors
 with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):

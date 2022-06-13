@@ -332,6 +332,7 @@ namespace jiminy
         bool_t const & getIsInitialized(void) const;
         std::string const & getName(void) const;
         std::string const & getUrdfPath(void) const;
+        std::string const & getUrdfAsString(void) const;
         std::vector<std::string> const & getMeshPackageDirs(void) const;
         bool_t const & getHasFreeflyer(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
@@ -412,6 +413,7 @@ namespace jiminy
     protected:
         bool_t isInitialized_;
         std::string urdfPath_;
+        std::string urdfData_;
         std::vector<std::string> meshPackageDirs_;
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;

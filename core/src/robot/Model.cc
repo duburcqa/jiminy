@@ -201,6 +201,7 @@ namespace jiminy
     contactForces_(),
     isInitialized_(false),
     urdfPath_(),
+    urdfData_(),
     meshPackageDirs_(),
     hasFreeflyer_(false),
     mdlOptionsHolder_(),
@@ -254,6 +255,7 @@ namespace jiminy
             joint_t rootJointType;
             getJointTypeFromIdx(pncModel, 1, rootJointType);  // It cannot fail.
             urdfPath_ = "";
+            urdfData_ = "";
             hasFreeflyer_ = (rootJointType == joint_t::FREE);
             meshPackageDirs_.clear();
 
@@ -365,6 +367,9 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             urdfPath_ = urdfPath;
+            std::ifstream urdfFileStream(urdfPath_);
+            urdfData_ = std::string((std::istreambuf_iterator<char_t>(urdfFileStream)),
+                                     std::istreambuf_iterator<char_t>());
             meshPackageDirs_ = meshPackageDirs;
         }
 
@@ -1759,6 +1764,11 @@ namespace jiminy
     std::string const & Model::getUrdfPath(void) const
     {
         return urdfPath_;
+    }
+
+    std::string const & Model::getUrdfAsString(void) const
+    {
+        return urdfData_;
     }
 
     std::vector<std::string> const & Model::getMeshPackageDirs(void) const

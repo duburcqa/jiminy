@@ -122,7 +122,7 @@ def read_log(fullpath: str,
         elif ".mesh_package_dirs" in key:
             const_dict[key] = list(filter(None, value.decode().split(";")))
         elif isinstance(value, bytes):
-            const_dict[key] = value.decode()
+            const_dict[key] = value.decode(errors='ignore')
 
     return data_dict, const_dict
 
@@ -299,6 +299,12 @@ def build_robot_from_log(
             ".".join((ENGINE_NAMESPACE, "has_freeflyer"))])
         mesh_package_dirs += log_constants.get(
             ".".join((ENGINE_NAMESPACE, "mesh_package_dirs")), [])
+
+        # Make sure urdf data is available
+        if len(urdf_data) <= 1:
+            raise RuntimeError(
+                "Impossible to build robot. The log is not persistent and the "
+                "robot was not associated with a valid URDF file.")
 
         with tempfile.NamedTemporaryFile() as f:
             # Create temporary urdf file
