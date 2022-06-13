@@ -13,6 +13,7 @@ BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Cylinder)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Halfspace)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Plane)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::Convex<hpp::fcl::Triangle>)
+
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::BVHModel<hpp::fcl::AABB>)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::BVHModel<hpp::fcl::OBB>)
 BOOST_CLASS_EXPORT_IMPLEMENT(hpp::fcl::BVHModel<hpp::fcl::RSS>)
@@ -41,7 +42,6 @@ namespace boost
         {
             // Casting from BVHModelTpl to BVHModelBase is not automatically registered because the
             // serialization is made through an intermediary access `internal::BVHModelAccessor<BV>`.
-            void_cast_register<hpp::fcl::BVHModel<hpp::fcl::OBBRSS>, hpp::fcl::BVHModelBase>();
             void_cast_register<hpp::fcl::BVHModel<hpp::fcl::AABB>, hpp::fcl::BVHModelBase>();
             void_cast_register<hpp::fcl::BVHModel<hpp::fcl::OBB>, hpp::fcl::BVHModelBase>();
             void_cast_register<hpp::fcl::BVHModel<hpp::fcl::RSS>, hpp::fcl::BVHModelBase>();

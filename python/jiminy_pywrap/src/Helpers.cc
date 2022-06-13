@@ -109,31 +109,6 @@ namespace python
         return bp::make_tuple(model, collisionModel);
     }
 
-    bp::tuple buildReducedModels(pinocchio::Model const & model,
-                                 pinocchio::GeometryModel const & collisionModel,
-                                 pinocchio::GeometryModel const & visualModel,
-                                 bp::list const & jointsToLockPy,
-                                 vectorN_t const & referenceConfiguration)
-    {
-        auto jointsToLock = convertFromPython<std::vector<pinocchio::JointIndex> >(jointsToLockPy);
-        pinocchio::Model reducedModel;
-        pinocchio::GeometryModel reducedCollisionModel, reducedVisualModel;
-        buildReducedModel(model,
-                          collisionModel,
-                          jointsToLock,
-                          referenceConfiguration,
-                          reducedModel,
-                          reducedCollisionModel);
-        reducedModel = pinocchio::Model();
-        buildReducedModel(model,
-                          visualModel,
-                          jointsToLock,
-                          referenceConfiguration,
-                          reducedModel,
-                          reducedVisualModel);
-        return bp::make_tuple(reducedModel, reducedCollisionModel, reducedVisualModel);
-    }
-
     configHolder_t loadConfigJsonString(std::string const & jsonString)
     {
         std::vector<uint8_t> jsonStringVec(jsonString.begin(), jsonString.end());
@@ -182,12 +157,6 @@ namespace python
                                    (bp::arg("model"), "dump"));
         bp::def("load_from_binary", &::jiminy::loadFromBinary<pinocchio::GeometryModel>,
                                    (bp::arg("model"), "dump"));
-
-        bp::def("build_reduced_models", &buildReducedModels,
-                                        (bp::arg("pinocchio_model"), "collision_model",
-                                         "visual_model",
-                                         "joint_locked_indices",
-                                         "configuration_ref"));
 
         bp::def("load_config_json_string", &loadConfigJsonString, (bp::arg("json_string")));
 

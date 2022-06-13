@@ -634,22 +634,8 @@ namespace python
             // Get constants
             for (auto const & [key, value] : logData.constants)
             {
-                if (endsWith(key, ".pinocchio_model"))
-                {
-                    pinocchio::Model pncModel;
-                    ::jiminy::loadFromBinary(pncModel, value);
-                    constants[key] = pncModel;
-                }
-                else if (endsWith(key, ".collision_model") || endsWith(key, ".visual_model"))
-                {
-                    pinocchio::GeometryModel geomModel;
-                    ::jiminy::loadFromBinary(geomModel, value);
-                    constants[key] = geomModel;
-                }
-                else
-                {
-                    constants[key] = value;
-                }
+                constants[key] = bp::object(bp::handle<>(
+                    PyBytes_FromStringAndSize(value.c_str(), value.size())));
             }
 
             // Get Global.Time

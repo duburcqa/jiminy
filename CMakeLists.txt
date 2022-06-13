@@ -38,8 +38,9 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 # Set the compilation flags.
 # Note that is is not possible `add_compile_options`
 # because it does not propagate to external projects.
+set(CMAKE_CXX_FLAGS "$ENV{CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS}")
 if(WIN32)
-    string(REGEX MATCH "/arch:[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS} $ENV{CMAKE_CXX_FLAGS}")
+    string(REGEX MATCH "/arch:[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
     if(CMAKE_CXX_ARCH MATCHES "AVX[0-9]+")
         # Eigen<3.4 relies on __FMA__ definition to detect if FMA is available,
         # which is not set automatically by MSVC.
@@ -52,15 +53,16 @@ if(WIN32)
         endif()
     endif()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g /Od")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /DEBUG:FULL /Zi /Od")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG /O2 /Ob3")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} /DEBUG:FULL /Zi")
 else()
-    string(REGEX MATCH "-march=[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS} $ENV{CMAKE_CXX_FLAGS}")
+    string(REGEX MATCH "-march=[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -O0 -ftemplate-backtrace-limit=0")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -Wfatal-errors -Werror")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g")
 endif()
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g")
 
 # Sub-projects
 add_subdirectory(soup)

@@ -11,7 +11,6 @@
 #include "pinocchio/multibody/visitor.hpp"                 // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/joint/joint-model-base.hpp"  // `pinocchio::JointModelBase`
 #include "pinocchio/algorithm/joint-configuration.hpp"     // `pinocchio::isNormalized`
-#include "pinocchio/algorithm/model.hpp"                   // `pinocchio::buildReducedModel`
 
 #include "hpp/fcl/mesh_loader/loader.h"
 #include "hpp/fcl/BVH/BVH_model.h"
@@ -812,9 +811,14 @@ namespace jiminy
         Inertia const childBodyInertiaInv(- childBodyInertia.mass(),
                                           childBodyInertia.lever(),
                                           Symmetric3(- childBodyInertia.inertia().data()));
+        if (childBodyInertia.mass() < EPS)
+        {
+            PRINT_ERROR("Child body mass must be larger than 0.");
+            return hresult_t::ERROR_GENERIC;
+        }
         if (childBodyInertia.mass() - modelInOut.inertias[parentJointIdx].mass() > 0.0)
         {
-            PRINT_ERROR("Frame inertia too large to be subtracted to joint inertia.");
+            PRINT_ERROR("Child body mass too large to be subtracted to joint mass.");
             return hresult_t::ERROR_GENERIC;
         }
         modelInOut.inertias[parentJointIdx] += childBodyInertiaInv;
@@ -1041,7 +1045,7 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Make sure the URDF file exists
-        if (!std::ifstream(urdfPath.c_str()).good())
+        if (!std::ifstream(urdfPath).good())
         {
             PRINT_ERROR("The URDF file does not exist. Impossible to load it.");
             return hresult_t::ERROR_BAD_INPUT;
@@ -1095,27 +1099,5 @@ namespace jiminy
         }
 
         return returnCode;
-    }
-
-    void buildReducedModel(pinocchio::Model const & inputModel,
-                           pinocchio::GeometryModel const & inputGeomModel,
-                           std::vector<pinocchio::JointIndex> const & listOfJointsToLock,
-                           vectorN_t const & referenceConfiguration,
-                           pinocchio::Model & reducedModel,
-                           pinocchio::GeometryModel & reducedGeomModel)
-    {
-        // Fix `parentFrame` not updated for reduced geometry model in Pinocchio < 2.6.0
-        pinocchio::buildReducedModel(inputModel,
-                                     inputGeomModel,
-                                     listOfJointsToLock,
-                                     referenceConfiguration,
-                                     reducedModel,
-                                     reducedGeomModel);
-        for (auto const & geom : inputGeomModel.geometryObjects)
-        {
-            geomIndex_t reducedGeomIdx = reducedGeomModel.getGeometryId(geom.name);
-            auto & reducedGeom = reducedGeomModel.geometryObjects[reducedGeomIdx];
-            reducedGeom.parentFrame = reducedModel.getBodyId(inputModel.frames[geom.parentFrame].name);
-        }
     }
 }

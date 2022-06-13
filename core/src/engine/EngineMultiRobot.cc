@@ -1508,9 +1508,7 @@ namespace jiminy
                 // Backup URDF file
                 std::string const telemetryUrdfFile = addCircumfix(
                     "urdf_file", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                std::ifstream urdfFileStream(system.robot->getUrdfPath());
-                std::string const urdfFileString((std::istreambuf_iterator<char_t>(urdfFileStream)),
-                                                 std::istreambuf_iterator<char_t>());
+                std::string const & urdfFileString = system.robot->getUrdfAsString();
                 telemetrySender_.registerConstant(telemetryUrdfFile, urdfFileString);
 
                 // Backup 'has_freeflyer' option
@@ -1534,33 +1532,41 @@ namespace jiminy
                 }
                 telemetrySender_.registerConstant(telemetryMeshPackageDirs, meshPackageDirsString);
 
-                // Backup the Pinocchio Model
-                std::string telemetryModelName = addCircumfix(
+                // Backup the true and theoretical Pinocchio::Model
+                std::string key = addCircumfix(
                     "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                std::string dump = saveToBinary(system.robot->pncModel_);
-                telemetrySender_.registerConstant(telemetryModelName, dump);
+                std::string value = saveToBinary(system.robot->pncModel_);
+                telemetrySender_.registerConstant(key, value);
 
                 /* Backup the Pinocchio GeometryModel for collisions and visuals.
                    It may fail because of missing serialization methods for convex,
-                   or because it cannot fit into memory (return code). */
-                if (engineOptions_->telemetry.isPersistent)
+                   or because it cannot fit into memory (return code).
+                   Persistent mode is automatically enforced if no URDF is associated
+                   with the robot.*/
+                if (engineOptions_->telemetry.isPersistent || urdfFileString.empty())
                 {
                     try
                     {
-                        telemetryModelName = addCircumfix(
+                        key = addCircumfix(
                             "collision_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                        dump = saveToBinary(system.robot->collisionModel_);
-                        telemetrySender_.registerConstant(telemetryModelName, dump);
+                        value = saveToBinary(system.robot->collisionModel_);
+                        telemetrySender_.registerConstant(key, value);
 
-                        telemetryModelName = addCircumfix(
+                        key = addCircumfix(
                             "visual_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                        dump = saveToBinary(system.robot->visualModel_);
-                        telemetrySender_.registerConstant(telemetryModelName, dump);
+                        value = saveToBinary(system.robot->visualModel_);
+                        telemetrySender_.registerConstant(key, value);
                     }
                     catch (std::exception const & e)
                     {
-                        PRINT_ERROR("Impossible to log collision and visual model.\n"
-                                    "Raised from exception: ", e.what());
+                        std::string msg = "Failed to log the collision and/or visual model. "
+                                          "Make sure jiminy_py is imported first because pinocchio if raise from python.\n";
+                        if (urdfFileString.empty())
+                        {
+                            msg += "It will be impossible to replay log files because no URDF file is available as fallback.\n";
+                        }
+                        msg += "Raised from exception: ";
+                        PRINT_ERROR(msg, e.what());
                     }
                 }
             }
@@ -2917,7 +2923,7 @@ namespace jiminy
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
         pinocchio::GeometryModel const & geomModel = system.robot->collisionModel_;
-        pinocchio::GeometryData & geomData = *system.robot->collisionData_;
+        pinocchio::GeometryData & geomData = system.robot->collisionData_;
 
         // Update forward kinematics
         pinocchio::forwardKinematics(model, data, q, v, a);
@@ -2959,8 +2965,8 @@ namespace jiminy
             }
         }
 
-        /* Update collision informations (selectively, only for geometries involved
-           in at least one collision pair). */
+        /* Update collision information selectively,
+           ie only for geometries involved in at least one collision pair. */
         std::unordered_set<geomIndex_t> activeGeometriesIdx;
         for (auto const & pair : geomModel.collisionPairs)
         {
@@ -2996,7 +3002,7 @@ namespace jiminy
         jointIndex_t const & parentJointIdx = system.robot->collisionModel_.geometryObjects[geometryIdx].parentJoint;
 
         // Extract collision and distance results
-        hpp::fcl::CollisionResult const & collisionResult = system.robot->collisionData_->collisionResults[collisionPairIdx];
+        hpp::fcl::CollisionResult const & collisionResult = system.robot->collisionData_.collisionResults[collisionPairIdx];
 
         fextLocal.setZero();
 
