@@ -1,5 +1,9 @@
 #include "jiminy/core/io/Serialization.h"
 
+#define HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
+#include "hpp/fcl/serialization/BVH_model.h"  // `serialize<hpp::fcl::BVHModel>`
+#undef HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
+
 #ifdef _MSC_VER  /* Microsoft Visual C++ -- warning level 3 */
 #pragma warning(disable : 4267)  /* conversion from 'size_t' to 'unsigned int' */
 #endif

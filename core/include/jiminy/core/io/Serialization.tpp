@@ -8,10 +8,9 @@
 #include "pinocchio/serialization/model.hpp"     // `serialize<pinocchio::Model>`
 #include "pinocchio/serialization/geometry.hpp"  // `serialize<pinocchio::CollisionPair>`
 
-#include "hpp/fcl/shape/convex.h"                    // `serialize<hpp::fcl::Convex>
+#include "hpp/fcl/shape/convex.h"                    // `serialize<hpp::fcl::Convex>`
 #define HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
 #include "hpp/fcl/serialization/geometric_shapes.h"  // `serialize<hpp::fcl::ShapeBase>`
-#include "hpp/fcl/serialization/BVH_model.h"         // `serialize<hpp::fcl::BVHModel>`
 #undef HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
 
 #include <boost/archive/binary_oarchive.hpp>

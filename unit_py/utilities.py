@@ -15,8 +15,7 @@ from pinocchio import neutral
 
 def load_urdf_default(urdf_name: str,
                       motor_names: Sequence[str] = (),
-                      has_freeflyer: bool = False,
-                      use_temporay_urdf: bool = False) -> jiminy.Robot:
+                      has_freeflyer: bool = False) -> jiminy.Robot:
     """
     @brief Create a jiminy.Robot from a URDF with several simplifying
            hypothesis.
@@ -32,29 +31,15 @@ def load_urdf_default(urdf_name: str,
     @param motor_names  Name of the motors.
     @param has_freeflyer  Set the use of a freeflyer joint.
                           Optional, no free-flyer by default.
-    @param use_temporay_urdf  Create a temporary URDF before initialization
-                              the robot.
     """
     # Get the urdf path and mesh search directory
     current_dir = os.path.dirname(os.path.realpath(__file__))
     data_root_dir = os.path.join(current_dir, "data")
     urdf_path = os.path.join(data_root_dir, urdf_name)
 
-    # Create temporary urdf if requested
-    if use_temporay_urdf:
-        fd, tmp_path = tempfile.mkstemp(
-            prefix=f"{os.path.splitext(urdf_name)[0]}_", suffix=".urdf")
-        os.close(fd)
-        shutil.copy2(urdf_path, tmp_path)
-        urdf_path = tmp_path
-
     # Create and initialize the robot
     robot = jiminy.Robot()
     robot.initialize(urdf_path, has_freeflyer, [data_root_dir])
-
-    # Remove temporary file
-    if use_temporay_urdf:
-        os.remove(urdf_path)
 
     # Add motors to the robot
     for joint_name in motor_names:
