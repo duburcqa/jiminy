@@ -83,7 +83,10 @@ if interactive_mode() >= 2:
             # to only handle incoming messages. It reduces the computation from
             # about 15us to 15ns.
             # https://github.com/zeromq/pyzmq/blob/e424f83ceb0856204c96b1abac93a1cfe205df4a/zmq/eventloop/zmqstream.py#L313
-            shell_stream = self.__kernel.shell_streams[0]
+            if ipykernel_version_major > 5:
+                shell_stream = self.__kernel.shell_stream
+            else:
+                shell_stream = self.__kernel.shell_streams[0]
             shell_stream.poller.register(shell_stream.socket, zmq.POLLIN)
             events = shell_stream.poller.poll(0)
             while events:
@@ -124,7 +127,7 @@ if interactive_mode() >= 2:
                     # Extract comm type and handler
                     comm_type = msg['header']['msg_type']
                     comm_handler = getattr(
-                        self.__kernel.comm_manager, comm_type)
+                        self.__kernel.comm_manager, comm_type, None)
 
                     # Extract message content
                     content = self.__kernel.session.unpack(msg['content'])

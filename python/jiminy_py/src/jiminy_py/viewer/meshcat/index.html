@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<meta charset=utf-8>
-		<title>MeshCat</title>
-		<link rel="icon" href="data:;base64,iVBORw0KGgo=">
-	</head>
-	<body>
+    <head>
+        <meta charset=utf-8>
+        <title>MeshCat</title>
+        <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    </head>
+    <body>
         <div id="widgets"></div>
         <div id="meshcat-pane"></div>
 
@@ -18,7 +18,8 @@
             MeshCat.THREE.Cache.enabled = true;
 
             // Instantiate a new Meshcat viewer
-            var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
+            dom_element = document.getElementById("meshcat-pane");
+            var viewer = new MeshCat.Viewer(dom_element, false);
 
             // Monkey-patch 'set_object_from_json' and 'handle_command'
             // to add support of custom 'ready' command, which is used to
@@ -204,6 +205,20 @@
                 console.info("not connected to MeshCat server: ", e);
             }
 
+            // Define closing callback
+            close_viewer = function() {
+                // Only close the connection if it is still open.
+                // Note that it is still possible that "on_close" method has
+                // not been triggered and that the connection is no longer
+                // available.
+                if (viewer.connection !== null)
+                {
+                    console.log("closing connection...");
+                    viewer.connection.close();
+                    viewer.connection = null;
+                }
+            }
+
             // Replace the mesh grid by tiles. The paving size is 1m by 1m.
             var segments = 20;
             var cmap = [new MeshCat.THREE.Color(0x222233), new MeshCat.THREE.Color(0xf2f2fe)];
@@ -268,16 +283,21 @@
             }
             start_animate();
 
+            // Register event to close connection if "meshcat-pane" gets removed.
+            // Note that it does not work inside a iframe.
+            var observer = new MutationObserver(function(mutations) {
+                if (!document.body.contains(dom_element)) {
+                    close_viewer();
+                }
+            });
+            observer.observe(document.body, {childList: true, subtree: true});
+
             window.onunload = function(event) {
                 // Only close the connection if it is still open.
                 // Note that it is still possible that "on_close" method has
                 // not been triggered and that the connection is no longer
                 // available.
-                if (viewer.connection !== null)
-                {
-                    console.log("closing connection...");
-                    viewer.connection.close();
-                }
+                close_viewer();
                 return false;
             }
         </script>
@@ -302,5 +322,5 @@
             }
         </style>
         <script id="embedded-json"></script>
-	</body>
+    </body>
 </html>
