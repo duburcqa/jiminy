@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 import psutil
 import signal
 import asyncio
@@ -20,7 +19,7 @@ from meshcat.servers.zmqserver import (
 
 
 DEFAULT_COMM_PORT = 6500
-WAIT_COM_TIMEOUT = 3.0  # in seconds
+WAIT_COM_TIMEOUT = 5.0  # in seconds
 
 
 # ================ Monkey-patch =======================

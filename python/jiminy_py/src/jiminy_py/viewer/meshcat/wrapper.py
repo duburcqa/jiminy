@@ -40,7 +40,7 @@ if interactive_mode() >= 2:
         logging.warning(
             "ipykernel version 7 detected. The viewer works optimally with "
             " ipykernel 5 or 6. Revert to old version in case of issues.")
-    else:
+    elif ipykernel_version_major < 5:
         logging.warning(
             "Old ipykernel version < 5.0 detected. Please do not schedule "
             "other cells for execution while the viewer is busy otherwise "

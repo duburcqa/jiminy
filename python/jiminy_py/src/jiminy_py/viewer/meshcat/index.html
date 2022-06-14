@@ -72,11 +72,13 @@
             // websocket in standalone browser or though kernel communication
             // in notebooks.
             try {
-                // Set externally by python in interactive mode
+                // May be overwritten externally by python in interactive mode
                 var ws_path = undefined;
 
                 if (typeof google !== 'undefined') {
+                    console.log("google colab detected.");
                     (async () => {
+                        console.log("Trying to connect...");
                         viewer.connection = await google.colab.kernel.comms.open("meshcat", "meshcat:open");
                         console.log("connection to Google Colab kernel:", viewer.connection);
 
@@ -89,6 +91,7 @@
                     })();
                 }
                 else if (typeof window.parent.Jupyter !== 'undefined') {
+                    console.log("Jupyter-notebook detected.");
                     viewer.connection = window.parent.Jupyter.notebook.kernel.comm_manager.new_comm("meshcat", "meshcat:open");
                     console.log("connection to Jupyter kernel:", viewer.connection);
                     viewer.connection.on_msg(function(message) {
@@ -100,6 +103,7 @@
                     });
                 }
                 else if (ws_path !== undefined) {
+                    console.log("Unknown platform (jupyter-lab / vscode...)");
                     // Connect to kernel socket manually if necessary, namely for
                     // VSCode notebooks and jupyterlab.
                     const ws_url = "ws" + window.parent.location.origin.substring(4) + ws_path;
@@ -216,28 +220,16 @@
             setInterval(() => {
                 const current_time = Date.now();
                 const elapsed_time = current_time - last_time;
-                if (elapsed_time > 800)
+                if (elapsed_time > 1000)
                 {
-                    console.info("I'm alive. Delta: ", elapsed_time);
-                    viewer.connection.send("meshcat:watchdog");
+                    if (viewer.connection !== undefined && viewer.connection !== null)
+                    {
+                        console.info("I'm alive. Delta: ", elapsed_time);
+                        viewer.connection.send("meshcat:watchdog");
+                    }
                     last_time = current_time;
                 }
             }, 200);
-
-            // Define closing callback
-            close_viewer = function() {
-                // Only close the connection if it is still open.
-                // Note that it is still possible that "on_close" method has
-                // not been triggered and that the connection is no longer
-                // available.
-                if (viewer.connection !== null)
-                {
-                    console.log("closing connection...");
-                    viewer.connection.close();
-                } else {
-                    console.log("closing already closed.");
-                }
-            }
 
             // Replace the mesh grid by tiles. The paving size is 1m by 1m.
             var segments = 20;
@@ -303,21 +295,17 @@
             }
             start_animate();
 
-            // Register event to close connection if "meshcat-pane" gets removed.
-            // Note that it does not work inside a iframe.
-            var observer = new MutationObserver(function(mutations) {
-                if (!document.body.contains(dom_element)) {
-                    close_viewer();
-                }
-            });
-            observer.observe(document.body, {childList: true, subtree: true});
-
             window.onunload = function(event) {
                 // Only close the connection if it is still open.
                 // Note that it is still possible that "on_close" method has
                 // not been triggered and that the connection is no longer
                 // available.
-                close_viewer();
+                if (viewer.connection !== undefined && viewer.connection !== null) {
+                    console.log("closing connection...");
+                    viewer.connection.close();
+                } else {
+                    console.log("closing already closed.");
+                }
                 return false;
             }
         </script>

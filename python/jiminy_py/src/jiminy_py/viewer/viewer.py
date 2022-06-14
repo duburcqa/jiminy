@@ -815,8 +815,7 @@ class Viewer:
                     "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
                 if interactive_mode() == 2:
-                    # Embed HTML in iframe on Jupyter, since it is not
-                    # possible to load HTML/Javascript content directly.
+                    # Isolate HTML in iframe on Jupyter
                     html_content = html_content.replace(
                         "\"", "&quot;").replace("'", "&apos;")
                     display(HTML(f"""
@@ -830,7 +829,7 @@ class Viewer:
                         </div>
                     """))
                 else:
-                    # Adjust the initial window size
+                    # Impossible to isolate HTML to get access to google colab
                     html_content = html_content.replace(
                         '<div id="meshcat-pane">', """
                         <div id="meshcat-pane" class="resizable" style="
