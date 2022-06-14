@@ -36,10 +36,10 @@ if interactive_mode() >= 2:
     ipykernel_version_major = int(ipykernel.__version__[0])
     if ipykernel_version_major == 5:
         from ipykernel.kernelbase import SHELL_PRIORITY
-    elif ipykernel_version_major > 5:
+    elif ipykernel_version_major > 6:
         logging.warning(
-            "ipykernel version 6.X.Y detected. The viewer works optimally "
-            "with ipykernel 5.X.Y. Revert to old version in case of issues.")
+            "ipykernel version 7 detected. The viewer works optimally with "
+            " ipykernel 5 or 6. Revert to old version in case of issues.")
     else:
         logging.warning(
             "Old ipykernel version < 5.0 detected. Please do not schedule "
@@ -245,7 +245,11 @@ class CommManager:
             self.__thread = None
 
     def __forward_to_ipykernel(self, frames: Sequence[bytes]) -> None:
-        comm_id, cmd = frames  # There must be always two parts each messages
+        try:
+            # There must be always two parts each messages, but who knows...
+            comm_id, cmd = frames
+        except ValueError:
+            return
         comm_id = comm_id.decode()
         try:
             comm = self.__kernel.comm_manager.comms[comm_id]

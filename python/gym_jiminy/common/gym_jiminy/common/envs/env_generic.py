@@ -566,8 +566,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # method BEFORE calling `reset` method because otherwise it would
         # cause a segfault. In practice, `BaseJiminyObserverController` must be
         # used because it enables to define observer and controller handles
-        # seperately, while dealing with all the logics internally. This extra
-        # layer of indirection makes it computionally less efficient than
+        # separately, while dealing with all the logics internally. This extra
+        # layer of indirection makes it computationally less efficient than
         # `jiminy.ControllerFunctor` but it is a small price to pay.
         controller = BaseJiminyObserverController()
         controller.initialize(self.robot)
@@ -681,7 +681,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
             self.simulator.viewer._setup(self.robot)
-            self.render(mode='rgb_array')
+            self.simulator.viewer.refresh()
 
         return obs
 
