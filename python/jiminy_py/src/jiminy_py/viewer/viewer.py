@@ -86,6 +86,8 @@ logger.addFilter(_DuplicateFilter())
 def check_display_available() -> bool:
     """Check if graphical server is available for onscreen rendering.
     """
+    if interactive_mode() >= 2:
+        return True
     if multiprocessing.current_process().daemon:
         return False
     if not (sys.platform.startswith("win") or os.environ.get("DISPLAY")):
