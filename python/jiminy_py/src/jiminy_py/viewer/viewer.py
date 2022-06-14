@@ -2,6 +2,7 @@ import os
 import re
 import io
 import sys
+import uuid
 import time
 import math
 import shutil
@@ -821,8 +822,8 @@ class Viewer:
                                 height: 400px; width: 100%;
                                 overflow-x: auto; overflow-y: hidden;
                                 resize: both">
-                            <iframe srcdoc="{html_content}" style="
-                                width: 100%; height: 100%; border: none;">
+                            <iframe srcdoc="{html_content}"
+                                style="width: 100%; height: 100%; border: none;">
                             </iframe>
                         </div>
                     """))
@@ -835,6 +836,13 @@ class Viewer:
                                 overflow-x: auto; overflow-y: hidden;
                                 resize: both">
                     """)
+
+                    # Make meshcat dom element unique to avoid conflict if
+                    # multiple view are displayed.
+                    html_content = html_content.replace(
+                        "meshcat-pane", str(uuid.uuid1()))
+
+                    # Display the content directly inside the main window
                     display(HTML(html_content))
             else:
                 try:

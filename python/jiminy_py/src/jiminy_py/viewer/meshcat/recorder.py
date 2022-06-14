@@ -21,7 +21,7 @@ PYPPETEER_STARTUP_TIMEOUT = 300.0  # 5min to download chrome (~150Mo)
 PYPPETEER_REQUEST_TIMEOUT = 30.0
 
 
-if interactive_mode() == 2:
+if interactive_mode() == 3:
     # Must overload 'chromium_executable' for Google Colaboratory to
     # the native browser instead: "/usr/lib/chromium-browser/chromium-browser".
     # Note that the downside is that chrome must be installed manually.

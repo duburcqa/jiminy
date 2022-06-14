@@ -15,23 +15,23 @@ from sysconfig import get_config_var as _get_config_var
 # the same boost python runtime is shared between every modules, even if linked
 # versions are different. It is necessary to share the same boost python
 # registers, required for inter-operability between modules.
-pyver_suffix = "".join(map(str, _sys.version_info[:2]))
+_pyver_suffix = "".join(map(str, _sys.version_info[:2]))
 if _sys.platform.startswith('win'):
-    lib_prefix = ""
-    lib_suffix = ".dll"
+    _lib_prefix = ""
+    _lib_suffix = ".dll"
 elif _sys.platform == 'darwin':
-    lib_prefix = "lib"
-    lib_suffix = ".dylib"
+    _lib_prefix = "lib"
+    _lib_suffix = ".dylib"
 else:
-    lib_prefix = "lib"
-    lib_suffix = _get_config_var('SHLIB_SUFFIX')
-is_boost_shared = False
-for boost_python_lib in (
-        f"{lib_prefix}boost_python{pyver_suffix}{lib_suffix}",
-        f"{lib_prefix}boost_python3-py{pyver_suffix}{lib_suffix}"):
+    _lib_prefix = "lib"
+    _lib_suffix = _get_config_var('SHLIB_SUFFIX')
+_is_boost_shared = False
+for _boost_python_lib in (
+        f"{_lib_prefix}boost_python{_pyver_suffix}{_lib_suffix}",
+        f"{_lib_prefix}boost_python3-py{_pyver_suffix}{_lib_suffix}"):
     try:
-        _ctypes.CDLL(boost_python_lib, _ctypes.RTLD_GLOBAL)
-        is_boost_shared = True
+        _ctypes.CDLL(_boost_python_lib, _ctypes.RTLD_GLOBAL)
+        _is_boost_shared = True
         break
     except OSError:
         pass
@@ -39,10 +39,10 @@ for boost_python_lib in (
 # Check if all the boost python dependencies are already available on the
 # system. The system dependencies will be used instead of the one embedded with
 # jiminy if and only if all of them are available.
-is_dependency_available = any(
-    _find_spec(module_name) is not None
-    for module_name in ("eigenpy", "hppfcl", "pinocchio"))
-if not is_boost_shared and is_dependency_available:
+_is_dependency_available = any(
+    _find_spec(_module_name) is not None
+    for _module_name in ("eigenpy", "hppfcl", "pinocchio"))
+if not _is_boost_shared and _is_dependency_available:
     _logging.warning(
         "Boost::Python not found on the system. Impossible to import "
         "system-wide jiminy dependencies.")
@@ -57,7 +57,7 @@ if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
             _os.add_dll_directory(path)
 
 # Import eigenpy first since jiminy depends on it
-if is_boost_shared and _find_spec("eigenpy") is not None:
+if _is_boost_shared and _find_spec("eigenpy") is not None:
     # Module already available on the system
     _import_module("eigenpy")
 else:
@@ -74,22 +74,23 @@ with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
 
 # Import other dependencies to hide boost python converter errors
 with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
-    for module_name in ("hppfcl", "pinocchio"):
-        if is_boost_shared and _find_spec(module_name) is not None:
-            _import_module(module_name)
+    for _module_name in ("hppfcl", "pinocchio"):
+        if _is_boost_shared and _find_spec(_module_name) is not None:
+            _import_module(_module_name)
         else:
-            _module = _import_module(".".join((__name__, module_name)))
-            _sys.modules[module_name] = _module
+            _module = _import_module(".".join((__name__, _module_name)))
+            _sys.modules[_module_name] = _module
 
 # Register pinocchio_pywrap and submodules to avoid importing bindings twice,
 # which messes up with boost python converters.
-submodules = _inspect.getmembers(
+_submodules = _inspect.getmembers(
     _sys.modules["pinocchio"].pinocchio_pywrap, _inspect.ismodule)
-for module_name, module_obj in submodules:
-    module_real_path = ".".join(('pinocchio', 'pinocchio_pywrap', module_name))
-    _sys.modules[module_real_path] = module_obj
-    module_sym_path = ".".join(('pinocchio', module_name))
-    _sys.modules[module_sym_path] = module_obj
+for _module_name, _module_obj in _submodules:
+    _module_real_path = ".".join((
+        'pinocchio', 'pinocchio_pywrap', _module_name))
+    _sys.modules[_module_real_path] = _module_obj
+    _module_sym_path = ".".join(('pinocchio', _module_name))
+    _sys.modules[_module_sym_path] = _module_obj
 
 # Update core submodule to appear as member of current module
 __all__ = []
