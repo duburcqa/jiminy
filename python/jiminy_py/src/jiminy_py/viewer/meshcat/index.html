@@ -215,7 +215,8 @@
                 {
                     console.log("closing connection...");
                     viewer.connection.close();
-                    viewer.connection = null;
+                } else {
+                    console.log("closing already closed.");
                 }
             }
 

@@ -70,7 +70,8 @@ if interactive_mode() >= 2:
                 self.__kernel.pre_handler_hook = lambda: None
             self.qsize_old = 0
 
-        def __call__(self, unsafe: bool = False) -> None:
+        def __call__(self,
+                     unsafe: bool = False) -> None:
             """Check once if there is pending comm related event in the shell
             stream message priority queue.
 
@@ -87,6 +88,7 @@ if interactive_mode() >= 2:
                 shell_stream = self.__kernel.shell_stream
             else:
                 shell_stream = self.__kernel.shell_streams[0]
+            shell_stream._flushed = False
             shell_stream.poller.register(shell_stream.socket, zmq.POLLIN)
             events = shell_stream.poller.poll(0)
             while events:
@@ -96,6 +98,9 @@ if interactive_mode() >= 2:
                     shell_stream.poller.register(
                         shell_stream.socket, zmq.POLLIN)
                     events = shell_stream.poller.poll(0)
+            shell_stream._flushed = True
+            shell_stream.io_loop.add_callback(shell_stream._finish_flush)
+            shell_stream._rebuild_io_state()
 
             if self.__old_api:
                 return  # The messages have already been processed...
@@ -143,7 +148,7 @@ if interactive_mode() >= 2:
                         continue
                     if isinstance(data, str) and data.startswith('meshcat:'):
                         # Comm message related to meshcat. Processing it right
-                        # now and moving to the next message without puting it
+                        # now and moving to the next message without putting it
                         # back into the queue.
                         msg['content'] = content
                         comm_handler(None, None, msg)
@@ -175,7 +180,7 @@ if interactive_mode() >= 2:
     _send_orig = meshcat.visualizer.ViewerWindow.send
     def _send(self, command: Any) -> None:  # noqa
         _send_orig(self, command)
-        # Check on new comm related messages. Unsafe in enabled to avoid
+        # Check on new comm related messages. Unsafe is enabled to avoid
         # potentially significant overhead. At this point several safe should
         # have been executed, so it is much less likely than comm messages
         # will slip through the net. Besides, missing messages at this point

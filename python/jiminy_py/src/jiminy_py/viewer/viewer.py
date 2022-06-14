@@ -812,22 +812,38 @@ class Viewer:
                 html_content = html_content.replace(
                     "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
-                # Adjust the initial window size
-                html_content = html_content.replace(
-                    '<div id="meshcat-pane">', """
-                    <div id="meshcat-pane" class="resizable" style="
-                            height: 400px; width: 100%;
-                            overflow-x: auto; overflow-y: hidden;
-                            resize: both">
-                """)
+                if interactive_mode() == 2:
+                    # Embed HTML in iframe on Jupyter, since it is not
+                    # possible to load HTML/Javascript content directly.
+                    html_content = html_content.replace(
+                        "\"", "&quot;").replace("'", "&apos;")
+                    display(HTML(f"""
+                        <div class="resizable" style="
+                                height: 400px; width: 100%;
+                                overflow-x: auto; overflow-y: hidden;
+                                resize: both">
+                            <iframe srcdoc="{html_content}"
+                                style="width: 100%; height: 100%; border: none;">
+                            </iframe>
+                        </div>
+                    """))
+                else:
+                    # Adjust the initial window size
+                    html_content = html_content.replace(
+                        '<div id="meshcat-pane">', """
+                        <div id="meshcat-pane" class="resizable" style="
+                                height: 400px; width: 100%;
+                                overflow-x: auto; overflow-y: hidden;
+                                resize: both">
+                    """)
 
-                # Make meshcat dom element unique to avoid conflict if
-                # multiple view are displayed.
-                html_content = html_content.replace(
-                    "meshcat-pane", str(uuid.uuid1()))
+                    # Make meshcat dom element unique to avoid conflict if
+                    # multiple view are displayed.
+                    html_content = html_content.replace(
+                        "meshcat-pane", str(uuid.uuid1()))
 
-                # Display the content directly inside the main window
-                display(HTML(html_content))
+                    # Display the content directly inside the main window
+                    display(HTML(html_content))
             else:
                 try:
                     webbrowser.get()
