@@ -822,8 +822,8 @@ class Viewer:
                                 height: 400px; width: 100%;
                                 overflow-x: auto; overflow-y: hidden;
                                 resize: both">
-                            <iframe srcdoc="{html_content}"
-                                style="width: 100%; height: 100%; border: none;">
+                            <iframe srcdoc="{html_content}" style="
+                                width: 100%; height: 100%; border: none;">
                             </iframe>
                         </div>
                     """))
@@ -868,8 +868,7 @@ class Viewer:
                 comm_manager = Viewer._backend_obj.comm_manager
                 if comm_manager is not None:
                     ack = Viewer._backend_obj.wait(require_client=False)
-                    Viewer._has_gui = any(
-                        msg == "ok" for msg in ack.split(","))
+                    Viewer._has_gui = any(msg for msg in ack.split(","))
             return Viewer._has_gui
         return False
 

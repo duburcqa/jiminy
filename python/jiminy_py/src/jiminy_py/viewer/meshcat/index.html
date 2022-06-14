@@ -19,6 +19,7 @@
 
             // Instantiate a new Meshcat viewer
             dom_element = document.getElementById("meshcat-pane");
+            console.log(dom_element);
             var viewer = new MeshCat.Viewer(dom_element, false);
 
             // Monkey-patch 'set_object_from_json' and 'handle_command'
@@ -56,6 +57,7 @@
                     }
                 }
                 if (cmd.type == "ready") {
+                    console.log("Acknowledge to ready request.");
                     viewer.connection.send("meshcat:ok");
                 } else if (cmd.type == "legend") {
                     updateLegend(cmd);
@@ -173,6 +175,7 @@
                     // Define event handler
                     viewer.connection.onopen = function(event) {
                         console.log("connection to generic ipykernel:", viewer.connection);
+                        console.log("comm id:", comm_id);
                         viewer.connection.send("meshcat:open", "comm_open");
                     };
                     viewer.connection.onmessage = async function (event) {
@@ -204,6 +207,22 @@
             } catch (e) {
                 console.info("not connected to MeshCat server: ", e);
             }
+
+            // Notify the kernel periodically that everything is fine.
+            // There is no priority queue, so it is no guaranteed to match the satisfy
+            // timing to requested are being processed for a while, such as loading
+            // meshes or texture.
+            var last_time = Date.now();
+            setInterval(() => {
+                const current_time = Date.now();
+                const elapsed_time = current_time - last_time;
+                if (elapsed_time > 800)
+                {
+                    console.info("I'm alive. Delta: ", elapsed_time);
+                    viewer.connection.send("meshcat:watchdog");
+                    last_time = current_time;
+                }
+            }, 200);
 
             // Define closing callback
             close_viewer = function() {
