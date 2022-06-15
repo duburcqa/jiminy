@@ -86,6 +86,8 @@ logger.addFilter(_DuplicateFilter())
 def check_display_available() -> bool:
     """Check if graphical server is available for onscreen rendering.
     """
+    if interactive_mode() >= 2:
+        return True
     if multiprocessing.current_process().daemon:
         return False
     if not (sys.platform.startswith("win") or os.environ.get("DISPLAY")):
@@ -813,8 +815,7 @@ class Viewer:
                     "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
                 if interactive_mode() == 2:
-                    # Embed HTML in iframe on Jupyter, since it is not
-                    # possible to load HTML/Javascript content directly.
+                    # Isolate HTML in iframe on Jupyter
                     html_content = html_content.replace(
                         "\"", "&quot;").replace("'", "&apos;")
                     display(HTML(f"""
@@ -822,13 +823,13 @@ class Viewer:
                                 height: 400px; width: 100%;
                                 overflow-x: auto; overflow-y: hidden;
                                 resize: both">
-                            <iframe srcdoc="{html_content}"
-                                style="width: 100%; height: 100%; border: none;">
+                            <iframe srcdoc="{html_content}" style="
+                                width: 100%; height: 100%; border: none;">
                             </iframe>
                         </div>
                     """))
                 else:
-                    # Adjust the initial window size
+                    # Impossible to isolate HTML to get access to google colab
                     html_content = html_content.replace(
                         '<div id="meshcat-pane">', """
                         <div id="meshcat-pane" class="resizable" style="
@@ -868,8 +869,7 @@ class Viewer:
                 comm_manager = Viewer._backend_obj.comm_manager
                 if comm_manager is not None:
                     ack = Viewer._backend_obj.wait(require_client=False)
-                    Viewer._has_gui = any(
-                        msg == "ok" for msg in ack.split(","))
+                    Viewer._has_gui = any(msg for msg in ack.split(","))
             return Viewer._has_gui
         return False
 

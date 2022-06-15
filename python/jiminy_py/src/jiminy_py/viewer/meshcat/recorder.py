@@ -18,7 +18,7 @@ from .utilities import interactive_mode
 
 
 PYPPETEER_STARTUP_TIMEOUT = 300.0  # 5min to download chrome (~150Mo)
-PYPPETEER_REQUEST_TIMEOUT = 30.0
+PYPPETEER_REQUEST_TIMEOUT = 40.0
 
 
 if interactive_mode() == 3:
