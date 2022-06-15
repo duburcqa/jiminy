@@ -28,7 +28,7 @@ if interactive_mode() >= 2:
     # is first added in a priority queue waiting for being processed. Thus,
     # it is possible to process part of those messages without altering the
     # other ones. It is not possible with the old API since every incoming
-    # message must be ever processed just after flushing, or discarded.
+    # message must be either processed right after flushing, or discarded.
     # Emulating or restore the queue would be possible theoretically but it
     # is tricky to do it properly, so instead every message is process
     # without distinction.
@@ -97,8 +97,6 @@ if interactive_mode() >= 2:
                     shell_stream.poller.register(
                         shell_stream.socket, zmq.POLLIN)
                     events = shell_stream.poller.poll(0)
-            shell_stream._flushed = True
-            shell_stream.io_loop.add_callback(shell_stream._finish_flush)
             shell_stream._rebuild_io_state()
 
             if self.__old_api:
@@ -130,8 +128,8 @@ if interactive_mode() >= 2:
                         msg['header']['msg_type'].startswith('comm_'):
                     # Extract comm type and handler
                     comm_type = msg['header']['msg_type']
-                    comm_handler = getattr(
-                        self.__kernel.comm_manager, comm_type, None)
+                    comm_handler = self.__kernel.shell_handlers.get(
+                        comm_type, None)
 
                     # Extract message content
                     content = self.__kernel.session.unpack(msg['content'])
@@ -169,7 +167,7 @@ if interactive_mode() >= 2:
                     self.__kernel.msg_queue.put_nowait((t, dispatch, args))
             self.qsize_old = self.__kernel.msg_queue.qsize()
 
-            # Ensure the eventloop wakes up
+            # Ensure the event loop wakes up
             self.__kernel.io_loop.add_callback(lambda: None)
 
     process_kernel_comm = CommProcessor()
@@ -231,18 +229,18 @@ class CommManager:
         if 'meshcat' in self.__kernel.comm_manager.targets:
             self.__kernel.comm_manager.unregister_target(
                 'meshcat', self.__comm_register)
+        if self.__thread is not None:
+            self.__thread.join()
+            self.__thread = None
         if self.__comm_stream is not None:
             self.__comm_stream.close(linger=5)
             self.__comm_stream = None
         if self.__comm_socket is not None:
             self.__comm_socket.close(linger=5)
             self.__comm_socket = None
-        if self.__ioloop is not None:
-            self.__ioloop.add_callback(lambda: self.__ioloop.stop())
+        if self.__comm_socket is not None:
+            self.__ioloop.close()
             self.__ioloop = None
-        if self.__thread is not None:
-            self.__thread.join()
-            self.__thread = None
 
     def __forward_to_ipykernel(self, frames: Sequence[bytes]) -> None:
         try:
@@ -401,10 +399,10 @@ class MeshcatWrapper:
             b"set_property",      # Frontend command. Used by Python zmq server
             b"",                  # Tree path. Empty path means root
             umsgpack.packb({      # Backend command. Used by javascript
-                u"type": "legend",
-                u"id": uniq_id,   # Unique identifier of updated legend item
-                u"text": text,    # Any text message support by HTML5
-                u"color": color   # "rgba(0, 0, 0, 0.0)" and "black" supported
+                "type": "legend",
+                "id": uniq_id,   # Unique identifier of updated legend item
+                "text": text,    # Any text message support by HTML5
+                "color": color   # "rgba(0, 0, 0, 0.0)" and "black" supported
             })
         ])
         self.__zmq_socket.recv()  # Receive acknowledgement
