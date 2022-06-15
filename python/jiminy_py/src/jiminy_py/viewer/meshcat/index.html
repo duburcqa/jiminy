@@ -57,7 +57,7 @@
                     }
                 }
                 if (cmd.type == "ready") {
-                    console.log("Acknowledge to ready request.");
+                    console.info("Acknowledge to ready request.");
                     viewer.connection.send("meshcat:ok");
                 } else if (cmd.type == "legend") {
                     updateLegend(cmd);
@@ -76,9 +76,9 @@
                 var ws_path = undefined;
 
                 if (typeof google !== 'undefined') {
-                    console.log("google colab detected.");
+                    console.info("google colab detected.");
                     (async () => {
-                        console.log("Trying to connect...");
+                        console.info("Trying to connect...");
                         viewer.connection = await google.colab.kernel.comms.open("meshcat", "meshcat:open");
                         console.log("connection to Google Colab kernel:", viewer.connection);
 
@@ -86,24 +86,24 @@
                             for await (const message of viewer.connection.messages) {
                                 viewer.handle_command_bytearray(new Uint8Array(message.buffers[0]));
                             }
-                            console.log("connection to Google Colab kernel closed.");
+                            console.info("connection to Google Colab kernel closed.");
                         })();
                     })();
                 }
                 else if (typeof window.parent.Jupyter !== 'undefined') {
-                    console.log("Jupyter-notebook detected.");
+                    console.info("Jupyter-notebook detected.");
                     viewer.connection = window.parent.Jupyter.notebook.kernel.comm_manager.new_comm("meshcat", "meshcat:open");
                     console.log("connection to Jupyter kernel:", viewer.connection);
                     viewer.connection.on_msg(function(message) {
                         viewer.handle_command_bytearray(new Uint8Array(message.buffers[0].buffer));
                     });
                     viewer.connection.on_close(function(message) {
-                        console.log("connection to Jupyter kernel closed:", message);
+                        console.info("connection to Jupyter kernel closed:", message);
                         viewer.connection = null;  // The connection is no longer available
                     });
                 }
                 else if (ws_path !== undefined) {
-                    console.log("Unknown platform (jupyter-lab / vscode...)");
+                    console.info("Unknown platform (jupyter-lab / vscode...)");
                     // Connect to kernel socket manually if necessary, namely for
                     // VSCode notebooks and jupyterlab.
                     const ws_url = "ws" + window.parent.location.origin.substring(4) + ws_path;
@@ -224,7 +224,7 @@
                 {
                     if (viewer.connection !== undefined && viewer.connection !== null)
                     {
-                        console.info("I'm alive. Delta: ", elapsed_time);
+                        console.debug("I'm alive. Delta: ", elapsed_time);
                         viewer.connection.send("meshcat:watchdog");
                     }
                     last_time = current_time;
@@ -304,7 +304,7 @@
                     console.log("closing connection...");
                     viewer.connection.close();
                 } else {
-                    console.log("closing already closed.");
+                    console.info("closing already closed.");
                 }
                 return false;
             }

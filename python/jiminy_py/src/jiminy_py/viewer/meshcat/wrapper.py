@@ -60,6 +60,7 @@ if interactive_mode() >= 2:
         def __init__(self):
             from IPython import get_ipython
             self.__kernel = get_ipython().kernel
+            self._is_colab = interactive_mode() == 3
             self.__old_api = ipykernel_version_major < 5
             if self.__old_api:
                 logging.warning(
@@ -116,7 +117,7 @@ if interactive_mode() >= 2:
                 if not priority or priority[0] <= SHELL_PRIORITY:
                     # New message: reading message without deserializing its
                     # content at this point for efficiency.
-                    _, msg = self.__kernel.session.feed_identities(
+                    idents, msg = self.__kernel.session.feed_identities(
                         args[-1], copy=False)
                     msg = self.__kernel.session.deserialize(
                         msg, content=False, copy=False)
@@ -128,27 +129,57 @@ if interactive_mode() >= 2:
                         msg['header']['msg_type'].startswith('comm_'):
                     # Extract comm type and handler
                     comm_type = msg['header']['msg_type']
-                    comm_handler = self.__kernel.shell_handlers.get(
-                        comm_type, None)
 
                     # Extract message content
                     content = self.__kernel.session.unpack(msg['content'])
                     data = content.get('data', '')
 
-                    # Comm message. Analyzing message content to determine if
-                    # it is related to meshcat or not.
+                    # Analyzing comm message to determine whether it is related
+                    # to meshcat and process it on the spot.
+                    is_meschat_comm_request = False
                     if comm_type == 'comm_close':
                         # All comm_close messages are processed because Google
-                        # Colab API does not support sending data on close.
-                        msg['content'] = content
-                        comm_handler(None, None, msg)
-                        continue
+                        # Colab API does not expose sending data on close.
+                        is_meschat_comm_request = True
                     if isinstance(data, str) and data.startswith('meshcat:'):
                         # Comm message related to meshcat. Processing it right
                         # now and moving to the next message without putting it
                         # back into the queue.
+                        is_meschat_comm_request = True
+
+                    # Process the request if necessary
+                    if is_meschat_comm_request:
+                        # Unpack message content
                         msg['content'] = content
-                        comm_handler(None, None, msg)
+
+                        # Backup original kernel parent before hijacking
+                        original_parent = (
+                            self.__kernel._parent_ident,
+                            self.__kernel.get_parent()
+                            if hasattr(self.__kernel, "get_parent")
+                            else self.__kernel._parent_header)
+
+                        # Note that it is necessary to set the kernel parent
+                        # and publish idle status when processing the message
+                        # because otherwise google colab will never acknowledge
+                        # that the comm connection has been established. Still,
+                        # it is important to restore the original parent
+                        # afterward, otherwise the current cell will never
+                        # return to idle state on display, although the kernel
+                        # is not actually stuck and other cells can be
+                        # evaluated properly. Yet, trying to stop it will crash
+                        # the kernel unsurprisingly. Conversely, setting the
+                        # parent on jupyter is interrupting the cell completely
+                        # and definitively...
+                        if self._is_colab:
+                            self.__kernel.set_parent(idents, msg)
+                            self.__kernel._publish_status('busy')
+                        comm_handler = self.__kernel.shell_handlers[comm_type]
+                        comm_handler(shell_stream, idents, msg)
+                        if self._is_colab:
+                            self.__kernel._publish_status('idle')
+                            self.__kernel.set_parent(*original_parent)
+                        shell_stream.flush(zmq.POLLOUT)
                         continue
 
                 # The message is not related to meshcat comm, so putting it
@@ -277,8 +308,10 @@ class CommManager:
         @comm.on_close
         def _close(evt: Any) -> None:
             self.__comm_socket.send(f"close:{comm.comm_id}".encode())
+            self.__comm_stream.flush()
 
         self.__comm_socket.send(f"open:{comm.comm_id}".encode())
+        self.__comm_stream.flush()
 
 
 class MeshcatWrapper:
