@@ -1,3 +1,4 @@
+import os
 import time
 import ctypes
 import logging
@@ -5,6 +6,7 @@ import pathlib
 import asyncio
 import tempfile
 import argparse
+from base64 import b64encode
 from bisect import bisect_right
 from functools import partial
 from threading import Thread
@@ -235,14 +237,16 @@ def play_trajectories(trajs_data: Union[
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode
     # with htlm rendering support. Then load it in running cell.
-    if backend == "panda3d-sync":
-
+    must_record_temporary_video = (record_video_path is None and
+        backend == "panda3d-sync" and interactive_mode() == 2)
+    if must_record_temporary_video:
+        record_video_path = tempfile.mkstemp(suffix='.mp4')
 
     # Handling of default options if no viewer is available
     if viewers is None and backend.startswith('panda3d'):
         # Delete robot by default only if not in interactive viewer
         if delete_robot_on_close is None:
-            delete_robot_on_close = interactive_mode() < 2
+            delete_robot_on_close = interactive_mode() < 3
 
         # Handling of default display of CoM, DCM and contact forces
         if display_com is None:
@@ -577,6 +581,17 @@ def play_trajectories(trajs_data: Union[
     # Close backend if requested
     if close_backend:
         Viewer.close()
+
+    # Show video if temporary
+    if must_record_temporary_video:
+        from IPython.core.display import HTML, display
+        video_base64 = b64encode(open('video.mp4','rb').read()).decode()
+        os.remove(record_video_path)
+        display(HTML(f"""
+        <video width=400 controls>
+        <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
+        </video>
+        """))
 
     return viewers
 
