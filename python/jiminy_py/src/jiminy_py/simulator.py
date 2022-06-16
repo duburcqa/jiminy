@@ -23,6 +23,7 @@ from .log import (read_log,
                   build_robot_from_log,
                   extract_data_from_log)
 from .viewer import (interactive_mode,
+                     check_display_available,
                      extract_replay_data_from_log_data,
                      play_trajectories,
                      Viewer)
@@ -619,9 +620,12 @@ class Simulator:
                 "`replay` method, or provided data manually.")
 
         # Make sure the viewer is instantiated
+        must_not_open_gui = (
+            not check_display_available() or
+            kwargs.get('backend', self.viewer_backend) == "panda3d-sync" or
+            kwargs.get('record_video_path', None) is not None)
         self.render(**{
-            'return_rgb_array': kwargs.get(
-                'record_video_path', None) is not None,
+            'return_rgb_array': must_not_open_gui,
             'update_floor': True,
             **kwargs})
 

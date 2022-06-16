@@ -1430,7 +1430,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         :param requested_format: Desired export format (e.g. 'RGB' or 'BGRA')
         :param raw: whether to return a raw memory view of bytes, of a
-                    structured `np.ndarray` of uint8 with dimensions [W, H, D].
+                    structured `np.ndarray` of uint8 with dimensions [H, W, D].
         """
         # Refresh the scene
         self.graphics_engine.render_frame()

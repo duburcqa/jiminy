@@ -86,8 +86,8 @@ logger.addFilter(_DuplicateFilter())
 def check_display_available() -> bool:
     """Check if graphical server is available for onscreen rendering.
     """
-    if interactive_mode() >= 3:
-        return True
+    if interactive_mode() >= 2:
+        return interactive_mode() >= 3
     if multiprocessing.current_process().daemon:
         return False
     if not (sys.platform.startswith("win") or os.environ.get("DISPLAY")):
@@ -108,12 +108,12 @@ def get_default_backend() -> str:
         graphical server. Besides, both can fallback to software rendering if
         necessary, although Panda3d offers only very limited support of it.
     """
-    if interactive_mode() >= 3:
+    mode = interactive_mode()
+    if mode >= 3:
         return 'meshcat'
     elif check_display_available():
         return 'panda3d'
-    else:
-        return 'panda3d-sync'
+    return 'panda3d-sync'
 
 
 def get_backend_type(backend_name: str) -> type:

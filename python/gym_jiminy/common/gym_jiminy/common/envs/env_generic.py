@@ -681,7 +681,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
             self.simulator.viewer._setup(self.robot)
-            self.simulator.viewer.refresh()
+            if self.simulator.viewer.has_gui():
+                self.simulator.viewer.refresh()
 
         return obs
 
