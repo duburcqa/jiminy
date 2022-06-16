@@ -682,7 +682,7 @@ class Simulator:
 
         # Blocking by default if not interactive
         if block is None:
-            block = not interactive_mode()
+            block = interactive_mode() > 0
 
         # Extract log data
         log_data, log_constants = self.log_data, self.log_constants

@@ -232,9 +232,15 @@ def play_trajectories(trajs_data: Union[
         else:
             backend = Viewer.backend
 
+    # Create a temporary video if the backend is 'panda3d-sync', no
+    # 'record_video_path' is provided, and running in interactive mode
+    # with htlm rendering support. Then load it in running cell.
+    if backend == "panda3d-sync":
+
+
     # Handling of default options if no viewer is available
     if viewers is None and backend.startswith('panda3d'):
-        # Delete robot by default only if not in notebook
+        # Delete robot by default only if not in interactive viewer
         if delete_robot_on_close is None:
             delete_robot_on_close = interactive_mode() < 2
 

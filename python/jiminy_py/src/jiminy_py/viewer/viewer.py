@@ -86,7 +86,7 @@ logger.addFilter(_DuplicateFilter())
 def check_display_available() -> bool:
     """Check if graphical server is available for onscreen rendering.
     """
-    if interactive_mode() >= 2:
+    if interactive_mode() >= 3:
         return True
     if multiprocessing.current_process().daemon:
         return False
@@ -108,7 +108,7 @@ def get_default_backend() -> str:
         graphical server. Besides, both can fallback to software rendering if
         necessary, although Panda3d offers only very limited support of it.
     """
-    if interactive_mode() >= 2:
+    if interactive_mode() >= 3:
         return 'meshcat'
     elif check_display_available():
         return 'panda3d'
@@ -117,10 +117,10 @@ def get_default_backend() -> str:
 
 
 def get_backend_type(backend_name: str) -> type:
-    """Determine the set of available backends.
+    """Return backend entry-point from its name if available.
 
     .. note::
-        It must be a function because otherwise it would only be run once at
+        It is a function because otherwise it would only be run once at
         import by the main thread only.
     """
     if backend_name == "panda3d-sync":
@@ -129,6 +129,10 @@ def get_backend_type(backend_name: str) -> type:
         raise RuntimeError(
             "Please use backend 'panda3d-sync' in daemon thread.")
     if backend_name == "panda3d":
+        if interactive_mode() >= 2:
+            raise ImportError(
+                "Asynchronous 'panda3d' backend is disabled in interactive "
+                "mode. Consider using synchronous 'panda3d-sync' instead.")
         return Panda3dVisualizer
     if backend_name == "panda3d-qt":
         try:
@@ -416,7 +420,7 @@ class Viewer:
                 elif backend == 'meshcat':
                     # Opening a new display cell automatically if there is
                     # no other display cell already opened.
-                    open_gui_if_parent = interactive_mode() >= 2 and (
+                    open_gui_if_parent = interactive_mode() >= 3 and (
                         Viewer._backend_obj is None or
                         not Viewer._backend_obj.comm_manager.n_comm)
                 elif backend == 'panda3d':
@@ -775,7 +779,7 @@ class Viewer:
         elif Viewer.backend == 'meshcat':
             viewer_url = Viewer._backend_obj.gui.url()
 
-            if interactive_mode() >= 2:
+            if interactive_mode() >= 3:
                 from IPython.core.display import HTML, display
 
                 # Scrap the viewer html content, including javascript
@@ -814,7 +818,7 @@ class Viewer:
                 html_content = html_content.replace(
                     "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
-                if interactive_mode() == 2:
+                if interactive_mode() == 3:
                     # Isolate HTML in iframe on Jupyter
                     html_content = html_content.replace(
                         "\"", "&quot;").replace("'", "&apos;")

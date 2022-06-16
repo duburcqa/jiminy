@@ -21,7 +21,7 @@ from .server import start_meshcat_server
 from .recorder import MeshcatRecorder
 
 
-if interactive_mode() >= 2:
+if interactive_mode() >= 3:
     # Google colab is using an older version of ipykernel (4.10), which is
     # not compatible with >= 5.0. The new API is more flexible and enable
     # to process only the relevant messages because every incoming messages
@@ -34,18 +34,12 @@ if interactive_mode() >= 2:
     # without distinction.
     import ipykernel
     ipykernel_version_major = int(ipykernel.__version__[0])
-    if ipykernel_version_major == 5:
+    if ipykernel_version_major < 6:
         from ipykernel.kernelbase import SHELL_PRIORITY
     elif ipykernel_version_major > 6:
         logging.warning(
             "ipykernel version 7 detected. The viewer works optimally with "
             " ipykernel 5 or 6. Revert to old version in case of issues.")
-    elif ipykernel_version_major < 5:
-        logging.warning(
-            "Old ipykernel version < 5.0 detected. Please do not schedule "
-            "other cells for execution while the viewer is busy otherwise "
-            "it will be not executed properly. Update to a newer version "
-            "if possible to avoid such limitation.")
 
     class CommProcessor:
         """Re-implementation of ipykernel.kernelbase.do_one_iteration to only
@@ -60,15 +54,7 @@ if interactive_mode() >= 2:
         def __init__(self):
             from IPython import get_ipython
             self.__kernel = get_ipython().kernel
-            self._is_colab = interactive_mode() == 3
-            self.__old_api = ipykernel_version_major < 5
-            if self.__old_api:
-                logging.warning(
-                    "Pre/post kernel handler hooks must be disable for the "
-                    "old ipykernel API to enable fetching shell messages "
-                    "from child threads.")
-                self.__kernel.post_handler_hook = lambda: None
-                self.__kernel.pre_handler_hook = lambda: None
+            self._is_colab = (interactive_mode() == 4)
             self.qsize_old = 0
 
         def __call__(self, unsafe: bool = False) -> None:
@@ -99,9 +85,6 @@ if interactive_mode() >= 2:
                         shell_stream.socket, zmq.POLLIN)
                     events = shell_stream.poller.poll(0)
             shell_stream._rebuild_io_state()
-
-            if self.__old_api:
-                return  # The messages have already been processed...
 
             qsize = self.__kernel.msg_queue.qsize()
             if unsafe and qsize == self.qsize_old:
@@ -357,7 +340,7 @@ class MeshcatWrapper:
         # been chosen to add extra ROUTER/ROUTER sockets instead of replacing
         # the original ones to avoid altering too much the original
         # implementation of Meshcat.
-        if must_launch_server and interactive_mode() >= 2:
+        if must_launch_server and interactive_mode() >= 3:
             self.comm_manager = CommManager(comm_url)
 
         # Make sure the server is properly closed
