@@ -43,7 +43,8 @@ from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, Panda3dApp, Panda3dViewer, Panda3dVisualizer)
 
 
-REPLAY_FRAMERATE = 40
+REPLAY_FRAMERATE = 20 if interactive_mode() >= 3 else 30
+
 
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
@@ -84,9 +85,10 @@ logger.addFilter(_DuplicateFilter())
 
 
 def check_display_available() -> bool:
-    """Check if graphical server is available for onscreen rendering.
+    """Check if graphical server is available locally for onscreen rendering
+    or if the viewer can be opened in an interactive cell.
     """
-    if interactive_mode() >= 2:
+    if interactive_mode() >= 3:
         return True
     if multiprocessing.current_process().daemon:
         return False
@@ -99,9 +101,8 @@ def get_default_backend() -> str:
     """Determine the default backend viewer, depending eventually on the
     running environment, hardware, and set of available backends.
 
-    Meshcat will always be favored in interactive mode, i.e. in Jupyter
-    notebooks, Panda3d otherwise. For Panda3d, synchronous mode without
-    subprocess is preferred if onscreen display is impossible.
+    Panda3d is always favored because the throughput in remote
+    interactive notebook is too limited for now.
 
     .. note::
         Both Meshcat and Panda3d supports Nvidia EGL rendering without
@@ -109,18 +110,17 @@ def get_default_backend() -> str:
         necessary, although Panda3d offers only very limited support of it.
     """
     if interactive_mode() >= 2:
-        return 'meshcat'
-    elif check_display_available():
-        return 'panda3d'
-    else:
         return 'panda3d-sync'
+    if check_display_available():
+        return 'panda3d'
+    return 'panda3d-sync'
 
 
 def get_backend_type(backend_name: str) -> type:
-    """Determine the set of available backends.
+    """Return backend entry-point from its name if available.
 
     .. note::
-        It must be a function because otherwise it would only be run once at
+        It is a function because otherwise it would only be run once at
         import by the main thread only.
     """
     if backend_name == "panda3d-sync":
@@ -129,6 +129,10 @@ def get_backend_type(backend_name: str) -> type:
         raise RuntimeError(
             "Please use backend 'panda3d-sync' in daemon thread.")
     if backend_name == "panda3d":
+        if interactive_mode() >= 2:
+            raise ImportError(
+                "Synchronous 'panda3d' backend is disabled in interactive "
+                "mode. Consider using asynchronous 'panda3d-sync' instead.")
         return Panda3dVisualizer
     if backend_name == "panda3d-qt":
         try:
@@ -416,7 +420,7 @@ class Viewer:
                 elif backend == 'meshcat':
                     # Opening a new display cell automatically if there is
                     # no other display cell already opened.
-                    open_gui_if_parent = interactive_mode() >= 2 and (
+                    open_gui_if_parent = interactive_mode() >= 3 and (
                         Viewer._backend_obj is None or
                         not Viewer._backend_obj.comm_manager.n_comm)
                 elif backend == 'panda3d':
@@ -775,7 +779,7 @@ class Viewer:
         elif Viewer.backend == 'meshcat':
             viewer_url = Viewer._backend_obj.gui.url()
 
-            if interactive_mode() >= 2:
+            if interactive_mode() >= 3:
                 from IPython.core.display import HTML, display
 
                 # Scrap the viewer html content, including javascript
@@ -814,7 +818,7 @@ class Viewer:
                 html_content = html_content.replace(
                     "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
-                if interactive_mode() == 2:
+                if interactive_mode() == 3:
                     # Isolate HTML in iframe on Jupyter
                     html_content = html_content.replace(
                         "\"", "&quot;").replace("'", "&apos;")

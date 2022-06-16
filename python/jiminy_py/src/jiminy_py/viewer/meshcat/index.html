@@ -64,7 +64,12 @@
                 } else if (cmd.type == "watermark") {
                     updateWatermark(cmd);
                 } else {
-                    handle_command.call(this, cmd);
+                    try {
+                        handle_command.call(this, cmd);
+                    } catch (error) {
+                        console.error(error);
+                        console.debug(cmd);
+                    }
                 }
             };
 

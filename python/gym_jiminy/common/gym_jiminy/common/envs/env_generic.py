@@ -22,8 +22,10 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.viewer.viewer import (
-    DEFAULT_CAMERA_XYZRPY_REL, check_display_available, Viewer)
+from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
+                                     check_display_available,
+                                     get_default_backend,
+                                     Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.log import extract_data_from_log
@@ -681,7 +683,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
             self.simulator.viewer._setup(self.robot)
-            self.simulator.viewer.refresh()
+            if self.simulator.viewer.has_gui():
+                self.simulator.viewer.refresh()
 
         return obs
 
@@ -831,7 +834,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # Handling of default rendering mode
         if mode is None:
-            if 'human' in self.metadata['render.modes']:
+            # 'rgb_array' by default if the current for future backend is
+            # 'panda3d-sync', otherwise 'human' if available.
+            backend = (kwargs.get('backend', self.simulator.viewer_backend) or
+                       get_default_backend())
+            if backend == "panda3d-sync":
+                mode = 'rgb_array'
+            elif 'human' in self.metadata['render.modes']:
                 mode = 'human'
             else:
                 mode = 'rgb_array'

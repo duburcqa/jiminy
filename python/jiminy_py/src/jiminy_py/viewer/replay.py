@@ -1,3 +1,4 @@
+import os
 import time
 import ctypes
 import logging
@@ -5,6 +6,7 @@ import pathlib
 import asyncio
 import tempfile
 import argparse
+from base64 import b64encode
 from bisect import bisect_right
 from functools import partial
 from threading import Thread
@@ -35,7 +37,6 @@ from .meshcat.utilities import interactive_mode
 
 
 VIDEO_FRAMERATE = 30
-VIDEO_SIZE = (800, 800)
 VIDEO_QUALITY = 0.3  # [Mbytes/s]
 
 
@@ -71,6 +72,7 @@ def play_trajectories(trajs_data: Union[
                           Union[Sequence[bool], bool]] = None,
                       scene_name: str = 'world',
                       record_video_path: Optional[str] = None,
+                      record_video_size: Optional[Tuple[int, int]] = None,
                       start_paused: bool = False,
                       backend: Optional[str] = None,
                       delete_robot_on_close: Optional[bool] = None,
@@ -175,6 +177,9 @@ def play_trajectories(trajs_data: Union[
                               other renderer only supports 'mp4' format encoded
                               with web-compatible 'h264' codec.
                               Optional: None by default.
+    :param record_video_size: The width and height of the video recording.
+                              Optional: (800, 800) if non-interactive and
+                              (800, 400) otherwise by default.
     :param start_paused: Start the simulation is pause, waiting for keyboard
                          input before starting to play the trajectories.
                          Only available if `record_video_path` is None.
@@ -232,11 +237,34 @@ def play_trajectories(trajs_data: Union[
         else:
             backend = Viewer.backend
 
+    # Create a temporary video if the backend is 'panda3d-sync', no
+    # 'record_video_path' is provided, and running in interactive mode
+    # with htlm rendering support. Then load it in running cell.
+    must_record_temporary_video = (
+        record_video_path is None and
+        backend == "panda3d-sync" and interactive_mode() >= 2)
+    if must_record_temporary_video:
+        fd, record_video_path = tempfile.mkstemp(suffix='.mp4')
+        os.close(fd)
+
+    # Make sure it is possible to replay something
+    if backend == "panda3d-sync" and record_video_path is None:
+        raise RuntimeError(
+            "Impossible to replay video using 'panda3d-sync' backend. Please "
+            "set 'record_video_path' to save it as a file.")
+
+    # Set default video recording size
+    if record_video_size is None:
+        if must_record_temporary_video:
+            record_video_size = (800, 400)
+        else:
+            record_video_size = (800, 800)
+
     # Handling of default options if no viewer is available
     if viewers is None and backend.startswith('panda3d'):
-        # Delete robot by default only if not in notebook
+        # Delete robot by default only if not in interactive viewer
         if delete_robot_on_close is None:
-            delete_robot_on_close = interactive_mode() < 2
+            delete_robot_on_close = interactive_mode() < 3
 
         # Handling of default display of CoM, DCM and contact forces
         if display_com is None:
@@ -453,7 +481,7 @@ def play_trajectories(trajs_data: Union[
 
             # Start backend recording thread
             viewer._backend_obj.start_recording(
-                VIDEO_FRAMERATE, *VIDEO_SIZE)
+                VIDEO_FRAMERATE, *record_video_size)
         else:
             # Sanitize the recording path to enforce '.mp4' extension
             record_video_path = str(
@@ -463,17 +491,18 @@ def play_trajectories(trajs_data: Union[
             out = av.open(record_video_path, mode='w')
             out.metadata['title'] = scene_name
             stream = out.add_stream('libx264', rate=VIDEO_FRAMERATE)
-            stream.width, stream.height = VIDEO_SIZE
+            stream.width, stream.height = record_video_size
             stream.pix_fmt = 'yuv420p'
             stream.bit_rate = VIDEO_QUALITY * (8 * 1024 ** 2)
             stream.options = {"preset": "veryfast", "tune": "zerolatency"}
 
             # Create frame storage
-            frame = av.VideoFrame(*VIDEO_SIZE[::-1], 'rgb24')
+            frame = av.VideoFrame(*record_video_size, 'rgb24')
 
         # Add frames to video sequentially
         for i, t_cur in enumerate(tqdm(
-                time_global, desc="Rendering frames", disable=(not verbose))):
+                time_global, desc="Rendering frames",
+                disable=(not verbose and not must_record_temporary_video))):
             try:
                 # Update 3D view
                 for viewer, pos, vel, forces, xyz_offset, update_hook in zip(
@@ -502,7 +531,8 @@ def play_trajectories(trajs_data: Union[
                     # Update frame.
                     # Note that `capture_frame` is by far the main bottleneck
                     # of the whole recording process (~75% on discrete gpu).
-                    buffer = viewer.capture_frame(*VIDEO_SIZE, raw_data=True)
+                    buffer = viewer.capture_frame(
+                        *record_video_size, raw_data=True)
                     memoryview(frame.planes[0])[:] = buffer
 
                     # Write frame
@@ -571,6 +601,18 @@ def play_trajectories(trajs_data: Union[
     # Close backend if requested
     if close_backend:
         Viewer.close()
+
+    # Show video if temporary
+    if must_record_temporary_video:
+        from IPython.core.display import HTML, display
+        video_base64 = b64encode(open(record_video_path, 'rb').read()).decode()
+        os.remove(record_video_path)
+        display(HTML(f"""
+        <video controls style="
+            height: 400px; width: 100%; overflow: hidden;">
+        <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
+        </video>
+        """))
 
     return viewers
 
