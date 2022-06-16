@@ -21,7 +21,6 @@ if not os.getenv("JIMINY_INTERACTIVE_DISABLE", False) and \
     from IPython import get_ipython
     shell = get_ipython().__class__.__module__
 
-
     def interactive_mode() -> int:
         """Determine what kind of process is running Python kernel.
 

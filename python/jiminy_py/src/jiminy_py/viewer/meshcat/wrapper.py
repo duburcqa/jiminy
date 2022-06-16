@@ -110,7 +110,7 @@ if interactive_mode() >= 3:
                             args[-1], copy=False)
                         msg = self.__kernel.session.deserialize(
                             msg, content=False, copy=False)
-                    except ValueError as e:
+                    except ValueError:
                         # Corrupted message. Skipping it.
                         msg = None
                 else:

@@ -85,11 +85,11 @@ logger.addFilter(_DuplicateFilter())
 
 
 def check_display_available() -> bool:
-    """Check if graphical server is available for onscreen rendering.
+    """Check if graphical server is available locally for onscreen rendering
+    or if the viewer can be opened in an interactive cell.
     """
-    mode = interactive_mode()
-    if mode >= 2:
-        return mode >= 3
+    if interactive_mode() >= 3:
+        return True
     if multiprocessing.current_process().daemon:
         return False
     if not (sys.platform.startswith("win") or os.environ.get("DISPLAY")):
@@ -101,19 +101,17 @@ def get_default_backend() -> str:
     """Determine the default backend viewer, depending eventually on the
     running environment, hardware, and set of available backends.
 
-    Meshcat will always be favored in interactive mode, i.e. in Jupyter
-    notebooks, Panda3d otherwise. For Panda3d, synchronous mode without
-    subprocess is preferred if onscreen display is impossible.
+    Panda3d is always favored because the throughput in remote
+    interactive notebook is too limited for now.
 
     .. note::
         Both Meshcat and Panda3d supports Nvidia EGL rendering without
         graphical server. Besides, both can fallback to software rendering if
         necessary, although Panda3d offers only very limited support of it.
     """
-    mode = interactive_mode()
-    if mode >= 3:
-        return 'meshcat'
-    elif check_display_available():
+    if interactive_mode() >= 2:
+        return 'panda3d-sync'
+    if check_display_available():
         return 'panda3d'
     return 'panda3d-sync'
 
@@ -133,8 +131,8 @@ def get_backend_type(backend_name: str) -> type:
     if backend_name == "panda3d":
         if interactive_mode() >= 2:
             raise ImportError(
-                "Asynchronous 'panda3d' backend is disabled in interactive "
-                "mode. Consider using synchronous 'panda3d-sync' instead.")
+                "Synchronous 'panda3d' backend is disabled in interactive "
+                "mode. Consider using asynchronous 'panda3d-sync' instead.")
         return Panda3dVisualizer
     if backend_name == "panda3d-qt":
         try:

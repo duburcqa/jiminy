@@ -242,10 +242,16 @@ def play_trajectories(trajs_data: Union[
     # with htlm rendering support. Then load it in running cell.
     must_record_temporary_video = (
         record_video_path is None and
-        backend == "panda3d-sync" and interactive_mode() == 2)
+        backend == "panda3d-sync" and interactive_mode() >= 2)
     if must_record_temporary_video:
         fd, record_video_path = tempfile.mkstemp(suffix='.mp4')
         os.close(fd)
+
+    # Make sure it is possible to replay something
+    if backend == "panda3d-sync" and record_video_path is None:
+        raise RuntimeError(
+            "Impossible to replay video using 'panda3d-sync' backend. Please "
+            "set 'record_video_path' to save it as a file.")
 
     # Set default video recording size
     if record_video_size is None:
