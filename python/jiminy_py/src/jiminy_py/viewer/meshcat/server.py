@@ -172,6 +172,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             self.comm_stream.flush()
             if not self.websocket_pool and not self.comm_pool:
                 self.zmq_socket.send(b"")
+                self.zmq_stream.flush()
                 return
             msg = umsgpack.packb({"type": "ready"})
             self.is_waiting_ready_msg = True
@@ -228,6 +229,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
 
     def forward_to_comm(self, comm_id: str, message: str) -> None:
         self.comm_zmq.send_multipart([comm_id, message])
+        self.comm_stream.flush(zmq.POLLOUT)
 
     def send_scene(self,
                    websocket: Optional[WebSocketHandler] = None,

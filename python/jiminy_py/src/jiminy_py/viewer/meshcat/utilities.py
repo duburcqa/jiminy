@@ -4,17 +4,23 @@ import logging
 from importlib.util import find_spec
 
 
-if os.getenv("JIMINY_INTERACTIVE_DISABLE") or find_spec("IPython") is not None:
-    import ipykernel
-    from IPython import get_ipython
+if not os.getenv("JIMINY_INTERACTIVE_DISABLE", False) and \
+        find_spec("IPython") is not None:
+    # Get available ipykernel version (provided with jupyter)
+    try:
+        import ipykernel
+        ipykernel_version_major = int(ipykernel.__version__[0])
+        if ipykernel_version_major < 5:
+            logging.warning(
+                "Old ipykernel version < 5 not supported by interactive "
+                "viewer. Update to avoid such limitation.")
+    except ImportError:
+        ipykernel_version_major = 0
 
-    ipykernel_version_major = int(ipykernel.__version__[0])
+    # Get shell class name
+    from IPython import get_ipython
     shell = get_ipython().__class__.__module__
 
-    if ipykernel_version_major < 5:
-        logging.warning(
-            "Old ipykernel version < 5.0 not supported by interactive viewer. "
-            "Update to a newer version if possible to avoid such limitation.")
 
     def interactive_mode() -> int:
         """Determine what kind of process is running Python kernel.

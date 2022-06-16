@@ -56,6 +56,7 @@ if interactive_mode() >= 3:
             self.__kernel = get_ipython().kernel
             self._is_colab = (interactive_mode() == 4)
             self.qsize_old = 0
+            self.is_running = False
 
         def __call__(self, unsafe: bool = False) -> None:
             """Check once if there is pending comm related event in the shell
@@ -65,6 +66,11 @@ if interactive_mode() >= 3:
                            pending message has changed is enough. It makes the
                            evaluation much faster but flawed.
             """
+            # Guard to avoid running this method several times in parallel
+            if self.is_running:
+                return
+            self.is_running = True
+
             # Flush every IN messages on shell_stream only.
             # Note that it is a faster implementation of `ZMQStream.flush()`
             # to only handle incoming messages. It reduces the computation from
@@ -90,7 +96,7 @@ if interactive_mode() >= 3:
                 # The number of queued messages in the queue has not changed
                 # since it last time it has been checked. Assuming those
                 # messages are the same has before and returning earlier.
-                return
+                qsize = 0
 
             # One must go through all the messages to keep them in order
             for _ in range(qsize):
@@ -99,10 +105,14 @@ if interactive_mode() >= 3:
                 if not priority or priority[0] <= SHELL_PRIORITY:
                     # New message: reading message without deserializing its
                     # content at this point for efficiency.
-                    idents, msg = self.__kernel.session.feed_identities(
-                        args[-1], copy=False)
-                    msg = self.__kernel.session.deserialize(
-                        msg, content=False, copy=False)
+                    try:
+                        idents, msg = self.__kernel.session.feed_identities(
+                            args[-1], copy=False)
+                        msg = self.__kernel.session.deserialize(
+                            msg, content=False, copy=False)
+                    except ValueError as e:
+                        # Corrupted message. Skipping it.
+                        msg = None
                 else:
                     # Do not spend time analyzing messages already rejected
                     msg = None
@@ -119,9 +129,10 @@ if interactive_mode() >= 3:
                     # Analyzing comm message to determine whether it is related
                     # to meshcat and process it on the spot.
                     is_meschat_comm_request = False
-                    if comm_type == 'comm_close':
+                    if self._is_colab and comm_type == 'comm_close':
                         # All comm_close messages are processed because Google
-                        # Colab API does not expose sending data on close.
+                        # Colab API does not expose sending data on close to
+                        # specify that it is a meshcat-related message.
                         is_meschat_comm_request = True
                     if isinstance(data, str) and data.startswith('meshcat:'):
                         # Comm message related to meshcat. Processing it right
@@ -183,6 +194,10 @@ if interactive_mode() >= 3:
             # Ensure the event loop wakes up
             self.__kernel.io_loop.add_callback(lambda: None)
 
+            # Disable guard
+            self.is_running = False
+
+    # Start comm hijacking
     process_kernel_comm = CommProcessor()
 
     # Monkey-patch meshcat ViewerWindow 'send' method to process queued comm
@@ -213,15 +228,33 @@ class CommManager:
         from IPython import get_ipython
 
         def forward_comm_thread():
+            # Create new event loop
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             self.__ioloop = tornado.ioloop.IOLoop()
+
+            # Make sure the communication are processed at least once every
+            # seconds for the redirection of comm msg related to watchdogs.
+            def background_watchdog() -> None:
+                # Process comm messages if any
+                if self.__comm_stream is not None:
+                    self.__comm_stream.flush()
+                process_kernel_comm()
+
+                # Re-schedule the method
+                if self.__ioloop is not None:
+                    self.__ioloop.call_later(1.0, background_watchdog)
+            background_watchdog()
+
+            # Start comm socket
             context = zmq.Context()
             self.__comm_socket = context.socket(zmq.XREQ)
             self.__comm_socket.connect(comm_url)
             self.__comm_stream = ZMQStream(self.__comm_socket, self.__ioloop)
             self.__comm_stream.on_recv(self.__forward_to_ipykernel)
             self.__ioloop.start()
+
+            # Stop running socket
             self.__ioloop.close()
             self.__ioloop = None
             self.__comm_socket = None
@@ -285,14 +318,15 @@ class CommManager:
         def _on_msg(msg: Dict[str, Any]) -> None:
             data = msg['content']['data'][8:]  # Remove 'meshcat:' header
             self.__comm_socket.send(f"data:{comm.comm_id}:{data}".encode())
+            self.__comm_stream.flush(zmq.POLLOUT)
 
         @comm.on_close
         def _close(evt: Any) -> None:
             self.__comm_socket.send(f"close:{comm.comm_id}".encode())
-            self.__comm_stream.flush()
+            self.__comm_stream.flush(zmq.POLLOUT)
 
         self.__comm_socket.send(f"open:{comm.comm_id}".encode())
-        self.__comm_stream.flush()
+        self.__comm_stream.flush(zmq.POLLOUT)
 
 
 class MeshcatWrapper:
