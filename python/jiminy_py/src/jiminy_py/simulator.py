@@ -23,7 +23,7 @@ from .log import (read_log,
                   build_robot_from_log,
                   extract_data_from_log)
 from .viewer import (interactive_mode,
-                     check_display_available,
+                     get_default_backend,
                      extract_replay_data_from_log_data,
                      play_trajectories,
                      Viewer)
@@ -619,10 +619,11 @@ class Simulator:
                 "Nothing to replay. Please run a simulation before calling "
                 "`replay` method, or provided data manually.")
 
-        # Make sure the viewer is instantiated
+        # Make sure the viewer is instantiated before replaying
+        backend = (kwargs.get('backend', self.viewer_backend) or
+                   get_default_backend())
         must_not_open_gui = (
-            not check_display_available() or
-            kwargs.get('backend', self.viewer_backend) == "panda3d-sync" or
+            backend.startswith("panda3d") or
             kwargs.get('record_video_path', None) is not None)
         self.render(**{
             'return_rgb_array': must_not_open_gui,

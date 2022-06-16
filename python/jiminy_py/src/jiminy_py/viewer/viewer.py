@@ -43,7 +43,8 @@ from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, Panda3dApp, Panda3dViewer, Panda3dVisualizer)
 
 
-REPLAY_FRAMERATE = 40
+REPLAY_FRAMERATE = 20 if interactive_mode() >= 3 else 30
+
 
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)

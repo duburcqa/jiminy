@@ -240,7 +240,8 @@ def play_trajectories(trajs_data: Union[
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode
     # with htlm rendering support. Then load it in running cell.
-    must_record_temporary_video = (record_video_path is None and
+    must_record_temporary_video = (
+        record_video_path is None and
         backend == "panda3d-sync" and interactive_mode() == 2)
     if must_record_temporary_video:
         fd, record_video_path = tempfile.mkstemp(suffix='.mp4')
@@ -598,7 +599,7 @@ def play_trajectories(trajs_data: Union[
     # Show video if temporary
     if must_record_temporary_video:
         from IPython.core.display import HTML, display
-        video_base64 = b64encode(open(record_video_path,'rb').read()).decode()
+        video_base64 = b64encode(open(record_video_path, 'rb').read()).decode()
         os.remove(record_video_path)
         display(HTML(f"""
         <video controls style="
