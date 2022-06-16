@@ -84,7 +84,6 @@ if interactive_mode() >= 3:
                     shell_stream.poller.register(
                         shell_stream.socket, zmq.POLLIN)
                     events = shell_stream.poller.poll(0)
-            shell_stream._rebuild_io_state()
 
             qsize = self.__kernel.msg_queue.qsize()
             if unsafe and qsize == self.qsize_old:
@@ -286,7 +285,6 @@ class CommManager:
         def _on_msg(msg: Dict[str, Any]) -> None:
             data = msg['content']['data'][8:]  # Remove 'meshcat:' header
             self.__comm_socket.send(f"data:{comm.comm_id}:{data}".encode())
-            self.__comm_stream.flush()
 
         @comm.on_close
         def _close(evt: Any) -> None:

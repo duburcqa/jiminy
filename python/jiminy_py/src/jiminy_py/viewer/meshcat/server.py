@@ -19,7 +19,7 @@ from meshcat.servers.zmqserver import (
 
 
 DEFAULT_COMM_PORT = 6500
-WAIT_COM_TIMEOUT = 5.0  # in seconds
+WAIT_COM_TIMEOUT = 3.0  # in seconds
 
 
 # ================ Monkey-patch =======================
@@ -228,7 +228,6 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
 
     def forward_to_comm(self, comm_id: str, message: str) -> None:
         self.comm_zmq.send_multipart([comm_id, message])
-        self.comm_stream.flush()
 
     def send_scene(self,
                    websocket: Optional[WebSocketHandler] = None,
