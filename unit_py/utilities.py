@@ -2,8 +2,6 @@
 @brief  Utility functions for unit tests.
 """
 import os
-import shutil
-import tempfile
 import numpy as np
 from scipy.integrate import ode
 from typing import Optional, Union, Dict, Sequence, Tuple, Callable
