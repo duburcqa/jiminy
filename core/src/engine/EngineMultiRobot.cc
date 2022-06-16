@@ -4043,22 +4043,22 @@ namespace jiminy
             // Add "VERSION" attribute
             H5::DataSpace const versionSpace = H5::DataSpace(H5S_SCALAR);
             H5::Attribute const versionAttrib = file->createAttribute(
-                "VERSION", H5::PredType::NATIVE_INT, versionSpace);
-            versionAttrib.write(H5::PredType::NATIVE_INT, &logData->version);
+                "VERSION", H5::PredType::NATIVE_INT32, versionSpace);
+            versionAttrib.write(H5::PredType::NATIVE_INT32, &logData->version);
 
             // Add "START_TIME" attribute
             int64_t time = std::time(nullptr);
             H5::DataSpace const startTimeSpace = H5::DataSpace(H5S_SCALAR);
             H5::Attribute const startTimeAttrib = file->createAttribute(
-                "START_TIME", H5::PredType::NATIVE_LONG, startTimeSpace);
-            startTimeAttrib.write(H5::PredType::NATIVE_LONG, &time);
+                "START_TIME", H5::PredType::NATIVE_INT64, startTimeSpace);
+            startTimeAttrib.write(H5::PredType::NATIVE_INT64, &time);
 
             // Add GLOBAL_TIME vector
             hsize_t const timeDims[1] = {hsize_t(logData->timestamps.size())};
             H5::DataSpace const globalTimeSpace = H5::DataSpace(1, timeDims);
             H5::DataSet const globalTimeDataSet = file->createDataSet(
-                GLOBAL_TIME, H5::PredType::NATIVE_LONG, globalTimeSpace);
-            globalTimeDataSet.write(logData->timestamps.data(), H5::PredType::NATIVE_LONG);
+                GLOBAL_TIME, H5::PredType::NATIVE_INT64, globalTimeSpace);
+            globalTimeDataSet.write(logData->timestamps.data(), H5::PredType::NATIVE_INT64);
 
             // Add "unit" attribute to GLOBAL_TIME vector
             H5::DataSpace const unitSpace = H5::DataSpace(H5S_SCALAR);
@@ -4114,14 +4114,14 @@ namespace jiminy
                 // Create variable dataset
                 H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);
                 H5::DataSet valueDataset = fieldGroup.createDataSet(
-                    "value", H5::PredType::NATIVE_LONG, valueSpace, plist);
+                    "value", H5::PredType::NATIVE_INT64, valueSpace, plist);
 
                 // Write values in one-shot for efficiency
                 for (std::size_t j = 0; j < logData->intData.size(); ++j)
                 {
                     intVector[j] = logData->intData[j][i];
                 }
-                valueDataset.write(intVector.data(), H5::PredType::NATIVE_LONG);
+                valueDataset.write(intVector.data(), H5::PredType::NATIVE_INT64);
             }
             for (std::size_t i = 0; i < logData->numFloat; ++i)
             {
