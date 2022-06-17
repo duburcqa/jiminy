@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.7.12)
+set(BUILD_VERSION 1.7.13)
 
 # Set compatibility
 if(CMAKE_VERSION VERSION_GREATER "3.11.0")
@@ -38,8 +38,9 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 # Set the compilation flags.
 # Note that is is not possible `add_compile_options`
 # because it does not propagate to external projects.
+set(CMAKE_CXX_FLAGS "$ENV{CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS}")
 if(WIN32)
-    string(REGEX MATCH "/arch:[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS} $ENV{CMAKE_CXX_FLAGS}")
+    string(REGEX MATCH "/arch:[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
     if(CMAKE_CXX_ARCH MATCHES "AVX[0-9]+")
         # Eigen<3.4 relies on __FMA__ definition to detect if FMA is available,
         # which is not set automatically by MSVC.
@@ -51,28 +52,29 @@ if(WIN32)
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:contract")
         endif()
     endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -D_USE_MATH_DEFINES -DNOMINMAX")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g /Od")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /DEBUG:FULL /Zi /Od")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG /O2 /Ob3")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} /DEBUG:FULL /Zi")
 else()
-    string(REGEX MATCH "-march=[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS} $ENV{CMAKE_CXX_FLAGS}")
+    string(REGEX MATCH "-march=[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -O0 -ftemplate-backtrace-limit=0")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -Wfatal-errors -Werror")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g")
 endif()
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g")
 
 # Sub-projects
 add_subdirectory(soup)
 add_subdirectory(core)
 
-option(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
+option(BUILD_PYTHON_INTERFACE "Build and install the Python packages." ON)
 if(BUILD_PYTHON_INTERFACE)
     include(${CMAKE_SOURCE_DIR}/build_tools/cmake/setupPython.cmake)
     add_subdirectory(python)
 endif()
 
-option(BUILD_EXAMPLES "Build the C++ examples" ON)
+option(BUILD_EXAMPLES "Build the C++ examples." ON)
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()

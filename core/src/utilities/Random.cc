@@ -114,7 +114,7 @@ namespace jiminy
         }
     }
 
-    void resetRandomGenerators(boost::optional<uint32_t> const & seed)
+    void resetRandomGenerators(std::optional<uint32_t> const & seed)
     {
         uint32_t newSeed = seed.value_or(seed_);
         srand(newSeed);  // Eigen relies on srand for genering random numbers
@@ -247,17 +247,17 @@ namespace jiminy
         {
         case 3:
             k1 ^= tail[2] << 16;
-            /* Falls through. */  // [[fallthrough]] is not supported by gcc<7.3
+            [[fallthrough]];
         case 2:
             k1 ^= tail[1] << 8;
-            /* Falls through. */  // [[fallthrough]] is not supported by gcc<7.3
+            [[fallthrough]];
         case 1:
             k1 ^= tail[0];
             k1 *= c1;
             k1 = rotl32(k1,15);
             k1 *= c2;
             h1 ^= k1;
-            /* Falls through. */ // [[fallthrough]] is not supported by gcc<7.3
+            [[fallthrough]];
         case 0:
         default:
             break;

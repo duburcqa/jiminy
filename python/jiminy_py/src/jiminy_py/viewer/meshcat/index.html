@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<meta charset=utf-8>
-		<title>MeshCat</title>
-		<link rel="icon" href="data:;base64,iVBORw0KGgo=">
-	</head>
-	<body>
+    <head>
+        <meta charset=utf-8>
+        <title>MeshCat</title>
+        <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    </head>
+    <body>
         <div id="widgets"></div>
         <div id="meshcat-pane"></div>
 
@@ -14,16 +14,57 @@
         <script type="text/javascript" src="webm-writer-0.3.0.js"></script>
         <script type="text/javascript" src="widgets.js"></script>
         <script>
+            // Enable cache for efficiency
+            MeshCat.THREE.Cache.enabled = true;
+
             // Instantiate a new Meshcat viewer
-            var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
+            dom_element = document.getElementById("meshcat-pane");
+            console.log(dom_element);
+            var viewer = new MeshCat.Viewer(dom_element, false);
 
             // Monkey-patch 'set_object_from_json' and 'handle_command'
             // to add support of custom 'ready' command, which is used to
             // determine  if all the meshes have finish loading. Indeed,
             // commands are only processed once every meshes are loaded.
+            var preloaded_resources = {};
+            function loadImageAsync(key, url) {
+                if(preloaded_resources[key] == undefined) {
+                    if (url === "") {
+                        console.error("resource should never be empty.");
+                        return new Promise();
+                    }
+                    preloaded_resources[key] = new Promise((resolve, reject) => {
+                        let img = new Image();
+                        img.onload = () => {
+                            MeshCat.THREE.Cache.add(key, img);
+                            resolve();
+                        }
+                        img.onerror = reject
+                        img.src = url;
+                    })
+                }
+                return preloaded_resources[key];
+            }
+
             var handle_command = viewer.handle_command;
             viewer.handle_command = function(cmd) {
-                if (cmd.type == "ready") {
+                if (cmd.type == "set_object") {
+                    (async () => {
+                        // Store/Load resources in cache
+                        let resources = cmd.object.object.resources;
+                        if (resources !== undefined) {
+                            let promiseTab = [];
+                            for (const [key, url] of Object.entries(resources)) {
+                                promiseTab.push(loadImageAsync(key, url));
+                            }
+                            await Promise.all(promiseTab);
+                            cmd.object.object.resources = {};
+                        }
+                        // Handle command now that everything is in cache
+                        handle_command.call(this, cmd);
+                    })();
+                } else if (cmd.type == "ready") {
+                    console.info("Acknowledge to ready request.");
                     viewer.connection.send("meshcat:ok");
                 } else if (cmd.type == "legend") {
                     updateLegend(cmd);
@@ -34,38 +75,47 @@
                 }
             };
 
+            // May be overwritten externally by python in interactive mode
+            var ws_path = undefined;
+
             // Connect the viewer to the existing server, though direct ZMP
             // websocket in standalone browser or though kernel communication
             // in notebooks.
+            var is_zmq_socket = false;
             try {
-                // Set externally by python in interactive mode
-                var ws_path = undefined;
-
                 if (typeof google !== 'undefined') {
+                    console.info("google colab detected.");
                     (async () => {
+                        console.info("Trying to connect...");
                         viewer.connection = await google.colab.kernel.comms.open("meshcat", "meshcat:open");
                         console.log("connection to Google Colab kernel:", viewer.connection);
 
                         (async function() {
                             for await (const message of viewer.connection.messages) {
-                                viewer.handle_command_bytearray(new Uint8Array(message.buffers[0]));
+                                message.buffers.forEach(function(content, index) {
+                                    viewer.handle_command_bytearray(new Uint8Array(content));
+                                });
                             }
-                            console.log("connection to Google Colab kernel closed.");
+                            console.info("connection to Google Colab kernel closed.");
                         })();
                     })();
                 }
                 else if (typeof window.parent.Jupyter !== 'undefined') {
+                    console.info("Jupyter-notebook detected.");
                     viewer.connection = window.parent.Jupyter.notebook.kernel.comm_manager.new_comm("meshcat", "meshcat:open");
                     console.log("connection to Jupyter kernel:", viewer.connection);
                     viewer.connection.on_msg(function(message) {
-                        viewer.handle_command_bytearray(new Uint8Array(message.buffers[0].buffer));
+                        message.buffers.forEach(function(content, index) {
+                            viewer.handle_command_bytearray(new Uint8Array(content.buffer));
+                        });
                     });
                     viewer.connection.on_close(function(message) {
-                        console.log("connection to Jupyter kernel closed:", message);
+                        console.info("connection to Jupyter kernel closed:", message);
                         viewer.connection = null;  // The connection is no longer available
                     });
                 }
                 else if (ws_path !== undefined) {
+                    console.info("Unknown platform (jupyter-lab / vscode...)");
                     // Connect to kernel socket manually if necessary, namely for
                     // VSCode notebooks and jupyterlab.
                     const ws_url = "ws" + window.parent.location.origin.substring(4) + ws_path;
@@ -141,6 +191,7 @@
                     // Define event handler
                     viewer.connection.onopen = function(event) {
                         console.log("connection to generic ipykernel:", viewer.connection);
+                        console.log("comm id:", comm_id);
                         viewer.connection.send("meshcat:open", "comm_open");
                     };
                     viewer.connection.onmessage = async function (event) {
@@ -149,10 +200,12 @@
                             const reader = new FileReader();
                             reader.addEventListener('loadend', () => {
                                 var p = Promise.resolve(deserialize_array_buffer(reader.result));
-                                p.then(function(msg) {
-                                    if (msg.content.comm_id === comm_id)
+                                p.then(function(message) {
+                                    if (message.content.comm_id === comm_id)
                                     {
-                                        viewer.handle_command_bytearray(new Uint8Array(msg.buffers[0].buffer));
+                                        message.buffers.forEach(function(content, index) {
+                                            viewer.handle_command_bytearray(new Uint8Array(content.buffer));
+                                        });
                                     }
                                 });
                             });
@@ -168,9 +221,31 @@
                 {
                     // Fallback to direct local communication through meshcat ZMQ socket
                     viewer.connect();
+                    is_zmq_socket = true;
                 }
             } catch (e) {
                 console.info("not connected to MeshCat server: ", e);
+            }
+
+            // Notify the kernel periodically that everything is fine.
+            // There is no priority queue, so it is no guaranteed to match the satisfy
+            // timing to requested are being processed for a while, such as loading
+            // meshes or texture.
+            if (!is_zmq_socket) {
+                var last_time = Date.now();
+                setInterval(() => {
+                    const current_time = Date.now();
+                    const elapsed_time = current_time - last_time;
+                    if (elapsed_time > 1000)
+                    {
+                        if (viewer.connection !== undefined && viewer.connection !== null)
+                        {
+                            console.debug("I'm alive. Delta: ", elapsed_time);
+                            viewer.connection.send("meshcat:watchdog");
+                        }
+                        last_time = current_time;
+                    }
+                }, 200);
             }
 
             // Replace the mesh grid by tiles. The paving size is 1m by 1m.
@@ -242,10 +317,11 @@
                 // Note that it is still possible that "on_close" method has
                 // not been triggered and that the connection is no longer
                 // available.
-                if (viewer.connection !== null)
-                {
+                if (viewer.connection !== undefined && viewer.connection !== null) {
                     console.log("closing connection...");
                     viewer.connection.close();
+                } else {
+                    console.info("closing already closed.");
                 }
                 return false;
             }
@@ -271,5 +347,5 @@
             }
         </style>
         <script id="embedded-json"></script>
-	</body>
+    </body>
 </html>

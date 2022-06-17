@@ -18,10 +18,10 @@ from .utilities import interactive_mode
 
 
 PYPPETEER_STARTUP_TIMEOUT = 300.0  # 5min to download chrome (~150Mo)
-PYPPETEER_REQUEST_TIMEOUT = 20.0
+PYPPETEER_REQUEST_TIMEOUT = 40.0
 
 
-if interactive_mode() == 2:
+if interactive_mode() == 4:
     # Must overload 'chromium_executable' for Google Colaboratory to
     # the native browser instead: "/usr/lib/chromium-browser/chromium-browser".
     # Note that the downside is that chrome must be installed manually.
@@ -38,8 +38,16 @@ else:
     # a midrange dedicated GPU.
     os.environ['PYPPETEER_CHROMIUM_REVISION'] = '943836'
 
+    # Disable certificate for downloading chromium for old pyppeteer versions
+    os.environ['PYPPETEER_DOWNLOAD_HOST'] = 'http://storage.googleapis.com'
+    import pyppeteer
+    import pyppeteer.chromium_downloader
+    if (not pyppeteer.chromium_downloader.check_chromium() and
+            int(pyppeteer.__version__[0]) < 1):
+        logging.warning("Disabling certificate check to download chromium.")
 
-# `requests_html` must be imported after setting the chromimum release to be
+
+# `requests_html` must be imported after setting the chromium release to be
 # used because it is importing `pyppeteer` itself.
 from requests_html import HTMLSession, HTMLResponse
 

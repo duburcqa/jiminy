@@ -41,7 +41,7 @@ from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
 
 
-WINDOW_SIZE_DEFAULT = (500, 500)
+WINDOW_SIZE_DEFAULT = (800, 800)
 CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
 LEGEND_DPI = 400
@@ -1430,7 +1430,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         :param requested_format: Desired export format (e.g. 'RGB' or 'BGRA')
         :param raw: whether to return a raw memory view of bytes, of a
-                    structured `np.ndarray` of uint8 with dimensions [W, H, D].
+                    structured `np.ndarray` of uint8 with dimensions [H, W, D].
         """
         # Refresh the scene
         self.graphics_engine.render_frame()
@@ -1537,7 +1537,8 @@ class Panda3dVisualizer(BaseVisualizer):
     """  # noqa: E501
     def initViewer(self,
                    viewer: Optional[Union[Panda3dViewer, Panda3dApp]] = None,
-                   loadModel: bool = False) -> None:
+                   loadModel: bool = False,
+                   **kwargs: Any) -> None:
         """Init the viewer by attaching to / creating a GUI viewer.
         """
         self.visual_group = None

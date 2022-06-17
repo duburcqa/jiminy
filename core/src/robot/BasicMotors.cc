@@ -95,7 +95,7 @@ namespace jiminy
            It is the output of the motor on joint side, ie after the transmission. */
         if (motorOptions_->enableCommandLimit)
         {
-            command = clamp(command, -getCommandLimit(), getCommandLimit());
+            command = std::clamp(command, -commandLimit_, commandLimit_);
         }
         data() = motorOptions_->mechanicalReduction * command;
 

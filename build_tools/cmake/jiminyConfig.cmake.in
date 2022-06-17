@@ -96,7 +96,7 @@ set(jiminy_DEFINITIONS
 )
 if(WIN32)
     list(APPEND jiminy_DEFINITIONS
-        _USE_MATH_DEFINES NOMINMAX
+        WIN32 _USE_MATH_DEFINES NOMINMAX
         EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC
     )
     set(jiminy_OPTIONS /EHsc /bigobj /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)

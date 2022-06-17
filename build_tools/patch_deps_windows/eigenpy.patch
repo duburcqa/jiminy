@@ -2,7 +2,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 0ddc96b..b978939 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -172,7 +172,7 @@ SET(${PROJECT_NAME}_SOURCES
+@@ -197,7 +197,7 @@
    src/version.cpp
  )
  
@@ -15,7 +15,7 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 index 6177257..96988ff 100644
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
-@@ -151,7 +151,6 @@ MACRO(SEARCH_FOR_BOOST)
+@@ -151,7 +151,6 @@
    FIND_PACKAGE(Boost ${BOOST_REQUIRED})
    STRING(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
    IF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")

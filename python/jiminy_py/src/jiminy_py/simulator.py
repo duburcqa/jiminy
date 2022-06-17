@@ -23,6 +23,7 @@ from .log import (read_log,
                   build_robot_from_log,
                   extract_data_from_log)
 from .viewer import (interactive_mode,
+                     get_default_backend,
                      extract_replay_data_from_log_data,
                      play_trajectories,
                      Viewer)
@@ -58,6 +59,22 @@ class Simulator:
     user only as to create a robot and associated controller if any, and
     give high-level instructions to the simulator.
     """
+    def __new__(cls, *args: Any, **kwargs: Any) -> "Simulator":
+        # Instantiate base class
+        self = super().__new__(cls)
+
+        # Viewer management
+        self.viewer = None
+        self._viewers = []
+
+        # Internal buffer for progress bar management
+        self.__pbar: Optional[tqdm] = None
+
+        # Figure holder
+        self.figure = None
+
+        return self
+
     def __init__(self,
                  robot: jiminy.Robot,
                  controller: Optional[jiminy.AbstractController] = None,
@@ -106,16 +123,6 @@ class Simulator:
         self.stepper_state = self.engine.stepper_state
         self.system_state = self.engine.system_state
         self.sensors_data = self.robot.sensors_data
-
-        # Viewer management
-        self.viewer = None
-        self._viewers = []
-
-        # Internal buffer for progress bar management
-        self.__pbar: Optional[tqdm] = None
-
-        # Figure holder
-        self.figure = None
 
         # Reset the low-level jiminy engine
         self.reset()
@@ -486,6 +493,12 @@ class Simulator:
         :returns: Rendering as an RGB array (3D numpy array), if enabled, None
                   otherwise.
         """
+        # Consider no viewer is available if the backend is the wrong one
+        if kwargs.get("backend", self.viewer_backend) != self.viewer_backend:
+            if self.viewer is not None:
+                self.viewer.close()
+                self.viewer = None
+
         # Handle default arguments
         if update_ground_profile is None:
             update_ground_profile = not self.is_viewer_available
@@ -612,10 +625,14 @@ class Simulator:
                 "Nothing to replay. Please run a simulation before calling "
                 "`replay` method, or provided data manually.")
 
-        # Make sure the viewer is instantiated
+        # Make sure the viewer is instantiated before replaying
+        backend = (kwargs.get('backend', self.viewer_backend) or
+                   get_default_backend())
+        must_not_open_gui = (
+            backend.startswith("panda3d") or
+            kwargs.get('record_video_path', None) is not None)
         self.render(**{
-            'return_rgb_array': kwargs.get(
-                'record_video_path', None) is not None,
+            'return_rgb_array': must_not_open_gui,
             'update_floor': True,
             **kwargs})
 
@@ -676,7 +693,7 @@ class Simulator:
 
         # Blocking by default if not interactive
         if block is None:
-            block = not interactive_mode()
+            block = interactive_mode() > 0
 
         # Extract log data
         log_data, log_constants = self.log_data, self.log_constants

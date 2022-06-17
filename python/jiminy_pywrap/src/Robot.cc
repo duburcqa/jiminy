@@ -79,15 +79,21 @@ namespace python
                                                     bp::return_internal_reference<>()))
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
                                                  bp::return_internal_reference<>()))
+                .add_property("collision_model_th", bp::make_getter(&Model::collisionModelOrig_,
+                                                    bp::return_internal_reference<>()))
                 .add_property("collision_model", bp::make_getter(&Model::collisionModel_,
+                                                 bp::return_internal_reference<>()))
+                .add_property("visual_model_th", bp::make_getter(&Model::visualModelOrig_,
                                                  bp::return_internal_reference<>()))
                 .add_property("visual_model", bp::make_getter(&Model::visualModel_,
                                               bp::return_internal_reference<>()))
+                .add_property("visual_data", bp::make_getter(&Model::visualData_,
+                                             bp::return_internal_reference<>()))
                 .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataOrig_,
                                                    bp::return_internal_reference<>()))
                 .add_property("pinocchio_data", bp::make_getter(&Model::pncData_,
                                                 bp::return_internal_reference<>()))
-                .add_property("collision_data", bp::make_function(&PyModelVisitor::getCollisionData,
+                .add_property("collision_data", bp::make_getter(&Model::collisionData_,
                                                 bp::return_internal_reference<>()))
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
@@ -147,11 +153,6 @@ namespace python
                 .add_property("logfile_f_external_headers", bp::make_function(&Model::getForceExternalFieldnames,
                                                             bp::return_value_policy<result_converter<true> >()))
                 ;
-        }
-
-        static pinocchio::GeometryData & getCollisionData(Model & self)
-        {
-            return *(self.collisionData_);
         }
 
         static hresult_t addCollisionBodies(Model          & self,

@@ -297,8 +297,8 @@ class SimulateSimplePendulum(unittest.TestCase):
             SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
 
         # Compare sensor signals
-        self.assertTrue(
-            np.mean(imu_jiminy_delayed_0 - imu_jiminy_shifted_0) < 1.0e-5)
+        self.assertLessEqual(
+            np.mean(imu_jiminy_delayed_0 - imu_jiminy_shifted_0), 1.0e-5)
         self.assertTrue(np.allclose(
             imu_jiminy_delayed_1, imu_jiminy_shifted_1, atol=TOLERANCE))
 
@@ -495,7 +495,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         @details This test asserts that, by adding a flexibility and a rotor
                  inertia, the output is 'sufficiently close' to a SEA system:
-                 see 'note_on_flexibilty_model.pdf' for more information as to
+                 see 'note_on_flexibility_model.pdf' for more information as to
                  why this is not a true equality.
         """
         # Physical parameters: rotor inertia, spring stiffness and damping.
@@ -510,7 +510,7 @@ class SimulateSimplePendulum(unittest.TestCase):
             'frameName': "PendulumJoint",
             'stiffness': k * np.ones(3),
             'damping': nu * np.ones(3),
-            'inertia': np.zeros(3)
+            'inertia': 1e-5 * np.ones(3)
         }]
         self.robot.set_model_options(model_options)
 

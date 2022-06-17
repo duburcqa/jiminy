@@ -15,10 +15,10 @@ jobs:
       matrix:
         container: [
           'quay.io/pypa/manylinux2014_x86_64:latest',    # Not compatible with CXX11 ABI
-          'quay.io/pypa/manylinux_2_24_x86_64:latest',   # Not compatible with C++17
-          #'quay.io/pypa/manylinux_2_28_poc_x86_64:poc'  # Not compatible with Ubuntu 18.04
+          #'quay.io/pypa/manylinux_2_24_x86_64:latest',  # Not compatible with C++17
+          'quay.io/pypa/manylinux_2_28_x86_64:latest'    # Not compatible with Ubuntu 18.04
         ]
-        PYTHON_VERSION: ['cp36', 'cp37', 'cp38', 'cp39']
+        PYTHON_VERSION: ['cp36', 'cp37', 'cp38', 'cp39', 'cp310']
 
     runs-on: ubuntu-20.04
     container: ${{ matrix.container }}
@@ -76,6 +76,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp310' && 'OFF') || 'ON' }} \
               -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
@@ -146,9 +147,7 @@ jobs:
     - name: Installing requirements
       run: |
         sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
-        sudo apt-get install -y --allow-downgrades --allow-unauthenticated \
-        robotpkg-octomap=1.9.0 robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=1.7.1 robotpkg-pinocchio=2.5.6 \
-        robotpkg-py3*-eigenpy=2.6.2 robotpkg-py3*-hpp-fcl=1.7.1 robotpkg-py3*-pinocchio=2.5.6
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary pillow
 
     #####################################################################################
 

@@ -394,23 +394,25 @@ namespace jiminy
                                                                std::string const & frameName1,
                                                                std::string const & frameName2,
                                                                float64_t   const & stiffness,
-                                                               float64_t   const & damping);
+                                                               float64_t   const & damping,
+                                                               float64_t   const & restLength = 0.0);
         hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & systemName,
                                                                std::string const & frameName1,
                                                                std::string const & frameName2,
                                                                float64_t   const & stiffness,
-                                                               float64_t   const & damping);
+                                                               float64_t   const & damping,
+                                                               float64_t   const & restLength = 0.0);
         hresult_t registerViscoElasticForceCoupling(std::string const & systemName1,
                                                     std::string const & systemName2,
                                                     std::string const & frameName1,
                                                     std::string const & frameName2,
-                                                    vectorN_t   const & stiffness,
-                                                    vectorN_t   const & damping);
+                                                    vector6_t   const & stiffness,
+                                                    vector6_t   const & damping);
         hresult_t registerViscoElasticForceCoupling(std::string const & systemName,
                                                     std::string const & frameName1,
                                                     std::string const & frameName2,
-                                                    vectorN_t   const & stiffness,
-                                                    vectorN_t   const & damping);
+                                                    vector6_t   const & stiffness,
+                                                    vector6_t   const & damping);
         hresult_t removeForcesCoupling(std::string const & systemName1,
                                        std::string const & systemName2);
         hresult_t removeForcesCoupling(std::string const & systemName);
@@ -442,7 +444,7 @@ namespace jiminy
         /// \param[in] aInit Initial acceleration of every system. Optional: Zero by default.
         hresult_t start(std::map<std::string, vectorN_t> const & qInit,
                         std::map<std::string, vectorN_t> const & vInit,
-                        boost::optional<std::map<std::string, vectorN_t> > const & aInit = boost::none);
+                        std::optional<std::map<std::string, vectorN_t> > const & aInit = std::nullopt);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -471,7 +473,7 @@ namespace jiminy
         hresult_t simulate(float64_t const & tEnd,
                            std::map<std::string, vectorN_t> const & qInit,
                            std::map<std::string, vectorN_t> const & vInit,
-                           boost::optional<std::map<std::string, vectorN_t> > const & aInit = boost::none);
+                           std::optional<std::map<std::string, vectorN_t> > const & aInit = std::nullopt);
 
         /// \brief Apply an impulse force on a frame for a given duration at the desired time.
         ///        The force must be given in the world frame.

@@ -10,17 +10,17 @@ on:
 jobs:
   build-test-and-deploy-doc-ubuntu:
     name: >-
-      (${{ matrix.os }}) Easy install the dependencies. Build the project and run the unit tests.
-      Generate and deploy the documentation.
+      (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }}) Easy install the dependencies.
+      Build the project and run the unit tests. Generate and deploy the documentation.
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
+        BUILD_TYPE: ['Release']
         include:
-          - os: ubuntu-18.04
-            BUILD_TYPE: 'Debug'
           - os: ubuntu-20.04
-            BUILD_TYPE: 'Release'
+            BUILD_TYPE: 'Debug'
 
     defaults:
       run:
@@ -34,14 +34,14 @@ jobs:
 
     #####################################################################################
 
-    - name: Setup minimal build environment
+    - name: Define environment variables
       run: |
         echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         echo "/home/runner/.local/bin" >> $GITHUB_PATH
-    - name: Installing requirements
+    - name: Install pre-compiled dependencies
       run: |
         PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
         if [[ ${PYTHON_VERSION:2} -lt 10 ]] ; then
@@ -59,7 +59,7 @@ jobs:
     #####################################################################################
 
     - name: PEP8 Code Style Check
-      if: matrix.os == 'ubuntu-20.04'
+      if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release'
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install flake8
         flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,F405,W504 --count --show-source --statistics "$RootDir/python"
@@ -92,7 +92,7 @@ jobs:
 
         "$InstallDir/bin/pip_double_pendulum"
 
-    - name: Run jiminy unit tests
+    - name: Run unit tests for jiminy
       run: |
         cd "$RootDir/build"
         ctest --output-on-failure
@@ -100,7 +100,7 @@ jobs:
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
-    - name: Run gym_jiminy unit tests
+    - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE == 'Release'
       run: |
         cd "$RootDir/python/gym_jiminy/unit_py"
@@ -109,7 +109,7 @@ jobs:
     #####################################################################################
 
     - name: Python linter and static type checker
-      if: matrix.os == 'ubuntu-20.04'
+      if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release'
       run: |
         gym_modules=(
           "common"

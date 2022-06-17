@@ -24,7 +24,7 @@ namespace python
 
     void resetRandomGenerators(bp::object const & seedPy)
     {
-        boost::optional<uint32_t> seed = boost::none;
+        std::optional<uint32_t> seed = std::nullopt;
         if (!seedPy.is_none())
         {
             seed = bp::extract<uint32_t>(seedPy);

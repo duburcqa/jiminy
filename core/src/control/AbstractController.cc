@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "pinocchio/algorithm/joint-configuration.hpp"  // pinocchio::neutral
 
 #include "jiminy/core/robot/Robot.h"

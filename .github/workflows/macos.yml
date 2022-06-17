@@ -10,21 +10,12 @@ on:
 jobs:
   build-and-test-osx:
     name: >-
-      (${{ matrix.os }}) (${{ matrix.PYTHON_VERSION }})
-      Build and run the unit tests. Then generate and publish the wheels on PyPi.
-    runs-on: ${{ matrix.os }}
+      (${{ matrix.PYTHON_VERSION }}) Build and run the unit tests. Then generate and publish the wheels on PyPi.
+    runs-on: macos-11
 
     strategy:
       matrix:
-        include:
-          - os: macos-10.15
-            PYTHON_VERSION: '3.6'
-          - os: macos-10.15
-            PYTHON_VERSION: '3.7'
-          - os: macos-11
-            PYTHON_VERSION: '3.8'
-          - os: macos-11
-            PYTHON_VERSION: '3.9'
+        PYTHON_VERSION: ['3.8', '3.9', '3.10']
 
     defaults:
       run:
@@ -33,6 +24,8 @@ jobs:
     env:
       BUILD_TYPE: "Release"
       MACOSX_DEPLOYMENT_TARGET: "10.14"
+      OSX_ARCHITECTURES: "x86_64;arm64"
+      WHEEL_ARCH: "universal2"
 
     #####################################################################################
 
@@ -55,14 +48,6 @@ jobs:
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
-
-        if [ "${{ matrix.os }}" == "macos-10.15" ] ; then
-          echo "OSX_ARCHITECTURES=x86_64" >> $GITHUB_ENV
-          echo "WHEEL_ARCH=x86_64" >> $GITHUB_ENV
-        else
-          echo "OSX_ARCHITECTURES=x86_64;arm64" >> $GITHUB_ENV
-          echo "WHEEL_ARCH=universal2" >> $GITHUB_ENV
-        fi
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel delocate
@@ -90,6 +75,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.10' && 'OFF') || 'ON' }} \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make -j2
 
@@ -127,7 +113,7 @@ jobs:
 
     #####################################################################################
 
-    - name: Run unit tests
+    - name: Run unit tests for jiminy
       run: |
         cd "$RootDir/build"
         ctest --output-on-failure
@@ -135,6 +121,9 @@ jobs:
         cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
+    - name: Run unit tests for gym jiminy
+      if: matrix.PYTHON_VERSION != '3.10'
+      run: |
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
