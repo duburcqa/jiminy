@@ -29,6 +29,10 @@
             var preloaded_resources = {};
             function loadImageAsync(key, url) {
                 if(preloaded_resources[key] == undefined) {
+                    if (url === "") {
+                        console.error("resource should never be empty.");
+                        return new Promise();
+                    }
                     preloaded_resources[key] = new Promise((resolve, reject) => {
                         let img = new Image();
                         img.onload = () => {
@@ -43,20 +47,23 @@
             }
 
             var handle_command = viewer.handle_command;
-            viewer.handle_command = async function(cmd) {
+            viewer.handle_command = function(cmd) {
                 if (cmd.type == "set_object") {
-                    // Store/Load resources in cache
-                    let resources = cmd.object.object.resources;
-                    if (resources !== undefined) {
-                        let promiseTab = [];
-                        for (const [key, url] of Object.entries(resources)) {
-                            promiseTab.push(loadImageAsync(key, url));
+                    (async () => {
+                        // Store/Load resources in cache
+                        let resources = cmd.object.object.resources;
+                        if (resources !== undefined) {
+                            let promiseTab = [];
+                            for (const [key, url] of Object.entries(resources)) {
+                                promiseTab.push(loadImageAsync(key, url));
+                            }
+                            await Promise.all(promiseTab);
+                            cmd.object.object.resources = {};
                         }
-                        await Promise.all(promiseTab);
-                        cmd.object.object.resources = {};
-                    }
-                }
-                if (cmd.type == "ready") {
+                        // Handle command now that everything is in cache
+                        handle_command.call(this, cmd);
+                    })();
+                } else if (cmd.type == "ready") {
                     console.info("Acknowledge to ready request.");
                     viewer.connection.send("meshcat:ok");
                 } else if (cmd.type == "legend") {
@@ -64,22 +71,18 @@
                 } else if (cmd.type == "watermark") {
                     updateWatermark(cmd);
                 } else {
-                    try {
-                        handle_command.call(this, cmd);
-                    } catch (error) {
-                        console.error(error);
-                        console.debug(cmd);
-                    }
+                    handle_command.call(this, cmd);
                 }
             };
+
+            // May be overwritten externally by python in interactive mode
+            var ws_path = undefined;
 
             // Connect the viewer to the existing server, though direct ZMP
             // websocket in standalone browser or though kernel communication
             // in notebooks.
+            var is_zmq_socket = false;
             try {
-                // May be overwritten externally by python in interactive mode
-                var ws_path = undefined;
-
                 if (typeof google !== 'undefined') {
                     console.info("google colab detected.");
                     (async () => {
@@ -103,7 +106,6 @@
                     console.log("connection to Jupyter kernel:", viewer.connection);
                     viewer.connection.on_msg(function(message) {
                         message.buffers.forEach(function(content, index) {
-                            console.log(content.buffer);
                             viewer.handle_command_bytearray(new Uint8Array(content.buffer));
                         });
                     });
@@ -219,6 +221,7 @@
                 {
                     // Fallback to direct local communication through meshcat ZMQ socket
                     viewer.connect();
+                    is_zmq_socket = true;
                 }
             } catch (e) {
                 console.info("not connected to MeshCat server: ", e);
@@ -228,20 +231,22 @@
             // There is no priority queue, so it is no guaranteed to match the satisfy
             // timing to requested are being processed for a while, such as loading
             // meshes or texture.
-            var last_time = Date.now();
-            setInterval(() => {
-                const current_time = Date.now();
-                const elapsed_time = current_time - last_time;
-                if (elapsed_time > 1000)
-                {
-                    if (viewer.connection !== undefined && viewer.connection !== null)
+            if (!is_zmq_socket) {
+                var last_time = Date.now();
+                setInterval(() => {
+                    const current_time = Date.now();
+                    const elapsed_time = current_time - last_time;
+                    if (elapsed_time > 1000)
                     {
-                        console.debug("I'm alive. Delta: ", elapsed_time);
-                        viewer.connection.send("meshcat:watchdog");
+                        if (viewer.connection !== undefined && viewer.connection !== null)
+                        {
+                            console.debug("I'm alive. Delta: ", elapsed_time);
+                            viewer.connection.send("meshcat:watchdog");
+                        }
+                        last_time = current_time;
                     }
-                    last_time = current_time;
-                }
-            }, 200);
+                }, 200);
+            }
 
             // Replace the mesh grid by tiles. The paving size is 1m by 1m.
             var segments = 20;

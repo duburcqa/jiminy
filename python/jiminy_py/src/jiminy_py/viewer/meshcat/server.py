@@ -190,6 +190,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             for comm_id in self.comm_pool:
                 self.comm_zmq.send_multipart([comm_id, *frames[3::3]])
             self.zmq_socket.send(b"ok")
+            self.zmq_stream.flush(zmq.POLLOUT)
         else:
             super().handle_zmq(frames)
 

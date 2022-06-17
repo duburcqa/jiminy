@@ -169,7 +169,6 @@ class MeshcatVisualizer(BaseVisualizer):
     """  # noqa: E501
     def initViewer(self,
                    viewer: meshcat.Visualizer = None,
-                   cache: Optional[Set[str]] = None,
                    loadModel: bool = False,
                    mustOpen: bool = False,
                    **kwargs: Any) -> None:
@@ -178,7 +177,7 @@ class MeshcatVisualizer(BaseVisualizer):
         "meshcat-server" command in a terminal: this enables the server to
         remain active after the current script ends.
         """
-        self.cache = cache
+        self.cache = set()
         self.root_name = None
         self.visual_group = None
         self.collision_group = None
@@ -289,7 +288,7 @@ class MeshcatVisualizer(BaseVisualizer):
         """Load a single geometry object"""
         node_name = self.getViewerNodeName(geometry_object, geometry_type)
 
-        # Create meshcat object based on the geometry
+        # Create meshcat object based on the geometry.
         try:
             # Trying to load mesh preferably if available
             mesh_path = geometry_object.meshPath
@@ -355,6 +354,9 @@ class MeshcatVisualizer(BaseVisualizer):
             self.loadViewerGeometryObject(
                 collision, pin.GeometryType.COLLISION, color)
         self.displayCollisions(False)
+
+        # The cache is cleared after loading every loading to avoid edge-cases
+        self.cache.clear()
 
     def display(self, q: np.ndarray):
         """Display the robot at configuration q in the viewer by placing all

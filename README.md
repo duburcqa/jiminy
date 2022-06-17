@@ -4,6 +4,7 @@
 
 ____
 
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/duburcqa/jiminy.git/demo?labpath=tutorial.ipynb)
 
 Jiminy is a fast and portable cross-platform open-source simulator for poly-articulated systems. It was built with two ideas in mind:
 

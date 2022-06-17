@@ -76,21 +76,17 @@ if interactive_mode() >= 3:
                 shell_stream = self.__kernel.shell_stream
             else:
                 shell_stream = self.__kernel.shell_streams[0]
-            shell_stream._flushed = False
-            shell_stream.poller.register(shell_stream.socket, zmq.POLLIN)
-            events = shell_stream.poller.poll(0)
-            while events:
-                _, event = events[0]
-                if event:
-                    shell_stream._handle_recv()
-                    shell_stream.poller.register(
-                        shell_stream.socket, zmq.POLLIN)
-                    events = shell_stream.poller.poll(0)
+            shell_stream.flush(zmq.POLLIN)
 
             # One must go through all the messages to keep them in order
             for _ in range(self.__kernel.msg_queue.qsize()):
-                *priority, t, dispatch, args = \
-                    self.__kernel.msg_queue.get_nowait()
+                try:
+                    *priority, t, dispatch, args = \
+                        self.__kernel.msg_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    # Just in case the queue has been emptied in the meantime,
+                    # which should never happen in practice
+                    break
                 if not priority or priority[0] <= SHELL_PRIORITY:
                     # New message: reading message without deserializing its
                     # content at this point for efficiency.
@@ -214,7 +210,7 @@ class CommManager:
             def background_watchdog() -> None:
                 # Process comm messages if any
                 if self.__comm_stream is not None:
-                    self.__comm_stream.flush()
+                    self.__comm_stream.flush(zmq.POLLIN)
                 process_kernel_comm()
 
                 # Re-schedule the method
@@ -233,8 +229,10 @@ class CommManager:
             # Stop running socket
             self.__ioloop.close()
             self.__ioloop = None
-            self.__comm_socket = None
+            self.__comm_stream.close(linger=5)
             self.__comm_stream = None
+            self.__comm_socket.close(linger=5)
+            self.__comm_socket = None
 
         self.__thread = threading.Thread(target=forward_comm_thread)
         self.__thread.daemon = True
@@ -251,18 +249,11 @@ class CommManager:
         if 'meshcat' in self.__kernel.comm_manager.targets:
             self.__kernel.comm_manager.unregister_target(
                 'meshcat', self.__comm_register)
+        if self.__ioloop is not None:
+            self.__ioloop.stop()
         if self.__thread is not None:
             self.__thread.join()
             self.__thread = None
-        if self.__comm_stream is not None:
-            self.__comm_stream.close(linger=5)
-            self.__comm_stream = None
-        if self.__comm_socket is not None:
-            self.__comm_socket.close(linger=5)
-            self.__comm_socket = None
-        if self.__comm_socket is not None:
-            self.__ioloop.close()
-            self.__ioloop = None
 
     def __forward_to_ipykernel(self, frames: Sequence[bytes]) -> None:
         comm_id, *cmd = frames

@@ -100,15 +100,18 @@ def get_default_backend() -> str:
     """Determine the default backend viewer, depending eventually on the
     running environment, hardware, and set of available backends.
 
-    Panda3d is always favored because the throughput in remote
-    interactive notebook is too limited for now.
+    Panda3d is preferred over meshcat in non-interactive mode, and on google
+    colab because of known latency issue making it unusable.
 
     .. note::
         Both Meshcat and Panda3d supports Nvidia EGL rendering without
         graphical server. Besides, both can fallback to software rendering if
         necessary, although Panda3d offers only very limited support of it.
     """
-    if interactive_mode() >= 2:
+    mode = interactive_mode()
+    if mode >= 2:
+        if mode == 3:
+            return 'meshcat'
         return 'panda3d-sync'
     if check_display_available():
         return 'panda3d'
@@ -305,7 +308,6 @@ class Viewer:
     """
     backend = None
     window_name = 'jiminy'
-    _cache = set()
     _has_gui = False
     _backend_obj = None
     _backend_proc = None
@@ -608,8 +610,7 @@ class Viewer:
                 pin.Force.Zero() for _ in range(njoints - 1)])
 
         # Initialize the viewer
-        self._client.initViewer(
-            viewer=self._gui, cache=Viewer._cache, loadModel=False)
+        self._client.initViewer(viewer=self._gui, loadModel=False)
 
         # Create the scene and load robot
         self._client.loadViewerModel(
@@ -947,7 +948,6 @@ class Viewer:
             Viewer._backend_obj = None
             Viewer._backend_proc = None
             Viewer._has_gui = False
-            Viewer._cache.clear()
         else:
             # Disable travelling if associated with this viewer instance
             if (Viewer._camera_travelling is not None and
@@ -2024,9 +2024,9 @@ class Viewer:
                 self._gui.move_nodes(group, pose_dict)
         else:
             import umsgpack
+            cmd_data = [b"list"]
             for geom_model, geom_data, model_type in zip(
                     model_list, data_list, model_type_list):
-                cmd_data = [b"list"]
                 for i, geom in enumerate(geom_model.geometryObjects):
                     oMg = geom_data.oMg[i]
                     S = np.diag((*geom.meshScale, 1.0))
@@ -2045,8 +2045,9 @@ class Viewer:
                     ]
             # Moving all geometries at once using custom command to improve
             # throughput due to piping sockets with multiple redirections.
-            self._gui.window.zmq_socket.send_multipart(cmd_data)
-            self._gui.window.zmq_socket.recv()
+            if cmd_data:
+                self._gui.window.zmq_socket.send_multipart(cmd_data)
+                self._gui.window.zmq_socket.recv()
 
         # Update the camera placement if necessary
         if Viewer._camera_travelling is not None:
