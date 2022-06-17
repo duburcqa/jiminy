@@ -493,6 +493,12 @@ class Simulator:
         :returns: Rendering as an RGB array (3D numpy array), if enabled, None
                   otherwise.
         """
+        # Consider no viewer is available if the backend is the wrong one
+        if kwargs.get("backend", self.viewer_backend) != self.viewer_backend:
+            if self.viewer is not None:
+                self.viewer.close()
+                self.viewer = None
+
         # Handle default arguments
         if update_ground_profile is None:
             update_ground_profile = not self.is_viewer_available
