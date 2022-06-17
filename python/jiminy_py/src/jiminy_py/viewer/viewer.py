@@ -43,8 +43,7 @@ from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, Panda3dApp, Panda3dViewer, Panda3dVisualizer)
 
 
-REPLAY_FRAMERATE = 20 if interactive_mode() >= 3 else 30
-
+REPLAY_FRAMERATE = 30
 
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
@@ -152,6 +151,7 @@ def get_backend_type(backend_name: str) -> type:
             raise ImportError(
                 "'meshcat' backend is not available. Please install "
                 "'jiminy[meshcat]'.")
+    raise ValueError(f"Unknown backend '{backend_name}'.")
 
 
 def sleep(dt: float) -> None:
@@ -2023,15 +2023,30 @@ class Viewer:
                     pose_dict[nodeName] = ((x, y, z), (qw, qx, qy, qz))
                 self._gui.move_nodes(group, pose_dict)
         else:
+            import umsgpack
             for geom_model, geom_data, model_type in zip(
                     model_list, data_list, model_type_list):
+                cmd_data = [b"list"]
                 for i, geom in enumerate(geom_model.geometryObjects):
                     oMg = geom_data.oMg[i]
                     S = np.diag((*geom.meshScale, 1.0))
-                    T = oMg.homogeneous.dot(S)
+                    H = oMg.homogeneous.dot(S)
                     nodeName = self._client.getViewerNodeName(
                         geom, model_type)
-                    self._gui[nodeName].set_transform(T)
+                    path = self._gui[nodeName].path.lower()
+                    cmd_data += [
+                        b"set_transform",
+                        path.encode("utf-8"),
+                        umsgpack.packb({
+                            "type": "set_transform",
+                            "path": path,
+                            "matrix": list(H.T.flat)
+                        })
+                    ]
+            # Moving all geometries at once using custom command to improve
+            # throughput due to piping sockets with multiple redirections.
+            self._gui.window.zmq_socket.send_multipart(cmd_data)
+            self._gui.window.zmq_socket.recv()
 
         # Update the camera placement if necessary
         if Viewer._camera_travelling is not None:

@@ -89,7 +89,9 @@
 
                         (async function() {
                             for await (const message of viewer.connection.messages) {
-                                viewer.handle_command_bytearray(new Uint8Array(message.buffers[0]));
+                                message.buffers.forEach(function(content, index) {
+                                    viewer.handle_command_bytearray(new Uint8Array(content));
+                                });
                             }
                             console.info("connection to Google Colab kernel closed.");
                         })();
@@ -100,7 +102,10 @@
                     viewer.connection = window.parent.Jupyter.notebook.kernel.comm_manager.new_comm("meshcat", "meshcat:open");
                     console.log("connection to Jupyter kernel:", viewer.connection);
                     viewer.connection.on_msg(function(message) {
-                        viewer.handle_command_bytearray(new Uint8Array(message.buffers[0].buffer));
+                        message.buffers.forEach(function(content, index) {
+                            console.log(content.buffer);
+                            viewer.handle_command_bytearray(new Uint8Array(content.buffer));
+                        });
                     });
                     viewer.connection.on_close(function(message) {
                         console.info("connection to Jupyter kernel closed:", message);
@@ -193,10 +198,12 @@
                             const reader = new FileReader();
                             reader.addEventListener('loadend', () => {
                                 var p = Promise.resolve(deserialize_array_buffer(reader.result));
-                                p.then(function(msg) {
-                                    if (msg.content.comm_id === comm_id)
+                                p.then(function(message) {
+                                    if (message.content.comm_id === comm_id)
                                     {
-                                        viewer.handle_command_bytearray(new Uint8Array(msg.buffers[0].buffer));
+                                        message.buffers.forEach(function(content, index) {
+                                            viewer.handle_command_bytearray(new Uint8Array(content.buffer));
+                                        });
                                     }
                                 });
                             });

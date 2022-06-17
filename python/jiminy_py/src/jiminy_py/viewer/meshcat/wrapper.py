@@ -58,13 +58,9 @@ if interactive_mode() >= 3:
             self.qsize_old = 0
             self.is_running = False
 
-        def __call__(self, unsafe: bool = False) -> None:
+        def __call__(self) -> None:
             """Check once if there is pending comm related event in the shell
             stream message priority queue.
-
-            :param unsafe: Whether or not to assume check if the number of
-                           pending message has changed is enough. It makes the
-                           evaluation much faster but flawed.
             """
             # Guard to avoid running this method several times in parallel
             if self.is_running:
@@ -91,15 +87,8 @@ if interactive_mode() >= 3:
                         shell_stream.socket, zmq.POLLIN)
                     events = shell_stream.poller.poll(0)
 
-            qsize = self.__kernel.msg_queue.qsize()
-            if unsafe and qsize == self.qsize_old:
-                # The number of queued messages in the queue has not changed
-                # since it last time it has been checked. Assuming those
-                # messages are the same has before and returning earlier.
-                qsize = 0
-
             # One must go through all the messages to keep them in order
-            for _ in range(qsize):
+            for _ in range(self.__kernel.msg_queue.qsize()):
                 *priority, t, dispatch, args = \
                     self.__kernel.msg_queue.get_nowait()
                 if not priority or priority[0] <= SHELL_PRIORITY:
@@ -200,19 +189,6 @@ if interactive_mode() >= 3:
     # Start comm hijacking
     process_kernel_comm = CommProcessor()
 
-    # Monkey-patch meshcat ViewerWindow 'send' method to process queued comm
-    # messages. Otherwise, new opening comm will not be detected soon enough.
-    _send_orig = meshcat.visualizer.ViewerWindow.send
-    def _send(self, command: Any) -> None:  # noqa
-        _send_orig(self, command)
-        # Check on new comm related messages. Unsafe is enabled to avoid
-        # potentially significant overhead. At this point several safe should
-        # have been executed, so it is much less likely than comm messages
-        # will slip through the net. Besides, missing messages at this point
-        # is not blocking, because here we are not waiting for it to continue.
-        process_kernel_comm(unsafe=True)
-    meshcat.visualizer.ViewerWindow.send = _send # noqa
-
 
 class CommManager:
     def __new__(cls, *args: Any, **kwargs: Any) -> "CommManager":
@@ -289,15 +265,11 @@ class CommManager:
             self.__ioloop = None
 
     def __forward_to_ipykernel(self, frames: Sequence[bytes]) -> None:
-        try:
-            # There must be always two parts each messages, but who knows...
-            comm_id, cmd = frames
-        except ValueError:
-            return
+        comm_id, *cmd = frames
         comm_id = comm_id.decode()
         try:
             comm = self.__kernel.comm_manager.comms[comm_id]
-            comm.send(buffers=[cmd])
+            comm.send(buffers=cmd)
         except KeyError:
             # The comm has probably been closed without the server knowing.
             # Sending the notification to the server to consider it as such.

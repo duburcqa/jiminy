@@ -12,7 +12,7 @@ from typing import Optional, Tuple, Sequence, Dict
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 
-from meshcat.servers.tree import walk
+from meshcat.servers.tree import walk, find_node
 from meshcat.servers.zmqserver import (
     DEFAULT_ZMQ_METHOD, VIEWER_ROOT, StaticFileHandlerNoCache,
     ZMQWebSocketBridge, WebSocketHandler, find_available_port)
@@ -180,12 +180,22 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                 websocket.write_message(msg, binary=True)
             for comm_id in self.comm_pool:
                 self.forward_to_comm(comm_id, msg)
+        elif cmd == "list":
+            # Only set_transform command is supported for now
+            for i in range(1, len(frames), 3):
+                cmd, path, data = frames[i:(i+3)]
+                path = list(filter(None, path.decode("utf-8").split("/")))
+                find_node(self.tree, path).transform = data
+                super().forward_to_websockets(frames[i:(i+3)])
+            for comm_id in self.comm_pool:
+                self.comm_zmq.send_multipart([comm_id, *frames[3::3]])
+            self.zmq_socket.send(b"ok")
         else:
             super().handle_zmq(frames)
 
     def handle_comm(self, frames: Sequence[bytes]) -> None:
         cmd = frames[0].decode("utf-8")
-        comm_id = f"{cmd.split(':', 2)[1]}".encode()
+        comm_id = cmd.split(':', 2)[1].encode()
         if cmd.startswith("open:"):
             self.send_scene(comm_id=comm_id)
             self.comm_pool.add(comm_id)
@@ -202,7 +212,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             self.comm_msg.pop(comm_id, None)
         elif cmd.startswith("data:"):
             # Extract the message
-            message = f"{cmd.split(':', 2)[2]}"
+            message = cmd.split(':', 2)[2]
             # Catch watchdog messages
             if message == "watchdog":
                 self.watch_pool.add(comm_id)

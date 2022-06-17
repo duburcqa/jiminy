@@ -60,9 +60,9 @@ def generate_flexible_arm(mass_segments: float,
             izz=f"{inertia_segments}")
 
     motor = ET.SubElement(
-        robot, "joint", name=f"base_to_link0", type="revolute")
+        robot, "joint", name="base_to_link0", type="revolute")
     ET.SubElement(motor, "parent", link="base")
-    ET.SubElement(motor, "child", link=f"link0")
+    ET.SubElement(motor, "child", link="link0")
     ET.SubElement(motor, "origin", xyz="0 0 0", rpy=f"{np.pi/2} 0 0")
     ET.SubElement(motor, "axis", xyz="0 0 1")
     ET.SubElement(
@@ -89,7 +89,7 @@ class SimulateFlexibleArm(unittest.TestCase):
     def setUp(self):
         # Create temporary urdf file
         fd, urdf_path = tempfile.mkstemp(
-            prefix=f"flexible_arm_", suffix=".urdf")
+            prefix="flexible_arm_", suffix=".urdf")
         os.close(fd)
 
         # Procedural model generation
@@ -117,13 +117,13 @@ class SimulateFlexibleArm(unittest.TestCase):
     def tearDown(self):
         Viewer.close()
 
-    def _read_write_replay_log(self, format):
+    def _read_write_replay_log(self, log_format):
         # Set initial condition and simulation duration
         q0, v0 = np.array([0.]), np.array([0.])
         t_end = 4.0
 
         # Generate temporary log file
-        ext = format if format != "binary" else "data"
+        ext = log_format if log_format != "binary" else "data"
         fd, log_path = tempfile.mkstemp(
             prefix=f"{self.simulator.robot.name}_", suffix=f".{ext}")
         os.close(fd)
@@ -135,7 +135,7 @@ class SimulateFlexibleArm(unittest.TestCase):
 
         # Generate temporary video file
         fd, video_path = tempfile.mkstemp(
-            prefix=f"{self.simulator.robot.name}_", suffix=f".mp4")
+            prefix=f"{self.simulator.robot.name}_", suffix=".mp4")
         os.close(fd)
 
         # Record the result
@@ -173,8 +173,8 @@ class SimulateFlexibleArm(unittest.TestCase):
         self.simulator.robot.set_model_options(model_options)
 
         # Check both HDF5 and binary log formats
-        for format in ('hdf5', 'binary'):
-            self.assertTrue(self._read_write_replay_log(format))
+        for log_format in ('hdf5', 'binary'):
+            self.assertTrue(self._read_write_replay_log(log_format))
 
         # Make sure the scene is empty now
         self.assertEqual(len(Viewer._backend_robot_names), 0)
@@ -202,7 +202,7 @@ class SimulateFlexibleArm(unittest.TestCase):
 
         # Check different flexibility ordering
         q_flex, img_flex, pnc_model_flex, visual_model_flex = [], [], [], []
-        for ord in (range(N_FLEXIBILITY), range(N_FLEXIBILITY)[::-1]):
+        for order in (range(N_FLEXIBILITY), range(N_FLEXIBILITY)[::-1]):
             # Specify joint flexibility parameters
             model_options = self.simulator.robot.get_model_options()
             model_options['dynamics']['enableFlexibleModel'] = True
@@ -211,7 +211,7 @@ class SimulateFlexibleArm(unittest.TestCase):
                 'stiffness': np.zeros(3),
                 'damping': np.zeros(3),
                 'inertia': np.full(3, fill_value=1e6)
-            } for i in ord]
+            } for i in order]
             self.simulator.robot.set_model_options(model_options)
 
             # Serialize the model
