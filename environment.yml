@@ -1,0 +1,9 @@
+name: jiminy-demo
+dependencies:
+  - python==3.8
+  - pip>=20.3
+  - pip:
+    - matplotlib
+    - wurlitzer
+    - jiminy_py[meshcat]>=1.7.13
+    - gym_jiminy[zoo]
