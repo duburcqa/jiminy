@@ -111,7 +111,11 @@ def get_default_backend() -> str:
     mode = interactive_mode()
     if mode >= 2:
         if mode == 3:
-            return 'meshcat'
+            try:
+                get_backend_type('meshcat')
+                return 'meshcat'
+            except ImportError:
+                pass
         return 'panda3d-sync'
     if check_display_available():
         return 'panda3d'

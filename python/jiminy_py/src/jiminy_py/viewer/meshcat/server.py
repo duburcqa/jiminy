@@ -2,6 +2,7 @@ import os
 import sys
 import psutil
 import signal
+import logging
 import asyncio
 import umsgpack
 import tornado.web
@@ -21,6 +22,9 @@ from meshcat.servers.zmqserver import (
 DEFAULT_COMM_PORT = 6500
 WAIT_COM_TIMEOUT = 5.0  # in seconds
 
+
+# Disable tornado access error logging
+logging.getLogger('tornado.access').disabled = True
 
 # ================ Monkey-patch =======================
 

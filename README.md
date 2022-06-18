@@ -4,9 +4,10 @@
 
 ____
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/duburcqa/jiminy.git/demo?labpath=tutorial.ipynb)
+[![Try it in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/duburcqa/jiminy.git/demo?labpath=tutorial.ipynb)
+[![Try it In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/duburcqa/jiminy/blob/demo/tutorial.ipynb)
 
-Jiminy is a fast and portable cross-platform open-source simulator for poly-articulated systems. It was built with two ideas in mind:
+Jiminy is a cross-platform open-source simulator for poly-articulated systems. It was built with two ideas in mind:
 
 - **provide a fast yet physically accurate simulator for robotics research.**
 
@@ -21,20 +22,20 @@ Beside a strong focus on performance to answer machine learning's need for runni
 ### General
 
 - Simulation of multi-body systems using minimal coordinates and Lagrangian dynamics.
-- Comprehensive API for computing dynamic quantities and their derivatives, exposing and extending Pinocchio.
-- C++ core with full python bindings, providing frontend API parity between both languages.
+- Comprehensive API for computing dynamic quantities and their derivatives thanks to Pinocchio.
+- C++ core with full python bindings, providing user API parity between both languages.
 - Designed with machine learning in mind, with seamless wrapping of robots as [OpenAI Gym](https://github.com/openai/gym) environments using one-liners. Jiminy provides both the physical engine and the robot model (including sensors) required for learning.
 - Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported in raw binary, CSV or [HDF5](https://portal.hdfgroup.org/display/HDF5/Introduction+to+HDF5) format.
-- Dedicated integration in Google Colab, Jupyter Lab, and VSCode working out-of-the-box - including interactive 3D viewer based on [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote environments.
-- Cross-platform offscreen rendering capability, without requiring X-server, based on [Panda3d](https://github.com/panda3d/panda3d).
+- Dedicated integration in Google Colab, Jupyter Lab, Mybinder and VSCode working out-of-the-box - including interactive 3D viewer based on [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote environments.
+- Synchronous and single-threaded offscreen rendering capability, GPU-accelerated without graphical server, based on [Panda3d](https://github.com/panda3d/panda3d).
 - Easy to install: `pip` is all that is needed to [get you started](#getting-started) ! Support Linux, Mac and Windows platforms.
 
 ### Physics
 
-- Provide both classical phenomenological force-level spring-damper contact model and constraint solver based on maximum energy dissipation principle.
-- Support contact and collision with the ground, using either a fixed set of contact points or collision meshes and primitives.
-- Able to simulate multiple articulated systems simultaneously, interacting with each other, to support use cases such as multi-agent reinforcement learning or swarm robotics.
-- Support of compliant joints with force-based spring-damper dynamics, to model joint elasticity, a common phenomenon particularly in legged robotics.
+- Provide both classical phenomenological force-level spring-damper contact model and constraint solver satisfying the maximum energy dissipation principle.
+- Support contact and collision with the ground from  a fixed set of contact points (primitives and meshes yet to come).
+- Simulate multiple articulated systems simultaneously interacting with each other, to support use cases such as multi-agent learning or swarm robotics.
+- Compliant spherical joints with spring-damper dynamics to model mechanical deformation, a common phenomenon particularly in legged robotics.
 - Simulate both continuous or discrete-time controller, with possibly different controller and sensor update frequencies.
 
 A more complete list of features is available on the [wiki](https://github.com/duburcqa/jiminy/wiki).
