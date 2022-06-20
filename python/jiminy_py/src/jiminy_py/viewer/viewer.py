@@ -817,11 +817,13 @@ class Viewer:
                     pass
                 for server_info in server_list:
                     if server_info['pid'] == server_pid:
+                        ws_path = (
+                            f"{server_info['base_url']}api/kernels/{kernel_id}"
+                            f"/channels?token={server_info['token']}")
+                        html_content = html_content.replace(
+                            "var ws_path = undefined;",
+                            f'var ws_path = "{ws_path}";')
                         break
-                ws_path = (f"{server_info['base_url']}api/kernels/{kernel_id}"
-                           f"/channels?token={server_info['token']}")
-                html_content = html_content.replace(
-                    "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
                 if interactive_mode() == 3:
                     # Isolate HTML in iframe on Jupyter
