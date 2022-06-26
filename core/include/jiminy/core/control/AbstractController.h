@@ -50,7 +50,7 @@ namespace jiminy
             controllerOptions_t(configHolder_t const & options) :
             telemetryEnable(boost::get<bool_t>(options.at("telemetryEnable")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 

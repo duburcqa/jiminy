@@ -126,14 +126,7 @@ namespace jiminy
         vector3_t damping;
         vector3_t inertia;
 
-        flexibleJointData_t(void) :
-        frameName(),
-        stiffness(),
-        damping(),
-        inertia()
-        {
-            // Empty.
-        };
+        flexibleJointData_t(void) = default;
 
         flexibleJointData_t(std::string const & frameNameIn,
                             vector3_t   const & stiffnessIn,
@@ -144,7 +137,7 @@ namespace jiminy
         damping(dampingIn),
         inertia(inertiaIn)
         {
-            // Empty.
+            // Empty on purpose
         };
 
         inline bool_t operator==(flexibleJointData_t const & other) const
@@ -181,7 +174,7 @@ namespace jiminy
         idx(idIn),
         value(valueIn)
         {
-            // Empty on purpose.
+            // Empty on purpose
         };
 
         ~sensorDataTypePair_t(void) = default;
@@ -191,7 +184,7 @@ namespace jiminy
         idx(other.idx),
         value(other.value)
         {
-            // Empty on purpose.
+            // Empty on purpose
         };
 
         std::string name;
@@ -223,7 +216,7 @@ namespace jiminy
         sensorDataTypeMapImpl_t(),
         sharedData_(sharedData)
         {
-            // Empty on purpose.
+            // Empty on purpose
         }
 
         matrixN_t const & getAll(void) const

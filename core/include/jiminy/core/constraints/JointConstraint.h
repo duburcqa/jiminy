@@ -29,7 +29,7 @@ namespace jiminy
         /// \param[in]  jointName     Name of the joint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         JointConstraint(std::string const & jointName);
-        virtual ~JointConstraint(void);
+        virtual ~JointConstraint(void) = default;
 
         std::string const & getJointName(void) const;
         jointIndex_t const & getJointIdx(void) const;

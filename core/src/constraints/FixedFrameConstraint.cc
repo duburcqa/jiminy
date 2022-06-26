@@ -33,11 +33,6 @@ namespace jiminy
         }
     }
 
-    FixedFrameConstraint::~FixedFrameConstraint(void)
-    {
-        // Empty on purpose
-    }
-
     std::string const & FixedFrameConstraint::getFrameName(void) const
     {
         return frameName_;

@@ -46,7 +46,7 @@ namespace jiminy
                         float64_t   const & wheelRadius,
                         vector3_t   const & groundNormal,
                         vector3_t   const & wheelAxis);
-        virtual ~WheelConstraint(void);
+        virtual ~WheelConstraint(void) = default;
 
         std::string const & getFrameName(void) const;
         frameIndex_t const & getFrameIdx(void) const;

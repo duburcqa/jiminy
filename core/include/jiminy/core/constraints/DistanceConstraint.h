@@ -26,7 +26,7 @@ namespace jiminy
         DistanceConstraint(std::string const & firstFrameName,
                            std::string const & secondFrameName,
                            float64_t const & distanceReference);
-        virtual ~DistanceConstraint(void);
+        virtual ~DistanceConstraint(void) = default;
 
         std::vector<std::string> const & getFramesNames(void) const;
         std::vector<frameIndex_t> const & getFramesIdx(void) const;

@@ -19,22 +19,6 @@ namespace jiminy
 
     struct logData_t
     {
-    public:
-        logData_t(void) :
-        constants(),
-        fieldnames(),
-        version(0),
-        timeUnit(1.0),
-        numInt(0U),
-        numFloat(0U),
-        timestamps(),
-        intData(),
-        floatData()
-        {
-            // Empty on purpose.
-        }
-
-    public:
         static_map_t<std::string, std::string> constants;
         std::vector<std::string> fieldnames;
         int32_t version;
@@ -55,7 +39,7 @@ namespace jiminy
         TelemetryRecorder(TelemetryRecorder const &) = delete;
         TelemetryRecorder & operator=(TelemetryRecorder const &) = delete;
     public:
-        TelemetryRecorder(void);
+        TelemetryRecorder(void) = default;
         ~TelemetryRecorder(void);
 
         ////////////////////////////////////////////////////////////////////////

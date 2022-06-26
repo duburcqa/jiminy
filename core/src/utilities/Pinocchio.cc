@@ -970,7 +970,7 @@ namespace jiminy
         DummyMeshLoader(void) :
         MeshLoader(hpp::fcl::BV_OBBRSS)
         {
-            // Empty on purpose.
+            // Empty on purpose
         }
 
         virtual hpp::fcl::BVHModelPtr_t load(std::string     const & /* filename */,

@@ -18,7 +18,7 @@ namespace jiminy
     intBufferPosition_(),
     floatBufferPosition_()
     {
-        // Empty.
+        // Empty on purpose
     }
 
     template<>

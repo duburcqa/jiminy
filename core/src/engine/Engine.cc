@@ -6,15 +6,6 @@
 
 namespace jiminy
 {
-    Engine::Engine(void):
-    EngineMultiRobot(),
-    isInitialized_(false),
-    robot_(nullptr),
-    controller_(nullptr)
-    {
-        // Empty on purpose.
-    }
-
     hresult_t Engine::initializeImpl(std::shared_ptr<Robot>              robot,
                                      std::shared_ptr<AbstractController> controller,
                                      callbackFunctor_t                   callbackFct)

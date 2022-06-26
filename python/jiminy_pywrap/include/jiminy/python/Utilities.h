@@ -679,12 +679,7 @@ namespace python
     class AppendPythonToBoostVariant : public boost::static_visitor<>
     {
     public:
-        AppendPythonToBoostVariant(void) :
-        objPy_(nullptr)
-        {
-            // Empty on purpose
-        }
-
+        AppendPythonToBoostVariant(void) = default;
         ~AppendPythonToBoostVariant(void) = default;
 
         template<typename T>

@@ -26,11 +26,6 @@ namespace jiminy
         // Empty on purpose
     }
 
-    SphereConstraint::~SphereConstraint(void)
-    {
-        // Empty on purpose
-    }
-
     std::string const & SphereConstraint::getFrameName(void) const
     {
         return frameName_;

@@ -30,11 +30,6 @@ namespace jiminy
         // Empty on purpose
     }
 
-    WheelConstraint::~WheelConstraint(void)
-    {
-        // Empty on purpose
-    }
-
     std::string const & WheelConstraint::getFrameName(void) const
     {
         return frameName_;

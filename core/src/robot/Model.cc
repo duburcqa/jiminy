@@ -41,15 +41,6 @@
 
 namespace jiminy
 {
-    constraintsHolder_t::constraintsHolder_t(void) :
-    boundJoints(),
-    contactFrames(),
-    collisionBodies(),
-    registered()
-    {
-        // Empty on purpose
-    }
-
     void constraintsHolder_t::clear(void)
     {
         boundJoints.clear();

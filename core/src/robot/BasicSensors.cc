@@ -77,7 +77,7 @@ namespace jiminy
     frameIdx_(0),
     sensorRotationBias_()
     {
-        // Empty.
+        // Empty on purpose
     }
 
     hresult_t ImuSensor::initialize(std::string const & frameName)
@@ -238,7 +238,7 @@ namespace jiminy
     frameName_(),
     frameIdx_(0)
     {
-        // Empty.
+        // Empty on purpose
     }
 
     hresult_t ContactSensor::initialize(std::string const & frameName)
@@ -325,7 +325,7 @@ namespace jiminy
     parentJointIdx_(0),
     f_()
     {
-        // Empty.
+        // Empty on purpose
     }
 
     hresult_t ForceSensor::initialize(std::string const & frameName)
@@ -417,7 +417,7 @@ namespace jiminy
     jointIdx_(0),
     jointType_(joint_t::NONE)
     {
-        // Empty.
+        // Empty on purpose
     }
 
     hresult_t EncoderSensor::initialize(std::string const & jointName)
@@ -524,7 +524,7 @@ namespace jiminy
     motorName_(),
     motorIdx_(-1)
     {
-        // Empty.
+        // Empty on purpose
     }
 
     hresult_t EffortSensor::initialize(std::string const & motorName)

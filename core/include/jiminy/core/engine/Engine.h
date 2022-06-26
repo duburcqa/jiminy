@@ -14,7 +14,7 @@ namespace jiminy
         Engine & operator = (Engine const & other) = delete;
 
     public:
-        Engine(void);
+        Engine(void) = default;
         ~Engine(void) = default;
 
         hresult_t initialize(std::shared_ptr<Robot>              robot,

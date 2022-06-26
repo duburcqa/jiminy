@@ -7,7 +7,7 @@ namespace jiminy
                                                std::vector<Robot const *> const & robots):
     AbstractStepper(f, robots)
     {
-        // Empty
+        // Empty on purpose
     }
 
     bool_t EulerExplicitStepper::tryStepImpl(state_t                 & state,

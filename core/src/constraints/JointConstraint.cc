@@ -20,11 +20,6 @@ namespace jiminy
         // Empty on purpose
     }
 
-    JointConstraint::~JointConstraint(void)
-    {
-        // Empty on purpose
-    }
-
     std::string const & JointConstraint::getJointName(void) const
     {
         return jointName_;

@@ -39,13 +39,6 @@ namespace jiminy
     struct constraintsHolder_t
     {
     public:
-        // Disable the copy of the class
-        constraintsHolder_t(constraintsHolder_t const & constraintsHolder) = default;
-        constraintsHolder_t & operator = (constraintsHolder_t const & other) = default;
-
-        constraintsHolder_t(void);
-        ~constraintsHolder_t(void) = default;
-
         void clear(void);
 
         std::tuple<constraintsMap_t *, constraintsMap_t::iterator>
@@ -197,7 +190,7 @@ namespace jiminy
             velocityLimitFromUrdf(boost::get<bool_t>(options.at("velocityLimitFromUrdf"))),
             velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -218,7 +211,7 @@ namespace jiminy
             enableFlexibleModel(boost::get<bool_t>(options.at("enableFlexibleModel"))),
             flexibilityConfig(boost::get<flexibilityConfig_t>(options.at("flexibilityConfig")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -229,7 +222,7 @@ namespace jiminy
             collisionOptions_t(configHolder_t const & options) :
             maxContactPointsPerBody(boost::get<uint32_t>(options.at("maxContactPointsPerBody")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -244,7 +237,7 @@ namespace jiminy
             joints(boost::get<configHolder_t>(options.at("joints"))),
             collisions(boost::get<configHolder_t>(options.at("collisions")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 

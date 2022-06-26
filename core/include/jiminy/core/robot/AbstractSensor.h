@@ -41,21 +41,6 @@ namespace jiminy
     ///////////////////////////////////////////////////////////////////////////////////////////////
     struct SensorSharedDataHolder_t
     {
-    public:
-        SensorSharedDataHolder_t(void) :
-        time_(),
-        data_(),
-        dataMeasured_(),
-        sensors_(),
-        num_(0),
-        delayMax_(0.0)
-        {
-            // Empty.
-        };
-
-        ~SensorSharedDataHolder_t(void) = default;
-
-    public:
         boost::circular_buffer_space_optimized<float64_t> time_;  ///< Circular buffer of the stored timesteps
         boost::circular_buffer_space_optimized<matrixN_t> data_;  ///< Circular buffer of past sensor real data
         matrixN_t dataMeasured_;                                  ///< Buffer of current sensor measurement data
@@ -109,7 +94,7 @@ namespace jiminy
             jitter(boost::get<float64_t>(options.at("jitter"))),
             delayInterpolationOrder(boost::get<uint32_t>(options.at("delayInterpolationOrder")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
