@@ -41,15 +41,6 @@
 
 namespace jiminy
 {
-    constraintsHolder_t::constraintsHolder_t(void) :
-    boundJoints(),
-    contactFrames(),
-    collisionBodies(),
-    registered()
-    {
-        // Empty on purpose
-    }
-
     void constraintsHolder_t::clear(void)
     {
         boundJoints.clear();
@@ -69,7 +60,7 @@ namespace jiminy
                             });
     }
 
-    std::tuple<constraintsMap_t *, constraintsMap_t::iterator>
+    std::pair<constraintsMap_t *, constraintsMap_t::iterator>
         constraintsHolder_t::find(std::string const & key,
                                   constraintsHolderType_t const & holderType)
     {
@@ -111,8 +102,7 @@ namespace jiminy
     bool_t constraintsHolder_t::exist(std::string const & key,
                                       constraintsHolderType_t const & holderType) const
     {
-        constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
-        std::tie(constraintsMapPtr, constraintIt) = const_cast<constraintsHolder_t *>(this)->find(key, holderType);
+        auto const [constraintsMapPtr, constraintIt] = const_cast<constraintsHolder_t *>(this)->find(key, holderType);
         return (constraintsMapPtr && constraintIt != constraintsMapPtr->end());
     }
 
@@ -131,8 +121,7 @@ namespace jiminy
     std::shared_ptr<AbstractConstraintBase> constraintsHolder_t::get(std::string             const & key,
                                                                      constraintsHolderType_t const & holderType)
     {
-        constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
-        std::tie(constraintsMapPtr, constraintIt) = find(key, holderType);
+        auto [constraintsMapPtr, constraintIt] = find(key, holderType);
         if (constraintsMapPtr && constraintIt != constraintsMapPtr->end())
         {
             return constraintIt->second;

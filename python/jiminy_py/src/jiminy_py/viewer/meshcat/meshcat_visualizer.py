@@ -195,7 +195,7 @@ class MeshcatVisualizer(BaseVisualizer):
             self.loadViewerModel(rootNodeName=self.model.name)
 
     def getViewerNodeName(self,
-                          geometry_object: hppfcl.CollisionGeometry,
+                          geometry_object: pin.GeometryObject,
                           geometry_type: pin.GeometryType):
         """Return the name of the geometry object inside the viewer.
         """
@@ -204,7 +204,7 @@ class MeshcatVisualizer(BaseVisualizer):
         elif geometry_type is pin.GeometryType.COLLISION:
             return '/'.join((self.collision_group, geometry_object.name))
 
-    def loadPrimitive(self, geometry_object: hppfcl.CollisionGeometry):
+    def loadPrimitive(self, geometry_object: pin.GeometryObject):
         geom = geometry_object.geometry
         if isinstance(geom, hppfcl.Capsule):
             obj = Capsule(2. * geom.halfLength, geom.radius)
@@ -227,17 +227,11 @@ class MeshcatVisualizer(BaseVisualizer):
         elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelBase)):
             # Extract vertices and faces from geometry
             if isinstance(geom, hppfcl.Convex):
-                num_vertices = geom.num_points
-                get_vertices = geom.points
-                num_faces = geom.num_polygons
-                get_faces = geom.polygons
+                vertices = geom.points()
+                num_faces, get_faces = geom.num_polygons, geom.polygons
             else:
-                num_vertices = geom.num_vertices
-                get_vertices = geom.vertices
+                vertices = geom.vertices()
                 num_faces, get_faces = geom.num_tris, geom.tri_indices
-            vertices = np.empty((num_vertices, 3))
-            for i in range(num_vertices):
-                vertices[i] = get_vertices(i)
             faces = np.empty((num_faces, 3), dtype=np.int32)
             for i in range(num_faces):
                 tri = get_faces(i)
@@ -255,7 +249,7 @@ class MeshcatVisualizer(BaseVisualizer):
 
         return obj
 
-    def loadMesh(self, geometry_object: hppfcl.CollisionGeometry):
+    def loadMesh(self, geometry_object: pin.GeometryObject):
         # Mesh path is empty if Pinocchio is built without HPP-FCL bindings
         mesh_path = geometry_object.meshPath
         if mesh_path == "":
@@ -280,7 +274,7 @@ class MeshcatVisualizer(BaseVisualizer):
         return obj
 
     def loadViewerGeometryObject(self,
-                                 geometry_object: hppfcl.CollisionGeometry,
+                                 geometry_object: pin.GeometryObject,
                                  geometry_type: pin.GeometryType,
                                  color: Optional[np.ndarray] = None,
                                  Material: Type[meshcat.geometry.Material] =

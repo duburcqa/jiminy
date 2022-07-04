@@ -970,14 +970,13 @@ namespace jiminy
         DummyMeshLoader(void) :
         MeshLoader(hpp::fcl::BV_OBBRSS)
         {
-            // Empty on purpose.
+            // Empty on purpose
         }
 
         virtual hpp::fcl::BVHModelPtr_t load(std::string     const & /* filename */,
                                              hpp::fcl::Vec3f const & /* scale */) override final
         {
-            return boost::shared_ptr<hpp::fcl::BVHModel<hpp::fcl::OBBRSS> >(
-                new hpp::fcl::BVHModel<hpp::fcl::OBBRSS>);
+            return hpp::fcl::BVHModelPtr_t(new hpp::fcl::BVHModel<hpp::fcl::OBBRSS>);
         }
     };
 

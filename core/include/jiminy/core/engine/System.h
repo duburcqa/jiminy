@@ -106,6 +106,7 @@ namespace jiminy
     struct systemState_t
     {
     public:
+        // Non-default constructor to be considered initialized even if not
         systemState_t(void);
 
         hresult_t initialize(Robot const & robot);
@@ -132,12 +133,6 @@ namespace jiminy
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    public:
-        systemDataHolder_t(void);
-        systemDataHolder_t(systemDataHolder_t && other) = default;
-        systemDataHolder_t & operator = (systemDataHolder_t && other) = default;
-        ~systemDataHolder_t(void) = default;
 
     public:
         std::unique_ptr<LockGuardLocal> robotLock;

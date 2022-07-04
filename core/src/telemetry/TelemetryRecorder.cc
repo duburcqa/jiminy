@@ -19,22 +19,6 @@
 
 namespace jiminy
 {
-    TelemetryRecorder::TelemetryRecorder(void) :
-    flows_(),
-    isInitialized_(false),
-    recordedBytesLimits_(0),
-    recordedBytesDataLine_(0),
-    recordedBytes_(0),
-    headerSize_(0),
-    integersRegistry_(nullptr),
-    integerSectionSize_(0),
-    floatsRegistry_(nullptr),
-    floatSectionSize_(0),
-    timeUnitInv_(1.0)
-    {
-        // Empty on purpose
-    }
-
     TelemetryRecorder::~TelemetryRecorder(void)
     {
         if (!flows_.empty())

@@ -45,7 +45,7 @@ namespace jiminy
     lastError_(hresult_t::SUCCESS),
     io_(nullptr)
     {
-        // Empty on purpose.
+        // Empty on purpose
     }
 
     hresult_t AbstractIODevice::open(openMode_t const & modes)

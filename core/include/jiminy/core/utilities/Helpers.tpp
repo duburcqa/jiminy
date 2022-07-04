@@ -120,10 +120,8 @@ namespace jiminy
     template<typename InputIt, typename UnaryFunction, typename ...Args>
     std::tuple<bool_t, float64_t> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f, Args... values)
     {
-        bool_t isIncluded1, isIncluded2;
-        float64_t value1, value2;
-        std::tie(isIncluded1, value1) = isGcdIncluded(std::forward<Args>(values)...);
-        std::tie(isIncluded2, value2) = isGcdIncluded(first, last, f);
+        auto const [isIncluded1, value1] = isGcdIncluded(std::forward<Args>(values)...);
+        auto const [isIncluded2, value2] = isGcdIncluded(first, last, f);
         if (!isIncluded1 || !isIncluded2)
         {
             return {false, INF};

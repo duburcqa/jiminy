@@ -18,7 +18,7 @@ namespace jiminy
     MutexLocal::MutexLocal(void) :
     isLocked_(new bool_t{false})
     {
-        // Empty
+        // Empty on purpose
     }
 
     MutexLocal::~MutexLocal(void)

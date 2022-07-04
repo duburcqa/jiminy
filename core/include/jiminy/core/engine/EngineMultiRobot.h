@@ -56,22 +56,6 @@ namespace jiminy
     struct stepperState_t
     {
     public:
-        stepperState_t(void) :
-        iter(0U),
-        iterFailed(0U),
-        t(0.0),
-        tPrev(0.0),
-        tError(0.0),
-        dt(0.0),
-        dtLargest(0.0),
-        dtLargestPrev(0.0),
-        qSplit(),
-        vSplit(),
-        aSplit()
-        {
-            // Empty on purpose.
-        }
-
         void reset(float64_t              const & dtInit,
                    std::vector<vectorN_t> const & qSplitInit,
                    std::vector<vectorN_t> const & vSplitInit,
@@ -214,7 +198,7 @@ namespace jiminy
             regularization(boost::get<float64_t>(options.at("regularization"))),
             stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -237,7 +221,7 @@ namespace jiminy
             transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
             transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -250,7 +234,7 @@ namespace jiminy
             boundStiffness(boost::get<float64_t>(options.at("boundStiffness"))),
             boundDamping(boost::get<float64_t>(options.at("boundDamping")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -263,7 +247,7 @@ namespace jiminy
             gravity(boost::get<vectorN_t>(options.at("gravity"))),
             groundProfile(boost::get<heightmapFunctor_t>(options.at("groundProfile")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -298,7 +282,7 @@ namespace jiminy
             controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
             logInternalStepperSteps(boost::get<bool_t>(options.at("logInternalStepperSteps")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -323,7 +307,7 @@ namespace jiminy
             enableMotorEffort(boost::get<bool_t>(options.at("enableMotorEffort"))),
             enableEnergy(boost::get<bool_t>(options.at("enableEnergy")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -344,7 +328,7 @@ namespace jiminy
             constraints(boost::get<configHolder_t>(options.at("constraints"))),
             contacts(boost::get<configHolder_t>(options.at("contacts")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 

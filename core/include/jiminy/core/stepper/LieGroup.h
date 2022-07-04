@@ -1338,11 +1338,8 @@ namespace Eigen
         return out; \
     }
 
-    // Disable "-Weffc++" flag while generting this code because it is buggy...
-    #pragma GCC diagnostic ignored "-Weffc++"
     GENERATE_SHARED_IMPL(StateDerivative,v,nv,a,nv)
     GENERATE_SHARED_IMPL(State,q,nq,v,nv)
-    #pragma GCC diagnostic pop
 
     #undef GENERATE_SHARED_IMPL
 }

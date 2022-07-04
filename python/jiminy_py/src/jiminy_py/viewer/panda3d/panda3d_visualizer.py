@@ -1554,7 +1554,7 @@ class Panda3dVisualizer(BaseVisualizer):
             self.loadViewerModel(rootNodeName=self.model.name)
 
     def getViewerNodeName(self,
-                          geometry_object: hppfcl.CollisionGeometry,
+                          geometry_object: pin.GeometryObject,
                           geometry_type: pin.GeometryType) -> Tuple[str, str]:
         """Return the name of the geometry object inside the viewer.
         """
@@ -1564,7 +1564,7 @@ class Panda3dVisualizer(BaseVisualizer):
             return self.collision_group, geometry_object.name
 
     def loadViewerGeometryObject(self,
-                                 geometry_object: hppfcl.CollisionGeometry,
+                                 geometry_object: pin.GeometryObject,
                                  geometry_type: pin.GeometryType,
                                  color: Optional[np.ndarray] = None) -> None:
         """Load a single geometry object
@@ -1619,17 +1619,11 @@ class Panda3dVisualizer(BaseVisualizer):
             elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelBase)):
                 # Extract vertices and faces from geometry
                 if isinstance(geom, hppfcl.Convex):
-                    num_vertices = geom.num_points
-                    get_vertices = geom.points
-                    num_faces = geom.num_polygons
-                    get_faces = geom.polygons
+                    vertices = geom.points()
+                    num_faces, get_faces = geom.num_polygons, geom.polygons
                 else:
-                    num_vertices = geom.num_vertices
-                    get_vertices = geom.vertices
+                    vertices = geom.vertices()
                     num_faces, get_faces = geom.num_tris, geom.tri_indices
-                vertices = np.empty((num_vertices, 3))
-                for i in range(num_vertices):
-                    vertices[i] = get_vertices(i)
                 faces = np.empty((num_faces, 3), dtype=np.int32)
                 for i in range(num_faces):
                     tri = get_faces(i)
@@ -1637,7 +1631,7 @@ class Panda3dVisualizer(BaseVisualizer):
                         faces[i, j] = tri[j]
 
                 # Return immediately if there is nothing to load
-                if num_vertices == 0:
+                if num_faces == 0:
                     return
 
                 # Create primitive triangle geometry.

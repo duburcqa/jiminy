@@ -38,7 +38,7 @@ namespace jiminy
     sensorIdx_(0),
     sharedHolder_(nullptr)
     {
-        // Empty
+        // Empty on purpose
     }
 
     template<typename T>

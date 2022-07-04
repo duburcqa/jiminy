@@ -117,7 +117,7 @@ namespace jiminy
     void resetRandomGenerators(std::optional<uint32_t> const & seed)
     {
         uint32_t newSeed = seed.value_or(seed_);
-        srand(newSeed);  // Eigen relies on srand for genering random numbers
+        srand(newSeed);  // Eigen relies on srand for generating random numbers
         generator_.seed(newSeed);
         r4_nor_setup();
         seed_ = newSeed;
@@ -315,13 +315,14 @@ namespace jiminy
         l.col(0) = g.row(0);
         g.row(0).tail(n - 1) = g.row(0).head(n - 1).eval();
         g(0, 0) = 0.0;
-        matrix2_t H;
+        matrix2_t H = matrix2_t::Ones();
         for (uint32_t i = 1; i < n ; ++i)
         {
             float64_t const rho = - g(1, i) / g(0, i);
-            H << 1.0, rho,
-                 rho, 1.0;
-            g.rightCols(n - i + 1) = (H * g.rightCols(n - i + 1) / std::sqrt((1 - rho) * (1 + rho))).eval();
+            // H << 1.0, rho,
+            //      rho, 1.0;
+            Eigen::Map<vector4_t>(H.data()).segment<2>(1).fill(rho);
+            g.rightCols(n - i + 1) = (H * g.rightCols(n - i + 1) / std::sqrt(1.0 - rho * rho)).eval();
             l.col(i).tail(n - i + 1) = g.row(0).tail(n - i + 1);
             g.row(0).tail(n - i) = g.row(0).segment(i - 1, n - i).eval();
             g(0, i - 1) = 0.0;
@@ -329,9 +330,11 @@ namespace jiminy
     }
 
     PeriodicGaussianProcess::PeriodicGaussianProcess(float64_t const & wavelength,
-                                                     float64_t const & period) :
+                                                     float64_t const & period,
+                                                     float64_t const & scale) :
     wavelength_(wavelength),
     period_(period),
+    scale_(scale),
     dt_(0.02 * wavelength_),
     numTimes_(static_cast<int32_t>(std::ceil(period_ / dt_))),
     isInitialized_(false),
@@ -365,7 +368,7 @@ namespace jiminy
             reset();
         }
 
-        // Wrap requested time in guassian process period
+        // Wrap requested time in gaussian process period
         float64_t tWrap = std::fmod(t, period_);
         if (tWrap < 0)
         {
@@ -378,7 +381,7 @@ namespace jiminy
 
         // Perform First order interpolation
         float64_t const ratio = tWrap / dt_ - tLeftIdx;
-        return (1.0 - ratio) * values_[tLeftIdx] + ratio * values_[tRightIdx];
+        return scale_ * (values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]));
     }
 
     float64_t const & PeriodicGaussianProcess::getWavelength(void) const
@@ -404,14 +407,14 @@ namespace jiminy
         {
             distMat.diagonal(i).setConstant(dt_ * i);
         }
-        distMat.triangularView<Eigen::Lower>() = distMat.transpose();
+        distMat.triangularView<Eigen::StrictlyLower>() = distMat.transpose();
 
         // Compute covariance matrix
         matrixN_t cov(numTimes_, numTimes_);
         cov = distMat.array().abs().unaryExpr(
-            [period = period_, wavelength2 = std::pow(wavelength_, 2)](float64_t const & dist)
+            [period = period_, wavelength = wavelength_](float64_t const & dist)
             {
-                return std::exp(-2.0 * std::pow(std::sin(M_PI / period * dist), 2) / wavelength2);
+                return std::exp(-2.0 * std::pow(std::sin(M_PI / period * dist) / wavelength, 2));
             });
 
         /* Perform Square-Root-Free Cholesky decomposition (LDLT).
@@ -427,9 +430,11 @@ namespace jiminy
     }
 
     PeriodicFourierProcess::PeriodicFourierProcess(float64_t const & wavelength,
-                                                   float64_t const & period) :
+                                                   float64_t const & period,
+                                                   float64_t const & scale) :
     wavelength_(wavelength),
     period_(period),
+    scale_(scale),
     dt_(0.02 * wavelength_),
     numTimes_(static_cast<int32_t>(std::ceil(period_ / dt_))),
     numHarmonics_(static_cast<int32_t>(std::ceil(period_ / wavelength_))),
@@ -480,8 +485,8 @@ namespace jiminy
         int32_t const tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
-        float64_t ratio = tWrap / dt_ - tLeftIdx;
-        return (1.0 - ratio) * values_[tLeftIdx] + ratio * values_[tRightIdx];
+        float64_t const ratio = tWrap / dt_ - tLeftIdx;
+        return scale_ * (values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]));
     }
 
     float64_t const & PeriodicFourierProcess::getWavelength(void) const
@@ -637,7 +642,7 @@ namespace jiminy
         // Initialize the permutation vector with values from 0 to 255
         std::iota(perm_.begin(), perm_.end(), 0);
 
-        // Suffle the permutation vector
+        // Shuffle the permutation vector
         std::shuffle(perm_.begin(), perm_.end(), generator_);
     }
 
@@ -658,9 +663,11 @@ namespace jiminy
     }
 
     AbstractPerlinProcess::AbstractPerlinProcess(float64_t const & wavelength,
+                                                 float64_t const & scale,
                                                  uint32_t const & numOctaves) :
     wavelength_(wavelength),
     numOctaves_(numOctaves),
+    scale_(scale),
     isInitialized_(false),
     octaves_(),
     amplitude_(0.0)
@@ -688,7 +695,7 @@ namespace jiminy
         {
             amplitudeSquared += std::pow(octave->getScale(), 2);
         }
-        amplitude_ = std::sqrt(amplitudeSquared);
+        amplitude_ = scale_ * std::sqrt(amplitudeSquared);
     }
 
     float64_t AbstractPerlinProcess::operator()(float const & t)
@@ -720,9 +727,15 @@ namespace jiminy
         return numOctaves_;
     }
 
+    float64_t const & AbstractPerlinProcess::getScale(void) const
+    {
+        return scale_;
+    }
+
     RandomPerlinProcess::RandomPerlinProcess(float64_t const & wavelength,
+                                             float64_t const & scale,
                                              uint32_t  const & numOctaves) :
-    AbstractPerlinProcess(wavelength, numOctaves)
+    AbstractPerlinProcess(wavelength, scale, numOctaves)
     {
         // Empty on purpose
     }
@@ -748,8 +761,9 @@ namespace jiminy
 
     PeriodicPerlinProcess::PeriodicPerlinProcess(float64_t const & wavelength,
                                                  float64_t const & period,
+                                                 float64_t const & scale,
                                                  uint32_t const & numOctaves) :
-    AbstractPerlinProcess(wavelength, numOctaves),
+    AbstractPerlinProcess(wavelength, scale, numOctaves),
     period_(period)
     {
         // Make sure the period is larger than the wavelength
@@ -886,119 +900,125 @@ namespace jiminy
             posRel -= posIdx.cast<float64_t>();
 
             // Interpolate height based on nearby tiles if necessary
+            float64_t height;
+            vector3_t normal;
             Eigen::Matrix<bool_t, 2, 1> isEdge =
                 (posRel.array() < interpThreshold.array()) ||
                 (1.0 - posRel.array() < interpThreshold.array());
-            float64_t height, dheight_x, dheight_y;
             if (isEdge[0] && !isEdge[1])
             {
-                auto result = tile2dInterp1d(
+                float64_t dheight_x;
+                std::tie(height, dheight_x) = tile2dInterp1d(
                     posIdx, posRel, 0, size, sparsity, heightMax,
                     interpThreshold, seed);
-                height = std::get<0>(result);
-                dheight_x = std::get<1>(result);
-                dheight_y = 0.0;
+                float64_t const normInv = std::sqrt(dheight_x * dheight_x + 1.0);
+                normal << - dheight_x * normInv, 0.0, normInv;
             }
             else if (!isEdge[0] && isEdge[1])
             {
-                auto result = tile2dInterp1d(
+                float64_t dheight_y;
+                std::tie(height, dheight_y) = tile2dInterp1d(
                     posIdx, posRel, 1, size, sparsity, heightMax,
                     interpThreshold, seed);
-                height = std::get<0>(result);
-                dheight_y = std::get<1>(result);
-                dheight_x = 0.0;
+                float64_t const normInv = std::sqrt(dheight_y * dheight_y + 1.0);
+                normal << 0.0, - dheight_y * normInv, normInv;
             }
             else if (isEdge[0] && isEdge[1])
             {
-                auto result_0 = tile2dInterp1d(
+                auto const [height_0, dheight_x_0] = tile2dInterp1d(
                     posIdx, posRel, 0, size, sparsity, heightMax,
                     interpThreshold, seed);
-                float64_t height_0 = std::get<0>(result_0);
-                float64_t dheight_x_0 = std::get<1>(result_0);
                 if (posRel[1] < interpThreshold[1])
                 {
                     posIdx[1] -= 1;
-                    auto result_m = tile2dInterp1d(
+                    auto const [height_m, dheight_x_m] = tile2dInterp1d(
                         posIdx, posRel, 0, size, sparsity,
                         heightMax, interpThreshold, seed);
-                    float64_t height_m = std::get<0>(result_m);
-                    float64_t dheight_x_m = std::get<1>(result_m);
 
-                    float64_t ratio = (1.0 - posRel[1] / interpThreshold[1]) / 2.0;
+                    float64_t const ratio = (1.0 - posRel[1] / interpThreshold[1]) / 2.0;
                     height = height_0 + (height_m - height_0) * ratio;
-                    dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
-                    dheight_y = (height_0 - height_m) / (2.0 * size[1] * interpThreshold[1]);
+                    float64_t const dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
+                    float64_t const dheight_y = (height_0 - height_m) / (2.0 * size[1] * interpThreshold[1]);
+                    normal << -dheight_x, -dheight_y, 1.0;
+                    normal.normalize();
                 }
                 else
                 {
                     posIdx[1] += 1;
-                    auto result_p = tile2dInterp1d(
+                    auto const [height_p, dheight_x_p] = tile2dInterp1d(
                         posIdx, posRel, 0, size, sparsity,
                         heightMax, interpThreshold, seed);
-                    float64_t height_p = std::get<0>(result_p);
-                    float64_t dheight_x_p = std::get<1>(result_p);
 
-                    float64_t ratio = (1.0 + (posRel[1] - 1.0) / interpThreshold[1]) / 2.0;
+                    float64_t const ratio = (1.0 + (posRel[1] - 1.0) / interpThreshold[1]) / 2.0;
                     height = height_0 + (height_p - height_0) * ratio;
-                    dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
-                    dheight_y = (height_p - height_0) / (2.0 * size[1] * interpThreshold[1]);
+                    float64_t const dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
+                    float64_t const dheight_y = (height_p - height_0) / (2.0 * size[1] * interpThreshold[1]);
+                    normal << -dheight_x, -dheight_y, 1.0;
+                    normal.normalize();
                 }
             }
             else
             {
                 height = randomDouble(posIdx, sparsity, heightMax, seed);
-                dheight_x = 0.0;
-                dheight_y = 0.0;
+                normal = vector3_t::UnitZ();
             }
 
-            // Compute the resulting normal to the surface: (-d.height/d.x, -d.height/d.y, 1.0)
-            vector3_t normal;
-            normal << -dheight_x, -dheight_y, 1.0;
-            normal.normalize();
-
-            return {height, normal};
+            return std::make_pair(height, std::move(normal));
         };
     }
 
     heightmapFunctor_t sumHeightmap(std::vector<heightmapFunctor_t> const & heightmaps)
     {
+        if (heightmaps.size() == 1)
+        {
+            return heightmaps[0];
+        }
         return [heightmaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
         {
             float64_t height = 0.0;
             vector3_t normal = vector3_t::Zero();
             for (heightmapFunctor_t const & heightmap : heightmaps)
             {
-                auto result = heightmap(pos3);
-                height += std::get<float64_t>(result);
-                normal += std::get<vector3_t>(result);
+                auto const [height_i, normal_i] = heightmap(pos3);
+                height += height_i;
+                normal += normal_i;
             }
             normal.normalize();
-            return {height, normal};
+            return std::make_pair(height, std::move(normal));
         };
     }
 
     heightmapFunctor_t mergeHeightmap(std::vector<heightmapFunctor_t> const & heightmaps)
     {
+        if (heightmaps.size() == 1)
+        {
+            return heightmaps[0];
+        }
         return [heightmaps](vector3_t const & pos3) -> std::pair<float64_t, vector3_t>
         {
             float64_t heightmax = -INF;
-            vector3_t normal = vector3_t::UnitZ();
+            vector3_t normal;  // It will be initialized to `normal_i`
+            bool_t isDirty = false;
             for (heightmapFunctor_t const & heightmap : heightmaps)
             {
-                auto result = heightmap(pos3);
-                float64_t height = std::get<float64_t>(result);
+                auto const [height, normal_i] = heightmap(pos3);
                 if (std::abs(height - heightmax) < EPS)
                 {
-                    normal += std::get<vector3_t>(result);
+                    normal += normal_i;
+                    isDirty = true;
                 }
                 else if (height > heightmax)
                 {
                     heightmax = height;
-                    normal = std::get<vector3_t>(result);
+                    normal = normal_i;
+                    isDirty = false;
                 }
             }
-            normal.normalize();
-            return {heightmax, normal};
+            if (isDirty)
+            {
+                normal.normalize();
+            }
+            return std::make_pair(heightmax, std::move(normal));
         };
     }
 

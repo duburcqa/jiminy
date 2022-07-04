@@ -24,11 +24,6 @@ namespace jiminy
         // Empty on purpose
     }
 
-    DistanceConstraint::~DistanceConstraint(void)
-    {
-        // Empty on purpose
-    }
-
     std::vector<std::string> const & DistanceConstraint::getFramesNames(void) const
     {
         return framesNames_;

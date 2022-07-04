@@ -44,7 +44,8 @@ namespace jiminy
 
     public:
         PeriodicGaussianProcess(float64_t const & wavelength,
-                                float64_t const & period);
+                                float64_t const & period,
+                                float64_t const & scale = 1.0);
 
         ~PeriodicGaussianProcess(void) = default;
 
@@ -62,6 +63,7 @@ namespace jiminy
     private:
         float64_t const wavelength_;
         float64_t const period_;
+        float64_t const scale_;
         float64_t const dt_;
         int32_t const numTimes_;
 
@@ -82,7 +84,8 @@ namespace jiminy
 
     public:
         PeriodicFourierProcess(float64_t const & wavelength,
-                               float64_t const & period);
+                               float64_t const & period,
+                               float64_t const & scale = 1.0);
 
         ~PeriodicFourierProcess(void) = default;
 
@@ -101,6 +104,7 @@ namespace jiminy
     private:
         float64_t const wavelength_;
         float64_t const period_;
+        float64_t const scale_;
         float64_t const dt_;
         int32_t const numTimes_;
         int32_t const numHarmonics_;
@@ -211,6 +215,7 @@ namespace jiminy
 
     public:
         AbstractPerlinProcess(float64_t const & wavelength,
+                              float64_t const & scale = 1.0,
                               uint32_t  const & numOctaves = 8U);
         virtual ~AbstractPerlinProcess(void) = default;
 
@@ -220,6 +225,7 @@ namespace jiminy
 
         float64_t const & getWavelength(void) const;
         uint32_t const & getNumOctaves(void) const;
+        float64_t const & getScale(void) const;
 
     protected:
         virtual void initialize(void) = 0;
@@ -227,16 +233,20 @@ namespace jiminy
     protected:
         float64_t const wavelength_;
         uint32_t const numOctaves_;
+        float64_t const scale_;
 
         bool_t isInitialized_;
         std::vector<std::unique_ptr<AbstractPerlinNoiseOctave> > octaves_;
         float64_t amplitude_;
+
+        float64_t grad_;
     };
 
     class RandomPerlinProcess : public AbstractPerlinProcess
     {
     public:
         RandomPerlinProcess(float64_t const & wavelength,
+                            float64_t const & scale = 1.0,
                             uint32_t  const & numOctaves = 6U);
 
         virtual ~RandomPerlinProcess(void) = default;
@@ -250,6 +260,7 @@ namespace jiminy
     public:
         PeriodicPerlinProcess(float64_t const & wavelength,
                               float64_t const & period,
+                              float64_t const & scale = 1.0,
                               uint32_t  const & numOctaves = 6U);
 
         virtual ~PeriodicPerlinProcess(void) = default;
