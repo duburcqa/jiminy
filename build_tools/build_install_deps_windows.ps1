@@ -15,7 +15,7 @@ if (-not (Test-Path env:BUILD_TYPE)) {
 ### Set common CMAKE_C/CXX_FLAGS
 ${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX"
 if (${BUILD_TYPE} -eq "Debug") {
-  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Od -g"
+  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Zi /Od"
 } else {
   ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /O2 /Ob3 -DNDEBUG"
 }
