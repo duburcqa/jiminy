@@ -41,7 +41,7 @@ namespace jiminy
     public:
         void clear(void);
 
-        std::tuple<constraintsMap_t *, constraintsMap_t::iterator>
+        std::pair<constraintsMap_t *, constraintsMap_t::iterator>
         find(std::string const & key,
              constraintsHolderType_t const & holderType);
 

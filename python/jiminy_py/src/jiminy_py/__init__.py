@@ -7,6 +7,7 @@ from . import robot
 from . import dynamics
 from . import log
 from . import simulator
+from . import viewer
 
 
 if _sys.platform == 'darwin' and _sys.version_info < (3, 8):
@@ -25,7 +26,8 @@ __all__ = [
     'robot',
     'dynamics',
     'log',
-    'simulator'
+    'simulator',
+    'viewer'
 ]
 
 try:
