@@ -109,12 +109,8 @@ else()
     set(jiminy_OPTIONS -fPIC)
 endif()
 
-# Set architecture flags.
+# Set architecture flags
 list(APPEND jiminy_OPTIONS ${jiminy_OPTIONS} @CMAKE_CXX_ARCH@)
-if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
-    list(APPEND jiminy_OPTIONS /wd9002 /fp:contract)
-    list(APPEND jiminy_DEFINITIONS __FMA__)
-endif()
 
 # Define imported target
 add_library(jiminy::core SHARED IMPORTED GLOBAL)

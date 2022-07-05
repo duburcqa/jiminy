@@ -21,8 +21,9 @@ jobs:
         shell: bash
 
     env:
-      # Python bindings for Pinocchio 2.X does not fully support memory alignment
-      # CMAKE_CXX_FLAGS: "-march=haswell"
+      # Python bindings of Pinocchio 2.X do not fully support memory alignment:
+      # https://github.com/stack-of-tasks/pinocchio/issues/1201
+      CMAKE_CXX_FLAGS: "-funsafe-math-optimizations"  # -march=haswell
       BUILD_TYPE: "Release"
 
     #####################################################################################
@@ -80,7 +81,6 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
               -DINSTALL_GYM_JIMINY=${{ (matrix.os == 'ubuntu-22.04' && 'OFF') || 'ON' }} \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2

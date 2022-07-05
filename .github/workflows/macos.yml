@@ -22,6 +22,7 @@ jobs:
         shell: bash -ieo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
 
     env:
+      CMAKE_CXX_FLAGS: "-funsafe-math-optimizations"
       BUILD_TYPE: "Release"
       MACOSX_DEPLOYMENT_TARGET: "10.14"
       OSX_ARCHITECTURES: "x86_64;arm64"

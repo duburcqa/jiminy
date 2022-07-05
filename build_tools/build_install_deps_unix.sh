@@ -24,7 +24,7 @@ fi
 ### Set common CMAKE_C/CXX_FLAGS
 CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -fPIC"
 if [ "${BUILD_TYPE}" == "Release" ]; then
-  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DNDEBUG -O3"
 elif [ "${BUILD_TYPE}" == "Debug" ]; then
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
 elif [ "${BUILD_TYPE}" == "RelWithDebInfo" ]; then
