@@ -1,7 +1,7 @@
-`tlmc` Version 1 format specification
-=====================================
+HDF5 telemetry log format
+=========================
 
-This file describes the content of the so-called `tlmc` format. `tlmc` stands for compressed telemetry: it is simply a standard HDF5 file with compression enable, that can be opened with any HDF5 reader. This document specifies the organization of data in this file.
+This file describes the content of the so-called `tlmc` format. `tlmc` stands for compressed telemetry: it is simply a standard [HDF5](https://portal.hdfgroup.org/display/HDF5/Introduction+to+HDF5) file with compression enabled, that can be opened with any HDF5 reader. This document specifies the organization of data in this file.
 
 The examples in this document are made using the `h5py` library ; `file` is an `h5py.File` object.
 
