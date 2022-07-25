@@ -54,7 +54,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" --trusted-host pypi.org \
         --trusted-host pytorch.org --trusted-host download.pytorch.org --trusted-host files.pypi.org \
         --trusted-host files.pytorch.org -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 

@@ -206,6 +206,7 @@ if grep -q ";" <<< "${OSX_ARCHITECTURES}" ; then
   CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} $(echo "-arch ${OSX_ARCHITECTURES}" | sed "s/;/ -arch /g")"
 fi
 
+# Compiling everything with static linkage except Boost::Python
 mkdir -p "$RootDir/boost/build"
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-chrono --with-timer --with-date_time --with-system --with-test \
@@ -216,6 +217,8 @@ mkdir -p "$RootDir/boost/build"
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
      linkflags="${CMAKE_CXX_FLAGS_B2}" \
      variant="$BuildTypeB2" install -q -d0 -j2
+
+# Boost::Python is never compiled in debug mode because already registered converter triggers an assert
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-python \
      --build-type=minimal --layout=system --lto=off \
@@ -223,7 +226,7 @@ mkdir -p "$RootDir/boost/build"
      threading=single link=shared runtime-link=shared debug-symbols=off \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
      linkflags="${CMAKE_CXX_FLAGS_B2}" \
-     variant="$BuildTypeB2" install -q -d0 -j2
+     variant="release" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 

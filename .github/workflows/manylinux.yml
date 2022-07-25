@@ -58,7 +58,7 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 

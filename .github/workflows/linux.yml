@@ -60,7 +60,7 @@ jobs:
         fi
         ./build_tools/build_install_deps_unix.sh
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
         PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"
