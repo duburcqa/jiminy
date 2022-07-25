@@ -11,8 +11,8 @@ namespace jiminy
     std::string const TELEMETRY_CONSTANT_DELIMITER = "=";
     int64_t const TELEMETRY_MIN_BUFFER_SIZE = 256U * 1024U;  // 256Ko
 
-    uint8_t const DELAY_MIN_BUFFER_RESERVE = 100U;
-    uint8_t const DELAY_MAX_BUFFER_EXCEED = 100U;
+    uint8_t const DELAY_MIN_BUFFER_RESERVE = 50U;
+    uint8_t const DELAY_MAX_BUFFER_EXCEED = 50U;
 
     float64_t const STEPPER_MIN_TIMESTEP = 1e-10;
     float64_t const SIMULATION_MIN_TIMESTEP = 1e-6;
