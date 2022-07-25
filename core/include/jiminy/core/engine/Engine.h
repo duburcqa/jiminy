@@ -77,11 +77,11 @@ namespace jiminy
         hresult_t registerForceCoupling(std::string const & frameName1,
                                         std::string const & frameName2,
                                         forceProfileFunctor_t forceFct);
-        hresult_t registerViscoElasticForceCoupling(std::string const & frameName1,
+        hresult_t registerViscoelasticForceCoupling(std::string const & frameName1,
                                                     std::string const & frameName2,
                                                     vector6_t   const & stiffness,
                                                     vector6_t   const & damping);
-        hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & frameName1,
+        hresult_t registerViscoelasticDirectionalForceCoupling(std::string const & frameName1,
                                                                std::string const & frameName2,
                                                                float64_t   const & stiffness,
                                                                float64_t   const & damping,

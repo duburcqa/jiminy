@@ -89,7 +89,7 @@ namespace python
                    boost::noncopyable>("ForceProfile", bp::no_init)
             .add_property("system_name_1", bp::make_getter(&forceCoupling_t::systemName1,
                                            bp::return_value_policy<bp::return_by_value>()))
-            .add_property("system_idx_2", bp::make_getter(&forceCoupling_t::systemIdx1,
+            .add_property("system_idx_1", bp::make_getter(&forceCoupling_t::systemIdx1,
                                           bp::return_value_policy<bp::return_by_value>()))
             .add_property("system_name_2", bp::make_getter(&forceCoupling_t::systemName2,
                                            bp::return_value_policy<bp::return_by_value>()))
@@ -316,7 +316,7 @@ namespace python
                             std::string const &,
                             vector6_t   const &,
                             vector6_t   const &)
-                    >(&EngineMultiRobot::registerViscoElasticForceCoupling),
+                    >(&EngineMultiRobot::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2",
                      "frame_name_1", "frame_name_2", "stiffness", "damping"))
                 .def("register_viscoelastic_force_coupling",
@@ -327,7 +327,7 @@ namespace python
                             std::string const &,
                             vector6_t   const &,
                             vector6_t   const &)
-                    >(&EngineMultiRobot::registerViscoElasticForceCoupling),
+                    >(&EngineMultiRobot::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
                      "stiffness", "damping"))
                 .def("register_viscoelastic_directional_force_coupling",
@@ -340,7 +340,7 @@ namespace python
                             float64_t   const &,
                             float64_t   const &,
                             float64_t   const &)
-                    >(&EngineMultiRobot::registerViscoElasticDirectionalForceCoupling),
+                    >(&EngineMultiRobot::registerViscoelasticDirectionalForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2", "frame_name_1", "frame_name_2",
 		     "stiffness", "damping", bp::arg("rest_length") = 0.0))
                 .def("register_viscoelastic_directional_force_coupling",
@@ -352,7 +352,7 @@ namespace python
                             float64_t   const &,
                             float64_t   const &,
                             float64_t   const &)
-                    >(&EngineMultiRobot::registerViscoElasticDirectionalForceCoupling),
+                    >(&EngineMultiRobot::registerViscoelasticDirectionalForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
                      "stiffness", "damping", bp::arg("rest_length") = 0.0))
                 .def("remove_forces_coupling",
@@ -857,7 +857,7 @@ namespace python
                             std::string const &,
                             vector6_t   const &,
                             vector6_t   const &)
-                    >(&Engine::registerViscoElasticForceCoupling),
+                    >(&Engine::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping"))
                 .def("register_viscoelastic_directional_force_coupling",
                     static_cast<
@@ -867,7 +867,7 @@ namespace python
                             float64_t   const &,
                             float64_t   const &,
                             float64_t   const &)
-                    >(&Engine::registerViscoElasticDirectionalForceCoupling),
+                    >(&Engine::registerViscoelasticDirectionalForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping",
 		     bp::arg("rest_length") = 0.0))
 

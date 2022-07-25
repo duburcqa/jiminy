@@ -361,7 +361,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::registerViscoElasticForceCoupling(std::string const & systemName1,
+    hresult_t EngineMultiRobot::registerViscoelasticForceCoupling(std::string const & systemName1,
                                                                   std::string const & systemName2,
                                                                   std::string const & frameName1,
                                                                   std::string const & frameName2,
@@ -442,17 +442,17 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::registerViscoElasticForceCoupling(std::string const & systemName,
+    hresult_t EngineMultiRobot::registerViscoelasticForceCoupling(std::string const & systemName,
                                                                   std::string const & frameName1,
                                                                   std::string const & frameName2,
                                                                   vector6_t   const & stiffness,
                                                                   vector6_t   const & damping)
     {
-        return registerViscoElasticForceCoupling(
+        return registerViscoelasticForceCoupling(
             systemName, systemName, frameName1, frameName2, stiffness, damping);
     }
 
-    hresult_t EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(std::string const & systemName1,
+    hresult_t EngineMultiRobot::registerViscoelasticDirectionalForceCoupling(std::string const & systemName1,
                                                                              std::string const & systemName2,
                                                                              std::string const & frameName1,
                                                                              std::string const & frameName2,
@@ -547,14 +547,14 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(std::string const & systemName,
+    hresult_t EngineMultiRobot::registerViscoelasticDirectionalForceCoupling(std::string const & systemName,
                                                                              std::string const & frameName1,
                                                                              std::string const & frameName2,
                                                                              float64_t   const & stiffness,
                                                                              float64_t   const & damping,
                                                                              float64_t   const & restLength)
     {
-        return registerViscoElasticDirectionalForceCoupling(
+        return registerViscoelasticDirectionalForceCoupling(
             systemName, systemName, frameName1, frameName2, stiffness, damping, restLength);
     }
 

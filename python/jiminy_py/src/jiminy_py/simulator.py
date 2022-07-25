@@ -2,6 +2,7 @@ import os
 import json
 import toml
 import atexit
+import logging
 import pathlib
 import tempfile
 from collections import OrderedDict
