@@ -164,7 +164,7 @@ namespace jiminy
         {
             if (!sensor->isAttached_)
             {
-                PRINT_ERROR("Sensor '", sensor->name_, "' of type '", sensor->type_, "' not attached to any robot.");
+                PRINT_ERROR("Sensor '", sensor->name_, "' of type '", type_, "' not attached to any robot.");
                 return hresult_t::ERROR_GENERIC;
             }
         }
@@ -179,7 +179,7 @@ namespace jiminy
         // Clear the shared data buffers
         sharedHolder_->time_.assign(1, 0.0);
         sharedHolder_->data_.resize(1);
-        sharedHolder_->data_.setZero();
+        sharedHolder_->data_[0].setZero();
         sharedHolder_->dataMeasured_.setZero();
 
         // Compute max delay
