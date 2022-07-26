@@ -1169,7 +1169,12 @@ namespace jiminy
             }
         }
 
-        // Call reset if not done before
+        /* Call reset if the internal state of the engine is not clean.
+           Not calling reset systematically is more flexible for the user.
+           It gives the opportunity to customize the system by resetting
+           first the engine manually and then to alter the internal state
+           of the system before starting a simulation, e.g. to change the
+           inertia of a specific body. */
         if (isTelemetryConfigured_)
         {
             reset(false, false);
