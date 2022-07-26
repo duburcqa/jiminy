@@ -2,6 +2,7 @@ import os
 import json
 import toml
 import atexit
+import logging
 import pathlib
 import tempfile
 from collections import OrderedDict
@@ -32,6 +33,8 @@ if interactive_mode() >= 2:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 SENSORS_FIELDS = {
@@ -443,6 +446,10 @@ class Simulator:
         try:
             return_code = self.engine.simulate(
                 t_end, q_init, v_init, a_init, is_state_theoretical)
+        except Exception as e:
+            logger.warning(
+                "The simulation failed due to Python exception:\n", str(e))
+            return_code = jiminy.hresult_t.ERROR_GENERIC
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
                 self.__pbar.close()
@@ -450,10 +457,13 @@ class Simulator:
 
         # Throw exception if not successful
         if return_code != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError("The simulation failed.")
+            raise RuntimeError("The simulation failed internally.")
 
         # Write log
-        if log_path is not None:
+        if log_path is not None and self.engine.stepper_state.q:
+            # Log data would be available as long as the stepper state is
+            # initialized. It may be the case no matter if a simulation is
+            # actually running, since data are cleared at reset not at stop.
             log_suffix = pathlib.Path(log_path).suffix[1:]
             if log_suffix not in ("data", "csv", "hdf5"):
                 raise ValueError(

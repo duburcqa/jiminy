@@ -1066,7 +1066,7 @@ namespace jiminy
                 if ((inertiaDiag.array() < 1e-5).any())
                 {
                     PRINT_ERROR("The subtree diagonal inertia for flexibility joint ", flexibleJointModelIdx,
-                                " must be than 1e-5 for numerical stability: ", inertiaDiag.transpose());
+                                " must be larger than 1e-5 for numerical stability: ", inertiaDiag.transpose());
                     returnCode = hresult_t::ERROR_GENERIC;
                     break;
                 }

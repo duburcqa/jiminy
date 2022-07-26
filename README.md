@@ -34,7 +34,7 @@ Beside a strong focus on performance to answer machine learning's need for runni
 - Comprehensive API for computing dynamic quantities and their derivatives thanks to Pinocchio.
 - C++ core with full python bindings, providing user API parity between both languages.
 - Designed with machine learning in mind, with seamless wrapping of robots as [OpenAI Gym](https://github.com/openai/gym) environments using one-liners. Jiminy provides both the physical engine and the robot model (including sensors) required for learning.
-- Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported in raw binary, CSV or [HDF5](https://portal.hdfgroup.org/display/HDF5/Introduction+to+HDF5) format.
+- Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported in raw binary, CSV or [HDF5](./docs/spec/src/tlmc_format_specification.md) format.
 - Dedicated integration in Google Colab, Jupyter Lab, Mybinder and VSCode working out-of-the-box - including interactive 3D viewer based on [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote environments.
 - Synchronous and single-threaded offscreen rendering capability, GPU-accelerated without graphical server, based on [Panda3d](https://github.com/panda3d/panda3d).
 - Easy to install: `pip` is all that is needed to [get you started](#getting-started) ! Support Linux, Mac and Windows platforms.
@@ -42,7 +42,7 @@ Beside a strong focus on performance to answer machine learning's need for runni
 ### Physics
 
 - Provide both classical phenomenological force-level spring-damper contact model and constraint solver satisfying the maximum energy dissipation principle.
-- Support contact and collision with the ground from  a fixed set of contact points (primitives and meshes yet to come).
+- Support contact and collision with the ground from a fixed set of contact points (primitives and meshes yet to come).
 - Simulate multiple articulated systems simultaneously interacting with each other, to support use cases such as multi-agent learning or swarm robotics.
 - Compliant spherical joints with spring-damper dynamics to model mechanical deformation, a common phenomenon particularly in legged robotics.
 - Simulate both continuous or discrete-time controller, with possibly different controller and sensor update frequencies.

@@ -56,7 +56,7 @@ jobs:
       run: |
         MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
           ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 

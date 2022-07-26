@@ -1259,6 +1259,7 @@ class Viewer:
         """
         if Viewer.backend.startswith('panda3d'):
             xyz, quat = self._gui.get_camera_transform()
+            quat /= np.linalg.norm(quat)
             rot = pin.Quaternion(*quat).matrix()
             rpy = matrixToRpy(rot @ CAMERA_INV_TRANSFORM_PANDA3D.T)
         else:
