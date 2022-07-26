@@ -41,12 +41,12 @@ namespace jiminy
     ///////////////////////////////////////////////////////////////////////////////////////////////
     struct SensorSharedDataHolder_t
     {
-        boost::circular_buffer_space_optimized<float64_t> time_;  ///< Circular buffer of the stored timesteps
-        boost::circular_buffer_space_optimized<matrixN_t> data_;  ///< Circular buffer of past sensor real data
-        matrixN_t dataMeasured_;                                  ///< Buffer of current sensor measurement data
-        std::vector<AbstractSensorBase *> sensors_;               ///< Vector of pointers to the sensors
-        std::size_t num_;                                         ///< Number of sensors of that type
-        float64_t delayMax_;                                      ///< Maximum delay over all the sensors
+        boost::circular_buffer<float64_t> time_;     ///< Circular buffer of the stored timesteps
+        boost::circular_buffer<matrixN_t> data_;     ///< Circular buffer of past sensor real data
+        matrixN_t dataMeasured_;                     ///< Buffer of current sensor measurement data
+        std::vector<AbstractSensorBase *> sensors_;  ///< Vector of pointers to the sensors
+        std::size_t num_;                            ///< Number of sensors of that type
+        float64_t delayMax_;                         ///< Maximum delay over all the sensors
     };
 
     class AbstractSensorBase : public std::enable_shared_from_this<AbstractSensorBase>

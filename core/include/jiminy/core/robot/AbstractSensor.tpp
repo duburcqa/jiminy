@@ -448,18 +448,14 @@ namespace jiminy
         // Internal buffer memory management
         if (t + EPS > sharedHolder_->time_.back())
         {
-            if (sharedHolder_->time_.size() > 1 && timeMin > sharedHolder_->time_[1])
+            if (timeMin > sharedHolder_->time_.front())
             {
                 // Remove some unecessary extra elements if appropriate
-                if (sharedHolder_->time_.size() > 2U + DELAY_MAX_BUFFER_EXCEED
-                && timeMin > sharedHolder_->time_[2U + DELAY_MAX_BUFFER_EXCEED])
+                if (sharedHolder_->time_.size() > 1U + DELAY_MAX_BUFFER_EXCEED
+                && timeMin > sharedHolder_->time_[DELAY_MAX_BUFFER_EXCEED])
                 {
-                    for (uint32_t i=0; i < 1U + DELAY_MAX_BUFFER_EXCEED; ++i)
-                    {
-                        sharedHolder_->time_.pop_front();
-                        sharedHolder_->data_.pop_front();
-                    }
-
+                    sharedHolder_->time_.erase_begin(DELAY_MAX_BUFFER_EXCEED);
+                    sharedHolder_->data_.erase_begin(DELAY_MAX_BUFFER_EXCEED);
                     sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + DELAY_MIN_BUFFER_RESERVE);
                     sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + DELAY_MIN_BUFFER_RESERVE);
                 }
@@ -473,20 +469,20 @@ namespace jiminy
                 // Increase capacity if required
                 if (sharedHolder_->time_.full())
                 {
-                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + 1U + DELAY_MIN_BUFFER_RESERVE);
-                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + 1U + DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + DELAY_MIN_BUFFER_RESERVE);
                 }
 
                 // Push back new empty buffer
                 sharedHolder_->time_.push_back(-1);
-                sharedHolder_->data_.push_back(matrixN_t::Zero(getSize(), sharedHolder_->num_));
+                sharedHolder_->data_.push_back(matrixN_t(getSize(), sharedHolder_->num_));
             }
         }
         else
         {
             /* Remove the extra last elements if for some reason the solver went back in time.
                It happens when an iteration fails using ode solvers relying on try_step mechanism. */
-            while(t + EPS < sharedHolder_->time_.back() && sharedHolder_->time_.size() > 2)
+            while (t + EPS < sharedHolder_->time_.back() && sharedHolder_->time_.size() > 1)
             {
                 sharedHolder_->time_.pop_back();
                 sharedHolder_->data_.pop_back();
