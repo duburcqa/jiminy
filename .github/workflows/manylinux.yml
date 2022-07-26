@@ -24,13 +24,9 @@ jobs:
 
     strategy:
       matrix:
-        container: ['manylinux2010_x86_64', 'manylinux_2_24_x86_64']
-        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9']
+        container: ['manylinux_2_24_x86_64']
+        PYTHON_VERSION: ['3.8']
         legacy: [false]
-        include:
-          - container: 'manylinux_2_24_x86_64'
-            PYTHON_VERSION: '3.8'
-            legacy: true
 
     #####################################################################################
 
