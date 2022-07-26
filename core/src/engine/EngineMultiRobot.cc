@@ -1359,7 +1359,7 @@ namespace jiminy
             systemDataIt = systemsDataHolder_.begin();
             auto fPrevIt = fPrev_.begin();
             auto aPrevIt = aPrev_.begin();
-            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt, ++fPrevIt, ++aPrevIt)
             {
                 // Get some system state proxies
                 vectorN_t const & q = systemDataIt->state.q;
