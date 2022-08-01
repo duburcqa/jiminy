@@ -144,7 +144,7 @@ namespace jiminy
 
         // Compute pose error
         auto deltaPosition = framePose.translation() - transformRef_.translation();
-        vector3_t const deltaRotation = pinocchio::log3(framePose.rotation() * transformRef_.rotation().transpose());
+        vector3_t const deltaRotation = pinocchio::log3(transformRef_.rotation().transpose() * framePose.rotation());
 
         // Compute velocity error
         pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
