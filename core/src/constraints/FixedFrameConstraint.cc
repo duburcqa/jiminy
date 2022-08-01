@@ -144,7 +144,7 @@ namespace jiminy
 
         // Compute pose error
         auto deltaPosition = framePose.translation() - transformRef_.translation();
-        auto deltaRotation = pinocchio::log3(framePose.rotation() * transformRef_.rotation().transpose());
+        vector3_t const deltaRotation = pinocchio::log3(framePose.rotation() * transformRef_.rotation().transpose());
 
         // Compute velocity error
         pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
@@ -154,12 +154,12 @@ namespace jiminy
 
         // Add Baumgarte stabilization to drift in world frame
         frameDrift_.linear() += kp_ * deltaPosition;
-        frameDrift_.angular().noalias() += kp_ * framePose.rotation() * deltaRotation;
+        frameDrift_.angular().noalias() += kp_ * (framePose.rotation() * deltaRotation);
         frameDrift_ += kd_ * velocity;
 
         // Compute drift in local frame
-        frameDrift_.linear().noalias() = rotationLocal_.transpose() * frameDrift_.linear();
-        frameDrift_.angular().noalias() = rotationLocal_.transpose() * frameDrift_.angular();
+        frameDrift_.linear() = rotationLocal_.transpose() * frameDrift_.linear();
+        frameDrift_.angular() = rotationLocal_.transpose() * frameDrift_.angular();
 
         // Extract masked jacobian and drift, only containing fixed dofs
         for (uint32_t i = 0; i < dofsFixed_.size(); ++i)

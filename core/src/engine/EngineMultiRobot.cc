@@ -425,14 +425,17 @@ namespace jiminy
 
                 /* Compute the force coupling them.
                    Note that the application point is the "middle" between frames to
-                   get "symmetric" forces on both frame. */
-                pinocchio::Motion const pos12 = pinocchio::log6(oMf1.actInv(oMf2));
-                pinocchio::SE3 const oMf12 = pinocchio::exp6(0.5 * pos12);
-                pinocchio::SE3 const oRf1 = pinocchio::SE3(oMf1.rotation(), vector3_t::Zero());
+                   get sign reversed forces on both frame. */
+                vector6_t const pos12 = (vector6_t() <<
+                    oMf2.translation() - oMf1.translation(),
+                    pinocchio::log3(oMf1.rotation().inverse() * oMf2.rotation())).finished();;
+                assert((pos12.tail<3>().norm() < 0.5 * M_PI) &&
+                       "Relative angle between reference frames of viscoelastic coupling must be smaller than pi/2.");
                 vector6_t const vel12 = (oVf2 - oVf1).toVector();
-                return oRf1.act(oMf12.actInv(pinocchio::Force((
-                    stiffness.array() * pos12.toVector().array() +
-                    damping.array() * vel12.array()).matrix())));
+                pinocchio::Force f((stiffness.array() * pos12.array() +
+                                    damping.array() * vel12.array()).matrix());
+                f.angular() += 0.5 * pos12.head<3>().cross(f.linear());
+                return f;
             };
 
             returnCode = registerForceCoupling(
@@ -3505,9 +3508,10 @@ namespace jiminy
             vector3_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
             quaternion_t const quat(q.segment<4>(positionIdx));  // Only way to initialize with [x,y,z,w] order
-            vector3_t const axis = pinocchio::quaternion::log3(quat);
+            vector3_t const angleAxis = pinocchio::quaternion::log3(quat);
+            assert((angleAxis.norm() < 0.5 * M_PI) && "Flexible joint angle must be smaller than pi/2.");
             uInternal.segment<3>(velocityIdx).array() +=
-                - stiffness.array() * axis.array()
+                - stiffness.array() * angleAxis.array()
                 - damping.array() * v.segment<3>(velocityIdx).array();
         }
     }
