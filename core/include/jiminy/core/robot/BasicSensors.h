@@ -35,7 +35,7 @@ namespace jiminy
                               vectorN_t     const & a,
                               vectorN_t     const & uMotor,
                               forceVector_t const & fExternal) final override;
-        virtual void skewMeasurement(void) final override;
+        virtual void measureData(void) final override;
 
     private:
         std::string frameName_;

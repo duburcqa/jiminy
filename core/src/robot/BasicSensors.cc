@@ -187,7 +187,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    void ImuSensor::skewMeasurement(void)
+    void ImuSensor::measureData(void)
     {
         // Add bias
         if (baseSensorOptions_->bias.size())

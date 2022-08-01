@@ -614,15 +614,13 @@ namespace python
     std::enable_if_t<is_vector_v<T>, T>
     convertFromPython(bp::object const & dataPy)
     {
-        using V = typename T::value_type;
-
         T vec;
         bp::list const listPy = bp::extract<bp::list>(dataPy);
         vec.reserve(bp::len(listPy));
         for (bp::ssize_t i=0; i < bp::len(listPy); ++i)
         {
             bp::object const itemPy = listPy[i];
-            vec.push_back(std::move(convertFromPython<V>(itemPy)));
+            vec.push_back(std::move(convertFromPython<typename T::value_type>(itemPy)));
         }
         return vec;
     }
