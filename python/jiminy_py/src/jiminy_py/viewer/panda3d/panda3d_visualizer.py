@@ -835,6 +835,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         return node
 
+    def show_floor(self, show: bool) -> None:
+        if show:
+            self._floor.show()
+        else:
+            self._floor.hide()
+
     def update_floor(self,
                      heightmap: Optional[np.ndarray] = None,
                      show_meshes: bool = False) -> NodePath:
