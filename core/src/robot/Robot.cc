@@ -1244,7 +1244,7 @@ namespace jiminy
         sensorsSharedHolder_t::const_iterator sensorsSharedIt = sensorsSharedHolder_.begin();
         for (; sensorsGroupIt != sensorsGroupHolder_.end() ; ++sensorsGroupIt, ++sensorsSharedIt)
         {
-            sensorDataTypeMap_t dataType(std::cref(sensorsSharedIt->second->dataMeasured_));  // Need explicit call to `std::reference_wrapper` for gcc<7.3
+            sensorDataTypeMap_t dataType(sensorsSharedIt->second->dataMeasured_);
             for (auto & sensor : sensorsGroupIt->second)
             {
                 auto & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);

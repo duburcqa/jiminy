@@ -63,9 +63,9 @@ namespace jiminy
 
     // Eigen types
     using matrixN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic>;
+    using matrix6N_t = Eigen::Matrix<float64_t, 6, Eigen::Dynamic>;
     using matrix2_t = Eigen::Matrix<float64_t, 2, 2>;
     using matrix3_t = Eigen::Matrix<float64_t, 3, 3>;
-    using matrix6N_t = Eigen::Matrix<float64_t, 6, Eigen::Dynamic>;
     using vectorN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, 1>;
     using vector2_t = Eigen::Matrix<float64_t, 2, 1>;
     using vector3_t = Eigen::Matrix<float64_t, 3, 1>;
@@ -122,25 +122,7 @@ namespace jiminy
     // Flexible joints
     struct flexibleJointData_t
     {
-        std::string frameName;
-        vector3_t stiffness;
-        vector3_t damping;
-        vector3_t inertia;
-
-        flexibleJointData_t(void) = default;
-
-        flexibleJointData_t(std::string const & frameNameIn,
-                            vector3_t   const & stiffnessIn,
-                            vector3_t   const & dampingIn,
-                            vector3_t   const & inertiaIn) :
-        frameName(frameNameIn),
-        stiffness(stiffnessIn),
-        damping(dampingIn),
-        inertia(inertiaIn)
-        {
-            // Empty on purpose
-        };
-
+    public:
         inline bool_t operator==(flexibleJointData_t const & other) const
         {
             return (this->frameName == other.frameName
@@ -148,6 +130,12 @@ namespace jiminy
                  && this->damping == other.damping
                  && this->inertia == other.inertia);
         };
+
+    public:
+        std::string frameName;
+        vector3_t stiffness;
+        vector3_t damping;
+        vector3_t inertia;
     };
 
     using flexibilityConfig_t = std::vector<flexibleJointData_t>;
@@ -164,12 +152,9 @@ namespace jiminy
     // Sensor data holder
     struct sensorDataTypePair_t
     {
-        // Disable the copy of the class
-        sensorDataTypePair_t(sensorDataTypePair_t const & sensorDataPairIn) = delete;
-        sensorDataTypePair_t & operator = (sensorDataTypePair_t const & other) = delete;
-
+    public:
         sensorDataTypePair_t(std::string                 const & nameIn,
-                             std::size_t                 const & idIn,
+                             Eigen::Index                const & idIn,
                              Eigen::Ref<vectorN_t const> const & valueIn) :
         name(nameIn),
         idx(idIn),
@@ -178,18 +163,9 @@ namespace jiminy
             // Empty on purpose
         };
 
-        ~sensorDataTypePair_t(void) = default;
-
-        sensorDataTypePair_t(sensorDataTypePair_t && other) :
-        name(other.name),
-        idx(other.idx),
-        value(other.value)
-        {
-            // Empty on purpose
-        };
-
+    public:
         std::string name;
-        std::size_t idx;
+        Eigen::Index idx;
         Eigen::Ref<vectorN_t const> value;
     };
 
@@ -201,8 +177,8 @@ namespace jiminy
         indexed_by<
             ordered_unique<
                 tag<IndexByIdx>,
-                member<sensorDataTypePair_t, std::size_t, &sensorDataTypePair_t::idx>,
-                std::less<std::size_t> // Ordering by ascending order
+                member<sensorDataTypePair_t, Eigen::Index, &sensorDataTypePair_t::idx>,
+                std::less<Eigen::Index> // Ordering by ascending order
             >,
             hashed_unique<
                 tag<IndexByName>,
@@ -215,42 +191,49 @@ namespace jiminy
     public:
         sensorDataTypeMap_t(std::optional<std::reference_wrapper<matrixN_t const> > sharedData = std::nullopt) :
         sensorDataTypeMapImpl_t(),
-        sharedData_(sharedData)
+        sharedDataRef_(sharedData)
         {
             // Empty on purpose
         }
 
         matrixN_t const & getAll(void) const
         {
-            /* Use static shared buffer if no shared memory available.
-               It is useful if the sensors data is not contiguous in the first place,
-               which is likely to be the case when allocated from Python, or when
-               re-generating sensor data from log files. */
-            static matrixN_t sharedData;
-
-            if (sharedData_)
+            if (sharedDataRef_)
             {
                 /* Return shared memory directly it is up to the sure to make sure
                    that it is actually up-to-date. */
-                return sharedData_->get();
+                return sharedDataRef_->get();
             }
             else
             {
+                // Get sensors data size
+                Eigen::Index dataSize = 0;
+                if (size() > 0)
+                {
+                    dataSize = this->begin()->value.size();
+                }
+
                 // Resize internal buffer if needed
-                sharedData.resize(static_cast<Eigen::Index>(size()), this->begin()->value.size());
+                sharedData_.resize(static_cast<Eigen::Index>(size()), dataSize);
 
                 // Set internal buffer by copying sensor data sequentially
                 for (auto const & sensor : *this)
                 {
-                    sharedData.row(static_cast<Eigen::Index>(sensor.idx)) = sensor.value;
+                    assert(sensor.value.size() == dataSize && "Cannot get all data at once for heterogeneous sensors.");
+                    sharedData_.row(sensor.idx) = sensor.value;
                 }
 
-                return sharedData;
+                return sharedData_;
             }
         }
 
     private:
-        std::optional<std::reference_wrapper<matrixN_t const> > sharedData_;
+        std::optional<std::reference_wrapper<matrixN_t const> > sharedDataRef_;
+        /* Internal buffer if no shared memory available.
+           It is useful if the sensors data is not contiguous in the first place,
+           which is likely to be the case when allocated from Python, or when
+           re-generating sensor data from log files. */
+        mutable matrixN_t sharedData_ {};
     };
 
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;

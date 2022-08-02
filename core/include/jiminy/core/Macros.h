@@ -94,7 +94,7 @@ namespace jiminy
     struct is_vector<std::vector<T, A> > : std::true_type {};
 
     template<typename T>
-    constexpr bool is_vector_v = is_vector<std::decay_t<T> >::value;  // `inline` variables are not supported by gcc<7.3
+    inline constexpr bool is_vector_v = is_vector<std::decay_t<T> >::value;
 
     // ========================== is_map ============================
 
@@ -117,7 +117,7 @@ namespace jiminy
     struct is_map<T, typename std::enable_if_t<isMap<T>::value> > : std::true_type {};
 
     template<typename T>
-    constexpr bool is_map_v = is_map<T>::value;
+    inline constexpr bool is_map_v = is_map<T>::value;
 
     // ===================== is_not_eigen_expr ======================
 
@@ -159,7 +159,7 @@ namespace jiminy
     struct is_eigen_vector<T, typename std::enable_if_t<isEigenVector<T>::value> > : std::true_type {};
 
     template<typename T>
-    constexpr bool is_eigen_vector_v = is_eigen_vector<T>::value;
+    inline constexpr bool is_eigen_vector_v = is_eigen_vector<T>::value;
 
     // ====================== is_eigen_ref =======================
 
@@ -197,7 +197,7 @@ namespace jiminy
     struct is_eigen_ref<T, typename std::enable_if_t<isEigenRef<T>::value> > : std::true_type {};
 
     template<typename T>
-    constexpr bool is_eigen_ref_v = is_eigen_ref<T>::value;
+    inline constexpr bool is_eigen_ref_v = is_eigen_ref<T>::value;
 
     // ========================= is_eigen ===========================
 
@@ -220,7 +220,7 @@ namespace jiminy
     struct is_eigen<T, typename std::enable_if_t<isEigenObject<T>::value> > : std::true_type {};
 
     template<typename T>
-    constexpr bool is_eigen_v = is_eigen<T>::value;
+    inline constexpr bool is_eigen_v = is_eigen<T>::value;
 
     // =================== is_pinocchio_joint_* ===================
 
@@ -238,7 +238,7 @@ namespace jiminy
     struct is_pinocchio_joint_ ## name <T, typename std::enable_if_t<isPinocchioJoint ## type <T>::value> > : std::true_type {}; \
      \
     template<typename T> \
-    constexpr bool is_pinocchio_joint_ ## name ## _v = is_pinocchio_joint_ ## name <T>::value;
+    inline constexpr bool is_pinocchio_joint_ ## name ## _v = is_pinocchio_joint_ ## name <T>::value;
 
     #define IS_PINOCCHIO_JOINT_DETAIL(type, name) \
     namespace isPinocchioJoint ## type ## Detail \
