@@ -140,8 +140,8 @@ class Simulator:
               avoid_instable_collisions: bool = True,
               debug: bool = False,
               **kwargs) -> 'Simulator':
-        r"""Create a new simulator instance from scratch, based on configuration
-        files only.
+        r"""Create a new simulator instance from scratch, based on
+        configuration files only.
 
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.

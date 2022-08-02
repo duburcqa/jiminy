@@ -114,10 +114,14 @@ namespace python
     /// C++ to Python type mapping
 
     inline int getPyType(bool_t const & /* data */) { return NPY_BOOL; }
-    inline int getPyType(float64_t const & /* data */) { return NPY_FLOAT64; }
     inline int getPyType(float32_t const & /* data */) { return NPY_FLOAT32; }
+    inline int getPyType(float64_t const & /* data */) { return NPY_FLOAT64; }
     inline int getPyType(int32_t const & /* data */) { return NPY_INT32; }
-    inline int getPyType(int64_t const & /* data */) { return NPY_INT64; }
+    inline int getPyType(uint32_t const & /* data */) { return NPY_UINT32; }
+    inline int getPyType(long const & /* data */) { return NPY_LONG; }
+    inline int getPyType(unsigned long const & /* data */) { return NPY_ULONG; }
+    inline int getPyType(long long const & /* data */) { return NPY_LONGLONG; }
+    inline int getPyType(unsigned long long const & /* data */) { return NPY_ULONGLONG; }
 
     /// Convert Eigen scalar/vector/matrix to Numpy array by reference.
 
@@ -220,7 +224,7 @@ namespace python
     }
 
     // Generic convert from Numpy array to Eigen Matrix by reference
-    inline std::tuple<hresult_t, Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> >>
+    inline std::tuple<hresult_t, Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > >
     getEigenReference(PyObject * dataPy)
     {
         // Define dummy reference in case of error
@@ -301,23 +305,26 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T> && !is_eigen_v<T>, bp::object>
-    convertToPython(T const & data, bool const & /* copy */ = true)
+    std::enable_if_t<!is_vector_v<T> && !is_eigen_v<T> && !std::is_arithmetic_v<T> && !std::is_integral_v<T>, bp::object>
+    convertToPython(T const & data, bool const & copy = true)
     {
-        return bp::object(data);
+        if (copy)
+        {
+            return bp::object(data);
+        }
+        bp::to_python_indirect<T, bp::detail::make_reference_holder> converter;
+        return bp::object(bp::handle<>(converter(data)));
     }
 
-    template<>
-    inline bp::object convertToPython<flexibleJointData_t>(
-        flexibleJointData_t const & flexibleJointData,
-        bool const & /* copy */)
+    template<typename T>
+    std::enable_if_t<std::is_arithmetic_v<T> || std::is_integral_v<T>, bp::object>
+    convertToPython(T & data, bool const & copy = true)
     {
-        bp::dict flexibilityJointDataPy;
-        flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
-        flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
-        flexibilityJointDataPy["damping"] = flexibleJointData.damping;
-        flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
-        return std::move(flexibilityJointDataPy);
+        if (copy)
+        {
+            return bp::object(data);
+        }
+        return bp::object(bp::handle<>(getNumpyReference(data)));
     }
 
     template<typename T>
@@ -370,6 +377,19 @@ namespace python
             dataPy.append(convertToPython(val, copy));
         }
         return std::move(dataPy);
+    }
+
+    template<>
+    inline bp::object convertToPython<flexibleJointData_t>(
+        flexibleJointData_t const & flexibleJointData,
+        bool const & /* copy */)
+    {
+        bp::dict flexibilityJointDataPy;
+        flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
+        flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
+        flexibilityJointDataPy["damping"] = flexibleJointData.damping;
+        flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
+        return std::move(flexibilityJointDataPy);
     }
 
     class AppendBoostVariantToPython : public boost::static_visitor<bp::object>

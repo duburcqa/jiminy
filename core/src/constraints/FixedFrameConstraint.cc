@@ -144,7 +144,8 @@ namespace jiminy
 
         // Compute pose error
         auto deltaPosition = framePose.translation() - transformRef_.translation();
-        vector3_t const deltaRotation = pinocchio::log3(transformRef_.rotation().transpose() * framePose.rotation());
+        vector3_t const deltaRotation = pinocchio::log3(
+            framePose.rotation() * transformRef_.rotation().transpose());
 
         // Compute velocity error
         pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
@@ -154,7 +155,7 @@ namespace jiminy
 
         // Add Baumgarte stabilization to drift in world frame
         frameDrift_.linear() += kp_ * deltaPosition;
-        frameDrift_.angular().noalias() += kp_ * (framePose.rotation() * deltaRotation);
+        frameDrift_.angular() += kp_ * deltaRotation;
         frameDrift_ += kd_ * velocity;
 
         // Compute drift in local frame

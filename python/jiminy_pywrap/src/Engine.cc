@@ -522,14 +522,13 @@ namespace python
         static bp::dict getSystemState(EngineMultiRobot  & self)
         {
             bp::dict systemStates;
-            bp::to_python_indirect<systemState_t const *, bp::detail::make_reference_holder> converter;
             for (std::string const & systemName : self.getSystemsNames())
             {
                 /* Cannot fail, but `getSystemState` is making sure that systemState
                    is assigned to a well-defined object anyway. */
                 systemState_t const * systemState;
                 self.getSystemState(systemName, systemState);
-                systemStates[systemName] = bp::handle<>(converter(systemState));
+                systemStates[systemName] = convertToPython(systemState, false);
             }
             return systemStates;
         }
