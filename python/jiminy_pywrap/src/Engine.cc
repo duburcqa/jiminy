@@ -443,20 +443,16 @@ namespace python
                 .def("get_options", &EngineMultiRobot::getOptions)
                 .def("set_options", &PyEngineMultiRobotVisitor::setOptions)
 
-                .def("get_system", bp::make_function(&PyEngineMultiRobotVisitor::getSystem,
-                                   bp::return_internal_reference<>(),
-                                   (bp::arg("self"), "system_name")))
-                .def("get_system_state", bp::make_function(&PyEngineMultiRobotVisitor::getSystemState,
-                                         bp::return_internal_reference<>(),
-                                         (bp::arg("self"), "system_name")))
 
                 .add_property("systems", bp::make_getter(&EngineMultiRobot::systems_,
                                          bp::return_internal_reference<>()))
                 .add_property("systems_names", bp::make_function(&EngineMultiRobot::getSystemsNames,
                                                bp::return_value_policy<result_converter<true> >()))
+                .add_property("systems_states", &PyEngineMultiRobotVisitor::getSystemState)
                 .add_property("stepper_state", bp::make_function(&EngineMultiRobot::getStepperState,
                                                bp::return_internal_reference<>()))
-                .add_property("is_simulation_running", &PyEngineMultiRobotVisitor::getIsSimulationRunning)
+                .add_property("is_simulation_running", bp::make_function(&EngineMultiRobot::getIsSimulationRunning,
+                                                       bp::return_value_policy<result_converter<false> >()))
                 .add_property("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
                 .add_property("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
                 ;
@@ -523,12 +519,19 @@ namespace python
             return *forcesProfile;
         }
 
-        static systemState_t const & getSystemState(EngineMultiRobot  & self,
-                                                    std::string const & systemName)
+        static bp::dict getSystemState(EngineMultiRobot  & self)
         {
-            systemState_t const * systemState;
-            self.getSystemState(systemName, systemState);  // getSystemState is making sure that systemState is always assigned to a well-defined systemState_t
-            return *systemState;
+            bp::dict systemStates;
+            bp::to_python_indirect<systemState_t const *, bp::detail::make_reference_holder> converter;
+            for (std::string const & systemName : self.getSystemsNames())
+            {
+                /* Cannot fail, but `getSystemState` is making sure that systemState
+                   is assigned to a well-defined object anyway. */
+                systemState_t const * systemState;
+                self.getSystemState(systemName, systemState);
+                systemStates[systemName] = bp::handle<>(converter(systemState));
+            }
+            return systemStates;
         }
 
         static hresult_t registerForceCoupling(EngineMultiRobot       & self,
@@ -544,8 +547,8 @@ namespace python
         }
 
         static hresult_t start(EngineMultiRobot       & self,
-                               bp::object       const & qInitPy,
-                               bp::object       const & vInitPy,
+                               bp::dict         const & qInitPy,
+                               bp::dict         const & vInitPy,
                                bp::object       const & aInitPy)
         {
             std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
@@ -567,8 +570,8 @@ namespace python
 
         static hresult_t simulate(EngineMultiRobot       & self,
                                   float64_t        const & endTime,
-                                  bp::object       const & qInitPy,
-                                  bp::object       const & vInitPy,
+                                  bp::dict         const & qInitPy,
+                                  bp::dict         const & vInitPy,
                                   bp::object       const & aInitPy)
         {
             std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
@@ -584,8 +587,8 @@ namespace python
 
         static bp::object computeSystemsDynamics(EngineMultiRobot       & self,
                                                  float64_t        const & endTime,
-                                                 bp::object       const & qSplitPy,
-                                                 bp::object       const & vSplitPy)
+                                                 bp::list         const & qSplitPy,
+                                                 bp::list         const & vSplitPy)
         {
             static std::vector<vectorN_t> aSplit;
             self.computeSystemsDynamics(
@@ -785,11 +788,6 @@ namespace python
             configHolder_t config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
-        }
-
-        static bp::object getIsSimulationRunning(EngineMultiRobot & self)
-        {
-            return bp::object(bp::handle<>(getNumpyReferenceFromScalar(self.getIsSimulationRunning())));
         }
 
         ///////////////////////////////////////////////////////////////////////////////
