@@ -196,12 +196,13 @@ namespace jiminy
             // Empty on purpose
         }
 
-        matrixN_t const & getAll(void) const
+        inline matrixN_t const & getAll(void) const
         {
             if (sharedDataRef_)
             {
                 /* Return shared memory directly it is up to the sure to make sure
                    that it is actually up-to-date. */
+                assert(size() == sharedDataRef_->get().rows() && "Shared data inconsistent with sensors.");
                 return sharedDataRef_->get();
             }
             else

@@ -43,7 +43,7 @@ else()
                    -Wconversion -Wdelete-non-virtual-dtor \
                    -Wno-sign-conversion -Wno-non-virtual-dtor \
                    -Wno-unknown-pragmas -Wno-undefined-var-template \
-                   -Wno-long-long -Werror=odr -Werror=return-type")
+                   -Wno-long-long -Wno-error=deprecated")
 endif()
 
 # Shared libraries need PIC

@@ -4,5 +4,8 @@ cmake_minimum_required(VERSION 3.10)
 # Project name
 project(${LIBRARY_NAME}_examples VERSION ${BUILD_VERSION})
 
+# Enable all warnings
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")
+
 # Sub-projects
 add_subdirectory("cpp/double_pendulum")

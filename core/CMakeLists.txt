@@ -35,6 +35,13 @@ if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom versi
 endif()
 add_definitions("${COMPILE_FLAGS}")
 
+# Boost-specific stuffs. It must be defined before pinocchio does it,
+# otherwise it messes with LTO.
+add_definitions(
+    -DBOOST_MPL_LIMIT_VECTOR_SIZE=30
+    -DBOOST_MPL_LIMIT_LIST_SIZE=30
+)
+
 # Specialize jiminy core configuration file
 set(JIMINY_CONFIG_IN ${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake.in)
 set(JIMINY_CONFIG_OUT ${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake)
