@@ -136,8 +136,8 @@ externalproject_add(${PROJECT_NAME}
           ${EXTERNALPROJECT_OSX_CONFIG}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
 
-     ${hdf5_NINJA}
-     ${hdf5_cpp_NINJA}
+     ${libhdf5_NINJA}
+     ${libhdf5_cpp_NINJA}
 
      DEPENDS zlib_external
 

@@ -202,7 +202,8 @@ namespace jiminy
             {
                 /* Return shared memory directly it is up to the sure to make sure
                    that it is actually up-to-date. */
-                assert(size() == sharedDataRef_->get().rows() && "Shared data inconsistent with sensors.");
+                assert(size() == static_cast<std::size_t>(sharedDataRef_->get().rows()) &&
+                       "Shared data inconsistent with sensors.");
                 return sharedDataRef_->get();
             }
             else
