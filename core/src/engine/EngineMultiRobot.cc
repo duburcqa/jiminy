@@ -1350,9 +1350,9 @@ namespace jiminy
                if not in contact. It is useful to start in post-hysteresis state to avoid
                discontinuities at init. */
             systemDataIt->constraintsHolder.foreach(
-                [contactModel = contactModel_,
-                 enablePositionLimit = systemIt->robot->mdlOptions_->joints.enablePositionLimit,
-                 freq = engineOptions_->constraints.stabilizationFreq](  // by-copy to avoid compilation failure for gcc<7.3
+                [& contactModel = contactModel_,
+                 & enablePositionLimit = systemIt->robot->mdlOptions_->joints.enablePositionLimit,
+                 & freq = engineOptions_->constraints.stabilizationFreq](
                     std::shared_ptr<AbstractConstraintBase> const & constraint,
                     constraintsHolderType_t const & holderType)
                 {

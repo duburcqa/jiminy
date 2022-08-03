@@ -72,7 +72,7 @@ jobs:
         cd "$RootDir/build"
 
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
               -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
