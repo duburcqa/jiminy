@@ -123,17 +123,15 @@ namespace jiminy
         // Assuming the model still exists.
         auto model = model_.lock();
 
-        // Define inverse rotation matrix of local frame
-        auto rotInvLocal = rotationLocal_.transpose();
-
         // Get jacobian in local frame
-        pinocchio::SE3 transformLocal(rotationLocal_, model->pncData_.oMf[frameIdx_].translation());
+        pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
+        pinocchio::SE3 const transformLocal(rotationLocal_, framePose.translation());
         pinocchio::Frame const & frame = model->pncModel_.frames[frameIdx_];
         pinocchio::JointModel const & joint = model->pncModel_.joints[frame.parent];
         int32_t const colRef = joint.nv() + joint.idx_v() - 1;
         for (Eigen::DenseIndex j=colRef; j>=0; j=model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
         {
-            pinocchio::MotionRef<matrix6N_t::ColXpr> vIn(model->pncData_.J.col(j));
+            pinocchio::MotionRef<matrix6N_t::ColXpr> const vIn(model->pncData_.J.col(j));
             pinocchio::MotionRef<matrix6N_t::ColXpr> vOut(frameJacobian_.col(j));
             vOut = transformLocal.actInv(vIn);
         }
@@ -145,24 +143,24 @@ namespace jiminy
                                            pinocchio::LOCAL_WORLD_ALIGNED);
 
         // Compute pose error
-        pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
-        vector3_t deltaPosition = framePose.translation() - transformRef_.translation();
-        matrix3_t const deltaRotation = transformRef_.rotation().transpose() * framePose.rotation();
+        auto deltaPosition = framePose.translation() - transformRef_.translation();
+        vector3_t const deltaRotation = pinocchio::log3(
+            framePose.rotation() * transformRef_.rotation().transpose());
 
         // Compute velocity error
-        pinocchio::Motion velocity = getFrameVelocity(model->pncModel_,
-                                                      model->pncData_,
-                                                      frameIdx_,
-                                                      pinocchio::LOCAL_WORLD_ALIGNED);
+        pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
+                                                            model->pncData_,
+                                                            frameIdx_,
+                                                            pinocchio::LOCAL_WORLD_ALIGNED);
 
         // Add Baumgarte stabilization to drift in world frame
         frameDrift_.linear() += kp_ * deltaPosition;
-        frameDrift_.angular() += kp_ * framePose.rotation() * pinocchio::log3(deltaRotation);
+        frameDrift_.angular() += kp_ * deltaRotation;
         frameDrift_ += kd_ * velocity;
 
         // Compute drift in local frame
-        frameDrift_.linear() = rotInvLocal * frameDrift_.linear();
-        frameDrift_.angular() = rotInvLocal * frameDrift_.angular();
+        frameDrift_.linear() = rotationLocal_.transpose() * frameDrift_.linear();
+        frameDrift_.angular() = rotationLocal_.transpose() * frameDrift_.angular();
 
         // Extract masked jacobian and drift, only containing fixed dofs
         for (uint32_t i = 0; i < dofsFixed_.size(); ++i)

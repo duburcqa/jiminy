@@ -68,9 +68,9 @@ namespace jiminy
         constraintsMap_t::iterator constraintIt;
         if (holderType == constraintsHolderType_t::COLLISION_BODIES)
         {
-            for (std::size_t i = 0; i < collisionBodies.size(); ++i)
+            for (constraintsMap_t & collisionBody : collisionBodies)
             {
-                constraintsMapPtr = &collisionBodies[i];
+                constraintsMapPtr = &collisionBody;
                 constraintIt = getImpl(*constraintsMapPtr, key);
                 if (constraintIt != constraintsMapPtr->end())
                 {
@@ -1122,7 +1122,7 @@ namespace jiminy
                 }
 
                 /* Add bias to inertia matrix of body.
-                   To preserve positive semidefinite property after noise addition, the principal
+                   To preserve positive semi-definite property after noise addition, the principal
                    axes and moments are computed from the original inertia matrix, then independent
                    gaussian distributed noise is added on each principal moments, and a random small
                    rotation is applied to the principal axes based on a randomly generated rotation

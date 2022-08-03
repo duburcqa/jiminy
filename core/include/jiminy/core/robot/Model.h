@@ -17,9 +17,7 @@ namespace jiminy
     class FixedFrameConstraint;
     class JointConstraint;
 
-    template<typename DerivedConstraint>
-    using constraintsMapTpl_t = static_map_t<std::string, std::shared_ptr<DerivedConstraint> >;
-    using constraintsMap_t = constraintsMapTpl_t<AbstractConstraintBase>;
+    using constraintsMap_t = static_map_t<std::string, std::shared_ptr<AbstractConstraintBase> >;
 
     enum class constraintsHolderType_t : uint8_t
     {
@@ -29,7 +27,7 @@ namespace jiminy
         USER = 3
     };
 
-    std::array<constraintsHolderType_t, 4> const constraintsHolderTypesAll = {{
+    std::array<constraintsHolderType_t, 4> const constraintsHolderTypesAll {{
         constraintsHolderType_t::BOUNDS_JOINTS,
         constraintsHolderType_t::CONTACT_FRAMES,
         constraintsHolderType_t::COLLISION_BODIES,

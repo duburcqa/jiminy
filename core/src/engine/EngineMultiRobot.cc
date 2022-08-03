@@ -370,6 +370,12 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
+        if ((stiffness.array() < 0.0).any() || (damping.array() < 0.0).any())
+        {
+            PRINT_ERROR("The stiffness and damping parameters must be positive.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
         systemHolder_t * system1;
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -425,14 +431,18 @@ namespace jiminy
 
                 /* Compute the force coupling them.
                    Note that the application point is the "middle" between frames to
-                   get "symmetric" forces on both frame. */
-                pinocchio::Motion const pos12 = pinocchio::log6(oMf1.actInv(oMf2));
-                pinocchio::SE3 const oMf12 = pinocchio::exp6(0.5 * pos12);
-                pinocchio::SE3 const oRf1 = pinocchio::SE3(oMf1.rotation(), vector3_t::Zero());
-                vector6_t const vel12 = (oVf2 - oVf1).toVector();
-                return oRf1.act(oMf12.actInv(pinocchio::Force((
-                    stiffness.array() * pos12.toVector().array() +
-                    damping.array() * vel12.array()).matrix())));
+                   get sign reversed spatial forces on both frame. */
+                pinocchio::Motion const deltaPos12(
+                    oMf2.translation() - oMf1.translation(),
+                    pinocchio::log3(oMf2.rotation() * oMf1.rotation().transpose()));
+                assert(((stiffness.tail<3>().array() < EPS).any() || deltaPos12.angular().norm() < 0.5 * M_PI) &&
+                       "Relative angle between reference frames of viscoelastic coupling must be smaller than pi/2.");
+                pinocchio::Motion deltaVel12 = oVf2 - oVf1;
+                deltaVel12.linear() -= 0.5 * deltaPos12.linear().cross(oVf1.angular() + oVf2.angular());
+                pinocchio::Force f((stiffness.array() * deltaPos12.toVector().array() +
+                                    damping.array() * deltaVel12.toVector().array()).matrix());
+                f.angular() -= 0.5 * deltaPos12.linear().cross(f.linear());
+                return f;
             };
 
             returnCode = registerForceCoupling(
@@ -461,6 +471,12 @@ namespace jiminy
                                                                              float64_t   const & restLength)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (stiffness < 0.0 || damping < 0.0)
+        {
+            PRINT_ERROR("The stiffness and damping parameters must be positive.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
 
         systemHolder_t * system1;
         if (returnCode == hresult_t::SUCCESS)
@@ -3505,9 +3521,10 @@ namespace jiminy
             vector3_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
             quaternion_t const quat(q.segment<4>(positionIdx));  // Only way to initialize with [x,y,z,w] order
-            vector3_t const axis = pinocchio::quaternion::log3(quat);
+            vector3_t const angleAxis = pinocchio::quaternion::log3(quat);
+            assert((angleAxis.norm() < 0.5 * M_PI) && "Flexible joint angle must be smaller than pi/2.");
             uInternal.segment<3>(velocityIdx).array() +=
-                - stiffness.array() * axis.array()
+                - stiffness.array() * angleAxis.array()
                 - damping.array() * v.segment<3>(velocityIdx).array();
         }
     }
@@ -3621,19 +3638,19 @@ namespace jiminy
             forceVector_t & fext2 = systemsDataHolder_[systemIdx2].state.fExternal;
 
             // Compute the coupling force
-            pinocchio::Force const force = forceCoupling.forceFct(t, q1, v1, q2, v2);
+            pinocchio::Force force = forceCoupling.forceFct(t, q1, v1, q2, v2);
             jointIndex_t const & parentJointIdx1 = system1.robot->pncModel_.frames[frameIdx1].parent;
             fext1[parentJointIdx1] += convertForceGlobalFrameToJoint(
                 system1.robot->pncModel_, system1.robot->pncData_, frameIdx1, force);
 
             // Move force from frame1 to frame2 to apply it to the second system
+            force.toVector() *= -1;
             jointIndex_t const & parentJointIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
-            pinocchio::SE3 const offset(
-                matrix3_t::Identity(),
-                system2.robot->pncData_.oMf[frameIdx2].translation()
-                    - system1.robot->pncData_.oMf[frameIdx1].translation());
+            vector3_t const offset = system2.robot->pncData_.oMf[frameIdx2].translation() -
+                                     system1.robot->pncData_.oMf[frameIdx1].translation();
+            force.angular() += offset.cross(force.linear());
             fext2[parentJointIdx2] += convertForceGlobalFrameToJoint(
-                system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, -offset.act(force));
+                system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, force);
         }
     }
 

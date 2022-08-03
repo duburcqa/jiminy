@@ -61,7 +61,7 @@ jobs:
         else
           TORCH_VERSION="1.11.0"
         fi
-        ./build_tools/build_install_deps_unix.sh
+        BUILD_TYPE=${{ matrix.BUILD_TYPE }} ./build_tools/build_install_deps_unix.sh
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
@@ -85,7 +85,7 @@ jobs:
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
               -DINSTALL_GYM_JIMINY=${{ (matrix.os == 'ubuntu-22.04' && 'OFF') || 'ON' }} \
-              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j2
 
         echo "LD_LIBRARY_PATH=$InstallDir/lib:$InstallDir/lib64:/usr/local/lib" >> $GITHUB_ENV

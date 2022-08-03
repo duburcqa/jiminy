@@ -399,7 +399,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::generateMeasurementAll(void)
+    hresult_t AbstractSensorTpl<T>::measureDataAll(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -414,7 +414,7 @@ namespace jiminy
             // Shew the data with white noise and bias
             if (returnCode == hresult_t::SUCCESS)
             {
-                sensor->skewMeasurement();
+                sensor->measureData();
             }
         }
 
@@ -475,7 +475,7 @@ namespace jiminy
 
                 // Push back new empty buffer
                 sharedHolder_->time_.push_back(-1);
-                sharedHolder_->data_.push_back(matrixN_t(getSize(), sharedHolder_->num_));
+                sharedHolder_->data_.push_back({getSize(), sharedHolder_->num_});
             }
         }
         else
@@ -502,7 +502,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Compute the measurement data
-            returnCode = generateMeasurementAll();
+            returnCode = measureDataAll();
         }
 
         return returnCode;

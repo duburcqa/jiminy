@@ -5,7 +5,7 @@
 ///                 Any sensor must inherit from this base class and implement its virtual
 ///                 methods.
 ///
-///                 Each sensor added to a Jiminy Robot is downcasted as an instance of
+///                 Each sensor added to a Jiminy Robot is down-casted as an instance of
 ///                 AbstractSensor and polymorphism is used to call the actual implementations.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -402,12 +402,12 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief       Add white noise and bias to the measurement buffer.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void skewMeasurement(void);
+        virtual void measureData(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Set the measurement buffer with the real data, but skewed with white noise and bias.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t generateMeasurementAll(void) = 0;
+        virtual hresult_t measureDataAll(void) = 0;
 
     public:
         std::unique_ptr<abstractSensorOptions_t const> baseSensorOptions_;  ///< Structure with the parameters of the sensor
@@ -466,7 +466,7 @@ namespace jiminy
         virtual hresult_t detach(void) override final;
         virtual std::string getTelemetryName(void) const override final;
         virtual hresult_t interpolateData(void) override final;
-        virtual hresult_t generateMeasurementAll(void) override final;
+        virtual hresult_t measureDataAll(void) override final;
         void clearDataBuffer(void);
 
     public:
