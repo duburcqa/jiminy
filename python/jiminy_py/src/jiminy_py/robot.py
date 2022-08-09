@@ -729,18 +729,20 @@ def load_hardware_description_file(
 
                 # Create a frame if a frame name has been specified.
                 # In such a case, the body name must be specified.
-                if frame_name is None:
+                if not frame_name or \
+                        not robot.pinocchio_model.existFrame(frame_name):
                     # Get the body name
                     body_name = sensor_descr.pop('body_name')
 
                     # Generate a frame name both intelligible and available
-                    i = 0
-                    frame_name = "_".join((
-                        sensor_name, sensor_type, "Frame"))
-                    while robot.pinocchio_model.existFrame(frame_name):
+                    if frame_name is None:
+                        i = 0
                         frame_name = "_".join((
-                            sensor_name, sensor_type, "Frame", str(i)))
-                        i += 1
+                            sensor_name, sensor_type, "Frame"))
+                        while robot.pinocchio_model.existFrame(frame_name):
+                            frame_name = "_".join((
+                                sensor_name, sensor_type, "Frame", str(i)))
+                            i += 1
 
                     # Compute SE3 object representing the frame placement
                     frame_pose_xyzrpy = np.array(
@@ -751,6 +753,11 @@ def load_hardware_description_file(
 
                     # Add the frame to the robot model
                     robot.add_frame(frame_name, body_name, frame_placement)
+                elif 'frame_pose' in sensor_descr.keys():
+                    raise ValueError(
+                        f"The sensor '{sensor_name}' is attached to the frame "
+                        f"'{frame_name}' that already exists whereas a "
+                        "specific pose is also requested.")
 
                 # Initialize the sensor
                 sensor.initialize(frame_name)
