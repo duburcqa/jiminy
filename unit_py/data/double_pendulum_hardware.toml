@@ -1,0 +1,49 @@
+[Global]
+sensorsUpdatePeriod = 0.001
+controllerUpdatePeriod = 0.001
+collisionBodiesNames = []
+contactFramesNames = []
+
+[Motor.SimpleMotor.PendulumJoint]
+joint_name = "PendulumJoint"
+mechanicalReduction = 1.0
+armature = 0.0
+frictionViscousPositive = -0.0
+frictionViscousNegative = -0.0
+frictionDryPositive = -0.0
+frictionDryNegative = -0.0
+frictionDrySlope = -0.0
+
+[Motor.SimpleMotor.SecondPendulumJoint]
+joint_name = "SecondPendulumJoint"
+mechanicalReduction = 1.0
+armature = 0.0
+frictionViscousPositive = -0.0
+frictionViscousNegative = -0.0
+frictionDryPositive = -0.0
+frictionDryNegative = -0.0
+frictionDrySlope = -0.0
+
+[Sensor.ImuSensor.world]
+body_name = "world"
+frame_pose = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+
+[Sensor.ForceSensor.PendulumArm]
+body_name = "PendulumArm"
+frame_pose = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+
+[Sensor.ForceSensor.SecondPendulumArm]
+body_name = "SecondPendulumArm"
+frame_pose = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+
+[Sensor.EncoderSensor.PendulumJoint]
+joint_name = "PendulumJoint"
+
+[Sensor.EncoderSensor.SecondPendulumJoint]
+joint_name = "SecondPendulumJoint"
+
+[Sensor.EffortSensor.PendulumJoint]
+motor_name = "PendulumJoint"
+
+[Sensor.EffortSensor.SecondPendulumJoint]
+motor_name = "SecondPendulumJoint"
