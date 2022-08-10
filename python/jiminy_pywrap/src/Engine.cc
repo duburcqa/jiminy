@@ -302,6 +302,66 @@ namespace python
                 .def("set_controller", &EngineMultiRobot::setController,
                                       (bp::arg("self"), "system_name", "controller"))
 
+                .def("reset",
+                    static_cast<
+                        void (EngineMultiRobot::*)(bool_t const &, bool_t const &)
+                    >(&EngineMultiRobot::reset),
+                    (bp::arg("self"),
+                     bp::arg("reset_random_generator") = false,
+                     bp::arg("remove_all_forces") = false))
+                .def("start", &PyEngineMultiRobotVisitor::start,
+                              (bp::arg("self"), "q_init_list", "v_init_list",
+                               bp::arg("a_init_list") = bp::object()))  // bp::object() means 'None' in Python
+                .def("step", &PyEngineMultiRobotVisitor::step,
+                             (bp::arg("self"), bp::arg("dt_desired") = -1))
+                .def("stop", &EngineMultiRobot::stop, (bp::arg("self")))
+                .def("simulate", &PyEngineMultiRobotVisitor::simulate,
+                                 (bp::arg("self"), "t_end", "q_init_list", "v_init_list",
+                                  bp::arg("a_init_list") = bp::object()))
+                .def("compute_forward_kinematics", &EngineMultiRobot::computeForwardKinematics,
+                                                   (bp::arg("system"), "q", "v", "a"))
+                .staticmethod("compute_forward_kinematics")
+                .def("compute_systems_dynamics", &PyEngineMultiRobotVisitor::computeSystemsDynamics,
+                                                 (bp::arg("self"), "t_end", "q_list", "v_list"))
+
+                .def("get_log", &PyEngineMultiRobotVisitor::getLog)
+                .def("write_log", &EngineMultiRobot::writeLog,
+                                  (bp::arg("self"), "filename",
+                                   bp::arg("format") = "hdf5"))
+                .def("read_log_binary", &PyEngineMultiRobotVisitor::parseLogBinary, (bp::arg("filename")))
+                .staticmethod("read_log_binary")
+
+                .def("register_force_impulse", &PyEngineMultiRobotVisitor::registerForceImpulse,
+                                               (bp::arg("self"), "system_name",
+                                                "frame_name", "t", "dt", "F"))
+                .def("remove_forces_impulse",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(std::string const &)
+                    >(&EngineMultiRobot::removeForcesImpulse),
+                    (bp::arg("self"), "system_name"))
+                .def("remove_forces_impulse",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(void)
+                    >(&EngineMultiRobot::removeForcesImpulse),
+                    (bp::arg("self")))
+                .add_property("forces_impulse", &PyEngineMultiRobotVisitor::getForcesImpulse)
+
+                .def("register_force_profile", &PyEngineMultiRobotVisitor::registerForceProfile,
+                                               (bp::arg("self"), "system_name",
+                                                "frame_name", "force_function",
+                                                bp::arg("update_period") = 0.0))
+                .def("remove_forces_profile",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(std::string const &)
+                    >(&EngineMultiRobot::removeForcesProfile),
+                    (bp::arg("self"), "system_name"))
+                .def("remove_forces_profile",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(void)
+                    >(&EngineMultiRobot::removeForcesProfile),
+                    (bp::arg("self")))
+                .add_property("forces_profile", &PyEngineMultiRobotVisitor::getForcesProfile)
+
                 .def("register_force_coupling", &PyEngineMultiRobotVisitor::registerForceCoupling,
                                                 (bp::arg("self"),
                                                  "system_name_1", "system_name_2",
@@ -373,76 +433,10 @@ namespace python
                 .add_property("forces_coupling", bp::make_function(&EngineMultiRobot::getForcesCoupling,
                                                  bp::return_internal_reference<>()))
 
-                .def("reset",
-                    static_cast<
-                        void (EngineMultiRobot::*)(bool_t const &, bool_t const &)
-                    >(&EngineMultiRobot::reset),
-                    (bp::arg("self"),
-                     bp::arg("reset_random_generator") = false,
-                     bp::arg("remove_all_forces") = false))
-                .def("start", &PyEngineMultiRobotVisitor::start,
-                              (bp::arg("self"), "q_init_list", "v_init_list",
-                               bp::arg("a_init_list") = bp::object()))  // bp::object() means 'None' in Python
-                .def("step", &PyEngineMultiRobotVisitor::step,
-                             (bp::arg("self"), bp::arg("dt_desired") = -1))
-                .def("stop", &EngineMultiRobot::stop, (bp::arg("self")))
-                .def("simulate", &PyEngineMultiRobotVisitor::simulate,
-                                 (bp::arg("self"), "t_end", "q_init_list", "v_init_list",
-                                  bp::arg("a_init_list") = bp::object()))
-                .def("compute_forward_kinematics", &EngineMultiRobot::computeForwardKinematics,
-                                                   (bp::arg("system"), "q", "v", "a"))
-                .staticmethod("compute_forward_kinematics")
-                .def("compute_systems_dynamics", &PyEngineMultiRobotVisitor::computeSystemsDynamics,
-                                                 (bp::arg("self"), "t_end", "q_list", "v_list"))
-
-                .def("get_log", &PyEngineMultiRobotVisitor::getLog)
-                .def("write_log", &EngineMultiRobot::writeLog,
-                                  (bp::arg("self"), "filename",
-                                   bp::arg("format") = "hdf5"))
-                .def("read_log_binary", &PyEngineMultiRobotVisitor::parseLogBinary, (bp::arg("filename")))
-                .staticmethod("read_log_binary")
-
-                .def("register_force_impulse", &PyEngineMultiRobotVisitor::registerForceImpulse,
-                                               (bp::arg("self"), "system_name",
-                                                "frame_name", "t", "dt", "F"))
-                .def("remove_forces_impulse",
-                    static_cast<
-                        hresult_t (EngineMultiRobot::*)(std::string const &)
-                    >(&EngineMultiRobot::removeForcesImpulse),
-                    (bp::arg("self"), "system_name"))
-                .def("remove_forces_impulse",
-                    static_cast<
-                        hresult_t (EngineMultiRobot::*)(void)
-                    >(&EngineMultiRobot::removeForcesImpulse),
-                    (bp::arg("self")))
-                .def("register_force_profile", &PyEngineMultiRobotVisitor::registerForceProfile,
-                                               (bp::arg("self"), "system_name",
-                                                "frame_name", "force_function",
-                                                bp::arg("update_period") = 0.0))
-                .def("remove_forces_profile",
-                    static_cast<
-                        hresult_t (EngineMultiRobot::*)(std::string const &)
-                    >(&EngineMultiRobot::removeForcesProfile),
-                    (bp::arg("self"), "system_name"))
-                .def("remove_forces_profile",
-                    static_cast<
-                        hresult_t (EngineMultiRobot::*)(void)
-                    >(&EngineMultiRobot::removeForcesProfile),
-                    (bp::arg("self")))
-
-                .add_property("forces_coupling", bp::make_function(&EngineMultiRobot::getForcesCoupling,
-                                                 bp::return_internal_reference<>()))
-
-                .add_property("forces_impulse", bp::make_function(&PyEngineMultiRobotVisitor::getForcesImpulse,
-                                                bp::return_internal_reference<>()))
-                .add_property("forces_profile", bp::make_function(&PyEngineMultiRobotVisitor::getForcesProfile,
-                                                bp::return_internal_reference<>()))
-
                 .def("remove_all_forces", &EngineMultiRobot::removeAllForces)
 
                 .def("get_options", &EngineMultiRobot::getOptions)
                 .def("set_options", &PyEngineMultiRobotVisitor::setOptions)
-
 
                 .add_property("systems", bp::make_getter(&EngineMultiRobot::systems_,
                                          bp::return_internal_reference<>()))
@@ -503,20 +497,28 @@ namespace python
             return *system;
         }
 
-        static forceImpulseRegister_t const & getForcesImpulse(EngineMultiRobot  & self,
-                                                               std::string const & systemName)
+        static bp::dict getForcesImpulse(EngineMultiRobot  & self)
         {
-            forceImpulseRegister_t const * forcesImpulse;
-            self.getForcesImpulse(systemName, forcesImpulse);
-            return *forcesImpulse;
+            bp::dict forceImpulsesPy;
+            for (auto const & systemName : self.getSystemsNames())
+            {
+                forceImpulseRegister_t const * forcesImpulse;
+                self.getForcesImpulse(systemName, forcesImpulse);
+                forceImpulsesPy[systemName] = convertToPython(forcesImpulse, false);
+            }
+            return forceImpulsesPy;
         }
 
-        static forceProfileRegister_t const & getForcesProfile(EngineMultiRobot  & self,
-                                                               std::string const & systemName)
+        static bp::dict getForcesProfile(EngineMultiRobot  & self)
         {
-            forceProfileRegister_t const * forcesProfile;
-            self.getForcesProfile(systemName, forcesProfile);
-            return *forcesProfile;
+            bp::dict forcesProfilesPy;
+            for (auto const & systemName : self.getSystemsNames())
+            {
+                forceProfileRegister_t const * forcesProfile;
+                self.getForcesProfile(systemName, forcesProfile);
+                forcesProfilesPy[systemName] = convertToPython(forcesProfile, false);
+            }
+            return forcesProfilesPy;
         }
 
         static bp::dict getSystemState(EngineMultiRobot  & self)
@@ -842,9 +844,21 @@ namespace python
 
                 .def("register_force_impulse", &PyEngineVisitor::registerForceImpulse,
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
+                .add_property("forces_impulse", bp::make_function(
+                                                static_cast<
+                                                    forceImpulseRegister_t const & (Engine::*)(void) const
+                                                >(&Engine::getForcesImpulse),
+                                                bp::return_internal_reference<>()))
+
                 .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
                                                (bp::arg("self"), "frame_name", "force_function",
                                                 bp::arg("update_period") = 0.0))
+                .add_property("forces_profile", bp::make_function(
+                                                static_cast<
+                                                    forceProfileRegister_t const & (Engine::*)(void) const
+                                                >(&Engine::getForcesProfile),
+                                                bp::return_internal_reference<>()))
+
                 .def("register_force_coupling", &PyEngineVisitor::registerForceCoupling,
                                                 (bp::arg("self"), "frame_name_1", "frame_name_2", "force_function"))
                 .def("register_viscoelastic_force_coupling",
@@ -866,18 +880,7 @@ namespace python
                             float64_t   const &)
                     >(&Engine::registerViscoelasticDirectionalForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping",
-		     bp::arg("rest_length") = 0.0))
-
-                .add_property("forces_impulse", bp::make_function(
-                                                static_cast<
-                                                    forceImpulseRegister_t const & (Engine::*)(void) const
-                                                >(&Engine::getForcesImpulse),
-                                                bp::return_internal_reference<>()))
-                .add_property("forces_profile", bp::make_function(
-                                                static_cast<
-                                                    forceProfileRegister_t const & (Engine::*)(void) const
-                                                >(&Engine::getForcesProfile),
-                                                bp::return_internal_reference<>()))
+		             bp::arg("rest_length") = 0.0))
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))

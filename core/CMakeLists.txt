@@ -39,7 +39,6 @@ add_definitions("${COMPILE_FLAGS}")
 # otherwise it messes with LTO.
 add_definitions(
     -DBOOST_MPL_LIMIT_VECTOR_SIZE=30
-    -DBOOST_MPL_LIMIT_LIST_SIZE=30
 )
 
 # Specialize jiminy core configuration file
