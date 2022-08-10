@@ -1046,7 +1046,7 @@ namespace jiminy
         // Make sure the URDF file exists
         if (!std::ifstream(urdfPath).good())
         {
-            PRINT_ERROR("The URDF file does not exist. Impossible to load it.");
+            PRINT_ERROR("The URDF file '", urdfPath, "' is invalid.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 

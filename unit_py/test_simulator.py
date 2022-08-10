@@ -36,7 +36,7 @@ class SimulatorTest(unittest.TestCase):
 
         # Create simulator.
         # The existing options file should be loaded automatically.
-        simulator = Simulator(robot)
+        simulator = Simulator(robot, viewer_backend="panda3d-sync")
 
         # Run the simulation and write log
         log_path = os.path.join(
