@@ -39,10 +39,9 @@ setup(
     long_description_content_type="text/markdown",
     url="https://duburcqa.github.io/jiminy/README.html",
     project_urls={
-        "Source": "https://github.com/duburcqa/jiminy",
-        "Documentation":
-            "https://duburcqa.github.io/jiminy/api/jiminy_py/index.html",
-        "Tutorial": "https://duburcqa.github.io/jiminy/tutorial.html"
+        "Documentation": "https://duburcqa.github.io/jiminy",
+        "Bug Tracker": "https://github.com/duburcqa/jiminy/issues",
+        "Source": "https://github.com/duburcqa/jiminy"
     },
     download_url=("https://github.com/duburcqa/jiminy/archive/"
                   "@PROJECT_VERSION@.tar.gz"),

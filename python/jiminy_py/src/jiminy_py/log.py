@@ -1,3 +1,4 @@
+import os
 import pathlib
 import tempfile
 from csv import DictReader
@@ -183,7 +184,7 @@ def extract_trajectory_data_from_log(log_data: Dict[str, np.ndarray],
           - robot velocity: to update velocity-dependent markers such as DCM,
           - external forces: to update force-dependent markers.
 
-    :param log_data: Data from the log file, in a dictionnary.
+    :param log_data: Data from the log file, in a dictionary.
     :param robot: Jiminy robot.
 
     :returns: Trajectory dictionary. The actual trajectory corresponds to the
@@ -306,13 +307,18 @@ def build_robot_from_log(
                 "Impossible to build robot. The log is not persistent and the "
                 "robot was not associated with a valid URDF file.")
 
-        with tempfile.NamedTemporaryFile() as f:
-            # Create temporary urdf file
+        # Write urdf data in temporary file
+        urdf_path = os.path.join(
+            tempfile.gettempdir(),
+            f"{next(tempfile._get_candidate_names())}.urdf")
+        with open(urdf_path, "xb") as f:
             f.write(urdf_data.encode())
-            f.flush()
 
-            # Initialize model
-            robot.initialize(f.name, has_freeflyer, mesh_package_dirs)
+        # Initialize model
+        robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
+
+        # Delete temporary file
+        os.remove(urdf_path)
 
         # Load the options
         all_options = jiminy.load_config_json_string(log_constants[

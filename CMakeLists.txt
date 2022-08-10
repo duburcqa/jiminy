@@ -61,7 +61,7 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -ftemplate-backtrace-limit=0")
     set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -Wfatal-errors -Werror")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g -fno-omit-frame-pointer -fno-sanitize-recover")
 endif()
 
 # Sub-projects

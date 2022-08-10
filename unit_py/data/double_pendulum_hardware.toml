@@ -1,0 +1,26 @@
+[Motor.SimpleMotor.PendulumJoint]
+joint_name = "PendulumJoint"
+
+[Motor.SimpleMotor.SecondPendulumJoint]
+joint_name = "SecondPendulumJoint"
+
+[Sensor.ImuSensor.world]
+frame_name = "world"
+
+[Sensor.ForceSensor.PendulumArm]
+frame_name = "PendulumArm"
+
+[Sensor.ForceSensor.SecondPendulumArm]
+frame_name = "SecondPendulumArm"
+
+[Sensor.EncoderSensor.PendulumJoint]
+joint_name = "PendulumJoint"
+
+[Sensor.EncoderSensor.SecondPendulumJoint]
+joint_name = "SecondPendulumJoint"
+
+[Sensor.EffortSensor.PendulumJoint]
+motor_name = "PendulumJoint"
+
+[Sensor.EffortSensor.SecondPendulumJoint]
+motor_name = "SecondPendulumJoint"

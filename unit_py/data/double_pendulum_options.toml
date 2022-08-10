@@ -1,0 +1,4 @@
+[engine.stepper]
+odeSolver = "runge_kutta_dopri5"
+sensorsUpdatePeriod = 0.001
+controllerUpdatePeriod = 0.001
