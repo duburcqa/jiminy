@@ -1184,8 +1184,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Configure the low-level integrator
         engine_options = self.simulator.engine.get_options()
         engine_options["stepper"]["iterMax"] = 0
-        engine_options["stepper"]["timeout"] = 0.0
+        engine_options["stepper"]["dtMax"] = min(0.02, self.step_dt)
         engine_options["stepper"]["logInternalStepperSteps"] = False
+
+        # Set maximum computation time for single internal integration steps
+        if self.debug:
+            engine_options["stepper"]["timeout"] = 0.0
+        else:
+            engine_options["stepper"]["timeout"] = 2.0
 
         # Enable logging of geometries in debug mode
         if self.debug:
