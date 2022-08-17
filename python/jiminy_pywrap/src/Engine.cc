@@ -289,14 +289,10 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .def("add_system", &PyEngineMultiRobotVisitor::addSystemWithoutController,
-                                   (bp::arg("self"), "system_name", "robot"))
                 .def("add_system", &PyEngineMultiRobotVisitor::addSystem,
-                                   (bp::arg("self"), "system_name",
-                                    "robot", "controller"))
-                .def("add_system", &PyEngineMultiRobotVisitor::addSystemWithCallback,
-                                   (bp::arg("self"), "system_name",
-                                    "robot", "controller", "callback_function"))
+                                   (bp::arg("self"), "system_name", "robot",
+                                    bp::arg("controller") = bp::object(),
+                                    bp::arg("callback_function") = bp::object()))
                 .def("remove_system", &EngineMultiRobot::removeSystem,
                                       (bp::arg("self"), "system_name"))
                 .def("set_controller", &EngineMultiRobot::setController,
@@ -452,40 +448,31 @@ namespace python
                 ;
         }
 
-        static hresult_t addSystemWithCallback(EngineMultiRobot                          & self,
-                                               std::string                         const & systemName,
-                                               std::shared_ptr<Robot>              const & robot,
-                                               std::shared_ptr<AbstractController> const & controller,
-                                               bp::object                          const & callbackPy)
+        static hresult_t addSystem(EngineMultiRobot             & self,
+                                   std::string            const & systemName,
+                                   std::shared_ptr<Robot> const & robot,
+                                   bp::object             const & controllerPy,
+                                   bp::object             const & callbackPy)
         {
-            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
-            return self.addSystem(systemName, robot, controller, std::move(callbackFct));
-        }
-
-        static hresult_t addSystem(EngineMultiRobot                          & self,
-                                   std::string                         const & systemName,
-                                   std::shared_ptr<Robot>              const & robot,
-                                   std::shared_ptr<AbstractController> const & controller)
-        {
-            callbackFunctor_t callbackFct = [](float64_t const & /* t */,
-                                               vectorN_t const & /* q */,
-                                               vectorN_t const & /* v */) -> bool_t
-                                            {
-                                                return true;
-                                            };
-            return self.addSystem(systemName, robot, controller, std::move(callbackFct));
-        }
-
-        static hresult_t addSystemWithoutController(EngineMultiRobot             & self,
-                                                    std::string            const & systemName,
-                                                    std::shared_ptr<Robot> const & robot)
-        {
-            callbackFunctor_t callbackFct = [](float64_t const & /* t */,
-                                               vectorN_t const & /* q */,
-                                               vectorN_t const & /* v */) -> bool_t
-                                            {
-                                                return true;
-                                            };
+            callbackFunctor_t callbackFct;
+            if (callbackPy.is_none())
+            {
+                callbackFct = [](float64_t const & /* t */,
+                                 vectorN_t const & /* q */,
+                                 vectorN_t const & /* v */) -> bool_t
+                              {
+                                  return true;
+                              };
+            }
+            else
+            {
+                callbackFct = TimeStateFctPyWrapper<bool_t>(callbackPy);
+            }
+            if (!controllerPy.is_none())
+            {
+                std::shared_ptr<AbstractController> const controller = bp::extract<std::shared_ptr<AbstractController> >(controllerPy);
+                return self.addSystem(systemName, robot, controller, std::move(callbackFct));
+            }
             return self.addSystem(systemName, robot, std::move(callbackFct));
         }
 
