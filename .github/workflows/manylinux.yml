@@ -164,9 +164,9 @@ jobs:
 
     - name: Build extension module
       run: |
-        mkdir -p "$RootDir/examples/cpp/pip_extension/build"
-        cd "$RootDir/examples/cpp/pip_extension/build"
-        cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+        mkdir -p "$RootDir/core/examples/external_project/build"
+        cd "$RootDir/core/examples/external_project/build"
+        cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
                -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
                -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
@@ -174,7 +174,7 @@ jobs:
         "$InstallDir/bin/pip_double_pendulum"
     - name: Run unit tests on user environment
       run: |
-        cd "${GITHUB_WORKSPACE}/unit_py"
+        cd "${GITHUB_WORKSPACE}/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     #####################################################################################

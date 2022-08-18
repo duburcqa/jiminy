@@ -143,13 +143,13 @@ jobs:
 
         & "$InstallDir/bin/jiminy_double_pendulum.exe"
 
-        mkdir -p "$RootDir/examples/cpp/pip_extension/build"
-        cd "$RootDir/examples/cpp/pip_extension/build"
+        mkdir -p "$RootDir/core/examples/external_project/build"
+        cd "$RootDir/core/examples/external_project/build"
 
         $JIMINY_LIB_DIR = (python -c "import os, jiminy_py ; print(os.path.dirname(jiminy_py.get_libraries()))")
         ${env:Path} += ";$JIMINY_LIB_DIR"
 
-        cmake "$RootDir/examples/cpp/pip_extension" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+        cmake "$RootDir/core/examples/external_project/" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
               -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}"
         cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"
@@ -160,10 +160,10 @@ jobs:
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
 
-        Set-Location -Path "$RootDir/build"
+        Set-Location -Path "$RootDir/build/core/unit"
         ctest --output-on-failure
 
-        Set-Location -Path "$RootDir/unit_py"
+        Set-Location -Path "$RootDir/python/jiminy_py/unit_py"
         python -m unittest discover -v
 
     - name: Running unit tests for gym_jiminy

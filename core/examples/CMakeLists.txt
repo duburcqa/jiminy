@@ -8,4 +8,4 @@ project(${LIBRARY_NAME}_examples VERSION ${BUILD_VERSION})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")
 
 # Sub-projects
-add_subdirectory("cpp/double_pendulum")
+add_subdirectory("double_pendulum")

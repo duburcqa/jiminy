@@ -25,7 +25,7 @@ TILE_SEED = range(3)
 
 
 # Create a gym environment for a simple cube
-urdf_path = f"{MODULE_DIR}/../../unit_py/data/box_collision_mesh.urdf"
+urdf_path = f"{MODULE_DIR}/../../jiminy_py/unit_py/data/box_collision_mesh.urdf"
 env = BaseJiminyEnv(Simulator.build(
     urdf_path, has_freeflyer=True), step_dt=0.01)
 

@@ -78,7 +78,7 @@ class SimulateSimpleMass(unittest.TestCase):
             height = 0.0
         elif shape == ShapeType.BOX:
             geom = robot.collision_model.geometryObjects[0]
-            height = geom.geometry.points(0)[2]  # It is a mesh, not an actual box primitive
+            height = geom.geometry.points(0)[2]  # It is a mesh not a primitive
         elif shape == ShapeType.SPHERE:
             geom = robot.collision_model.geometryObjects[0]
             height = geom.geometry.radius
@@ -160,9 +160,9 @@ class SimulateSimpleMass(unittest.TestCase):
         # sense, otherwise the integration error and log accuracy makes
         # the test fail.
         tolerance_depth = 1e-9
-        self.assertTrue(np.all(np.diff(np.where(
-            (abs(E_diff_robot) > tolerance_depth) & ((E_diff_robot > 0.0) != \
-                ((v_z_jiminy > 0.0) & (penetration_depth < 0.0))))[0]) > 1))
+        self.assertTrue(np.all(np.diff(np.where((
+            abs(E_diff_robot) > tolerance_depth) & ((E_diff_robot > 0.0) !=
+            ((v_z_jiminy > 0.0) & (penetration_depth < 0.0))))[0]) > 1))
 
         # Compare the numerical and analytical equilibrium state.
         f_ext_z = engine.system_state.f_external[joint_idx].linear[2]
@@ -171,7 +171,8 @@ class SimulateSimpleMass(unittest.TestCase):
             -penetration_depth[-1], weight / self.k_contact, atol=TOLERANCE))
 
     def test_collision_and_contact_dynamics(self):
-        for shape in [ShapeType.POINT, ShapeType.SPHERE]:  # TODO: Implement time of collision + persistent contact points to support BOX shape
+        for shape in [ShapeType.POINT, ShapeType.SPHERE]:
+            # TODO: Add robust contact detection to support primitive shapes
             self._test_collision_and_contact_dynamics(shape)
 
     def test_contact_sensor(self):
@@ -209,7 +210,9 @@ class SimulateSimpleMass(unittest.TestCase):
             u_custom[3:6] = 1.0
 
         # Initialize and configure the engine
-        self._setup_controller_and_engine(engine, robot,
+        self._setup_controller_and_engine(
+            engine,
+            robot,
             compute_command=check_sensors_data,
             internal_dynamics=spinning_force)
 
@@ -260,7 +263,7 @@ class SimulateSimpleMass(unittest.TestCase):
         acceleration = log_data[
             'HighLevelController.currentFreeflyerAccelerationLinX']
         jerk = np.diff(acceleration) / np.diff(time)
-        snap =  np.diff(jerk) / np.diff(time[1:])
+        snap = np.diff(jerk) / np.diff(time[1:])
         snap_rel = np.abs(snap / np.max(snap))
         snap_disc = time[1:-1][snap_rel > 1.0e-5]
         snap_disc = snap_disc[np.concatenate((
@@ -308,8 +311,10 @@ class SimulateSimpleMass(unittest.TestCase):
             v_steady, v_steady_analytical, atol=TOLERANCE))
 
     def test_friction_model(self):
-        for shape in [ShapeType.POINT]:  # TODO: Implement time of collision + persistent contact points to support shapes
+        for shape in [ShapeType.POINT]:
+            # TODO: Add robust contact detection to support primitive shapes
             self._test_friction_model(shape)
+
 
 if __name__ == '__main__':
     unittest.main()

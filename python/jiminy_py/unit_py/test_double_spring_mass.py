@@ -281,7 +281,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         # Configure the engine
         engine_options = engine.get_options()
-        engine_options["world"]["gravity"] = np.zeros(6) # Turn off gravity
+        engine_options["world"]["gravity"] = np.zeros(6)  # Turn off gravity
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
@@ -400,7 +400,7 @@ class SimulateTwoMasses(unittest.TestCase):
             f[1] = + k_cross * (1 + d2) * q2[7]
 
         engine.register_force_coupling(
-            systems_names[0], systems_names[1], "FirstMass", "FirstMass", force)
+            *systems_names, "FirstMass", "FirstMass", force)
 
         # Initialize the whole system.
         x_init = {}
@@ -458,6 +458,7 @@ class SimulateTwoMasses(unittest.TestCase):
         x_python = integrate_dynamics(time, x0, system_dynamics)
         self.assertTrue(np.allclose(
             x_jiminy_extract, x_python, atol=TOLERANCE))
+
 
 if __name__ == '__main__':
     unittest.main()

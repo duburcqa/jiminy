@@ -115,10 +115,10 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
-        cd "$RootDir/build"
+        cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
-        cd "$RootDir/unit_py"
+        cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym jiminy

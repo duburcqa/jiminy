@@ -58,6 +58,7 @@ def load_urdf_default(urdf_name: str,
 
     return robot
 
+
 def setup_controller_and_engine(
         engine: jiminy.EngineMultiRobot,
         robot: jiminy.Robot,
@@ -98,6 +99,7 @@ def setup_controller_and_engine(
     else:
         engine.initialize(robot)
 
+
 def neutral_state(robot: jiminy.Model,
                   split: bool = False
                   ) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
@@ -114,6 +116,7 @@ def neutral_state(robot: jiminy.Model,
         return q0, v0
     else:
         return np.concatenate((q0, v0))
+
 
 def integrate_dynamics(time: np.ndarray,
                        x0: np.ndarray,
@@ -140,13 +143,14 @@ def integrate_dynamics(time: np.ndarray,
              time time[i]
     """
     solver = ode(dynamics)
-    solver.set_initial_value(x0, t = time[0])
+    solver.set_initial_value(x0, t=time[0])
     solver.set_integrator("dopri5")
     x_sol = [x0]
     for t in time[1:]:
         solver.integrate(t)
         x_sol.append(solver.y)
     return np.stack(x_sol, axis=0)
+
 
 def simulate_and_get_state_evolution(
         engine: jiminy.EngineMultiRobot,
@@ -174,9 +178,9 @@ def simulate_and_get_state_evolution(
     else:
         q0, v0 = {}, {}
         for system in engine.systems:
-           name = system.name
-           q0[name] = x0[name][:system.robot.nq]
-           v0[name] = x0[name][-system.robot.nv:]
+            name = system.name
+            q0[name] = x0[name][:system.robot.nq]
+            v0[name] = x0[name][-system.robot.nv:]
     hresult = engine.simulate(tf, q0, v0)
     assert hresult == jiminy.hresult_t.SUCCESS
 
