@@ -2,7 +2,7 @@
   "env_config": {
     "env_class": "gym_jiminy.envs.ANYmalJiminyEnv",
     "env_kwargs": {
-      "step_dt": 0.005
+      "step_dt": 0.04
     }
   },
   "blocks_config": [
@@ -11,7 +11,7 @@
       "block_kwargs": {
         "update_ratio": 2,
         "pid_kp": [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
-        "pid_kd": [3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3]
+        "pid_kd": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
       },
       "wrapper_kwargs": {
         "augment_observation": true

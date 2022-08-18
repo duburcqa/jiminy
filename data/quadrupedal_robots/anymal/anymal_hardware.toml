@@ -1,0 +1,138 @@
+[Global]
+collisionBodiesNames = []
+contactFramesNames = ["LF_FOOT", "LH_FOOT", "RF_FOOT", "RH_FOOT"]
+
+[Motor.SimpleMotor.LF_HAA]
+joint_name = "LF_HAA"
+armature = 0.1
+
+[Motor.SimpleMotor.LF_HFE]
+joint_name = "LF_HFE"
+armature = 0.1
+
+[Motor.SimpleMotor.LF_KFE]
+joint_name = "LF_KFE"
+armature = 0.1
+
+[Motor.SimpleMotor.RF_HAA]
+joint_name = "RF_HAA"
+armature = 0.1
+
+[Motor.SimpleMotor.RF_HFE]
+joint_name = "RF_HFE"
+armature = 0.1
+
+[Motor.SimpleMotor.RF_KFE]
+joint_name = "RF_KFE"
+armature = 0.1
+
+[Motor.SimpleMotor.LH_HAA]
+joint_name = "LH_HAA"
+armature = 0.1
+
+[Motor.SimpleMotor.LH_HFE]
+joint_name = "LH_HFE"
+armature = 0.1
+
+[Motor.SimpleMotor.LH_KFE]
+joint_name = "LH_KFE"
+armature = 0.1
+
+[Motor.SimpleMotor.RH_HAA]
+joint_name = "RH_HAA"
+armature = 0.1
+
+[Motor.SimpleMotor.RH_HFE]
+joint_name = "RH_HFE"
+armature = 0.1
+
+[Motor.SimpleMotor.RH_KFE]
+joint_name = "RH_KFE"
+armature = 0.1
+
+[Sensor.ForceSensor.LF_FOOT]
+frame_name = "LF_FOOT"
+
+[Sensor.ForceSensor.LH_FOOT]
+frame_name = "LH_FOOT"
+
+[Sensor.ForceSensor.RF_FOOT]
+frame_name = "RF_FOOT"
+
+[Sensor.ForceSensor.RH_FOOT]
+frame_name = "RH_FOOT"
+
+[Sensor.ImuSensor.imu_link]
+frame_name = "imu_link"
+
+[Sensor.EncoderSensor.LF_HAA]
+joint_name = "LF_HAA"
+
+[Sensor.EncoderSensor.LF_HFE]
+joint_name = "LF_HFE"
+
+[Sensor.EncoderSensor.LF_KFE]
+joint_name = "LF_KFE"
+
+[Sensor.EncoderSensor.RF_HAA]
+joint_name = "RF_HAA"
+
+[Sensor.EncoderSensor.RF_HFE]
+joint_name = "RF_HFE"
+
+[Sensor.EncoderSensor.RF_KFE]
+joint_name = "RF_KFE"
+
+[Sensor.EncoderSensor.LH_HAA]
+joint_name = "LH_HAA"
+
+[Sensor.EncoderSensor.LH_HFE]
+joint_name = "LH_HFE"
+
+[Sensor.EncoderSensor.LH_KFE]
+joint_name = "LH_KFE"
+
+[Sensor.EncoderSensor.RH_HAA]
+joint_name = "RH_HAA"
+
+[Sensor.EncoderSensor.RH_HFE]
+joint_name = "RH_HFE"
+
+[Sensor.EncoderSensor.RH_KFE]
+joint_name = "RH_KFE"
+
+[Sensor.EffortSensor.LF_HAA]
+motor_name = "LF_HAA"
+
+[Sensor.EffortSensor.LF_HFE]
+motor_name = "LF_HFE"
+
+[Sensor.EffortSensor.LF_KFE]
+motor_name = "LF_KFE"
+
+[Sensor.EffortSensor.RF_HAA]
+motor_name = "RF_HAA"
+
+[Sensor.EffortSensor.RF_HFE]
+motor_name = "RF_HFE"
+
+[Sensor.EffortSensor.RF_KFE]
+motor_name = "RF_KFE"
+
+[Sensor.EffortSensor.LH_HAA]
+motor_name = "LH_HAA"
+
+[Sensor.EffortSensor.LH_HFE]
+motor_name = "LH_HFE"
+
+[Sensor.EffortSensor.LH_KFE]
+motor_name = "LH_KFE"
+
+[Sensor.EffortSensor.RH_HAA]
+motor_name = "RH_HAA"
+
+[Sensor.EffortSensor.RH_HFE]
+motor_name = "RH_HFE"
+
+[Sensor.EffortSensor.RH_KFE]
+motor_name = "RH_KFE"

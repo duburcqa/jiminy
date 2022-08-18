@@ -15,9 +15,9 @@ class PipelineDesign(unittest.TestCase):
     def setUp(self):
         """ TODO: Write documentation
         """
-        self.step_dt = 5.0e-3
-        self.pid_kp = np.full((12,), fill_value=1.5e3)
-        self.pid_kd = np.full((12,), fill_value=3.0e-3)
+        self.step_dt = 0.04
+        self.pid_kp = np.full((12,), fill_value=1500)
+        self.pid_kd = np.full((12,), fill_value=0.01)
         self.num_stack = 3
         self.skip_frames_ratio = 2
 
