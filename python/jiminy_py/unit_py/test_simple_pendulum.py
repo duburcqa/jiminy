@@ -67,7 +67,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                     unique vector.
 
         @return - time: np.ndarray[len(time)]
-                - imu data evolution: np.ndarray[len(time), dim(imu.fieldnames)]
+                - imu data evolution: np.ndarray[len(time),dim(imu.fieldnames)]
         """
         # Run simulation
         q0, v0 = x0[:engine.robot.nq], x0[-engine.robot.nv:]
@@ -91,8 +91,8 @@ class SimulateSimplePendulum(unittest.TestCase):
             return time, quat_jiminy, gyro_jiminy, accel_jiminy
         else:
             imu_jiminy = np.stack([
-                log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
-            ], axis=-1)
+                log_data['PendulumLink.' + f]
+                for f in jiminy.ImuSensor.fieldnames], axis=-1)
             return time, imu_jiminy
 
     def test_armature(self):
@@ -198,7 +198,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         x0 = np.array([0.1, 0.1])
         tf = 2.0
         time, quat_jiminy, gyro_jiminy, accel_jiminy = \
-            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=True)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(
+                engine, tf, x0, split=True)
 
         # Pendulum dynamics
         def dynamics(t, x):
@@ -264,7 +265,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         x0 = np.array([0.1, 0.0])
         tf = 2.0
         time, imu_jiminy = \
-            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(
+                engine, tf, x0, split=False)
 
         # Deduce shifted imu data
         imu_jiminy_shifted_0 = interp1d(
@@ -284,7 +286,8 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Run simulation and extract imu data
         time, imu_jiminy_delayed_0 = \
-            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(
+                engine, tf, x0, split=False)
 
         # Configure the IMU
         imu_options = self.imu_sensor.get_options()
@@ -294,7 +297,8 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Run simulation
         time, imu_jiminy_delayed_1 = \
-            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(
+                engine, tf, x0, split=False)
 
         # Compare sensor signals
         self.assertLessEqual(
@@ -326,7 +330,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         x0 = np.array([0.0, 0.0])
         tf = 200.0
         _, quat_jiminy, gyro_jiminy, accel_jiminy = \
-            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=True)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(
+                engine, tf, x0, split=True)
 
         # Convert quaternion to a rotation vector.
         quat_axis = np.stack([log3(Quaternion(q[:, np.newaxis]).matrix())
@@ -391,12 +396,12 @@ class SimulateSimplePendulum(unittest.TestCase):
                     v_delta = ((F_proj + force["F"][4] / self.l) * min(
                         force["dt"], t - force["t"])) / self.m
                     if (i < len(F_register) - 1):
-                        q += (v + v_delta) * max(0, min(t,
-                            F_register[i + 1]["t"]) - \
-                                (force["t"] + force["dt"]))
+                        q += (v + v_delta) * max(
+                            0, min(t, F_register[i + 1]["t"]) -
+                            (force["t"] + force["dt"]))
                     else:
-                        q += (v + v_delta) * max(0,
-                            t - force["t"] + force["dt"])
+                        q += (v + v_delta) * max(
+                            0, t - force["t"] + force["dt"])
                     q += (v + v_delta/2) * min(
                         force["dt"], t - force["t"])
                     v += v_delta
@@ -486,7 +491,7 @@ class SimulateSimplePendulum(unittest.TestCase):
             for f in F_register])
         self.assertTrue(np.allclose(t_break_err, 0.0, atol=TOLERANCE))
 
-         # Compare the numerical and analytical solution
+        # Compare the numerical and analytical solution
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=1e-6))
 
     def test_flexibility_armature(self):
@@ -549,8 +554,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Convert quaternion to RPY
         x_jiminy = np.stack([
             np.concatenate((
-                matrixToRpy(Quaternion(x[:4][:, np.newaxis]).matrix())\
-                    .astype(x.dtype, copy=False),
+                matrixToRpy(Quaternion(x[:4][:, np.newaxis]).matrix()).astype(
+                    x.dtype, copy=False),
                 x[4:]
             )) for x in x_jiminy
         ], axis=0)
@@ -569,11 +574,12 @@ class SimulateSimplePendulum(unittest.TestCase):
                       [-k * (1 / self.I + 1 / J),  k_control / J, -nu * (1 / self.I + 1 / J),  nu_control / J],
                       [                    k / J, -k_control / J,                     nu / J, -nu_control / J]])
         x_analytical = np.stack([
-            scipy.linalg.expm(A * t).dot(x_jiminy_extract[0]) for t in time], axis=0)
+            scipy.linalg.expm(A * t).dot(x_jiminy_extract[0]) for t in time
+            ], axis=0)
 
-        # This test has a specific tolerance because we know the dynamics don't exactly
-        # match: they are however very close, since the inertia of the flexible element
-        # is negligible before I.
+        # This test has a specific tolerance because we know the dynamics don't
+        # exactly match: they are however very close, since the inertia of the
+        # flexible element is negligible before I.
         self.assertTrue(np.allclose(
             x_jiminy_extract, x_analytical, atol=1e-4))
 
@@ -639,6 +645,7 @@ class SimulateSimplePendulum(unittest.TestCase):
             q_jiminy[:, -1], x_analytical[:, 0], atol=TOLERANCE))
         self.assertTrue(np.allclose(
             v_jiminy[:, -1], x_analytical[:, 1], atol=TOLERANCE))
+
 
 if __name__ == '__main__':
     unittest.main()

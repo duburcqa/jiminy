@@ -74,18 +74,6 @@ if(BUILD_PYTHON_INTERFACE)
     add_subdirectory(python)
 endif()
 
-option(BUILD_EXAMPLES "Build the C++ examples." ON)
-if(BUILD_EXAMPLES)
-    add_subdirectory(examples)
-endif()
-
-option(BUILD_TESTING "Build the C++ unit tests." ON)
-if(BUILD_TESTING)
-    include(CTest)
-    include(GoogleTest)
-    add_subdirectory(unit)
-endif()
-
 # Create 'docs' optional cmake component to generate documentation.
 create_component_docs()
 

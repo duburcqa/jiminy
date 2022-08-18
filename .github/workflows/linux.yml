@@ -96,9 +96,9 @@ jobs:
       run: |
         "$InstallDir/bin/jiminy_double_pendulum"
 
-        mkdir -p "$RootDir/examples/cpp/pip_extension/build"
-        cd "$RootDir/examples/cpp/pip_extension/build"
-        cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+        mkdir -p "$RootDir/core/examples/external_project/build"
+        cd "$RootDir/core/examples/external_project/build"
+        cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
                -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
                -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
@@ -109,10 +109,10 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
-        cd "$RootDir/build"
+        cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
-        cd "$RootDir/unit_py"
+        cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy

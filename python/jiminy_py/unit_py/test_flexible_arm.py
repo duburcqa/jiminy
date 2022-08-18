@@ -33,7 +33,7 @@ N_FLEXIBILITY = 40
 def generate_flexible_arm(mass_segments: float,
                           inertia_segments: float,
                           length_segments: float,
-                          n_segments : int,
+                          n_segments: int,
                           urdf_path: str) -> None:
     """Helper function for procedural generation of robot arm with
     variable number of deformation points.
@@ -46,14 +46,14 @@ def generate_flexible_arm(mass_segments: float,
         link = ET.SubElement(robot, "link", name=f"link{i}")
         visual = ET.SubElement(link, "visual")
         ET.SubElement(
-            visual, "origin", xyz =f"{length_segments/2} 0 0", rpy="0 0 0")
+            visual, "origin", xyz=f"{length_segments/2} 0 0", rpy="0 0 0")
         geometry = ET.SubElement(visual, "geometry")
         ET.SubElement(geometry, "box", size=f"{length_segments} 0.025 0.01")
         material = ET.SubElement(visual, "material", name="")
         ET.SubElement(material, "color", rgba="0 0 0 1")
         inertial = ET.SubElement(link, "inertial")
         ET.SubElement(
-            inertial, "origin", xyz =f"{length_segments/2} 0 0", rpy="0 0 0")
+            inertial, "origin", xyz=f"{length_segments/2} 0 0", rpy="0 0 0")
         ET.SubElement(inertial, "mass", value=f"{mass_segments}")
         ET.SubElement(
             inertial, "inertia", ixx="0", ixy="0", ixz="0", iyy="0", iyz="0",
@@ -69,7 +69,7 @@ def generate_flexible_arm(mass_segments: float,
         motor, "limit", effort="100.0", lower=f"{-np.pi}", upper=f"{np.pi}",
         velocity="10.0")
 
-    for i in range(1,n_segments):
+    for i in range(1, n_segments):
         joint = ET.SubElement(
             robot, "joint", name=f"link{i-1}_to_link{i}", type="fixed")
         ET.SubElement(joint, "parent", link=f"link{i-1}")

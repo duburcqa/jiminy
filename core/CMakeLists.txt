@@ -167,6 +167,20 @@ foreach(target "${PROJECT_NAME}" "${LIBRARY_NAME}")
     endif()
 endforeach()
 
+# Build C++ unit tests
+option(BUILD_TESTING "Build the C++ unit tests." ON)
+if(BUILD_TESTING)
+    include(CTest)
+    include(GoogleTest)
+    add_subdirectory(unit)
+endif()
+
+# Build C++ examples
+option(BUILD_EXAMPLES "Build the C++ examples." ON)
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
+
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"

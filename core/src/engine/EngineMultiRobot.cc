@@ -153,18 +153,21 @@ namespace jiminy
                                           std::shared_ptr<Robot> robot,
                                           callbackFunctor_t callbackFct)
     {
+        // Make sure an actual robot is specified
         if (!robot)
         {
             PRINT_ERROR("Robot unspecified.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        // Make sure the robot is properly initialized
         if (!robot->getIsInitialized())
         {
             PRINT_ERROR("Robot not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        // Check if a system with the same name already exists
         auto systemIt = std::find_if(systems_.begin(), systems_.end(),
                                      [&systemName](auto const & sys)
                                      {
@@ -173,6 +176,18 @@ namespace jiminy
         if (systemIt != systems_.end())
         {
             PRINT_ERROR("A system with this name has already been added to the engine.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Make sure none of the existing system is referring to the same robot
+        systemIt = std::find_if(systems_.begin(), systems_.end(),
+                                [&robot](auto const & sys)
+                                {
+                                    return (sys.robot == robot);
+                                });
+        if (systemIt != systems_.end())
+        {
+            PRINT_ERROR("The system '", systemIt->name, "' is already referring to this robot.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 

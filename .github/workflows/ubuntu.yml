@@ -82,7 +82,8 @@ jobs:
       if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install flake8
-        flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,F405,W504 --count --show-source --statistics "$RootDir/python"
+        flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,E741,F405,W504 \
+               --count --show-source --statistics --exclude unit_py,examples "$RootDir/python/"
 
     #####################################################################################
 
@@ -108,7 +109,7 @@ jobs:
       run: |
         "$InstallDir/bin/jiminy_double_pendulum"
 
-        RootDir="$RootDir/examples/cpp/pip_extension"
+        RootDir="$RootDir/core/examples/external_project/"
         mkdir -p "$RootDir/build"
         cd "$RootDir/build"
         cmake "$RootDir" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
@@ -124,10 +125,10 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
-        cd "$RootDir/build"
+        cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
-        cd "$RootDir/unit_py"
+        cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
@@ -150,7 +151,7 @@ jobs:
           cd "$RootDir/python/gym_jiminy/$name"
 
           pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=20 --max-nested-blocks=7 \
-                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,_ \
+                 --good-names=i,l,I,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,_ \
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \
