@@ -4,9 +4,6 @@ cmake_minimum_required(VERSION 3.10)
 # Project name
 project(${LIBRARY_NAME}_pywrap VERSION ${BUILD_VERSION})
 
-# Add option to disable install of Gym Jiminy
-option(INSTALL_GYM_JIMINY "Install Gym Jiminy (in editable mode)." ON)
-
 # Compile and install python bindings
 add_subdirectory(${LIBRARY_NAME}_pywrap)
 
@@ -104,9 +101,7 @@ buildPythonWheel("python/gym_${LIBRARY_NAME}/common"
                  "python/gym_${LIBRARY_NAME}/envs"
                  "python/gym_${LIBRARY_NAME}/rllib"
                  "${CMAKE_BINARY_DIR}/pypi/dist/gym_${LIBRARY_NAME}")
-if(INSTALL_GYM_JIMINY)
-     deployPythonPackageDevelop("python/gym_${LIBRARY_NAME}/common"
-                                "python/gym_${LIBRARY_NAME}/toolbox"
-                                "python/gym_${LIBRARY_NAME}/envs"
-                                "python/gym_${LIBRARY_NAME}/rllib")
-endif()
+deployPythonPackageDevelop("python/gym_${LIBRARY_NAME}/common"
+                           "python/gym_${LIBRARY_NAME}/toolbox"
+                           "python/gym_${LIBRARY_NAME}/envs"
+                           "python/gym_${LIBRARY_NAME}/rllib")

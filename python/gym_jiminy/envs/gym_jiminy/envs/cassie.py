@@ -7,11 +7,10 @@ from pkg_resources import resource_filename
 from jiminy_py.core import (joint_t,
                             get_joint_type,
                             build_models_from_urdf,
+                            build_reduced_models,
                             DistanceConstraint,
                             Robot)
 from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
-from pinocchio import buildReducedModel
-
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.controllers import PDController
 from gym_jiminy.common.pipeline import build_pipeline
@@ -79,8 +78,8 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         joint_locked_indices = [
             pinocchio_model.getJointId(joint_name)
             for joint_name in ("knee_to_shin_right", "knee_to_shin_left")]
-        pinocchio_model, (collision_model, visual_model) = buildReducedModel(
-            pinocchio_model, [collision_model, visual_model],
+        pinocchio_model, collision_model, visual_model = build_reduced_models(
+            pinocchio_model, collision_model, visual_model,
             joint_locked_indices, qpos)
 
         # Build the robot and load the hardware

@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 
@@ -102,10 +104,10 @@ namespace jiminy
                                                  bool_t const & isStateTheoretical,
                                                  vectorN_t const & qInit,
                                                  vectorN_t const & vInit,
-                                                 std::optional<vectorN_t> const & aInit,
+                                                 boost::optional<vectorN_t> const & aInit,
                                                  std::map<std::string, vectorN_t> & qInitList,
                                                  std::map<std::string, vectorN_t> & vInitList,
-                                                 std::optional<std::map<std::string, vectorN_t> > & aInitList)
+                                                 boost::optional<std::map<std::string, vectorN_t> > & aInitList)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -156,7 +158,7 @@ namespace jiminy
 
     hresult_t Engine::start(vectorN_t const & qInit,
                             vectorN_t const & vInit,
-                            std::optional<vectorN_t> const & aInit,
+                            boost::optional<vectorN_t> const & aInit,
                             bool_t    const & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -169,7 +171,7 @@ namespace jiminy
 
         std::map<std::string, vectorN_t> qInitList;
         std::map<std::string, vectorN_t> vInitList;
-        std::optional<std::map<std::string, vectorN_t> > aInitList = std::nullopt;
+        boost::optional<std::map<std::string, vectorN_t> > aInitList = boost::none;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = singleToMultipleSystemsInitialData(
@@ -187,7 +189,7 @@ namespace jiminy
     hresult_t Engine::simulate(float64_t const & tEnd,
                                vectorN_t const & qInit,
                                vectorN_t const & vInit,
-                               std::optional<vectorN_t> const & aInit,
+                               boost::optional<vectorN_t> const & aInit,
                                bool_t    const & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -200,7 +202,7 @@ namespace jiminy
 
         std::map<std::string, vectorN_t> qInitList;
         std::map<std::string, vectorN_t> vInitList;
-        std::optional<std::map<std::string, vectorN_t> > aInitList = std::nullopt;
+        boost::optional<std::map<std::string, vectorN_t> > aInitList = boost::none;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = singleToMultipleSystemsInitialData(
@@ -272,8 +274,8 @@ namespace jiminy
 
     hresult_t Engine::registerViscoElasticForceCoupling(std::string const & frameName1,
                                                         std::string const & frameName2,
-                                                        vector6_t   const & stiffness,
-                                                        vector6_t   const & damping)
+                                                        vectorN_t   const & stiffness,
+                                                        vectorN_t   const & damping)
     {
         return EngineMultiRobot::registerViscoElasticForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping);
@@ -282,11 +284,10 @@ namespace jiminy
     hresult_t Engine::registerViscoElasticDirectionalForceCoupling(std::string const & frameName1,
                                                                    std::string const & frameName2,
                                                                    float64_t   const & stiffness,
-                                                                   float64_t   const & damping,
-                                                                   float64_t   const & restLength)
+                                                                   float64_t   const & damping)
     {
         return EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(
-            "", "", frameName1, frameName2, stiffness, damping, restLength);
+            "", "", frameName1, frameName2, stiffness, damping);
     }
 
     hresult_t Engine::removeForcesCoupling(void)

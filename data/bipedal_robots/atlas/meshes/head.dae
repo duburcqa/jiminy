@@ -31,7 +31,7 @@
         <technique sid="standard">
           <phong>
             <emission>
-              <color sid="emission">0.000000  0.000000 0.000000 1.000000</color>
+              <color sid="emission">0.800000  0.800000 0.800000 1.000000</color>
             </emission>
             <ambient>
               <color sid="ambient">1.000000  1.000000 1.000000 1.000000</color>

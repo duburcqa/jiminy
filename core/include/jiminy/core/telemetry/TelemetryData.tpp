@@ -7,6 +7,7 @@
 #ifndef JIMINY_TELEMETRY_DATA_TPP
 #define JIMINY_TELEMETRY_DATA_TPP
 
+#include <iostream>
 #include <string>
 
 

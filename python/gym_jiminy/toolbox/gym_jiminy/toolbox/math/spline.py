@@ -5,11 +5,7 @@
 from typing import Sequence, Optional, Tuple, Any
 
 import scipy.linalg
-try:
-    import torch
-except ImportError as e:
-    raise ImportError(
-        "Submodule not available. Please install 'torch'.") from e
+import torch
 from torch import nn
 
 

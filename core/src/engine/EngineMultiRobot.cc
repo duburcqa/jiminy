@@ -306,7 +306,6 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        // Get system and frame indices
         int32_t systemIdx1;
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -322,27 +321,15 @@ namespace jiminy
         frameIndex_t frameIdx1;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(systems_[systemIdx1].robot->pncModel_,
-                                     frameName1,
-                                     frameIdx1);
+            systemHolder_t const & system = systems_[systemIdx1];
+            returnCode = getFrameIdx(system.robot->pncModel_, frameName1, frameIdx1);
         }
 
         frameIndex_t frameIdx2;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(systems_[systemIdx2].robot->pncModel_,
-                                     frameName2,
-                                     frameIdx2);
-        }
-
-        // Make sure it is not coupling the exact same frame
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (systemIdx1 == systemIdx2 && frameIdx1 == frameIdx2)
-            {
-                PRINT_ERROR("A coupling force requires different frames.");
-                returnCode = hresult_t::ERROR_GENERIC;
-            }
+            systemHolder_t const & system = systems_[systemIdx2];
+            returnCode = getFrameIdx(system.robot->pncModel_, frameName2, frameIdx2);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -365,8 +352,8 @@ namespace jiminy
                                                                   std::string const & systemName2,
                                                                   std::string const & frameName1,
                                                                   std::string const & frameName2,
-                                                                  vector6_t   const & stiffness,
-                                                                  vector6_t   const & damping)
+                                                                  vectorN_t   const & stiffness,
+                                                                  vectorN_t   const & damping)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -376,17 +363,28 @@ namespace jiminy
             returnCode = getSystem(systemName1, system1);
         }
 
+        frameIndex_t frameIdx1;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getFrameIdx(system1->robot->pncModel_, frameName1, frameIdx1);
+        }
+
         systemHolder_t * system2;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystem(systemName2, system2);
         }
 
-        frameIndex_t frameIdx1, frameIdx2;
+        frameIndex_t frameIdx2;
         if (returnCode == hresult_t::SUCCESS)
         {
-            getFrameIdx(system1->robot->pncModel_, frameName1, frameIdx1);
-            getFrameIdx(system2->robot->pncModel_, frameName2, frameIdx2);
+            returnCode = getFrameIdx(system2->robot->pncModel_, frameName2, frameIdx2);
+        }
+
+        if (stiffness.size() != 6 || damping.size() != 6)
+        {
+            PRINT_ERROR("'stiffness' and 'damping' must have size 6.");
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -445,8 +443,8 @@ namespace jiminy
     hresult_t EngineMultiRobot::registerViscoElasticForceCoupling(std::string const & systemName,
                                                                   std::string const & frameName1,
                                                                   std::string const & frameName2,
-                                                                  vector6_t   const & stiffness,
-                                                                  vector6_t   const & damping)
+                                                                  vectorN_t   const & stiffness,
+                                                                  vectorN_t   const & damping)
     {
         return registerViscoElasticForceCoupling(
             systemName, systemName, frameName1, frameName2, stiffness, damping);
@@ -457,8 +455,7 @@ namespace jiminy
                                                                              std::string const & frameName1,
                                                                              std::string const & frameName2,
                                                                              float64_t   const & stiffness,
-                                                                             float64_t   const & damping,
-                                                                             float64_t   const & restLength)
+                                                                             float64_t   const & damping)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -521,21 +518,13 @@ namespace jiminy
                                                                 pinocchio::LOCAL_WORLD_ALIGNED);
 
                 // Compute the linear force coupling them
-                vector3_t dir12 = oMf2.translation() - oMf1.translation();
-                float64_t const length = dir12.norm();
-                auto vel12 = oVf2.linear() - oVf1.linear();
-                if (length > EPS)
+                vector3_t const dir12 = oMf2.translation() - oMf1.translation();
+                if ((dir12.array().abs() > EPS).any())
                 {
-                    dir12 /= length;
-                    auto vel12Proj = vel12.dot(dir12);
-                    return {(stiffness * (length - restLength) + damping * vel12Proj) * dir12,
-                            vector3_t::Zero()};
-                }
-                else
-                {
-                    /* The direction between frames is ill-defined, so applying
-                       force in the direction of the velocity instead. */
-                    return {damping * vel12, vector3_t::Zero()};
+                    auto vel12 = oVf2.linear() - oVf1.linear();
+                    auto vel12Proj = vel12.dot(dir12) / dir12.squaredNorm() * dir12;
+                    return pinocchio::Force(
+                        stiffness * dir12 + damping * vel12Proj, vector3_t::Zero());
                 }
                 return pinocchio::Force::Zero();
             };
@@ -551,11 +540,10 @@ namespace jiminy
                                                                              std::string const & frameName1,
                                                                              std::string const & frameName2,
                                                                              float64_t   const & stiffness,
-                                                                             float64_t   const & damping,
-                                                                             float64_t   const & restLength)
+                                                                             float64_t   const & damping)
     {
         return registerViscoElasticDirectionalForceCoupling(
-            systemName, systemName, frameName1, frameName2, stiffness, damping, restLength);
+            systemName, systemName, frameName1, frameName2, stiffness, damping);
     }
 
     hresult_t EngineMultiRobot::removeForcesCoupling(std::string const & systemName1,
@@ -1026,7 +1014,7 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::start(std::map<std::string, vectorN_t> const & qInit,
                                       std::map<std::string, vectorN_t> const & vInit,
-                                      std::optional<std::map<std::string, vectorN_t> > const & aInit)
+                                      boost::optional<std::map<std::string, vectorN_t> > const & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1345,11 +1333,10 @@ namespace jiminy
                             {
                                 return;
                             }
-                            [[fallthrough]];
+                            /* Falls through. */  // [[fallthrough]] is not supported by gcc<7.3
                         case constraintsHolderType_t::CONTACT_FRAMES:
                         case constraintsHolderType_t::COLLISION_BODIES:
                             constraint->enable();
-                            [[fallthrough]];
                         case constraintsHolderType_t::USER:
                         default:
                             break;
@@ -1474,14 +1461,6 @@ namespace jiminy
                 // Compute dynamics
                 a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext);
 
-                // Make sure there is no nan at this point
-                if ((a.array() != a.array()).any())
-                {
-                    PRINT_ERROR("Impossible to compute the acceleration. Probably a "
-                                "subtree has zero inertia along an articulated axis.");
-                    return hresult_t::ERROR_GENERIC;
-                }
-
                 // Compute joints accelerations and forces
                 computeExtraTerms(*systemIt, *systemDataIt);
                 syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
@@ -1508,7 +1487,9 @@ namespace jiminy
                 // Backup URDF file
                 std::string const telemetryUrdfFile = addCircumfix(
                     "urdf_file", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                std::string const & urdfFileString = system.robot->getUrdfAsString();
+                std::ifstream urdfFileStream(system.robot->getUrdfPath());
+                std::string const urdfFileString((std::istreambuf_iterator<char_t>(urdfFileStream)),
+                                                 std::istreambuf_iterator<char_t>());
                 telemetrySender_.registerConstant(telemetryUrdfFile, urdfFileString);
 
                 // Backup 'has_freeflyer' option
@@ -1532,40 +1513,33 @@ namespace jiminy
                 }
                 telemetrySender_.registerConstant(telemetryMeshPackageDirs, meshPackageDirsString);
 
-                // Backup the true and theoretical Pinocchio::Model
-                std::string key = addCircumfix(
+                // Backup the Pinocchio Model
+                std::string telemetryModelName = addCircumfix(
                     "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                std::string value = saveToBinary(system.robot->pncModel_);
-                telemetrySender_.registerConstant(key, value);
+                std::string dump = saveToBinary(system.robot->pncModel_);
+                telemetrySender_.registerConstant(telemetryModelName, dump);
 
                 /* Backup the Pinocchio GeometryModel for collisions and visuals.
                    It may fail because of missing serialization methods for convex,
-                   or because it cannot fit into memory (return code).
-                   Persistent mode is automatically enforced if no URDF is associated
-                   with the robot.*/
-                if (engineOptions_->telemetry.isPersistent || urdfFileString.empty())
+                   or because it cannot fit into memory (return code). */
+                if (engineOptions_->telemetry.isPersistent)
                 {
                     try
                     {
-                        key = addCircumfix(
+                        telemetryModelName = addCircumfix(
                             "collision_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                        value = saveToBinary(system.robot->collisionModel_);
-                        telemetrySender_.registerConstant(key, value);
+                        dump = saveToBinary(system.robot->collisionModel_);
+                        telemetrySender_.registerConstant(telemetryModelName, dump);
 
-                        key = addCircumfix(
+                        telemetryModelName = addCircumfix(
                             "visual_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                        value = saveToBinary(system.robot->visualModel_);
-                        telemetrySender_.registerConstant(key, value);
+                        dump = saveToBinary(system.robot->visualModel_);
+                        telemetrySender_.registerConstant(telemetryModelName, dump);
                     }
                     catch (std::exception const & e)
                     {
-                        std::string msg = "Failed to log the collision and/or visual model.";
-                        if (urdfFileString.empty())
-                        {
-                            msg += " It will be impossible to replay log files because no URDF file is available as fallback.";
-                        }
-                        msg += "\nRaised from exception: ";
-                        PRINT_ERROR(msg, e.what());
+                        PRINT_ERROR("Impossible to log collision and visual model.\n"
+                                    "Raised from exception: ", e.what());
                     }
                 }
             }
@@ -1601,7 +1575,7 @@ namespace jiminy
     hresult_t EngineMultiRobot::simulate(float64_t                        const & tEnd,
                                          std::map<std::string, vectorN_t> const & qInit,
                                          std::map<std::string, vectorN_t> const & vInit,
-                                         std::optional<std::map<std::string, vectorN_t> > const & aInit)
+                                         boost::optional<std::map<std::string, vectorN_t> > const & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -2922,7 +2896,7 @@ namespace jiminy
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
         pinocchio::GeometryModel const & geomModel = system.robot->collisionModel_;
-        pinocchio::GeometryData & geomData = system.robot->collisionData_;
+        pinocchio::GeometryData & geomData = *system.robot->collisionData_;
 
         // Update forward kinematics
         pinocchio::forwardKinematics(model, data, q, v, a);
@@ -2964,8 +2938,8 @@ namespace jiminy
             }
         }
 
-        /* Update collision information selectively,
-           ie only for geometries involved in at least one collision pair. */
+        /* Update collision informations (selectively, only for geometries involved
+           in at least one collision pair). */
         std::unordered_set<geomIndex_t> activeGeometriesIdx;
         for (auto const & pair : geomModel.collisionPairs)
         {
@@ -3001,7 +2975,7 @@ namespace jiminy
         jointIndex_t const & parentJointIdx = system.robot->collisionModel_.geometryObjects[geometryIdx].parentJoint;
 
         // Extract collision and distance results
-        hpp::fcl::CollisionResult const & collisionResult = system.robot->collisionData_.collisionResults[collisionPairIdx];
+        hpp::fcl::CollisionResult const & collisionResult = system.robot->collisionData_->collisionResults[collisionPairIdx];
 
         fextLocal.setZero();
 
@@ -3308,7 +3282,7 @@ namespace jiminy
                     constraint->enable();
                     auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
                     jointConstraint.setReferenceConfiguration(
-                        Eigen::Matrix<float64_t, 1, 1>(std::clamp(qJoint, qJointMin, qJointMax)));
+                        Eigen::Matrix<float64_t, 1, 1>(clamp(qJoint, qJointMin, qJointMax)));
                     jointConstraint.setRotationDir(qJointMax < qJoint);
                 }
                 else if (qJointMin + transitionEps < qJoint && qJoint < qJointMax - transitionEps)
@@ -4043,22 +4017,22 @@ namespace jiminy
             // Add "VERSION" attribute
             H5::DataSpace const versionSpace = H5::DataSpace(H5S_SCALAR);
             H5::Attribute const versionAttrib = file->createAttribute(
-                "VERSION", H5::PredType::NATIVE_INT32, versionSpace);
-            versionAttrib.write(H5::PredType::NATIVE_INT32, &logData->version);
+                "VERSION", H5::PredType::NATIVE_INT, versionSpace);
+            versionAttrib.write(H5::PredType::NATIVE_INT, &logData->version);
 
             // Add "START_TIME" attribute
             int64_t time = std::time(nullptr);
             H5::DataSpace const startTimeSpace = H5::DataSpace(H5S_SCALAR);
             H5::Attribute const startTimeAttrib = file->createAttribute(
-                "START_TIME", H5::PredType::NATIVE_INT64, startTimeSpace);
-            startTimeAttrib.write(H5::PredType::NATIVE_INT64, &time);
+                "START_TIME", H5::PredType::NATIVE_LONG, startTimeSpace);
+            startTimeAttrib.write(H5::PredType::NATIVE_LONG, &time);
 
             // Add GLOBAL_TIME vector
             hsize_t const timeDims[1] = {hsize_t(logData->timestamps.size())};
             H5::DataSpace const globalTimeSpace = H5::DataSpace(1, timeDims);
             H5::DataSet const globalTimeDataSet = file->createDataSet(
-                GLOBAL_TIME, H5::PredType::NATIVE_INT64, globalTimeSpace);
-            globalTimeDataSet.write(logData->timestamps.data(), H5::PredType::NATIVE_INT64);
+                GLOBAL_TIME, H5::PredType::NATIVE_LONG, globalTimeSpace);
+            globalTimeDataSet.write(logData->timestamps.data(), H5::PredType::NATIVE_LONG);
 
             // Add "unit" attribute to GLOBAL_TIME vector
             H5::DataSpace const unitSpace = H5::DataSpace(H5S_SCALAR);
@@ -4068,8 +4042,11 @@ namespace jiminy
 
             // Add group "constants"
             H5::Group constantsGroup(file->createGroup("constants"));
-            for (auto const & [key, value] : logData->constants)
+            for (auto const & keyValue : logData->constants)  // Structured bindings is not supported by gcc<7.3
             {
+                std::string const & key = keyValue.first;
+                std::string const & value = keyValue.second;
+
                 // Define a dataset with a single string of fixed length
                 H5::DataSpace const constantSpace = H5::DataSpace(H5S_SCALAR);
                 H5::StrType stringType(H5::PredType::C_S1, std::max(value.size(), std::size_t(1)));
@@ -4114,14 +4091,14 @@ namespace jiminy
                 // Create variable dataset
                 H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);
                 H5::DataSet valueDataset = fieldGroup.createDataSet(
-                    "value", H5::PredType::NATIVE_INT64, valueSpace, plist);
+                    "value", H5::PredType::NATIVE_LONG, valueSpace, plist);
 
                 // Write values in one-shot for efficiency
                 for (std::size_t j = 0; j < logData->intData.size(); ++j)
                 {
                     intVector[j] = logData->intData[j][i];
                 }
-                valueDataset.write(intVector.data(), H5::PredType::NATIVE_INT64);
+                valueDataset.write(intVector.data(), H5::PredType::NATIVE_LONG);
             }
             for (std::size_t i = 0; i < logData->numFloat; ++i)
             {

@@ -18,6 +18,8 @@
 #include <Eigen/Geometry>
 #include <Eigen/StdVector>
 
+// std::optional is not vailable for gcc<=7.3, so using boost instead
+#include <boost/optional.hpp>
 #include <boost/variant.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/multi_index_container.hpp>
@@ -219,7 +221,7 @@ namespace jiminy
     struct sensorDataTypeMap_t : public sensorDataTypeMapImpl_t
     {
     public:
-        sensorDataTypeMap_t(std::optional<std::reference_wrapper<matrixN_t const> > sharedData = std::nullopt) :
+        sensorDataTypeMap_t(boost::optional<std::reference_wrapper<matrixN_t const> > sharedData = boost::none) :
         sensorDataTypeMapImpl_t(),
         sharedData_(sharedData)
         {
@@ -234,11 +236,11 @@ namespace jiminy
                re-generating sensor data from log files. */
             static matrixN_t sharedData;
 
-            if (sharedData_)
+            if (sharedData_.is_initialized())
             {
                 /* Return shared memory directly it is up to the sure to make sure
                    that it is actually up-to-date. */
-                return sharedData_->get();
+                return sharedData_.value().get();
             }
             else
             {
@@ -256,7 +258,7 @@ namespace jiminy
         }
 
     private:
-        std::optional<std::reference_wrapper<matrixN_t const> > sharedData_;
+        boost::optional<std::reference_wrapper<matrixN_t const> > sharedData_;
     };
 
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;

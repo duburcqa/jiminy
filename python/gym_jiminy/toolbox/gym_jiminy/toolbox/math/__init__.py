@@ -1,5 +1,6 @@
 # pylint: disable=missing-module-docstring
 
+from .spline import Spline
 from .qhull import ConvexHull, compute_distance_convex_to_point
 from .generic import (squared_norm_2,
                       matrix_to_yaw,
@@ -9,6 +10,7 @@ from .signal import integrate_zoh
 
 
 __all__ = [
+    "Spline",
     "ConvexHull",
     "compute_distance_convex_to_point",
     "squared_norm_2",
@@ -17,9 +19,3 @@ __all__ = [
     "quat_to_yaw",
     "integrate_zoh"
 ]
-
-try:
-    from .spline import Spline
-    __all__ += ['Spline']
-except ImportError:
-    pass

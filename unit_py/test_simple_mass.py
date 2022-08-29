@@ -275,7 +275,7 @@ class SimulateSimpleMass(unittest.TestCase):
         snap_disc_analytical = snap_disc_analytical[np.concatenate((
             [False], np.diff(snap_disc_analytical) > 2 * self.dtMax))]
 
-        self.assertEqual(len(snap_disc), len(snap_disc_analytical))
+        self.assertTrue(len(snap_disc) == len(snap_disc_analytical))
         self.assertTrue(np.allclose(
             snap_disc, snap_disc_analytical, atol=2*self.dtMax))
 
@@ -302,8 +302,8 @@ class SimulateSimpleMass(unittest.TestCase):
         a_steady = acceleration[
             (time > t0 + dt - self.dtMax) & (time < t0 + dt + self.dtMax)]
 
-        self.assertEqual(len(a_steady), 1)
-        self.assertLessEqual(a_steady, tolerance_acc)
+        self.assertTrue(len(a_steady) == 1)
+        self.assertTrue(a_steady < tolerance_acc)
         self.assertTrue(np.allclose(
             v_steady, v_steady_analytical, atol=TOLERANCE))
 

@@ -78,16 +78,16 @@ class PipelineDesign(unittest.TestCase):
         # Override default environment arguments
         step_dt_2 = 2 * self.step_dt
         env = self.ANYmalPipelineEnv(step_dt=step_dt_2)
-        self.assertEqual(env.unwrapped.step_dt, step_dt_2)
+        self.assertTrue(env.unwrapped.step_dt == step_dt_2)
 
         # It does not override the default persistently
         env = self.ANYmalPipelineEnv()
-        self.assertEqual(env.unwrapped.step_dt, self.step_dt)
+        self.assertTrue(env.unwrapped.step_dt == self.step_dt)
 
         # Override default 'StackedJiminyEnv' arguments
         num_stack_2 = 2 * self.num_stack
         env = self.ANYmalPipelineEnv(num_stack=num_stack_2)
-        self.assertEqual(env.wrapper.num_stack, num_stack_2)
+        self.assertTrue(env.wrapper.num_stack == num_stack_2)
 
         # Override default 'PDController' arguments
         pid_kp_2 = 2 * self.pid_kp
@@ -105,14 +105,14 @@ class PipelineDesign(unittest.TestCase):
         self.assertTrue('targets' in obs and 'controller_0' in obs['targets'])
 
         # Target, time, and Imu data are stacked
-        self.assertEqual(obs['t'].ndim, 2)
-        self.assertEqual(len(obs['t']), self.num_stack)
-        self.assertEqual(obs['sensors']['ImuSensor'].ndim, 3)
-        self.assertEqual(len(obs['sensors']['ImuSensor']), self.num_stack)
+        self.assertTrue(obs['t'].ndim == 2)
+        self.assertTrue(len(obs['t']) == self.num_stack)
+        self.assertTrue(obs['sensors']['ImuSensor'].ndim == 3)
+        self.assertTrue(len(obs['sensors']['ImuSensor']) == self.num_stack)
         controller_target_obs = obs['targets']['controller_0']
-        self.assertEqual(len(controller_target_obs['Q']), self.num_stack)
-        self.assertEqual(len(controller_target_obs['V']), self.num_stack)
-        self.assertEqual(obs['sensors']['EffortSensor'].ndim, 2)
+        self.assertTrue(len(controller_target_obs['Q']) == self.num_stack)
+        self.assertTrue(len(controller_target_obs['V']) == self.num_stack)
+        self.assertTrue(obs['sensors']['EffortSensor'].ndim == 2)
 
         # Stacked obs are zeroed
         self.assertTrue(np.all(obs['t'][:-1] == 0.0))
@@ -146,7 +146,7 @@ class PipelineDesign(unittest.TestCase):
 
         # Observation stacking is skipping the required number of frames
         stack_dt = (self.skip_frames_ratio + 1) * env.observe_dt
-        self.assertEqual(obs['t'][-1], stack_dt)
+        self.assertTrue(obs['t'][-1] == stack_dt)
 
         # Initial observation is consistent with internal simulator state
         controller_target_obs = obs['targets']['controller_0']
@@ -184,8 +184,7 @@ class PipelineDesign(unittest.TestCase):
         env.step()
 
         # Check that the command is updated 1/2 low-level controller update
+        self.assertTrue(env.control_dt == 2 * env.unwrapped.control_dt)
         u_log = env.log_data['HighLevelController.currentCommandLF_HAA']
-        self.assertEqual(env.control_dt, 2 * env.unwrapped.control_dt)
         self.assertTrue(np.all(u_log[:2] == 0.0))
-        self.assertNotEqual(u_log[1], u_log[2])
-        self.assertEqual(u_log[2], u_log[3])
+        self.assertTrue(u_log[1] != u_log[2] and u_log[2] == u_log[3])

@@ -12,7 +12,7 @@ jobs:
     name: >-
       (Windows) (${{ matrix.python-version }}) Build the dependencies.
       Build the project and run the unit tests.
-    runs-on: windows-2019
+    runs-on: [windows-2019]
 
     defaults:
       run:
@@ -25,7 +25,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10']
+        python-version: ['3.6', '3.7', '3.8', '3.9']
 
     #####################################################################################
 
@@ -87,7 +87,6 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-              -DINSTALL_GYM_JIMINY=${{ (matrix.python-version == '3.10' && 'OFF') || 'ON' }} `
               -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
               ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
               ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
@@ -156,7 +155,7 @@ jobs:
 
         & "$InstallDir/bin/pip_double_pendulum.exe"
 
-    - name: Running unit tests for jiminy
+    - name: Running unit tests
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
 
@@ -165,11 +164,6 @@ jobs:
 
         Set-Location -Path "$RootDir/unit_py"
         python -m unittest discover -v
-
-    - name: Running unit tests for gym_jiminy
-      if: matrix.python-version != '3.10'
-      run: |
-        $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
 
         Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
         python -m unittest discover -v

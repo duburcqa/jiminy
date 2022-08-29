@@ -189,7 +189,7 @@ namespace jiminy
                 auto xConst = x.segment(o, constraintData.dim);
                 if (fSize == 1)
                 {
-                    e = std::clamp(e, lo, hi);
+                    e = clamp(e, lo, hi);
                 }
                 else
                 {
@@ -197,7 +197,7 @@ namespace jiminy
                     if (fSize == 2)
                     {
                         // Specialization for speedup and numerical stability
-                        e = std::clamp(e, -thr, thr);
+                        e = clamp(e, -thr, thr);
                     }
                     else
                     {

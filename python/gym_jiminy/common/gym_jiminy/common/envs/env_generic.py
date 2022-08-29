@@ -22,10 +22,8 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
-                                     check_display_available,
-                                     get_default_backend,
-                                     Viewer)
+from jiminy_py.viewer.viewer import (
+    DEFAULT_CAMERA_XYZRPY_REL, check_display_available, Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.log import extract_data_from_log
@@ -568,8 +566,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # method BEFORE calling `reset` method because otherwise it would
         # cause a segfault. In practice, `BaseJiminyObserverController` must be
         # used because it enables to define observer and controller handles
-        # separately, while dealing with all the logics internally. This extra
-        # layer of indirection makes it computationally less efficient than
+        # seperately, while dealing with all the logics internally. This extra
+        # layer of indirection makes it computionally less efficient than
         # `jiminy.ControllerFunctor` but it is a small price to pay.
         controller = BaseJiminyObserverController()
         controller.initialize(self.robot)
@@ -590,7 +588,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Create a new log file
         if self.debug:
-            fd, self.log_path = tempfile.mkstemp(suffix=".data")
+            fd, self.log_path = tempfile.mkstemp(prefix="log_", suffix=".data")
             os.close(fd)
 
         # Extract the observer/controller update period.
@@ -683,8 +681,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
             self.simulator.viewer._setup(self.robot)
-            if self.simulator.viewer.has_gui():
-                self.simulator.viewer.refresh()
+            self.render(mode='rgb_array')
 
         return obs
 
@@ -834,13 +831,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # Handling of default rendering mode
         if mode is None:
-            # 'rgb_array' by default if the current for future backend is
-            # 'panda3d-sync', otherwise 'human' if available.
-            backend = (kwargs.get('backend', self.simulator.viewer_backend) or
-                       get_default_backend())
-            if backend == "panda3d-sync":
-                mode = 'rgb_array'
-            elif 'human' in self.metadata['render.modes']:
+            if 'human' in self.metadata['render.modes']:
                 mode = 'human'
             else:
                 mode = 'rgb_array'

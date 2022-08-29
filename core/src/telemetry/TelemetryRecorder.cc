@@ -329,8 +329,10 @@ namespace jiminy
 
                 // Look for timeUnit constant - if not found, use default time unit
                 float64_t timeUnit = STEPPER_MIN_TIMESTEP;
-                for (auto const & [key, value] : logData.constants)
+                for (auto const & keyValue : logData.constants)  // Structured bindings is not supported by gcc<7.3
                 {
+                    std::string const & key = keyValue.first;
+                    std::string const & value = keyValue.second;
                     if (key == TIME_UNIT)
                     {
                         std::istringstream totalSString(value);

@@ -332,7 +332,6 @@ namespace jiminy
         bool_t const & getIsInitialized(void) const;
         std::string const & getName(void) const;
         std::string const & getUrdfPath(void) const;
-        std::string const & getUrdfAsString(void) const;
         std::vector<std::string> const & getMeshPackageDirs(void) const;
         bool_t const & getHasFreeflyer(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
@@ -405,15 +404,13 @@ namespace jiminy
         pinocchio::GeometryModel visualModel_;
         pinocchio::Data pncDataOrig_;
         mutable pinocchio::Data pncData_;
-        mutable pinocchio::GeometryData collisionData_;
-        mutable pinocchio::GeometryData visualData_;
+        mutable std::unique_ptr<pinocchio::GeometryData> collisionData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes Pinocchio segfault at least up to v2.5.6
         std::unique_ptr<modelOptions_t const> mdlOptions_;
         forceVector_t contactForces_;                       ///< Buffer storing the contact forces
 
     protected:
         bool_t isInitialized_;
         std::string urdfPath_;
-        std::string urdfData_;
         std::vector<std::string> meshPackageDirs_;
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;

@@ -50,7 +50,7 @@ setup(
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.6,<3.11",
+    python_requires=">=3.6,<3.10",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -60,8 +60,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10"
+        "Programming Language :: Python :: 3.9"
     ],
     keywords="robotics physics simulator",
     distclass=BinaryDistribution,
@@ -143,16 +142,13 @@ setup(
             "psutil",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
-            # 0.2.6 changes the API for `get_ws_entrypoint`
-            "pyppeteer>=0.2.6",
+            "pyppeteer",
             # Used internally by Viewer to send/receive Javascript requests for
             # recording video using Meshcat backend.
             # `HTMLSession` is available since 0.3.4.
             "requests_html>=0.3.4"
         ],
         "dev": [
-            # Use indirectly to convert images to base64 after test failure
-            "pillow",
             # Stub for static type checking
             "types-toml",
             # Check PEP8 conformance of Python native code

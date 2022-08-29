@@ -4,10 +4,8 @@ from pathlib import Path
 from pkg_resources import resource_filename
 from typing import Any
 
-from jiminy_py.core import build_models_from_urdf, Robot
+from jiminy_py.core import build_models_from_urdf, build_reduced_models, Robot
 from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
-from pinocchio import buildReducedModel
-
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.controllers import PDController
 from gym_jiminy.common.pipeline import build_pipeline
@@ -173,9 +171,12 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             pinocchio_model.getJointId(joint_name)
             for joint_name in pinocchio_model.names[2:]
             if "_leg_" not in joint_name]
-        pinocchio_model, (collision_model, visual_model) = buildReducedModel(
-            pinocchio_model, [collision_model, visual_model],
-            joint_locked_indices, qpos)
+        pinocchio_model, collision_model, visual_model = build_reduced_models(
+            pinocchio_model,
+            collision_model,
+            visual_model,
+            joint_locked_indices,
+            qpos)
 
         # Build the robot and load the hardware
         robot = BaseJiminyRobot()

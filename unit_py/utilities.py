@@ -15,13 +15,15 @@ def load_urdf_default(urdf_name: str,
                       motor_names: Sequence[str] = (),
                       has_freeflyer: bool = False) -> jiminy.Robot:
     """
-    @brief Create a jiminy.Robot from a URDF with several simplifying
+    @brief Create a jiminy.Robot from a URDF with several simplying
            hypothesis.
 
     @details The goal of this function is to ease creation of jiminy.Robot
              from a URDF by doing the following operations:
-                - loading the URDF and deactivate position/velocity bounds
-                - adding motors with no rotor inertia and no torque bounds
+                - loading the URDF, deactivating joint position and velocity
+                  bounds.
+                - adding motors as supplied, with no rotor inertia and not
+                  torque bound.
              These operations allow an unconstrained simulation of a linear
              system.
 

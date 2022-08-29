@@ -18,16 +18,32 @@ namespace jiminy
         return min(std::min(val1, val2), std::forward<Ts>(vs)...);
     }
 
+    template<typename ScalarType>
+    constexpr ScalarType const & clamp(ScalarType const & data,
+                                       ScalarType const & minThr,
+                                       ScalarType const & maxThr)
+    {
+        if (data < minThr)
+        {
+            return minThr;
+        }
+        if (maxThr < data)
+        {
+            return maxThr;
+        }
+        return data;
+    }
+
     template<typename DerivedType>
     auto clamp(Eigen::MatrixBase<DerivedType> const & data,
                float64_t const & minThr,
                float64_t const & maxThr)
     {
         return data.unaryExpr(
-            [&minThr, &maxThr](float64_t const & x) -> float64_t
-            {
-                return std::clamp(x, minThr, maxThr);
-            });
+        [&minThr, &maxThr](float64_t const & x) -> float64_t
+        {
+            return clamp(x, minThr, maxThr);
+        });
     }
 
     template<typename DerivedType1, typename DerivedType2, typename DerivedType3>
@@ -94,8 +110,8 @@ namespace jiminy
     template<typename InputIt, typename UnaryFunction>
     std::tuple<bool_t, float64_t> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f)
     {
-        // `transform_reduce` is par of C++17 but not available on gcc 7.5 by default on Ubuntu 18.04
-        // float64_t const minValue = std::transform_reduce(first, last, INF, minClipped<>, f);
+        // `transform_reduce` is par of C++17 but not available on gcc version available by default on Ubuntu 18.04
+        // float64_t const minValue = std::transform_reduce(first, last, f, INF, std::min<float64_t>, f);
         float64_t const minValue = std::accumulate(first, last, INF,
             [&f](float64_t const & value, typename std::iterator_traits<InputIt>::value_type const & elem)
             {

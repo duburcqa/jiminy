@@ -18,10 +18,6 @@ try:
 except ImportError:
     raise ImportError(
         "Submodule not available. Please install 'jiminy_py[plot]'.")
-except RuntimeError as e:
-    # You can get a runtime error if Matplotlib is installed but cannot be
-    # imported because of some conflicts with jupyter event loop for instance.
-    raise ImportError(e)
 from matplotlib import colors
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D

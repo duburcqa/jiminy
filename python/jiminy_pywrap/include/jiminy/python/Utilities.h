@@ -398,8 +398,9 @@ namespace python
     {
         bp::dict configPyDict;
         AppendBoostVariantToPython visitor(copy);
-        for (auto const & [key, value] : config)
+        for (auto const & pair : config)  // Structured binding is not supported by gcc<7.3
         {
+            auto const & key = std::get<0>(pair); auto const & value = std::get<1>(pair);
             configPyDict[key] = boost::apply_visitor(visitor, value);
         }
         return std::move(configPyDict);

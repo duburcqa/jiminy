@@ -1,6 +1,7 @@
 #ifndef JIMINY_TELEMETRY_SENDER_TPP
 #define JIMINY_TELEMETRY_SENDER_TPP
 
+#include <iostream>
 #include <string>
 
 

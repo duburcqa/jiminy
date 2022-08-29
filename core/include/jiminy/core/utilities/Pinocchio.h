@@ -80,8 +80,10 @@ namespace jiminy
                                                   std::string      const & childJointNameIn,
                                                   std::string      const & newJointNameIn);
 
-    hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model       & modelInOut,
-                                                   std::string      const & frameNameIn);
+    hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model         & modelInOut,
+                                                   std::string        const & frameNameIn,
+                                                   pinocchio::Inertia const & childBodyInertiaIn,
+                                                   std::string        const & newJointNameIn);
 
     hresult_t interpolate(pinocchio::Model const & modelIn,
                           vectorN_t        const & timesIn,
@@ -114,8 +116,15 @@ namespace jiminy
                                   std::vector<std::string> const & meshPackageDirs,
                                   pinocchio::Model & pncModel,
                                   pinocchio::GeometryModel & collisionModel,
-                                  std::optional<std::reference_wrapper<pinocchio::GeometryModel> > visualModel = std::nullopt,
+                                  boost::optional<pinocchio::GeometryModel &> visualModel = boost::none,
                                   bool_t const & loadVisualMeshes = false);
+
+    void buildReducedModel(pinocchio::Model const & inputModel,
+                           pinocchio::GeometryModel const & inputGeomModel,
+                           std::vector<pinocchio::JointIndex> const & listOfJointsToLock,
+                           vectorN_t const & referenceConfiguration,
+                           pinocchio::Model & reducedModel,
+                           pinocchio::GeometryModel & reducedGeomModel);
 }
 
 #endif  // JIMINY_PINOCCHIO_H
