@@ -158,14 +158,12 @@ jobs:
         path: wheelhouse
     - name: Install the best wheel among the previously generated
       run: |
-        mkdir -p "$RootDir/dist"
-        cd "$RootDir/dist"
         # extract the "best" wheel for our system out of the wheelhouse, using pip's own resolution
         # we cannot directly install with find-links because it does not guarantee precedence of local wheels
         # see https://github.com/pypa/pip/issues/2589 (pip>=21.1)
-        "${PYTHON_EXECUTABLE}" -m pip download --no-index --find-links="$RootDir/wheelhouse" --no-deps jiminy_py
+        "${PYTHON_EXECUTABLE}" -m pip download --no-index --find-links="$RootDir/wheelhouse" --no-deps --dest="$RootDir/dist" jiminy_py
         # rely on bash to expand the full wheel name
-        "${PYTHON_EXECUTABLE}" -m pip install jiminy_py*
+        "${PYTHON_EXECUTABLE}" -m pip install $RootDir/dist/jiminy_py*
 
     #####################################################################################
 
