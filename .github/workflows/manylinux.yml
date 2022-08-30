@@ -158,7 +158,8 @@ jobs:
         path: wheelhouse
     - name: Install the wheels previously generated
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary --find-links=wheelhouse jiminy_py
+        ls -la "$RootDir/wheelhouse"
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary --find-links="$RootDir/wheelhouse" jiminy_py
 
     #####################################################################################
 
