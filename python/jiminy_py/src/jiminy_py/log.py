@@ -1,9 +1,11 @@
 import os
+import pathlib
 import tempfile
 from bisect import bisect_right
 from collections import OrderedDict
 from typing import Any, Callable, Tuple, Dict, Optional, Sequence, Union
 
+import h5py
 import tree
 import numpy as np
 
@@ -85,10 +87,11 @@ def extract_variables_from_log(log_vars: Dict[str, Any],
     return values
 
 
-def build_robot_from_log(
-        log_data: Dict[str, Any],
-        mesh_package_dirs: Union[str, Sequence[str]] = ()) -> jiminy.Model:
-    """Build robot from log.
+def build_robots_from_log(
+        log_constants: Dict[str, str],
+        mesh_package_dirs: Union[str, Sequence[str]] = ()
+        ) -> Dict[str, jiminy.Model]:
+    """Build robots from log constants.
 
     .. note::
         model options and `robot.pinocchio_model` are guarantee to be the same
@@ -104,81 +107,122 @@ def build_robot_from_log(
         mesh paths (if any) must be valid since they are not bundle in the log
         archive for now.
 
-    :param log_file: Logged data (constants and variables) as a dictionary.
+    :param log_constants: Constants extracted from log file by
+                          `extract_data_from_log`.
     :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
                               generated on a different environment.
 
-    :returns: Reconstructed robot, and parsed log data as returned by
-              `jiminy_py.log.read_log` method.
+    :returns: Dictionnary of reconstructed robots, and parsed log data as
+              returned by `jiminy_py.log.read_log` method.
     """
     # Make sure provided 'mesh_package_dirs' is a list
     mesh_package_dirs = list(mesh_package_dirs)
 
-    # Instantiate empty robot
-    robot = jiminy.Robot()
+    all_options = jiminy.load_config_json_string(
+        log_constants["HighLevelController.options"])
 
-    # Extract log constants
-    log_constants = log_data["constants"]
+    # Create a list of all the systems names from all_options
+    # It corresponds to engine.systems_names
+    names = []
+    for key in all_options.keys():
+        if key != 'engine':
+            names.append(key.replace('system', '').replace('.', ''))
 
-    # Extract common info
-    pinocchio_model = log_constants[
-        ".".join((ENGINE_NAMESPACE, "pinocchio_model"))]
+    # Build all robots one by one
+    robots = {}
+    for robot_name in names:
+        log_constants_robot = {}
+        # Extract the constants of the robot which name in the lof is
+        # robot_name
+        for key in log_constants.keys():
+            # Find if the key is general (general_key = True)
+            # (ex: "Global.Time")
+            # or relative to one system (general_key = False)
+            general_key = True
+            for name in names:
+                if name in key:
+                    general_key = False
+            if general_key:
+                log_constants_robot[key] = log_constants[key]
+            elif robot_name in key:
+                log_constants_robot[
+                    key.replace(robot_name, '').replace('..', '.')] = \
+                    log_constants[key]
 
-    try:
-        # Extract geometry models
-        collision_model = log_constants[
-            ".".join((ENGINE_NAMESPACE, "collision_model"))]
-        visual_model = log_constants[
-            ".".join((ENGINE_NAMESPACE, "visual_model"))]
+        # Instantiate empty robot
+        robot = jiminy.Robot()
+        system = robot_name
 
-        # Initialize the model
-        robot.initialize(pinocchio_model, collision_model, visual_model)
-    except KeyError:
-        # Extract initialization arguments
-        urdf_data = log_constants[
-            ".".join((ENGINE_NAMESPACE, "urdf_file"))]
-        has_freeflyer = int(log_constants[
-            ".".join((ENGINE_NAMESPACE, "has_freeflyer"))])
-        mesh_package_dirs += log_constants.get(
-            ".".join((ENGINE_NAMESPACE, "mesh_package_dirs")), [])
+        # Extract common info
+        pinocchio_model = log_constants_robot[
+            ".".join((ENGINE_NAMESPACE, "pinocchio_model"))]
 
-        # Make sure urdf data is available
-        if len(urdf_data) <= 1:
-            raise RuntimeError(
-                "Impossible to build robot. The log is not persistent and the "
-                "robot was not associated with a valid URDF file.")
+        try:
+            # Extract geometry models
+            collision_model = log_constants_robot[
+                ".".join((ENGINE_NAMESPACE, "collision_model"))]
+            visual_model = log_constants_robot[
+                ".".join((ENGINE_NAMESPACE, "visual_model"))]
 
-        # Write urdf data in temporary file
-        urdf_path = os.path.join(
-            tempfile.gettempdir(),
-            f"{next(tempfile._get_candidate_names())}.urdf")
-        with open(urdf_path, "xb") as f:
-            f.write(urdf_data.encode())
+            # Initialize the model
+            robot.initialize(pinocchio_model, collision_model, visual_model)
+        except KeyError:
+            # Extract initialization arguments
+            urdf_data = log_constants_robot[
+                ".".join((ENGINE_NAMESPACE, "urdf_file"))]
+            has_freeflyer = int(log_constants_robot[
+                ".".join((ENGINE_NAMESPACE, "has_freeflyer"))])
+            mesh_package_dirs += log_constants_robot.get(
+                ".".join((ENGINE_NAMESPACE, "mesh_package_dirs")), [])
 
-        # Initialize model
-        robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
+            # Make sure urdf data is available
+            if len(urdf_data) <= 1:
+                raise RuntimeError(
+                    "Impossible to build robot. The log is not persistent and "
+                    "the robot was not associated with a valid URDF file.")
 
-        # Delete temporary file
-        os.remove(urdf_path)
+            # Write urdf data in temporary file
+            urdf_path = os.path.join(
+                tempfile.gettempdir(),
+                f"{next(tempfile._get_candidate_names())}.urdf")
+            with open(urdf_path, "xb") as f:
+                f.write(urdf_data.encode())
 
-        # Load the options
-        all_options = log_constants[
-            ".".join((ENGINE_NAMESPACE, "options"))]
-        robot.set_options(all_options["system"]["robot"])
+            # Initialize model
+            robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
 
-        # Update model and data.
-        # Dirty hack based on serialization/deserialization to update in-place.
-        # Note that string archive cannot be used because it is not reliable
-        # and fails on windows for some reason.
-        buff = pin.serialization.StreamBuffer()
-        pin.serialization.saveToBinary(pinocchio_model, buff)
-        pin.serialization.loadFromBinary(robot.pinocchio_model, buff)
-        pin.serialization.saveToBinary(pinocchio_model.createData(), buff)
-        pin.serialization.loadFromBinary(robot.pinocchio_data, buff)
+            # Delete temporary file
+            os.remove(urdf_path)
 
-    return robot
+            # Load the options
+            all_options = jiminy.load_config_json_string(
+                log_constants_robot["HighLevelController.options"])
+            if system != '':
+                system += '.system'
+            else:
+                system = 'system'
+                for key in all_options[system]["robot"].keys():
+                    if all_options[system]["robot"][key] == 0:
+                        all_options[system]["robot"][key] = {}
+            all_options = jiminy.load_config_json_string(log_constants_robot[
+                ".".join((ENGINE_NAMESPACE, "options"))])
+            robot.set_options(all_options[system]["robot"])
+
+            # Update model and data.
+            # Dirty hack based on serialization/deserialization to update
+            # in-place. Note that string archive cannot be used because it is
+            # not reliable and fails on windows for some reason.
+            buff = pin.serialization.StreamBuffer()
+            pin.serialization.saveToBinary(pinocchio_model, buff)
+            pin.serialization.loadFromBinary(robot.pinocchio_model, buff)
+            pin.serialization.saveToBinary(pinocchio_model.createData(), buff)
+            pin.serialization.loadFromBinary(robot.pinocchio_data, buff)
+
+        # Store robot
+        robots[robot_name] = robot
+    return robots
 
 
 def extract_trajectory_from_log(log_data: Dict[str, Any],
