@@ -454,6 +454,18 @@ class Viewer:
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
 
+        # Make sure that the windows, scene and robot names are valid
+        if scene_name == Viewer.window_name:
+            raise ValueError(
+                "The name of the scene and window must be different.")
+
+        # Robot names must be unique, then backup the desired one
+        if robot_name in Viewer._backend_robot_names:
+            raise ValueError(
+                "Robot name already exists but must be unique. Please choose "
+                "a different one, or close the associated viewer.")
+        Viewer._backend_robot_names.add(robot_name)
+
         # Enforce some arguments based on available features
         if not Viewer.backend.startswith('panda3d'):
             if display_com or display_dcm or display_contact_frames or \
@@ -493,25 +505,12 @@ class Viewer:
         self.f_external = pin.StdVec_Force()
         self.f_external.extend([pin.Force.Zero() for _ in range(njoints - 1)])
 
-        # Make sure that the windows, scene and robot names are valid
-        if scene_name == Viewer.window_name:
-            raise ValueError(
-                "The name of the scene and window must be different.")
-
-        if robot_name in Viewer._backend_robot_names:
-            raise ValueError(
-                "Robot name already exists but must be unique. Please choose "
-                "a different one, or close the associated viewer.")
-
         # Create a unique temporary directory, specific to this viewer instance
         self._tempdir = tempfile.mkdtemp(
             prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
 
         # Load the robot
         self._setup(robot, self.robot_color)
-        Viewer._backend_robot_names.add(self.robot_name)
-        Viewer._backend_robot_colors.update({
-            self.robot_name: self.robot_color})
 
         # Set default camera pose
         if self.is_backend_parent:
@@ -585,6 +584,8 @@ class Viewer:
 
         # Backup desired color
         self.robot_color = get_color_code(robot_color)
+        Viewer._backend_robot_colors.update({
+            self.robot_name: self.robot_color})
 
         # Create backend wrapper to get (almost) backend-independent API.
         backend_type = get_backend_type(Viewer.backend)
@@ -774,6 +775,11 @@ class Viewer:
         # If a graphical window is already open, do nothing
         if Viewer.has_gui():
             return
+
+        # Check if a display is available
+        if not check_display_available():
+            raise RuntimeError(
+                "No display available. Impossible to open a gui.")
 
         if Viewer.backend in ('panda3d-qt', 'panda3d-sync'):
             # No instance is considered manager of the unique window
@@ -1243,9 +1249,10 @@ class Viewer:
         else:
             logger.warning("Adding clock is only available for Panda3d.")
 
+    @staticmethod
     @__must_be_open
     @__with_lock
-    def get_camera_transform(self) -> Tuple[Tuple3FType, Tuple3FType]:
+    def get_camera_transform() -> Tuple[Tuple3FType, Tuple3FType]:
         """Get transform of the camera pose.
 
         .. warning::
@@ -1258,7 +1265,7 @@ class Viewer:
             camera manually using mouse camera control.
         """
         if Viewer.backend.startswith('panda3d'):
-            xyz, quat = self._gui.get_camera_transform()
+            xyz, quat = Viewer._backend_obj.gui.get_camera_transform()
             quat /= np.linalg.norm(quat)
             rot = pin.Quaternion(*quat).matrix()
             rpy = matrixToRpy(rot @ CAMERA_INV_TRANSFORM_PANDA3D.T)
@@ -1299,9 +1306,16 @@ class Viewer:
               name and index in model.
         :param wait: Whether or not to wait for rendering to finish.
         """
+        assert self is None or isinstance(self, Viewer)
+
+        if self is None and relative is not None and relative != 'camera':
+            raise ValueError(
+                "A wiewer instance must be provided to set camera "
+                "relatively to a frame.")
+
         # Handling of position and rotation arguments
         if position is None or rotation is None or relative == 'camera':
-            position_camera, rotation_camera = self.get_camera_transform()
+            position_camera, rotation_camera = Viewer.get_camera_transform()
         if position is None:
             position = position_camera
         if rotation is None:
@@ -1329,13 +1343,14 @@ class Viewer:
             H_abs = SE3(rotation_mat, position)
             H_abs = H_orig * H_abs
             position = H_abs.translation
-            return self.set_camera_transform(position, rotation)
+            return Viewer.set_camera_transform(None, position, rotation)
 
         # Perform the desired transformation
         if Viewer.backend.startswith('panda3d'):
             rotation_panda3d = pin.Quaternion(
                 rotation_mat @ CAMERA_INV_TRANSFORM_PANDA3D).coeffs()
-            self._gui.set_camera_transform(position, rotation_panda3d)
+            Viewer._backend_obj.gui.set_camera_transform(
+                position, rotation_panda3d)
         elif Viewer.backend == 'meshcat':
             # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
             # usual convention in robotics.
@@ -1343,7 +1358,7 @@ class Viewer:
             position_meshcat = CAMERA_INV_TRANSFORM_MESHCAT @ position
             rotation_meshcat = matrixToRpy(
                 CAMERA_INV_TRANSFORM_MESHCAT @ rotation_mat)
-            self._gui["/Cameras/default/rotated/<object>"].\
+            Viewer._backend_obj.gui["/Cameras/default/rotated/<object>"].\
                 set_transform(mtf.compose_matrix(
                     translate=position_meshcat, angles=rotation_meshcat))
 
@@ -1541,6 +1556,7 @@ class Viewer:
         else:
             logger.warning("This method is only supported by Panda3d.")
 
+    @staticmethod
     @__must_be_open
     @__with_lock
     def update_floor(self,
@@ -1568,7 +1584,7 @@ class Viewer:
         if Viewer.backend.startswith('panda3d'):
             # Restore tile ground if heightmap is not specified
             if ground_profile is None:
-                self._gui.update_floor()
+                Viewer._backend_obj.gui.update_floor()
                 return
 
             # Discretize heightmap
@@ -1577,17 +1593,17 @@ class Viewer:
             # Make sure it is not flat ground
             if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
                     np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
-                self._gui.update_floor()
+                Viewer._backend_obj.gui.update_floor()
                 return
 
-            self._gui.update_floor(grid, show_meshes)
+            Viewer._backend_obj.gui.update_floor(grid, show_meshes)
         else:
             logger.warning("This method is only supported by Panda3d.")
 
+    @staticmethod
     @__must_be_open
     @__with_lock
-    def capture_frame(self,
-                      width: int = None,
+    def capture_frame(width: int = None,
                       height: int = None,
                       raw_data: bool = False) -> Union[np.ndarray, bytes]:
         """Take a snapshot and return associated data.
@@ -1602,16 +1618,17 @@ class Viewer:
         # Check user arguments
         if Viewer.backend.startswith('panda3d'):
             # Resize window if size has changed
-            _width, _height = self._gui.getSize()
+            _width, _height = Viewer._backend_obj.gui.getSize()
             if width is None:
                 width = _width
             if height is None:
                 height = _height
             if _width != width or _height != height:
-                self._gui.set_window_size(width, height)
+                Viewer._backend_obj.gui.set_window_size(width, height)
 
             # Get raw buffer image instead of numpy array for efficiency
-            buffer = self._gui.get_screenshot(requested_format='RGB', raw=True)
+            buffer = Viewer._backend_obj.gui.get_screenshot(
+                requested_format='RGB', raw=True)
 
             # Return raw data if requested
             if raw_data:
@@ -2262,6 +2279,11 @@ class Viewer:
             except Exception as e:
                 # Get backend before closing
                 backend = Viewer.backend
+
+                # If no backend, just return without error because the backend
+                # was probably killed on purpose during multi-threaded replay.
+                if backend is None:
+                    return
 
                 # Make sure the viewer is always properly closed
                 Viewer.close()

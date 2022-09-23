@@ -146,6 +146,10 @@ class TabbedFigure:
         :param event: Event spent by figure `mpl_connect` 'resize_event'.
         :param refresh_canvas: Force redrawing figure canvas.
         """
+        # No active tab (probably because there is none). Returning early.
+        if self.tab_active is None:
+            return
+
         # Compute figure area for later export
         bbox = Bbox([[0.0, 0.065], [1.0, 1.0]])
         bbox_pixels = bbox.transformed(self.figure.transFigure)
@@ -462,7 +466,7 @@ class TabbedFigure:
         return tabbed_figure
 
 
-def plot_log():
+def plot_log_interactive():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
         description=dedent("""\

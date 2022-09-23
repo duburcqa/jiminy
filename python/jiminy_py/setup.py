@@ -77,7 +77,7 @@ setup(
     ],
     include_package_data=True,
     entry_points={"console_scripts": [
-        "jiminy_plot=jiminy_py.plot:plot_log",
+        "jiminy_plot=jiminy_py.plot:plot_log_interactive",
         ("jiminy_meshcat_server="
          "jiminy_py.meshcat.server:start_meshcat_server_standalone"),
         "jiminy_replay=jiminy_py.viewer.replay:_play_logs_files_entrypoint"

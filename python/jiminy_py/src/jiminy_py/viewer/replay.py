@@ -336,7 +336,9 @@ def play_trajectories(trajs_data: Union[
             model = traj['robot'].pinocchio_model
         viewer.display(pin.neutral(model))
 
-        # Reset robot model in viewer if requested color has changed
+        # Reset robot model in viewer if requested color has changed.
+        # `_setup` is called instead of `set_color` because the latter is not
+        # supported by meshcat.
         if color is not None and color != viewer.robot_color:
             viewer._setup(traj['robot'], color)
 
@@ -551,6 +553,9 @@ def play_trajectories(trajs_data: Union[
                 out.mux(packet)
             out.close()
     else:
+        # Make sure a gui is opened
+        viewer.open_gui()
+
         # Play trajectories with multithreading
         def replay_thread(viewer, *args):
             loop = asyncio.new_event_loop()
