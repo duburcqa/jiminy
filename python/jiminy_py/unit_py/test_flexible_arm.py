@@ -125,7 +125,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         # Generate temporary log file
         ext = log_format if log_format != "binary" else "data"
         fd, log_path = tempfile.mkstemp(
-            prefix=f"{self.simulator.robot.name}_", suffix=f".{ext}")
+            prefix=f"{self.simulator.system.robot.name}_", suffix=f".{ext}")
         os.close(fd)
 
         # Run the simulation
@@ -135,7 +135,7 @@ class SimulateFlexibleArm(unittest.TestCase):
 
         # Generate temporary video file
         fd, video_path = tempfile.mkstemp(
-            prefix=f"{self.simulator.robot.name}_", suffix=".mp4")
+            prefix=f"{self.simulator.systems[0].robot.name}_", suffix=".mp4")
         os.close(fd)
 
         # Record the result
@@ -162,7 +162,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         self.simulator.engine.set_options(engine_options)
 
         # Specify joint flexibility parameters
-        model_options = self.simulator.robot.get_model_options()
+        model_options = self.simulator.system.robot.get_model_options()
         model_options['dynamics']['enableFlexibleModel'] = True
         model_options['dynamics']['flexibilityConfig'] = [{
             'frameName': f"link{i}_to_link{i+1}",
@@ -170,7 +170,7 @@ class SimulateFlexibleArm(unittest.TestCase):
             'damping': 0.2 * np.ones(3),
             'inertia': np.array([1.0, 1.0, 1.0e-3])
         } for i in range(N_FLEXIBILITY)]
-        self.simulator.robot.set_model_options(model_options)
+        self.simulator.system.robot.set_model_options(model_options)
 
         # Check both HDF5 and binary log formats
         for log_format in ('hdf5', 'binary'):
@@ -204,7 +204,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         q_flex, img_flex, pnc_model_flex, visual_model_flex = [], [], [], []
         for order in (range(N_FLEXIBILITY), range(N_FLEXIBILITY)[::-1]):
             # Specify joint flexibility parameters
-            model_options = self.simulator.robot.get_model_options()
+            model_options = self.simulator.system.robot.get_model_options()
             model_options['dynamics']['enableFlexibleModel'] = True
             model_options['dynamics']['flexibilityConfig'] = [{
                 'frameName': f"link{i}_to_link{i+1}",
@@ -212,13 +212,13 @@ class SimulateFlexibleArm(unittest.TestCase):
                 'damping': np.zeros(3),
                 'inertia': np.full(3, fill_value=1e6)
             } for i in order]
-            self.simulator.robot.set_model_options(model_options)
+            self.simulator.system.robot.set_model_options(model_options)
 
             # Serialize the model
             pnc_model_flex.append(
-                self.simulator.robot.pinocchio_model.copy())
+                self.simulator.system.robot.pinocchio_model.copy())
             visual_model_flex.append(
-                self.simulator.robot.visual_model.copy())
+                self.simulator.system.robot.visual_model.copy())
 
             # Launch the simulation
             self.simulator.simulate(
@@ -227,7 +227,7 @@ class SimulateFlexibleArm(unittest.TestCase):
 
             # Extract the final configuration
             q_flex.append(
-                self.simulator.robot.get_rigid_configuration_from_flexible(
+                self.simulator.system.robot.get_rigid_configuration_from_flexible(
                     self.simulator.system_state.q))
 
             # Render the scene

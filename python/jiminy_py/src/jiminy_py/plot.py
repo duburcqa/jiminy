@@ -36,8 +36,23 @@ from .core import Model
 from .log import (SENSORS_FIELDS,
                   read_log,
                   extract_variables_from_log,
-                  build_robot_from_log)
+                  build_robots_from_log)
 from .viewer import interactive_mode
+
+
+def unwrap_log_vars(systems_names, log_vars):
+    if len(systems_names) == 1 and systems_names[0] == "":
+        logs_vars = {systems_names[0]: log_vars}
+    else:
+        logs_vars = {
+            system_name: {'Global.Time': log_vars['Global.Time']}
+            for system_name in systems_names}
+        for key in log_vars.keys():
+            for system_name in systems_names:
+                if system_name in key:
+                    logs_vars[system_name][key.replace(
+                        f'{system_name}.', '')] = log_vars[key]
+    return logs_vars
 
 
 class _ButtonBlit(Button):
@@ -471,11 +486,12 @@ class TabbedFigure:
         return tabbed_figure
 
 
-def plot_log(log_data: Dict[str, Any],
-             robot: Optional[Model] = None,
-             enable_flexiblity_data: bool = False,
-             block: Optional[bool] = None,
-             **kwargs: Any) -> TabbedFigure:
+def plot_log_data(log_data: Dict[str, Any],
+                  robots: Optional[Dict[str, Model]] = None,
+                  enable_flexiblity_data: bool = False,
+                  block: Optional[bool] = None,
+                  **kwargs: Any) -> None:
+
     """Display common simulation data over time.
 
     The figure features several tabs:
@@ -487,102 +503,111 @@ def plot_log(log_data: Dict[str, Any],
         - Subplots with raw sensor data (one tab for each type of sensor)
 
     :param log_data: Logged data (constants and variables) as a dictionary.
-    :param robot: Jiminy robot associated with the logged trajectory.
-                  Optional: None by default. If None, then it will be
-                  reconstructed from 'log_data' using `build_robot_from_log`.
+    :param robots: Dictionnary of Jiminy robots associated with the logged
+                   trajectory.
+                   Optional: None by default. If None, then it will be
+                   reconstructed from 'log_data' using `build_robot_from_log`.
     :param enable_flexiblity_data:
         Enable display of flexible joints in robot's configuration,
         velocity and acceleration subplots.
         Optional: False by default.
-    :param block: Whether to wait for the figure to be closed before
-                  returning.
-                  Optional: False in interactive mode, True otherwise.
     :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
     """
+    # Make sure plot submodule is available
+    try:
+        from .plot import TabbedFigure
+        import matplotlib.pyplot as plt
+    except ImportError:
+        raise ImportError(
+            "Method not supported. Please install 'jiminy_py[plot]'.")
+
     # Blocking by default if not interactive
     if block is None:
         block = interactive_mode() < 1
 
+    figures = []
+
     # Extract log data
-    if not log_data:
-        return RuntimeError("No data to plot.")
-    log_vars = log_data["variables"]
+    if not robots:
+        robots = build_robots_from_log(log_data["constants"])
+    log_vars = unwrap_log_vars(list(robots.keys()), log_data["variables"])
 
-    # Build robot from log if necessary
-    if robot is None:
-        robot = build_robot_from_log(log_data)
+    # Plot
+    for system_name in log_vars.keys():
+        # Extract the log data to the system to plot
 
-    # Figures data structure as a dictionary
-    tabs_data = OrderedDict()
+        log_vars_system = log_vars[system_name]
+        robot = robots[system_name]
 
-    # Get time and robot positions, velocities, and acceleration
-    time = log_vars["Global.Time"]
-    for fields_type in ["Position", "Velocity", "Acceleration"]:
-        fieldnames = getattr(
-            robot, "log_fieldnames_" + fields_type.lower())
-        if not enable_flexiblity_data:
-            # Filter out flexibility data
-            fieldnames = list(filter(
-                lambda field: not any(
-                    name in field
-                    for name in robot.flexible_joints_names),
-                fieldnames))
-        values = extract_variables_from_log(
-            log_vars, fieldnames, as_dict=True)
-        if values is not None:
-            tabs_data[' '.join(("State", fields_type))] = OrderedDict(
-                (field[len("current"):].replace(fields_type, ""), elem)
-                for field, elem in values.items())
+        tabs_data = OrderedDict()
 
-    # Get motors efforts information
-    motor_effort = extract_variables_from_log(
-        log_vars, robot.log_fieldnames_motor_effort)
-    if motor_effort is not None:
-        tabs_data['MotorEffort'] = OrderedDict(
-            zip(robot.motors_names, motor_effort))
+        # Get time and robot positions, velocities, and acceleration
+        time = log_vars_system["Global.Time"]
+        for fields_type in ["Position", "Velocity", "Acceleration"]:
+            fieldnames = getattr(
+                robot, "log_fieldnames_" + fields_type.lower())
+            if not enable_flexiblity_data:
+                # Filter out flexibility data
+                fieldnames = list(filter(
+                    lambda field: not any(
+                        name in field
+                        for name in robot.flexible_joints_names),
+                    fieldnames))
+            values = extract_variables_from_log(
+                log_vars_system, fieldnames, as_dict=True)
+            if values is not None:
+                tabs_data[' '.join(("State", fields_type))] = OrderedDict(
+                    (field[len("current"):].replace(fields_type, ""), elem)
+                    for field, elem in values.items())
 
-    # Get command information
-    command = extract_variables_from_log(
-        log_vars, robot.log_fieldnames_command)
-    if command is not None:
-        tabs_data['Command'] = OrderedDict(
-            zip(robot.motors_names, command))
+        # Get motors efforts information
+        motor_effort = extract_variables_from_log(
+            log_vars_system, robot.log_fieldnames_motor_effort)
+        if motor_effort is not None:
+            tabs_data['MotorEffort'] = OrderedDict(
+                zip(robot.motors_names, motor_effort))
 
-    # Get sensors information
-    for sensors_class, sensors_fields in SENSORS_FIELDS.items():
-        sensors_type = sensors_class.type
-        sensors_names = robot.sensors_names.get(sensors_type, [])
-        namespace = sensors_type if sensors_class.has_prefix else None
-        if isinstance(sensors_fields, dict):
-            for fields_prefix, fieldnames in sensors_fields.items():
-                sensors_data = [
-                    extract_variables_from_log(log_vars, [
-                        '.'.join((name, fields_prefix + field))
-                        for name in sensors_names], namespace)
-                    for field in fieldnames]
-                if sensors_data[0] is not None:
-                    type_name = ' '.join((sensors_type, fields_prefix))
-                    tabs_data[type_name] = OrderedDict(
-                        (field, OrderedDict(zip(sensors_names, values)))
-                        for field, values in zip(fieldnames, sensors_data))
-        else:
-            for field in sensors_fields:
-                sensors_data = extract_variables_from_log(log_vars, [
-                    '.'.join((name, field)) for name in sensors_names
-                    ], namespace)
-                if sensors_data is not None:
-                    tabs_data[' '.join((sensors_type, field))] = \
-                        OrderedDict(zip(sensors_names, sensors_data))
+        # Get command information
+        command = extract_variables_from_log(
+            log_vars_system, robot.log_fieldnames_command)
+        if command is not None:
+            tabs_data['Command'] = OrderedDict(
+                zip(robot.motors_names, command))
 
-    # Create figure, without closing the existing one
-    figure = TabbedFigure.plot(
-        time, tabs_data, **{"plot_method": "plot", **kwargs})
+        # Get sensors information
+        for sensors_class, sensors_fields in SENSORS_FIELDS.items():
+            sensors_type = sensors_class.type
+            sensors_names = robot.sensors_names.get(sensors_type, [])
+            namespace = sensors_type if sensors_class.has_prefix else None
+            if isinstance(sensors_fields, dict):
+                for fields_prefix, fieldnames in sensors_fields.items():
+                    sensors_data = [
+                        extract_variables_from_log(log_vars_system, [
+                            '.'.join((name, fields_prefix + field))
+                            for name in sensors_names], namespace)
+                        for field in fieldnames]
+                    if sensors_data[0] is not None:
+                        type_name = ' '.join((sensors_type, fields_prefix))
+                        tabs_data[type_name] = OrderedDict(
+                            (field, OrderedDict(zip(sensors_names, values)))
+                            for field, values in zip(fieldnames, sensors_data))
+            else:
+                for field in sensors_fields:
+                    sensors_data = extract_variables_from_log(
+                        log_vars_system,
+                        ['.'.join((name, field)) for name in sensors_names],
+                        namespace)
+                    if sensors_data is not None:
+                        tabs_data[' '.join((sensors_type, field))] = \
+                            OrderedDict(zip(sensors_names, sensors_data))
 
-    # Show the figure if appropriate, blocking if necessary
-    if not figure.offscreen:
+        # Create figure, without closing the existing one
+        figures.append(TabbedFigure.plot(
+            time, tabs_data, **{"plot_method": "plot", **kwargs}))
+
+    # Block if needed
+    if not all(figure.offscreen for figure in figures):
         plt.show(block=block)
-
-    return figure
 
 
 def plot_log_interactive():
@@ -637,7 +662,7 @@ def plot_log_interactive():
     compare_data = OrderedDict()
     if main_arguments.compare is not None:
         for fullpath in main_arguments.compare.split(':'):
-            compare_data[fullpath], _ = read_log(fullpath)
+            compare_data[fullpath] = read_log(fullpath)["variables"]
 
     # Define linestyle cycle that will be used for comparison logs
     linestyles = ["--", "-.", ":"]
