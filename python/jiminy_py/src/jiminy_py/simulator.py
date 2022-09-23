@@ -576,22 +576,22 @@ class Simulator:
         if self.viewer_backend.startswith('panda3d') and update_ground_profile:
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
-            self.viewer.update_floor(ground_profile, show_meshes=False)
+            Viewer.update_floor(ground_profile, show_meshes=False)
 
         # Set the camera pose if requested
         if camera_xyzrpy is not None:
-            self.viewer.set_camera_transform(*camera_xyzrpy)
+            Viewer.set_camera_transform(None, *camera_xyzrpy)
 
         # Make sure the graphical window is open if required
         if not return_rgb_array:
-            self.viewer.open_gui()
+            Viewer.open_gui()
 
         # Try refreshing the viewer
         self.viewer.refresh()
 
         # Compute rgb array if needed
         if return_rgb_array:
-            return self.viewer.capture_frame(width, height)
+            return Viewer.capture_frame(width, height)
 
     def replay(self,
                extra_logs_files: Sequence[Dict[str, np.ndarray]] = (),

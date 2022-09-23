@@ -167,6 +167,18 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        // When using several robots the robots names are specified
+        // as a circumfix in the log, for consistency they must all
+        // have a name
+        if (systems_.size())
+        {
+            if (systems_[0].name == "" || systemName == "")
+            {
+                PRINT_ERROR("Unspecified name for at least one robot.");
+                return hresult_t::ERROR_GENERIC;
+            }
+        }
+
         // Check if a system with the same name already exists
         auto systemIt = std::find_if(systems_.begin(), systems_.end(),
                                      [&systemName](auto const & sys)
