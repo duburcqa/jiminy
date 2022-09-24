@@ -160,7 +160,7 @@ def generate_default_hardware_description_file(
                                 Optional: DEFAULT_UPDATE_RATE if no Gazebo
                                 plugin has been found, the lowest among the
                                 Gazebo plugins otherwise.
-    :param verbose: Whether or not to print warnings.
+    :param verbose: Whether to print warnings.
     """
     # Handle verbosity level
     if verbose:
@@ -492,7 +492,7 @@ def load_hardware_description_file(
                                       replacing collision mesh by vertices of
                                       associated minimal volume bounding box,
                                       and primitive box by its vertices.
-    :param verbose: Whether or not to print warnings.
+    :param verbose: Whether to print warnings.
 
     :returns: Unused information available in hardware configuration file.
     """
@@ -798,10 +798,11 @@ class BaseJiminyRobot(jiminy.Robot):
         name than the URDF file will be detected automatically without
         requiring to manually specify its path.
     """
-    def __init__(self) -> None:
-        super().__init__()
+    def __new__(cls, *args: Any, **kwargs: Any) -> "BaseJiminyRobot":
+        self = super().__new__(cls)
         self.extra_info = {}
         self._urdf_path_orig = None
+        return self
 
     def initialize(self,
                    urdf_path: str,
@@ -834,7 +835,7 @@ class BaseJiminyRobot(jiminy.Robot):
                                    creating the robot. It will allow for
                                    dumping standalone log files that are
                                    safe to carry around but larger.
-        :param verbose: Whether or not to print warnings.
+        :param verbose: Whether to print warnings.
         """
         # Backup the original URDF path
         self._urdf_path_orig = urdf_path
@@ -881,5 +882,5 @@ class BaseJiminyRobot(jiminy.Robot):
         if self.urdf_path != self._urdf_path_orig:
             try:
                 os.remove(self.urdf_path)
-            except (PermissionError, FileNotFoundError):
+            except (PermissionError, FileNotFoundError, AttributeError):
                 pass

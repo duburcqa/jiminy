@@ -41,7 +41,7 @@ from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
 
 
-WINDOW_SIZE_DEFAULT = (800, 800)
+WINDOW_SIZE_DEFAULT = (600, 600)
 CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
 LEGEND_DPI = 400

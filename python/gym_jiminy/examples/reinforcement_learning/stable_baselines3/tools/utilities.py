@@ -27,7 +27,7 @@ def initialize(log_root_path: Optional[str] = None,
                           Optional: location of this file / log by default.
     :param log_name: Name of the subdirectory where to save data.
                      Optional: full date _ hostname by default.
-    :param verbose: Whether or not to print information about what is going on.
+    :param verbose: Whether to print information about what is going on.
                     Optional: True by default.
 
     :returns: Tensorboard data path.
@@ -71,7 +71,7 @@ def train(train_agent: BaseAlgorithm,
 
     :param train_agent: Training agent.
     :param max_timesteps: Number of maximum training timesteps.
-    :param verbose: Whether or not to print information about what is going on.
+    :param verbose: Whether to print information about what is going on.
                     Optional: True by default.
 
     :returns: Fullpath of agent's final state dump. Note that it also contains
@@ -125,7 +125,7 @@ def test(test_agent: BaseAlgorithm,
                          Optional: infinite by default.
     :param max_duration: Max total duration of the episodes. Can be infinite.
                          Optional: infinite by default.
-    :param verbose: Whether or not to print information about what is going on.
+    :param verbose: Whether to print information about what is going on.
                     Optional: True by default.
     """
     # Check user arguments

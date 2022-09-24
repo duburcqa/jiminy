@@ -108,8 +108,8 @@ setup(
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
         # Panda3d is NOT supported by PyPy and cannot be built from source.
-        # 1.10.10 fixes an impressive list of bugs.
-        "panda3d>=1.10.10",
+        # 1.10.10-1.10.12 fix various blocking bugs.
+        "panda3d>=1.10.12",
         # Provide helper methods and class to make it easier to use panda3d for
         # robotic applications.
         "panda3d_viewer",

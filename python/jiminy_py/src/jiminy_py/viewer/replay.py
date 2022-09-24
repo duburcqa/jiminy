@@ -143,31 +143,30 @@ def play_trajectories(trajs_data: Union[
     :param enable_clock: Add clock on bottom right corner of the viewer.
                          Only available with 'panda3d' rendering backend.
                          Optional: Disabled by default.
-    :param display_com: Whether or not to display the center of mass. `None`
-                        to keep current viewers' settings, if any.
+    :param display_com: Whether to display the center of mass. `None` to keep
+                        current viewers' settings, if any.
                         Optional: Enabled by default iif `viewers` is `None`,
                         and backend is 'panda3d'.
-    :param display_dcm: Whether or not to display the capture point (also
-                        called DCM). `None to keep current viewers' settings.
+    :param display_dcm: Whether to display the capture point (also called DCM).
+                        `None to keep current viewers' settings.
                         Optional: Enabled by default iif `viewers` is `None`,
                         and backend is 'panda3d'.
-    :param display_contacts: Whether or not to display the contact forces.
-                             Note that the user is responsible for updating
-                             sensors data via `update_hooks`. `None` to keep
-                             current viewers' settings.
+    :param display_contacts: Whether to display the contact forces. Note that
+                             the user is responsible for updating sensors data
+                             via `update_hooks`. `None` to keep current
+                             viewers' settings.
                              Optional: Enabled by default iif `update_hooks` is
                              specified, `viewers` is `None`, and backend is
                              'panda3d'.
-    :param display_f_external: Whether or not to display the external external
-                               forces applied at the joints on the robot. If a
-                               boolean is provided, the same visibility will be
-                               set for each joint, alternatively one can
-                               provide a boolean list whose ordering is
-                               consistent with `pinocchio_model.names`. Note
-                               that the user is responsible for updating the
-                               force buffer `viewer.f_external` via
-                               `update_hooks`. `None` to keep current viewers'
-                               settings.
+    :param display_f_external: Whether to display the external external forces
+                               applied at the joints on the robot. If a boolean
+                               is provided, the same visibility will be set for
+                               each joint, alternatively one can provide a
+                               boolean list whose ordering is consistent with
+                               `pinocchio_model.names`. Note that the user is
+                               responsible for updating the force buffer
+                               `viewer.f_external` via `update_hooks`. `None`
+                               to keep current viewers' settings.
                                Optional: `None` by default.
     :param scene_name: Name of viewer's scene in which to display the robot.
                        Optional: Common default name if omitted.
@@ -188,13 +187,13 @@ def play_trajectories(trajs_data: Union[
                     appropriate backend will be selected automatically, based
                     on hardware and python environment.
                     Optional: `None` by default.
-    :param delete_robot_on_close: Whether or not to delete the robot from the
-                                  viewer when closing it.
+    :param delete_robot_on_close: Whether to delete the robot from the viewer
+                                  when closing it.
                                   Optional: True by default.
     :param remove_widgets_overlay: Remove overlay (legend, watermark, clock,
                                    ...) automatically before returning.
                                    Optional: Enabled by default.
-    :param close_backend: Whether or not to close backend automatically before
+    :param close_backend: Whether to close backend automatically before
                           returning.
                           Optional: Disabled by default.
     :param viewers: List of already instantiated viewers, associated one by one
@@ -755,7 +754,7 @@ def _play_logs_files_entrypoint() -> None:
         help="Real time to simulation time factor.")
     parser.add_argument(
         '-t', '--travelling', action='store_true',
-        help=("Whether or not to track the root frame of the first robot, "
+        help=("Whether to track the root frame of the first robot, "
               "assuming the robot has a freeflyer."))
     parser.add_argument(
         '-b', '--backend', default='panda3d',

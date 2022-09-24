@@ -125,13 +125,13 @@ def loop_interactive(exit_key: str = 'k',
                      Optional: 'k' by default.
     :param pause_key: Key to press to pause the loop.
                       Optional: 'p' by default.
-    :param start_paused: Whether or not to start in pause.
+    :param start_paused: Whether to start in pause.
                          Optional: Enabled by default.
     :param max_rate: Maximum rate of the loop. If slowing down the loop is
                      necessary, then busy loop is used instead of sleep for
                      maximum accurary.
                      Optional: 1e-3 s by default.
-    :param verbose: Whether or not to display status messages.
+    :param verbose: Whether to display status messages.
                     Optional: Enabled by default.
     """
     assert pause_key != exit_key, "Cannot use the same key for pause and exit."

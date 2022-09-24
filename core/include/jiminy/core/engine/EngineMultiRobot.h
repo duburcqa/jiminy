@@ -413,8 +413,8 @@ namespace jiminy
         ///          registering of new variables to log, and reset the random number
         ///          generators.
         ///
-        /// \param[in] resetRandomNumbers Whether or not to reset the random number generators.
-        /// \param[in] removeAllForce Whether or not to remove registered external forces.
+        /// \param[in] resetRandomNumbers Whether to reset the random number generators.
+        /// \param[in] removeAllForce Whether to remove registered external forces.
         void reset(bool_t const & resetRandomNumbers = false,
                    bool_t const & removeAllForce = false);
 

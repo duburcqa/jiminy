@@ -142,8 +142,8 @@ def extract_data_from_log(log_data: Dict[str, np.ndarray],
     :param fieldnames: Structured fieldnames.
     :param namespace: Namespace of the fieldnames. None to disable.
                       Optional: ENGINE_TELEMETRY_NAMESPACE by default.
-    :param keep_structure: Whether or not to return a dictionary mapping
-                           flattened fieldnames to values.
+    :param keep_structure: Whether to return a dictionary mapping flattened
+                           fieldnames to values.
                            Optional: True by default.
 
     :returns:

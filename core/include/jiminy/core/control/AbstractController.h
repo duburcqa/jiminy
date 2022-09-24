@@ -241,7 +241,7 @@ namespace jiminy
         /// \remark     This method is not intended to be called manually. The Engine is taking care
         ///             of it when its own `reset` method is called.
         ///
-        /// \param[in]  resetDynamicTelemetry   Whether or not variables dynamically registered to the
+        /// \param[in]  resetDynamicTelemetry   Whether variables dynamically registered to the
         ///                                     telemetry must be removed.
         ///                                     Optional: False by default
         ///
