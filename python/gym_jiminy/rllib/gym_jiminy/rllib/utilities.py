@@ -107,12 +107,11 @@ def initialize(num_cpus: int,
                      Optional: full date _ hostname by default.
     :param logger_cls: Custom logger class type deriving from `TBXLogger`.
                        Optional: `TBXLogger` by default.
-    :param launch_tensorboard: Whether or not to launch tensorboard
-                               automatically.
+    :param launch_tensorboard: Whether to launch tensorboard automatically.
                                Optional: Enabled by default.
-    :param debug: Whether or not to display debugging trace.
+    :param debug: Whether to display debugging trace.
                   Optional: Disabled by default.
-    :param verbose: Whether or not to print information about what is going on.
+    :param verbose: Whether to print information about what is going on.
                     Optional: True by default.
 
     :returns: lambda function to pass a `ray.Trainer` to monitor learning
@@ -243,8 +242,7 @@ def compute_action(policy: Policy,
     :param policy: `rllib.policy.Policy` to use to predict the action, which is
                    a thin wrapper around the actual policy model.
     :param input_dict: Input dictionary for forward as input of the policy.
-    :param explore: Whether or not to enable exploration during sampling of the
-                    action.
+    :param explore: Whether to enable exploration during sampling of actions.
     """
     if policy.framework == 'torch':
         assert isinstance(policy, TorchPolicy)
@@ -320,10 +318,10 @@ def build_policy_wrapper(policy: Policy,
                            to the policy. Note that previous observation,
                            action, and reward will be stacked.
                            Optional: 1 by default.
-    :param clip_action: Whether or not to clip action to make sure the
+    :param clip_action: Whether to clip action to make sure the
                         prediction by the policy is not out-of-bounds.
                         Optional: Disabled by default.
-    :param explore: Whether or not to enable exploration during sampling of the
+    :param explore: Whether to enable exploration during sampling of the
                     actions predicted by the policy.
                     Optional: Disabled by default.
     """
@@ -446,15 +444,13 @@ def train(train_agent: Trainer,
     :param checkpoint_period: Backup trainer every given number of training
                               steps in log folder if requested. 0 to disable.
                               Optional: Disabled by default.
-    :param record_video: Whether or not to enable video recording during
-                         evaluation. Video will be recorded for best and worst
-                         trials.
+    :param record_video: Whether to enable video recording during evaluation.
+                         Video will be recorded for best and worst trials.
                          Optional: True by default.
-    :param debug: Whether or not to monitor memory allocation for debugging
-                  memory leaks.
+    :param debug: Whether to monitor memory allocation to debug memory leaks.
                   Optional: Disabled by default.
-    :param verbose: Whether or not to print high-level information after each
-                    training iteration.
+    :param verbose: Whether to print high-level information after each training
+                    iteration.
                     Optional: True by default.
 
     :returns: Fullpath of agent's final state dump. Note that it also contains
@@ -631,17 +627,17 @@ def test(test_agent: Trainer,
     :param seed: Seed of the environment to be used for the evaluation of the
                  policy. Note that the environment's seed is always reset.
                  Optional: `test_agent.config["seed"] or 0` if not especified.
-    :param explore: Whether or not to enable exploration during sampling of the
+    :param explore: Whether to enable exploration during sampling of the
                     actions predicted by the policy.
                     Optional: Disabled by default.
     :param n_frames_stack: Number of frames to stack in the input to provide
                            to the policy. Note that previous observation,
                            action, and reward will be stacked.
                            Optional: 1 by default.
-    :param enable_stats: Whether or not to print high-level statistics after
+    :param enable_stats: Whether to print high-level statistics after the
                          simulation.
                          Optional: Enabled by default.
-    :param enable_replay: Whether or not to enable replay of the simulation,
+    :param enable_replay: Whether to enable replay of the simulation,
                           and eventually recording through `viewer_kwargs`.
                           Optional: Enabled by default.
     :param test_env: Environment on which to evaluate the policy. It must be

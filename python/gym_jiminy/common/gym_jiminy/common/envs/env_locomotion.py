@@ -98,8 +98,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                                   returning done.
         :param step_dt: Simulation timestep for learning.
         :param enforce_bounded_spaces:
-            Whether or not to enforce finite bounds for the observation and
-            action spaces. If so, '\*_MAX' are used whenever it is necessary.
+            Whether to enforce finite bounds for the observation and action
+            spaces. If so, '\*_MAX' are used whenever it is necessary.
         :param reward_mixture: Weighting factors of selected contributions to
                                total reward.
         :param std_ratio: Relative standard deviation of selected contributions
@@ -116,8 +116,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                                           of associated minimal volume bounding
                                           box, and replacing primitive box by
                                           its vertices.
-        :param debug: Whether or not the debug mode must be activated.
-                      Doing it enables telemetry recording.
+        :param debug: Whether the debug mode must be activated. Doing it
+                      enables telemetry recording.
         :param robot: Robot being simulated, already instantiated and
                       initialized. Build default robot using 'urdf_path',
                       'hardware_path' and 'mesh_path' if omitted.

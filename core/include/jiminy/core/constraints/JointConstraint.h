@@ -50,7 +50,7 @@ namespace jiminy
         std::string jointName_;        ///< Name of the joint on which the constraint operates.
         jointIndex_t jointIdx_;        ///< Corresponding joint index.
         vectorN_t configurationRef_;   ///< Reference position of the joint to enforce.
-        bool_t isReversed_;            ///< Whether or not to reverse the sign of the constraint.
+        bool_t isReversed_;            ///< Whether to reverse the sign of the constraint.
     };
 }
 

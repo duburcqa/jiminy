@@ -165,8 +165,8 @@ class Simulator:
                                           of associated minimal volume bounding
                                           box, and replacing primitive box by
                                           its vertices.
-        :param debug: Whether or not the debug mode must be activated.
-                      Doing it enables temporary files automatic deletion.
+        :param debug: Whether the debug mode must be activated. Doing it
+                      enables temporary files automatic deletion.
         :param kwargs: Keyword arguments to forward to class constructor.
         """
         # Generate a temporary Hardware Description File if necessary
@@ -307,7 +307,7 @@ class Simulator:
 
     @property
     def is_viewer_available(self) -> bool:
-        """Returns whether or not a viewer instance associated with the robot
+        """Returns whether a viewer instance associated with the robot
         is available.
         """
         return self.viewer is not None and self.viewer.is_open()
@@ -357,9 +357,8 @@ class Simulator:
         seed once again to reinitialize the random number generator.
 
         :param remove_all_forces:
-            Whether or not to remove already registered external forces. Note
-            that it can also be done separately by calling `remove_all_forces`
-            method.
+            Whether to remove already registered external forces. Note that it
+            can also be done separately by calling `remove_all_forces` method.
             Optional: Do not remove by default.
         """
         # Reset the backend engine
@@ -377,9 +376,9 @@ class Simulator:
         :param a_init: Initial acceleration. It is only used by acceleration
                        dependent sensors and controllers, such as IMU and force
                        sensors.
-        :param is_state_theoretical: Whether or not the initial state is
-                                     associated with the actual or theoretical
-                                     model of the robot.
+        :param is_state_theoretical: Whether the initial state is associated
+                                     with the actual or theoretical model of
+                                     the robot.
         """
         # Call base implementation
         hresult = self.engine.start(
@@ -425,15 +424,14 @@ class Simulator:
         :param q_init: Initial configuration.
         :param v_init: Initial velocity.
         :param a_init: Initial acceleration.
-        :param is_state_theoretical: Whether or not the initial state is
-                                     associated with the actual or theoretical
-                                     model of the robot.
+        :param is_state_theoretical: Whether the initial state is associated
+                                     with the actual or theoretical model of
+                                     the robot.
         :param log_path: Save log data to this location. Disable if None.
                          Note that the format extension '.data' is enforced.
                          Optional, disable by default.
-        :param show_progress_bar: Whether or not to display a progress bar
-                                  during the simulation. None to enable only
-                                  if available.
+        :param show_progress_bar: Whether to display a progress bar during the
+                                  simulation. None to enable only if available.
                                   Optional: None by default.
         """
         # Show progress bar if requested
@@ -484,8 +482,8 @@ class Simulator:
         """Render the current state of the simulation. One can display it
                or return an RGB array instead.
 
-        :param return_rgb_array: Whether or not to return the current frame as
-                                 an rgb array.
+        :param return_rgb_array: Whether to return the current frame as an rgb
+                                 array.
         :param width: Width of the returned RGB frame, if enabled.
         :param height: Height of the returned RGB frame, if enabled.
         :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch,

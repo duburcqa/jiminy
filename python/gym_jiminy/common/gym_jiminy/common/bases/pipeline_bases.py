@@ -274,11 +274,11 @@ class ObservedJiminyEnv(BasePipelineWrapper):
                     environment wrapped in `ObservedJiminyEnv` if one desires
                     to stack several controllers with `BaseJiminyEnv`.
         :param observer: Observer to use to extract higher-level features.
-        :param augment_observation: Whether or not to gather the high-level
-                                    features computed by the observer with the
-                                    raw observation of the environment. This
-                                    option is only available if the observation
-                                    space is of type `gym.spaces.Dict`.
+        :param augment_observation: Whether to gather the high-level features
+                                    computed by the observer with the raw
+                                    observation of the environment. This option
+                                    is only available if the observation space
+                                    is of type `gym.spaces.Dict`.
                                     Optional: Disabled by default.
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
@@ -441,7 +441,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
                 [obs, reward, done, info]
 
-            This definition remains true, independently of whether or not the
+            This definition remains true, independently of whether the
             environment is wrapped with a controller using this class. On the
             contrary, `env.control_dt` corresponds to the apparent control
             update period, namely the update period of the higher-level
@@ -453,7 +453,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                     to stack several controllers with `BaseJiminyEnv`.
         :param controller: Controller to use to send targets to the subsequent
                            block.
-        :param augment_observation: Whether or not to gather the target of the
+        :param augment_observation: Whether to gather the target of the
                                     controller with the observation of the
                                     environment. This option is only available
                                     if the observation space is of type

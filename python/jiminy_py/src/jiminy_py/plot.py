@@ -103,7 +103,7 @@ class TabbedFigure:
                           axis), rather than independently for every tabs.
         :param window_title: Desired indow title.
                              Optional: "jiminy" by default.
-        :param offscreen: Whether or not to enable display on screen of figure.
+        :param offscreen: Whether to enable display on screen of figure.
                           Optional: False by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """

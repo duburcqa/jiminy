@@ -108,12 +108,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                         periods. The latter are configured via
                         `engine.set_options`.
         :param enforce_bounded_spaces:
-            Whether or not to enforce finite bounds for the observation and
-            action spaces. If so, then '\*_MAX' are used whenever it is
-            necessary. Note that whose bounds are very spread to make sure it
-            is suitable for the vast majority of systems.
-        :param debug: Whether or not the debug mode must be enabled. Doing it
-                      enables telemetry recording.
+            Whether to enforce finite bounds for the observation and action
+            spaces. If so, then '\*_MAX' are used whenever it is necessary.
+            Note that whose bounds are very spread to make sure it is suitable
+            for the vast majority of systems.
+        :param debug: Whether the debug mode must be enabled. Doing it enables
+                      telemetry recording.
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
@@ -905,9 +905,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
         """Replay the current episode until now.
 
-        :param enable_travelling: Whether or not enable travelling, following
-                                  the motion of the root frame of the model.
-                                  This parameter is ignored if the model has no
+        :param enable_travelling: Whether enable travelling, following the
+                                  motion of the root frame of the model. This
+                                  parameter is ignored if the model has no
                                   freeflyer.
                                   Optional: True by default.
         :param kwargs: Extra keyword arguments for delegation to
@@ -970,15 +970,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param env: `BaseJiminyEnv` environment instance to play with,
                     eventually wrapped by composition, typically using
                     `gym.Wrapper`.
-        :param enable_travelling: Whether or not enable travelling, following
-                                  the motion of the root frame of the model.
-                                  This parameter is ignored if the model has no
+        :param enable_travelling: Whether enable travelling, following the
+                                  motion of the root frame of the model. This
+                                  parameter is ignored if the model has no
                                   freeflyer.
                                   Optional: Enabled by default iif 'panda3d'
                                   viewer backend is used.
-        :param start_paused: Whether or not to start in pause.
+        :param start_paused: Whether to start in pause.
                              Optional: Enabled by default.
-        :param verbose: Whether or not to display status messages.
+        :param verbose: Whether to display status messages.
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
                        method.
         """
@@ -1077,11 +1077,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param horizon: Horizon of the simulation, namely maximum number of
                         steps before termination. `None` to disable.
                         Optional: Disabled by default.
-        :param enable_stats: Whether or not to print high-level statistics
-                             after simulation.
+        :param enable_stats: Whether to print high-level statistics after the
+                             simulation.
                              Optional: Enabled by default.
-        :param enable_replay: Whether or not to enable replay of the
-                              simulation, and eventually recording if the extra
+        :param enable_replay: Whether to enable replay of the simulation, and
+                              eventually recording if the extra
                               keyword argument `record_video_path` is provided.
                               Optional: Enabled by default.
         :param kwargs: Extra keyword arguments to forward to the `replay`
@@ -1303,12 +1303,17 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             `self.simulator.start`. At this point, the simulation is running
             but `refresh_observation` has never been called, so that it can be
             used to initialize buffers involving the engine state but required
-            to refresh the observation. Note that it is not appropriate to
-            initialize buffers that would be used by `compute_command`.
+            to refresh the observation.
 
         .. note::
             Buffers requiring manual update must be refreshed using
             `_refresh_buffers` method.
+
+        .. warning::
+            This method is not appropriate for initializing buffers involved in
+            `compute_command`. At the time being, there is no better way that
+            taking advantage of the flag `self.simulator.is_simulation_running`
+            in the method `compute_command` itself.
         """
 
     def _refresh_buffers(self) -> None:
@@ -1324,9 +1329,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             may requires special care.
 
         .. warning::
-            Be careful when using it to update buffers that are used by
-            `refresh_observation`. The later is called at `self.observe_dt`
-            update period, while the others are called at `self.step_dt` update
+            Be careful when using this method to update buffers involved in
+            `refresh_observation`. The latter is called at `self.observe_dt`
+            update period, while this method is called at `self.step_dt` update
             period. `self.observe_dt` is likely to be different from
             `self.step_dt`, unless configured manually when overloading
             `_setup` method.

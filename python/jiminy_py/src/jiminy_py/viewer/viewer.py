@@ -378,29 +378,32 @@ class Viewer:
                            Optional: Randomly generated identifier by default.
         :param scene_name: Scene name.
                            Optional: 'world' by default.
-        :param display_com: Whether or not to display the center of mass.
+        :param display_com: Whether to display the center of mass.
                             Optional: Disabled by default.
-        :param display_dcm: Whether or not to display the capture point / DCM.
+        :param display_dcm: Whether to display the capture point / DCM.
                             Optional: Disabled by default.
-        :param display_contact_frames:
-            Whether or not to display the contact frames.
-            Optional: Disabled by default.
+        :param display_contact_frames: Whether to display the contact frames.
+                                       Optional: Disabled by default.
         :param display_contact_forces:
-            Whether or not to display the contact forces. Note that the user is
+            Whether to display the contact forces. Note that the user is
             responsible for updating sensors data since `Viewer.display` is
             only computing kinematic quantities.
             Optional: Disabled by default.
         :param display_f_external:
-            Whether or not to display the external external forces applied at
-            the joints on the robot. If a boolean is provided, the same
-            visibility will be set for each joint, alternatively one can
-            provide a boolean list whose ordering is consistent with
-            `pinocchio_model.names`. Note that the user is responsible for
-            updating the force buffer `viewer.f_external` data since
-            `Viewer.display` is only computing kinematic quantities.
+            Whether to display the external external forces applied at the
+            joints on the robot. If a boolean is provided, the same visibility
+            will be set for each joint, alternatively one can provide a boolean
+            list whose ordering is consistent with `pinocchio_model.names`.
+            Note that the user is responsible for updating the force buffer
+            `viewer.f_external` data since `Viewer.display` is only computing
+            kinematic quantities.
             Optional: Root joint for robot with freeflyer by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
+        # Make sure the robot is properly initialized
+        assert robot.is_initialized, (
+            "Robot not initialized. Impossible to instantiate a viewer.")
+
         # Handling of default arguments
         if robot_name is None:
             uniq_id = next(tempfile._get_candidate_names())
@@ -419,7 +422,7 @@ class Viewer:
             # Start viewer backend
             Viewer.connect_backend(backend)
 
-            # Decide whether or not to open gui
+            # Decide whether to open gui
             if open_gui_if_parent is None:
                 if not check_display_available():
                     open_gui_if_parent = False
@@ -1304,7 +1307,7 @@ class Viewer:
             - **other:** relative to a robot frame, not accounting for the
               rotation of the frame during travelling. It supports both frame
               name and index in model.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
         assert self is None or isinstance(self, Viewer)
 
@@ -1384,7 +1387,7 @@ class Viewer:
         :param relative: Set the lookat position relative to robot frame if
                          specified, in absolute otherwise. Both frame name and
                          index in model are supported.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
         # Make sure the backend supports this method
         if not Viewer.backend.startswith('panda3d'):
@@ -1467,8 +1470,8 @@ class Viewer:
                               be used to initialize the camera pose if relative
                               pose is not locked. `None` to disable.
                               Optional: Disabkle by default.
-        :param lock_relative_pose: Whether or not to lock the relative pose of
-                                   the camera wrt tracked frame.
+        :param lock_relative_pose: Whether to lock the relative pose of the
+                                   camera wrt tracked frame.
                                    Optional: False by default iif Panda3d
                                    backend is used.
         """
@@ -1578,7 +1581,7 @@ class Viewer:
                           Optional: 20m by default.
         :param grid_unit: X and Y discretization step of the ground profile.
                           Optional: 4cm by default.
-        :param show_meshes: Whether or not to highlight the meshes.
+        :param show_meshes: Whether to highlight the meshes.
                             Optional: disabled by default.
         """
         if Viewer.backend.startswith('panda3d'):
@@ -1751,10 +1754,10 @@ class Viewer:
         :param always_foreground: Whether to force rendering the marker on
                                   foreground.
                                   Optional: True by default.
-        :param auto_refresh: Whether or not to refresh the scene after adding
-                             the marker. Useful for adding a bunch of markers
-                             and only refresh once. Note that the marker will
-                             not display properly until then.
+        :param auto_refresh: Whether to refresh the scene after adding the
+                             marker. Useful for adding a bunch of markers and
+                             only refresh once. Note that the marker will not
+                             display properly until then.
         :param shape_args: Any additional positional arguments to forward to
                            `jiminy_py.viewer.panda3d.panda3d_visualizer.`
                            `Panda3dApp.append_{shape}`.
@@ -1881,7 +1884,7 @@ class Viewer:
         .. warning::
             This method is only supported by Panda3d.
 
-        :param visibility: Whether or not to display the contact frames.
+        :param visibility: Whether to display the contact frames.
         """
         # Make sure the current backend is supported by this method
         if not Viewer.backend.startswith('panda3d'):
@@ -1916,7 +1919,7 @@ class Viewer:
         .. warning::
             This method is only supported by Panda3d.
 
-        :param visibility: Whether or not to display the contact forces.
+        :param visibility: Whether to display the contact forces.
         """
         # Make sure the current backend is supported by this method
         if not Viewer.backend.startswith('panda3d'):
@@ -1954,8 +1957,8 @@ class Viewer:
         .. warning::
             This method is only supported by Panda3d.
 
-        :param visibility: Whether or not to display the external force applied
-                           at each joint selectively. If a boolean is provided,
+        :param visibility: Whether to display the external force applied at
+                           each joint selectively. If a boolean is provided,
                            the same visibility will be set for each joint,
                            alternatively, one can provide a boolean list whose
                            ordering is consistent with pinocchio model (i.e.
@@ -2016,7 +2019,7 @@ class Viewer:
 
         :param force_update_visual: Force update of visual geometries.
         :param force_update_collision: Force update of collision geometries.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
         # Extract pinocchio model and data pairs to update
         model_list, data_list, model_type_list = [], [], []
@@ -2136,7 +2139,7 @@ class Viewer:
         :param update_hook: Callable that will be called right after updating
                             kinematics data. `None` to disable.
                             Optional: None by default.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
         assert self._client.model.nq == q.shape[0], (
             "The configuration vector does not have the right size.")
@@ -2205,7 +2208,7 @@ class Viewer:
                                 f(t:float, q: ndarray, v: ndarray) -> None
 
                             Optional: No update hook by default.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
         # Disable display of sensor data if no update hook is provided
         disable_display_contact_forces = False

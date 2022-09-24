@@ -130,7 +130,7 @@ def initialize(log_root_path: Optional[str] = None,
                           Optional: location of this file / log by default.
     :param log_name: Name of the subdirectory where to save data.
                      Optional: full date _ hostname by default.
-    :param verbose: Whether or not to print information about what is going on.
+    :param verbose: Whether to print information about what is going on.
                     Optional: True by default.
 
     :returns: SummaryWriter to pass to the training agent to monitor the
@@ -179,7 +179,7 @@ def train(train_agent: BasePolicy,
     :param test_envs: Testing environment vector.
     :param writer: SummaryWriter used to monitor training progress.
     :param config: Configuration dictionary to pass on-policy trainer.
-    :param verbose: Whether or not to print information about what is going on.
+    :param verbose: Whether to print information about what is going on.
                     Optional: True by default.
 
     :returns: Fullpath of agent's final state dump. Note that it also contains
@@ -240,7 +240,7 @@ def test(test_agent: BasePolicy,
     :param env_creator: Lambda function without argument used to create a
                         learning environment.
     :param num_episodes: Max number of episodes to run.
-    :param verbose: Whether or not to print information about what is going on.
+    :param verbose: Whether to print information about what is going on.
                     Optional: True by default.
     """
     env = env_creator()
