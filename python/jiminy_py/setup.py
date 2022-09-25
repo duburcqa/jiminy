@@ -99,8 +99,6 @@ setup(
         # Used internally by Robot to replace meshes by associated minimal
         # volume bounding box.
         "trimesh",
-        # Used internally to read HDF5 format log files.
-        "h5py",
         # Use to operate conveniently on nested log data.
         "dm-tree",
         # Used internally by Viewer to perform 1D polynomial interpolations.

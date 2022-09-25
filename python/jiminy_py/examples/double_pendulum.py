@@ -90,8 +90,9 @@ print(f"Simulation time: {(end - start) * 1.0e3:03.0f}ms")
 
 # ######################### Extract the results ###############################
 
-log_data, log_constants = engine.get_log()
-print(f"{log_data['Global.Time'].size} log points")
+log_data = engine.log_data
+log_vars, log_constants = log_data["variables"], log_data["constants"]
+print(f"{log_vars['Global.Time'].size} log points")
 print(log_constants)
 
 # Save the log in HDF5
@@ -102,7 +103,7 @@ engine.write_log(
 
 # Plot some data using standard tools only
 plt.figure()
-plt.plot(log_data['Global.Time'], log_data['HighLevelController.energy'])
+plt.plot(log_vars['Global.Time'], log_vars['HighLevelController.energy'])
 plt.title('Double pendulum energy')
 plt.grid()
 plt.show()

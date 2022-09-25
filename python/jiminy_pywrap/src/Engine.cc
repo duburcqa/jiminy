@@ -5,6 +5,7 @@
 #include "jiminy/core/engine/EngineMultiRobot.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
+#include "jiminy/core/utilities/Json.h"
 #include "jiminy/core/utilities/Helpers.h"
 
 #include <boost/optional.hpp>
@@ -320,12 +321,16 @@ namespace python
                 .def("compute_systems_dynamics", &PyEngineMultiRobotVisitor::computeSystemsDynamics,
                                                  (bp::arg("self"), "t_end", "q_list", "v_list"))
 
-                .def("get_log", &PyEngineMultiRobotVisitor::getLog)
-                .def("write_log", &EngineMultiRobot::writeLog,
-                                  (bp::arg("self"), "filename",
-                                   bp::arg("format") = "hdf5"))
-                .def("read_log_binary", &PyEngineMultiRobotVisitor::parseLogBinary, (bp::arg("filename")))
-                .staticmethod("read_log_binary")
+                .add_property("log_data", &PyEngineMultiRobotVisitor::getLog)
+                .def("read_log", &PyEngineMultiRobotVisitor::readLog,
+                                 (bp::arg("fullpath"), bp::arg("format") = bp::object()),
+                                 "Read a logfile from jiminy.\n\n"
+                                 ".. note::\n    This function supports both binary and hdf5 log.\n\n"
+                                 ":param fullpath: Name of the file to load.\n"
+                                 ":param format: Name of the file to load.\n\n"
+                                 ":returns: Dictionary containing the logged constants and variables.")
+                .staticmethod("read_log")
+                .def("write_log", &EngineMultiRobot::writeLog, (bp::arg("self"), "fullpath", "format"))
 
                 .def("register_force_impulse", &PyEngineMultiRobotVisitor::registerForceImpulse,
                                                (bp::arg("self"), "system_name",
@@ -612,29 +617,81 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static bp::tuple formatLogData(logData_t const & logData)
+        static bp::dict formatLogData(logData_t const & logData)
         {
-            bp::dict variables, constants;
-
             // Early return if empty
             if (logData.constants.empty())
             {
-                return bp::make_tuple(variables, constants);
+                return {};
             }
+
+            // Initialize buffers
+            bp::dict variables, constants;
+
+            // Temporary contiguous storage for variables
+            Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
+            Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
+
+            // Get the number of integer and float variables
+            Eigen::Index const numInt = logData.intData.rows();
+            Eigen::Index const numFloat = logData.floatData.rows();
 
             // Get constants
             for (auto const & [key, value] : logData.constants)
             {
-                constants[key] = bp::object(bp::handle<>(
-                    PyBytes_FromStringAndSize(value.c_str(), value.size())));
+                if (endsWith(key, ".options"))
+                {
+                    std::vector<uint8_t> jsonStringVec(value.begin(), value.end());
+                    std::shared_ptr<AbstractIODevice> device =
+                        std::make_shared<MemoryDevice>(std::move(jsonStringVec));
+                    configHolder_t robotOptions;
+                    jsonLoad(robotOptions, device);
+                    constants[key] = robotOptions;
+                }
+                else if (endsWith(key, ".pinocchio_model"))
+                {
+                    pinocchio::Model model;
+                    ::jiminy::loadFromBinary<pinocchio::Model>(model, value);
+                    constants[key] = model;
+                }
+                else if (endsWith(key, ".visual_model") || endsWith(key, ".collision_model"))
+                {
+                    pinocchio::GeometryModel geometryModel;
+                    ::jiminy::loadFromBinary<pinocchio::GeometryModel>(geometryModel, value);
+                    constants[key] = geometryModel;
+
+                }
+                else if (endsWith(key, ".mesh_package_dirs"))
+                {
+                    bp::list meshPackageDirs;
+                    std::stringstream ss(value);
+                    std::string item;
+                    while (getline(ss, item, ';'))
+                    {
+                        meshPackageDirs.append(item);
+                    }
+                    constants[key] = meshPackageDirs;
+                }
+                else if (key == NUM_INTS.substr(0, key.size())
+                      || key == NUM_FLOATS.substr(0, key.size()))
+                {
+                    constants[key] = std::stol(value);
+                }
+                else if (key == TIME_UNIT)
+                {
+                    constants[key] = std::stod(value);
+                }
+                else
+                {
+                    constants[key] = value; // convertToPython(value, false);
+                }
             }
 
             // Get Global.Time
             bp::object timePy;
-            if (!logData.timestamps.empty())
+            if (logData.timestamps.size() > 0)
             {
-                vectorN_t timeBuffer = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-                    logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() * logData.timeUnit;
+                vectorN_t const timeBuffer = logData.timestamps.cast<float64_t>() * logData.timeUnit;
                 timePy = convertToPython(timeBuffer, true);
                 PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(timePy.ptr()), NPY_ARRAY_WRITEABLE);
             }
@@ -646,18 +703,12 @@ namespace python
             variables[logData.fieldnames[0]] = timePy;
 
             // Get integers
-            if (!logData.intData.empty())
+            if (numInt > 0)
             {
-                Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
-                intVector.resize(logData.timestamps.size());
-
-                for (std::size_t i = 0; i < logData.numInt; ++i)
+                for (Eigen::Index i = 0; i < numInt; ++i)
                 {
                     std::string const & header_i = logData.fieldnames[i + 1];
-                    for (std::size_t j = 0; j < logData.intData.size(); ++j)
-                    {
-                        intVector[j] = logData.intData[j][i];
-                    }
+                    intVector = logData.intData.row(i);
                     bp::object array = convertToPython(intVector, true);
                     PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array.ptr()), NPY_ARRAY_WRITEABLE);
                     variables[header_i] = array;
@@ -666,7 +717,7 @@ namespace python
             else
             {
                 npy_intp dims[1] = {npy_intp(0)};
-                for (std::size_t i = 0; i < logData.numInt; ++i)
+                for (Eigen::Index i = 0; i < numInt; ++i)
                 {
                     std::string const & header_i = logData.fieldnames[i + 1];
                     variables[header_i] = bp::object(bp::handle<>(
@@ -675,18 +726,12 @@ namespace python
             }
 
             // Get floats
-            if (!logData.floatData.empty())
+            if (numFloat > 0)
             {
-                Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
-                floatVector.resize(logData.timestamps.size());
-
-                for (std::size_t i = 0; i < logData.numFloat; ++i)
+                for (Eigen::Index i = 0; i < numFloat; ++i)
                 {
-                    std::string const & header_i = logData.fieldnames[i + 1 + logData.numInt];
-                    for (std::size_t j = 0; j < logData.floatData.size(); ++j)
-                    {
-                        floatVector[j] = logData.floatData[j][i];
-                    }
+                    std::string const & header_i = logData.fieldnames[i + 1 + numInt];
+                    floatVector = logData.floatData.row(i);
                     bp::object array = convertToPython(floatVector, true);
                     PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array.ptr()), NPY_ARRAY_WRITEABLE);
                     variables[header_i] = array;
@@ -695,18 +740,22 @@ namespace python
             else
             {
                 npy_intp dims[1] = {npy_intp(0)};
-                for (std::size_t i = 0; i < logData.numFloat; ++i)
+                for (Eigen::Index i = 0; i < numFloat; ++i)
                 {
-                    std::string const & header_i = logData.fieldnames[i + 1 + logData.numInt];
+                    std::string const & header_i = logData.fieldnames[i + 1 + numInt];
                     variables[header_i] = bp::object(bp::handle<>(
                         PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
                 }
             }
 
-            return bp::make_tuple(variables, constants);
+            // Return aggregated data
+            bp::dict logDataPy;
+            logDataPy["constants"] = constants;
+            logDataPy["variables"] = variables;
+            return logDataPy;
         }
 
-        static bp::tuple getLog(EngineMultiRobot & self)
+        static bp::dict getLog(EngineMultiRobot & self)
         {
             /* It is impossible to use static boost::python variables. Indeed,
                the global/static destructor is called after finalization of
@@ -719,10 +768,10 @@ namespace python
                - https://stackoverflow.com/a/24156996/4820605
                - https://stackoverflow.com/a/31444751/4820605 */
 
-            static std::unique_ptr<bp::tuple> logDataPy(nullptr);
+            static std::unique_ptr<bp::dict> logDataPy(nullptr);
             static std::shared_ptr<logData_t const> logDataOld;
             std::shared_ptr<logData_t const> logData;
-            self.getLogDataRaw(logData);
+            self.getLog(logData);
             if (logData.use_count() == 2)
             {
                 // Decrement the reference counter of old Python log data
@@ -735,7 +784,7 @@ namespace python
                    than 2. Indeed, both the engine and this method holds a single reference
                    at this point. If it was old, this method would holds at least 2
                    references, one for the old reference and one for the new. */
-                logDataPy = std::make_unique<bp::tuple>(formatLogData(*logData));
+                logDataPy = std::make_unique<bp::dict>(formatLogData(*logData));
 
                 /* Reference counter must be incremented to avoid calling deleter by Boost
                    Python after runtime finalization. */
@@ -745,29 +794,48 @@ namespace python
                 logDataOld = logData;
             }
 
-            // Avoid potential null pointer dereference, although should never happen in practice
+            // Avoid potential null pointer dereference, although it should never happen in practice
             if (logDataPy)
             {
                 return *logDataPy;
             }
-            else
-            {
-                return bp::make_tuple(bp::dict(), bp::dict());
-            }
+            return {};
         }
 
-        static bp::tuple parseLogBinary(std::string const & filename)
+        static bp::dict readLog(std::string const & filename,
+                                bp::object  const & formatPy)
         {
+            std::string format;
+            if (!formatPy.is_none())
+            {
+                format = convertFromPython<std::string>(formatPy);
+            }
+            else
+            {
+                std::array<std::string, 3> const extHdf5 {{".h5", ".hdf5", ".tlmc"}};
+                if (endsWith(filename, ".data"))
+                {
+                    format = "binary";
+                }
+                else if (std::any_of(extHdf5.begin(), extHdf5.end(), std::bind(
+                    endsWith, filename, std::placeholders::_1)))
+                {
+                    format = "hdf5";
+                }
+                else
+                {
+                    throw std::runtime_error(
+                        "Impossible to determine the file format automatically. "
+                        "Please specify it manually.");
+                }
+            }
             logData_t logData;
-            hresult_t returnCode = EngineMultiRobot::parseLogBinaryRaw(filename, logData);
+            hresult_t returnCode = EngineMultiRobot::readLog(filename, format, logData);
             if (returnCode == hresult_t::SUCCESS)
             {
                 return formatLogData(logData);
             }
-            else
-            {
-                return bp::make_tuple(bp::dict(), bp::dict());
-            }
+            return {};
         }
 
         static hresult_t setOptions(EngineMultiRobot & self,

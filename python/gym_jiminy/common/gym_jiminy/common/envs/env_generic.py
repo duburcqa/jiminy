@@ -28,7 +28,7 @@ from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
-from jiminy_py.log import extract_data_from_log
+from jiminy_py.log import extract_variables_from_log
 
 from pinocchio import neutral, normalize, framesForwardKinematics
 
@@ -143,7 +143,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
             str, Tuple[FieldNested, DataNested]] = {}
-        self.log_headers: MappingT[str, FieldNested] = _LazyDictItemFilter(
+        self.log_fieldnames: MappingT[str, FieldNested] = _LazyDictItemFilter(
             self._registered_variables, 0)
 
         # Internal buffers for physics computations
@@ -194,9 +194,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if isinstance(self._action, np.ndarray):
             action_size = self._action.size
             if action_size > 0 and action_size == self.robot.nmotors:
-                action_headers = [
+                action_fieldnames = [
                     ".".join(("action", e)) for e in self.robot.motors_names]
-                self.register_variable("action", self._action, action_headers)
+                self.register_variable(
+                    "action", self._action, action_fieldnames)
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -867,8 +868,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.plot(**kwargs)
 
         # Extract log data
-        log_data = self.simulator.log_data
-        if not log_data:
+        log_vars = self.simulator.log_data.get("variables", {})
+        if not log_vars:
             raise RuntimeError(
                 "Nothing to plot. Please run a simulation before calling "
                 "`plot` method.")
@@ -877,27 +878,27 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # If telemetry action fieldnames is a dictionary, it cannot be nested.
         # In such a case, keys corresponds to subplots, and values are
         # individual scalar data over time to be displayed to the same subplot.
-        t = log_data["Global.Time"]
+        t = log_vars["Global.Time"]
         tab_data = {}
-        action_headers = self.log_headers.get("action", None)
-        if action_headers is None:
+        action_fieldnames = self.log_fieldnames.get("action", None)
+        if action_fieldnames is None:
             # It was impossible to register the action to the telemetry, likely
             # because of incompatible dtype. Early return without adding tab.
             return
-        if isinstance(action_headers, dict):
-            for group, fieldnames in action_headers.items():
+        if isinstance(action_fieldnames, dict):
+            for group, fieldnames in action_fieldnames.items():
                 if not isinstance(fieldnames, list):
                     logger.error("Action space not supported by this method.")
                     return
                 tab_data[group] = {
                     ".".join(key.split(".")[1:]): value
-                    for key, value in extract_data_from_log(
-                        log_data, fieldnames, as_dict=True).items()}
-        elif isinstance(action_headers, list):
+                    for key, value in extract_variables_from_log(
+                        log_vars, fieldnames, as_dict=True).items()}
+        elif isinstance(action_fieldnames, list):
             tab_data.update({
                 ".".join(key.split(".")[1:]): value
-                for key, value in extract_data_from_log(
-                    log_data, action_headers, as_dict=True).items()})
+                for key, value in extract_variables_from_log(
+                    log_vars, action_fieldnames, as_dict=True).items()})
 
         # Add action tab
         self.simulator.figure.add_tab("Action", t, tab_data)
@@ -1367,10 +1368,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.sensors_data:
                 self._observation['sensors'] = self.sensors_data
         else:
-            if self.simulator.use_theoretical_model and self.robot.is_flexible:
-                position, velocity = self.simulator.state
-                self._observation['state']['Q'][:] = position
-                self._observation['state']['V'][:] = velocity
+            position, velocity = self.simulator.state
+            self._observation['state']['Q'][:] = position
+            self._observation['state']['V'][:] = velocity
 
     def compute_command(self,
                         measure: DataNested,

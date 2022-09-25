@@ -206,7 +206,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractController::registerVariable(std::string const & fieldName,
+    hresult_t AbstractController::registerVariable(std::string const & fieldname,
                                                    float64_t   const & value)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
@@ -220,16 +220,16 @@ namespace jiminy
         // Check in local cache before.
         auto variableIt = std::find_if(registeredVariables_.begin(),
                                        registeredVariables_.end(),
-                                       [&fieldName](auto const & element)
+                                       [&fieldname](auto const & element)
                                        {
-                                           return element.first == fieldName;
+                                           return element.first == fieldname;
                                        });
         if (variableIt != registeredVariables_.end())
         {
             PRINT_ERROR("Variable already registered.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        registeredVariables_.emplace_back(fieldName, &value);
+        registeredVariables_.emplace_back(fieldname, &value);
 
         return hresult_t::SUCCESS;
     }

@@ -4,8 +4,8 @@ joint_name = "PendulumJoint"
 [Motor.SimpleMotor.SecondPendulumJoint]
 joint_name = "SecondPendulumJoint"
 
-[Sensor.ImuSensor.world]
-frame_name = "world"
+[Sensor.ImuSensor.SecondPendulumArm]
+frame_name = "SecondPendulumArm"
 
 [Sensor.ForceSensor.PendulumArm]
 frame_name = "PendulumArm"

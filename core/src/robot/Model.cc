@@ -1326,7 +1326,7 @@ namespace jiminy
 
                     // Define complete external force fieldnames and backup them
                     std::vector<std::string> jointForceExternalFieldnames;
-                    for (std::string const & suffix : ForceSensor::fieldNames_)
+                    for (std::string const & suffix : ForceSensor::fieldnames_)
                     {
                         jointForceExternalFieldnames.emplace_back(
                             jointPrefix + "ForceExternal" + jointShortName + suffix);

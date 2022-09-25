@@ -242,13 +242,13 @@ namespace jiminy
     template<typename T>
     std::vector<std::string> const & AbstractSensorTpl<T>::getFieldnames(void) const
     {
-        return fieldNames_;
+        return fieldnames_;
     }
 
     template<typename T>
     uint64_t AbstractSensorTpl<T>::getSize(void) const
     {
-        return fieldNames_.size();
+        return fieldnames_.size();
     }
     template<typename T>
     std::string AbstractSensorTpl<T>::getTelemetryName(void) const
@@ -266,7 +266,7 @@ namespace jiminy
     template<typename T>
     Eigen::Ref<vectorN_t const> AbstractSensorTpl<T>::get(void) const
     {
-        static vectorN_t dataDummy = vectorN_t::Zero(fieldNames_.size());
+        static vectorN_t dataDummy = vectorN_t::Zero(fieldnames_.size());
         if (isAttached_)
         {
             return sharedHolder_->dataMeasured_.col(sensorIdx_);

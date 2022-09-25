@@ -114,7 +114,7 @@ namespace python
         }
 
         static hresult_t registerVariable(AbstractController       & self,
-                                          std::string        const & fieldName,
+                                          std::string        const & fieldname,
                                           PyObject                 * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
@@ -125,7 +125,7 @@ namespace python
                 if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64 && PyArray_SIZE(dataPyArray) == 1U)
                 {
                     float64_t const * data = static_cast<float64_t *>(PyArray_DATA(dataPyArray));
-                    return self.registerVariable(fieldName, *data);
+                    return self.registerVariable(fieldname, *data);
                 }
                 else
                 {
@@ -141,7 +141,7 @@ namespace python
         }
 
         static hresult_t registerVariableArray(AbstractController       & self,
-                                               bp::list           const & fieldNamesPy,
+                                               bp::list           const & fieldnamesPy,
                                                PyObject                 * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
@@ -152,10 +152,10 @@ namespace python
             if (returnCode == hresult_t::SUCCESS)
             {
                 // Check if fieldnames are stored in one or two dimensional list
-                if (bp::len(fieldNamesPy) > 0 && bp::extract<std::string>(fieldNamesPy[0]).check())
+                if (bp::len(fieldnamesPy) > 0 && bp::extract<std::string>(fieldnamesPy[0]).check())
                 {
                     // Extract fieldnames
-                    auto fieldnames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
+                    auto fieldnames = convertFromPython<std::vector<std::string> >(fieldnamesPy);
 
                     // Check fieldnames and array have same length
                     if (static_cast<std::size_t>(data.size()) != fieldnames.size())
@@ -173,7 +173,7 @@ namespace python
                 else
                 {
                     // Extract fieldnames
-                    auto fieldnames = convertFromPython<std::vector<std::vector<std::string> > >(fieldNamesPy);
+                    auto fieldnames = convertFromPython<std::vector<std::vector<std::string> > >(fieldnamesPy);
 
                     // Check fieldnames and array have same shape
                     bool_t are_fieldnames_valid = (static_cast<std::size_t>(data.rows()) == fieldnames.size());
@@ -206,7 +206,7 @@ namespace python
         }
 
         static hresult_t registerConstant(AbstractController       & self,
-                                          std::string        const & fieldName,
+                                          std::string        const & fieldname,
                                           PyObject                 * dataPy)
         {
             if (PyArray_Check(dataPy))
@@ -215,25 +215,25 @@ namespace python
                 auto returnCode = std::get<0>(pair); auto data = std::get<1>(pair);
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    returnCode = self.registerConstant(fieldName, data);
+                    returnCode = self.registerConstant(fieldname, data);
                 }
                 return returnCode;
             }
             else if (PyFloat_Check(dataPy))
             {
-                return self.registerConstant(fieldName, PyFloat_AsDouble(dataPy));
+                return self.registerConstant(fieldname, PyFloat_AsDouble(dataPy));
             }
             else if (PyLong_Check(dataPy))
             {
-                return self.registerConstant(fieldName, PyLong_AsLong(dataPy));
+                return self.registerConstant(fieldname, PyLong_AsLong(dataPy));
             }
             else if (PyBytes_Check(dataPy))
             {
-                return self.registerConstant(fieldName, PyBytes_AsString(dataPy));
+                return self.registerConstant(fieldname, PyBytes_AsString(dataPy));
             }
             else if (PyUnicode_Check(dataPy))
             {
-                return self.registerConstant(fieldName, PyUnicode_AsUTF8(dataPy));
+                return self.registerConstant(fieldname, PyUnicode_AsUTF8(dataPy));
             }
             else
             {

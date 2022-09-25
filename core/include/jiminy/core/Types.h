@@ -254,6 +254,18 @@ namespace jiminy
     using callbackFunctor_t = std::function<bool_t(float64_t const & /*t*/,
                                                    vectorN_t const & /*q*/,
                                                    vectorN_t const & /*v*/)>;
+
+    // Log data type
+    struct logData_t
+    {
+        int32_t version;
+        float64_t timeUnit;
+        Eigen::Matrix<int64_t, Eigen::Dynamic, 1> timestamps;
+        static_map_t<std::string, std::string> constants;
+        std::vector<std::string> fieldnames;
+        Eigen::Matrix<int64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor> intData;
+        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor> floatData;
+    };
 }
 
 #endif  // JIMINY_TYPES_H

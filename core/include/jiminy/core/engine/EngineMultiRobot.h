@@ -579,6 +579,7 @@ namespace jiminy
         /// \param[in] v Joint velocity.
         /// \param[in] u Joint effort.
         /// \param[in] fext External forces applied on the system.
+        ///
         /// \return System acceleration.
         vectorN_t const & computeAcceleration(systemHolder_t & system,
                                               systemDataHolder_t & systemData,
@@ -588,26 +589,14 @@ namespace jiminy
                                               forceVector_t & fext);
 
     public:
-        hresult_t getLogDataRaw(std::shared_ptr<logData_t const> & logData);
+        hresult_t getLog(std::shared_ptr<logData_t const> & logData);
 
-        /// \brief Get the full logged content.
-        ///
-        /// \param[out] header      Header, vector of field names.
-        /// \param[out] logMatrix   Corresponding data in the log file.
-        hresult_t getLogData(std::vector<std::string> & header,
-                             matrixN_t                & logMatrix);
+        static hresult_t readLog(std::string const & filename,
+                                 std::string const & format,
+                                 logData_t         & logData);
 
         hresult_t writeLog(std::string const & filename,
-                           std::string const & format = "binary");
-
-        static hresult_t parseLogBinaryRaw(std::string const & filename,
-                                           logData_t         & logData);
-        static hresult_t parseLogBinary(std::string              const & filename,
-                                        std::vector<std::string>       & header,
-                                        matrixN_t                      & logMatrix);
-    private:
-        hresult_t writeLogCsv(std::string const & filename);
-        hresult_t writeLogHdf5(std::string const & filename);
+                           std::string const & format);
 
     private:
         template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,

@@ -107,7 +107,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t registerVariable(std::string const & fieldName,
+        hresult_t registerVariable(std::string const & fieldname,
                                    float64_t   const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,7 +121,7 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         template<typename T>
-        hresult_t registerConstant(std::string const & fieldName,
+        hresult_t registerConstant(std::string const & fieldname,
                                    T           const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////

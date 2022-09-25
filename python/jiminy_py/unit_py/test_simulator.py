@@ -54,8 +54,8 @@ class SimulatorTest(unittest.TestCase):
         self.assertTrue(os.path.isfile(video_path))
 
         # Test: log reading
-        log_data, log_constants = read_log(log_path)
-        robot = build_robot_from_log(log_constants)
+        log_data = read_log(log_path)
+        robot = build_robot_from_log(log_data)
 
         # Test: replay from log
         video_path = os.path.join(

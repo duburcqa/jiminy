@@ -184,7 +184,8 @@ class PipelineDesign(unittest.TestCase):
         env.step()
 
         # Check that the command is updated 1/2 low-level controller update
-        u_log = env.log_data['HighLevelController.currentCommandLF_HAA']
+        log_vars = env.log_data["variables"]
+        u_log = log_vars['HighLevelController.currentCommandLF_HAA']
         self.assertEqual(env.control_dt, 2 * env.unwrapped.control_dt)
         self.assertTrue(np.all(u_log[:2] == 0.0))
         self.assertNotEqual(u_log[1], u_log[2])

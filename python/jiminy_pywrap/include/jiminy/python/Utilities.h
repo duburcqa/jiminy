@@ -380,6 +380,17 @@ namespace python
     }
 
     template<>
+    inline bp::object convertToPython(std::string const & data, bool const & copy)
+    {
+        if (copy)
+        {
+            return bp::object(data);
+        }
+        return bp::object(bp::handle<>(
+            PyUnicode_FromStringAndSize(data.c_str(), data.size())));
+    }
+
+    template<>
     inline bp::object convertToPython<flexibleJointData_t>(
         flexibleJointData_t const & flexibleJointData,
         bool const & /* copy */)
@@ -435,12 +446,12 @@ namespace python
 
         static PyTypeObject const * get_pytype()
         {
-            if (is_vector_v<T>)  // constexpr
+            if constexpr (is_vector_v<T>)
             {
                 return &PyList_Type;
             }
-            else if (std::is_same<T, configHolder_t>::value
-                  || std::is_same<T, flexibleJointData_t>::value)  // constexpr
+            else if constexpr (std::is_same_v<T, configHolder_t>
+                            || std::is_same_v<T, flexibleJointData_t>)
             {
                 return &PyDict_Type;
             }
@@ -454,7 +465,7 @@ namespace python
     struct result_converter
     {
         template<typename T, typename = typename std::enable_if_t<
-            copy || std::is_reference<T>::value || is_eigen_ref_v<T> > >
+            copy || std::is_reference_v<T> || is_eigen_ref_v<T> > >
         struct apply
         {
             struct type
@@ -518,16 +529,16 @@ namespace python
     std::enable_if_t<!is_vector_v<T>
                   && !is_map_v<T>
                   && !is_eigen_v<T>
-                  && !(std::is_integral<T>::value && !std::is_same<T, bool_t>::value)
-                  && !std::is_same<T, sensorsDataMap_t>::value, T>
+                  && !(std::is_integral_v<T> && !std::is_same_v<T, bool_t>)
+                  && !std::is_same_v<T, sensorsDataMap_t>, T>
     convertFromPython(bp::object const & dataPy)
     {
         return bp::extract<T>(dataPy);
     }
 
     template<typename T>
-    std::enable_if_t<std::is_integral<T>::value
-                 && !std::is_same<T, bool_t>::value, T>
+    std::enable_if_t<std::is_integral_v<T>
+                 && !std::is_same_v<T, bool_t>, T>
     convertFromPython(bp::object const & dataPy)
     {
         std::string const optionTypePyStr =
@@ -549,7 +560,7 @@ namespace python
             {
                 return getIntegral();
             }
-            if (std::is_unsigned<T>::value)
+            if (std::is_unsigned_v<T>)
             {
                 return bp::extract<typename std::make_signed_t<T> >(dataPy);
             }
@@ -646,7 +657,7 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same<T, sensorsDataMap_t>::value, T>
+    std::enable_if_t<std::is_same_v<T, sensorsDataMap_t>, T>
     convertFromPython(bp::object const & dataPy)
     {
         sensorsDataMap_t data;
@@ -673,8 +684,8 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<is_map<T>::value
-                  && !std::is_same<T, sensorsDataMap_t>::value, T>
+    std::enable_if_t<is_map_v<T>
+                  && !std::is_same_v<T, sensorsDataMap_t>, T>
     convertFromPython(bp::object const & dataPy)
     {
         using K = typename T::key_type;
@@ -701,14 +712,14 @@ namespace python
         ~AppendPythonToBoostVariant(void) = default;
 
         template<typename T>
-        std::enable_if_t<!std::is_same<T, configHolder_t>::value, void>
+        std::enable_if_t<!std::is_same_v<T, configHolder_t>, void>
         operator()(T & value)
         {
             value = convertFromPython<T>(*objPy_);
         }
 
         template<typename T>
-        std::enable_if_t<std::is_same<T, configHolder_t>::value, void>
+        std::enable_if_t<std::is_same_v<T, configHolder_t>, void>
         operator()(T & value)
         {
             convertFromPython(*objPy_, value);
