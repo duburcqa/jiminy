@@ -4094,6 +4094,9 @@ namespace jiminy
             return 0;
         }, static_cast<void *>(&opData));
 
+        // Close file once done
+        file->close();
+
         return hresult_t::SUCCESS;
     }
 
@@ -4246,6 +4249,9 @@ namespace jiminy
             floatVector = logData->floatData.row(i);
             valueDataset.write(floatVector.data(), H5::PredType::NATIVE_DOUBLE);
         }
+
+        // Close file once done
+        file->close();
 
         return hresult_t::SUCCESS;
     }
