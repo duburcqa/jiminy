@@ -17,7 +17,7 @@ from .dynamics import TrajectoryDataType
 from .log import read_log, build_robot_from_log
 from .viewer import (interactive_mode,
                      get_default_backend,
-                     extract_replay_data_from_log_data,
+                     extract_replay_data_from_log,
                      play_trajectories,
                      Viewer)
 
@@ -586,7 +586,7 @@ class Simulator:
         for robot, log_data in zip(robots, logs_data):
             if log_data:
                 traj, update_hook, _kwargs = \
-                    extract_replay_data_from_log_data(robot, log_data)
+                    extract_replay_data_from_log(log_data, robot)
                 trajectories.append(traj)
                 update_hooks.append(update_hook)
                 extra_kwargs.update(_kwargs)

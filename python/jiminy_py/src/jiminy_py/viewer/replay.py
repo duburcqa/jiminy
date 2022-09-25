@@ -24,7 +24,7 @@ from .. import core as jiminy
 from ..dynamics import TrajectoryDataType
 from ..log import (read_log,
                    build_robot_from_log,
-                   build_trajectory_from_log,
+                   extract_trajectory_from_log,
                    update_sensors_data_from_log)
 from .viewer import (COLORS,
                      Tuple3FType,
@@ -621,14 +621,14 @@ def play_trajectories(trajs_data: Union[
     return viewers
 
 
-def extract_replay_data_from_log_data(
-        robot: jiminy.Robot,
-        log_data: Dict[str, np.ndarray]) -> Tuple[
+def extract_replay_data_from_log(
+        log_data: Dict[str, np.ndarray],
+        robot: jiminy.Robot) -> Tuple[
             TrajectoryDataType, Callable[[float], None], Any]:
     """Extract replay data from log data.
 
     :param robot: Jiminy robot for which to extract log data.
-    :param log_data: Data from the log file, in a dictionnary.
+    :param log_data: Data from the log file, in a dictionary.
 
     :returns: Trajectory data, update hook and extra keyword arguments to
               forward to `play_trajectories` method to display the trajectory.
@@ -637,7 +637,7 @@ def extract_replay_data_from_log_data(
     """
     # For each pair (log, robot), extract a trajectory object for
     # `play_trajectories`
-    trajectory = build_trajectory_from_log(log_data, robot)
+    trajectory = extract_trajectory_from_log(log_data, robot)
 
     # Display external forces on root joint, if any
     replay_kwargs = {}
@@ -686,8 +686,8 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
     # Extract a replay data for `play_trajectories` for each pair (robot, log)
     trajectories, update_hooks, extra_kwargs = [], [], {}
     for robot, log_data in zip(robots, logs_data):
-        traj, update_hook, _kwargs = extract_replay_data_from_log_data(
-            robot, log_data)
+        traj, update_hook, _kwargs = \
+            extract_replay_data_from_log(log_data, robot)
         trajectories.append(traj)
         update_hooks.append(update_hook)
         extra_kwargs.update(_kwargs)

@@ -181,9 +181,9 @@ def build_robot_from_log(
     return robot
 
 
-def build_trajectory_from_log(log_data: Dict[str, Any],
-                              robot: Optional[jiminy.Model] = None
-                              ) -> TrajectoryDataType:
+def extract_trajectory_from_log(log_data: Dict[str, Any],
+                                robot: Optional[jiminy.Model] = None
+                                ) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 

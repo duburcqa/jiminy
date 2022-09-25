@@ -2,7 +2,7 @@ from .viewer import (Viewer,
                      sleep,
                      check_display_available,
                      get_default_backend)
-from .replay import (extract_replay_data_from_log_data,
+from .replay import (extract_replay_data_from_log,
                      play_trajectories,
                      play_logs_data,
                      play_logs_files)
@@ -15,7 +15,7 @@ __all__ = [
     'interactive_mode',
     'check_display_available',
     'get_default_backend',
-    'extract_replay_data_from_log_data',
+    'extract_replay_data_from_log',
     'play_trajectories',
     'play_logs_data',
     'play_logs_files'
