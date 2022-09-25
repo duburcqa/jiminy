@@ -209,10 +209,10 @@ namespace jiminy
     positionLimitMin_(),
     positionLimitMax_(),
     velocityLimit_(),
-    positionFieldnames_(),
-    velocityFieldnames_(),
-    accelerationFieldnames_(),
-    forceExternalFieldnames_(),
+    logFieldnamesPosition_(),
+    logFieldnamesVelocity_(),
+    logFieldnamesAcceleration_(),
+    logFieldnamesForceExternal_(),
     pncModelFlexibleOrig_(),
     jointsAcceleration_(),
     nq_(0),
@@ -1242,14 +1242,14 @@ namespace jiminy
 
             /* Generate the fieldnames associated with the configuration vector,
                velocity, acceleration and external force vectors. */
-            positionFieldnames_.clear();
-            positionFieldnames_.resize(static_cast<std::size_t>(nq_));
-            velocityFieldnames_.clear();
-            velocityFieldnames_.resize(static_cast<std::size_t>(nv_));
-            accelerationFieldnames_.clear();
-            accelerationFieldnames_.resize(static_cast<std::size_t>(nv_));
-            forceExternalFieldnames_.clear();
-            forceExternalFieldnames_.resize(6U * (pncModel_.njoints - 1));
+            logFieldnamesPosition_.clear();
+            logFieldnamesPosition_.resize(static_cast<std::size_t>(nq_));
+            logFieldnamesVelocity_.clear();
+            logFieldnamesVelocity_.resize(static_cast<std::size_t>(nv_));
+            logFieldnamesAcceleration_.clear();
+            logFieldnamesAcceleration_.resize(static_cast<std::size_t>(nv_));
+            logFieldnamesForceExternal_.clear();
+            logFieldnamesForceExternal_.resize(6U * (pncModel_.njoints - 1));
             for (std::size_t i = 1; i < pncModel_.joints.size(); ++i)
             {
                 // Get joint name without "Joint" suffix, if any
@@ -1305,7 +1305,7 @@ namespace jiminy
                     }
                     std::copy(jointPositionFieldnames.begin(),
                               jointPositionFieldnames.end(),
-                              positionFieldnames_.begin() + idx_q);
+                              logFieldnamesPosition_.begin() + idx_q);
 
                     // Define complete velocity and acceleration fieldnames and backup them
                     std::vector<std::string> jointVelocityFieldnames;
@@ -1319,10 +1319,10 @@ namespace jiminy
                     }
                     std::copy(jointVelocityFieldnames.begin(),
                               jointVelocityFieldnames.end(),
-                              velocityFieldnames_.begin() + idx_v);
+                              logFieldnamesVelocity_.begin() + idx_v);
                     std::copy(jointAccelerationFieldnames.begin(),
                               jointAccelerationFieldnames.end(),
-                              accelerationFieldnames_.begin() + idx_v);
+                              logFieldnamesAcceleration_.begin() + idx_v);
 
                     // Define complete external force fieldnames and backup them
                     std::vector<std::string> jointForceExternalFieldnames;
@@ -1333,7 +1333,7 @@ namespace jiminy
                     }
                     std::copy(jointForceExternalFieldnames.begin(),
                               jointForceExternalFieldnames.end(),
-                              forceExternalFieldnames_.begin() + 6U * (i - 1));
+                              logFieldnamesForceExternal_.begin() + 6U * (i - 1));
                 }
             }
         }
@@ -1956,9 +1956,9 @@ namespace jiminy
         return contactFramesIdx_;
     }
 
-    std::vector<std::string> const & Model::getPositionFieldnames(void) const
+    std::vector<std::string> const & Model::getLogFieldnamesPosition(void) const
     {
-        return positionFieldnames_;
+        return logFieldnamesPosition_;
     }
 
     vectorN_t const & Model::getPositionLimitMin(void) const
@@ -1971,9 +1971,9 @@ namespace jiminy
         return positionLimitMax_;
     }
 
-    std::vector<std::string> const & Model::getVelocityFieldnames(void) const
+    std::vector<std::string> const & Model::getLogFieldnamesVelocity(void) const
     {
-        return velocityFieldnames_;
+        return logFieldnamesVelocity_;
     }
 
     vectorN_t const & Model::getVelocityLimit(void) const
@@ -1981,14 +1981,14 @@ namespace jiminy
         return velocityLimit_;
     }
 
-    std::vector<std::string> const & Model::getAccelerationFieldnames(void) const
+    std::vector<std::string> const & Model::getLogFieldnamesAcceleration(void) const
     {
-        return accelerationFieldnames_;
+        return logFieldnamesAcceleration_;
     }
 
-    std::vector<std::string> const & Model::getForceExternalFieldnames(void) const
+    std::vector<std::string> const & Model::getLogFieldnamesForceExternal(void) const
     {
-        return forceExternalFieldnames_;
+        return logFieldnamesForceExternal_;
     }
 
     std::vector<std::string> const & Model::getRigidJointsNames(void) const

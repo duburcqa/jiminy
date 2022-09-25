@@ -519,7 +519,7 @@ def plot_log(log_data: Dict[str, Any],
     time = log_vars["Global.Time"]
     for fields_type in ["Position", "Velocity", "Acceleration"]:
         fieldnames = getattr(
-            robot, "log_" + fields_type.lower() + "_fieldnames")
+            robot, "log_fieldnames_" + fields_type.lower())
         if not enable_flexiblity_data:
             # Filter out flexibility data
             fieldnames = list(filter(
@@ -536,14 +536,14 @@ def plot_log(log_data: Dict[str, Any],
 
     # Get motors efforts information
     motor_effort = extract_variables_from_log(
-        log_vars, robot.log_motor_effort_fieldnames)
+        log_vars, robot.log_fieldnames_motor_effort)
     if motor_effort is not None:
         tabs_data['MotorEffort'] = OrderedDict(
             zip(robot.motors_names, motor_effort))
 
     # Get command information
     command = extract_variables_from_log(
-        log_vars, robot.log_command_fieldnames)
+        log_vars, robot.log_fieldnames_command)
     if command is not None:
         tabs_data['Command'] = OrderedDict(
             zip(robot.motors_names, command))

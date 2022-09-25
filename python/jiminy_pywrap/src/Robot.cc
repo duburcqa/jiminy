@@ -144,13 +144,13 @@ namespace python
                 .add_property("velocity_limit", bp::make_function(&Model::getVelocityLimit,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("log_position_fieldnames", bp::make_function(&Model::getPositionFieldnames,
+                .add_property("log_fieldnames_position", bp::make_function(&Model::getLogFieldnamesPosition,
                                                           bp::return_value_policy<result_converter<true> >()))
-                .add_property("log_velocity_fieldnames", bp::make_function(&Model::getVelocityFieldnames,
+                .add_property("log_fieldnames_velocity", bp::make_function(&Model::getLogFieldnamesVelocity,
                                                           bp::return_value_policy<result_converter<true> >()))
-                .add_property("log_acceleration_fieldnames", bp::make_function(&Model::getAccelerationFieldnames,
+                .add_property("log_fieldnames_acceleration", bp::make_function(&Model::getLogFieldnamesAcceleration,
                                                               bp::return_value_policy<result_converter<true> >()))
-                .add_property("log_f_external_fieldnames", bp::make_function(&Model::getForceExternalFieldnames,
+                .add_property("log_fieldnames_f_external", bp::make_function(&Model::getLogFieldnamesForceExternal,
                                                             bp::return_value_policy<result_converter<true> >()))
                 ;
         }
@@ -371,10 +371,10 @@ namespace python
                 .add_property("armatures", bp::make_function(&Robot::getArmatures,
                                            bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("log_command_fieldnames", bp::make_function(&Robot::getCommandFieldnames,
-                                                         bp::return_value_policy<result_converter<true> >()))
-                .add_property("log_motor_effort_fieldnames", bp::make_function(&Robot::getMotorEffortFieldnames,
-                                                              bp::return_value_policy<result_converter<true> >()))
+                .add_property("log_fieldnames_command", bp::make_function(&Robot::getCommandFieldnames,
+                                                        bp::return_value_policy<result_converter<true> >()))
+                .add_property("log_fieldnames_motor_effort", bp::make_function(&Robot::getMotorEffortFieldnames,
+                                                             bp::return_value_policy<result_converter<true> >()))
                 ;
         }
 

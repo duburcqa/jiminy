@@ -212,13 +212,13 @@ def build_trajectory_from_log(log_data: Dict[str, Any],
     # Extract the joint positions, velocities and external forces over time
     positions = np.stack([
         log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
-        for field in robot.log_position_fieldnames], axis=-1)
+        for field in robot.log_fieldnames_position], axis=-1)
     velocities = np.stack([
         log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
-        for field in robot.log_velocity_fieldnames], axis=-1)
+        for field in robot.log_fieldnames_velocity], axis=-1)
     forces = np.stack([
         log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
-        for field in robot.log_f_external_fieldnames], axis=-1)
+        for field in robot.log_fieldnames_f_external], axis=-1)
 
     # Determine which optional data are available
     has_positions = len(positions) > 0

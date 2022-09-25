@@ -727,25 +727,25 @@ namespace jiminy
             for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
             {
                 // Generate the log fieldnames
-                systemDataIt->positionFieldnames =
-                    addCircumfix(systemIt->robot->getPositionFieldnames(),
+                systemDataIt->logFieldnamesPosition =
+                    addCircumfix(systemIt->robot->getLogFieldnamesPosition(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->velocityFieldnames =
-                    addCircumfix(systemIt->robot->getVelocityFieldnames(),
+                systemDataIt->logFieldnamesVelocity =
+                    addCircumfix(systemIt->robot->getLogFieldnamesVelocity(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->accelerationFieldnames =
-                    addCircumfix(systemIt->robot->getAccelerationFieldnames(),
+                systemDataIt->logFieldnamesAcceleration =
+                    addCircumfix(systemIt->robot->getLogFieldnamesAcceleration(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->forceExternalFieldnames =
-                    addCircumfix(systemIt->robot->getForceExternalFieldnames(),
+                systemDataIt->logFieldnamesForceExternal =
+                    addCircumfix(systemIt->robot->getLogFieldnamesForceExternal(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->commandFieldnames =
+                systemDataIt->logFieldnamesCommand =
                     addCircumfix(systemIt->robot->getCommandFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->motorEffortFieldnames =
+                systemDataIt->logFieldnamesMotorEffort =
                     addCircumfix(systemIt->robot->getMotorEffortFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->energyFieldname =
+                systemDataIt->logFieldnameEnergy =
                     addCircumfix("energy",
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
 
@@ -755,7 +755,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableConfiguration)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->positionFieldnames,
+                            systemDataIt->logFieldnamesPosition,
                             systemDataIt->state.q);
                     }
                 }
@@ -764,7 +764,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableVelocity)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->velocityFieldnames,
+                            systemDataIt->logFieldnamesVelocity,
                             systemDataIt->state.v);
                     }
                 }
@@ -773,7 +773,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableAcceleration)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->accelerationFieldnames,
+                            systemDataIt->logFieldnamesAcceleration,
                             systemDataIt->state.a);
                     }
                 }
@@ -785,7 +785,7 @@ namespace jiminy
                         for (uint8_t j = 0; j < 6U; ++j)
                         {
                             returnCode = telemetrySender_.registerVariable(
-                                systemDataIt->forceExternalFieldnames[(i - 1) * 6U + j],
+                                systemDataIt->logFieldnamesForceExternal[(i - 1) * 6U + j],
                                 fext[j]);
                         }
                     }
@@ -795,7 +795,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableCommand)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->commandFieldnames,
+                            systemDataIt->logFieldnamesCommand,
                             systemDataIt->state.command);
                     }
                 }
@@ -804,7 +804,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableMotorEffort)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->motorEffortFieldnames,
+                            systemDataIt->logFieldnamesMotorEffort,
                             systemDataIt->state.uMotor);
                     }
                 }
@@ -813,7 +813,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableEnergy)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->energyFieldname, 0.0);
+                            systemDataIt->logFieldnameEnergy, 0.0);
                     }
                 }
 
@@ -857,17 +857,17 @@ namespace jiminy
             // Update telemetry values
             if (engineOptions_->telemetry.enableConfiguration)
             {
-                telemetrySender_.updateValue(systemDataIt->positionFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesPosition,
                                              systemDataIt->state.q);
             }
             if (engineOptions_->telemetry.enableVelocity)
             {
-                telemetrySender_.updateValue(systemDataIt->velocityFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesVelocity,
                                              systemDataIt->state.v);
             }
             if (engineOptions_->telemetry.enableAcceleration)
             {
-                telemetrySender_.updateValue(systemDataIt->accelerationFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesAcceleration,
                                              systemDataIt->state.a);
             }
             if (engineOptions_->telemetry.enableForceExternal)
@@ -878,24 +878,24 @@ namespace jiminy
                     for (uint8_t j = 0; j < 6U; ++j)
                     {
                         telemetrySender_.updateValue(
-                            systemDataIt->forceExternalFieldnames[(i - 1) * 6U + j],
+                            systemDataIt->logFieldnamesForceExternal[(i - 1) * 6U + j],
                             fext[j]);
                     }
                 }
             }
             if (engineOptions_->telemetry.enableCommand)
             {
-                telemetrySender_.updateValue(systemDataIt->commandFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesCommand,
                                              systemDataIt->state.command);
             }
             if (engineOptions_->telemetry.enableMotorEffort)
             {
-                telemetrySender_.updateValue(systemDataIt->motorEffortFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesMotorEffort,
                                              systemDataIt->state.uMotor);
             }
             if (engineOptions_->telemetry.enableEnergy)
             {
-                telemetrySender_.updateValue(systemDataIt->energyFieldname, energy);
+                telemetrySender_.updateValue(systemDataIt->logFieldnameEnergy, energy);
             }
 
             systemIt->controller->updateTelemetry();

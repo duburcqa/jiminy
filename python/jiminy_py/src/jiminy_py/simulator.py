@@ -14,10 +14,7 @@ from . import core as jiminy
 from .robot import (generate_default_hardware_description_file,
                     BaseJiminyRobot)
 from .dynamics import TrajectoryDataType
-from .log import (SENSORS_FIELDS,
-                  read_log,
-                  build_robot_from_log,
-                  extract_variables_from_log)
+from .log import read_log, build_robot_from_log
 from .viewer import (interactive_mode,
                      get_default_backend,
                      extract_replay_data_from_log_data,

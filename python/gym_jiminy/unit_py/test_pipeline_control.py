@@ -98,7 +98,7 @@ class PipelineControl(unittest.TestCase):
         # Check that the whole-body robot velocity is close to zero at the end
         velocity_mes = np.stack([
             log_vars['.'.join(('HighLevelController', name))]
-            for name in self.env.robot.log_velocity_fieldnames], axis=-1)
+            for name in self.env.robot.log_fieldnames_velocity], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_mes[time > time[-1] - 1.0]) < 1.0e-3))
 
