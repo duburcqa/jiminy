@@ -637,7 +637,7 @@ def plot_log_interactive():
     compare_data = OrderedDict()
     if main_arguments.compare is not None:
         for fullpath in main_arguments.compare.split(':'):
-            compare_data[fullpath], _ = read_log(fullpath)
+            compare_data[fullpath] = read_log(fullpath)["variables"]
 
     # Define linestyle cycle that will be used for comparison logs
     linestyles = ["--", "-.", ":"]

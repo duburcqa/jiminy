@@ -9,7 +9,6 @@ from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
 
 import numpy as np
 
-import pinocchio as pin
 from . import core as jiminy
 from .robot import (generate_default_hardware_description_file,
                     BaseJiminyRobot)
@@ -59,8 +58,7 @@ class Simulator:
     def __init__(self,
                  robot: jiminy.Robot,
                  controller: Optional[jiminy.AbstractController] = None,
-                 engine_class: Type[jiminy.Engine] = jiminy.Engine,
-                 use_theoretical_model: bool = False,
+                 engine_class: Type[jiminy.Engine] = jiminy.EngineMultiRobot,
                  viewer_backend: Optional[str] = None,
                  **kwargs: Any) -> None:
         """
@@ -69,9 +67,6 @@ class Simulator:
                            Optional: None by default.
         :param engine_class: Class of engine to use.
                              Optional: jiminy_py.core.Engine by default.
-        :param use_theoretical_model: Whether the state corresponds to the
-                                      theoretical model when updating and
-                                      fetching the robot's state.
         :param viewer_backend: Backend of the viewer, e.g. panda3d or meshcat.
                                Optional: It is setup-dependent. See `Viewer`
                                documentation for details about it.
@@ -79,7 +74,6 @@ class Simulator:
                        generation.
         """
         # Backup the user arguments
-        self.use_theoretical_model = use_theoretical_model
         self.viewer_backend = viewer_backend
 
         # Wrap callback in nested function to hide update of progress bar
@@ -93,7 +87,9 @@ class Simulator:
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = engine_class()
-        hresult = self.engine.initialize(robot, controller, callback_wrapper)
+        hresult = self.engine.add_system(
+            "", robot, controller, callback_wrapper)
+
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError(
                 "Invalid robot or controller. Make sure they are both "
@@ -102,8 +98,6 @@ class Simulator:
         # Create shared memories and python-native attribute for fast access
         self.is_simulation_running = self.engine.is_simulation_running
         self.stepper_state = self.engine.stepper_state
-        self.system_state = self.engine.system_state
-        self.sensors_data = self.robot.sensors_data
 
         # Reset the low-level jiminy engine
         self.reset()
@@ -180,7 +174,7 @@ class Simulator:
         # Instantiate and initialize the engine
         simulator = Simulator.__new__(cls)
         Simulator.__init__(
-            simulator, robot, engine_class=jiminy.Engine, **kwargs)
+            simulator, robot, engine_class=jiminy.EngineMultiRobot, **kwargs)
 
         # Get engine options
         engine_options = simulator.engine.get_options()
@@ -237,39 +231,26 @@ class Simulator:
         return super().__dir__() + self.engine.__dir__()
 
     @property
-    def pinocchio_model(self) -> pin.Model:
-        """Getter of the pinocchio model, depending on the value of
-           'use_theoretical_model'.
+    def system_state(self):
+        """Getter of system_state in single robot.
         """
-        if self.use_theoretical_model and self.robot.is_flexible:
-            return self.robot.pinocchio_model_th
-        else:
-            return self.robot.pinocchio_model
+        try:
+            return self.engine.systems_states[""]
+        except KeyError as e:
+            raise RuntimeError(
+                "This proxy is only available for single-robot simulation"
+                ) from e
 
     @property
-    def pinocchio_data(self) -> pin.Data:
-        """Getter of the pinocchio data, depending on the value of
-           'use_theoretical_model'.
-        """
-        if self.use_theoretical_model and self.robot.is_flexible:
-            return self.robot.pinocchio_data_th
-        else:
-            return self.robot.pinocchio_data
+    def system(self):
+        """Getter of system in single robot.
 
-    @property
-    def state(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Getter of the current state of the robot.
-
-        .. warning::
-            Return a reference whenever it is possible, which is
-            computationally efficient but unsafe.
+        .. warning:
+            This proxy is supposed to be used in single-robot simulation,
+            otherwise it returns the first system that was added to the
+            engine for efficiency.
         """
-        q = self.system_state.q
-        v = self.system_state.v
-        if self.use_theoretical_model and self.robot.is_flexible:
-            q = self.robot.get_rigid_configuration_from_flexible(q)
-            v = self.robot.get_rigid_velocity_from_flexible(v)
-        return q, v
+        return self.engine.systems[0]
 
     @property
     def is_viewer_available(self) -> bool:
@@ -331,10 +312,10 @@ class Simulator:
         self.engine.reset(False, remove_all_forces)
 
     def start(self,
-              q_init: np.ndarray,
-              v_init: np.ndarray,
-              a_init: Optional[np.ndarray] = None,
-              is_state_theoretical: bool = False) -> None:
+              q_init: Union[np.ndarray, Dict[str, np.ndarray]],
+              v_init: Union[np.ndarray, Dict[str, np.ndarray]],
+              a_init: Optional[Union[np.ndarray, Dict[str, np.ndarray]]] = None
+              ) -> None:
         """Initialize a simulation, starting from (q_init, v_init) at t=0.
 
         :param q_init: Initial configuration.
@@ -342,13 +323,15 @@ class Simulator:
         :param a_init: Initial acceleration. It is only used by acceleration
                        dependent sensors and controllers, such as IMU and force
                        sensors.
-        :param is_state_theoretical: Whether the initial state is associated
-                                     with the actual or theoretical model of
-                                     the robot.
         """
         # Call base implementation
-        hresult = self.engine.start(
-            q_init, v_init, a_init, is_state_theoretical)
+        if isinstance(q_init, np.ndarray):
+            q_init = {"": q_init}
+        if isinstance(v_init, np.ndarray):
+            v_init = {"": v_init}
+        if isinstance(a_init, np.ndarray):
+            a_init = {"": a_init}
+        hresult = self.engine.start(q_init, v_init, a_init)
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Failed to start the simulation.")
 
@@ -375,10 +358,10 @@ class Simulator:
 
     def simulate(self,
                  t_end: float,
-                 q_init: np.ndarray,
-                 v_init: np.ndarray,
-                 a_init: Optional[np.ndarray] = None,
-                 is_state_theoretical: bool = True,
+                 q_init: Union[np.ndarray, Dict[str, np.ndarray]],
+                 v_init: Union[np.ndarray, Dict[str, np.ndarray]],
+                 a_init: Optional[
+                    Union[np.ndarray, Dict[str, np.ndarray]]] = None,
                  log_path: Optional[str] = None,
                  show_progress_bar: bool = True) -> None:
         """Run a simulation, starting from x0=(q0,v0) at t=0 up to tf.
@@ -390,9 +373,6 @@ class Simulator:
         :param q_init: Initial configuration.
         :param v_init: Initial velocity.
         :param a_init: Initial acceleration.
-        :param is_state_theoretical: Whether the initial state is associated
-                                     with the actual or theoretical model of
-                                     the robot.
         :param log_path: Save log data to this location. Disable if None.
                          Note that the format extension '.data' is enforced.
                          Optional, disable by default.
@@ -408,8 +388,13 @@ class Simulator:
 
         # Run the simulation
         try:
-            return_code = self.engine.simulate(
-                t_end, q_init, v_init, a_init, is_state_theoretical)
+            if isinstance(q_init, np.ndarray):
+                q_init = {"": q_init}
+            if isinstance(v_init, np.ndarray):
+                v_init = {"": v_init}
+            if isinstance(a_init, np.ndarray):
+                a_init = {"": a_init}
+            return_code = self.engine.simulate(t_end, q_init, v_init, a_init)
         except Exception as e:
             logger.warning(
                 "The simulation failed due to Python exception:\n", str(e))
@@ -491,7 +476,7 @@ class Simulator:
 
             # Create new viewer instance
             viewer_backend = self.viewer_backend or Viewer.backend
-            self.viewer = Viewer(self.robot,
+            self.viewer = Viewer(self.system.robot,
                                  use_theoretical_model=False,
                                  open_gui_if_parent=False,
                                  **{'scene_name': scene_name,
@@ -510,7 +495,7 @@ class Simulator:
             if self.viewer_backend.startswith('panda3d'):
                 # Enable display of COM, DCM and contact markers by default if
                 # the robot has freeflyer.
-                if self.robot.has_freeflyer:
+                if self.system.robot.has_freeflyer:
                     if "display_com" not in kwargs:
                         self.viewer.display_center_of_mass(True)
                     if "display_dcm" not in kwargs:
@@ -522,11 +507,13 @@ class Simulator:
                 # the joints having an external force registered to it.
                 if "display_f_external" not in kwargs:
                     force_frames = set([
-                        self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_profile])
+                        self.system.robot.pinocchio_model.frames[
+                            f_i.frame_idx].parent
+                        for f_i in self.engine.forces_profile[""]])
                     force_frames |= set([
-                        self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_impulse])
+                        self.system.robot.pinocchio_model.frames[
+                            f_i.frame_idx].parent
+                        for f_i in self.engine.forces_impulse[""]])
                     visibility = self.viewer._display_f_external
                     for i in force_frames:
                         visibility[i - 1] = True
@@ -572,12 +559,12 @@ class Simulator:
             viewer.close()
 
         # Extract log data and robot from extra log files
-        robots = [self.robot]
+        robots = [self.system.robot]
         logs_data = [self.log_data]
         for log_file in extra_logs_files:
             log_data = read_log(log_file)
             robot = build_robot_from_log(
-                log_data, self.robot.mesh_package_dirs)
+                log_data, self.system.robot.mesh_package_dirs)
             robots.append(robot)
             logs_data.append(log_data)
 
@@ -666,7 +653,8 @@ class Simulator:
 
         # Create figure, without closing the existing one
         self.figure = plot_log(
-            self.log_data, self.robot, enable_flexiblity_data, block, **kwargs)
+            self.log_data, self.system.robot, enable_flexiblity_data, block,
+            **kwargs)
 
     def get_controller_options(self) -> dict:
         """Getter of the options of Jiminy Controller.
@@ -685,7 +673,7 @@ class Simulator:
             system=OrderedDict(robot=OrderedDict(), controller=OrderedDict()),
             engine=OrderedDict())
         robot_options = options['system']['robot']
-        robot_options_copy = self.robot.get_options()
+        robot_options_copy = self.system.robot.get_options()
         robot_options['model'] = robot_options_copy['model']
         robot_options['motors'] = robot_options_copy['motors']
         robot_options['sensors'] = robot_options_copy['sensors']
@@ -706,7 +694,7 @@ class Simulator:
         """Set the options of robot (including controller), and engine.
         """
         controller_options = options['system']['controller']
-        self.robot.set_options(options['system']['robot'])
+        self.system.robot.set_options(options['system']['robot'])
         self.set_controller_options(controller_options)
         self.engine.set_options(options['engine'])
 
@@ -721,10 +709,10 @@ class Simulator:
             method.
         """
         if config_path is None:
-            if isinstance(self.robot, BaseJiminyRobot):
-                urdf_path = self.robot._urdf_path_orig
+            if isinstance(self.system.robot, BaseJiminyRobot):
+                urdf_path = self.system.robot._urdf_path_orig
             else:
-                urdf_path = self.robot.urdf_path
+                urdf_path = self.system.robot.urdf_path
             if not urdf_path:
                 raise ValueError(
                     "'config_path' must be provided if the robot is not "
@@ -757,10 +745,10 @@ class Simulator:
             return source
 
         if config_path is None:
-            if isinstance(self.robot, BaseJiminyRobot):
-                urdf_path = self.robot._urdf_path_orig
+            if isinstance(self.system.robot, BaseJiminyRobot):
+                urdf_path = self.system.robot._urdf_path_orig
             else:
-                urdf_path = self.robot.urdf_path
+                urdf_path = self.system.robot.urdf_path
             if not urdf_path:
                 raise ValueError(
                     "'config_path' must be provided if the robot is not "

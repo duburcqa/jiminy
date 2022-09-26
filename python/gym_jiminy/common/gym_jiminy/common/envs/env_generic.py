@@ -135,10 +135,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.metadata['render.modes'].append('human')
 
         # Define some proxies for fast access
-        self.engine: jiminy.EngineMultiRobot = self.simulator.engine
-        self.stepper_state: jiminy.StepperState = self.engine.stepper_state
-        self.system_state: jiminy.SystemState = self.engine.system_state
-        self.sensors_data: jiminy.sensorsData = dict(self.robot.sensors_data)
+        self.engine = self.simulator.engine
+        self.robot = self.simulator.system.robot
+        self.stepper_state = self.simulator.stepper_state
+        self.system_state = self.simulator.system_state
+        self.sensors_data = dict(self.robot.sensors_data)
 
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
@@ -247,26 +248,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             low=0.0, high=self.simulator.simulation_duration_max, shape=(1,),
             dtype=np.float64)
 
-    def _get_state_space(self,
-                         use_theoretical_model: Optional[bool] = None
-                         ) -> spaces.Dict:
+    def _get_state_space(self) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
         definition of the state space is mostly consensual. One must rather
         overload `_initialize_observation_space` to customize the observation
         space as a whole.
-
-        :param use_theoretical_model: Whether to compute the state space
-                                      corresponding to the theoretical model to
-                                      the actual one. `None` to use internal
-                                      value 'simulator.use_theoretical_model'.
-                                      Optional: `None` by default.
         """
-        # Handling of default argument
-        if use_theoretical_model is None:
-            use_theoretical_model = self.simulator.use_theoretical_model
-
         # Define some proxies for convenience
         model_options = self.robot.get_model_options()
         joints_position_idx = self.robot.rigid_joints_position_idx
@@ -294,12 +283,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
             if not model_options['joints']['enableVelocityLimit']:
                 velocity_limit[joints_velocity_idx] = JOINT_VEL_MAX
-
-        # Define bounds of the state space
-        if use_theoretical_model:
-            position_limit_lower = position_limit_lower[joints_position_idx]
-            position_limit_upper = position_limit_upper[joints_position_idx]
-            velocity_limit = velocity_limit[joints_velocity_idx]
 
         return spaces.Dict(OrderedDict(
             Q=spaces.Box(low=position_limit_lower,
@@ -338,11 +321,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             rather overload `_initialize_observation_space` to customize the
             observation space as a whole.
         """
-        # Define some proxies for convenience
-        sensors_data = self.robot.sensors_data
+        # Get effort limit
         command_limit = self.robot.command_limit
 
-        state_space = self._get_state_space(use_theoretical_model=False)
+        state_space = self._get_state_space()
 
         # Replace inf bounds of the action space
         for motor_name in self.robot.motors_names:
@@ -354,13 +336,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Initialize the bounds of the sensor space
         sensor_space_lower = OrderedDict(
             (key, np.full(value.shape, -np.inf))
-            for key, value in sensors_data.items())
+            for key, value in self.sensors_data.items())
         sensor_space_upper = OrderedDict(
             (key, np.full(value.shape, np.inf))
-            for key, value in sensors_data.items())
+            for key, value in self.sensors_data.items())
 
         # Replace inf bounds of the encoder sensor space
-        if encoder.type in sensors_data.keys():
+        if encoder.type in self.sensors_data.keys():
             sensor_list = self.robot.sensors_names[encoder.type]
             for sensor_name in sensor_list:
                 # Get the position and velocity bounds of the sensor.
@@ -391,7 +373,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     sensor_velocity_limit
 
         # Replace inf bounds of the effort sensor space
-        if effort.type in sensors_data.keys():
+        if effort.type in self.sensors_data.keys():
             sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
                 sensor = self.robot.get_sensor(effort.type, sensor_name)
@@ -403,7 +385,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     +command_limit[motor_idx]
 
         # Replace inf bounds of the imu sensor space
-        if imu.type in sensors_data.keys():
+        if imu.type in self.sensors_data.keys():
             quat_imu_idx = [
                 field.startswith('Quat') for field in imu.fieldnames]
             sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0 - 1e-12
@@ -411,19 +393,19 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         if self.enforce_bounded_spaces:
             # Replace inf bounds of the contact sensor space
-            if contact.type in sensors_data.keys():
+            if contact.type in self.sensors_data.keys():
                 sensor_space_lower[contact.type][:, :] = -SENSOR_FORCE_MAX
                 sensor_space_upper[contact.type][:, :] = SENSOR_FORCE_MAX
 
             # Replace inf bounds of the force sensor space
-            if force.type in sensors_data.keys():
+            if force.type in self.sensors_data.keys():
                 sensor_space_lower[force.type][:3, :] = -SENSOR_FORCE_MAX
                 sensor_space_upper[force.type][:3, :] = SENSOR_FORCE_MAX
                 sensor_space_lower[force.type][3:, :] = -SENSOR_MOMENT_MAX
                 sensor_space_upper[force.type][3:, :] = SENSOR_MOMENT_MAX
 
             # Replace inf bounds of the imu sensor space
-            if imu.type in sensors_data.keys():
+            if imu.type in self.sensors_data.keys():
                 gyro_imu_idx = [
                     field.startswith('Gyro') for field in imu.fieldnames]
                 sensor_space_lower[imu.type][gyro_imu_idx, :] = \
@@ -628,16 +610,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
-        if not jiminy.is_position_valid(
-                self.simulator.pinocchio_model, qpos):
+        if not jiminy.is_position_valid(self.robot.pinocchio_model, qpos):
             raise RuntimeError(
                 "The initial state provided by `_sample_state` is "
                 "inconsistent with the dimension or types of joints of the "
                 "model.")
 
         # Start the engine
-        self.simulator.start(
-            qpos, qvel, None, self.simulator.use_theoretical_model)
+        self.simulator.start(qpos, qvel)
 
         # Initialize shared buffers
         self._initialize_buffers()
@@ -1252,9 +1232,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if hi < val or val < lo:
                 qpos[idx] = 0.5 * (lo + hi)
 
-        # Return rigid/flexible configuration
-        if self.simulator.use_theoretical_model:
-            return qpos[self.robot.rigid_joints_position_idx]
+        # Return clipped configuration
         return qpos
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -1363,14 +1341,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         assert isinstance(self._observation, dict)
         self._observation['t'][0] = self.stepper_state.t
         if not self.simulator.is_simulation_running:
-            (self._observation['state']['Q'],
-             self._observation['state']['V']) = self.simulator.state
+            q, v = self.system_state.q, self.system_state.v
+            self._observation['state']['Q'] = q
+            self._observation['state']['V'] = v
             if self.sensors_data:
                 self._observation['sensors'] = self.sensors_data
-        else:
-            position, velocity = self.simulator.state
-            self._observation['state']['Q'][:] = position
-            self._observation['state']['V'][:] = velocity
 
     def compute_command(self,
                         measure: DataNested,

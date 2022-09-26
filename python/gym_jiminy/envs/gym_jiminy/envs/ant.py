@@ -39,15 +39,15 @@ class AntEnv(BaseJiminyEnv):
 
         # Configure the backend simulator
         simulator = Simulator.build(
-            urdf_path, hardware_path, data_root_dir,
-            has_freeflyer=True, use_theoretical_model=False,
+            urdf_path, hardware_path, data_root_dir, has_freeflyer=True,
             config_path=config_path, debug=debug, **kwargs)
 
-        # Get the list of independant bodies (not connected via fixed joint)
+        # Get the list of independent bodies (not connected via fixed joint)
         self.bodies_idx = [0]  # World is part of bodies list
-        for i, frame in enumerate(simulator.robot.pinocchio_model.frames):
+        for i, frame in enumerate(
+                simulator.system.robot.pinocchio_model.frames):
             if frame.type == FrameType.BODY:
-                frame_prev = simulator.robot.pinocchio_model.frames[
+                frame_prev = simulator.system.robot.pinocchio_model.frames[
                     frame.previousFrame]
                 if frame_prev.type != FrameType.FIXED_JOINT:
                     self.bodies_idx.append(i)

@@ -125,11 +125,11 @@ class PipelineDesign(unittest.TestCase):
         self.assertTrue(np.all(controller_target_obs['V'][-1] == 0.0))
 
         # Observation is consistent with internal simulator state
-        imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
+        imu_data_ref = env.sensors_data['ImuSensor']
         imu_data_obs = obs['sensors']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
-        state_ref = {'Q': env.simulator.engine.system_state.q,
-                     'V': env.simulator.engine.system_state.v}
+        state_ref = {'Q': env.system_state.q,
+                     'V': env.system_state.v}
         state_obs = obs['state']
         self.assertTrue(np.all(state_ref['Q'] == state_obs['Q']))
         self.assertTrue(np.all(state_ref['V'] == state_obs['V']))
@@ -151,11 +151,11 @@ class PipelineDesign(unittest.TestCase):
         # Initial observation is consistent with internal simulator state
         controller_target_obs = obs['targets']['controller_0']
         self.assertTrue(np.all(controller_target_obs['Q'][-1] == action['Q']))
-        imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
+        imu_data_ref = env.sensors_data['ImuSensor']
         imu_data_obs = obs['sensors']['ImuSensor'][-1]
         self.assertFalse(np.all(imu_data_ref == imu_data_obs))
-        state_ref = {'Q': env.simulator.engine.system_state.q,
-                     'V': env.simulator.engine.system_state.v}
+        state_ref = {'Q': env.system_state.q,
+                     'V': env.system_state.v}
         state_obs = obs['state']
         self.assertTrue(np.all(state_ref['Q'] == state_obs['Q']))
         self.assertTrue(np.all(state_ref['V'] == state_obs['V']))
@@ -167,7 +167,7 @@ class PipelineDesign(unittest.TestCase):
         for i, t in enumerate(np.flip(obs['t'])):
             self.assertTrue(np.isclose(
                 t, n_steps_breakpoint * env.step_dt - i * stack_dt, 1.0e-6))
-        imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
+        imu_data_ref = env.sensors_data['ImuSensor']
         imu_data_obs = obs['sensors']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
 

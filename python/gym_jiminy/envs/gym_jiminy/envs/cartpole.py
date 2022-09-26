@@ -114,9 +114,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         simulator = Simulator(robot)
 
         # OpenAI Gym implementation of Cartpole has no velocity limit
-        model_options = simulator.robot.get_model_options()
+        model_options = simulator.system.robot.get_model_options()
         model_options["joints"]["enableVelocityLimit"] = False
-        simulator.robot.set_model_options(model_options)
+        simulator.system.robot.set_model_options(model_options)
 
         # Map between discrete actions and actual motor force if necessary
         if not self.continuous:

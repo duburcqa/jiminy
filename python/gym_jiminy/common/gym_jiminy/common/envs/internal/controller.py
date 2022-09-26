@@ -82,7 +82,7 @@ class BaseJiminyObserverController(jiminy.BaseController):
         try:
             if not unsafe and observer_handle is not None:
                 t, q, v = 0.0, np.zeros(self.robot.nq), np.zeros(self.robot.nv)
-                sensors_data = self.robot.sensors_data
+                sensors_data = self.sensors_data
                 observer_handle(t, q, v, sensors_data)
             self.__observer_handle = observer_handle
         except Exception as e:
@@ -114,7 +114,7 @@ class BaseJiminyObserverController(jiminy.BaseController):
         try:
             if not unsafe and controller_handle is not None:
                 t, q, v = 0.0, np.zeros(self.robot.nq), np.zeros(self.robot.nv)
-                sensors_data = self.robot.sensors_data
+                sensors_data = self.sensors_data
                 command = np.zeros(self.robot.nmotors)
                 controller_handle(t, q, v, sensors_data, command)
             self.__controller_handle = controller_handle

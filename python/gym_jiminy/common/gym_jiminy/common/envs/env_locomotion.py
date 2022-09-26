@@ -169,8 +169,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 avoid_instable_collisions=self.avoid_instable_collisions,
                 debug=debug,
                 **{**dict(
-                    has_freeflyer=True,
-                    use_theoretical_model=False),
+                    has_freeflyer=True),
                     **kwargs})
         else:
             # Instantiate a simulator and load the options

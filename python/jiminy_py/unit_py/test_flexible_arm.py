@@ -16,6 +16,8 @@ import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import Viewer, play_logs_files
 
+from pinocchio import neutral
+
 from utilities import load_urdf_default
 
 
@@ -119,23 +121,23 @@ class SimulateFlexibleArm(unittest.TestCase):
 
     def _read_write_replay_log(self, log_format):
         # Set initial condition and simulation duration
-        q0, v0 = np.array([0.]), np.array([0.])
+        q0 = neutral(self.simulator.system.robot.pinocchio_model)
+        v0 = np.zeros(self.simulator.system.robot.pinocchio_model.nv)
         t_end = 4.0
 
         # Generate temporary log file
         ext = log_format if log_format != "binary" else "data"
         fd, log_path = tempfile.mkstemp(
-            prefix=f"{self.simulator.robot.name}_", suffix=f".{ext}")
+            prefix=f"{self.simulator.system.robot.name}_", suffix=f".{ext}")
         os.close(fd)
 
         # Run the simulation
         self.simulator.simulate(
-            t_end, q0, v0, is_state_theoretical=True, log_path=log_path,
-            show_progress_bar=False)
+            t_end, q0, v0, log_path=log_path, show_progress_bar=False)
 
         # Generate temporary video file
         fd, video_path = tempfile.mkstemp(
-            prefix=f"{self.simulator.robot.name}_", suffix=".mp4")
+            prefix=f"{self.simulator.system.robot.name}_", suffix=".mp4")
         os.close(fd)
 
         # Record the result
@@ -162,7 +164,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         self.simulator.engine.set_options(engine_options)
 
         # Specify joint flexibility parameters
-        model_options = self.simulator.robot.get_model_options()
+        model_options = self.simulator.system.robot.get_model_options()
         model_options['dynamics']['enableFlexibleModel'] = True
         model_options['dynamics']['flexibilityConfig'] = [{
             'frameName': f"link{i}_to_link{i+1}",
@@ -170,7 +172,7 @@ class SimulateFlexibleArm(unittest.TestCase):
             'damping': 0.2 * np.ones(3),
             'inertia': np.array([1.0, 1.0, 1.0e-3])
         } for i in range(N_FLEXIBILITY)]
-        self.simulator.robot.set_model_options(model_options)
+        self.simulator.system.robot.set_model_options(model_options)
 
         # Check both HDF5 and binary log formats
         for log_format in ('hdf5', 'binary'):
@@ -184,13 +186,16 @@ class SimulateFlexibleArm(unittest.TestCase):
         @brief Test if the result is the same with and without flexibility
         if the inertia is extremely large.
         """
+        # Define proxies for convenience
+        robot = self.simulator.system.robot
+
         # Set initial condition and simulation duration
-        q0, v0 = np.array([0.]), np.array([0.])
+        q0_rigid, v0_rigid = np.array([0.]), np.array([0.])
         t_end = 4.0
 
         # Run a first simulation without flexibility
         self.simulator.simulate(
-            t_end, q0, v0, is_state_theoretical=True, show_progress_bar=False)
+            t_end, q0_rigid, v0_rigid, show_progress_bar=False)
 
         # Extract the final configuration
         q_rigid = self.simulator.system_state.q.copy()
@@ -204,7 +209,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         q_flex, img_flex, pnc_model_flex, visual_model_flex = [], [], [], []
         for order in (range(N_FLEXIBILITY), range(N_FLEXIBILITY)[::-1]):
             # Specify joint flexibility parameters
-            model_options = self.simulator.robot.get_model_options()
+            model_options = robot.get_model_options()
             model_options['dynamics']['enableFlexibleModel'] = True
             model_options['dynamics']['flexibilityConfig'] = [{
                 'frameName': f"link{i}_to_link{i+1}",
@@ -212,23 +217,21 @@ class SimulateFlexibleArm(unittest.TestCase):
                 'damping': np.zeros(3),
                 'inertia': np.full(3, fill_value=1e6)
             } for i in order]
-            self.simulator.robot.set_model_options(model_options)
+            robot.set_model_options(model_options)
 
             # Serialize the model
-            pnc_model_flex.append(
-                self.simulator.robot.pinocchio_model.copy())
-            visual_model_flex.append(
-                self.simulator.robot.visual_model.copy())
+            pnc_model_flex.append(robot.pinocchio_model.copy())
+            visual_model_flex.append(robot.visual_model.copy())
 
             # Launch the simulation
+            q0_flex = robot.get_flexible_configuration_from_rigid(q0_rigid)
+            v0_flex = robot.get_flexible_velocity_from_rigid(v0_rigid)
             self.simulator.simulate(
-                t_end, q0, v0, is_state_theoretical=True,
-                show_progress_bar=False)
+                t_end, q0_flex, v0_flex, show_progress_bar=False)
 
             # Extract the final configuration
-            q_flex.append(
-                self.simulator.robot.get_rigid_configuration_from_flexible(
-                    self.simulator.system_state.q))
+            q_flex.append(robot.get_rigid_configuration_from_flexible(
+                self.simulator.system_state.q))
 
             # Render the scene
             img_flex.append(self.simulator.render(
