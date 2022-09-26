@@ -39,6 +39,7 @@ from .log import (SENSORS_FIELDS,
                   build_robots_from_log)
 from .viewer import interactive_mode
 
+
 def unwrap_log_vars(systems_names, log_vars):
     if len(systems_names) == 1 and systems_names[0] == "":
         logs_vars = {systems_names[0]: log_vars}
@@ -502,7 +503,7 @@ def plot_log_data(log_data: Dict[str, Any],
         - Subplots with raw sensor data (one tab for each type of sensor)
 
     :param log_data: Logged data (constants and variables) as a dictionary.
-    :param robots: Dictionnary of Jiminy robots associated with the logged 
+    :param robots: Dictionnary of Jiminy robots associated with the logged
                    trajectory.
                    Optional: None by default. If None, then it will be
                    reconstructed from 'log_data' using `build_robot_from_log`.
@@ -530,11 +531,11 @@ def plot_log_data(log_data: Dict[str, Any],
     if not robots:
         robots = build_robots_from_log(log_data["constants"])
     log_vars = unwrap_log_vars(list(robots.keys()), log_data["variables"])
-    
+
     # Plot
     for system_name in log_vars.keys():
         # Extract the log data to the system to plot
-        
+
         log_vars_system = log_vars[system_name]
         robot = robots[system_name]
 
@@ -592,9 +593,10 @@ def plot_log_data(log_data: Dict[str, Any],
                             for field, values in zip(fieldnames, sensors_data))
             else:
                 for field in sensors_fields:
-                    sensors_data = extract_variables_from_log(log_vars_system, [
-                        '.'.join((name, field)) for name in sensors_names
-                        ], namespace)
+                    sensors_data = extract_variables_from_log(
+                        log_vars_system,
+                        ['.'.join((name, field)) for name in sensors_names],
+                        namespace)
                     if sensors_data is not None:
                         tabs_data[' '.join((sensors_type, field))] = \
                             OrderedDict(zip(sensors_names, sensors_data))
@@ -602,7 +604,7 @@ def plot_log_data(log_data: Dict[str, Any],
         # Create figure, without closing the existing one
         figures.append(TabbedFigure.plot(
             time, tabs_data, **{"plot_method": "plot", **kwargs}))
-    
+
     # Block if needed
     if not all(figure.offscreen for figure in figures):
         plt.show(block=block)

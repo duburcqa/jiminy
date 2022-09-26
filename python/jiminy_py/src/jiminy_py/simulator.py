@@ -1,4 +1,3 @@
-from asyncio import constants
 import os
 import toml
 import atexit
@@ -125,12 +124,13 @@ def unwrap_log_vars(systems_names, log_vars):
                         f'{system_name}.', '')] = log_vars[key]
     return logs_vars
 
+
 def unwrap_log_constants(systems_names, log_constants):
     if len(systems_names) == 1 and systems_names[0] == "":
         logs_vars = {systems_names[0]: log_constants}
     else:
         logs_vars = {system_name: {}
-            for system_name in systems_names}
+                     for system_name in systems_names}
         for key in log_constants.keys():
             for system_name in systems_names:
                 if system_name in key:
@@ -766,7 +766,7 @@ class Simulator:
             robot = robots[system_name]
             log_vars = logs_vars[system_name]
             log_constants = logs_constants[system_name]
-            log_data = {"variables" : log_vars, "constants": log_constants}
+            log_data = {"variables": log_vars, "constants": log_constants}
             if log_vars:
                 traj, update_hook, _kwargs = \
                     extract_replay_data_from_log(log_vars, robot=robot)
