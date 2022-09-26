@@ -3996,7 +3996,14 @@ namespace jiminy
         // Open HDF5 logfile
         std::unique_ptr<H5::H5File> file;
         try {
-            file = std::make_unique<H5::H5File>(filename, H5F_ACC_RDONLY);
+            /* Specifying `H5F_CLOSE_STRONG` must be specified to completely
+               close the file (including all open objects) before returning.
+               See: https://docs.hdfgroup.org/hdf5/v1_12/group___f_a_p_l.html#ga60e3567f677fd3ade75b909b636d7b9c
+            */
+            H5::FileAccPropList access_plist;
+            access_plist.setFcloseDegree(H5F_CLOSE_STRONG);
+            file = std::make_unique<H5::H5File>(
+                filename, H5F_ACC_RDONLY, H5::FileCreatPropList::DEFAULT, access_plist);
         } catch (H5::FileIException const & open_file) {
             PRINT_ERROR("Impossible to open the log file. "
                         "Make sure it exists and you have reading permissions.");
@@ -4123,7 +4130,10 @@ namespace jiminy
         // Open HDF5 logfile
         std::unique_ptr<H5::H5File> file;
         try {
-            file = std::make_unique<H5::H5File>(filename, H5F_ACC_TRUNC);
+            H5::FileAccPropList access_plist;
+            access_plist.setFcloseDegree(H5F_CLOSE_STRONG);
+            file = std::make_unique<H5::H5File>(
+                filename, H5F_ACC_TRUNC, H5::FileCreatPropList::DEFAULT, access_plist);
         } catch (H5::FileIException const & open_file) {
             PRINT_ERROR("Impossible to create the log file. "
                         "Make sure the root folder exists and you have writing permissions.");
