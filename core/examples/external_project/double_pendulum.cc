@@ -117,18 +117,14 @@ int main(int argc, char_t * argv[])
 
     // Write the log file
     std::vector<std::string> fieldnames;
-    matrixN_t log;
-    engine->getLogData(fieldnames, log);
-    std::cout << log.rows() << " log points" << std::endl;
+    std::shared_ptr<logData_t const> logData;
+    engine->getLog(logData);
+    std::cout << logData->timestamps.size() << " log points" << std::endl;
     std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
     timer.tic();
     engine->writeLog((outputDirPath / "log.data").string(), "binary");
     timer.toc();
     std::cout << "Write log binary: " << (timer.dt * 1.0e3) << "ms" << std::endl;
-    timer.tic();
-    engine->writeLog((outputDirPath / "log.csv").string(), "csv");
-    timer.toc();
-    std::cout << "Write log CSV: " << (timer.dt * 1.0e3) << "ms" << std::endl;
     timer.tic();
     engine->writeLog((outputDirPath / "log.hdf5").string(), "hdf5");
     timer.toc();

@@ -185,17 +185,17 @@ def simulate_and_get_state_evolution(
     assert hresult == jiminy.hresult_t.SUCCESS
 
     # Get log data
-    log_data, _ = engine.get_log()
+    log_vars = engine.log_data["variables"]
 
     # Extract state evolution over time
-    time = log_data['Global.Time']
+    time = log_vars['Global.Time']
     if isinstance(engine, jiminy.Engine):
         q_jiminy = np.stack([
-            log_data['.'.join(['HighLevelController', s])]
-            for s in engine.robot.logfile_position_headers], axis=-1)
+            log_vars['.'.join(['HighLevelController', s])]
+            for s in engine.robot.log_fieldnames_position], axis=-1)
         v_jiminy = np.stack([
-            log_data['.'.join(['HighLevelController', s])]
-            for s in engine.robot.logfile_velocity_headers], axis=-1)
+            log_vars['.'.join(['HighLevelController', s])]
+            for s in engine.robot.log_fieldnames_velocity], axis=-1)
         if split:
             return time, q_jiminy, v_jiminy
         else:
@@ -203,12 +203,12 @@ def simulate_and_get_state_evolution(
             return time, x_jiminy
     else:
         q_jiminy = [np.stack([
-            log_data['.'.join(['HighLevelController', sys.name, s])]
-            for s in sys.robot.logfile_position_headers
+            log_vars['.'.join(['HighLevelController', sys.name, s])]
+            for s in sys.robot.log_fieldnames_position
         ], axis=-1) for sys in engine.systems]
         v_jiminy = [np.stack([
-            log_data['.'.join(['HighLevelController', sys.name, s])]
-            for s in sys.robot.logfile_velocity_headers
+            log_vars['.'.join(['HighLevelController', sys.name, s])]
+            for s in sys.robot.log_fieldnames_velocity
         ], axis=-1) for sys in engine.systems]
         if split:
             return time, q_jiminy, v_jiminy

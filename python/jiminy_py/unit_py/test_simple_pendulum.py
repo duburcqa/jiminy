@@ -74,24 +74,24 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, q0, v0)
 
         # Get log data
-        log_data, _ = engine.get_log()
+        log_vars = engine.log_data["variables"]
 
         # Extract state evolution over time
-        time = log_data['Global.Time']
+        time = log_vars['Global.Time']
         if split:
             quat_jiminy = np.stack([
-                log_data['PendulumLink.Quat' + s] for s in ['x', 'y', 'z', 'w']
+                log_vars['PendulumLink.Quat' + s] for s in ['x', 'y', 'z', 'w']
             ], axis=-1)
             gyro_jiminy = np.stack([
-                log_data['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']
+                log_vars['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']
             ], axis=-1)
             accel_jiminy = np.stack([
-                log_data['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
+                log_vars['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
             ], axis=-1)
             return time, quat_jiminy, gyro_jiminy, accel_jiminy
         else:
             imu_jiminy = np.stack([
-                log_data['PendulumLink.' + f]
+                log_vars['PendulumLink.' + f]
                 for f in jiminy.ImuSensor.fieldnames], axis=-1)
             return time, imu_jiminy
 

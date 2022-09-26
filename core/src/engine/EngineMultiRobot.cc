@@ -727,25 +727,25 @@ namespace jiminy
             for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
             {
                 // Generate the log fieldnames
-                systemDataIt->positionFieldnames =
-                    addCircumfix(systemIt->robot->getPositionFieldnames(),
+                systemDataIt->logFieldnamesPosition =
+                    addCircumfix(systemIt->robot->getLogFieldnamesPosition(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->velocityFieldnames =
-                    addCircumfix(systemIt->robot->getVelocityFieldnames(),
+                systemDataIt->logFieldnamesVelocity =
+                    addCircumfix(systemIt->robot->getLogFieldnamesVelocity(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->accelerationFieldnames =
-                    addCircumfix(systemIt->robot->getAccelerationFieldnames(),
+                systemDataIt->logFieldnamesAcceleration =
+                    addCircumfix(systemIt->robot->getLogFieldnamesAcceleration(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->forceExternalFieldnames =
-                    addCircumfix(systemIt->robot->getForceExternalFieldnames(),
+                systemDataIt->logFieldnamesForceExternal =
+                    addCircumfix(systemIt->robot->getLogFieldnamesForceExternal(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->commandFieldnames =
+                systemDataIt->logFieldnamesCommand =
                     addCircumfix(systemIt->robot->getCommandFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->motorEffortFieldnames =
+                systemDataIt->logFieldnamesMotorEffort =
                     addCircumfix(systemIt->robot->getMotorEffortFieldnames(),
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
-                systemDataIt->energyFieldname =
+                systemDataIt->logFieldnameEnergy =
                     addCircumfix("energy",
                                  systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
 
@@ -755,7 +755,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableConfiguration)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->positionFieldnames,
+                            systemDataIt->logFieldnamesPosition,
                             systemDataIt->state.q);
                     }
                 }
@@ -764,7 +764,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableVelocity)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->velocityFieldnames,
+                            systemDataIt->logFieldnamesVelocity,
                             systemDataIt->state.v);
                     }
                 }
@@ -773,7 +773,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableAcceleration)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->accelerationFieldnames,
+                            systemDataIt->logFieldnamesAcceleration,
                             systemDataIt->state.a);
                     }
                 }
@@ -785,7 +785,7 @@ namespace jiminy
                         for (uint8_t j = 0; j < 6U; ++j)
                         {
                             returnCode = telemetrySender_.registerVariable(
-                                systemDataIt->forceExternalFieldnames[(i - 1) * 6U + j],
+                                systemDataIt->logFieldnamesForceExternal[(i - 1) * 6U + j],
                                 fext[j]);
                         }
                     }
@@ -795,7 +795,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableCommand)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->commandFieldnames,
+                            systemDataIt->logFieldnamesCommand,
                             systemDataIt->state.command);
                     }
                 }
@@ -804,7 +804,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableMotorEffort)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->motorEffortFieldnames,
+                            systemDataIt->logFieldnamesMotorEffort,
                             systemDataIt->state.uMotor);
                     }
                 }
@@ -813,7 +813,7 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableEnergy)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->energyFieldname, 0.0);
+                            systemDataIt->logFieldnameEnergy, 0.0);
                     }
                 }
 
@@ -857,17 +857,17 @@ namespace jiminy
             // Update telemetry values
             if (engineOptions_->telemetry.enableConfiguration)
             {
-                telemetrySender_.updateValue(systemDataIt->positionFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesPosition,
                                              systemDataIt->state.q);
             }
             if (engineOptions_->telemetry.enableVelocity)
             {
-                telemetrySender_.updateValue(systemDataIt->velocityFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesVelocity,
                                              systemDataIt->state.v);
             }
             if (engineOptions_->telemetry.enableAcceleration)
             {
-                telemetrySender_.updateValue(systemDataIt->accelerationFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesAcceleration,
                                              systemDataIt->state.a);
             }
             if (engineOptions_->telemetry.enableForceExternal)
@@ -878,24 +878,24 @@ namespace jiminy
                     for (uint8_t j = 0; j < 6U; ++j)
                     {
                         telemetrySender_.updateValue(
-                            systemDataIt->forceExternalFieldnames[(i - 1) * 6U + j],
+                            systemDataIt->logFieldnamesForceExternal[(i - 1) * 6U + j],
                             fext[j]);
                     }
                 }
             }
             if (engineOptions_->telemetry.enableCommand)
             {
-                telemetrySender_.updateValue(systemDataIt->commandFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesCommand,
                                              systemDataIt->state.command);
             }
             if (engineOptions_->telemetry.enableMotorEffort)
             {
-                telemetrySender_.updateValue(systemDataIt->motorEffortFieldnames,
+                telemetrySender_.updateValue(systemDataIt->logFieldnamesMotorEffort,
                                              systemDataIt->state.uMotor);
             }
             if (engineOptions_->telemetry.enableEnergy)
             {
-                telemetrySender_.updateValue(systemDataIt->energyFieldname, energy);
+                telemetrySender_.updateValue(systemDataIt->logFieldnameEnergy, energy);
             }
 
             systemIt->controller->updateTelemetry();
@@ -3970,28 +3970,7 @@ namespace jiminy
     // ================ Log reading and writing utilities ================
     // ===================================================================
 
-    void logDataToEigenMatrix(logData_t const & logData,
-                              matrixN_t       & logMatrix)
-    {
-        // Never empty since it contains at least the initial state
-        logMatrix.resize(logData.timestamps.size(), 1U + logData.numInt + logData.numFloat);
-        logMatrix.col(0) = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-            logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() * logData.timeUnit;
-        for (std::size_t i=0; i<logData.intData.size(); ++i)
-        {
-            logMatrix.block(i, 1, 1, logData.numInt) =
-                Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-                    logData.intData[i].data(), logData.numInt).cast<float64_t>();
-        }
-        for (std::size_t i=0; i<logData.floatData.size(); ++i)
-        {
-            logMatrix.block(i, 1 + logData.numInt, 1, logData.numFloat) =
-                Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
-                    logData.floatData[i].data(), logData.numFloat);
-        }
-    }
-
-    hresult_t EngineMultiRobot::getLogDataRaw(std::shared_ptr<logData_t const> & logData)
+    hresult_t EngineMultiRobot::getLog(std::shared_ptr<logData_t const> & logData)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -3999,7 +3978,7 @@ namespace jiminy
         if (!logData_)
         {
             logData_ = std::make_shared<logData_t>();
-            returnCode = telemetryRecorder_->getData(*logData_);
+            returnCode = telemetryRecorder_->getLog(*logData_);
         }
 
         // Return shared pointer to internal log data buffer
@@ -4008,201 +3987,271 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::getLogData(std::vector<std::string> & fieldnames,
-                                           matrixN_t                & logMatrix)
+    hresult_t readLogHdf5(std::string const & filename,
+                          logData_t         & logData)
     {
-        std::shared_ptr<logData_t const> logData;
-        hresult_t returnCode = getLogDataRaw(logData);
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (!logData->timestamps.empty())
-            {
-                logDataToEigenMatrix(*logData, logMatrix);
-                fieldnames = logData->fieldnames;  // copy instead of move, to not alter the buffer
-            }
+        // Clear log data if any
+        logData = {};
+
+        // Open HDF5 logfile
+        std::unique_ptr<H5::H5File> file;
+        try {
+            file = std::make_unique<H5::H5File>(filename, H5F_ACC_RDONLY);
+        } catch (H5::FileIException const & open_file) {
+            PRINT_ERROR("Impossible to open the log file. "
+                        "Make sure it exists and you have reading permissions.");
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
-        return returnCode;
-    }
-
-    hresult_t EngineMultiRobot::writeLogCsv(std::string const & filename)
-    {
-        std::vector<std::string> fieldnames;
-        matrixN_t logMatrix;
-        hresult_t returnCode = getLogData(fieldnames, logMatrix);
-        if (returnCode == hresult_t::SUCCESS)
+        // Extract all constants. There is no ordering among them, unlike variables.
+        H5::Group constantsGroup = file->openGroup("/constants");
+        file->iterateElems("/constants", NULL, [](
+            hid_t group, char const * name, void * op_data) -> herr_t
         {
-            if (fieldnames.empty())
-            {
-                PRINT_ERROR("No data available. Please start a simulation before writing log.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-        }
+            logData_t * logDataPtr = static_cast<logData_t *>(op_data);
+            H5::Group _constantsGroup(group);
+            H5::DataSet const constantDataSet = _constantsGroup.openDataSet(name);
+            H5::DataSpace const constantSpace = H5::DataSpace(H5S_SCALAR);
+            H5::StrType const constantDataType = constantDataSet.getStrType();
+            hssize_t const numBytes = constantDataType.getSize();
+            H5::StrType stringType(H5::PredType::C_S1, numBytes);
+            stringType.setStrpad(H5T_str_t::H5T_STR_NULLPAD);
+            std::string value(numBytes, '\0');
+            constantDataSet.read(value.data(), stringType, constantSpace);
+            logDataPtr->constants.emplace_back(name, std::move(value));
+            return 0;
+        }, static_cast<void *>(&logData));
 
-        if (returnCode == hresult_t::SUCCESS)
+        // Extract the timestamps
+        H5::DataSet const globalTimeDataSet = file->openDataSet(GLOBAL_TIME);
+        H5::DataSpace const timeSpace = globalTimeDataSet.getSpace();
+		hssize_t numData = timeSpace.getSimpleExtentNpoints();
+        logData.timestamps.resize(numData);
+        globalTimeDataSet.read(logData.timestamps.data(), H5::PredType::NATIVE_INT64);
+
+        // Add "unit" attribute to GLOBAL_TIME vector
+        H5::Attribute const unitAttrib = globalTimeDataSet.openAttribute("unit");
+        unitAttrib.read(H5::PredType::NATIVE_DOUBLE, &logData.timeUnit);
+
+        // Get the (partitioned) number of variables
+        H5::Group variablesGroup = file->openGroup("/variables");
+        int64_t numInt = 0, numFloat = 0;
+        std::pair<int64_t &, int64_t &> numVar {numInt, numFloat};
+        H5Literate(variablesGroup.getId(), H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL, [](
+            hid_t group, char const * name, H5L_info2_t const * /* oinfo */, void * op_data
+            ) -> herr_t
         {
-            std::ofstream file = std::ofstream(filename, std::ios::out | std::ofstream::trunc);
-
-            if (!file.is_open())
+            auto [_numInt, _numFloat] =
+                *static_cast<std::pair<int64_t &, int64_t &> *>(op_data);
+            H5::Group fieldGroup = H5::Group(group).openGroup(name);
+            H5::DataSet const valueDataset = fieldGroup.openDataSet("value");
+            H5T_class_t const valueType = valueDataset.getTypeClass();
+            if(valueType == H5T_FLOAT)
             {
-                PRINT_ERROR("Impossible to create the log file. Check if root folder exists and "
-                            "if you have writing permissions.");
-                return hresult_t::ERROR_BAD_INPUT;
+                ++_numFloat;
             }
+            else
+            {
+                ++_numInt;
+            }
+            return 0;
+        }, static_cast<void *>(&numVar));
 
-            std::copy(fieldnames.begin(), fieldnames.end() - 1,
-                      std::ostream_iterator<std::string>(file, ", "));
-            std::copy(fieldnames.end() - 1, fieldnames.end(),
-                      std::ostream_iterator<std::string>(file, "\n"));
-            Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
-            file << logMatrix.format(CSVFormat);
+        // Pre-allocate memory
+        logData.intData.resize(numInt, numData);
+        logData.floatData.resize(numFloat, numData);
+        Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector(numData);
+        Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector(numData);
+        logData.fieldnames.reserve(1 + numInt + numFloat);
+        logData.fieldnames.push_back(GLOBAL_TIME);
 
-            file.close();
-        }
+        // Read all variables while preserving ordering
+        using opDataT = std::tuple<
+            logData_t &,
+            Eigen::Matrix<int64_t, Eigen::Dynamic, 1> &,
+            Eigen::Matrix<float64_t, Eigen::Dynamic, 1> &>;
+        opDataT opData {logData, intVector, floatVector};
+        H5Literate(variablesGroup.getId(), H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL, [](
+            hid_t group, char const * name, H5L_info2_t const * /* oinfo */, void * op_data
+            ) -> herr_t
+        {
+            auto [_logData, _intVector, _floatVector] = *static_cast<opDataT *>(op_data);
+            Eigen::Index const varIdx = _logData.fieldnames.size() - 1;
+            int64_t const _numInt = _logData.intData.rows();
+            H5::Group fieldGroup = H5::Group(group).openGroup(name);
+            H5::DataSet const valueDataset = fieldGroup.openDataSet("value");
+            if(varIdx < _numInt)
+            {
+                valueDataset.read(_intVector.data(), H5::PredType::NATIVE_INT64);
+                _logData.intData.row(varIdx) = _intVector;
+            }
+            else
+            {
+                valueDataset.read(_floatVector.data(), H5::PredType::NATIVE_DOUBLE);
+                _logData.floatData.row(varIdx - _numInt) = _floatVector;
+            }
+            _logData.fieldnames.push_back(name);
+            return 0;
+        }, static_cast<void *>(&opData));
+
+        // Close file once done
+        file->close();
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::writeLogHdf5(std::string const & filename)
+    hresult_t EngineMultiRobot::readLog(std::string const & filename,
+                                        std::string const & format,
+                                        logData_t         & logData)
     {
-        // Extract raw log data
-        std::shared_ptr<logData_t const> logData;
-        hresult_t returnCode = getLogDataRaw(logData);
-        if (returnCode == hresult_t::SUCCESS)
+        if (format == "binary")
         {
-            if (logData->intData.empty())
-            {
-                PRINT_ERROR("No data available. Please start a simulation before writing log.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            return TelemetryRecorder::readLog(filename, logData);
+        }
+        else if (format == "hdf5")
+        {
+            return readLogHdf5(filename, logData);
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Open HDF5 logfile
-            std::unique_ptr<H5::H5File> file;
-            try {
-                file = std::make_unique<H5::H5File>(filename, H5F_ACC_TRUNC);
-            } catch (H5::FileIException const & open_file) {
-                PRINT_ERROR("Impossible to create the log file. Check if root folder exists and "
-                            "if you have writing permissions.");
-                return hresult_t::ERROR_BAD_INPUT;
-            }
+        PRINT_ERROR("Format '", format, "' not recognized. It must be either 'binary' or 'hdf5'.");
+        return hresult_t::ERROR_BAD_INPUT;
+    }
 
-            // Add "VERSION" attribute
-            H5::DataSpace const versionSpace = H5::DataSpace(H5S_SCALAR);
-            H5::Attribute const versionAttrib = file->createAttribute(
-                "VERSION", H5::PredType::NATIVE_INT32, versionSpace);
-            versionAttrib.write(H5::PredType::NATIVE_INT32, &logData->version);
-
-            // Add "START_TIME" attribute
-            int64_t time = std::time(nullptr);
-            H5::DataSpace const startTimeSpace = H5::DataSpace(H5S_SCALAR);
-            H5::Attribute const startTimeAttrib = file->createAttribute(
-                "START_TIME", H5::PredType::NATIVE_INT64, startTimeSpace);
-            startTimeAttrib.write(H5::PredType::NATIVE_INT64, &time);
-
-            // Add GLOBAL_TIME vector
-            hsize_t const timeDims[1] = {hsize_t(logData->timestamps.size())};
-            H5::DataSpace const globalTimeSpace = H5::DataSpace(1, timeDims);
-            H5::DataSet const globalTimeDataSet = file->createDataSet(
-                GLOBAL_TIME, H5::PredType::NATIVE_INT64, globalTimeSpace);
-            globalTimeDataSet.write(logData->timestamps.data(), H5::PredType::NATIVE_INT64);
-
-            // Add "unit" attribute to GLOBAL_TIME vector
-            H5::DataSpace const unitSpace = H5::DataSpace(H5S_SCALAR);
-            H5::Attribute const unitAttrib = globalTimeDataSet.createAttribute(
-                "unit", H5::PredType::NATIVE_DOUBLE, unitSpace);
-            unitAttrib.write(H5::PredType::NATIVE_DOUBLE, &logData->timeUnit);
-
-            // Add group "constants"
-            H5::Group constantsGroup(file->createGroup("constants"));
-            for (auto const & [key, value] : logData->constants)
-            {
-                // Define a dataset with a single string of fixed length
-                H5::DataSpace const constantSpace = H5::DataSpace(H5S_SCALAR);
-                H5::StrType stringType(H5::PredType::C_S1, std::max(value.size(), std::size_t(1)));
-
-                // To tell parser continue reading if '\0' is encountered
-                stringType.setStrpad(H5T_str_t::H5T_STR_NULLPAD);
-
-                // Write the constant
-                H5::DataSet constantDataSet = constantsGroup.createDataSet(
-                    key, stringType, constantSpace);
-                constantDataSet.write(value, stringType);
-            }
-
-            /* Convert std:vector<std:vector<>> to Eigen Matrix for efficient transpose.
-               We need to access the time evolution of each variable individually instead
-               of every variable at each timestamp. */
-            Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
-            Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
-            intVector.resize(logData->timestamps.size());
-            floatVector.resize(logData->timestamps.size());
-
-            // Add group "variables"
-            H5::Group variablesGroup(file->createGroup("variables"));
-            for (std::size_t i=0; i < logData->numInt; ++i)
-            {
-                std::string const & key = logData->fieldnames[i + 1];
-
-                // Create group for field
-                H5::Group fieldGroup(variablesGroup.createGroup(key));
-
-                // Enable compression and shuffling
-                H5::DSetCreatPropList plist;
-                hsize_t chunkSize[1];
-                chunkSize[0] = logData->timestamps.size();  // Read the whole vector at once.
-                plist.setChunk(1, chunkSize);
-                plist.setShuffle();
-                plist.setDeflate(4);
-
-                // Create time dataset using symbolic link
-                fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
-
-                // Create variable dataset
-                H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);
-                H5::DataSet valueDataset = fieldGroup.createDataSet(
-                    "value", H5::PredType::NATIVE_INT64, valueSpace, plist);
-
-                // Write values in one-shot for efficiency
-                for (std::size_t j = 0; j < logData->intData.size(); ++j)
-                {
-                    intVector[j] = logData->intData[j][i];
-                }
-                valueDataset.write(intVector.data(), H5::PredType::NATIVE_INT64);
-            }
-            for (std::size_t i = 0; i < logData->numFloat; ++i)
-            {
-                std::string const & key = logData->fieldnames[i + 1 + logData->numInt];
-
-                // Create group for field
-                H5::Group fieldGroup(variablesGroup.createGroup(key));
-
-                // Enable compression and shuffling
-                H5::DSetCreatPropList plist;
-                hsize_t chunkSize[1];
-                chunkSize[0] = logData->timestamps.size();  // Read the whole vector at once.
-                plist.setChunk(1, chunkSize);
-                plist.setShuffle();
-                plist.setDeflate(4);
-
-                // Create time dataset using symbolic link
-                fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
-
-                // Create variable dataset
-                H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);
-                H5::DataSet valueDataset = fieldGroup.createDataSet(
-                    "value", H5::PredType::NATIVE_DOUBLE, valueSpace, plist);
-
-                // Write values
-                for (std::size_t j=0; j < logData->floatData.size(); ++j)
-                {
-                    floatVector[j] = logData->floatData[j][i];
-                }
-                valueDataset.write(floatVector.data(), H5::PredType::NATIVE_DOUBLE);
-            }
+    hresult_t writeLogHdf5(std::string                      const & filename,
+                           std::shared_ptr<logData_t const> const & logData)
+    {
+        // Open HDF5 logfile
+        std::unique_ptr<H5::H5File> file;
+        try {
+            file = std::make_unique<H5::H5File>(filename, H5F_ACC_TRUNC);
+        } catch (H5::FileIException const & open_file) {
+            PRINT_ERROR("Impossible to create the log file. "
+                        "Make sure the root folder exists and you have writing permissions.");
+            return hresult_t::ERROR_BAD_INPUT;
         }
+
+        // Add "VERSION" attribute
+        H5::DataSpace const versionSpace = H5::DataSpace(H5S_SCALAR);
+        H5::Attribute const versionAttrib = file->createAttribute(
+            "VERSION", H5::PredType::NATIVE_INT32, versionSpace);
+        versionAttrib.write(H5::PredType::NATIVE_INT32, &logData->version);
+
+        // Add "START_TIME" attribute
+        int64_t time = std::time(nullptr);
+        H5::DataSpace const startTimeSpace = H5::DataSpace(H5S_SCALAR);
+        H5::Attribute const startTimeAttrib = file->createAttribute(
+            "START_TIME", H5::PredType::NATIVE_INT64, startTimeSpace);
+        startTimeAttrib.write(H5::PredType::NATIVE_INT64, &time);
+
+        // Add GLOBAL_TIME vector
+        hsize_t const timeDims[1] = {hsize_t(logData->timestamps.size())};
+        H5::DataSpace const globalTimeSpace = H5::DataSpace(1, timeDims);
+        H5::DataSet const globalTimeDataSet = file->createDataSet(
+            GLOBAL_TIME, H5::PredType::NATIVE_INT64, globalTimeSpace);
+        globalTimeDataSet.write(logData->timestamps.data(), H5::PredType::NATIVE_INT64);
+
+        // Add "unit" attribute to GLOBAL_TIME vector
+        H5::DataSpace const unitSpace = H5::DataSpace(H5S_SCALAR);
+        H5::Attribute const unitAttrib = globalTimeDataSet.createAttribute(
+            "unit", H5::PredType::NATIVE_DOUBLE, unitSpace);
+        unitAttrib.write(H5::PredType::NATIVE_DOUBLE, &logData->timeUnit);
+
+        // Add group "constants"
+        H5::Group constantsGroup(file->createGroup("constants"));
+        for (auto const & [key, value] : logData->constants)
+        {
+            // Define a dataset with a single string of fixed length
+            H5::DataSpace const constantSpace = H5::DataSpace(H5S_SCALAR);
+            H5::StrType stringType(H5::PredType::C_S1, std::max(value.size(), std::size_t(1)));
+
+            // To tell parser continue reading if '\0' is encountered
+            stringType.setStrpad(H5T_str_t::H5T_STR_NULLPAD);
+
+            // Write the constant
+            H5::DataSet constantDataSet = constantsGroup.createDataSet(
+                key, stringType, constantSpace);
+            constantDataSet.write(value, stringType);
+        }
+
+        // Temporary contiguous storage for variables
+        Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
+        Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
+
+        // Get the number of integer and float variables
+        Eigen::Index const numInt = logData->intData.rows();
+        Eigen::Index const numFloat = logData->floatData.rows();
+
+        /* Add group "variables".
+           C++ helper `file->createGroup("variables")` cannot be used
+           because we want to preserve order. */
+        hid_t group_creation_plist = H5Pcreate(H5P_GROUP_CREATE);
+        H5Pset_link_creation_order(
+            group_creation_plist, H5P_CRT_ORDER_TRACKED | H5P_CRT_ORDER_INDEXED);
+        hid_t group_id = H5Gcreate(
+            file->getId(), "/variables/",
+            H5P_DEFAULT, group_creation_plist, H5P_DEFAULT);
+        H5::Group variablesGroup(group_id);
+
+        // Store all integers
+        for (Eigen::Index i = 0; i < numInt; ++i)
+        {
+            std::string const & key = logData->fieldnames[i];
+
+            // Create group for field
+            H5::Group fieldGroup = variablesGroup.createGroup(key);
+
+            // Enable compression and shuffling
+            H5::DSetCreatPropList plist;
+            hsize_t chunkSize[1];
+            chunkSize[0] = logData->timestamps.size();  // Read the whole vector at once.
+            plist.setChunk(1, chunkSize);
+            plist.setShuffle();
+            plist.setDeflate(4);
+
+            // Create time dataset using symbolic link
+            fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
+
+            // Create variable dataset
+            H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);
+            H5::DataSet valueDataset = fieldGroup.createDataSet(
+                "value", H5::PredType::NATIVE_INT64, valueSpace, plist);
+
+            // Write values in one-shot for efficiency
+            intVector = logData->intData.row(i);
+            valueDataset.write(intVector.data(), H5::PredType::NATIVE_INT64);
+        }
+
+        // Store all floats
+        for (Eigen::Index i = 0; i < numFloat; ++i)
+        {
+            std::string const & key = logData->fieldnames[i + 1 + numInt];
+
+            // Create group for field
+            H5::Group fieldGroup(variablesGroup.createGroup(key));
+
+            // Enable compression and shuffling
+            H5::DSetCreatPropList plist;
+            hsize_t chunkSize[1];
+            chunkSize[0] = logData->timestamps.size();  // Read the whole vector at once.
+            plist.setChunk(1, chunkSize);
+            plist.setShuffle();
+            plist.setDeflate(4);
+
+            // Create time dataset using symbolic link
+            fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
+
+            // Create variable dataset
+            H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);
+            H5::DataSet valueDataset = fieldGroup.createDataSet(
+                "value", H5::PredType::NATIVE_DOUBLE, valueSpace, plist);
+
+            // Write values
+            floatVector = logData->floatData.row(i);
+            valueDataset.write(floatVector.data(), H5::PredType::NATIVE_DOUBLE);
+        }
+
+        // Close file once done
+        file->close();
 
         return hresult_t::SUCCESS;
     }
@@ -4210,126 +4259,51 @@ namespace jiminy
     hresult_t EngineMultiRobot::writeLog(std::string const & filename,
                                          std::string const & format)
     {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         // Make sure there is something to write
         if (!isTelemetryConfigured_)
         {
             PRINT_ERROR("Telemetry not configured. Please run a simulation before writing log.");
-            return hresult_t::ERROR_BAD_INPUT;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
         // Pick the appropriate format
-        if (format == "binary")
-        {
-            return telemetryRecorder_->writeDataBinary(filename);
-        }
-        else if (format == "csv")
-        {
-            return writeLogCsv(filename);
-        }
-        else if (format == "hdf5")
-        {
-            return writeLogHdf5(filename);
-        }
-        else
-        {
-            PRINT_ERROR("Format '", format, "' not recognized. It must be either 'binary', 'csv', or 'hdf5'.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-    }
-
-    hresult_t EngineMultiRobot::parseLogBinaryRaw(std::string const & filename,
-                                                  logData_t         & logData)
-    {
-        int64_t integerSectionSize;
-        int64_t floatSectionSize;
-        int64_t headerSize;
-
-        std::ifstream file = std::ifstream(filename,
-                                           std::ios::in |
-                                           std::ifstream::binary);
-
-        if (file.is_open())
-        {
-            // Skip the version flag
-            int32_t header_version_length = sizeof(int32_t);
-            file.seekg(header_version_length);
-
-            std::vector<std::string> headerBuffer;
-            std::string subHeaderBuffer;
-
-            // Reach the beginning of the constants
-            while (std::getline(file, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != START_CONSTANTS)
-            {
-                // Empty on purpose
-            }
-
-            // Get all the logged constants
-            while (std::getline(file, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != START_COLUMNS)
-            {
-                headerBuffer.push_back(subHeaderBuffer);
-            }
-
-            // Get the names of the logged variables
-            while (std::getline(file, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != START_DATA)
-            {
-                // Do nothing
-            }
-
-            // Make sure the log file is not corrupted
-            if (!file.good())
-            {
-                PRINT_ERROR("Corrupted log file.");
-                return hresult_t::ERROR_BAD_INPUT;
-            }
-
-            // Extract the number of integers and floats from the list of logged constants
-            std::string const & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
-            int64_t delimiter = headerNumIntEntries.find(TELEMETRY_CONSTANT_DELIMITER);
-            int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
-            std::string const & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
-            delimiter = headerNumFloatEntries.find(TELEMETRY_CONSTANT_DELIMITER);
-            int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
-
-            // Deduce the parameters required to parse the whole binary log file
-            integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
-            floatSectionSize = NumFloatEntries * sizeof(float64_t);
-            headerSize = static_cast<int64_t>(file.tellg());  // Last '\0' is included
-
-            // Close the file
-            file.close();
-        }
-        else
-        {
-            PRINT_ERROR("Impossible to open the log file. Check that the file exists and "
-                        "that you have reading permissions.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        FileDevice device(filename);
-        device.open(openMode_t::READ_ONLY);
-        std::vector<AbstractIODevice *> flows;
-        flows.push_back(&device);
-
-        return TelemetryRecorder::getData(logData,
-                                          flows,
-                                          integerSectionSize,
-                                          floatSectionSize,
-                                          headerSize);
-    }
-
-    hresult_t EngineMultiRobot::parseLogBinary(std::string              const & filename,
-                                               std::vector<std::string>       & /* header */,
-                                               matrixN_t                      & logMatrix)
-    {
-        logData_t logData;
-        hresult_t returnCode = parseLogBinaryRaw(filename, logData);
         if (returnCode == hresult_t::SUCCESS)
         {
-            logDataToEigenMatrix(logData, logMatrix);
+            if (format == "binary")
+            {
+                returnCode = telemetryRecorder_->writeLog(filename);
+            }
+            else if (format == "hdf5")
+            {
+                // Extract log data
+                std::shared_ptr<logData_t const> logData;
+                returnCode = getLog(logData);
+
+                // Make sure it is not empty
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    if (logData->timestamps.size() == 0)
+                    {
+                        PRINT_ERROR("No data available. Please start a simulation before writing log.");
+                        returnCode = hresult_t::ERROR_BAD_INPUT;
+                    }
+                }
+
+                // Write log data
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    returnCode = writeLogHdf5(filename, logData);
+                }
+            }
+            else
+            {
+                PRINT_ERROR("Format '", format, "' not recognized. It must be either 'binary' or 'hdf5'.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
         }
+
         return returnCode;
     }
 }

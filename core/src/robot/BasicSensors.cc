@@ -68,7 +68,7 @@ namespace jiminy
     template<>
     bool_t const AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_(false);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNames_(
+    std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldnames_(
         {"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
 
     ImuSensor::ImuSensor(std::string const & name) :
@@ -231,7 +231,7 @@ namespace jiminy
     template<>
     bool_t const AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_(false);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<ContactSensor>::fieldNames_({"FX", "FY", "FZ"});
+    std::vector<std::string> const AbstractSensorTpl<ContactSensor>::fieldnames_({"FX", "FY", "FZ"});
 
     ContactSensor::ContactSensor(std::string const & name) :
     AbstractSensorTpl(name),
@@ -316,7 +316,7 @@ namespace jiminy
     template<>
     bool_t const AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_(false);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNames_({"FX", "FY", "FZ", "MX", "MY", "MZ"});
+    std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldnames_({"FX", "FY", "FZ", "MX", "MY", "MZ"});
 
     ForceSensor::ForceSensor(std::string const & name) :
     AbstractSensorTpl(name),
@@ -409,7 +409,7 @@ namespace jiminy
     template<>
     bool_t const AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_(true);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldNames_({"Q", "V"});
+    std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldnames_({"Q", "V"});
 
     EncoderSensor::EncoderSensor(std::string const & name) :
     AbstractSensorTpl(name),
@@ -517,7 +517,7 @@ namespace jiminy
     template<>
     bool_t const AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_(true);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<EffortSensor>::fieldNames_({"U"});
+    std::vector<std::string> const AbstractSensorTpl<EffortSensor>::fieldnames_({"U"});
 
     EffortSensor::EffortSensor(std::string const & name) :
     AbstractSensorTpl(name),

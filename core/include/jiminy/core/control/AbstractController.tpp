@@ -45,7 +45,7 @@ namespace jiminy
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////
     template<typename T>
-    hresult_t AbstractController::registerConstant(std::string const & fieldName,
+    hresult_t AbstractController::registerConstant(std::string const & fieldname,
                                                    T           const & value)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
@@ -59,16 +59,16 @@ namespace jiminy
         // Check in local cache before.
         auto constantIt = std::find_if(registeredConstants_.begin(),
                                        registeredConstants_.end(),
-                                       [&fieldName](auto const & element)
+                                       [&fieldname](auto const & element)
                                        {
-                                           return element.first == fieldName;
+                                           return element.first == fieldname;
                                        });
         if (constantIt != registeredConstants_.end())
         {
             PRINT_ERROR("Constant already registered.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        registeredConstants_.emplace_back(fieldName, to_string(value));
+        registeredConstants_.emplace_back(fieldname, to_string(value));
 
         return hresult_t::SUCCESS;
     }

@@ -74,6 +74,8 @@ namespace jiminy
 
     // ******************* Telemetry utilities **********************
 
+    struct logData_t;
+
     bool_t endsWith(std::string const & fullString, std::string const & ending);
 
     std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
@@ -93,16 +95,14 @@ namespace jiminy
     std::vector<std::string> removeSuffix(std::vector<std::string> const & fieldnamesIn, // Make a copy
                                           std::string              const & suffix);
 
-    /// \brief Get the value of a single logged variable.
+    /// \brief Get the value of a single logged variable (by copy).
     ///
-    /// \param[in] fieldName    Full name of the variable to get
-    /// \param[in] header       Header, vector of field names.
     /// \param[in] logData      Corresponding data in the log file.
+    /// \param[in] fieldName    Full name of the variable to get.
     ///
-    /// \return Vector of values for fieldName. If fieldName is not in the header list, this vector will be empty.
-    Eigen::Ref<vectorN_t const> getLogFieldValue(std::string              const & fieldName,
-                                                 std::vector<std::string> const & header,
-                                                 matrixN_t                const & logData);
+    /// \return Vector of values for a given variable as a contiguous array.
+    vectorN_t getLogVariable(logData_t   const & logData,
+                             std::string const & fieldname);
 
     // ********************** Math utilities *************************
 

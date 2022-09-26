@@ -22,13 +22,13 @@ namespace jiminy
     }
 
     template<>
-    void TelemetrySender::updateValue<int64_t>(std::string const & fieldNameIn,
+    void TelemetrySender::updateValue<int64_t>(std::string const & fieldnameIn,
                                                int64_t     const & value)
     {
-        auto it = intBufferPosition_.find(fieldNameIn);
+        auto it = intBufferPosition_.find(fieldnameIn);
         if (it == intBufferPosition_.end())
         {
-            PRINT_ERROR("Cannot log the variable: it was never registered as an int64_t before! |", fieldNameIn.c_str(), "|");
+            PRINT_ERROR("Cannot log the variable: it was never registered as an int64_t before! |", fieldnameIn.c_str(), "|");
             return;
         }
 
@@ -37,13 +37,13 @@ namespace jiminy
     }
 
     template<>
-    void TelemetrySender::updateValue<float64_t>(std::string const & fieldNameIn,
+    void TelemetrySender::updateValue<float64_t>(std::string const & fieldnameIn,
                                                  float64_t   const & value)
     {
-        auto it = floatBufferPosition_.find(fieldNameIn);
+        auto it = floatBufferPosition_.find(fieldnameIn);
         if (it == floatBufferPosition_.end())
         {
-            PRINT_ERROR("Cannot log the variable: it was never registered as a float64_t before! |", fieldNameIn.c_str(), "|");
+            PRINT_ERROR("Cannot log the variable: it was never registered as a float64_t before! |", fieldnameIn.c_str(), "|");
             return;
         }
 
@@ -52,34 +52,34 @@ namespace jiminy
     }
 
     template<>
-    hresult_t TelemetrySender::registerVariable<int64_t>(std::string const & fieldNameIn,
+    hresult_t TelemetrySender::registerVariable<int64_t>(std::string const & fieldnameIn,
                                                          int64_t     const & initialValue)
     {
         int64_t * positionInBuffer = nullptr;
-        std::string const fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + fieldNameIn;
+        std::string const fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + fieldnameIn;
 
         hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
         if (returnCode == hresult_t::SUCCESS)
         {
-            intBufferPosition_[fieldNameIn] = positionInBuffer;
-            updateValue(fieldNameIn, initialValue);
+            intBufferPosition_[fieldnameIn] = positionInBuffer;
+            updateValue(fieldnameIn, initialValue);
         }
 
         return returnCode;
     }
 
     template<>
-    hresult_t TelemetrySender::registerVariable<float64_t>(std::string const & fieldNameIn,
+    hresult_t TelemetrySender::registerVariable<float64_t>(std::string const & fieldnameIn,
                                                            float64_t   const & initialValue)
     {
         float64_t * positionInBuffer = nullptr;
-        std::string const fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + fieldNameIn;
+        std::string const fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + fieldnameIn;
 
         hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
         if (returnCode == hresult_t::SUCCESS)
         {
-            floatBufferPosition_[fieldNameIn] = positionInBuffer;
-            updateValue(fieldNameIn, initialValue);
+            floatBufferPosition_[fieldnameIn] = positionInBuffer;
+            updateValue(fieldnameIn, initialValue);
         }
 
         return returnCode;

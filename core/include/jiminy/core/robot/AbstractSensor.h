@@ -474,7 +474,7 @@ namespace jiminy
            keyword binds all the sensors together, even if they are associated
            to complete separated robots. */
         static std::string const type_;
-        static std::vector<std::string> const fieldNames_;
+        static std::vector<std::string> const fieldnames_;
         static bool_t const areFieldnamesGrouped_;
 
     protected:

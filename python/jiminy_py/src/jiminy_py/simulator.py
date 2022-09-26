@@ -1,5 +1,4 @@
 import os
-import json
 import toml
 import atexit
 import logging
@@ -12,20 +11,13 @@ import numpy as np
 
 import pinocchio as pin
 from . import core as jiminy
-from .core import (EncoderSensor as encoder,
-                   EffortSensor as effort,
-                   ContactSensor as contact,
-                   ForceSensor as force,
-                   ImuSensor as imu)
 from .robot import (generate_default_hardware_description_file,
                     BaseJiminyRobot)
 from .dynamics import TrajectoryDataType
-from .log import (read_log,
-                  build_robot_from_log,
-                  extract_data_from_log)
+from .log import read_log, build_robot_from_log
 from .viewer import (interactive_mode,
                      get_default_backend,
-                     extract_replay_data_from_log_data,
+                     extract_replay_data_from_log,
                      play_trajectories,
                      Viewer)
 
@@ -36,20 +28,6 @@ else:
 
 logger = logging.getLogger(__name__)
 
-
-SENSORS_FIELDS = {
-    encoder: encoder.fieldnames,
-    effort: effort.fieldnames,
-    contact: contact.fieldnames,
-    force: {
-        k: [e[len(k):] for e in force.fieldnames if e.startswith(k)]
-        for k in ['F', 'M']
-    },
-    imu: {
-        k: [e[len(k):] for e in imu.fieldnames if e.startswith(k)]
-        for k in ['Quat', 'Gyro', 'Accel']
-    }
-}
 
 DEFAULT_UPDATE_PERIOD = 1.0e-3  # 0.0 for time continuous update
 DEFAULT_GROUND_STIFFNESS = 4.0e6
@@ -292,18 +270,6 @@ class Simulator:
             q = self.robot.get_rigid_configuration_from_flexible(q)
             v = self.robot.get_rigid_velocity_from_flexible(v)
         return q, v
-
-    @property
-    def log_data(self) -> Dict[str, np.ndarray]:
-        """Getter of the telemetry variables.
-        """
-        return self.engine.get_log()[0]
-
-    @property
-    def log_constants(self) -> Dict[str, str]:
-        """Getter of the telemetry constants.
-        """
-        return self.engine.get_log()[1]
 
     @property
     def is_viewer_available(self) -> bool:
@@ -609,9 +575,9 @@ class Simulator:
         robots = [self.robot]
         logs_data = [self.log_data]
         for log_file in extra_logs_files:
-            log_data, log_constants = read_log(log_file)
+            log_data = read_log(log_file)
             robot = build_robot_from_log(
-                log_constants, self.robot.mesh_package_dirs)
+                log_data, self.robot.mesh_package_dirs)
             robots.append(robot)
             logs_data.append(log_data)
 
@@ -620,7 +586,7 @@ class Simulator:
         for robot, log_data in zip(robots, logs_data):
             if log_data:
                 traj, update_hook, _kwargs = \
-                    extract_replay_data_from_log_data(robot, log_data)
+                    extract_replay_data_from_log(log_data, robot)
                 trajectories.append(traj)
                 update_hooks.append(update_hook)
                 extra_kwargs.update(_kwargs)
@@ -693,115 +659,14 @@ class Simulator:
         """
         # Make sure plot submodule is available
         try:
-            from .plot import TabbedFigure
-            import matplotlib.pyplot as plt
+            from .plot import plot_log
         except ImportError:
             raise ImportError(
                 "Method not supported. Please install 'jiminy_py[plot]'.")
 
-        # Blocking by default if not interactive
-        if block is None:
-            block = interactive_mode() < 1
-
-        # Extract log data
-        log_data, log_constants = self.log_data, self.log_constants
-        if not log_constants:
-            return RuntimeError(
-                "No data to replay. Please run a simulation first.")
-
-        # Make sure that the log file is compatible with the current model
-        is_incompatible = False
-        options_old = json.loads(log_constants['HighLevelController.options'])
-        model_options_old = options_old["system"]["robot"]["model"]
-        dyn_options_old = model_options_old['dynamics']
-        model_options = self.robot.get_model_options()
-        dyn_options = model_options['dynamics']
-        if (dyn_options['enableFlexibleModel'] !=
-                dyn_options_old['enableFlexibleModel']):
-            is_incompatible = True
-        elif dyn_options['enableFlexibleModel']:
-            flex_options_old = dyn_options_old["flexibilityConfig"]["value"]
-            flex_options = dyn_options["flexibilityConfig"]
-            if len(flex_options_old) != len(flex_options):
-                is_incompatible = True
-            else:
-                for flex, flex_old in zip(flex_options, flex_options_old):
-                    if flex["frameName"] != flex_old["frameName"]:
-                        is_incompatible = True
-                        break
-        if is_incompatible and enable_flexiblity_data:
-            raise RuntimeError("Log data are incompatible with current model.")
-
-        # Figures data structure as a dictionary
-        tabs_data = OrderedDict()
-
-        # Get time and robot positions, velocities, and acceleration
-        time = log_data["Global.Time"]
-        for fields_type in ["Position", "Velocity", "Acceleration"]:
-            fieldnames = getattr(
-                self.robot, "logfile_" + fields_type.lower() + "_headers")
-            if not enable_flexiblity_data:
-                # Filter out flexibility data
-                fieldnames = list(filter(
-                    lambda field: not any(
-                        name in field
-                        for name in self.robot.flexible_joints_names),
-                    fieldnames))
-            values = extract_data_from_log(
-                log_data, fieldnames, as_dict=True)
-            if values is not None:
-                tabs_data[' '.join(("State", fields_type))] = OrderedDict(
-                    (field[len("current"):].replace(fields_type, ""), elem)
-                    for field, elem in values.items())
-
-        # Get motors efforts information
-        motor_effort = extract_data_from_log(
-            log_data, self.robot.logfile_motor_effort_headers)
-        if motor_effort is not None:
-            tabs_data['MotorEffort'] = OrderedDict(
-                zip(self.robot.motors_names, motor_effort))
-
-        # Get command information
-        command = extract_data_from_log(
-            log_data, self.robot.logfile_command_headers)
-        if command is not None:
-            tabs_data['Command'] = OrderedDict(
-                zip(self.robot.motors_names, command))
-
-        # Get sensors information
-        for sensors_class, sensors_fields in SENSORS_FIELDS.items():
-            sensors_type = sensors_class.type
-            sensors_names = self.robot.sensors_names.get(sensors_type, [])
-            namespace = sensors_type if sensors_class.has_prefix else None
-            if isinstance(sensors_fields, dict):
-                for fields_prefix, fieldnames in sensors_fields.items():
-                    sensors_data = [
-                        extract_data_from_log(log_data, [
-                            '.'.join((name, fields_prefix + field))
-                            for name in sensors_names], namespace)
-                        for field in fieldnames]
-                    if sensors_data[0] is not None:
-                        type_name = ' '.join((sensors_type, fields_prefix))
-                        tabs_data[type_name] = OrderedDict(
-                            (field, OrderedDict(zip(sensors_names, values)))
-                            for field, values in zip(fieldnames, sensors_data))
-            else:
-                for field in sensors_fields:
-                    sensors_data = extract_data_from_log(
-                        log_data,
-                        ['.'.join((name, field)) for name in sensors_names],
-                        namespace)
-                    if sensors_data is not None:
-                        tabs_data[' '.join((sensors_type, field))] = \
-                            OrderedDict(zip(sensors_names, sensors_data))
-
         # Create figure, without closing the existing one
-        self.figure = TabbedFigure.plot(
-            time, tabs_data, **{"plot_method": "plot", **kwargs})
-
-        # Block if needed
-        if block and not self.figure.offscreen:
-            plt.show(block=True)
+        self.figure = plot_log(
+            self.log_data, self.robot, enable_flexiblity_data, block, **kwargs)
 
     def get_controller_options(self) -> dict:
         """Getter of the options of Jiminy Controller.

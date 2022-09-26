@@ -84,12 +84,12 @@ class PipelineControl(unittest.TestCase):
         self.assertLessEqual(img_diff, IMAGE_DIFF_THRESHOLD)
 
         # Get the simulation log
-        log_data = self.env.log_data
+        log_vars = self.env.log_data["variables"]
 
         # Check that the joint velocity target is zero
-        time = log_data["Global.Time"]
+        time = log_vars["Global.Time"]
         velocity_target = np.stack([
-            log_data['.'.join((
+            log_vars['.'.join((
                 'HighLevelController', self.env.controller_name, name))]
             for name in self.env.controller.get_fieldnames()['V']], axis=-1)
         self.assertTrue(np.all(
@@ -97,8 +97,8 @@ class PipelineControl(unittest.TestCase):
 
         # Check that the whole-body robot velocity is close to zero at the end
         velocity_mes = np.stack([
-            log_data['.'.join(('HighLevelController', name))]
-            for name in self.env.robot.logfile_velocity_headers], axis=-1)
+            log_vars['.'.join(('HighLevelController', name))]
+            for name in self.env.robot.log_fieldnames_velocity], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_mes[time > time[-1] - 1.0]) < 1.0e-3))
 

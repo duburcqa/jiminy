@@ -1313,7 +1313,7 @@ class Viewer:
 
         if self is None and relative is not None and relative != 'camera':
             raise ValueError(
-                "A wiewer instance must be provided to set camera "
+                "A viewer instance must be provided to set camera "
                 "relatively to a frame.")
 
         # Handling of position and rotation arguments

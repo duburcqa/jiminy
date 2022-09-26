@@ -8,6 +8,7 @@
 #endif
 
 #include "jiminy/core/Constants.h"
+#include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/utilities/Helpers.h"
 
 
@@ -162,17 +163,27 @@ namespace jiminy
         return fieldnames;
     }
 
-    Eigen::Ref<vectorN_t const> getLogFieldValue(std::string              const & fieldName,
-                                                 std::vector<std::string> const & fieldnames,
-                                                 matrixN_t                const & logData)
+    vectorN_t getLogVariable(logData_t   const & logData,
+                             std::string const & fieldname)
     {
-        static vectorN_t fieldDataEmpty;
-        auto iterator = std::find(fieldnames.begin(), fieldnames.end(), fieldName);
-        if (iterator == fieldnames.end())
+        if (fieldname == GLOBAL_TIME)
         {
-            PRINT_ERROR("Field does not exist.");
-            return fieldDataEmpty;
+            return logData.timestamps.cast<float64_t>() * logData.timeUnit;
         }
-        return logData.col(std::distance(fieldnames.begin(), iterator));
+        auto iterator = std::find(
+            logData.fieldnames.begin() + 1, logData.fieldnames.end(), fieldname);
+        if (iterator == logData.fieldnames.end())
+        {
+            PRINT_ERROR("Variable '", fieldname, "' does not exist.");
+            return {};
+        }
+        int64_t const varIdx = std::distance(
+            logData.fieldnames.begin() + 1, iterator);  // Skip GLOBAL_TIME
+        Eigen::Index const numInt = logData.intData.rows();
+        if (varIdx < numInt)
+        {
+            return logData.intData.row(varIdx).cast<float64_t>();
+        }
+        return logData.floatData.row(varIdx - numInt);
     }
 }

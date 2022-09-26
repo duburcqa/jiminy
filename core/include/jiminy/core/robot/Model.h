@@ -347,10 +347,10 @@ namespace jiminy
         vectorN_t const & getPositionLimitMax(void) const;
         vectorN_t const & getVelocityLimit(void) const;
 
-        std::vector<std::string> const & getPositionFieldnames(void) const;
-        std::vector<std::string> const & getVelocityFieldnames(void) const;
-        std::vector<std::string> const & getAccelerationFieldnames(void) const;
-        std::vector<std::string> const & getForceExternalFieldnames(void) const;
+        std::vector<std::string> const & getLogFieldnamesPosition(void) const;
+        std::vector<std::string> const & getLogFieldnamesVelocity(void) const;
+        std::vector<std::string> const & getLogFieldnamesAcceleration(void) const;
+        std::vector<std::string> const & getLogFieldnamesForceExternal(void) const;
 
         hresult_t getFlexibleConfigurationFromRigid(vectorN_t const & qRigid,
                                                     vectorN_t       & qFlex) const;
@@ -427,10 +427,10 @@ namespace jiminy
         vectorN_t positionLimitMax_;                            ///< Lower position limit of the whole configuration vector
         vectorN_t velocityLimit_;                               ///< Maximum absolute velocity of the whole velocity vector
 
-        std::vector<std::string> positionFieldnames_;       ///< Fieldnames of the elements in the configuration vector of the model
-        std::vector<std::string> velocityFieldnames_;       ///< Fieldnames of the elements in the velocity vector of the model
-        std::vector<std::string> accelerationFieldnames_;   ///< Fieldnames of the elements in the acceleration vector of the model
-        std::vector<std::string> forceExternalFieldnames_;  ///< Concatenated fieldnames of the external force applied at each joint of the model, 'universe' excluded
+        std::vector<std::string> logFieldnamesPosition_;       ///< Fieldnames of the elements in the configuration vector of the model
+        std::vector<std::string> logFieldnamesVelocity_;       ///< Fieldnames of the elements in the velocity vector of the model
+        std::vector<std::string> logFieldnamesAcceleration_;   ///< Fieldnames of the elements in the acceleration vector of the model
+        std::vector<std::string> logFieldnamesForceExternal_;  ///< Concatenated fieldnames of the external force applied at each joint of the model, 'universe' excluded
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;

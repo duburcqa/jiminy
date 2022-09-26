@@ -112,12 +112,11 @@ TEST(EngineSanity, EnergyConservation)
     Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
-    std::vector<std::string> fieldnames;
-    matrixN_t data;
-    engine->getLogData(fieldnames, data);
-    auto timeCont = getLogFieldValue("Global.Time", fieldnames, data);
-    ASSERT_DOUBLE_EQ(timeCont[timeCont.size()-1], tf);
-    auto energyCont = getLogFieldValue("HighLevelController.energy", fieldnames, data);
+    std::shared_ptr<logData_t const> logData;
+    engine->getLog(logData);
+    vectorN_t const timesCont = getLogVariable(*logData.get(), "Global.Time");
+    ASSERT_DOUBLE_EQ(timesCont[timesCont.size() - 1], tf);
+    vectorN_t const energyCont = getLogVariable(*logData.get(), "HighLevelController.energy");
     ASSERT_GT(energyCont.size(), 0);
 
     // Check that energy is constant
@@ -139,10 +138,10 @@ TEST(EngineSanity, EnergyConservation)
     Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
-    engine->getLogData(fieldnames, data);
-    auto timeDisc = getLogFieldValue("Global.Time", fieldnames, data);
-    ASSERT_DOUBLE_EQ(timeDisc[timeDisc.size()-1], tf);
-    auto energyDisc = getLogFieldValue("HighLevelController.energy", fieldnames, data);
+    engine->getLog(logData);
+    vectorN_t const timesDisc = getLogVariable(*logData.get(), "Global.Time");
+    ASSERT_DOUBLE_EQ(timesDisc[timesDisc.size() - 1], tf);
+    vectorN_t const energyDisc = getLogVariable(*logData.get(), "HighLevelController.energy");
     ASSERT_GT(energyDisc.size(), 0);
 
     // Check that energy is constant

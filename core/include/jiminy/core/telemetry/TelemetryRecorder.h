@@ -17,19 +17,6 @@ namespace jiminy
 {
     class TelemetryData;
 
-    struct logData_t
-    {
-        static_map_t<std::string, std::string> constants;
-        std::vector<std::string> fieldnames;
-        int32_t version;
-        float64_t timeUnit;
-        std::size_t numInt;
-        std::size_t numFloat;
-        std::vector<int64_t> timestamps;
-        std::deque<std::vector<int64_t> > intData;
-        std::deque<std::vector<float64_t> > floatData;
-    };
-
     ////////////////////////////////////////////////////////////////////////
     /// \class TelemetryRecorder
     ////////////////////////////////////////////////////////////////////////
@@ -60,7 +47,6 @@ namespace jiminy
         /// \brief Get the maximum time that can be logged with the given precision.
         /// \return Max time, in second.
         static float64_t getMaximumLogTime(float64_t const & timeUnit);
-        static float64_t getMaximumLogTime(uint64_t const & timeUnitInv);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the recorder.
@@ -72,16 +58,12 @@ namespace jiminy
         ////////////////////////////////////////////////////////////////////////
         hresult_t flushDataSnapshot(float64_t const & timestamp);
 
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief Get access to the memory device holding the data
-        ////////////////////////////////////////////////////////////////////////
-        hresult_t writeDataBinary(std::string const & filename);
-        static hresult_t getData(logData_t & logData,
-                                 std::vector<AbstractIODevice *> & flows,
-                                 int64_t const & integerSectionSize,
-                                 int64_t const & floatSectionSize,
-                                 int64_t const & headerSize);
-        hresult_t getData(logData_t & logData);
+        hresult_t getLog(logData_t & logData);
+        static hresult_t readLog(std::string const & filename,
+                                 logData_t         & logData);
+
+        hresult_t writeLog(std::string const & filename);
+
     private:
         ////////////////////////////////////////////////////////////////////////
         /// \brief   Create a new file to continue the recording.

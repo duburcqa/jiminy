@@ -24,8 +24,8 @@ from .. import core as jiminy
 from ..dynamics import TrajectoryDataType
 from ..log import (read_log,
                    build_robot_from_log,
-                   extract_trajectory_data_from_log,
-                   emulate_sensors_data_from_log)
+                   extract_trajectory_from_log,
+                   update_sensors_data_from_log)
 from .viewer import (COLORS,
                      Tuple3FType,
                      Tuple4FType,
@@ -95,7 +95,7 @@ def play_trajectories(trajs_data: Union[
     :param update_hooks: Callables associated with each robot that can be used
                          to update non-kinematic robot data, for instance to
                          emulate sensors data from log using the hook provided
-                         by `emulate_sensors_data_from_log` method. `None` to
+                         by `update_sensors_data_from_log` method. `None` to
                          disable, otherwise it must have the signature:
 
                          .. code-block:: python
@@ -621,14 +621,14 @@ def play_trajectories(trajs_data: Union[
     return viewers
 
 
-def extract_replay_data_from_log_data(
-        robot: jiminy.Robot,
-        log_data: Dict[str, np.ndarray]) -> Tuple[
+def extract_replay_data_from_log(
+        log_data: Dict[str, np.ndarray],
+        robot: jiminy.Robot) -> Tuple[
             TrajectoryDataType, Callable[[float], None], Any]:
     """Extract replay data from log data.
 
     :param robot: Jiminy robot for which to extract log data.
-    :param log_data: Data from the log file, in a dictionnary.
+    :param log_data: Data from the log file, in a dictionary.
 
     :returns: Trajectory data, update hook and extra keyword arguments to
               forward to `play_trajectories` method to display the trajectory.
@@ -637,7 +637,7 @@ def extract_replay_data_from_log_data(
     """
     # For each pair (log, robot), extract a trajectory object for
     # `play_trajectories`
-    trajectory = extract_trajectory_data_from_log(log_data, robot)
+    trajectory = extract_trajectory_from_log(log_data, robot)
 
     # Display external forces on root joint, if any
     replay_kwargs = {}
@@ -651,7 +651,7 @@ def extract_replay_data_from_log_data(
 
     # Define `update_hook` to emulate sensor update
     if not robot.is_locked:
-        update_hook = emulate_sensors_data_from_log(log_data, robot)
+        update_hook = update_sensors_data_from_log(log_data, robot)
     else:
         if robot.sensors_names:
             logger.warn(
@@ -686,8 +686,8 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
     # Extract a replay data for `play_trajectories` for each pair (robot, log)
     trajectories, update_hooks, extra_kwargs = [], [], {}
     for robot, log_data in zip(robots, logs_data):
-        traj, update_hook, _kwargs = extract_replay_data_from_log_data(
-            robot, log_data)
+        traj, update_hook, _kwargs = \
+            extract_replay_data_from_log(log_data, robot)
         trajectories.append(traj)
         update_hooks.append(update_hook)
         extra_kwargs.update(_kwargs)
@@ -724,9 +724,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
     # Extract log data and build robot for each log file
     robots, logs_data = [], []
     for log_file in logs_files:
-        log_data, log_constants = read_log(log_file)
-        robot = build_robot_from_log(
-            log_constants, mesh_package_dirs)
+        log_data = read_log(log_file)
+        robot = build_robot_from_log(log_data, mesh_package_dirs)
         logs_data.append(log_data)
         robots.append(robot)
 
