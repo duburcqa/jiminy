@@ -27,8 +27,6 @@ from .viewer import (interactive_mode,
                      play_trajectories,
                      Viewer)
 
-from .plot import plot_log_system
-
 if interactive_mode() >= 2:
     from tqdm.notebook import tqdm
 else:
@@ -821,105 +819,6 @@ class Simulator:
         for figure in self.figures:
             figure.close()
         self.figures = []
-
-    def plot(self,
-             systems_to_plot: Union[List[str], str] = [],
-             enable_flexiblity_data: bool = False,
-             block: Optional[bool] = None,
-             **kwargs: Any):
-        """Display common simulation data of the systems the user wants to plot
-        over time.
-
-        The figure of each system features several tabs:
-
-            - Subplots with robot configuration
-            - Subplots with robot velocity
-            - Subplots with robot acceleration
-            - Subplots with motors torques
-            - Subplots with raw sensor data (one tab for each type of sensor)
-
-        :param systems_to_plot:
-            List of the names of the systems the user wants to plot the data
-            from.
-            Optional: [] by default to plot all systems info.
-        :param enable_flexiblity_data:
-            Enable display of flexible joints in robot's configuration,
-            velocity and acceleration subplots.
-            Optional: False by default.
-        :parem block: Whether to wait for the figure to be closed before
-                      returning.
-                      Optional: False in interactive mode, True otherwise.
-        :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
-        """
-        # Make sure plot submodule is available
-        try:
-            import matplotlib.pyplot as plt
-        except ImportError:
-            raise ImportError(
-                "Method not supported. Please install 'jiminy_py[plot]'.")
-
-        # Blocking by default if not interactive
-        if block is None:
-            block = interactive_mode() < 1
-
-        # Close any existing figure
-        for figure in self.figures:
-            figure.close()
-        self.figures = []
-
-        # Extract log data
-        log_vars, log_constants = self.log_vars, self.log_constants
-        if not log_constants:
-            return RuntimeError(
-                "No data to replay. Please run a simulation first.")
-
-        # Construct a list of systems to plot
-        if isinstance(systems_to_plot, str):
-            systems_to_plot = [systems_to_plot]
-        elif systems_to_plot == []:
-            systems_to_plot = self.systems_names
-
-        # Construct a list of the systems' names with 'system' instead of ''
-        names = self.systems_names
-        for i, name in enumerate(names):
-            if name == '':
-                names[i] = 'system'
-
-        # Plot
-        for system_name in systems_to_plot:
-            # Find the system to plot
-            for system in self.systems:
-                if system.name == system_name:
-                    system_to_plot = system
-
-            # Extract the log data to the system to plot
-            log_vars_system = {}
-            for key in log_vars.keys():
-                # Find if the key is general (general_key = True)
-                # or relative to one system (general_key = False)
-                general_key = True
-                for name in names:
-                    if name in key:
-                        general_key = False
-                # Copy the log_vars of the system to plot
-                if general_key:
-                    log_vars_system[key] = log_vars[key]
-                elif system_to_plot.name in key:
-                    log_vars_system[
-                        key.replace(
-                            system_to_plot.name, '').replace('..', '.')] = \
-                            log_vars[key]
-
-            plot_log_system(self.figures,
-                            system_to_plot,
-                            log_vars_system,
-                            SENSORS_FIELDS,
-                            enable_flexiblity_data=enable_flexiblity_data,
-                            **kwargs)
-
-        # Block if needed
-        if block and not all(figure.offscreen for figure in self.figures):
-            plt.show(block=True)
 
     def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """Get the options of robot (including controller), and engine.
