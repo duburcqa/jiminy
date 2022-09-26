@@ -1,11 +1,9 @@
 import os
-import pathlib
 import tempfile
 from bisect import bisect_right
 from collections import OrderedDict
 from typing import Any, Callable, Tuple, Dict, Optional, Sequence, Union
 
-import h5py
 import tree
 import numpy as np
 
@@ -88,7 +86,7 @@ def extract_variables_from_log(log_vars: Dict[str, Any],
 
 
 def build_robots_from_log(
-        log_constants: Dict[str, str],
+        log_constants: Dict[str, Any],
         mesh_package_dirs: Union[str, Sequence[str]] = ()
         ) -> Dict[str, jiminy.Model]:
     """Build robots from log constants.
@@ -120,8 +118,7 @@ def build_robots_from_log(
     # Make sure provided 'mesh_package_dirs' is a list
     mesh_package_dirs = list(mesh_package_dirs)
 
-    all_options = jiminy.load_config_json_string(
-        log_constants["HighLevelController.options"])
+    all_options = log_constants["HighLevelController.options"]
 
     # Create a list of all the systems names from all_options
     # It corresponds to engine.systems_names
@@ -197,8 +194,7 @@ def build_robots_from_log(
             os.remove(urdf_path)
 
             # Load the options
-            all_options = jiminy.load_config_json_string(
-                log_constants_robot["HighLevelController.options"])
+            all_options = log_constants_robot["HighLevelController.options"]
             if system != '':
                 system += '.system'
             else:
@@ -206,8 +202,8 @@ def build_robots_from_log(
                 for key in all_options[system]["robot"].keys():
                     if all_options[system]["robot"][key] == 0:
                         all_options[system]["robot"][key] = {}
-            all_options = jiminy.load_config_json_string(log_constants_robot[
-                ".".join((ENGINE_NAMESPACE, "options"))])
+            all_options = log_constants_robot[
+                ".".join((ENGINE_NAMESPACE, "options"))]
             robot.set_options(all_options[system]["robot"])
 
             # Update model and data.
@@ -225,8 +221,9 @@ def build_robots_from_log(
     return robots
 
 
-def extract_trajectory_from_log(log_data: Dict[str, Any],
-                                robot: Optional[jiminy.Model] = None
+def extract_trajectory_from_log(log_vars: Dict[str, Any],
+                                robot: Optional[jiminy.Model] = None,
+                                log_constants: Optional[Dict[str, Any]] = None
                                 ) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
@@ -248,11 +245,10 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     """
     # Handling of default argument(s)
     if robot is None:
-        robot = build_robot_from_log(log_data)
-
-    # Define some proxies for convenience
-    log_vars = log_data["variables"]
-
+        try:
+            robot = build_robots_from_log(log_constants)[0]
+        except KeyError:
+            raise RuntimeError("The user must give the robot or log_constants")
     # Extract the joint positions, velocities and external forces over time
     positions = np.stack([
         log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
@@ -287,7 +283,7 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
             "use_theoretical_model": False}
 
 
-def update_sensors_data_from_log(log_data: Dict[str, Any],
+def update_sensors_data_from_log(log_vars: Dict[str, Any],
                                  robot: jiminy.Model
                                  ) -> Callable[[float], None]:
     """Helper to make it easy to emulate sensor data update based on log data.
@@ -296,7 +292,7 @@ def update_sensors_data_from_log(log_data: Dict[str, Any],
         It returns an update_hook that can forwarding the `Viewer.replay` to
         display sensor information such as contact forces for instance.
 
-    :param log_data: Logged data (constants and variables) as a dictionary.
+    :param log_vars: Logged data (variables) as a dictionary.
     :param robot: Jiminy robot associated with the logged trajectory.
 
     :returns: Callable taking update time in argument and returning nothing.
@@ -304,7 +300,6 @@ def update_sensors_data_from_log(log_data: Dict[str, Any],
               rather clip to desired time to the available data range.
     """
     # Extract time from log
-    log_vars = log_data["variables"]
     times = log_vars["Global.Time"]
 
     # Filter sensors whose data is available

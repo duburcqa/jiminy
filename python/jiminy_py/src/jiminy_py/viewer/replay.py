@@ -622,7 +622,7 @@ def play_trajectories(trajs_data: Union[
 
 
 def extract_replay_data_from_log(
-        log_data: Dict[str, np.ndarray],
+        log_vars: Dict[str, np.ndarray],
         robot: jiminy.Robot) -> Tuple[
             TrajectoryDataType, Callable[[float], None], Any]:
     """Extract replay data from log data.
@@ -637,7 +637,7 @@ def extract_replay_data_from_log(
     """
     # For each pair (log, robot), extract a trajectory object for
     # `play_trajectories`
-    trajectory = extract_trajectory_from_log(log_data, robot)
+    trajectory = extract_trajectory_from_log(log_vars, robot=robot)
 
     # Display external forces on root joint, if any
     replay_kwargs = {}
@@ -651,7 +651,7 @@ def extract_replay_data_from_log(
 
     # Define `update_hook` to emulate sensor update
     if not robot.is_locked:
-        update_hook = update_sensors_data_from_log(log_data, robot)
+        update_hook = update_sensors_data_from_log(log_vars, robot)
     else:
         if robot.sensors_names:
             logger.warn(
@@ -666,7 +666,7 @@ def extract_replay_data_from_log(
 
 def play_logs_data(robots: Union[Sequence[jiminy.Robot],
                    Dict[str, jiminy.Robot], jiminy.Robot],
-                   log_data: Union[Sequence[Dict[str, np.ndarray]],
+                   log_vars: Union[Sequence[Dict[str, np.ndarray]],
                    Dict[str, Dict[str, np.ndarray]], Dict[str, np.ndarray]],
                    **kwargs) -> Sequence[Viewer]:
     """Play log data in a viewer.
@@ -682,47 +682,47 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot],
     # If simulation as been done with Engine and not EngineMultiRobot
     if isinstance(robots, jiminy.Robot):
         robots = {"": robots}
-        if isinstance(log_data, dict) and isinstance(
-                log_data.values(), np.ndarray):
-            logs_data = {"": log_data}
+        if isinstance(log_vars, dict) and isinstance(
+                log_vars.values(), np.ndarray):
+            logs_vars = {"": log_vars}
         else:
             raise RuntimeError(
-                "The variables robots and log_data must be consistents, if"
-                "robots is jiminy.Robot, log_data must be Dict[str,"
+                "The variables robots and log_vars must be consistents, if"
+                "robots is jiminy.Robot, log_vars must be Dict[str,"
                 "np.ndarray]")
     elif isinstance(robots, list):
         robots = {f'system{i}': robot for robot, i in zip(
             robots, range(len(robots)))}
-        if isinstance(log_data, list):
-            logs_data = {f'system{i}': data for data, i in zip(
-                log_data, range(len(log_data)))}
+        if isinstance(log_vars, list):
+            logs_vars = {f'system{i}': data for data, i in zip(
+                log_vars, range(len(log_vars)))}
         else:
             raise RuntimeError(
-                "The variables robots and log_data must be consistents, if"
-                "robots is Sequence[jiminy.Robot], log_data must be"
+                "The variables robots and log_vars must be consistents, if"
+                "robots is Sequence[jiminy.Robot], log_vars must be"
                 "Sequence[str, np.ndarray]")
 
-    elif log_data.keys() != robots.keys():
-        logs_data = {
-            system_name: {'Global.Time': log_data['Global.Time']}
+    elif log_vars.keys() != robots.keys():
+        logs_vars = {
+            system_name: {'Global.Time': log_vars['Global.Time']}
             for system_name in robots.keys()}
-        for key in log_data.keys():
+        for key in log_vars.keys():
             for system_name in robots.keys():
                 if system_name in key and system_name != '':
-                    logs_data[system_name][
-                        key.replace(f'{system_name}.', '')] = log_data[key]
+                    logs_vars[system_name][
+                        key.replace(f'{system_name}.', '')] = log_vars[key]
                 elif system_name in key and system_name == '':
-                    logs_data[system_name][key] = log_data[key]
+                    logs_vars[system_name][key] = log_vars[key]
     else:
-        logs_data = log_data
+        logs_vars = log_vars
     # Extract a replay data for `play_trajectories` for each pair (robot, log)
     trajectories, update_hooks, extra_kwargs, viewers = [], [], {}, []
     for system_name in robots.keys():
         robot = robots[system_name]
-        log_data = logs_data[system_name]
-        if log_data:
+        log_vars = logs_vars[system_name]
+        if log_vars:
             traj, update_hook, _kwargs = \
-                extract_replay_data_from_log(log_data, robot)
+                extract_replay_data_from_log(log_vars, robot)
             trajectories.append(traj)
             update_hooks.append(update_hook)
             extra_kwargs.update(_kwargs)
@@ -759,23 +759,25 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
         logs_files = [logs_files]
 
     # Extract log data and build robot for each log file
-    robots, logs_data = {}, {}
+    robots, logs_vars = {}, {}
     for log_file in logs_files:
-        log_data, log_constants = read_log(log_file)
+        log_data = read_log(log_file)
+        log_vars = log_data["variables"]
+        log_constants = log_data["constants"]
         robots_log_file = build_robots_from_log(log_constants)
         for system_name in robots_log_file.keys():
             robots[system_name] = robots_log_file[system_name]
             if len(robots_log_file.keys()) > 1:
-                logs_data = {system_name: {
-                    'Global.Time': log_data['Global.Time']}
+                logs_vars = {system_name: {
+                    'Global.Time': log_vars['Global.Time']}
                     for system_name in robots_log_file.keys()}
-                for key in log_data.keys():
+                for key in log_vars.keys():
                     for system_name in robots_log_file.keys():
                         if system_name in key:
-                            logs_data[system_name][key.replace(
-                                f'{system_name}.', '')] = log_data[key]
+                            logs_vars[system_name][key.replace(
+                                f'{system_name}.', '')] = log_vars[key]
             else:
-                logs_data = log_data
+                logs_vars = log_vars
 
     # Default legend if several log files are provided
     if "legend" not in kwargs and len(logs_files) > 1:
@@ -783,7 +785,7 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
                             for log_file in logs_files]
 
     # Forward arguments to lower-level method
-    return play_logs_data(robots, logs_data, **kwargs)
+    return play_logs_data(robots, logs_vars, **kwargs)
 
 
 def _play_logs_files_entrypoint() -> None:

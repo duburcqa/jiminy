@@ -1,3 +1,4 @@
+from asyncio import constants
 import os
 import toml
 import atexit
@@ -112,19 +113,32 @@ def _sanitize_state(engine: jiminy.EngineMultiRobot,
     return q_init, v_init, a_init, is_state_theoretical
 
 
-def unwrap_log_data(systems_names, log_data):
+def unwrap_log_vars(systems_names, log_vars):
     if len(systems_names) == 1 and systems_names[0] == "":
-        logs_data = {systems_names[0]: log_data}
+        logs_vars = {systems_names[0]: log_vars}
     else:
-        logs_data = {
-            system_name: {'Global.Time': log_data['Global.Time']}
+        logs_vars = {
+            system_name: {'Global.Time': log_vars['Global.Time']}
             for system_name in systems_names}
-        for key in log_data.keys():
+        for key in log_vars.keys():
             for system_name in systems_names:
                 if system_name in key:
-                    logs_data[system_name][key.replace(
-                        f'{system_name}.', '')] = log_data[key]
-    return logs_data
+                    logs_vars[system_name][key.replace(
+                        f'{system_name}.', '')] = log_vars[key]
+    return logs_vars
+
+def unwrap_log_constants(systems_names, log_constants):
+    if len(systems_names) == 1 and systems_names[0] == "":
+        logs_vars = {systems_names[0]: log_constants}
+    else:
+        logs_vars = {system_name: {}
+            for system_name in systems_names}
+        for key in log_constants.keys():
+            for system_name in systems_names:
+                if system_name in key:
+                    logs_vars[system_name][key.replace(
+                        f'{system_name}.', '')] = log_constants[key]
+    return logs_vars
 
 
 class Simulator:
@@ -355,16 +369,22 @@ class Simulator:
         return self.engine.systems[0]
 
     @property
-    def log_data(self) -> Dict[str, np.ndarray]:
+    def log_data(self) -> Dict[str, str]:
+        """Getter of the telemetry constants.
+        """
+        return self.engine.log_data
+
+    @property
+    def log_vars(self) -> Dict[str, np.ndarray]:
         """Getter of the telemetry variables.
         """
-        return self.engine.get_log()[0]
+        return self.engine.log_data["variables"]
 
     @property
     def log_constants(self) -> Dict[str, str]:
         """Getter of the telemetry constants.
         """
-        return self.engine.get_log()[1]
+        return self.engine.log_data["constants"]
 
     @property
     def is_viewer_available(self) -> bool:
@@ -709,17 +729,23 @@ class Simulator:
         # Extract log data and robot from extra log files
         robots = {system.name: system.robot for system in self.engine.systems}
 
-        logs_data = unwrap_log_data(self.engine.systems_names, self.log_data)
+        logs_vars = unwrap_log_vars(self.engine.systems_names, self.log_vars)
+        logs_constants = unwrap_log_constants(
+            self.engine.systems_names, self.log_constants)
 
         for log_file in extra_logs_files:
-            log_data, log_constants = read_log(log_file)
+            log_data = read_log(log_file)
+            log_vars = log_data["variables"]
+            log_constants = log_data["constants"]
             mesh_package_dirs = []
             for system in self.systems:
                 mesh_package_dirs.append(system.robot.mesh_package_dirs[0])
             new_robots = build_robots_from_log(
                 log_constants, mesh_package_dirs)
             systems_names = new_robots.keys()
-            unwrapped_log_data = unwrap_log_data(systems_names, log_data)
+            unwrapped_log_vars = unwrap_log_vars(systems_names, log_vars)
+            unwrapped_log_constants = unwrap_log_constants(
+                systems_names, log_constants)
             for name, robot in new_robots.items():
                 if name in robots.keys():
                     if '/' in log_file:
@@ -727,20 +753,25 @@ class Simulator:
                     else:
                         scene_name = log_file[:-5]
                     robots[f"{name} {scene_name}"] = robot
-                    logs_data[f"{name} {scene_name}"] = unwrapped_log_data[
+                    logs_vars[f"{name} {scene_name}"] = unwrapped_log_vars[
                         name]
+                    logs_constants[f"{name} {scene_name}"] = \
+                        unwrapped_log_constants[name]
                 else:
                     robots[name] = robot
-                    logs_data[name] = unwrapped_log_data[name]
+                    logs_vars[name] = unwrapped_log_vars[name]
+                    logs_constants[name] = unwrapped_log_constants[name]
 
         # Extract trajectory data from pairs (robot, log)
         trajectories, update_hooks, extra_kwargs = [], [], {}
         for system_name in robots.keys():
             robot = robots[system_name]
-            log_data = logs_data[system_name]
-            if log_data:
+            log_vars = logs_vars[system_name]
+            log_constants = logs_constants[system_name]
+            log_data = {"variables" : log_vars, "constants": log_constants}
+            if log_vars:
                 traj, update_hook, _kwargs = \
-                    extract_replay_data_from_log_data(robot, log_data)
+                    extract_replay_data_from_log(log_vars, robot=robot)
                 trajectories.append(traj)
                 update_hooks.append(update_hook)
                 extra_kwargs.update(_kwargs)
@@ -837,7 +868,7 @@ class Simulator:
         self.figures = []
 
         # Extract log data
-        log_data, log_constants = self.log_data, self.log_constants
+        log_vars, log_constants = self.log_vars, self.log_constants
         if not log_constants:
             return RuntimeError(
                 "No data to replay. Please run a simulation first.")
@@ -862,26 +893,26 @@ class Simulator:
                     system_to_plot = system
 
             # Extract the log data to the system to plot
-            log_data_system = {}
-            for key in log_data.keys():
+            log_vars_system = {}
+            for key in log_vars.keys():
                 # Find if the key is general (general_key = True)
                 # or relative to one system (general_key = False)
                 general_key = True
                 for name in names:
                     if name in key:
                         general_key = False
-                # Copy the log_data of the system to plot
+                # Copy the log_vars of the system to plot
                 if general_key:
-                    log_data_system[key] = log_data[key]
+                    log_vars_system[key] = log_vars[key]
                 elif system_to_plot.name in key:
-                    log_data_system[
+                    log_vars_system[
                         key.replace(
                             system_to_plot.name, '').replace('..', '.')] = \
-                            log_data[key]
+                            log_vars[key]
 
             plot_log_system(self.figures,
                             system_to_plot,
-                            log_data_system,
+                            log_vars_system,
                             SENSORS_FIELDS,
                             enable_flexiblity_data=enable_flexiblity_data,
                             **kwargs)

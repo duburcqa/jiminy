@@ -36,7 +36,7 @@ from .core import Model
 from .log import (SENSORS_FIELDS,
                   read_log,
                   extract_variables_from_log,
-                  build_robot_from_log)
+                  build_robots_from_log)
 from .viewer import interactive_mode
 
 
@@ -637,7 +637,7 @@ def plot_log_interactive():
     compare_data = OrderedDict()
     if main_arguments.compare is not None:
         for fullpath in main_arguments.compare.split(':'):
-            compare_data[fullpath], _ = read_log(fullpath)
+            compare_data[fullpath] = read_log(fullpath)["variables"]
 
     # Define linestyle cycle that will be used for comparison logs
     linestyles = ["--", "-.", ":"]
