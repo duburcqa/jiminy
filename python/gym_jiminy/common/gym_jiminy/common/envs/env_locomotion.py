@@ -338,7 +338,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         wrench[1] = F_PROFILE_SCALE * self._f_xy_profile[1](t)
         wrench[:2] *= self.std_ratio['disturbance']
 
-    def is_done(self) -> bool:  # type: ignore[override]
+    def is_done(self) -> bool:
         """Determine whether the episode is over.
 
         The termination conditions are the following:

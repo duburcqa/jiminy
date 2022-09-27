@@ -26,8 +26,10 @@ if np_ver < (1, 20):
     np_req = "numpy<1.20"
 elif np_ver < (1, 22):
     np_req = "numpy>=1.20,!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4,<1.22"
+elif np_ver < (1, 23):
+    np_req = "numpy>=1.22,<1.23"
 else:
-    np_req = "numpy>=1.22"
+    np_req = "numpy>=1.23"
 
 
 setup(

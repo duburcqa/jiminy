@@ -70,7 +70,6 @@ jobs:
         else
           TORCH_VERSION="1.11.0"
         fi
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" --trusted-host pypi.org \
         --trusted-host pytorch.org --trusted-host download.pytorch.org --trusted-host files.pypi.org \
         --trusted-host files.pytorch.org -f https://download.pytorch.org/whl/torch_stable.html

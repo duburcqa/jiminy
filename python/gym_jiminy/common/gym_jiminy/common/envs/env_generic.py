@@ -1338,7 +1338,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             `_setup` method.
         """
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         """Compute the observation based on the current state of the robot.
 
         .. note::

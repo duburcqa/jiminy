@@ -49,8 +49,8 @@ jobs:
         sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade setuptools
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade setuptools wheel
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
 
         git config --global advice.detachedHead false
     - name: Build project dependencies
