@@ -185,7 +185,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
             raise ValueError(
                 "`StackedJiminyEnv` does not support time-continuous update.")
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         # Get environment observation
         self.env.refresh_observation()
 

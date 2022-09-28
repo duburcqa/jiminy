@@ -208,7 +208,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         # Refresh some proxies for fast lookup
         self.sensors_data = self.env.sensors_data
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         """Compute the unified observation.
 
         By default, it forwards the observation computed by the environment.
@@ -339,7 +339,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         self.observe_dt = self.observer.observe_dt
         self.control_dt = self.env.control_dt
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         """Compute high-level features based on the current wrapped
         environment's observation.
 
@@ -565,7 +565,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         return self._command
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 

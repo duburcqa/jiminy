@@ -1338,7 +1338,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             `_setup` method.
         """
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         """Compute the observation based on the current state of the robot.
 
         .. note::
@@ -1560,7 +1560,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv):
         """
         raise NotImplementedError
 
-    def is_done(self,  # type: ignore[override]
+    def is_done(self,
                 achieved_goal: Optional[DataNested] = None,
                 desired_goal: Optional[DataNested] = None) -> bool:
         """Determine whether a termination condition has been reached.

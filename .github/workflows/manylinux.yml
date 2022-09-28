@@ -54,7 +54,7 @@ jobs:
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel cmake
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
