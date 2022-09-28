@@ -20,16 +20,17 @@ class InstallPlatlib(install):
             self.install_lib = self.install_platlib
 
 
-# Enforce the right numpy version
+# Enforce the right numpy version. It assumes the version currently available
+# was used to compile all the C++ extension modules shipping with Jiminy.
+# - Numpy API is not backward compatible but is forward compatible
+# - A few version must be blacklisted because of Boost::Python incompatibility
+# - For some reason, forward compatibility from 1.19 to 1.20+ seems broken
 np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
+np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
 if np_ver < (1, 20):
-    np_req = "numpy<1.20"
+    np_req += ",<1.20.0"
 elif np_ver < (1, 22):
-    np_req = "numpy>=1.20,!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4,<1.22"
-elif np_ver < (1, 23):
-    np_req = "numpy>=1.22,<1.23"
-else:
-    np_req = "numpy>=1.23"
+    np_req += ",!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
 
 
 setup(

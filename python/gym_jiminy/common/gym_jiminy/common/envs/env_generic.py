@@ -1560,7 +1560,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv):
         """
         raise NotImplementedError
 
-    def is_done(self,  # type: ignore[override]
+    def is_done(self,
                 achieved_goal: Optional[DataNested] = None,
                 desired_goal: Optional[DataNested] = None) -> bool:
         """Determine whether a termination condition has been reached.
