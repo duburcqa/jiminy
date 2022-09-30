@@ -1,5 +1,7 @@
-# Enable link rpath to find shared library dependencies at runtime
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+# Do nothing if already imported target
+if(TARGET jiminy::core)
+    return()
+endif()
 
 # Set Python find strategy to location by default
 if(CMAKE_VERSION VERSION_GREATER "3.15")
@@ -88,6 +90,10 @@ execute_process(COMMAND "${Python_EXECUTABLE}" -c
 # For now, there is only one libary (core), so just pick the most recent one
 list(GET jiminy_LIBRARIES 0 jiminy_CORE_LIBRARY)
 
+# Enable link rpath to find shared library dependencies at runtime
+get_filename_component(jiminy_LIBDIR "${jiminy_CORE_LIBRARY}" DIRECTORY)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${jiminy_LIBDIR}")
+
 # Define compilation options and definitions
 set(jiminy_DEFINITIONS
     BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON
@@ -108,7 +114,7 @@ else()
     set(jiminy_OPTIONS -fPIC)
 endif()
 
-# Set architecture flags.
+# Set architecture flags
 list(APPEND jiminy_OPTIONS ${jiminy_OPTIONS} @CMAKE_CXX_ARCH@)
 if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
     list(APPEND jiminy_OPTIONS /wd9002 /fp:contract)
@@ -116,7 +122,7 @@ if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
 endif()
 
 # Define imported target
-add_library(jiminy::core SHARED IMPORTED GLOBAL)
+add_library(jiminy::core SHARED IMPORTED)
 set_target_properties(jiminy::core PROPERTIES
     IMPORTED_LOCATION "${jiminy_CORE_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${jiminy_INCLUDE_DIRS}"
@@ -129,7 +135,6 @@ set_target_properties(jiminy::core PROPERTIES
 )
 
 if(WIN32)
-    get_filename_component(jiminy_LIBDIR "${jiminy_CORE_LIBRARY}" DIRECTORY)
     get_filename_component(jiminy_LIBNAME "${jiminy_CORE_LIBRARY}" NAME_WE)
     set_target_properties(jiminy::core PROPERTIES
         IMPORTED_IMPLIB "${jiminy_LIBDIR}/${jiminy_LIBNAME}.lib"
