@@ -42,8 +42,8 @@ namespace jiminy
             {
                 // Define constraint blocks
                 Eigen::Index const constraintDim = static_cast<Eigen::Index>(constraint->getDim());
-                ConstraintBlock block;
-                ConstraintData constraintData;
+                ConstraintBlock block {};
+                ConstraintData constraintData {};
                 switch (holderType)
                 {
                 case constraintsHolderType_t::BOUNDS_JOINTS:
@@ -82,11 +82,10 @@ namespace jiminy
                     block.fIdx[2] = 2;
                     block.fSize = 3;
                     constraintData.blocks[2] = block;
+
                     constraintData.nBlocks = 3;
                     break;
                 case constraintsHolderType_t::USER:
-                    constraintData.isBounded = false;
-                    break;
                 default:
                     break;
                 }
@@ -112,8 +111,8 @@ namespace jiminy
         // First, loop over all unbounded constraints
         for (ConstraintData const & constraintData : constraintsData_)
         {
-            // Bypass inactive constraints
-            if (!constraintData.isActive || constraintData.isBounded)
+            // Bypass inactive and bounded constraints
+            if (constraintData.isInactive || constraintData.nBlocks != 0)
             {
                 continue;
             }
@@ -137,8 +136,7 @@ namespace jiminy
             for (ConstraintData const & constraintData : constraintsData_)
             {
                 // Bypass inactive or unbounded constraints or no block left
-                if (!constraintData.isActive || !constraintData.isBounded ||
-                    constraintData.nBlocks <= i)
+                if (constraintData.isInactive || constraintData.nBlocks <= i)
                 {
                     continue;
                 }
@@ -264,8 +262,8 @@ namespace jiminy
         for (auto & constraintData : constraintsData_)
         {
             AbstractConstraintBase * constraint = constraintData.constraint;
-            constraintData.isActive = constraint->getIsEnabled();
-            if (!constraintData.isActive)
+            constraintData.isInactive = !constraint->getIsEnabled();
+            if (constraintData.isInactive)
             {
                 continue;
             }
@@ -284,10 +282,10 @@ namespace jiminy
         auto b = b_.head(constraintRows);
 
         // Check if problem is bounded
-        bool_t isBounded = std::any_of(
+        bool_t isUnbounded = std::any_of(
             constraintsData_.cbegin(), constraintsData_.cend(),
             [](ConstraintData const & constraintData){
-                return constraintData.isActive && constraintData.isBounded;
+                return constraintData.isInactive || constraintData.nBlocks == 0;
             });
 
         /* Compute JMinvJt, including cholesky decomposition of inertia matrix.
@@ -322,7 +320,7 @@ namespace jiminy
 
         // Compute resulting forces solving forward dynamics
         bool_t isSuccess = false;
-        if (!isBounded)
+        if (isUnbounded)
         {
             /* There is no inequality constraint, so the problem can be
                solved exactly and efficiently using cholesky decomposition.
