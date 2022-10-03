@@ -29,8 +29,7 @@ namespace jiminy
     public:
         AbstractConstraintBase * constraint;
         Eigen::Index startIdx;
-        bool_t isBounded;
-        bool_t isActive;
+        bool_t isInactive;
         Eigen::Index dim;
         ConstraintBlock blocks[3];
         std::uint_fast8_t nBlocks;
