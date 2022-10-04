@@ -1562,8 +1562,7 @@ class Viewer:
     @staticmethod
     @__must_be_open
     @__with_lock
-    def update_floor(self,
-                     ground_profile: Optional[jiminy.HeightmapFunctor] = None,
+    def update_floor(ground_profile: Optional[jiminy.HeightmapFunctor] = None,
                      grid_size: float = 20.0,
                      grid_unit: float = 0.04,
                      show_meshes: bool = False) -> None:
