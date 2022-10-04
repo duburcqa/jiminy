@@ -544,7 +544,7 @@ class Simulator:
 
         # Set the camera pose if requested
         if camera_xyzrpy is not None:
-            Viewer.set_camera_transform(None, *camera_xyzrpy)
+            self.viewer.set_camera_transform(*camera_xyzrpy)
 
         # Make sure the graphical window is open if required
         if not return_rgb_array:
