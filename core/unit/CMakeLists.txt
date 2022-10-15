@@ -10,6 +10,7 @@ find_package(Threads)
 # Define the list of unit test files
 set(UNIT_TEST_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/EngineSanityCheck.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ModelTest.cc"
 )
 
 # Create the unit test executable
