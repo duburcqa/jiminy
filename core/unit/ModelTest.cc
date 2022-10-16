@@ -32,7 +32,9 @@ TEST_P(ModelTestFixture, CreateFlexible)
     // We now have a rigid robot: perform rigid computation on this.
     auto q = pinocchio::randomConfiguration(model->pncModel_);
     if (hasFreeflyer)
+    {
         q.head<3>().setZero();
+    }
     auto pncData = pinocchio::Data(model->pncModel_);
     pinocchio::framesForwardKinematics(model->pncModel_, pncData, q);
 
@@ -51,8 +53,8 @@ TEST_P(ModelTestFixture, CreateFlexible)
     auto options = model->getOptions();
     flexibilityConfig_t flexConfig;
     vector3_t v = vector3_t::Ones();
-    flexConfig.push_back(flexibleJointData_t{"PendulumJoint", v, v, v});
-    flexConfig.push_back(flexibleJointData_t{"PendulumMassJoint", v, v, v});
+    flexConfig.emplace_back("PendulumJoint", v, v, v);
+    flexConfig.emplace_back("PendulumMassJoint", v, v, v);
     boost::get<flexibilityConfig_t>(boost::get<configHolder_t>(options.at("dynamics")).at("flexibilityConfig")) = flexConfig;
     model->setOptions(options);
     model->reset();
@@ -68,7 +70,7 @@ TEST_P(ModelTestFixture, CreateFlexible)
 
     for (uint32_t i = 0; i < model->pncModelOrig_.frames.size(); i++)
     {
-        uint32_t const flexId = static_cast<uint32_t>(model->pncModel_.getFrameId(model->pncModelOrig_.frames[i].name));
+        frameIndex_t const flexId = model->pncModel_.getFrameId(model->pncModelOrig_.frames[i].name);
         ASSERT_TRUE(pncData.oMf[i].isApprox(model->pncData_.oMf[flexId]));
     }
 
