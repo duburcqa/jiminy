@@ -69,17 +69,17 @@ TEST_P(ModelTestFixture, CreateFlexible)
     for (uint32_t i = 0; i < model->pncModelOrig_.frames.size(); i++)
     {
         uint32_t const flexId = static_cast<uint32_t>(model->pncModel_.getFrameId(model->pncModelOrig_.frames[i].name));
-        ASSERT_TRUE(pncData.oMf[i].toHomogeneousMatrix().isApprox(model->pncData_.oMf[flexId].toHomogeneousMatrix()));
+        ASSERT_TRUE(pncData.oMf[i].isApprox(model->pncData_.oMf[flexId]));
     }
 
     for (uint32_t i = 0; i < model->visualData_.oMg.size(); i++)
     {
-        ASSERT_TRUE(model->visualData_.oMg[i].toHomogeneousMatrix().isApprox(visualData.oMg[i].toHomogeneousMatrix()));
+        ASSERT_TRUE(model->visualData_.oMg[i].isApprox(visualData.oMg[i]));
     }
 
     for (uint32_t i = 0; i < model->collisionData_.oMg.size(); i++)
     {
-        ASSERT_TRUE(model->collisionData_.oMg[i].toHomogeneousMatrix().isApprox(collisionData.oMg[i].toHomogeneousMatrix()));
+        ASSERT_TRUE(model->collisionData_.oMg[i].isApprox(collisionData.oMg[i]));
     }
 }
 
