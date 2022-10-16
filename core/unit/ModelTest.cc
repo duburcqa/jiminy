@@ -53,8 +53,8 @@ TEST_P(ModelTestFixture, CreateFlexible)
     auto options = model->getOptions();
     flexibilityConfig_t flexConfig;
     vector3_t v = vector3_t::Ones();
-    flexConfig.emplace_back("PendulumJoint", v, v, v);
-    flexConfig.emplace_back("PendulumMassJoint", v, v, v);
+    flexConfig.push_back({"PendulumJoint", v, v, v});
+    flexConfig.push_back({"PendulumMassJoint", v, v, v});
     boost::get<flexibilityConfig_t>(boost::get<configHolder_t>(options.at("dynamics")).at("flexibilityConfig")) = flexConfig;
     model->setOptions(options);
     model->reset();
