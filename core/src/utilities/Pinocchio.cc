@@ -719,7 +719,6 @@ namespace jiminy
             newJointIdx, static_cast<int32_t>(modelInOut.frames[childFrameIdx].previousFrame));
 
         // Update child joint previousFrame index
-        modelInOut.frames[childFrameIdx].parent = newJointIdx;
         modelInOut.frames[childFrameIdx].previousFrame = newFrameIdx;
         modelInOut.frames[childFrameIdx].placement = SE3::Identity();
 
