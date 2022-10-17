@@ -40,25 +40,31 @@ endif()
 # Pinocchio Cmake configuration file set `Boost_NO_BOOST_CMAKE` to ON,
 # requiring to specify `BOOST_ROOT` manually. This is not sufficient
 # on Windows, and Pinocchio is still not able to find boost components
-# for some reason if not already imported before...
-find_package(Boost REQUIRED COMPONENTS chrono system filesystem serialization date_time thread atomic)
+# for some reason if not already imported before. Yet, it does not work
+# well on Unix if only static libs are available on the system...
+if(WIN32)
+    find_package(Boost REQUIRED COMPONENTS
+        chrono system filesystem serialization date_time thread atomic)
+else()
+    find_package(Boost REQUIRED)
+endif()
 get_target_property(BOOST_INCLUDE_DIR Boost::headers INTERFACE_INCLUDE_DIRECTORIES)
 get_filename_component(BOOST_ROOT "${BOOST_INCLUDE_DIR}" DIRECTORY)
 
 # Make sure the right version of urdfdom, pinocchio, and eigen are available
 find_package(urdfdom REQUIRED NO_MODULE)
-if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
+if(NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
     list(APPEND urdfdom_LIBRARIES "tinyxml")
 endif()
-if (NOT TARGET pinocchio::pinocchio)
+if(NOT TARGET pinocchio::pinocchio)
     unset(pinocchio_FOUND CACHE)
 endif()
 find_package(pinocchio @pinocchio_VERSION@ EXACT REQUIRED NO_MODULE)
-if (NOT TARGET hpp-fcl::hpp-fcl)
+if(NOT TARGET hpp-fcl::hpp-fcl)
     unset(hpp-fcl_FOUND CACHE)
 endif()
 find_package(hpp-fcl 1.7.1 REQUIRED NO_MODULE)
-if (NOT TARGET Eigen3::Eigen)
+if(NOT TARGET Eigen3::Eigen)
     unset(Eigen3_FOUND CACHE)
 endif()
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)
@@ -68,7 +74,7 @@ execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 "from importlib.util import find_spec; print(int(find_spec('jiminy_py') is not None), end='')"
                 OUTPUT_VARIABLE jiminy_FOUND)
 if(NOT jiminy_FOUND)
-    if (jiminy_FIND_REQUIRED)
+    if(jiminy_FIND_REQUIRED)
         message(FATAL_ERROR "`jiminy_py` Python module not found, CMake will exit.")
     else()
         return()

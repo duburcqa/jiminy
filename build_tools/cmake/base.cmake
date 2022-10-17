@@ -64,17 +64,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 endif()
 
-# Define search strategy for Boost package
-# TODO: Remove hard-coded path
-option(Boost_NO_WARN_NEW_VERSIONS "Do not warn about unknown boost version." ON)
-option(Boost_NO_SYSTEM_PATHS "Do not search for boost on system." ON)
-if(Boost_NO_SYSTEM_PATHS AND (NOT DEFINED BOOST_ROOT))
-    set(BOOST_ROOT "/opt/install/pc/")
-endif()
-
-# Add Fallback search paths for headers and libraries
-list(APPEND CMAKE_PREFIX_PATH "/opt/openrobots/")
-
 # Due to license considerations, we will only use the MPL2 parts of Eigen.
 set(EIGEN_MPL2_ONLY 1)
 
