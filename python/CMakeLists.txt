@@ -57,12 +57,12 @@ else()
 endif()
 install(CODE "file(GLOB_RECURSE archive_files_list FOLLOW_SYMLINKS
                    LIST_DIRECTORIES false
-                   RELATIVE \"\${CORE_SOURCE_DIR}/include\"
-                   \"\${CORE_SOURCE_DIR}/include/*\"
+                   RELATIVE \"${CORE_SOURCE_DIR}/include\"
+                   \"${CORE_SOURCE_DIR}/include/*\"
               )
               foreach(archive_file \${archive_files_list})
                   get_filename_component(archive_file_real \"\${archive_file}\" REALPATH
-                                         BASE_DIR \"\${CORE_SOURCE_DIR}/include\")
+                                         BASE_DIR \"${CORE_SOURCE_DIR}/include\")
                   file(COPY \"\${archive_file_real}/\"
                        DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/include/\${archive_file}\")
               endforeach()
