@@ -17,19 +17,14 @@ else()
     if(CMAKE_VERSION VERSION_LESS "3.12.4")
         find_program(Python_EXECUTABLE "python${PYTHON_REQUIRED_VERSION}")
     else()
-        if(CMAKE_VERSION VERSION_LESS "3.14")
-            set(Python_COMPONENTS_FIND Interpreter)
-        else()
-            set(Python_COMPONENTS_FIND Interpreter NumPy)
-        endif()
         unset(Python_EXECUTABLE)
         unset(Python_EXECUTABLE CACHE)
         unset(_Python_EXECUTABLE)
         unset(_Python_EXECUTABLE CACHE)
         if(PYTHON_REQUIRED_VERSION)
-            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS ${Python_COMPONENTS_FIND})
+            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS Interpreter)
         else()
-            find_package(Python COMPONENTS ${Python_COMPONENTS_FIND})
+            find_package(Python COMPONENTS Interpreter)
         endif()
     endif()
 endif()
@@ -43,13 +38,15 @@ if(NOT Python_EXECUTABLE)
 endif()
 
 # Pinocchio Cmake configuration file set `Boost_NO_BOOST_CMAKE` to ON,
-# requiring to specify `BOOST_ROOT` manually.
-find_package(Boost REQUIRED)
+# requiring to specify `BOOST_ROOT` manually. This is not sufficient
+# on Windows, and Pinocchio is still not able to find boost components
+# for some reason if not already imported before...
+find_package(Boost REQUIRED COMPONENTS chrono system filesystem serialization date_time thread atomic)
 get_target_property(BOOST_INCLUDE_DIR Boost::headers INTERFACE_INCLUDE_DIRECTORIES)
 get_filename_component(BOOST_ROOT "${BOOST_INCLUDE_DIR}" DIRECTORY)
 
 # Make sure the right version of urdfdom, pinocchio, and eigen are available
-find_package(urdfdom REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
+find_package(urdfdom REQUIRED NO_MODULE)
 if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
     list(APPEND urdfdom_LIBRARIES "tinyxml")
 endif()

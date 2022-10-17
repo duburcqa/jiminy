@@ -1,3 +1,6 @@
+# RPATH is not supported by Windows, thus jiminy DLL directory must be
+# added to the search path manually, or copied alonside this executable.
+
 # Minimum version required
 cmake_minimum_required(VERSION 3.10)
 
@@ -21,14 +24,8 @@ include(GNUInstallDirs)
 project(pip_double_pendulum VERSION 0.0)
 
 # Find libraries and headers
-# jiminy headers and library is provided with `pip install jiminy_py`,  but
-# pinocchio is not despite being mantadory to compile any extension module.
-# Yet, only pinocchio headers are required so it is straighforward to install.
+# jiminy headers and library is provided with `pip install jiminy_py`
 find_package(jiminy REQUIRED)
-# On windows, pinocchio is not able to find boost components for some reasons
-if(WIN32)
-    find_package(Boost REQUIRED COMPONENTS chrono system filesystem serialization date_time thread atomic)
-endif()
 
 # Make executables
 add_executable(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/double_pendulum.cc")
@@ -40,13 +37,10 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries
-target_link_libraries(${PROJECT_NAME} jiminy::core pinocchio::pinocchio Eigen3::Eigen)
+target_link_libraries(${PROJECT_NAME} jiminy::core)
 if(NOT WIN32)
     target_link_libraries(${PROJECT_NAME} stdc++fs)
 endif()
-
-# Note that RPATH is not supported by Windows, thus jiminy DLL directory must
-# be added to the search path manually, so copied alonside with executable...
 
 # Install
 install(TARGETS ${PROJECT_NAME}
