@@ -1,4 +1,5 @@
-from .viewer import (Viewer,
+from .viewer import (ViewerClosedError,
+                     Viewer,
                      sleep,
                      check_display_available,
                      get_default_backend)
@@ -10,6 +11,7 @@ from .meshcat.utilities import interactive_mode
 
 
 __all__ = [
+    'ViewerClosedError',
     'sleep',
     'Viewer',
     'interactive_mode',
