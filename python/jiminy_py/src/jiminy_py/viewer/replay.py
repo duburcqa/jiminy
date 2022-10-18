@@ -365,7 +365,11 @@ def play_trajectories(trajs_data: Union[
 
     # Handle meshcat-specific options
     if legend is not None:
-        Viewer.set_legend(legend)
+        try:
+            Viewer.set_legend(legend)
+        except ImportError:
+            raise logger.warn(
+                "Impossible to add legend. Please install 'jiminy_py[plot]'.")
 
     # Add watermark if requested
     if watermark_fullpath is not None:
