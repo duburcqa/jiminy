@@ -47,9 +47,9 @@ if(WIN32)
         chrono system filesystem serialization date_time thread atomic)
 else()
     find_package(Boost REQUIRED)
+    get_target_property(BOOST_INCLUDE_DIR Boost::headers INTERFACE_INCLUDE_DIRECTORIES)
+    get_filename_component(BOOST_ROOT "${BOOST_INCLUDE_DIR}" DIRECTORY)
 endif()
-get_target_property(BOOST_INCLUDE_DIR Boost::headers INTERFACE_INCLUDE_DIRECTORIES)
-get_filename_component(BOOST_ROOT "${BOOST_INCLUDE_DIR}" DIRECTORY)
 
 # Make sure the right version of urdfdom, pinocchio, and eigen are available
 find_package(urdfdom REQUIRED NO_MODULE)

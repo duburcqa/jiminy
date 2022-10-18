@@ -1,5 +1,5 @@
 from pkg_resources import get_distribution
-from setuptools import setup, dist, find_packages
+from setuptools import setup, dist, find_namespace_packages
 from setuptools.command.install import install
 
 
@@ -70,7 +70,7 @@ setup(
     cmdclass={
         "install": InstallPlatlib
     },
-    packages=find_packages("src"),
+    packages=find_namespace_packages("src"),
     package_dir={"": "src"},
     data_files=[
         ("cmake", [
