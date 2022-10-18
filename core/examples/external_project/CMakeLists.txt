@@ -26,6 +26,7 @@ project(pip_double_pendulum VERSION 0.0)
 # Find libraries and headers
 # jiminy headers and library is provided with `pip install jiminy_py`
 find_package(jiminy REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 
 # Make executables
 add_executable(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/double_pendulum.cc")
@@ -37,7 +38,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries
-target_link_libraries(${PROJECT_NAME} jiminy::core)
+target_link_libraries(${PROJECT_NAME} jiminy::core Boost::filesystem)
 if(NOT WIN32)
     target_link_libraries(${PROJECT_NAME} stdc++fs)
 endif()

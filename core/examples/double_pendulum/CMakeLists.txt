@@ -17,7 +17,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries
-target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core Boost::filesystem)
 
 # Install
 install(TARGETS ${PROJECT_NAME}

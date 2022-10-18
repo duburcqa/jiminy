@@ -12,17 +12,8 @@
 #include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/Types.h"
 
-
-// `filesystem` is experimental for gcc<=8.1
-#if __has_include(<filesystem>)
-#include <filesystem>
-#else
-#include <experimental/filesystem>
-namespace std
-{
-    namespace filesystem = std::experimental::filesystem;
-}
-#endif
+// Use boost filesystem instead of std for compatibility with MacOS < 10.15 and gcc < 8.1
+#include <boost/filesystem.hpp>
 
 
 using namespace jiminy;
@@ -60,9 +51,9 @@ int main(int argc, char_t * argv[])
     // =====================================================================
 
     // Set URDF and log output.
-    std::filesystem::path const filePath(__FILE__);
+    boost::filesystem::path const filePath(__FILE__);
     auto const urdfPath = filePath.parent_path() / "double_pendulum.urdf";
-    auto const outputDirPath = std::filesystem::temp_directory_path();
+    auto const outputDirPath = boost::filesystem::temp_directory_path();
 
     // =====================================================================
     // ============ Instantiate and configure the simulation ===============
