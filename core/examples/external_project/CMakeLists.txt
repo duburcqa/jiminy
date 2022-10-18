@@ -39,9 +39,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 # Link with other libraries
 target_link_libraries(${PROJECT_NAME} jiminy::core Boost::filesystem)
-if(NOT WIN32)
-    target_link_libraries(${PROJECT_NAME} stdc++fs)
-endif()
 
 # Install
 install(TARGETS ${PROJECT_NAME}
