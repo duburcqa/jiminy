@@ -5,7 +5,8 @@ import numpy as np
 
 from jiminy_py.simulator import Simulator
 from jiminy_py.core import random_tile_ground, sum_heightmap, merge_heightmap
-from gym_jiminy.common.envs import BaseJiminyEnv
+
+import pinocchio as pin
 
 
 # Get script directory
@@ -26,11 +27,10 @@ TILE_SEED = range(3)
 
 # Create a gym environment for a simple cube
 urdf_path = f"{MODULE_DIR}/../../jiminy_py/unit_py/data/box_collision_mesh.urdf"
-env = BaseJiminyEnv(Simulator.build(
-    urdf_path, has_freeflyer=True), step_dt=0.01)
+simulator = Simulator.build(urdf_path, has_freeflyer=True)
 
 # Enable constraint contact model
-engine_options = env.engine.get_options()
+engine_options = simulator.engine.get_options()
 engine_options['contacts']['model'] = 'constraint'
 
 # Configure integrator
@@ -43,30 +43,27 @@ ground_params = list(starmap(random_tile_ground, zip(
     TILE_ORIENTATION, TILE_SEED)))
 engine_options["world"]["groundProfile"] = sum_heightmap([
     ground_params[0], merge_heightmap(ground_params[1:])])
-env.engine.set_options(engine_options)
+simulator.engine.set_options(engine_options)
 
-# Monkey-patch the initial state sampling function
-sample_state_orig = env._sample_state
-
-def sample_state():
-    qpos, qvel = env._neutral(), np.zeros(env.robot.nv)
-    qpos[2] += 1.5
-    qvel[0] = 2.0
-    qvel[3] = 1.0
-    qvel[5] = 2.0
-    return qpos, qvel
-
-env._sample_state = sample_state
-
-# Run a simulation
+# Set the ground contact options
 engine_options['contacts']['friction'] = 1.0
 engine_options['contacts']['torsion'] = 0.0
-env.engine.set_options(engine_options)
+simulator.engine.set_options(engine_options)
 
-env.reset()
+# Sample the initial state
+qpos = pin.neutral(simulator.system.robot.pinocchio_model)
+qvel = np.zeros(simulator.system.robot.nv)
+qpos[2] += 1.5
+qvel[0] = 2.0
+qvel[3] = 1.0
+qvel[5] = 2.0
+
+# Run a simulation
+simulator.reset()
+simulator.start(qpos, qvel)
 for _ in range(500):
-    env.step()
-env.stop()
+    simulator.step(step_dt=0.01)
+simulator.stop()
 
 # Replay the simulation
-env.replay(enable_travelling=False, display_contact_frames=True)
+simulator.replay(enable_travelling=False, display_contact_frames=True)

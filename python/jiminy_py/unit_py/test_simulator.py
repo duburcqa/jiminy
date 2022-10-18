@@ -38,6 +38,15 @@ class SimulatorTest(unittest.TestCase):
         # The existing options file should be loaded automatically.
         simulator = Simulator(robot, viewer_backend="panda3d-sync")
 
+        # Check synchronous rendering:
+        # simulation started before display and the other way around.
+        simulator.start(q0, v0)
+        simulator.render(return_rgb_array=True)
+        simulator.stop()
+        simulator.start(q0, v0)
+        simulator.stop()
+        simulator.close()
+
         # Run the simulation and write log
         log_path = os.path.join(
             tempfile.gettempdir(),

@@ -1,5 +1,5 @@
 from pkg_resources import get_distribution
-from setuptools import setup, dist, find_packages
+from setuptools import setup, dist, find_namespace_packages
 from setuptools.command.install import install
 
 
@@ -70,7 +70,7 @@ setup(
     cmdclass={
         "install": InstallPlatlib
     },
-    packages=find_packages("src"),
+    packages=find_namespace_packages("src"),
     package_dir={"": "src"},
     data_files=[
         ("cmake", [
@@ -106,6 +106,9 @@ setup(
         "dm-tree",
         # Used internally by Viewer to perform 1D polynomial interpolations.
         "scipy",
+        # Used internally by Viewer to detect running Meshcat servers and
+        # avoid orphan child processes.
+        "psutil",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
         # Panda3d is NOT supported by PyPy and cannot be built from source.
@@ -138,9 +141,6 @@ setup(
             "meshcat>=0.3.2",
             # Used internally by Viewer to read/write Meshcat snapshots.
             "pillow",
-            # Used internally by Viewer to detect running Meshcat servers and
-            # avoid orphan child processes.
-            "psutil",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
             # 0.2.6 changes the API for `get_ws_entrypoint`
