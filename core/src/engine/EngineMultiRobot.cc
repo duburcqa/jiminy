@@ -3547,7 +3547,7 @@ namespace jiminy
             vector3_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
             vector3_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
-            quaternion_t const quat(q.segment<4>(positionIdx));  // Only way to initialize with [x,y,z,w] order
+            Eigen::Map<const quaternion_t> const quat(q.segment<4>(positionIdx).data());
             vector3_t const angleAxis = pinocchio::quaternion::log3(quat);
             assert((angleAxis.norm() < 0.5 * M_PI) && "Flexible joint angle must be smaller than pi/2.");
             uInternal.segment<3>(velocityIdx).array() +=
@@ -3699,7 +3699,7 @@ namespace jiminy
         computeForcesCoupling(t, qSplit, vSplit);
 
         // Compute each individual system dynamics
-        std::vector<systemHolder_t>::const_iterator systemIt = systems_.begin();
+        auto systemIt = systems_.begin();
         auto systemDataIt = systemsDataHolder_.begin();
         auto qIt = qSplit.begin();
         auto vIt = vSplit.begin();

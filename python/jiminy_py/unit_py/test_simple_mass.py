@@ -8,7 +8,7 @@ from scipy.signal import savgol_filter
 
 import jiminy_py.core as jiminy
 
-from pinocchio import Force
+from pinocchio import Force, SE3, log3
 
 from utilities import (
     load_urdf_default,
@@ -314,6 +314,52 @@ class SimulateSimpleMass(unittest.TestCase):
         for shape in [ShapeType.POINT]:
             # TODO: Add robust contact detection to support primitive shapes
             self._test_friction_model(shape)
+
+    def test_fixed_frame_constraint(self):
+        """
+        @brief    Validate the fixed frame constraint.
+
+        @details  Check that the error is strictly decreasing, with the
+                  expected rate.
+        """
+        # Create the robot and engine
+        robot = load_urdf_default("sphere_primitive.urdf", has_freeflyer=True)
+
+        # Create, initialize, and configure the engine
+        engine = jiminy.Engine()
+        self._setup_controller_and_engine(engine, robot)
+
+        # Disable constraint solver regularization
+        engine_options = engine.get_options()
+        engine_options["constraints"]["regularization"] = 0.0
+        engine.set_options(engine_options)
+
+        # Add fixed frame constraint
+        constraint = jiminy.FixedFrameConstraint(
+            "MassBody", [True, True, True, True, True, True])
+        robot.add_constraint("MassBody", constraint)
+        constraint.baumgarte_freq = 1.0
+
+        # Sample the initial state
+        qpos, qvel = neutral_state(robot, split=True)
+
+        # Run a simulation
+        engine.reset()
+        engine.start(qpos, qvel)
+        for _ in range(1000):
+            dt = engine.stepper_state.t % (2.0 / constraint.baumgarte_freq)
+            if min(dt, 2.0 / constraint.baumgarte_freq - dt) < 1e-6:
+                delta_prev = np.full((6,), np.nan)
+                constraint.reference_transform = SE3.Random()
+            transform = robot.pinocchio_data.oMf[constraint.frame_idx]
+            ref_transform = constraint.reference_transform
+            delta = np.concatenate((
+                transform.translation - ref_transform.translation,
+                log3(transform.rotation @ ref_transform.rotation.T)))
+            self.assertFalse(np.any(delta / delta_prev > 1.0))
+            engine.step(dt_desired=0.01)
+            delta_prev = delta
+        engine.stop()
 
 
 if __name__ == '__main__':

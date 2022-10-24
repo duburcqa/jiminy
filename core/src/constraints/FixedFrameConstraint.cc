@@ -136,22 +136,24 @@ namespace jiminy
             vOut = transformLocal.actInv(vIn);
         }
 
-        // Get drift in world frame
-        frameDrift_ = getFrameAcceleration(model->pncModel_,
-                                           model->pncData_,
-                                           frameIdx_,
-                                           pinocchio::LOCAL_WORLD_ALIGNED);
-
-        // Compute pose error
-        auto deltaPosition = framePose.translation() - transformRef_.translation();
-        vector3_t const deltaRotation = pinocchio::log3(
-            framePose.rotation() * transformRef_.rotation().transpose());
-
         // Compute velocity error
         pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
                                                             model->pncData_,
                                                             frameIdx_,
                                                             pinocchio::LOCAL_WORLD_ALIGNED);
+
+        /* Get drift in world frame.
+           We are actually looking for the classical acceleration here ! */
+        frameDrift_ = getFrameAcceleration(model->pncModel_,
+                                           model->pncData_,
+                                           frameIdx_,
+                                           pinocchio::LOCAL_WORLD_ALIGNED);
+        frameDrift_.linear() += velocity.angular().cross(velocity.linear());
+
+        // Compute pose error
+        auto deltaPosition = framePose.translation() - transformRef_.translation();
+        vector3_t const deltaRotation = pinocchio::log3(
+            framePose.rotation() * transformRef_.rotation().transpose());
 
         // Add Baumgarte stabilization to drift in world frame
         frameDrift_.linear() += kp_ * deltaPosition;

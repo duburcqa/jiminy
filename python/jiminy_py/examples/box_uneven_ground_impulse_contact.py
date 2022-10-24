@@ -59,11 +59,7 @@ qvel[3] = 1.0
 qvel[5] = 2.0
 
 # Run a simulation
-simulator.reset()
-simulator.start(qpos, qvel)
-for _ in range(500):
-    simulator.step(step_dt=0.01)
-simulator.stop()
+simulator.simulate(5.0, qpos, qvel)
 
 # Replay the simulation
 simulator.replay(enable_travelling=False, display_contact_frames=True)
