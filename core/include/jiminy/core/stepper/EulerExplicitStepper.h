@@ -28,6 +28,9 @@ namespace jiminy
                                stateDerivative_t       & stateDerivative,
                                float64_t         const & t,
                                float64_t               & dt) final override;
+
+        private:
+            state_t stateBuffer_;    ///< Internal buffer.
     };
 }
 
