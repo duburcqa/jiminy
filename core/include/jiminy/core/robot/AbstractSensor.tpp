@@ -357,13 +357,15 @@ namespace jiminy
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 1)
             {
+                // TODO: the linear interpolation is not valid for quaternion.
+                // `slerp` should be unsed instead...
                 get() = 1 / (sharedHolder_->time_[idxLeft + 1] - sharedHolder_->time_[idxLeft]) *
-                        ((timeDesired - sharedHolder_->time_[idxLeft]) * sharedHolder_->data_[idxLeft + 1].col(sensorIdx_) +
-                        (sharedHolder_->time_[idxLeft + 1] - timeDesired) * sharedHolder_->data_[idxLeft].col(sensorIdx_));
+                    ((timeDesired - sharedHolder_->time_[idxLeft]) * sharedHolder_->data_[idxLeft + 1].col(sensorIdx_) +
+                    (sharedHolder_->time_[idxLeft + 1] - timeDesired) * sharedHolder_->data_[idxLeft].col(sensorIdx_));
             }
             else
             {
-                PRINT_ERROR("The delayInterpolationOrder must be either 0 or 1 so far.");
+                PRINT_ERROR("`delayInterpolationOrder` must be either 0 or 1.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -473,9 +475,14 @@ namespace jiminy
                     sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + DELAY_MIN_BUFFER_RESERVE);
                 }
 
-                // Push back new empty buffer
+                /* Push back new buffer
+                   Note that it is a copy of the last value. This is important for
+                   `data()` to always provide the last true value instead of some
+                   initialized memory. The previous value is used for the quaternion
+                   of IMU sensors to choice the right value that ensures its continuity
+                   over time amond to two possible choices. */
                 sharedHolder_->time_.push_back(-1);
-                sharedHolder_->data_.push_back({getSize(), sharedHolder_->num_});
+                sharedHolder_->data_.push_back(sharedHolder_->data_.back());
             }
         }
         else

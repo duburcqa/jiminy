@@ -22,15 +22,26 @@ engine_options = simulator.engine.get_options()
 engine_options["constraints"]["regularization"] = 0.0
 simulator.engine.set_options(engine_options)
 
+# Continuous sensor and controller update
+engine_options = simulator.engine.get_options()
+engine_options["stepper"]["controllerUpdatePeriod"] = 0.0
+engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
+simulator.engine.set_options(engine_options)
+
 # Add fixed frame constraint
 constraint = jiminy.FixedFrameConstraint(
     "MassBody", [True, True, True, True, True, True])
 simulator.robot.add_constraint("MassBody", constraint)
 constraint.baumgarte_freq = 1.0
 
+# Add IMU to the robot
+imu_sensor = jiminy.ImuSensor("MassBody")
+simulator.robot.attach_sensor(imu_sensor)
+imu_sensor.initialize("MassBody")
+
 # Sample the initial state
-qpos = pin.neutral(simulator.system.robot.pinocchio_model)
-qvel = np.zeros(simulator.system.robot.nv)
+qpos = pin.neutral(simulator.robot.pinocchio_model)
+qvel = np.zeros(simulator.robot.nv)
 
 # Run a simulation
 delta = []

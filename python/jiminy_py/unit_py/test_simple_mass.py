@@ -327,7 +327,7 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # Create, initialize, and configure the engine
         engine = jiminy.Engine()
-        self._setup_controller_and_engine(engine, robot)
+        engine.initialize(robot)
 
         # Disable constraint solver regularization
         engine_options = engine.get_options()
@@ -361,6 +361,51 @@ class SimulateSimpleMass(unittest.TestCase):
             delta_prev = delta
         engine.stop()
 
+    def test_quaternion_continuity(self):
+        """
+        @brief    Validate the continuity of the quaternion.
+
+        @details  Check both the value of the freeflyer state and IMU sensors.
+        """
+        # Create the robot and engine
+        robot = load_urdf_default("sphere_primitive.urdf", has_freeflyer=True)
+
+        # Create, initialize, and configure the engine
+        engine = jiminy.Engine()
+        engine.initialize(robot)
+
+        # Add IMU to the robot
+        imu_sensor = jiminy.ImuSensor("MassBody")
+        robot.attach_sensor(imu_sensor)
+        imu_sensor.initialize("MassBody")
+
+        # Add fixed frame constraint
+        constraint = jiminy.FixedFrameConstraint("MassBody")
+        robot.add_constraint("MassBody", constraint)
+        constraint.baumgarte_freq = 1.0
+
+        # Sample the initial state
+        qpos, qvel = neutral_state(robot, split=True)
+
+        # Run a simulation
+        quat_freeflyer_prev = np.full((4,), np.nan)
+        quat_imu_prev = np.full((4,), np.nan)
+        engine.reset()
+        engine.start(qpos, qvel)
+        for _ in range(1000):
+            dt = engine.stepper_state.t % (0.2 / constraint.baumgarte_freq)
+            if min(dt, 0.2 / constraint.baumgarte_freq - dt) < 1e-6:
+                constraint.reference_transform = SE3.Random()
+            quat_freeflyer = engine.system_state.q[3:7].copy()
+            quat_imu = robot.sensors_data["ImuSensor", "MassBody"][:4].copy()
+            self.assertFalse(quat_freeflyer_prev.dot(quat_freeflyer) < 0.0)
+            self.assertFalse(quat_imu_prev.dot(quat_imu) < 0.0)
+            if quat_imu_prev.dot(quat_imu) < 0.0:
+                break
+            engine.step(dt_desired=0.01)
+            quat_freeflyer_prev = quat_freeflyer
+            quat_imu_prev = quat_imu
+        engine.stop()
 
 if __name__ == '__main__':
     unittest.main()

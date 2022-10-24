@@ -166,15 +166,17 @@ namespace jiminy
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        // Compute quaternion
+        /* Compute quaternion (x,y,z,w).
+           - Convert the rotation matrix of the attached frame into a quaternion.
+           - Ensure continuity of the measured quaternion. */
         matrix3_t const & rot = robot->pncData_.oMf[frameIdx_].rotation();
-        quaternion_t quat(rot);  // Convert a rotation matrix to a quaternion
-        if (quat.w() < 0.0)
+        quaternion_t quat(rot);
+        Eigen::Map<quaternion_t> quatPrev(data().head<4>().data());
+        if (quatPrev.dot(quat) < 0.0)
         {
-            // Enforce uniqueness of the quaternion representation
             quat.coeffs() *= -1;
         }
-        data().head<4>() = quat.coeffs();  // (x,y,z,w)
+        quatPrev = quat;
 
         // Compute gyroscope signal
         pinocchio::Motion const velocity = pinocchio::getFrameVelocity(
