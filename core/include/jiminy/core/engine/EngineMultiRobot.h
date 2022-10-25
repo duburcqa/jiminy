@@ -99,7 +99,6 @@ namespace jiminy
             configHolder_t config;
             config["solver"] = std::string("PGS");   // ["PGS",]
             config["regularization"] = 1.0e-3;       // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
-            config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
 
             return config;
         };
@@ -112,8 +111,9 @@ namespace jiminy
             config["damping"] = 2.0e3;
             config["friction"] = 1.0;
             config["torsion"] = 0.0;
-            config["transitionEps"] = 1.0e-3;  // [m]
-            config["transitionVelocity"] = 1.0e-2;  // [m.s-1]
+            config["transitionEps"] = 1.0e-3;        // [m]
+            config["transitionVelocity"] = 1.0e-2;   // [m.s-1]
+            config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
 
             return config;
         };
@@ -191,12 +191,10 @@ namespace jiminy
         {
             std::string const solver;
             float64_t const regularization;
-            float64_t const stabilizationFreq;
 
             constraintOptions_t(configHolder_t const & options) :
             solver(boost::get<std::string>(options.at("solver"))),
-            regularization(boost::get<float64_t>(options.at("regularization"))),
-            stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq")))
+            regularization(boost::get<float64_t>(options.at("regularization")))
             {
                 // Empty on purpose
             }
@@ -211,6 +209,7 @@ namespace jiminy
             float64_t const torsion;
             float64_t const transitionEps;
             float64_t const transitionVelocity;
+            float64_t const stabilizationFreq;
 
             contactOptions_t(configHolder_t const & options) :
             model(boost::get<std::string>(options.at("model"))),
@@ -219,7 +218,8 @@ namespace jiminy
             friction(boost::get<float64_t>(options.at("friction"))),
             torsion(boost::get<float64_t>(options.at("torsion"))),
             transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
-            transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity")))
+            transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity"))),
+            stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq")))
             {
                 // Empty on purpose
             }

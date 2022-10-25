@@ -400,8 +400,6 @@ class SimulateSimpleMass(unittest.TestCase):
             quat_imu = robot.sensors_data["ImuSensor", "MassBody"][:4].copy()
             self.assertFalse(quat_freeflyer_prev.dot(quat_freeflyer) < 0.0)
             self.assertFalse(quat_imu_prev.dot(quat_imu) < 0.0)
-            if quat_imu_prev.dot(quat_imu) < 0.0:
-                break
             engine.step(dt_desired=0.01)
             quat_freeflyer_prev = quat_freeflyer
             quat_imu_prev = quat_imu
