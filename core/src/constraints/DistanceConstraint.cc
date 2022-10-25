@@ -12,12 +12,11 @@ namespace jiminy
     std::string const AbstractConstraintTpl<DistanceConstraint>::type_("DistanceConstraint");
 
     DistanceConstraint::DistanceConstraint(std::string const & firstFrameName,
-                                           std::string const & secondFrameName,
-                                           float64_t const & distanceReference) :
+                                           std::string const & secondFrameName) :
     AbstractConstraintTpl(),
     framesNames_{firstFrameName, secondFrameName},
     framesIdx_(),
-    distanceRef_(distanceReference),
+    distanceRef_(0.0),
     firstFrameJacobian_(),
     secondFrameJacobian_()
     {
@@ -32,6 +31,18 @@ namespace jiminy
     std::vector<frameIndex_t> const & DistanceConstraint::getFramesIdx(void) const
     {
         return framesIdx_;
+    }
+
+    hresult_t DistanceConstraint::setReferenceDistance(float64_t const & distanceRef)
+    {
+        if (distanceRef < 0.0)
+        {
+            PRINT_ERROR("The reference distance must be positive.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        distanceRef_ = distanceRef;
+
+        return hresult_t::SUCCESS;
     }
 
     float64_t const & DistanceConstraint::getReferenceDistance(void) const
@@ -78,6 +89,12 @@ namespace jiminy
             jacobian_.setZero(1, model->pncModel_.nv);
             drift_.setZero(1);
             lambda_.setZero(1);
+
+            // Compute the current distance and use it as reference
+            vector3_t const deltaPosition =
+                model->pncData_.oMf[framesIdx_[0]].translation() -
+                model->pncData_.oMf[framesIdx_[1]].translation();
+            distanceRef_ = deltaPosition.norm();
         }
 
         return returnCode;
