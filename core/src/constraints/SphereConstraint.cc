@@ -108,11 +108,24 @@ namespace jiminy
             jacobian_.noalias() += shewRadius_ * frameJacobian_.bottomRows(3);
         }
 
+        // Compute position error
+        pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
+        float64_t const deltaPosition =
+            (framePose.translation() - transformRef_.translation()).dot(normal_);
+
+        // Compute velocity error
+        pinocchio::Motion const frameVelocity = getFrameVelocity(model->pncModel_,
+                                                                 model->pncData_,
+                                                                 frameIdx_,
+                                                                 pinocchio::LOCAL_WORLD_ALIGNED);
+        float64_t const velocity = frameVelocity.linear().dot(normal_);
+
         // Compute frame drift in local frame
-        pinocchio::Motion const driftLocal = getFrameAcceleration(model->pncModel_,
-                                                                  model->pncData_,
-                                                                  frameIdx_,
-                                                                  pinocchio::LOCAL_WORLD_ALIGNED);
+        pinocchio::Motion driftLocal = getFrameAcceleration(model->pncModel_,
+                                                            model->pncData_,
+                                                            frameIdx_,
+                                                            pinocchio::LOCAL_WORLD_ALIGNED);
+        driftLocal.linear() += frameVelocity.angular().cross(frameVelocity.linear());
 
         // Compute total drift
         drift_ = driftLocal.linear();
@@ -122,15 +135,6 @@ namespace jiminy
         }
 
         // Add Baumgarte stabilization drift
-        pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
-        float64_t const deltaPosition =
-            (framePose.translation() - transformRef_.translation()).dot(normal_);
-        pinocchio::Motion const frameVelocity = getFrameVelocity(model->pncModel_,
-                                                                 model->pncData_,
-                                                                 frameIdx_,
-                                                                 pinocchio::LOCAL_WORLD_ALIGNED);
-        float64_t const velocity = frameVelocity.linear().dot(normal_);
-
         drift_.array() += (kp_ * deltaPosition + kd_ * velocity) * normal_.array();
 
         return hresult_t::SUCCESS;

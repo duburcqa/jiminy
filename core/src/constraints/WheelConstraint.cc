@@ -110,22 +110,24 @@ namespace jiminy
                          frameJacobian_);
 
         // Contact point is at -radius_ x3 in local frame: compute corresponding jacobian
-        jacobian_ = frameJacobian_.topRows(3) +
-                    skewRadius_ * frameJacobian_.bottomRows(3);
+        jacobian_ = frameJacobian_.topRows(3);
+        jacobian_.noalias() += skewRadius_ * frameJacobian_.bottomRows(3);
 
         // Compute ground normal derivative
-        vector3_t const omega = getFrameVelocity(model->pncModel_,
-                                                 model->pncData_,
-                                                 frameIdx_,
-                                                 pinocchio::LOCAL).angular();
+        pinocchio::Motion const frameVelocity = getFrameVelocity(model->pncModel_,
+                                                                 model->pncData_,
+                                                                 frameIdx_,
+                                                                 pinocchio::LOCAL);
+        vector3_t const & omega = frameVelocity.angular();
         auto dx3_ = - omega.cross(x3_);  // Using auto to not evaluate the expression
         pinocchio::alphaSkew(radius_, dx3_, dskewRadius_);
 
         // Compute frame drift in local frame
-        pinocchio::Motion const driftLocal = getFrameAcceleration(model->pncModel_,
-                                                                  model->pncData_,
-                                                                  frameIdx_,
-                                                                  pinocchio::LOCAL);
+        pinocchio::Motion driftLocal = getFrameAcceleration(model->pncModel_,
+                                                            model->pncData_,
+                                                            frameIdx_,
+                                                            pinocchio::LOCAL);
+        driftLocal.linear() += frameVelocity.angular().cross(frameVelocity.linear());
 
         // Compute total drift
         drift_ = driftLocal.linear() +
