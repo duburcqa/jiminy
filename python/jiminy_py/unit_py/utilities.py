@@ -88,16 +88,10 @@ def setup_controller_and_engine(
     """
     # Instantiate the controller
     controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
-
-    # Initialize the controller
-    if controller is not None:
-        controller.initialize(robot)
+    controller.initialize(robot)
 
     # Initialize the engine
-    if controller is not None:
-        engine.initialize(robot, controller)
-    else:
-        engine.initialize(robot)
+    engine.initialize(robot, controller)
 
 
 def neutral_state(robot: jiminy.Model,

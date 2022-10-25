@@ -166,10 +166,17 @@ namespace jiminy
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        // Compute quaternion
+        /* Compute quaternion (x,y,z,w).
+           - Convert the rotation matrix of the attached frame into a quaternion.
+           - Ensure continuity of the measured quaternion. */
         matrix3_t const & rot = robot->pncData_.oMf[frameIdx_].rotation();
-        quaternion_t const quat(rot);  // Convert a rotation matrix to a quaternion
-        data().head<4>() = quat.coeffs();  // (x,y,z,w)
+        quaternion_t quat(rot);
+        Eigen::Map<quaternion_t> quatPrev(data().head<4>().data());
+        if (quatPrev.dot(quat) < 0.0)
+        {
+            quat.coeffs() *= -1;
+        }
+        quatPrev = quat;
 
         // Compute gyroscope signal
         pinocchio::Motion const velocity = pinocchio::getFrameVelocity(
@@ -177,12 +184,11 @@ namespace jiminy
         data().segment<3>(4) = velocity.angular();
 
         // Compute accelerometer signal
-        pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(
+        pinocchio::Motion const acceleration = pinocchio::getFrameClassicalAcceleration(
             robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
 
-        // Accelerometer signal is sensor linear acceleration (not spatial acceleration !) minus gravity
-        data().tail<3>() = acceleration.linear() + velocity.angular().cross(velocity.linear())  // 'getFrameClassicalAcceleration'
-                           - quat.conjugate() * robot->pncModel_.gravity.linear();
+        // Accelerometer signal is sensor classical (not spatial !) linear acceleration minus gravity
+        data().tail<3>() = acceleration.linear() - quat.conjugate() * robot->pncModel_.gravity.linear();
 
         return hresult_t::SUCCESS;
     }
@@ -197,7 +203,8 @@ namespace jiminy
 
             // Quaternion: interpret bias as angle-axis representation of a
             // sensor rotation bias R_b, such that w_R_sensor = w_R_imu R_b.
-            get().head<4>() = (quaternion_t(get().head<4>()) * sensorRotationBias_).coeffs();
+            get().head<4>() = (Eigen::Map<const quaternion_t>(get().head<4>().data()) *
+                               sensorRotationBias_).coeffs();
 
             // Apply the same bias to the accelerometer / gyroscope output.
             get().segment<3>(4) = sensorRotationBias_.conjugate() * get().segment<3>(4);
@@ -215,7 +222,7 @@ namespace jiminy
                expect the standard deviation to be small, and thus the
                approximation to be valid. */
             vector3_t const randAxis = randVectorNormal(baseSensorOptions_->noiseStd.head<3>());
-            get().head<4>() = (quaternion_t(get().head<4>()) *
+            get().head<4>() = (Eigen::Map<const quaternion_t>(get().head<4>().data()) *
                                quaternion_t(pinocchio::exp3(randAxis))).coeffs();
 
             // Accel + gyroscope: simply apply additive noise.

@@ -24,13 +24,13 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
 
         DistanceConstraint(std::string const & firstFrameName,
-                           std::string const & secondFrameName,
-                           float64_t const & distanceReference);
+                           std::string const & secondFrameName);
         virtual ~DistanceConstraint(void) = default;
 
         std::vector<std::string> const & getFramesNames(void) const;
         std::vector<frameIndex_t> const & getFramesIdx(void) const;
 
+        hresult_t setReferenceDistance(float64_t const & distanceRef);
         float64_t const & getReferenceDistance(void) const;
 
         virtual hresult_t reset(vectorN_t const & q,

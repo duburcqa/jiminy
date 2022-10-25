@@ -43,7 +43,7 @@ namespace jiminy
             }
         }
 
-        // Update output if successfull
+        // Update output if successful
         if (result)
         {
             t = t_next;

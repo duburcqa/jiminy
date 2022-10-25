@@ -1379,11 +1379,17 @@ namespace jiminy
             systemDataIt->constraintsHolder.foreach(
                 [& contactModel = contactModel_,
                  & enablePositionLimit = systemIt->robot->mdlOptions_->joints.enablePositionLimit,
-                 & freq = engineOptions_->constraints.stabilizationFreq](
+                 & freq = engineOptions_->contacts.stabilizationFreq](
                     std::shared_ptr<AbstractConstraintBase> const & constraint,
                     constraintsHolderType_t const & holderType)
                 {
-                    constraint->setBaumgarteFreq(freq);  // It cannot fail
+                    // Set baumgarte freq for all contact constraints
+                    if (holderType != constraintsHolderType_t::USER)
+                    {
+                        constraint->setBaumgarteFreq(freq);  // It cannot fail
+                    }
+
+                    // Enable constraints by default
                     if (contactModel == contactModel_t::CONSTRAINT)
                     {
                         switch (holderType)
@@ -2738,13 +2744,6 @@ namespace jiminy
             PRINT_ERROR("The requested constraint solver is not available.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        float64_t const & stabilizationFreq =
-            boost::get<float64_t>(constraintsOptions.at("stabilizationFreq"));
-        if (stabilizationFreq < 0.0)
-        {
-            PRINT_ERROR("The constraints option 'stabilizationFreq' must be positive.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
         float64_t const & regularization =
             boost::get<float64_t>(constraintsOptions.at("regularization"));
         if (regularization < 0.0)
@@ -2774,6 +2773,13 @@ namespace jiminy
         if (transitionVelocity < EPS)
         {
             PRINT_ERROR("The contacts option 'transitionVelocity' must be strictly positive.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        float64_t const & stabilizationFreq =
+            boost::get<float64_t>(contactsOptions.at("stabilizationFreq"));
+        if (stabilizationFreq < 0.0)
+        {
+            PRINT_ERROR("The contacts option 'stabilizationFreq' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -3547,7 +3553,7 @@ namespace jiminy
             vector3_t const & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
             vector3_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
-            quaternion_t const quat(q.segment<4>(positionIdx));  // Only way to initialize with [x,y,z,w] order
+            Eigen::Map<const quaternion_t> const quat(q.segment<4>(positionIdx).data());
             vector3_t const angleAxis = pinocchio::quaternion::log3(quat);
             assert((angleAxis.norm() < 0.5 * M_PI) && "Flexible joint angle must be smaller than pi/2.");
             uInternal.segment<3>(velocityIdx).array() +=
@@ -3699,7 +3705,7 @@ namespace jiminy
         computeForcesCoupling(t, qSplit, vSplit);
 
         // Compute each individual system dynamics
-        std::vector<systemHolder_t>::const_iterator systemIt = systems_.begin();
+        auto systemIt = systems_.begin();
         auto systemDataIt = systemsDataHolder_.begin();
         auto qIt = qSplit.begin();
         auto vIt = vSplit.begin();

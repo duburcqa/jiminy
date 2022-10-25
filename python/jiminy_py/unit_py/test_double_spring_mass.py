@@ -93,7 +93,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         # Configure the engine
         engine_options = engine.get_options()
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
         engine_options["stepper"]["controllerUpdatePeriod"] = 0.0
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
@@ -118,7 +118,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         # Configure the engine
         engine_options = engine.get_options()
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
         engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
@@ -142,7 +142,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         # Configure the engine
         engine_options = engine.get_options()
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine.set_options(engine_options)
@@ -219,7 +219,7 @@ class SimulateTwoMasses(unittest.TestCase):
         # Configure the engine
         engine_options = engine.get_options()
         engine_options["world"]["gravity"] = np.zeros(6)
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["sensorsUpdatePeriod"] = 1e-3
         engine_options["stepper"]["controllerUpdatePeriod"] = 1e-3
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
@@ -240,7 +240,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         # Configure the engine
         engine_options = engine.get_options()
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine_options["constraints"]["regularization"] = 0.0
@@ -282,7 +282,7 @@ class SimulateTwoMasses(unittest.TestCase):
         # Configure the engine
         engine_options = engine.get_options()
         engine_options["world"]["gravity"] = np.zeros(6)  # Turn off gravity
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine_options["constraints"]["regularization"] = 0.0
@@ -344,7 +344,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         # Configure the engine
         engine_options = engine.get_options()
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine_options["constraints"]["regularization"] = 0.0
