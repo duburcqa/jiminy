@@ -119,14 +119,15 @@ namespace jiminy
         vector3_t const direction = deltaPosition / deltaPositionNorm;
 
         // Compute relative velocity between frames
-        vector3_t deltaVelocity = getFrameVelocity(model->pncModel_,
-                                                   model->pncData_,
-                                                   framesIdx_[0],
-                                                   pinocchio::LOCAL_WORLD_ALIGNED).linear();
-        deltaVelocity -= getFrameVelocity(model->pncModel_,
-                                          model->pncData_,
-                                          framesIdx_[1],
-                                          pinocchio::LOCAL_WORLD_ALIGNED).linear();
+        pinocchio::Motion const velocity0 = getFrameVelocity(model->pncModel_,
+                                                             model->pncData_,
+                                                             framesIdx_[0],
+                                                             pinocchio::LOCAL_WORLD_ALIGNED);
+        pinocchio::Motion const velocity1 = getFrameVelocity(model->pncModel_,
+                                                             model->pncData_,
+                                                             framesIdx_[1],
+                                                             pinocchio::LOCAL_WORLD_ALIGNED);
+        vector3_t deltaVelocity = velocity0.linear() - velocity1.linear();
 
         // Get jacobian in local frame: J_1 - J_2
         getFrameJacobian(model->pncModel_,
@@ -143,18 +144,21 @@ namespace jiminy
             firstFrameJacobian_.topRows<3>() - secondFrameJacobian_.topRows<3>());
 
         // Get drift in local frame
-        drift_[0] = direction.dot(getFrameAcceleration(model->pncModel_,
-                                                       model->pncData_,
-                                                       framesIdx_[0],
-                                                       pinocchio::LOCAL_WORLD_ALIGNED).linear());
-        drift_[0] -= direction.dot(getFrameAcceleration(model->pncModel_,
+        pinocchio::Motion accel0 = getFrameAcceleration(model->pncModel_,
+                                                        model->pncData_,
+                                                        framesIdx_[0],
+                                                        pinocchio::LOCAL_WORLD_ALIGNED);
+        accel0.linear() += velocity0.angular().cross(velocity0.linear());
+        pinocchio::Motion accel1 = getFrameAcceleration(model->pncModel_,
                                                         model->pncData_,
                                                         framesIdx_[1],
-                                                        pinocchio::LOCAL_WORLD_ALIGNED).linear());
+                                                        pinocchio::LOCAL_WORLD_ALIGNED);
+        accel1.linear() += velocity1.angular().cross(velocity1.linear());
+        drift_[0] = direction.dot(accel0.linear() - accel1.linear());
 
         // dDir.T * (dp_A - dp_B) = [(dp_A - dp_B) ** 2 - (dir.T * (dp_A - dp_B)) ** 2] / norm(p_A - p_B)
         float64_t const deltaVelocityProj = deltaVelocity.dot(direction);
-        drift_[0] += (deltaVelocity.squaredNorm() - deltaVelocityProj * deltaVelocityProj) / deltaPositionNorm;
+        drift_[0] += (deltaVelocity.squaredNorm() - std::pow(deltaVelocityProj, 2)) / deltaPositionNorm;
 
         // Add Baumgarte stabilization drift
         drift_[0] += kp_ * (deltaPositionNorm - distanceRef_) + kd_ * deltaVelocityProj;
