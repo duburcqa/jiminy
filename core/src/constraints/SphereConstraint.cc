@@ -118,7 +118,8 @@ namespace jiminy
                                                                  model->pncData_,
                                                                  frameIdx_,
                                                                  pinocchio::LOCAL_WORLD_ALIGNED);
-        float64_t const velocity = frameVelocity.linear().dot(normal_);
+        vector3_t velocity = frameVelocity.linear();
+        velocity.noalias() += shewRadius_ * frameVelocity.angular();
 
         // Compute frame drift in local frame
         pinocchio::Motion driftLocal = getFrameAcceleration(model->pncModel_,
@@ -135,7 +136,7 @@ namespace jiminy
         }
 
         // Add Baumgarte stabilization drift
-        drift_.array() += (kp_ * deltaPosition + kd_ * velocity) * normal_.array();
+        drift_ += kp_ * deltaPosition * normal_ + kd_ * velocity;
 
         return hresult_t::SUCCESS;
     }
