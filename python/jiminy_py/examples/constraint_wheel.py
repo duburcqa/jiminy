@@ -37,12 +37,22 @@ simulator.robot.add_constraint("MassBody", constraint)
 constraint.baumgarte_freq = 20.0
 
 # Register external forces
+
 # simulator.register_force_impulse(
-#     "MassBody", 0.5, 1e-3, np.array([50.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+#     "MassBody", 0.5, 1e-3, np.array([15.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
 # simulator.register_force_impulse(
-#     "MassBody", 1.5, 1e-3, np.array([0.0, 50.0, 0.0, 0.0, 0.0, 0.0]))
+#     "MassBody", 1.5, 1e-3, np.array([0.0, 15.0, 0.0, 0.0, 0.0, 0.0]))
+
 simulator.register_force_impulse(
-    "MassBody", 0.5, 1e-3, np.array([0.0, 8.0, 0.0, 0.0, 0.0, 0.0]))
+    "MassBody", 0.5, 1e-3, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 8.0]))
+simulator.register_force_impulse(
+    "MassBody", 1.5, 1e-3, np.array([0.0, 15.0, 0.0, 0.0, 0.0, 0.0]))
+
+# simulator.register_force_impulse(
+#     "MassBody", 0.5, 1e-3, np.array([8.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+
+# simulator.register_force_impulse(
+#     "MassBody", 0.5, 1e-3, np.array([0.0, 8.0, 0.0, 0.0, 0.0, 0.0]))
 
 # Sample the initial state
 qpos = pin.neutral(simulator.robot.pinocchio_model)
@@ -50,7 +60,7 @@ qpos[2] = 0.5
 qvel = np.zeros(simulator.robot.nv)
 
 # Run a simulation
-simulator.simulate(5.0, qpos, qvel)
+simulator.simulate(10.0, qpos, qvel)
 
 # Replay the simulation
-simulator.replay(enable_travelling=False)
+simulator.replay(enable_travelling=False, speed_ratio=1.0)

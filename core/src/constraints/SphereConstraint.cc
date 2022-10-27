@@ -19,7 +19,7 @@ namespace jiminy
     frameIdx_(0),
     radius_(sphereRadius),
     normal_(groundNormal.normalized()),
-    shewRadius_(pinocchio::alphaSkew(radius_, normal_)),
+    skewRadius_(pinocchio::alphaSkew(radius_, normal_)),
     transformRef_(),
     frameJacobian_()
     {
@@ -105,7 +105,7 @@ namespace jiminy
         jacobian_ = frameJacobian_.topRows(3);
         if (radius_ > EPS)
         {
-            jacobian_.noalias() += shewRadius_ * frameJacobian_.bottomRows(3);
+            jacobian_.noalias() += skewRadius_ * frameJacobian_.bottomRows(3);
         }
 
         // Compute position error
@@ -119,7 +119,7 @@ namespace jiminy
                                                                  frameIdx_,
                                                                  pinocchio::LOCAL_WORLD_ALIGNED);
         vector3_t velocity = frameVelocity.linear();
-        velocity.noalias() += shewRadius_ * frameVelocity.angular();
+        velocity.noalias() += skewRadius_ * frameVelocity.angular();
 
         // Compute frame drift in local frame
         pinocchio::Motion driftLocal = getFrameAcceleration(model->pncModel_,
@@ -132,7 +132,7 @@ namespace jiminy
         drift_ = driftLocal.linear();
         if (radius_ > EPS)
         {
-            drift_.noalias() += shewRadius_ * driftLocal.angular();
+            drift_.noalias() += skewRadius_ * driftLocal.angular();
         }
 
         // Add Baumgarte stabilization drift
