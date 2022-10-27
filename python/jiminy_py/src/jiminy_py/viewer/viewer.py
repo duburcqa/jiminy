@@ -2047,7 +2047,8 @@ class Viewer:
                     group, nodeName = self._client.getViewerNodeName(
                         geom, model_type)
                     pose_dict[nodeName] = ((x, y, z), (qw, qx, qy, qz))
-                self._gui.move_nodes(group, pose_dict)
+                if pose_dict:
+                    self._gui.move_nodes(group, pose_dict)
         else:
             import umsgpack
             cmd_data = [b"list"]

@@ -413,7 +413,7 @@ namespace jiminy
                 returnCode = sensor->interpolateData();
             }
 
-            // Shew the data with white noise and bias
+            // Skew the data with white noise and bias
             if (returnCode == hresult_t::SUCCESS)
             {
                 sensor->measureData();
