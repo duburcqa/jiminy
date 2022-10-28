@@ -170,13 +170,10 @@ namespace jiminy
         // When using several robots the robots names are specified
         // as a circumfix in the log, for consistency they must all
         // have a name
-        if (systems_.size())
+        if (systems_.size() && systemName == "")
         {
-            if (systems_[0].name == "" || systemName == "")
-            {
-                PRINT_ERROR("Unspecified name for at least one robot.");
-                return hresult_t::ERROR_GENERIC;
-            }
+            PRINT_ERROR("All systems but the first one must have a name.");
+            return hresult_t::ERROR_GENERIC;
         }
 
         // Check if a system with the same name already exists
