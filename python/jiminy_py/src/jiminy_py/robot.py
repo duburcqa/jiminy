@@ -160,7 +160,7 @@ def generate_default_hardware_description_file(
                                 Optional: DEFAULT_UPDATE_RATE if no Gazebo
                                 plugin has been found, the lowest among the
                                 Gazebo plugins otherwise.
-    :param verbose: Whether or not to print warnings.
+    :param verbose: Whether to print warnings.
     """
     # Handle verbosity level
     if verbose:
@@ -492,7 +492,7 @@ def load_hardware_description_file(
                                       replacing collision mesh by vertices of
                                       associated minimal volume bounding box,
                                       and primitive box by its vertices.
-    :param verbose: Whether or not to print warnings.
+    :param verbose: Whether to print warnings.
 
     :returns: Unused information available in hardware configuration file.
     """
@@ -729,18 +729,20 @@ def load_hardware_description_file(
 
                 # Create a frame if a frame name has been specified.
                 # In such a case, the body name must be specified.
-                if frame_name is None:
+                if not frame_name or \
+                        not robot.pinocchio_model.existFrame(frame_name):
                     # Get the body name
                     body_name = sensor_descr.pop('body_name')
 
                     # Generate a frame name both intelligible and available
-                    i = 0
-                    frame_name = "_".join((
-                        sensor_name, sensor_type, "Frame"))
-                    while robot.pinocchio_model.existFrame(frame_name):
+                    if frame_name is None:
+                        i = 0
                         frame_name = "_".join((
-                            sensor_name, sensor_type, "Frame", str(i)))
-                        i += 1
+                            sensor_name, sensor_type, "Frame"))
+                        while robot.pinocchio_model.existFrame(frame_name):
+                            frame_name = "_".join((
+                                sensor_name, sensor_type, "Frame", str(i)))
+                            i += 1
 
                     # Compute SE3 object representing the frame placement
                     frame_pose_xyzrpy = np.array(
@@ -751,6 +753,11 @@ def load_hardware_description_file(
 
                     # Add the frame to the robot model
                     robot.add_frame(frame_name, body_name, frame_placement)
+                elif 'frame_pose' in sensor_descr.keys():
+                    raise ValueError(
+                        f"The sensor '{sensor_name}' is attached to the frame "
+                        f"'{frame_name}' that already exists whereas a "
+                        "specific pose is also requested.")
 
                 # Initialize the sensor
                 sensor.initialize(frame_name)
@@ -791,10 +798,11 @@ class BaseJiminyRobot(jiminy.Robot):
         name than the URDF file will be detected automatically without
         requiring to manually specify its path.
     """
-    def __init__(self) -> None:
-        super().__init__()
+    def __new__(cls, *args: Any, **kwargs: Any) -> "BaseJiminyRobot":
+        self = super().__new__(cls)
         self.extra_info = {}
         self._urdf_path_orig = None
+        return self
 
     def initialize(self,
                    urdf_path: str,
@@ -827,7 +835,7 @@ class BaseJiminyRobot(jiminy.Robot):
                                    creating the robot. It will allow for
                                    dumping standalone log files that are
                                    safe to carry around but larger.
-        :param verbose: Whether or not to print warnings.
+        :param verbose: Whether to print warnings.
         """
         # Backup the original URDF path
         self._urdf_path_orig = urdf_path
@@ -874,5 +882,5 @@ class BaseJiminyRobot(jiminy.Robot):
         if self.urdf_path != self._urdf_path_orig:
             try:
                 os.remove(self.urdf_path)
-            except (PermissionError, FileNotFoundError):
+            except (PermissionError, FileNotFoundError, AttributeError):
                 pass

@@ -10,8 +10,8 @@ def train(train_agent: BaseAlgorithm,
     :param train_agent: Training agent.
     :param max_timesteps: Number of maximum training timesteps.
 
-    :returns: Whether or not the threshold reward has been exceeded in average
-              over 10 episodes.
+    :returns: Whether the threshold reward has been exceeded in average over 10
+              episodes.
     """
     # Get testing environment spec
     spec = train_agent.eval_env.envs[0].spec

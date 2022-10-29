@@ -50,7 +50,7 @@ namespace jiminy
             controllerOptions_t(configHolder_t const & options) :
             telemetryEnable(boost::get<bool_t>(options.at("telemetryEnable")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -107,7 +107,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t registerVariable(std::string const & fieldName,
+        hresult_t registerVariable(std::string const & fieldname,
                                    float64_t   const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,7 +121,7 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         template<typename T>
-        hresult_t registerConstant(std::string const & fieldName,
+        hresult_t registerConstant(std::string const & fieldname,
                                    T           const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -241,7 +241,7 @@ namespace jiminy
         /// \remark     This method is not intended to be called manually. The Engine is taking care
         ///             of it when its own `reset` method is called.
         ///
-        /// \param[in]  resetDynamicTelemetry   Whether or not variables dynamically registered to the
+        /// \param[in]  resetDynamicTelemetry   Whether variables dynamically registered to the
         ///                                     telemetry must be removed.
         ///                                     Optional: False by default
         ///

@@ -11,7 +11,7 @@ namespace jiminy
     stateDerivative_(robots),
     fOutput_(robots)
     {
-        // Empty on purpose.
+        // Empty on purpose
     }
 
     bool_t AbstractStepper::tryStep(std::vector<vectorN_t> & qSplit,
@@ -43,7 +43,7 @@ namespace jiminy
             }
         }
 
-        // Update output if successfull
+        // Update output if successful
         if (result)
         {
             t = t_next;

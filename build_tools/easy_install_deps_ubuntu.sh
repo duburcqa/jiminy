@@ -81,8 +81,9 @@ fi
 # Install robotpkg tools suite.
 # Note that `apt-get` is used instead of `apt` because it supports wildcard in package names
 apt-get install -y --allow-downgrades --allow-unauthenticated \
-    robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=1.8.1 robotpkg-pinocchio=2.6.7 \
-    robotpkg-py3*-eigenpy=2.7.6 robotpkg-py3*-hpp-fcl=1.8.1 robotpkg-py3*-pinocchio=2.6.7
+    robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=1.8.0 robotpkg-pinocchio=2.6.7 \
+    robotpkg-py3*-eigenpy=2.6.10 robotpkg-py3*-hpp-fcl=1.8.0 robotpkg-py3*-pinocchio=2.6.7
+apt-mark hold "robotpkg-py3*-eigenpy" "robotpkg-py3*-hpp-fcl" "robotpkg-py3*-pinocchio"
 
 # Add openrobots libraries to python packages search path
 if ! [ -f "${PYTHON_SITELIB}/openrobots.pth" ]; then

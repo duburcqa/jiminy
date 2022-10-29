@@ -44,7 +44,7 @@ namespace jiminy
         SphereConstraint(std::string const & frameName,
                          float64_t   const & sphereRadius,
                          vector3_t   const & groundNormal = vector3_t::UnitZ());
-        virtual ~SphereConstraint(void);
+        virtual ~SphereConstraint(void) = default;
 
         std::string const & getFrameName(void) const;
         frameIndex_t const & getFrameIdx(void) const;
@@ -63,7 +63,7 @@ namespace jiminy
         frameIndex_t frameIdx_;        ///< Corresponding frame index.
         float64_t radius_;             ///< Sphere radius.
         vector3_t normal_;             ///< Ground normal, world frame.
-        matrix3_t shewRadius_;         ///< Skew of ground normal, in world frame, scaled by radius.
+        matrix3_t skewRadius_;         ///< Skew of ground normal, in world frame, scaled by radius.
         pinocchio::SE3 transformRef_;  ///< Reference pose of the frame to enforce.
         matrix6N_t frameJacobian_;     ///< Stores full frame jacobian in world.
     };

@@ -41,15 +41,6 @@
 
 namespace jiminy
 {
-    constraintsHolder_t::constraintsHolder_t(void) :
-    boundJoints(),
-    contactFrames(),
-    collisionBodies(),
-    registered()
-    {
-        // Empty on purpose
-    }
-
     void constraintsHolder_t::clear(void)
     {
         boundJoints.clear();
@@ -69,7 +60,7 @@ namespace jiminy
                             });
     }
 
-    std::tuple<constraintsMap_t *, constraintsMap_t::iterator>
+    std::pair<constraintsMap_t *, constraintsMap_t::iterator>
         constraintsHolder_t::find(std::string const & key,
                                   constraintsHolderType_t const & holderType)
     {
@@ -77,9 +68,9 @@ namespace jiminy
         constraintsMap_t::iterator constraintIt;
         if (holderType == constraintsHolderType_t::COLLISION_BODIES)
         {
-            for (std::size_t i = 0; i < collisionBodies.size(); ++i)
+            for (constraintsMap_t & collisionBody : collisionBodies)
             {
-                constraintsMapPtr = &collisionBodies[i];
+                constraintsMapPtr = &collisionBody;
                 constraintIt = getImpl(*constraintsMapPtr, key);
                 if (constraintIt != constraintsMapPtr->end())
                 {
@@ -111,8 +102,7 @@ namespace jiminy
     bool_t constraintsHolder_t::exist(std::string const & key,
                                       constraintsHolderType_t const & holderType) const
     {
-        constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
-        std::tie(constraintsMapPtr, constraintIt) = const_cast<constraintsHolder_t *>(this)->find(key, holderType);
+        auto const [constraintsMapPtr, constraintIt] = const_cast<constraintsHolder_t *>(this)->find(key, holderType);
         return (constraintsMapPtr && constraintIt != constraintsMapPtr->end());
     }
 
@@ -131,8 +121,7 @@ namespace jiminy
     std::shared_ptr<AbstractConstraintBase> constraintsHolder_t::get(std::string             const & key,
                                                                      constraintsHolderType_t const & holderType)
     {
-        constraintsMap_t * constraintsMapPtr; constraintsMap_t::iterator constraintIt;
-        std::tie(constraintsMapPtr, constraintIt) = find(key, holderType);
+        auto [constraintsMapPtr, constraintIt] = find(key, holderType);
         if (constraintsMapPtr && constraintIt != constraintsMapPtr->end())
         {
             return constraintIt->second;
@@ -220,10 +209,10 @@ namespace jiminy
     positionLimitMin_(),
     positionLimitMax_(),
     velocityLimit_(),
-    positionFieldnames_(),
-    velocityFieldnames_(),
-    accelerationFieldnames_(),
-    forceExternalFieldnames_(),
+    logFieldnamesPosition_(),
+    logFieldnamesVelocity_(),
+    logFieldnamesAcceleration_(),
+    logFieldnamesForceExternal_(),
     pncModelFlexibleOrig_(),
     jointsAcceleration_(),
     nq_(0),
@@ -1077,7 +1066,7 @@ namespace jiminy
                 if ((inertiaDiag.array() < 1e-5).any())
                 {
                     PRINT_ERROR("The subtree diagonal inertia for flexibility joint ", flexibleJointModelIdx,
-                                " must be than 1e-5 for numerical stability: ", inertiaDiag.transpose());
+                                " must be larger than 1e-5 for numerical stability: ", inertiaDiag.transpose());
                     returnCode = hresult_t::ERROR_GENERIC;
                     break;
                 }
@@ -1133,7 +1122,7 @@ namespace jiminy
                 }
 
                 /* Add bias to inertia matrix of body.
-                   To preserve positive semidefinite property after noise addition, the principal
+                   To preserve positive semi-definite property after noise addition, the principal
                    axes and moments are computed from the original inertia matrix, then independent
                    gaussian distributed noise is added on each principal moments, and a random small
                    rotation is applied to the principal axes based on a randomly generated rotation
@@ -1253,14 +1242,14 @@ namespace jiminy
 
             /* Generate the fieldnames associated with the configuration vector,
                velocity, acceleration and external force vectors. */
-            positionFieldnames_.clear();
-            positionFieldnames_.resize(static_cast<std::size_t>(nq_));
-            velocityFieldnames_.clear();
-            velocityFieldnames_.resize(static_cast<std::size_t>(nv_));
-            accelerationFieldnames_.clear();
-            accelerationFieldnames_.resize(static_cast<std::size_t>(nv_));
-            forceExternalFieldnames_.clear();
-            forceExternalFieldnames_.resize(6U * (pncModel_.njoints - 1));
+            logFieldnamesPosition_.clear();
+            logFieldnamesPosition_.resize(static_cast<std::size_t>(nq_));
+            logFieldnamesVelocity_.clear();
+            logFieldnamesVelocity_.resize(static_cast<std::size_t>(nv_));
+            logFieldnamesAcceleration_.clear();
+            logFieldnamesAcceleration_.resize(static_cast<std::size_t>(nv_));
+            logFieldnamesForceExternal_.clear();
+            logFieldnamesForceExternal_.resize(6U * (pncModel_.njoints - 1));
             for (std::size_t i = 1; i < pncModel_.joints.size(); ++i)
             {
                 // Get joint name without "Joint" suffix, if any
@@ -1316,7 +1305,7 @@ namespace jiminy
                     }
                     std::copy(jointPositionFieldnames.begin(),
                               jointPositionFieldnames.end(),
-                              positionFieldnames_.begin() + idx_q);
+                              logFieldnamesPosition_.begin() + idx_q);
 
                     // Define complete velocity and acceleration fieldnames and backup them
                     std::vector<std::string> jointVelocityFieldnames;
@@ -1330,21 +1319,21 @@ namespace jiminy
                     }
                     std::copy(jointVelocityFieldnames.begin(),
                               jointVelocityFieldnames.end(),
-                              velocityFieldnames_.begin() + idx_v);
+                              logFieldnamesVelocity_.begin() + idx_v);
                     std::copy(jointAccelerationFieldnames.begin(),
                               jointAccelerationFieldnames.end(),
-                              accelerationFieldnames_.begin() + idx_v);
+                              logFieldnamesAcceleration_.begin() + idx_v);
 
                     // Define complete external force fieldnames and backup them
                     std::vector<std::string> jointForceExternalFieldnames;
-                    for (std::string const & suffix : ForceSensor::fieldNames_)
+                    for (std::string const & suffix : ForceSensor::fieldnames_)
                     {
                         jointForceExternalFieldnames.emplace_back(
                             jointPrefix + "ForceExternal" + jointShortName + suffix);
                     }
                     std::copy(jointForceExternalFieldnames.begin(),
                               jointForceExternalFieldnames.end(),
-                              forceExternalFieldnames_.begin() + 6U * (i - 1));
+                              logFieldnamesForceExternal_.begin() + 6U * (i - 1));
                 }
             }
         }
@@ -1468,21 +1457,22 @@ namespace jiminy
                     {
                         // Only the frame name remains unchanged no matter what
                         pinocchio::Frame const & frameOrig = pncModelOrig_.frames[geom.parentFrame];
-                        pinocchio::JointIndex const jointIdxOrig = frameOrig.parent;
+                        std::string const parentJointName = pncModelOrig_.names[frameOrig.parent];
                         pinocchio::FrameIndex const frameIdx = pncModel_.getFrameId(frameOrig.name);
                         pinocchio::Frame const & frame = pncModel_.frames[frameIdx];
-                        pinocchio::JointIndex const jointIdx = frame.parent;
+                        pinocchio::JointIndex const newParentIdx = frame.parent;
+                        pinocchio::JointIndex const oldParentIdx = pncModel_.getJointId(parentJointName);
                         geom.parentFrame = frameIdx;
-                        geom.parentJoint = jointIdx;
+                        geom.parentJoint = newParentIdx;
 
                         /* Compute the relative displacement between the new and old joint placement
                            wrt their common parent joint. */
                         pinocchio::SE3 geomPlacementRef = pinocchio::SE3::Identity();
-                        for(pinocchio::JointIndex i=jointIdx; i >= jointIdxOrig && i > 0; i=pncModel_.parents[i])
+                        for(pinocchio::JointIndex i=newParentIdx; i > oldParentIdx && i > 0; i=pncModel_.parents[i])
                         {
                             geomPlacementRef = pncModel_.jointPlacements[i] * geomPlacementRef;
                         }
-                        geom.placement = geomPlacementRef.actInv(pncModelOrig_.jointPlacements[frameOrig.parent]).act(geom.placement);
+                        geom.placement = geomPlacementRef.actInv(geom.placement);
                     }
                 }
             }
@@ -1967,9 +1957,9 @@ namespace jiminy
         return contactFramesIdx_;
     }
 
-    std::vector<std::string> const & Model::getPositionFieldnames(void) const
+    std::vector<std::string> const & Model::getLogFieldnamesPosition(void) const
     {
-        return positionFieldnames_;
+        return logFieldnamesPosition_;
     }
 
     vectorN_t const & Model::getPositionLimitMin(void) const
@@ -1982,9 +1972,9 @@ namespace jiminy
         return positionLimitMax_;
     }
 
-    std::vector<std::string> const & Model::getVelocityFieldnames(void) const
+    std::vector<std::string> const & Model::getLogFieldnamesVelocity(void) const
     {
-        return velocityFieldnames_;
+        return logFieldnamesVelocity_;
     }
 
     vectorN_t const & Model::getVelocityLimit(void) const
@@ -1992,14 +1982,14 @@ namespace jiminy
         return velocityLimit_;
     }
 
-    std::vector<std::string> const & Model::getAccelerationFieldnames(void) const
+    std::vector<std::string> const & Model::getLogFieldnamesAcceleration(void) const
     {
-        return accelerationFieldnames_;
+        return logFieldnamesAcceleration_;
     }
 
-    std::vector<std::string> const & Model::getForceExternalFieldnames(void) const
+    std::vector<std::string> const & Model::getLogFieldnamesForceExternal(void) const
     {
-        return forceExternalFieldnames_;
+        return logFieldnamesForceExternal_;
     }
 
     std::vector<std::string> const & Model::getRigidJointsNames(void) const

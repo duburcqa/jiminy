@@ -1,4 +1,3 @@
-#include "jiminy/core/io/Serialization.h"
 #include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/constraints/AbstractConstraint.h"
@@ -6,7 +5,6 @@
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
 #include "jiminy/core/io/MemoryDevice.h"
 #include "jiminy/core/utilities/Pinocchio.h"
-#include "jiminy/core/utilities/Json.h"
 #include "jiminy/core/utilities/Random.h"
 
 #include <boost/optional.hpp>
@@ -28,6 +26,13 @@ namespace jiminy
 namespace python
 {
     namespace bp = boost::python;
+
+    uint32_t getRandomSeed(void)
+    {
+        uint32_t seed;
+        ::jiminy::getRandomSeed(seed);  // Cannot fail since random number generators are initialized when imported
+        return seed;
+    }
 
     joint_t getJointTypeFromIdx(pinocchio::Model const & model,
                                 int32_t          const & idIn)
@@ -109,16 +114,6 @@ namespace python
         return bp::make_tuple(model, collisionModel);
     }
 
-    configHolder_t loadConfigJsonString(std::string const & jsonString)
-    {
-        std::vector<uint8_t> jsonStringVec(jsonString.begin(), jsonString.end());
-        std::shared_ptr<AbstractIODevice> device =
-            std::make_shared<MemoryDevice>(std::move(jsonStringVec));
-        configHolder_t robotOptions;
-        jsonLoad(robotOptions, device);
-        return robotOptions;
-    }
-
     bp::object solveJMinvJtv(pinocchio::Data & data,
                              np::ndarray const & vPy,
                              bool_t const & updateDecomposition)
@@ -141,6 +136,8 @@ namespace python
 
     void exposeHelpers(void)
     {
+        bp::def("get_random_seed", bp::make_function(&getRandomSeed,
+                                   bp::return_value_policy<bp::return_by_value>()));
         bp::def("build_geom_from_urdf", &buildGeomFromUrdf,
                                         (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
                                          bp::arg("mesh_package_dirs") = bp::list(),
@@ -152,13 +149,6 @@ namespace python
                                            bp::arg("mesh_package_dirs") = bp::list(),
                                            bp::arg("build_visual_model") = false,
                                            bp::arg("load_visual_meshes") = false));
-
-        bp::def("load_from_binary", &::jiminy::loadFromBinary<pinocchio::Model>,
-                                   (bp::arg("model"), "dump"));
-        bp::def("load_from_binary", &::jiminy::loadFromBinary<pinocchio::GeometryModel>,
-                                   (bp::arg("model"), "dump"));
-
-        bp::def("load_config_json_string", &loadConfigJsonString, (bp::arg("json_string")));
 
         bp::def("get_joint_type", &getJointTypeFromIdx,
                                   (bp::arg("pinocchio_model"), "joint_idx"));

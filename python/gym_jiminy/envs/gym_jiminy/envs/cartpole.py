@@ -78,9 +78,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
     """
     def __init__(self, continuous: bool = False, debug: bool = False) -> None:
         """
-        :param continuous: Whether or not the action space is continuous. If
-                           not continuous, the action space has only 3 states,
-                           i.e. low, zero, and high.
+        :param continuous: Whether the action space is continuous. If not
+                           continuous, the action space has only 3 states, i.e.
+                           low, zero, and high.
                            Optional: True by default.
         """
         # Backup some input arguments

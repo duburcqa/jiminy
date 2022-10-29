@@ -15,7 +15,7 @@ if (-not (Test-Path env:BUILD_TYPE)) {
 ### Set common CMAKE_C/CXX_FLAGS
 ${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX"
 if (${BUILD_TYPE} -eq "Debug") {
-  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Od -g"
+  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Zi /Od"
 } else {
   ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /O2 /Ob3 -DNDEBUG"
 }
@@ -191,6 +191,8 @@ if (${BUILD_TYPE} -eq "Release") {
 if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
 }
+
+# Compiling everything with static linkage except Boost::Python
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
          --with-chrono --with-timer --with-date_time --with-system --with-test `
          --with-filesystem --with-atomic --with-serialization --with-thread `
@@ -198,12 +200,14 @@ if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
          --layout=system --lto=off link=static runtime-link=shared debug-symbols=off `
          toolset=msvc-14.2 cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" `
          variant="$BuildTypeB2" install -q -d0 -j2
+
+# Boost::Python is never compiled in debug mode because already registered converter triggers an assert
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
          --with-python `
          --build-type=minimal architecture=x86 address-model=64 threading=single `
          --layout=system --lto=off link=shared runtime-link=shared debug-symbols=off `
          toolset=msvc-14.2 cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" `
-         variant="$BuildTypeB2" install -q -d0 -j2
+         variant="release" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 

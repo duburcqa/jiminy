@@ -42,17 +42,20 @@ namespace python
     template<typename T>
     using TimeStateFct = typename std::function<T (float64_t const &, vectorN_t const &, vectorN_t const &)>;
 
-    #define TIME_STATE_FCT_EXPOSE(Type, Name) \
+    #define TIME_STATE_FCT_EXPOSE(Name, Type) \
     bp::class_<TimeStateFct<Type>, boost::noncopyable>("TimeStateFunctor"#Name, bp::no_init) \
         .def("__call__", &TimeStateFct<Type>::operator(), \
                          bp::return_value_policy<bp::return_by_value>(), \
                          (bp::arg("self"), bp::arg("t"), bp::arg("q"), bp::arg("v")));
 
-    uint32_t getRandomSeed(void)
-    {
-        uint32_t seed;
-        ::jiminy::getRandomSeed(seed);  // Cannot fail since random number generators are initialized when imported
-        return seed;
+    #define REGISTER_CONVERTER_SAFE(Type, Copy) \
+    { \
+        bp::type_info info = bp::type_id<Type>(); \
+        const bp::converter::registration * reg = bp::converter::registry::query(info); \
+        if (reg == NULL || *reg->m_to_python == NULL) \
+        { \
+            bp::to_python_converter<Type, converterToPython<Type>, Copy>(); \
+        } \
     }
 
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
@@ -71,9 +74,6 @@ namespace python
         // Expose the version
         bp::scope().attr("__version__") = bp::str(JIMINY_VERSION);
         bp::scope().attr("__raw_version__") = bp::str(JIMINY_VERSION);
-
-        bp::def("get_random_seed", bp::make_function(&getRandomSeed,
-                                   bp::return_value_policy<bp::return_by_value>()));
 
         // Interfaces for hresult_t enum
         bp::enum_<hresult_t>("hresult_t")
@@ -103,17 +103,16 @@ namespace python
         doc_options.disable_cpp_signatures();
 
         // Enable some automatic C++ to Python converters
-        bp::to_python_converter<std::vector<std::string>, converterToPython<std::vector<std::string> >, true>();
-        bp::to_python_converter<std::vector<std::vector<int32_t> >, converterToPython<std::vector<std::vector<int32_t> > >, true>();
-        bp::to_python_converter<std::vector<uint32_t>, converterToPython<std::vector<uint32_t> >, true>();
-        bp::to_python_converter<std::vector<int32_t>, converterToPython<std::vector<int32_t> >, true>();
-        bp::to_python_converter<std::vector<vectorN_t>, converterToPython<std::vector<vectorN_t> >, true>();
-        bp::to_python_converter<std::vector<matrixN_t>, converterToPython<std::vector<matrixN_t> >, true>();
-        bp::to_python_converter<configHolder_t, converterToPython<configHolder_t>, true>();
+        REGISTER_CONVERTER_SAFE(std::vector<std::vector<int32_t> >, true);
+        REGISTER_CONVERTER_SAFE(std::vector<uint32_t>, true);
+        REGISTER_CONVERTER_SAFE(std::vector<int32_t>, true);
+        REGISTER_CONVERTER_SAFE(std::vector<vectorN_t>, true);
+        REGISTER_CONVERTER_SAFE(std::vector<matrixN_t>, true);
+        REGISTER_CONVERTER_SAFE(configHolder_t, true);
 
         // Expose functors
-        TIME_STATE_FCT_EXPOSE(bool_t, Bool)
-        TIME_STATE_FCT_EXPOSE(pinocchio::Force, PinocchioForce)
+        TIME_STATE_FCT_EXPOSE(Bool, bool_t)
+        TIME_STATE_FCT_EXPOSE(PinocchioForce, pinocchio::Force)
         exposeHeightmapFunctor();
 
         /* Expose compatibility layer, to support both new and old C++ ABI, and to

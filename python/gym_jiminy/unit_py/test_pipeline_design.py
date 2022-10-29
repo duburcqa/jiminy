@@ -15,9 +15,9 @@ class PipelineDesign(unittest.TestCase):
     def setUp(self):
         """ TODO: Write documentation
         """
-        self.step_dt = 5.0e-3
-        self.pid_kp = np.full((12,), fill_value=1.5e3)
-        self.pid_kd = np.full((12,), fill_value=3.0e-3)
+        self.step_dt = 0.04
+        self.pid_kp = np.full((12,), fill_value=1500)
+        self.pid_kd = np.full((12,), fill_value=0.01)
         self.num_stack = 3
         self.skip_frames_ratio = 2
 
@@ -184,7 +184,8 @@ class PipelineDesign(unittest.TestCase):
         env.step()
 
         # Check that the command is updated 1/2 low-level controller update
-        u_log = env.log_data['HighLevelController.currentCommandLF_HAA']
+        log_vars = env.log_data["variables"]
+        u_log = log_vars['HighLevelController.currentCommandLF_HAA']
         self.assertEqual(env.control_dt, 2 * env.unwrapped.control_dt)
         self.assertTrue(np.all(u_log[:2] == 0.0))
         self.assertNotEqual(u_log[1], u_log[2])

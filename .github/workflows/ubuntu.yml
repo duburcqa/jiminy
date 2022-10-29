@@ -17,10 +17,19 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04, ubuntu-20.04]
+        GENERATOR: ['Unix Makefiles']
+        COMPILER: ['gcc']
         BUILD_TYPE: ['Release']
         include:
           - os: ubuntu-20.04
+            GENERATOR: 'Unix Makefiles'
+            COMPILER: 'gcc'
             BUILD_TYPE: 'Debug'
+          - os: ubuntu-20.04
+            GENERATOR: 'Ninja'
+            COMPILER: 'clang'
+            LINKER_FLAGS: '-fuse-ld=gold'
+            BUILD_TYPE: 'Release'
 
     defaults:
       run:
@@ -36,6 +45,13 @@ jobs:
 
     - name: Define environment variables
       run: |
+        echo "CC=/usr/bin/${{ matrix.COMPILER }}" >> $GITHUB_ENV
+        if [[ "${{ matrix.COMPILER }}" == 'gcc' ]] ; then
+          echo "CXX=/usr/bin/g++" >> $GITHUB_ENV
+        else
+          echo "CXX=/usr/bin/${{ matrix.COMPILER }}++" >> $GITHUB_ENV
+        fi
+
         echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
@@ -43,26 +59,30 @@ jobs:
         echo "/home/runner/.local/bin" >> $GITHUB_PATH
     - name: Install pre-compiled dependencies
       run: |
+        sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
+        if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
+          sudo apt install ninja-build
+        fi
+
         PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
         if [[ ${PYTHON_VERSION:2} -lt 10 ]] ; then
           TORCH_VERSION="1.8.1"  # pylint segfault with newer versions for some reason ...
         else
           TORCH_VERSION="1.11.0"
         fi
-        sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" --trusted-host pypi.org \
         --trusted-host pytorch.org --trusted-host download.pytorch.org --trusted-host files.pypi.org \
         --trusted-host files.pytorch.org -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
     - name: PEP8 Code Style Check
-      if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release'
+      if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install flake8
-        flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,F405,W504 --count --show-source --statistics "$RootDir/python"
+        flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,E741,F405,W504 \
+               --count --show-source --statistics --exclude unit_py,examples "$RootDir/python/"
 
     #####################################################################################
 
@@ -71,12 +91,17 @@ jobs:
         mkdir "$RootDir/build" "$InstallDir"
         cd "$RootDir/build"
 
-        cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+        cmake "$RootDir" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
+              -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
               -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
-        make install -j2
+        if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
+          ninja install -j2
+        else
+          make install -j2
+        fi
 
     #####################################################################################
 
@@ -84,20 +109,27 @@ jobs:
       run: |
         "$InstallDir/bin/jiminy_double_pendulum"
 
-        mkdir -p "$RootDir/examples/cpp/pip_extension/build"
-        cd "$RootDir/examples/cpp/pip_extension/build"
-        cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+        RootDir="$RootDir/core/examples/external_project/"
+        mkdir -p "$RootDir/build"
+        cd "$RootDir/build"
+        cmake "$RootDir" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
+              -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
-        make install
+        if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
+          ninja install
+        else
+          make install
+        fi
 
         "$InstallDir/bin/pip_double_pendulum"
 
     - name: Run unit tests for jiminy
       run: |
-        cd "$RootDir/build"
+        cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
-        cd "$RootDir/unit_py"
+        cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
@@ -109,7 +141,7 @@ jobs:
     #####################################################################################
 
     - name: Python linter and static type checker
-      if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release'
+      if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
       run: |
         gym_modules=(
           "common"
@@ -120,7 +152,7 @@ jobs:
           cd "$RootDir/python/gym_jiminy/$name"
 
           pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=20 --max-nested-blocks=7 \
-                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,_ \
+                 --good-names=i,l,I,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,_ \
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \

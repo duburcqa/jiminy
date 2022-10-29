@@ -39,21 +39,23 @@ namespace python
         bp::class_<RandomPerlinProcess,
                    std::shared_ptr<RandomPerlinProcess>,
                    boost::noncopyable>("RandomPerlinProcess",
-                   bp::init<float64_t const &, uint32_t const &>(
-                   (bp::arg("self"), "wavelength", bp::arg("num_octaves") = 6U)))
+                   bp::init<float64_t const &, float64_t const &, uint32_t const &>(
+                   (bp::arg("self"), "wavelength", bp::arg("scale") = 1.0, bp::arg("num_octaves") = 6U)))
             .def("__call__", &RandomPerlinProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &RandomPerlinProcess::reset)
             .add_property("wavelength", bp::make_function(&RandomPerlinProcess::getWavelength,
                                         bp::return_value_policy<bp::copy_const_reference>()))
             .add_property("num_octaves", bp::make_function(&RandomPerlinProcess::getNumOctaves,
-                                         bp::return_value_policy<bp::copy_const_reference>()));
+                                         bp::return_value_policy<bp::copy_const_reference>()))
+            .add_property("scale", bp::make_function(&RandomPerlinProcess::getScale,
+                                   bp::return_value_policy<bp::copy_const_reference>()));
 
         bp::class_<PeriodicPerlinProcess,
                    std::shared_ptr<PeriodicPerlinProcess>,
                    boost::noncopyable>("PeriodicPerlinProcess",
-                   bp::init<float64_t const &, float64_t const &, uint32_t const &>(
-                   (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
+                   bp::init<float64_t const &, float64_t const &, float64_t const &, uint32_t const &>(
+                   (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0, bp::arg("num_octaves") = 6U)))
             .def("__call__", &PeriodicPerlinProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &PeriodicPerlinProcess::reset)
@@ -67,8 +69,8 @@ namespace python
         bp::class_<PeriodicGaussianProcess,
                    std::shared_ptr<PeriodicGaussianProcess>,
                    boost::noncopyable>("PeriodicGaussianProcess",
-                   bp::init<float64_t const &, float64_t const &>(
-                   bp::args("self", "wavelength", "period")))
+                   bp::init<float64_t const &, float64_t const &, float64_t const &>(
+                   (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0)))
             .def("__call__", &PeriodicGaussianProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &PeriodicGaussianProcess::reset)
@@ -82,8 +84,8 @@ namespace python
         bp::class_<PeriodicFourierProcess,
                    std::shared_ptr<PeriodicFourierProcess>,
                    boost::noncopyable>("PeriodicFourierProcess",
-                   bp::init<float64_t const &, float64_t const &>(
-                   bp::args("self", "wavelength", "period")))
+                   bp::init<float64_t const &, float64_t const &, float64_t const &>(
+                   (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0)))
             .def("__call__", &PeriodicFourierProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &PeriodicFourierProcess::reset)

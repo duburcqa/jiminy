@@ -5,7 +5,7 @@
 ///                 Any sensor must inherit from this base class and implement its virtual
 ///                 methods.
 ///
-///                 Each sensor added to a Jiminy Robot is downcasted as an instance of
+///                 Each sensor added to a Jiminy Robot is down-casted as an instance of
 ///                 AbstractSensor and polymorphism is used to call the actual implementations.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,27 +41,12 @@ namespace jiminy
     ///////////////////////////////////////////////////////////////////////////////////////////////
     struct SensorSharedDataHolder_t
     {
-    public:
-        SensorSharedDataHolder_t(void) :
-        time_(),
-        data_(),
-        dataMeasured_(),
-        sensors_(),
-        num_(0),
-        delayMax_(0.0)
-        {
-            // Empty.
-        };
-
-        ~SensorSharedDataHolder_t(void) = default;
-
-    public:
-        boost::circular_buffer_space_optimized<float64_t> time_;  ///< Circular buffer of the stored timesteps
-        boost::circular_buffer_space_optimized<matrixN_t> data_;  ///< Circular buffer of past sensor real data
-        matrixN_t dataMeasured_;                                  ///< Buffer of current sensor measurement data
-        std::vector<AbstractSensorBase *> sensors_;               ///< Vector of pointers to the sensors
-        std::size_t num_;                                         ///< Number of sensors of that type
-        float64_t delayMax_;                                      ///< Maximum delay over all the sensors
+        boost::circular_buffer<float64_t> time_;     ///< Circular buffer of the stored timesteps
+        boost::circular_buffer<matrixN_t> data_;     ///< Circular buffer of past sensor real data
+        matrixN_t dataMeasured_;                     ///< Buffer of current sensor measurement data
+        std::vector<AbstractSensorBase *> sensors_;  ///< Vector of pointers to the sensors
+        std::size_t num_;                            ///< Number of sensors of that type
+        float64_t delayMax_;                         ///< Maximum delay over all the sensors
     };
 
     class AbstractSensorBase : public std::enable_shared_from_this<AbstractSensorBase>
@@ -109,7 +94,7 @@ namespace jiminy
             jitter(boost::get<float64_t>(options.at("jitter"))),
             delayInterpolationOrder(boost::get<uint32_t>(options.at("delayInterpolationOrder")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -417,12 +402,12 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief       Add white noise and bias to the measurement buffer.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void skewMeasurement(void);
+        virtual void measureData(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Set the measurement buffer with the real data, but skewed with white noise and bias.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t generateMeasurementAll(void) = 0;
+        virtual hresult_t measureDataAll(void) = 0;
 
     public:
         std::unique_ptr<abstractSensorOptions_t const> baseSensorOptions_;  ///< Structure with the parameters of the sensor
@@ -481,7 +466,7 @@ namespace jiminy
         virtual hresult_t detach(void) override final;
         virtual std::string getTelemetryName(void) const override final;
         virtual hresult_t interpolateData(void) override final;
-        virtual hresult_t generateMeasurementAll(void) override final;
+        virtual hresult_t measureDataAll(void) override final;
         void clearDataBuffer(void);
 
     public:
@@ -489,7 +474,7 @@ namespace jiminy
            keyword binds all the sensors together, even if they are associated
            to complete separated robots. */
         static std::string const type_;
-        static std::vector<std::string> const fieldNames_;
+        static std::vector<std::string> const fieldnames_;
         static bool_t const areFieldnamesGrouped_;
 
     protected:

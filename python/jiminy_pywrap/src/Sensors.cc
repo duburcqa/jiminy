@@ -318,14 +318,14 @@ namespace python
                     .def("initialize", &TSensor::initialize)
                     .def_readonly("type", &TSensor::type_)
                     .def_readonly("has_prefix", &TSensor::areFieldnamesGrouped_)
-                    .add_static_property("fieldnames", bp::make_getter(&TSensor::fieldNames_,
+                    .add_static_property("fieldnames", bp::make_getter(&TSensor::fieldnames_,
                                                        bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
 
             template<class Q = TSensor>
-            static std::enable_if_t<std::is_same<Q, ImuSensor>::value
-                                 || std::is_same<Q, ContactSensor>::value, void>
+            static std::enable_if_t<std::is_same_v<Q, ImuSensor>
+                                 || std::is_same_v<Q, ContactSensor>, void>
             visit(PyClass & cl)
             {
                 visitBasicSensors(cl);
@@ -339,7 +339,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static std::enable_if_t<std::is_same<Q, ForceSensor>::value, void>
+            static std::enable_if_t<std::is_same_v<Q, ForceSensor>, void>
             visit(PyClass & cl)
             {
                 visitBasicSensors(cl);
@@ -355,7 +355,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static std::enable_if_t<std::is_same<Q, EncoderSensor>::value, void>
+            static std::enable_if_t<std::is_same_v<Q, EncoderSensor>, void>
             visit(PyClass & cl)
             {
                 visitBasicSensors(cl);
@@ -371,7 +371,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static std::enable_if_t<std::is_same<Q, EffortSensor>::value, void>
+            static std::enable_if_t<std::is_same_v<Q, EffortSensor>, void>
             visit(PyClass & cl)
             {
                 visitBasicSensors(cl);

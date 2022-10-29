@@ -178,15 +178,16 @@ namespace python
             bp::class_<DistanceConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<DistanceConstraint>,
                        boost::noncopyable>("DistanceConstraint",
-                       bp::init<std::string const &, std::string const &, float64_t const &>(
-                       bp::args("self", "first_frame_name", "second_frame_name", "distance_reference")))
+                       bp::init<std::string const &, std::string const &>(
+                       bp::args("self", "first_frame_name", "second_frame_name")))
                 .def_readonly("type", &DistanceConstraint::type_)
                 .add_property("frames_names", bp::make_function(&DistanceConstraint::getFramesNames,
                                               bp::return_value_policy<result_converter<true> >()))
                 .add_property("frames_idx", bp::make_function(&DistanceConstraint::getFramesIdx,
                                             bp::return_value_policy<result_converter<true> >()))
                 .add_property("reference_distance", bp::make_function(&DistanceConstraint::getReferenceDistance,
-                                                    bp::return_value_policy<bp::copy_const_reference>()));
+                                                    bp::return_value_policy<bp::copy_const_reference>()),
+                                                    &DistanceConstraint::setReferenceDistance);
 
             bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<SphereConstraint>,

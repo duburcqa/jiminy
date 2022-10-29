@@ -118,8 +118,8 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         self.robot.add_frame(
             "right_pushrod_hip", "hip_flexion_right", M_pushrod_hip_right)
         pushrod_right = DistanceConstraint(
-            "right_pushrod_tarsus", "right_pushrod_hip", 0.5)
-        pushrod_right.baumgarte_freq = 2.0
+            "right_pushrod_tarsus", "right_pushrod_hip")
+        pushrod_right.baumgarte_freq = 20.0
         self.robot.add_constraint("pushrod_right", pushrod_right)
         M_pushrod_tarsus_left = SE3(
             np.eye(3), np.array([-0.12, 0.03, 0.005]))
@@ -130,8 +130,8 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         self.robot.add_frame(
             "left_pushrod_hip", "hip_flexion_left", M_pushrod_hip_left)
         pushrod_left = DistanceConstraint(
-            "left_pushrod_tarsus", "left_pushrod_hip", 0.5)
-        pushrod_left.baumgarte_freq = 2.0
+            "left_pushrod_tarsus", "left_pushrod_hip")
+        pushrod_left.baumgarte_freq = 20.0
         self.robot.add_constraint("pushrod_left", pushrod_left)
 
         # Remove irrelevant contact points

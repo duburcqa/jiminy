@@ -23,8 +23,8 @@ namespace jiminy
     sensorTelemetryOptions_(),
     motorsNames_(),
     sensorsNames_(),
-    commandFieldnames_(),
-    motorEffortFieldnames_(),
+    logFieldnamesCommand_(),
+    logFieldnamesMotorEffort_(),
     nmotors_(0U),
     mutexLocal_(std::make_unique<MutexLocal>()),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
@@ -522,20 +522,20 @@ namespace jiminy
                            });
 
             // Generate the fieldnames associated with command
-            commandFieldnames_.clear();
-            commandFieldnames_.reserve(nmotors_);
+            logFieldnamesCommand_.clear();
+            logFieldnamesCommand_.reserve(nmotors_);
             std::transform(motorsHolder_.begin(), motorsHolder_.end(),
-                           std::back_inserter(commandFieldnames_),
+                           std::back_inserter(logFieldnamesCommand_),
                            [](auto const & elem) -> std::string
                            {
                                 return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Command");
                            });
 
             // Generate the fieldnames associated with motor efforts
-            motorEffortFieldnames_.clear();
-            motorEffortFieldnames_.reserve(nmotors_);
+            logFieldnamesMotorEffort_.clear();
+            logFieldnamesMotorEffort_.reserve(nmotors_);
             std::transform(motorsHolder_.begin(), motorsHolder_.end(),
-                           std::back_inserter(motorEffortFieldnames_),
+                           std::back_inserter(logFieldnamesMotorEffort_),
                            [](auto const & elem) -> std::string
                            {
                                 return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Effort");
@@ -1244,7 +1244,7 @@ namespace jiminy
         sensorsSharedHolder_t::const_iterator sensorsSharedIt = sensorsSharedHolder_.begin();
         for (; sensorsGroupIt != sensorsGroupHolder_.end() ; ++sensorsGroupIt, ++sensorsSharedIt)
         {
-            sensorDataTypeMap_t dataType(std::cref(sensorsSharedIt->second->dataMeasured_));  // Need explicit call to `std::reference_wrapper` for gcc<7.3
+            sensorDataTypeMap_t dataType(sensorsSharedIt->second->dataMeasured_);
             for (auto & sensor : sensorsGroupIt->second)
             {
                 auto & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);
@@ -1426,12 +1426,12 @@ namespace jiminy
 
     std::vector<std::string> const & Robot::getCommandFieldnames(void) const
     {
-        return commandFieldnames_;
+        return logFieldnamesCommand_;
     }
 
     std::vector<std::string> const & Robot::getMotorEffortFieldnames(void) const
     {
-        return motorEffortFieldnames_;
+        return logFieldnamesMotorEffort_;
     }
 
     uint64_t const & Robot::nmotors(void) const

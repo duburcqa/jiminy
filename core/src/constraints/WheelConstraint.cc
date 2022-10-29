@@ -21,16 +21,10 @@ namespace jiminy
     radius_(wheelRadius),
     normal_(groundNormal.normalized()),
     axis_(wheelAxis.normalized()),
-    x3_(),
     skewRadius_(),
     dskewRadius_(),
     transformRef_(),
     frameJacobian_()
-    {
-        // Empty on purpose
-    }
-
-    WheelConstraint::~WheelConstraint(void)
     {
         // Empty on purpose
     }
@@ -104,38 +98,58 @@ namespace jiminy
         auto model = model_.lock();
 
         // Compute ground normal in local frame
-        x3_.noalias() = model->pncData_.oMf[frameIdx_].rotation().transpose() * normal_;
-        pinocchio::alphaSkew(radius_, x3_, skewRadius_);
+        pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
+        vector3_t const axis = framePose.rotation() * axis_;
+        vector3_t const x = axis.cross(normal_).cross(axis);
+        float64_t const xNorm = x.norm();
+        vector3_t const y = x / xNorm;
+        pinocchio::alphaSkew(radius_, y, skewRadius_);
+
+        // Compute position error
+        float64_t const deltaPosition =
+            (framePose.translation() - transformRef_.translation() + radius_ * (normal_ - y)).dot(normal_);
 
         // Compute frame jacobian in local frame
         getFrameJacobian(model->pncModel_,
                          model->pncData_,
                          frameIdx_,
-                         pinocchio::LOCAL,
+                         pinocchio::LOCAL_WORLD_ALIGNED,
                          frameJacobian_);
 
-        // Contact point is at -radius_ x3 in local frame: compute corresponding jacobian
-        jacobian_ = frameJacobian_.topRows(3) +
-                    skewRadius_ * frameJacobian_.bottomRows(3);
+        // Contact point is at -radius_ x in local frame: compute corresponding jacobian
+        jacobian_ = frameJacobian_.topRows(3);
+        jacobian_.noalias() += skewRadius_ * frameJacobian_.bottomRows(3);
 
         // Compute ground normal derivative
-        vector3_t const omega = getFrameVelocity(model->pncModel_,
-                                                 model->pncData_,
-                                                 frameIdx_,
-                                                 pinocchio::LOCAL).angular();
-        auto dx3_ = - omega.cross(x3_);  // Using auto to not evaluate the expression
-        pinocchio::alphaSkew(radius_, dx3_, dskewRadius_);
+        pinocchio::Motion const frameVelocity = getFrameVelocity(model->pncModel_,
+                                                                 model->pncData_,
+                                                                 frameIdx_,
+                                                                 pinocchio::LOCAL_WORLD_ALIGNED);
+        vector3_t const & omega = frameVelocity.angular();
+
+        vector3_t const daxis_ = omega.cross(axis);
+        vector3_t const dx = daxis_.cross(normal_).cross(axis) + axis.cross(normal_).cross(daxis_);
+        vector3_t const z = dx / xNorm;
+        vector3_t const dy = z - y.dot(z) * y;
+
+        vector3_t velocity = frameVelocity.linear();
+        velocity.noalias() += skewRadius_ * omega;
 
         // Compute frame drift in local frame
-        pinocchio::Motion const driftLocal = getFrameAcceleration(model->pncModel_,
-                                                                  model->pncData_,
-                                                                  frameIdx_,
-                                                                  pinocchio::LOCAL);
+        pinocchio::Motion frameAcceleration = getFrameAcceleration(model->pncModel_,
+                                                                   model->pncData_,
+                                                                   frameIdx_,
+                                                                   pinocchio::LOCAL_WORLD_ALIGNED);
+        frameAcceleration.linear() += omega.cross(frameVelocity.linear());
 
         // Compute total drift
-        drift_ = driftLocal.linear() +
-                 skewRadius_ * driftLocal.angular() + dskewRadius_ * omega;
+        pinocchio::alphaSkew(radius_, dy, dskewRadius_);
+        drift_ = frameAcceleration.linear() +
+                 skewRadius_ * frameAcceleration.angular() +
+                 dskewRadius_ * omega;
 
+        // Add Baumgarte stabilization drift
+        drift_ += kp_ * deltaPosition * normal_ + kd_ * velocity;
 
         return hresult_t::SUCCESS;
     }

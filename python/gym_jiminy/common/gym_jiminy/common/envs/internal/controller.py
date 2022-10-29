@@ -34,13 +34,13 @@ class BaseJiminyObserverController(jiminy.BaseController):
 
     @property
     def has_observer(self) -> bool:
-        """Check whether or not a valid observer handle has been set.
+        """Check whether a valid observer handle has been set.
         """
         return self.__observer_handle is not None
 
     @property
     def has_controller(self) -> bool:
-        """Check whether or not a valid controller handle has been set.
+        """Check whether a valid controller handle has been set.
         """
         return self.__controller_handle is not None
 
@@ -77,7 +77,7 @@ class BaseJiminyObserverController(jiminy.BaseController):
             |                  **v**: np.ndarray,
             |                  **sensors_data**: jiminy_py.core.sensorsData
             |                  \) -> None
-        :param unsafe: Whether or not to check if the handle is valid.
+        :param unsafe: Whether to check if the handle is valid.
         """
         try:
             if not unsafe and observer_handle is not None:
@@ -109,7 +109,7 @@ class BaseJiminyObserverController(jiminy.BaseController):
             |                    **sensors_data**: jiminy_py.core.sensorsData,
             |                    **command**: np.ndarray
             |                    \) -> None
-        :param unsafe: Whether or not to check if the handle is valid.
+        :param unsafe: Whether to check if the handle is valid.
         """
         try:
             if not unsafe and controller_handle is not None:

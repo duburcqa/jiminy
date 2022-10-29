@@ -40,7 +40,7 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         FixedFrameConstraint(std::string const & frameName,
                              Eigen::Matrix<bool_t, 6, 1> const & maskFixed = Eigen::Matrix<bool_t, 6, 1>::Constant(true));
-        virtual ~FixedFrameConstraint(void);
+        virtual ~FixedFrameConstraint(void) = default;
 
         std::string const & getFrameName(void) const;
         frameIndex_t const & getFrameIdx(void) const;

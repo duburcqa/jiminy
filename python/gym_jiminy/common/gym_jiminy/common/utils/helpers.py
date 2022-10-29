@@ -91,7 +91,7 @@ def register_variables(controller: jiminy.AbstractController,
                  only supports np.float64, and make sure to reassign data
                  using `np.copyto` or `[:]` operator (faster).
 
-    :returns: Whether or not the registration has been successful.
+    :returns: Whether the registration has been successful.
     """
     # pylint: disable=cell-var-from-loop
     for fieldname, value in zip(

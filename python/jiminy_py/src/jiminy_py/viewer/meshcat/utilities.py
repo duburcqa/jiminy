@@ -25,7 +25,7 @@ if not os.getenv("JIMINY_INTERACTIVE_DISABLE", False) and \
         """Determine what kind of process is running Python kernel.
 
         :returns:
-            - 0: builtin terminal
+            - 0: builtin terminal or plain script
             - 1: Spyder or Ipython console that does not support HTML embedding
             - 2: Interactive Jupyter Notebook with deprecated ipykernel
             - 3: Interactive Jupyter Notebook (can be confused with Qtconsole)

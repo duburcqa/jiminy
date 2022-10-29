@@ -6,19 +6,6 @@
 
 namespace jiminy
 {
-    AbstractConstraintBase::AbstractConstraintBase(void) :
-    lambda_(),
-    model_(),
-    isAttached_(false),
-    isEnabled_(true),
-    kp_(0.0),
-    kd_(0.0),
-    jacobian_(),
-    drift_()
-    {
-        // Empty on purpose
-    }
-
     AbstractConstraintBase::~AbstractConstraintBase(void)
     {
         // Detach the constraint before deleting it if necessary
@@ -30,12 +17,11 @@ namespace jiminy
 
     hresult_t AbstractConstraintBase::attach(std::weak_ptr<Model const> model)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
+        // Make sure the constraint is not already attached
         if (isAttached_)
         {
             PRINT_ERROR("Constraint already attached to a model.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         // Make sure the model still exists
@@ -45,10 +31,14 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
+        // Consider the constraint is attached at this point
         model_ = model;
         isAttached_ = true;
 
-        return returnCode;
+        // Enable constraint by default
+        isEnabled_ = true;
+
+        return hresult_t::SUCCESS;
     }
 
     void AbstractConstraintBase::detach(void)

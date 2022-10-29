@@ -24,8 +24,8 @@ from .. import core as jiminy
 from ..dynamics import TrajectoryDataType
 from ..log import (read_log,
                    build_robot_from_log,
-                   extract_trajectory_data_from_log,
-                   emulate_sensors_data_from_log)
+                   extract_trajectory_from_log,
+                   update_sensors_data_from_log)
 from .viewer import (COLORS,
                      Tuple3FType,
                      Tuple4FType,
@@ -95,7 +95,7 @@ def play_trajectories(trajs_data: Union[
     :param update_hooks: Callables associated with each robot that can be used
                          to update non-kinematic robot data, for instance to
                          emulate sensors data from log using the hook provided
-                         by `emulate_sensors_data_from_log` method. `None` to
+                         by `update_sensors_data_from_log` method. `None` to
                          disable, otherwise it must have the signature:
 
                          .. code-block:: python
@@ -143,31 +143,30 @@ def play_trajectories(trajs_data: Union[
     :param enable_clock: Add clock on bottom right corner of the viewer.
                          Only available with 'panda3d' rendering backend.
                          Optional: Disabled by default.
-    :param display_com: Whether or not to display the center of mass. `None`
-                        to keep current viewers' settings, if any.
+    :param display_com: Whether to display the center of mass. `None` to keep
+                        current viewers' settings, if any.
                         Optional: Enabled by default iif `viewers` is `None`,
                         and backend is 'panda3d'.
-    :param display_dcm: Whether or not to display the capture point (also
-                        called DCM). `None to keep current viewers' settings.
+    :param display_dcm: Whether to display the capture point (also called DCM).
+                        `None to keep current viewers' settings.
                         Optional: Enabled by default iif `viewers` is `None`,
                         and backend is 'panda3d'.
-    :param display_contacts: Whether or not to display the contact forces.
-                             Note that the user is responsible for updating
-                             sensors data via `update_hooks`. `None` to keep
-                             current viewers' settings.
+    :param display_contacts: Whether to display the contact forces. Note that
+                             the user is responsible for updating sensors data
+                             via `update_hooks`. `None` to keep current
+                             viewers' settings.
                              Optional: Enabled by default iif `update_hooks` is
                              specified, `viewers` is `None`, and backend is
                              'panda3d'.
-    :param display_f_external: Whether or not to display the external external
-                               forces applied at the joints on the robot. If a
-                               boolean is provided, the same visibility will be
-                               set for each joint, alternatively one can
-                               provide a boolean list whose ordering is
-                               consistent with `pinocchio_model.names`. Note
-                               that the user is responsible for updating the
-                               force buffer `viewer.f_external` via
-                               `update_hooks`. `None` to keep current viewers'
-                               settings.
+    :param display_f_external: Whether to display the external external forces
+                               applied at the joints on the robot. If a boolean
+                               is provided, the same visibility will be set for
+                               each joint, alternatively one can provide a
+                               boolean list whose ordering is consistent with
+                               `pinocchio_model.names`. Note that the user is
+                               responsible for updating the force buffer
+                               `viewer.f_external` via `update_hooks`. `None`
+                               to keep current viewers' settings.
                                Optional: `None` by default.
     :param scene_name: Name of viewer's scene in which to display the robot.
                        Optional: Common default name if omitted.
@@ -188,13 +187,13 @@ def play_trajectories(trajs_data: Union[
                     appropriate backend will be selected automatically, based
                     on hardware and python environment.
                     Optional: `None` by default.
-    :param delete_robot_on_close: Whether or not to delete the robot from the
-                                  viewer when closing it.
+    :param delete_robot_on_close: Whether to delete the robot from the viewer
+                                  when closing it.
                                   Optional: True by default.
     :param remove_widgets_overlay: Remove overlay (legend, watermark, clock,
                                    ...) automatically before returning.
                                    Optional: Enabled by default.
-    :param close_backend: Whether or not to close backend automatically before
+    :param close_backend: Whether to close backend automatically before
                           returning.
                           Optional: Disabled by default.
     :param viewers: List of already instantiated viewers, associated one by one
@@ -336,7 +335,9 @@ def play_trajectories(trajs_data: Union[
             model = traj['robot'].pinocchio_model
         viewer.display(pin.neutral(model))
 
-        # Reset robot model in viewer if requested color has changed
+        # Reset robot model in viewer if requested color has changed.
+        # `_setup` is called instead of `set_color` because the latter is not
+        # supported by meshcat.
         if color is not None and color != viewer.robot_color:
             viewer._setup(traj['robot'], color)
 
@@ -364,7 +365,11 @@ def play_trajectories(trajs_data: Union[
 
     # Handle meshcat-specific options
     if legend is not None:
-        Viewer.set_legend(legend)
+        try:
+            Viewer.set_legend(legend)
+        except ImportError:
+            raise logger.warn(
+                "Impossible to add legend. Please install 'jiminy_py[plot]'.")
 
     # Add watermark if requested
     if watermark_fullpath is not None:
@@ -551,6 +556,9 @@ def play_trajectories(trajs_data: Union[
                 out.mux(packet)
             out.close()
     else:
+        # Make sure a gui is opened
+        viewer.open_gui()
+
         # Play trajectories with multithreading
         def replay_thread(viewer, *args):
             loop = asyncio.new_event_loop()
@@ -617,14 +625,14 @@ def play_trajectories(trajs_data: Union[
     return viewers
 
 
-def extract_replay_data_from_log_data(
-        robot: jiminy.Robot,
-        log_data: Dict[str, np.ndarray]) -> Tuple[
+def extract_replay_data_from_log(
+        log_data: Dict[str, np.ndarray],
+        robot: jiminy.Robot) -> Tuple[
             TrajectoryDataType, Callable[[float], None], Any]:
     """Extract replay data from log data.
 
     :param robot: Jiminy robot for which to extract log data.
-    :param log_data: Data from the log file, in a dictionnary.
+    :param log_data: Data from the log file, in a dictionary.
 
     :returns: Trajectory data, update hook and extra keyword arguments to
               forward to `play_trajectories` method to display the trajectory.
@@ -633,7 +641,7 @@ def extract_replay_data_from_log_data(
     """
     # For each pair (log, robot), extract a trajectory object for
     # `play_trajectories`
-    trajectory = extract_trajectory_data_from_log(log_data, robot)
+    trajectory = extract_trajectory_from_log(log_data, robot)
 
     # Display external forces on root joint, if any
     replay_kwargs = {}
@@ -647,7 +655,7 @@ def extract_replay_data_from_log_data(
 
     # Define `update_hook` to emulate sensor update
     if not robot.is_locked:
-        update_hook = emulate_sensors_data_from_log(log_data, robot)
+        update_hook = update_sensors_data_from_log(log_data, robot)
     else:
         if robot.sensors_names:
             logger.warn(
@@ -682,8 +690,8 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
     # Extract a replay data for `play_trajectories` for each pair (robot, log)
     trajectories, update_hooks, extra_kwargs = [], [], {}
     for robot, log_data in zip(robots, logs_data):
-        traj, update_hook, _kwargs = extract_replay_data_from_log_data(
-            robot, log_data)
+        traj, update_hook, _kwargs = \
+            extract_replay_data_from_log(log_data, robot)
         trajectories.append(traj)
         update_hooks.append(update_hook)
         extra_kwargs.update(_kwargs)
@@ -720,9 +728,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
     # Extract log data and build robot for each log file
     robots, logs_data = [], []
     for log_file in logs_files:
-        log_data, log_constants = read_log(log_file)
-        robot = build_robot_from_log(
-            log_constants, mesh_package_dirs)
+        log_data = read_log(log_file)
+        robot = build_robot_from_log(log_data, mesh_package_dirs)
         logs_data.append(log_data)
         robots.append(robot)
 
@@ -750,7 +757,7 @@ def _play_logs_files_entrypoint() -> None:
         help="Real time to simulation time factor.")
     parser.add_argument(
         '-t', '--travelling', action='store_true',
-        help=("Whether or not to track the root frame of the first robot, "
+        help=("Whether to track the root frame of the first robot, "
               "assuming the robot has a freeflyer."))
     parser.add_argument(
         '-b', '--backend', default='panda3d',

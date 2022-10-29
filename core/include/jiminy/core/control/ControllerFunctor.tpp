@@ -12,7 +12,7 @@ namespace jiminy
     commandFct_(commandFct),
     internalDynamicsFct_(internalDynamicsFct)
     {
-        // Empty.
+        // Empty on purpose
     }
 
     template<typename F1, typename F2>
@@ -22,7 +22,7 @@ namespace jiminy
     commandFct_(std::move(commandFct)),
     internalDynamicsFct_(std::move(internalDynamicsFct))
     {
-        // Empty.
+        // Empty on purpose
     }
 
     template<typename F1, typename F2>

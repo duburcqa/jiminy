@@ -1,5 +1,5 @@
 from pkg_resources import get_distribution
-from setuptools import setup, dist, find_packages
+from setuptools import setup, dist, find_namespace_packages
 from setuptools.command.install import install
 
 
@@ -20,14 +20,17 @@ class InstallPlatlib(install):
             self.install_lib = self.install_platlib
 
 
-# Enforce the right numpy version
+# Enforce the right numpy version. It assumes the version currently available
+# was used to compile all the C++ extension modules shipping with Jiminy.
+# - Numpy API is not backward compatible but is forward compatible
+# - A few version must be blacklisted because of Boost::Python incompatibility
+# - For some reason, forward compatibility from 1.19 to 1.20+ seems broken
 np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
+np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
 if np_ver < (1, 20):
-    np_req = "numpy<1.20"
+    np_req += ",<1.20.0"
 elif np_ver < (1, 22):
-    np_req = "numpy>=1.20,!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4,<1.22"
-else:
-    np_req = "numpy>=1.22"
+    np_req += ",!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
 
 
 setup(
@@ -39,10 +42,9 @@ setup(
     long_description_content_type="text/markdown",
     url="https://duburcqa.github.io/jiminy/README.html",
     project_urls={
-        "Source": "https://github.com/duburcqa/jiminy",
-        "Documentation":
-            "https://duburcqa.github.io/jiminy/api/jiminy_py/index.html",
-        "Tutorial": "https://duburcqa.github.io/jiminy/tutorial.html"
+        "Documentation": "https://duburcqa.github.io/jiminy",
+        "Bug Tracker": "https://github.com/duburcqa/jiminy/issues",
+        "Source": "https://github.com/duburcqa/jiminy"
     },
     download_url=("https://github.com/duburcqa/jiminy/archive/"
                   "@PROJECT_VERSION@.tar.gz"),
@@ -68,7 +70,7 @@ setup(
     cmdclass={
         "install": InstallPlatlib
     },
-    packages=find_packages("src"),
+    packages=find_namespace_packages("src"),
     package_dir={"": "src"},
     data_files=[
         ("cmake", [
@@ -78,7 +80,7 @@ setup(
     ],
     include_package_data=True,
     entry_points={"console_scripts": [
-        "jiminy_plot=jiminy_py.plot:plot_log",
+        "jiminy_plot=jiminy_py.plot:plot_log_interactive",
         ("jiminy_meshcat_server="
          "jiminy_py.meshcat.server:start_meshcat_server_standalone"),
         "jiminy_replay=jiminy_py.viewer.replay:_play_logs_files_entrypoint"
@@ -100,17 +102,18 @@ setup(
         # Used internally by Robot to replace meshes by associated minimal
         # volume bounding box.
         "trimesh",
-        # Used internally to read HDF5 format log files.
-        "h5py",
         # Use to operate conveniently on nested log data.
         "dm-tree",
         # Used internally by Viewer to perform 1D polynomial interpolations.
         "scipy",
+        # Used internally by Viewer to detect running Meshcat servers and
+        # avoid orphan child processes.
+        "psutil",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
         # Panda3d is NOT supported by PyPy and cannot be built from source.
-        # 1.10.10 fixes an impressive list of bugs.
-        "panda3d>=1.10.10",
+        # 1.10.10-1.10.12 fix various blocking bugs.
+        "panda3d>=1.10.12",
         # Provide helper methods and class to make it easier to use panda3d for
         # robotic applications.
         "panda3d_viewer",
@@ -138,9 +141,6 @@ setup(
             "meshcat>=0.3.2",
             # Used internally by Viewer to read/write Meshcat snapshots.
             "pillow",
-            # Used internally by Viewer to detect running Meshcat servers and
-            # avoid orphan child processes.
-            "psutil",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
             # 0.2.6 changes the API for `get_ws_entrypoint`

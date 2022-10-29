@@ -28,7 +28,7 @@ from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
-from jiminy_py.log import extract_data_from_log
+from jiminy_py.log import extract_variables_from_log
 
 from pinocchio import neutral, normalize, framesForwardKinematics
 
@@ -108,12 +108,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                         periods. The latter are configured via
                         `engine.set_options`.
         :param enforce_bounded_spaces:
-            Whether or not to enforce finite bounds for the observation and
-            action spaces. If so, then '\*_MAX' are used whenever it is
-            necessary. Note that whose bounds are very spread to make sure it
-            is suitable for the vast majority of systems.
-        :param debug: Whether or not the debug mode must be enabled. Doing it
-                      enables telemetry recording.
+            Whether to enforce finite bounds for the observation and action
+            spaces. If so, then '\*_MAX' are used whenever it is necessary.
+            Note that whose bounds are very spread to make sure it is suitable
+            for the vast majority of systems.
+        :param debug: Whether the debug mode must be enabled. Doing it enables
+                      telemetry recording.
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
@@ -143,7 +143,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
             str, Tuple[FieldNested, DataNested]] = {}
-        self.log_headers: MappingT[str, FieldNested] = _LazyDictItemFilter(
+        self.log_fieldnames: MappingT[str, FieldNested] = _LazyDictItemFilter(
             self._registered_variables, 0)
 
         # Internal buffers for physics computations
@@ -194,9 +194,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if isinstance(self._action, np.ndarray):
             action_size = self._action.size
             if action_size > 0 and action_size == self.robot.nmotors:
-                action_headers = [
+                action_fieldnames = [
                     ".".join(("action", e)) for e in self.robot.motors_names]
-                self.register_variable("action", self._action, action_headers)
+                self.register_variable(
+                    "action", self._action, action_fieldnames)
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -867,8 +868,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.plot(**kwargs)
 
         # Extract log data
-        log_data = self.simulator.log_data
-        if not log_data:
+        log_vars = self.simulator.log_data.get("variables", {})
+        if not log_vars:
             raise RuntimeError(
                 "Nothing to plot. Please run a simulation before calling "
                 "`plot` method.")
@@ -877,27 +878,27 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # If telemetry action fieldnames is a dictionary, it cannot be nested.
         # In such a case, keys corresponds to subplots, and values are
         # individual scalar data over time to be displayed to the same subplot.
-        t = log_data["Global.Time"]
+        t = log_vars["Global.Time"]
         tab_data = {}
-        action_headers = self.log_headers.get("action", None)
-        if action_headers is None:
+        action_fieldnames = self.log_fieldnames.get("action", None)
+        if action_fieldnames is None:
             # It was impossible to register the action to the telemetry, likely
             # because of incompatible dtype. Early return without adding tab.
             return
-        if isinstance(action_headers, dict):
-            for group, fieldnames in action_headers.items():
+        if isinstance(action_fieldnames, dict):
+            for group, fieldnames in action_fieldnames.items():
                 if not isinstance(fieldnames, list):
                     logger.error("Action space not supported by this method.")
                     return
                 tab_data[group] = {
                     ".".join(key.split(".")[1:]): value
-                    for key, value in extract_data_from_log(
-                        log_data, fieldnames, as_dict=True).items()}
-        elif isinstance(action_headers, list):
+                    for key, value in extract_variables_from_log(
+                        log_vars, fieldnames, as_dict=True).items()}
+        elif isinstance(action_fieldnames, list):
             tab_data.update({
                 ".".join(key.split(".")[1:]): value
-                for key, value in extract_data_from_log(
-                    log_data, action_headers, as_dict=True).items()})
+                for key, value in extract_variables_from_log(
+                    log_vars, action_fieldnames, as_dict=True).items()})
 
         # Add action tab
         self.simulator.figure.add_tab("Action", t, tab_data)
@@ -905,9 +906,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
         """Replay the current episode until now.
 
-        :param enable_travelling: Whether or not enable travelling, following
-                                  the motion of the root frame of the model.
-                                  This parameter is ignored if the model has no
+        :param enable_travelling: Whether enable travelling, following the
+                                  motion of the root frame of the model. This
+                                  parameter is ignored if the model has no
                                   freeflyer.
                                   Optional: True by default.
         :param kwargs: Extra keyword arguments for delegation to
@@ -970,15 +971,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param env: `BaseJiminyEnv` environment instance to play with,
                     eventually wrapped by composition, typically using
                     `gym.Wrapper`.
-        :param enable_travelling: Whether or not enable travelling, following
-                                  the motion of the root frame of the model.
-                                  This parameter is ignored if the model has no
+        :param enable_travelling: Whether enable travelling, following the
+                                  motion of the root frame of the model. This
+                                  parameter is ignored if the model has no
                                   freeflyer.
                                   Optional: Enabled by default iif 'panda3d'
                                   viewer backend is used.
-        :param start_paused: Whether or not to start in pause.
+        :param start_paused: Whether to start in pause.
                              Optional: Enabled by default.
-        :param verbose: Whether or not to display status messages.
+        :param verbose: Whether to display status messages.
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
                        method.
         """
@@ -1077,11 +1078,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param horizon: Horizon of the simulation, namely maximum number of
                         steps before termination. `None` to disable.
                         Optional: Disabled by default.
-        :param enable_stats: Whether or not to print high-level statistics
-                             after simulation.
+        :param enable_stats: Whether to print high-level statistics after the
+                             simulation.
                              Optional: Enabled by default.
-        :param enable_replay: Whether or not to enable replay of the
-                              simulation, and eventually recording if the extra
+        :param enable_replay: Whether to enable replay of the simulation, and
+                              eventually recording if the extra
                               keyword argument `record_video_path` is provided.
                               Optional: Enabled by default.
         :param kwargs: Extra keyword arguments to forward to the `replay`
@@ -1184,8 +1185,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Configure the low-level integrator
         engine_options = self.simulator.engine.get_options()
         engine_options["stepper"]["iterMax"] = 0
-        engine_options["stepper"]["timeout"] = 0.0
+        engine_options["stepper"]["dtMax"] = min(0.02, self.step_dt)
         engine_options["stepper"]["logInternalStepperSteps"] = False
+
+        # Set maximum computation time for single internal integration steps
+        if self.debug:
+            engine_options["stepper"]["timeout"] = 0.0
+        else:
+            engine_options["stepper"]["timeout"] = 2.0
 
         # Enable logging of geometries in debug mode
         if self.debug:
@@ -1297,12 +1304,17 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             `self.simulator.start`. At this point, the simulation is running
             but `refresh_observation` has never been called, so that it can be
             used to initialize buffers involving the engine state but required
-            to refresh the observation. Note that it is not appropriate to
-            initialize buffers that would be used by `compute_command`.
+            to refresh the observation.
 
         .. note::
             Buffers requiring manual update must be refreshed using
             `_refresh_buffers` method.
+
+        .. warning::
+            This method is not appropriate for initializing buffers involved in
+            `compute_command`. At the time being, there is no better way that
+            taking advantage of the flag `self.simulator.is_simulation_running`
+            in the method `compute_command` itself.
         """
 
     def _refresh_buffers(self) -> None:
@@ -1318,15 +1330,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             may requires special care.
 
         .. warning::
-            Be careful when using it to update buffers that are used by
-            `refresh_observation`. The later is called at `self.observe_dt`
-            update period, while the others are called at `self.step_dt` update
+            Be careful when using this method to update buffers involved in
+            `refresh_observation`. The latter is called at `self.observe_dt`
+            update period, while this method is called at `self.step_dt` update
             period. `self.observe_dt` is likely to be different from
             `self.step_dt`, unless configured manually when overloading
             `_setup` method.
         """
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         """Compute the observation based on the current state of the robot.
 
         .. note::
@@ -1356,10 +1368,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.sensors_data:
                 self._observation['sensors'] = self.sensors_data
         else:
-            if self.simulator.use_theoretical_model and self.robot.is_flexible:
-                position, velocity = self.simulator.state
-                self._observation['state']['Q'][:] = position
-                self._observation['state']['V'][:] = velocity
+            position, velocity = self.simulator.state
+            self._observation['state']['Q'][:] = position
+            self._observation['state']['V'][:] = velocity
 
     def compute_command(self,
                         measure: DataNested,
@@ -1549,7 +1560,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv):
         """
         raise NotImplementedError
 
-    def is_done(self,  # type: ignore[override]
+    def is_done(self,
                 achieved_goal: Optional[DataNested] = None,
                 desired_goal: Optional[DataNested] = None) -> bool:
         """Determine whether a termination condition has been reached.

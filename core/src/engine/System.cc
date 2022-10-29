@@ -69,7 +69,7 @@ namespace jiminy
     frameIdx2(frameIdx2In),
     forceFct(forceFctIn)
     {
-        // Empty on purpose.
+        // Empty on purpose
     }
 
     // ====================================================
@@ -97,7 +97,7 @@ namespace jiminy
         return false;
     })
     {
-        // Empty on purpose.
+        // Empty on purpose
     }
 
     // ===============================================
@@ -158,34 +158,5 @@ namespace jiminy
         uInternal.resize(0);
         uCustom.resize(0);
         fExternal.clear();
-    }
-
-    // ===============================================
-    // ============== systemDataHolder_t =============
-    // ===============================================
-
-    systemDataHolder_t::systemDataHolder_t(void) :
-    robotLock(nullptr),
-    forcesProfile(),
-    forcesImpulse(),
-    forcesImpulseBreaks(),
-    forcesImpulseBreakNextIt(),
-    forcesImpulseActive(),
-    constraintSolver(nullptr),
-    constraintsHolder(),
-    contactFramesForces(),
-    collisionBodiesForces(),
-    jointJacobian(),
-    positionFieldnames(),
-    velocityFieldnames(),
-    accelerationFieldnames(),
-    forceExternalFieldnames(),
-    commandFieldnames(),
-    motorEffortFieldnames(),
-    energyFieldname(),
-    state(),
-    statePrev()
-    {
-        // Empty on purpose
     }
 }

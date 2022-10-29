@@ -114,10 +114,14 @@ namespace python
     /// C++ to Python type mapping
 
     inline int getPyType(bool_t const & /* data */) { return NPY_BOOL; }
-    inline int getPyType(float64_t const & /* data */) { return NPY_FLOAT64; }
     inline int getPyType(float32_t const & /* data */) { return NPY_FLOAT32; }
+    inline int getPyType(float64_t const & /* data */) { return NPY_FLOAT64; }
     inline int getPyType(int32_t const & /* data */) { return NPY_INT32; }
-    inline int getPyType(int64_t const & /* data */) { return NPY_INT64; }
+    inline int getPyType(uint32_t const & /* data */) { return NPY_UINT32; }
+    inline int getPyType(long const & /* data */) { return NPY_LONG; }
+    inline int getPyType(unsigned long const & /* data */) { return NPY_ULONG; }
+    inline int getPyType(long long const & /* data */) { return NPY_LONGLONG; }
+    inline int getPyType(unsigned long long const & /* data */) { return NPY_ULONGLONG; }
 
     /// Convert Eigen scalar/vector/matrix to Numpy array by reference.
 
@@ -220,7 +224,7 @@ namespace python
     }
 
     // Generic convert from Numpy array to Eigen Matrix by reference
-    inline std::tuple<hresult_t, Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> >>
+    inline std::tuple<hresult_t, Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > >
     getEigenReference(PyObject * dataPy)
     {
         // Define dummy reference in case of error
@@ -301,23 +305,26 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T> && !is_eigen_v<T>, bp::object>
-    convertToPython(T const & data, bool const & /* copy */ = true)
+    std::enable_if_t<!is_vector_v<T> && !is_eigen_v<T> && !std::is_arithmetic_v<T> && !std::is_integral_v<T>, bp::object>
+    convertToPython(T const & data, bool const & copy = true)
     {
-        return bp::object(data);
+        if (copy)
+        {
+            return bp::object(data);
+        }
+        bp::to_python_indirect<T, bp::detail::make_reference_holder> converter;
+        return bp::object(bp::handle<>(converter(data)));
     }
 
-    template<>
-    inline bp::object convertToPython<flexibleJointData_t>(
-        flexibleJointData_t const & flexibleJointData,
-        bool const & /* copy */)
+    template<typename T>
+    std::enable_if_t<std::is_arithmetic_v<T> || std::is_integral_v<T>, bp::object>
+    convertToPython(T & data, bool const & copy = true)
     {
-        bp::dict flexibilityJointDataPy;
-        flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
-        flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
-        flexibilityJointDataPy["damping"] = flexibleJointData.damping;
-        flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
-        return std::move(flexibilityJointDataPy);
+        if (copy)
+        {
+            return bp::object(data);
+        }
+        return bp::object(bp::handle<>(getNumpyReference(data)));
     }
 
     template<typename T>
@@ -372,6 +379,30 @@ namespace python
         return std::move(dataPy);
     }
 
+    template<>
+    inline bp::object convertToPython(std::string const & data, bool const & copy)
+    {
+        if (copy)
+        {
+            return bp::object(data);
+        }
+        return bp::object(bp::handle<>(
+            PyUnicode_FromStringAndSize(data.c_str(), data.size())));
+    }
+
+    template<>
+    inline bp::object convertToPython<flexibleJointData_t>(
+        flexibleJointData_t const & flexibleJointData,
+        bool const & /* copy */)
+    {
+        bp::dict flexibilityJointDataPy;
+        flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
+        flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
+        flexibilityJointDataPy["damping"] = flexibleJointData.damping;
+        flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
+        return std::move(flexibilityJointDataPy);
+    }
+
     class AppendBoostVariantToPython : public boost::static_visitor<bp::object>
     {
     public:
@@ -415,12 +446,12 @@ namespace python
 
         static PyTypeObject const * get_pytype()
         {
-            if (is_vector_v<T>)  // constexpr
+            if constexpr (is_vector_v<T>)
             {
                 return &PyList_Type;
             }
-            else if (std::is_same<T, configHolder_t>::value
-                  || std::is_same<T, flexibleJointData_t>::value)  // constexpr
+            else if constexpr (std::is_same_v<T, configHolder_t>
+                            || std::is_same_v<T, flexibleJointData_t>)
             {
                 return &PyDict_Type;
             }
@@ -434,7 +465,7 @@ namespace python
     struct result_converter
     {
         template<typename T, typename = typename std::enable_if_t<
-            copy || std::is_reference<T>::value || is_eigen_ref_v<T> > >
+            copy || std::is_reference_v<T> || is_eigen_ref_v<T> > >
         struct apply
         {
             struct type
@@ -498,16 +529,16 @@ namespace python
     std::enable_if_t<!is_vector_v<T>
                   && !is_map_v<T>
                   && !is_eigen_v<T>
-                  && !(std::is_integral<T>::value && !std::is_same<T, bool_t>::value)
-                  && !std::is_same<T, sensorsDataMap_t>::value, T>
+                  && !(std::is_integral_v<T> && !std::is_same_v<T, bool_t>)
+                  && !std::is_same_v<T, sensorsDataMap_t>, T>
     convertFromPython(bp::object const & dataPy)
     {
         return bp::extract<T>(dataPy);
     }
 
     template<typename T>
-    std::enable_if_t<std::is_integral<T>::value
-                 && !std::is_same<T, bool_t>::value, T>
+    std::enable_if_t<std::is_integral_v<T>
+                 && !std::is_same_v<T, bool_t>, T>
     convertFromPython(bp::object const & dataPy)
     {
         std::string const optionTypePyStr =
@@ -529,7 +560,7 @@ namespace python
             {
                 return getIntegral();
             }
-            if (std::is_unsigned<T>::value)
+            if (std::is_unsigned_v<T>)
             {
                 return bp::extract<typename std::make_signed_t<T> >(dataPy);
             }
@@ -614,21 +645,19 @@ namespace python
     std::enable_if_t<is_vector_v<T>, T>
     convertFromPython(bp::object const & dataPy)
     {
-        using V = typename T::value_type;
-
         T vec;
         bp::list const listPy = bp::extract<bp::list>(dataPy);
         vec.reserve(bp::len(listPy));
         for (bp::ssize_t i=0; i < bp::len(listPy); ++i)
         {
             bp::object const itemPy = listPy[i];
-            vec.push_back(std::move(convertFromPython<V>(itemPy)));
+            vec.push_back(std::move(convertFromPython<typename T::value_type>(itemPy)));
         }
         return vec;
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same<T, sensorsDataMap_t>::value, T>
+    std::enable_if_t<std::is_same_v<T, sensorsDataMap_t>, T>
     convertFromPython(bp::object const & dataPy)
     {
         sensorsDataMap_t data;
@@ -655,8 +684,8 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<is_map<T>::value
-                  && !std::is_same<T, sensorsDataMap_t>::value, T>
+    std::enable_if_t<is_map_v<T>
+                  && !std::is_same_v<T, sensorsDataMap_t>, T>
     convertFromPython(bp::object const & dataPy)
     {
         using K = typename T::key_type;
@@ -679,23 +708,18 @@ namespace python
     class AppendPythonToBoostVariant : public boost::static_visitor<>
     {
     public:
-        AppendPythonToBoostVariant(void) :
-        objPy_(nullptr)
-        {
-            // Empty on purpose
-        }
-
+        AppendPythonToBoostVariant(void) = default;
         ~AppendPythonToBoostVariant(void) = default;
 
         template<typename T>
-        std::enable_if_t<!std::is_same<T, configHolder_t>::value, void>
+        std::enable_if_t<!std::is_same_v<T, configHolder_t>, void>
         operator()(T & value)
         {
             value = convertFromPython<T>(*objPy_);
         }
 
         template<typename T>
-        std::enable_if_t<std::is_same<T, configHolder_t>::value, void>
+        std::enable_if_t<std::is_same_v<T, configHolder_t>, void>
         operator()(T & value)
         {
             convertFromPython(*objPy_, value);

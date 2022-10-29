@@ -15,14 +15,14 @@ SIMULATION_DURATION = 20.0
 # PID torque update (:int [NA])
 HLC_TO_LLC_RATIO = 1
 # Stepper update period (:float [s])
-STEP_DT = 1.0e-3
+STEP_DT = 0.04
 
 # PID proportional gains (one per actuated joint)
 PID_KP = np.array([1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0,
                    1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0])
 # PID derivative gains (one per actuated joint)
-PID_KD = np.array([0.003, 0.003, 0.003, 0.003, 0.003, 0.003,
-                   0.003, 0.003, 0.003, 0.003, 0.003, 0.003])
+PID_KD = np.array([0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
+                   0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {

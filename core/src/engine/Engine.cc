@@ -6,15 +6,6 @@
 
 namespace jiminy
 {
-    Engine::Engine(void):
-    EngineMultiRobot(),
-    isInitialized_(false),
-    robot_(nullptr),
-    controller_(nullptr)
-    {
-        // Empty on purpose.
-    }
-
     hresult_t Engine::initializeImpl(std::shared_ptr<Robot>              robot,
                                      std::shared_ptr<AbstractController> controller,
                                      callbackFunctor_t                   callbackFct)
@@ -270,22 +261,22 @@ namespace jiminy
             "", "", frameName1, frameName2, forceCouplingFct);
     }
 
-    hresult_t Engine::registerViscoElasticForceCoupling(std::string const & frameName1,
+    hresult_t Engine::registerViscoelasticForceCoupling(std::string const & frameName1,
                                                         std::string const & frameName2,
                                                         vector6_t   const & stiffness,
                                                         vector6_t   const & damping)
     {
-        return EngineMultiRobot::registerViscoElasticForceCoupling(
+        return EngineMultiRobot::registerViscoelasticForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping);
     }
 
-    hresult_t Engine::registerViscoElasticDirectionalForceCoupling(std::string const & frameName1,
+    hresult_t Engine::registerViscoelasticDirectionalForceCoupling(std::string const & frameName1,
                                                                    std::string const & frameName2,
                                                                    float64_t   const & stiffness,
                                                                    float64_t   const & damping,
                                                                    float64_t   const & restLength)
     {
-        return EngineMultiRobot::registerViscoElasticDirectionalForceCoupling(
+        return EngineMultiRobot::registerViscoelasticDirectionalForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping, restLength);
     }
 

@@ -11,7 +11,7 @@ namespace jiminy
     payload_(),
     device_(device)
     {
-        // Empty on purpose.
+        // Empty on purpose
     }
 
     hresult_t JsonLoader::load()

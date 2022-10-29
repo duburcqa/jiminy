@@ -32,16 +32,6 @@ namespace jiminy
     ///////////////////////////////////////////////////////////////////////////////////////////////
     struct MotorSharedDataHolder_t
     {
-        MotorSharedDataHolder_t(void) :
-        data_(),
-        motors_(),
-        num_(0)
-        {
-            // Empty.
-        };
-
-        ~MotorSharedDataHolder_t(void) = default;
-
         vectorN_t data_;                           ///< Buffer with current actual motor effort
         std::vector<AbstractMotorBase *> motors_;  ///< Vector of pointers to the motors.
         std::size_t num_;                          ///< Number of motors
@@ -86,7 +76,7 @@ namespace jiminy
             enableArmature(boost::get<bool_t>(options.at("enableArmature"))),
             armature(boost::get<float64_t>(options.at("armature")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 

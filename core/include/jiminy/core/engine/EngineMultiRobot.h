@@ -56,22 +56,6 @@ namespace jiminy
     struct stepperState_t
     {
     public:
-        stepperState_t(void) :
-        iter(0U),
-        iterFailed(0U),
-        t(0.0),
-        tPrev(0.0),
-        tError(0.0),
-        dt(0.0),
-        dtLargest(0.0),
-        dtLargestPrev(0.0),
-        qSplit(),
-        vSplit(),
-        aSplit()
-        {
-            // Empty on purpose.
-        }
-
         void reset(float64_t              const & dtInit,
                    std::vector<vectorN_t> const & qSplitInit,
                    std::vector<vectorN_t> const & vSplitInit,
@@ -115,7 +99,6 @@ namespace jiminy
             configHolder_t config;
             config["solver"] = std::string("PGS");   // ["PGS",]
             config["regularization"] = 1.0e-3;       // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
-            config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
 
             return config;
         };
@@ -128,8 +111,9 @@ namespace jiminy
             config["damping"] = 2.0e3;
             config["friction"] = 1.0;
             config["torsion"] = 0.0;
-            config["transitionEps"] = 1.0e-3;  // [m]
-            config["transitionVelocity"] = 1.0e-2;  // [m.s-1]
+            config["transitionEps"] = 1.0e-3;        // [m]
+            config["transitionVelocity"] = 1.0e-2;   // [m.s-1]
+            config["stabilizationFreq"] = 20.0;      // [s-1]: 0.0 to disable
 
             return config;
         };
@@ -207,14 +191,12 @@ namespace jiminy
         {
             std::string const solver;
             float64_t const regularization;
-            float64_t const stabilizationFreq;
 
             constraintOptions_t(configHolder_t const & options) :
             solver(boost::get<std::string>(options.at("solver"))),
-            regularization(boost::get<float64_t>(options.at("regularization"))),
-            stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq")))
+            regularization(boost::get<float64_t>(options.at("regularization")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -227,6 +209,7 @@ namespace jiminy
             float64_t const torsion;
             float64_t const transitionEps;
             float64_t const transitionVelocity;
+            float64_t const stabilizationFreq;
 
             contactOptions_t(configHolder_t const & options) :
             model(boost::get<std::string>(options.at("model"))),
@@ -235,9 +218,10 @@ namespace jiminy
             friction(boost::get<float64_t>(options.at("friction"))),
             torsion(boost::get<float64_t>(options.at("torsion"))),
             transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
-            transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity")))
+            transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity"))),
+            stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -250,7 +234,7 @@ namespace jiminy
             boundStiffness(boost::get<float64_t>(options.at("boundStiffness"))),
             boundDamping(boost::get<float64_t>(options.at("boundDamping")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -263,7 +247,7 @@ namespace jiminy
             gravity(boost::get<vectorN_t>(options.at("gravity"))),
             groundProfile(boost::get<heightmapFunctor_t>(options.at("groundProfile")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -298,7 +282,7 @@ namespace jiminy
             controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
             logInternalStepperSteps(boost::get<bool_t>(options.at("logInternalStepperSteps")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -323,7 +307,7 @@ namespace jiminy
             enableMotorEffort(boost::get<bool_t>(options.at("enableMotorEffort"))),
             enableEnergy(boost::get<bool_t>(options.at("enableEnergy")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -344,7 +328,7 @@ namespace jiminy
             constraints(boost::get<configHolder_t>(options.at("constraints"))),
             contacts(boost::get<configHolder_t>(options.at("contacts")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -389,26 +373,26 @@ namespace jiminy
                                         std::string const & frameName1,
                                         std::string const & frameName2,
                                         forceCouplingFunctor_t forceFct);
-        hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & systemName1,
+        hresult_t registerViscoelasticDirectionalForceCoupling(std::string const & systemName1,
                                                                std::string const & systemName2,
                                                                std::string const & frameName1,
                                                                std::string const & frameName2,
                                                                float64_t   const & stiffness,
                                                                float64_t   const & damping,
                                                                float64_t   const & restLength = 0.0);
-        hresult_t registerViscoElasticDirectionalForceCoupling(std::string const & systemName,
+        hresult_t registerViscoelasticDirectionalForceCoupling(std::string const & systemName,
                                                                std::string const & frameName1,
                                                                std::string const & frameName2,
                                                                float64_t   const & stiffness,
                                                                float64_t   const & damping,
                                                                float64_t   const & restLength = 0.0);
-        hresult_t registerViscoElasticForceCoupling(std::string const & systemName1,
+        hresult_t registerViscoelasticForceCoupling(std::string const & systemName1,
                                                     std::string const & systemName2,
                                                     std::string const & frameName1,
                                                     std::string const & frameName2,
                                                     vector6_t   const & stiffness,
                                                     vector6_t   const & damping);
-        hresult_t registerViscoElasticForceCoupling(std::string const & systemName,
+        hresult_t registerViscoelasticForceCoupling(std::string const & systemName,
                                                     std::string const & frameName1,
                                                     std::string const & frameName2,
                                                     vector6_t   const & stiffness,
@@ -429,8 +413,8 @@ namespace jiminy
         ///          registering of new variables to log, and reset the random number
         ///          generators.
         ///
-        /// \param[in] resetRandomNumbers Whether or not to reset the random number generators.
-        /// \param[in] removeAllForce Whether or not to remove registered external forces.
+        /// \param[in] resetRandomNumbers Whether to reset the random number generators.
+        /// \param[in] removeAllForce Whether to remove registered external forces.
         void reset(bool_t const & resetRandomNumbers = false,
                    bool_t const & removeAllForce = false);
 
@@ -595,6 +579,7 @@ namespace jiminy
         /// \param[in] v Joint velocity.
         /// \param[in] u Joint effort.
         /// \param[in] fext External forces applied on the system.
+        ///
         /// \return System acceleration.
         vectorN_t const & computeAcceleration(systemHolder_t & system,
                                               systemDataHolder_t & systemData,
@@ -604,26 +589,14 @@ namespace jiminy
                                               forceVector_t & fext);
 
     public:
-        hresult_t getLogDataRaw(std::shared_ptr<logData_t const> & logData);
+        hresult_t getLog(std::shared_ptr<logData_t const> & logData);
 
-        /// \brief Get the full logged content.
-        ///
-        /// \param[out] header      Header, vector of field names.
-        /// \param[out] logMatrix   Corresponding data in the log file.
-        hresult_t getLogData(std::vector<std::string> & header,
-                             matrixN_t                & logMatrix);
+        static hresult_t readLog(std::string const & filename,
+                                 std::string const & format,
+                                 logData_t         & logData);
 
         hresult_t writeLog(std::string const & filename,
-                           std::string const & format = "binary");
-
-        static hresult_t parseLogBinaryRaw(std::string const & filename,
-                                           logData_t         & logData);
-        static hresult_t parseLogBinary(std::string              const & filename,
-                                        std::vector<std::string>       & header,
-                                        matrixN_t                      & logMatrix);
-    private:
-        hresult_t writeLogCsv(std::string const & filename);
-        hresult_t writeLogHdf5(std::string const & filename);
+                           std::string const & format);
 
     private:
         template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,

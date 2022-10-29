@@ -68,7 +68,7 @@ namespace jiminy
         }
     }
 
-    void AbstractSensorBase::skewMeasurement(void)
+    void AbstractSensorBase::measureData(void)
     {
         // Add white noise
         if (baseSensorOptions_->noiseStd.size())

@@ -208,7 +208,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         # Refresh some proxies for fast lookup
         self.sensors_data = self.env.sensors_data
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         """Compute the unified observation.
 
         By default, it forwards the observation computed by the environment.
@@ -274,11 +274,11 @@ class ObservedJiminyEnv(BasePipelineWrapper):
                     environment wrapped in `ObservedJiminyEnv` if one desires
                     to stack several controllers with `BaseJiminyEnv`.
         :param observer: Observer to use to extract higher-level features.
-        :param augment_observation: Whether or not to gather the high-level
-                                    features computed by the observer with the
-                                    raw observation of the environment. This
-                                    option is only available if the observation
-                                    space is of type `gym.spaces.Dict`.
+        :param augment_observation: Whether to gather the high-level features
+                                    computed by the observer with the raw
+                                    observation of the environment. This option
+                                    is only available if the observation space
+                                    is of type `gym.spaces.Dict`.
                                     Optional: Disabled by default.
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
@@ -339,7 +339,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         self.observe_dt = self.observer.observe_dt
         self.control_dt = self.env.control_dt
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         """Compute high-level features based on the current wrapped
         environment's observation.
 
@@ -441,7 +441,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
                 [obs, reward, done, info]
 
-            This definition remains true, independently of whether or not the
+            This definition remains true, independently of whether the
             environment is wrapped with a controller using this class. On the
             contrary, `env.control_dt` corresponds to the apparent control
             update period, namely the update period of the higher-level
@@ -453,7 +453,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                     to stack several controllers with `BaseJiminyEnv`.
         :param controller: Controller to use to send targets to the subsequent
                            block.
-        :param augment_observation: Whether or not to gather the target of the
+        :param augment_observation: Whether to gather the target of the
                                     controller with the observation of the
                                     environment. This option is only available
                                     if the observation space is of type
@@ -565,7 +565,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         return self._command
 
-    def refresh_observation(self) -> None:  # type: ignore[override]
+    def refresh_observation(self) -> None:
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 

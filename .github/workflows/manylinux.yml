@@ -54,11 +54,11 @@ jobs:
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel cmake
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -71,7 +71,7 @@ jobs:
         cd "$RootDir/build"
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_VERBOSE_MAKEFILE=ON \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
@@ -156,17 +156,22 @@ jobs:
       with:
         name: wheelhouse
         path: wheelhouse
-    - name: Install the wheels previously generated
+    - name: Install the best wheel among the previously generated
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary --find-links=wheelhouse jiminy_py
+        # extract the "best" wheel for our system out of the wheelhouse, using pip's own resolution
+        # we cannot directly install with find-links because it does not guarantee precedence of local wheels
+        # see https://github.com/pypa/pip/issues/2589 (pip>=21.1)
+        "${PYTHON_EXECUTABLE}" -m pip download --no-index --find-links="$RootDir/wheelhouse" --no-deps --dest="$RootDir/dist" jiminy_py
+        # rely on bash to expand the full wheel name
+        "${PYTHON_EXECUTABLE}" -m pip install $RootDir/dist/jiminy_py*
 
     #####################################################################################
 
     - name: Build extension module
       run: |
-        mkdir -p "$RootDir/examples/cpp/pip_extension/build"
-        cd "$RootDir/examples/cpp/pip_extension/build"
-        cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+        mkdir -p "$RootDir/core/examples/external_project/build"
+        cd "$RootDir/core/examples/external_project/build"
+        cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
                -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
                -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
@@ -174,7 +179,7 @@ jobs:
         "$InstallDir/bin/pip_double_pendulum"
     - name: Run unit tests on user environment
       run: |
-        cd "${GITHUB_WORKSPACE}/unit_py"
+        cd "${GITHUB_WORKSPACE}/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     #####################################################################################

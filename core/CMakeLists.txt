@@ -35,6 +35,12 @@ if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom versi
 endif()
 add_definitions("${COMPILE_FLAGS}")
 
+# Boost-specific stuffs. It must be defined before pinocchio does it,
+# otherwise it messes with LTO.
+add_definitions(
+    -DBOOST_MPL_LIMIT_VECTOR_SIZE=30
+)
+
 # Specialize jiminy core configuration file
 set(JIMINY_CONFIG_IN ${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake.in)
 set(JIMINY_CONFIG_OUT ${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake)
@@ -160,6 +166,20 @@ foreach(target "${PROJECT_NAME}" "${LIBRARY_NAME}")
         target_link_libraries(${target} ${CMAKE_DL_LIBS} -lrt)
     endif()
 endforeach()
+
+# Build C++ unit tests
+option(BUILD_TESTING "Build the C++ unit tests." ON)
+if(BUILD_TESTING)
+    include(CTest)
+    include(GoogleTest)
+    add_subdirectory(unit)
+endif()
+
+# Build C++ examples
+option(BUILD_EXAMPLES "Build the C++ examples." ON)
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"

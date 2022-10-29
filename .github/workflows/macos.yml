@@ -51,12 +51,12 @@ jobs:
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel delocate
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
     - name: Build project dependencies
       run: |
         MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
           ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -113,12 +113,29 @@ jobs:
 
     #####################################################################################
 
+    - name: Build extension module
+      run: |
+        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+
+        "$InstallDir/bin/jiminy_double_pendulum"
+
+        mkdir -p "$RootDir/core/examples/external_project/build"
+        cd "$RootDir/core/examples/external_project/build"
+        cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+               -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+        make install
+
+        "$InstallDir/bin/pip_double_pendulum"
+
+    #####################################################################################
+
     - name: Run unit tests for jiminy
       run: |
-        cd "$RootDir/build"
+        cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
-        cd "$RootDir/unit_py"
+        cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym jiminy

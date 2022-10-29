@@ -21,9 +21,7 @@ from ..utils import sample
 from .env_generic import BaseJiminyEnv
 
 
-GROUND_STIFFNESS_LOG_RANGE = (5.5, 7.0)
-GROUND_DAMPING_RATIO_RANGE = (0.2, 1.0)
-GROUND_FRICTION_RANGE = (0.8, 8.0)
+GROUND_FRICTION_RANGE = (0.2, 2.0)
 
 F_IMPULSE_DT = 10.0e-3
 F_IMPULSE_PERIOD = 2.0
@@ -51,7 +49,7 @@ SENSOR_NOISE_SCALE = {
 }
 
 DEFAULT_SIMULATION_DURATION = 20.0  # (s) Default simulation duration
-DEFAULT_STEP_DT = 1.0e-3  # (s) Stepper update period
+DEFAULT_STEP_DT = 0.001             # (s) Stepper update period
 
 DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
 
@@ -100,8 +98,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                                   returning done.
         :param step_dt: Simulation timestep for learning.
         :param enforce_bounded_spaces:
-            Whether or not to enforce finite bounds for the observation and
-            action spaces. If so, '\*_MAX' are used whenever it is necessary.
+            Whether to enforce finite bounds for the observation and action
+            spaces. If so, '\*_MAX' are used whenever it is necessary.
         :param reward_mixture: Weighting factors of selected contributions to
                                total reward.
         :param std_ratio: Relative standard deviation of selected contributions
@@ -118,8 +116,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                                           of associated minimal volume bounding
                                           box, and replacing primitive box by
                                           its vertices.
-        :param debug: Whether or not the debug mode must be activated.
-                      Doing it enables telemetry recording.
+        :param debug: Whether the debug mode must be activated. Doing it
+                      enables telemetry recording.
         :param robot: Robot being simulated, already instantiated and
                       initialized. Build default robot using 'urdf_path',
                       'hardware_path' and 'mesh_path' if omitted.
@@ -233,30 +231,14 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Enable the flexible model
         robot_options["model"]["dynamics"]["enableFlexibleModel"] = True
 
-        # Set maximum number of iterations by simulation seconds in average
-        engine_options["stepper"]["iterMax"] = \
-            int(self.simu_duration_max / 1.0e-4)
-
-        # Set maximum computation time for single internal integration steps
-        if self.debug:
-            engine_options["stepper"]["timeout"] = 0.0
-        else:
-            engine_options["stepper"]["timeout"] = 1.0
-
         # ============= Add some stochasticity to the environment =============
 
-        # Change ground friction and sprint-dumper contact dynamics
-        ground_std_ratio = self.std_ratio.get('ground', 0.0)
-        ground_stiffness = sample(
-            *GROUND_STIFFNESS_LOG_RANGE, scale=ground_std_ratio,
-            enable_log_scale=True, rg=self.rg)
-        ground_damping_critic = 2.0 * np.sqrt(
-            ground_stiffness * self.robot.pinocchio_data.mass[0])
-        engine_options['contacts']['stiffness'] = ground_stiffness
-        engine_options['contacts']['damping'] = ground_damping_critic * sample(
-            *GROUND_DAMPING_RATIO_RANGE, scale=ground_std_ratio, rg=self.rg)
+        # Change ground friction
         engine_options['contacts']['friction'] = sample(
-            *GROUND_FRICTION_RANGE, scale=ground_std_ratio, rg=self.rg)
+            *GROUND_FRICTION_RANGE,
+            scale=self.std_ratio.get('ground', 0.0),
+            enable_log_scale=True,
+            rg=self.rg)
 
         # Add sensor noise, bias and delay
         if 'sensors' in self.std_ratio.keys():
@@ -356,7 +338,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         wrench[1] = F_PROFILE_SCALE * self._f_xy_profile[1](t)
         wrench[:2] *= self.std_ratio['disturbance']
 
-    def is_done(self) -> bool:  # type: ignore[override]
+    def is_done(self) -> bool:
         """Determine whether the episode is over.
 
         The termination conditions are the following:
@@ -372,7 +354,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             raise RuntimeError(
                 "No simulation running. Please start one before calling this "
                 "method.")
-        if self.system_state.q[2] < self._height_neutral * 0.75:
+        if self.system_state.q[2] < self._height_neutral * 0.5:
             return True
         if self.simulator.stepper_state.t >= self.simu_duration_max:
             return True

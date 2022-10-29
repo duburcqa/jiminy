@@ -45,7 +45,7 @@ namespace jiminy
             frictionDryNegative(boost::get<float64_t>(options.at("frictionDryNegative"))),
             frictionDrySlope(boost::get<float64_t>(options.at("frictionDrySlope")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 

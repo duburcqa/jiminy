@@ -719,7 +719,6 @@ namespace jiminy
             newJointIdx, static_cast<int32_t>(modelInOut.frames[childFrameIdx].previousFrame));
 
         // Update child joint previousFrame index
-        modelInOut.frames[childFrameIdx].parent = newJointIdx;
         modelInOut.frames[childFrameIdx].previousFrame = newFrameIdx;
         modelInOut.frames[childFrameIdx].placement = SE3::Identity();
 
@@ -970,14 +969,13 @@ namespace jiminy
         DummyMeshLoader(void) :
         MeshLoader(hpp::fcl::BV_OBBRSS)
         {
-            // Empty on purpose.
+            // Empty on purpose
         }
 
         virtual hpp::fcl::BVHModelPtr_t load(std::string     const & /* filename */,
                                              hpp::fcl::Vec3f const & /* scale */) override final
         {
-            return boost::shared_ptr<hpp::fcl::BVHModel<hpp::fcl::OBBRSS> >(
-                new hpp::fcl::BVHModel<hpp::fcl::OBBRSS>);
+            return hpp::fcl::BVHModelPtr_t(new hpp::fcl::BVHModel<hpp::fcl::OBBRSS>);
         }
     };
 
@@ -1047,7 +1045,7 @@ namespace jiminy
         // Make sure the URDF file exists
         if (!std::ifstream(urdfPath).good())
         {
-            PRINT_ERROR("The URDF file does not exist. Impossible to load it.");
+            PRINT_ERROR("The URDF file '", urdfPath, "' is invalid.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 

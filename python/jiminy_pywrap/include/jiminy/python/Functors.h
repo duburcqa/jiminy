@@ -48,7 +48,7 @@ namespace python
     pinocchio::Force * createInternalBuffer<pinocchio::Force>(void);
 
     template<typename T>
-    std::enable_if_t<std::is_arithmetic<T>::value, T>
+    std::enable_if_t<std::is_arithmetic_v<T>, T>
     FctPyWrapperArgToPython(T const & arg)
     {
         return arg;
@@ -69,7 +69,7 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same<T, sensorsDataMap_t>::value, boost::reference_wrapper<sensorsDataMap_t const> >
+    std::enable_if_t<std::is_same_v<T, sensorsDataMap_t>, boost::reference_wrapper<sensorsDataMap_t const> >
     FctPyWrapperArgToPython(T const & arg)
     {
         return boost::ref(arg);

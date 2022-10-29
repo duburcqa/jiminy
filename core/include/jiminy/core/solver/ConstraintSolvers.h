@@ -11,18 +11,6 @@ namespace jiminy
 
     struct ConstraintBlock
     {
-    public:
-        ConstraintBlock(void):
-        lo(-INF),
-        hi(INF),
-        isZero(false),
-        fIdx(),
-        fSize(0)
-        {
-            // Empty on purpose
-        }
-
-    public:
         float64_t lo;
         float64_t hi;
         bool_t isZero;
@@ -33,17 +21,7 @@ namespace jiminy
     struct ConstraintData
     {
     public:
-        ConstraintData(void):
-        constraint(nullptr),
-        startIdx(0),
-        isBounded(true),
-        isActive(true),
-        dim(0),
-        blocks(),
-        nBlocks(0)
-        {
-            // Empty on purpose
-        }
+        ConstraintData(void) = default;
         ConstraintData(ConstraintData && constraintData) = default;
         ConstraintData(ConstraintData const & constraintData) = delete;
         ConstraintData & operator = (ConstraintData const & other) = delete;
@@ -51,8 +29,7 @@ namespace jiminy
     public:
         AbstractConstraintBase * constraint;
         Eigen::Index startIdx;
-        bool_t isBounded;
-        bool_t isActive;
+        bool_t isInactive;
         Eigen::Index dim;
         ConstraintBlock blocks[3];
         std::uint_fast8_t nBlocks;

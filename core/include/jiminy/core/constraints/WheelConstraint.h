@@ -46,7 +46,7 @@ namespace jiminy
                         float64_t   const & wheelRadius,
                         vector3_t   const & groundNormal,
                         vector3_t   const & wheelAxis);
-        virtual ~WheelConstraint(void);
+        virtual ~WheelConstraint(void) = default;
 
         std::string const & getFrameName(void) const;
         frameIndex_t const & getFrameIdx(void) const;
@@ -66,7 +66,6 @@ namespace jiminy
         float64_t radius_;              ///< Wheel radius.
         vector3_t normal_;              ///< Ground normal, world frame.
         vector3_t axis_;                ///< Wheel axis, local frame.
-        vector3_t x3_;                  ///< Wheel axis, world frame.
         matrix3_t skewRadius_;          ///< Skew matrix of wheel axis, in world frame, scaled by radius.
         matrix3_t dskewRadius_;         ///< Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
         pinocchio::SE3 transformRef_;   ///< Reference pose of the frame to enforce.

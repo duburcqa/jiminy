@@ -20,11 +20,6 @@ namespace jiminy
         // Empty on purpose
     }
 
-    JointConstraint::~JointConstraint(void)
-    {
-        // Empty on purpose
-    }
-
     std::string const & JointConstraint::getJointName(void) const
     {
         return jointName_;
@@ -143,9 +138,8 @@ namespace jiminy
              size_t qIdx,
              size_t vIdx)
         {
-            for (size_t i = 0; i < jmodel.derived().joints.size(); ++i)
+            for (auto const & joint : jmodel.derived().joints)
             {
-                pinocchio::JointModel const & joint = jmodel.derived().joints[i];
                 algo(joint.derived(), q0, q1, v, qIdx, vIdx);
                 qIdx += joint.nq();
                 vIdx += joint.nv();
@@ -155,12 +149,12 @@ namespace jiminy
 
     template<typename ConfigVectorIn1, typename ConfigVectorIn2>
     vectorN_t difference(pinocchio::JointModel              const & jmodel,
-                         Eigen::MatrixBase<ConfigVectorIn1> const & q0,
-                         Eigen::MatrixBase<ConfigVectorIn2> const & q1)
+                         ConfigVectorIn1 const & q0,
+                         ConfigVectorIn2 const & q1)
     {
         vectorN_t v(jmodel.nv());
         typedef DifferenceStep<ConfigVectorIn1, ConfigVectorIn2, vectorN_t> Pass;
-        Pass::run(jmodel, typename Pass::ArgsType(q0.derived(), q1.derived(), v, 0, 0));
+        Pass::run(jmodel, typename Pass::ArgsType(q0, q1, v, 0, 0));
         return v;
     }
 

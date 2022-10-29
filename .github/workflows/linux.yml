@@ -15,15 +15,18 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
+        BUILD_TYPE: ['Release']
+        include:
+          - os: ubuntu-20.04
+            BUILD_TYPE: 'Debug'
 
     defaults:
       run:
         shell: bash
 
-    env:
-      # Python bindings for Pinocchio 2.X does not fully support memory alignment
-      # CMAKE_CXX_FLAGS: "-march=haswell"
-      BUILD_TYPE: "Release"
+    # Python bindings for Pinocchio 2.X does not fully support memory alignment
+    # env:
+    #   CMAKE_CXX_FLAGS: "-march=haswell"
 
     #####################################################################################
 
@@ -46,8 +49,8 @@ jobs:
         sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade setuptools
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.22"  # for numba compat.
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade setuptools wheel
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
 
         git config --global advice.detachedHead false
     - name: Build project dependencies
@@ -58,9 +61,9 @@ jobs:
         else
           TORCH_VERSION="1.11.0"
         fi
-        ./build_tools/build_install_deps_unix.sh
+        BUILD_TYPE=${{ matrix.BUILD_TYPE }} ./build_tools/build_install_deps_unix.sh
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
         PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"
@@ -82,7 +85,7 @@ jobs:
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
               -DINSTALL_GYM_JIMINY=${{ (matrix.os == 'ubuntu-22.04' && 'OFF') || 'ON' }} \
-              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j2
 
         echo "LD_LIBRARY_PATH=$InstallDir/lib:$InstallDir/lib64:/usr/local/lib" >> $GITHUB_ENV
@@ -93,9 +96,9 @@ jobs:
       run: |
         "$InstallDir/bin/jiminy_double_pendulum"
 
-        mkdir -p "$RootDir/examples/cpp/pip_extension/build"
-        cd "$RootDir/examples/cpp/pip_extension/build"
-        cmake "$RootDir/examples/cpp/pip_extension" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+        mkdir -p "$RootDir/core/examples/external_project/build"
+        cd "$RootDir/core/examples/external_project/build"
+        cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
                -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
                -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
@@ -106,14 +109,14 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
-        cd "$RootDir/build"
+        cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
-        cd "$RootDir/unit_py"
+        cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
-      if: matrix.os != 'ubuntu-22.04'
+      if: matrix.os != 'ubuntu-22.04' && matrix.BUILD_TYPE == 'Release'
       run: |
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

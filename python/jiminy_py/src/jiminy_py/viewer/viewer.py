@@ -111,7 +111,11 @@ def get_default_backend() -> str:
     mode = interactive_mode()
     if mode >= 2:
         if mode == 3:
-            return 'meshcat'
+            try:
+                get_backend_type('meshcat')
+                return 'meshcat'
+            except ImportError:
+                pass
         return 'panda3d-sync'
     if check_display_available():
         return 'panda3d'
@@ -374,29 +378,32 @@ class Viewer:
                            Optional: Randomly generated identifier by default.
         :param scene_name: Scene name.
                            Optional: 'world' by default.
-        :param display_com: Whether or not to display the center of mass.
+        :param display_com: Whether to display the center of mass.
                             Optional: Disabled by default.
-        :param display_dcm: Whether or not to display the capture point / DCM.
+        :param display_dcm: Whether to display the capture point / DCM.
                             Optional: Disabled by default.
-        :param display_contact_frames:
-            Whether or not to display the contact frames.
-            Optional: Disabled by default.
+        :param display_contact_frames: Whether to display the contact frames.
+                                       Optional: Disabled by default.
         :param display_contact_forces:
-            Whether or not to display the contact forces. Note that the user is
+            Whether to display the contact forces. Note that the user is
             responsible for updating sensors data since `Viewer.display` is
             only computing kinematic quantities.
             Optional: Disabled by default.
         :param display_f_external:
-            Whether or not to display the external external forces applied at
-            the joints on the robot. If a boolean is provided, the same
-            visibility will be set for each joint, alternatively one can
-            provide a boolean list whose ordering is consistent with
-            `pinocchio_model.names`. Note that the user is responsible for
-            updating the force buffer `viewer.f_external` data since
-            `Viewer.display` is only computing kinematic quantities.
+            Whether to display the external external forces applied at the
+            joints on the robot. If a boolean is provided, the same visibility
+            will be set for each joint, alternatively one can provide a boolean
+            list whose ordering is consistent with `pinocchio_model.names`.
+            Note that the user is responsible for updating the force buffer
+            `viewer.f_external` data since `Viewer.display` is only computing
+            kinematic quantities.
             Optional: Root joint for robot with freeflyer by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
+        # Make sure the robot is properly initialized
+        assert robot.is_initialized, (
+            "Robot not initialized. Impossible to instantiate a viewer.")
+
         # Handling of default arguments
         if robot_name is None:
             uniq_id = next(tempfile._get_candidate_names())
@@ -415,7 +422,7 @@ class Viewer:
             # Start viewer backend
             Viewer.connect_backend(backend)
 
-            # Decide whether or not to open gui
+            # Decide whether to open gui
             if open_gui_if_parent is None:
                 if not check_display_available():
                     open_gui_if_parent = False
@@ -449,6 +456,18 @@ class Viewer:
             self.close()
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
+
+        # Make sure that the windows, scene and robot names are valid
+        if scene_name == Viewer.window_name:
+            raise ValueError(
+                "The name of the scene and window must be different.")
+
+        # Robot names must be unique, then backup the desired one
+        if robot_name in Viewer._backend_robot_names:
+            raise ValueError(
+                "Robot name already exists but must be unique. Please choose "
+                "a different one, or close the associated viewer.")
+        Viewer._backend_robot_names.add(robot_name)
 
         # Enforce some arguments based on available features
         if not Viewer.backend.startswith('panda3d'):
@@ -489,25 +508,12 @@ class Viewer:
         self.f_external = pin.StdVec_Force()
         self.f_external.extend([pin.Force.Zero() for _ in range(njoints - 1)])
 
-        # Make sure that the windows, scene and robot names are valid
-        if scene_name == Viewer.window_name:
-            raise ValueError(
-                "The name of the scene and window must be different.")
-
-        if robot_name in Viewer._backend_robot_names:
-            raise ValueError(
-                "Robot name already exists but must be unique. Please choose "
-                "a different one, or close the associated viewer.")
-
         # Create a unique temporary directory, specific to this viewer instance
         self._tempdir = tempfile.mkdtemp(
             prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
 
         # Load the robot
         self._setup(robot, self.robot_color)
-        Viewer._backend_robot_names.add(self.robot_name)
-        Viewer._backend_robot_colors.update({
-            self.robot_name: self.robot_color})
 
         # Set default camera pose
         if self.is_backend_parent:
@@ -581,6 +587,8 @@ class Viewer:
 
         # Backup desired color
         self.robot_color = get_color_code(robot_color)
+        Viewer._backend_robot_colors.update({
+            self.robot_name: self.robot_color})
 
         # Create backend wrapper to get (almost) backend-independent API.
         backend_type = get_backend_type(Viewer.backend)
@@ -771,6 +779,11 @@ class Viewer:
         if Viewer.has_gui():
             return
 
+        # Check if a display is available
+        if not check_display_available():
+            raise RuntimeError(
+                "No display available. Impossible to open a gui.")
+
         if Viewer.backend in ('panda3d-qt', 'panda3d-sync'):
             # No instance is considered manager of the unique window
             raise RuntimeError(
@@ -813,11 +826,13 @@ class Viewer:
                     pass
                 for server_info in server_list:
                     if server_info['pid'] == server_pid:
+                        ws_path = (
+                            f"{server_info['base_url']}api/kernels/{kernel_id}"
+                            f"/channels?token={server_info['token']}")
+                        html_content = html_content.replace(
+                            "var ws_path = undefined;",
+                            f'var ws_path = "{ws_path}";')
                         break
-                ws_path = (f"{server_info['base_url']}api/kernels/{kernel_id}"
-                           f"/channels?token={server_info['token']}")
-                html_content = html_content.replace(
-                    "var ws_path = undefined;", f'var ws_path = "{ws_path}";')
 
                 if interactive_mode() == 3:
                     # Isolate HTML in iframe on Jupyter
@@ -1237,9 +1252,10 @@ class Viewer:
         else:
             logger.warning("Adding clock is only available for Panda3d.")
 
+    @staticmethod
     @__must_be_open
     @__with_lock
-    def get_camera_transform(self) -> Tuple[Tuple3FType, Tuple3FType]:
+    def get_camera_transform() -> Tuple[Tuple3FType, Tuple3FType]:
         """Get transform of the camera pose.
 
         .. warning::
@@ -1252,7 +1268,8 @@ class Viewer:
             camera manually using mouse camera control.
         """
         if Viewer.backend.startswith('panda3d'):
-            xyz, quat = self._gui.get_camera_transform()
+            xyz, quat = Viewer._backend_obj.gui.get_camera_transform()
+            quat /= np.linalg.norm(quat)
             rot = pin.Quaternion(*quat).matrix()
             rpy = matrixToRpy(rot @ CAMERA_INV_TRANSFORM_PANDA3D.T)
         else:
@@ -1290,11 +1307,18 @@ class Viewer:
             - **other:** relative to a robot frame, not accounting for the
               rotation of the frame during travelling. It supports both frame
               name and index in model.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
+        assert self is None or isinstance(self, Viewer)
+
+        if self is None and relative is not None and relative != 'camera':
+            raise ValueError(
+                "A viewer instance must be provided to set camera "
+                "relatively to a frame.")
+
         # Handling of position and rotation arguments
         if position is None or rotation is None or relative == 'camera':
-            position_camera, rotation_camera = self.get_camera_transform()
+            position_camera, rotation_camera = Viewer.get_camera_transform()
         if position is None:
             position = position_camera
         if rotation is None:
@@ -1322,13 +1346,14 @@ class Viewer:
             H_abs = SE3(rotation_mat, position)
             H_abs = H_orig * H_abs
             position = H_abs.translation
-            return self.set_camera_transform(position, rotation)
+            return Viewer.set_camera_transform(None, position, rotation)
 
         # Perform the desired transformation
         if Viewer.backend.startswith('panda3d'):
             rotation_panda3d = pin.Quaternion(
                 rotation_mat @ CAMERA_INV_TRANSFORM_PANDA3D).coeffs()
-            self._gui.set_camera_transform(position, rotation_panda3d)
+            Viewer._backend_obj.gui.set_camera_transform(
+                position, rotation_panda3d)
         elif Viewer.backend == 'meshcat':
             # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
             # usual convention in robotics.
@@ -1336,7 +1361,7 @@ class Viewer:
             position_meshcat = CAMERA_INV_TRANSFORM_MESHCAT @ position
             rotation_meshcat = matrixToRpy(
                 CAMERA_INV_TRANSFORM_MESHCAT @ rotation_mat)
-            self._gui["/Cameras/default/rotated/<object>"].\
+            Viewer._backend_obj.gui["/Cameras/default/rotated/<object>"].\
                 set_transform(mtf.compose_matrix(
                     translate=position_meshcat, angles=rotation_meshcat))
 
@@ -1362,7 +1387,7 @@ class Viewer:
         :param relative: Set the lookat position relative to robot frame if
                          specified, in absolute otherwise. Both frame name and
                          index in model are supported.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
         # Make sure the backend supports this method
         if not Viewer.backend.startswith('panda3d'):
@@ -1445,8 +1470,8 @@ class Viewer:
                               be used to initialize the camera pose if relative
                               pose is not locked. `None` to disable.
                               Optional: Disabkle by default.
-        :param lock_relative_pose: Whether or not to lock the relative pose of
-                                   the camera wrt tracked frame.
+        :param lock_relative_pose: Whether to lock the relative pose of the
+                                   camera wrt tracked frame.
                                    Optional: False by default iif Panda3d
                                    backend is used.
         """
@@ -1534,10 +1559,10 @@ class Viewer:
         else:
             logger.warning("This method is only supported by Panda3d.")
 
+    @staticmethod
     @__must_be_open
     @__with_lock
-    def update_floor(self,
-                     ground_profile: Optional[jiminy.HeightmapFunctor] = None,
+    def update_floor(ground_profile: Optional[jiminy.HeightmapFunctor] = None,
                      grid_size: float = 20.0,
                      grid_unit: float = 0.04,
                      show_meshes: bool = False) -> None:
@@ -1555,13 +1580,13 @@ class Viewer:
                           Optional: 20m by default.
         :param grid_unit: X and Y discretization step of the ground profile.
                           Optional: 4cm by default.
-        :param show_meshes: Whether or not to highlight the meshes.
+        :param show_meshes: Whether to highlight the meshes.
                             Optional: disabled by default.
         """
         if Viewer.backend.startswith('panda3d'):
             # Restore tile ground if heightmap is not specified
             if ground_profile is None:
-                self._gui.update_floor()
+                Viewer._backend_obj.gui.update_floor()
                 return
 
             # Discretize heightmap
@@ -1570,17 +1595,17 @@ class Viewer:
             # Make sure it is not flat ground
             if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
                     np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
-                self._gui.update_floor()
+                Viewer._backend_obj.gui.update_floor()
                 return
 
-            self._gui.update_floor(grid, show_meshes)
+            Viewer._backend_obj.gui.update_floor(grid, show_meshes)
         else:
             logger.warning("This method is only supported by Panda3d.")
 
+    @staticmethod
     @__must_be_open
     @__with_lock
-    def capture_frame(self,
-                      width: int = None,
+    def capture_frame(width: int = None,
                       height: int = None,
                       raw_data: bool = False) -> Union[np.ndarray, bytes]:
         """Take a snapshot and return associated data.
@@ -1595,16 +1620,17 @@ class Viewer:
         # Check user arguments
         if Viewer.backend.startswith('panda3d'):
             # Resize window if size has changed
-            _width, _height = self._gui.getSize()
+            _width, _height = Viewer._backend_obj.gui.getSize()
             if width is None:
                 width = _width
             if height is None:
                 height = _height
             if _width != width or _height != height:
-                self._gui.set_window_size(width, height)
+                Viewer._backend_obj.gui.set_window_size(width, height)
 
             # Get raw buffer image instead of numpy array for efficiency
-            buffer = self._gui.get_screenshot(requested_format='RGB', raw=True)
+            buffer = Viewer._backend_obj.gui.get_screenshot(
+                requested_format='RGB', raw=True)
 
             # Return raw data if requested
             if raw_data:
@@ -1727,10 +1753,10 @@ class Viewer:
         :param always_foreground: Whether to force rendering the marker on
                                   foreground.
                                   Optional: True by default.
-        :param auto_refresh: Whether or not to refresh the scene after adding
-                             the marker. Useful for adding a bunch of markers
-                             and only refresh once. Note that the marker will
-                             not display properly until then.
+        :param auto_refresh: Whether to refresh the scene after adding the
+                             marker. Useful for adding a bunch of markers and
+                             only refresh once. Note that the marker will not
+                             display properly until then.
         :param shape_args: Any additional positional arguments to forward to
                            `jiminy_py.viewer.panda3d.panda3d_visualizer.`
                            `Panda3dApp.append_{shape}`.
@@ -1857,7 +1883,7 @@ class Viewer:
         .. warning::
             This method is only supported by Panda3d.
 
-        :param visibility: Whether or not to display the contact frames.
+        :param visibility: Whether to display the contact frames.
         """
         # Make sure the current backend is supported by this method
         if not Viewer.backend.startswith('panda3d'):
@@ -1892,7 +1918,7 @@ class Viewer:
         .. warning::
             This method is only supported by Panda3d.
 
-        :param visibility: Whether or not to display the contact forces.
+        :param visibility: Whether to display the contact forces.
         """
         # Make sure the current backend is supported by this method
         if not Viewer.backend.startswith('panda3d'):
@@ -1930,8 +1956,8 @@ class Viewer:
         .. warning::
             This method is only supported by Panda3d.
 
-        :param visibility: Whether or not to display the external force applied
-                           at each joint selectively. If a boolean is provided,
+        :param visibility: Whether to display the external force applied at
+                           each joint selectively. If a boolean is provided,
                            the same visibility will be set for each joint,
                            alternatively, one can provide a boolean list whose
                            ordering is consistent with pinocchio model (i.e.
@@ -1992,7 +2018,7 @@ class Viewer:
 
         :param force_update_visual: Force update of visual geometries.
         :param force_update_collision: Force update of collision geometries.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
         # Extract pinocchio model and data pairs to update
         model_list, data_list, model_type_list = [], [], []
@@ -2021,7 +2047,8 @@ class Viewer:
                     group, nodeName = self._client.getViewerNodeName(
                         geom, model_type)
                     pose_dict[nodeName] = ((x, y, z), (qw, qx, qy, qz))
-                self._gui.move_nodes(group, pose_dict)
+                if pose_dict:
+                    self._gui.move_nodes(group, pose_dict)
         else:
             import umsgpack
             cmd_data = [b"list"]
@@ -2112,7 +2139,7 @@ class Viewer:
         :param update_hook: Callable that will be called right after updating
                             kinematics data. `None` to disable.
                             Optional: None by default.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
         assert self._client.model.nq == q.shape[0], (
             "The configuration vector does not have the right size.")
@@ -2181,7 +2208,7 @@ class Viewer:
                                 f(t:float, q: ndarray, v: ndarray) -> None
 
                             Optional: No update hook by default.
-        :param wait: Whether or not to wait for rendering to finish.
+        :param wait: Whether to wait for rendering to finish.
         """
         # Disable display of sensor data if no update hook is provided
         disable_display_contact_forces = False
@@ -2255,6 +2282,11 @@ class Viewer:
             except Exception as e:
                 # Get backend before closing
                 backend = Viewer.backend
+
+                # If no backend, just return without error because the backend
+                # was probably killed on purpose during multi-threaded replay.
+                if backend is None:
+                    return
 
                 # Make sure the viewer is always properly closed
                 Viewer.close()

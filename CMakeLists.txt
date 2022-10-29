@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.7.13)
+set(BUILD_VERSION 1.7.14)
 
 # Set compatibility
 if(CMAKE_VERSION VERSION_GREATER "3.11.0")
@@ -53,15 +53,15 @@ if(WIN32)
         endif()
     endif()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /DEBUG:FULL /Zi /Od")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG /O2 /Ob3")
+    set(CMAKE_CXX_FLAGS_DEBUG "/DEBUG:FULL /Zi /Od")
+    set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG /O2 /Ob3")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} /DEBUG:FULL /Zi")
 else()
     string(REGEX MATCH "-march=[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -O0 -ftemplate-backtrace-limit=0")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -Wfatal-errors -Werror")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -ftemplate-backtrace-limit=0")
+    set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -Wfatal-errors -Werror")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g -fno-omit-frame-pointer -fno-sanitize-recover")
 endif()
 
 # Sub-projects
@@ -72,18 +72,6 @@ option(BUILD_PYTHON_INTERFACE "Build and install the Python packages." ON)
 if(BUILD_PYTHON_INTERFACE)
     include(${CMAKE_SOURCE_DIR}/build_tools/cmake/setupPython.cmake)
     add_subdirectory(python)
-endif()
-
-option(BUILD_EXAMPLES "Build the C++ examples." ON)
-if(BUILD_EXAMPLES)
-    add_subdirectory(examples)
-endif()
-
-option(BUILD_TESTING "Build the C++ unit tests." ON)
-if(BUILD_TESTING)
-    include(CTest)
-    include(GoogleTest)
-    add_subdirectory(unit)
 endif()
 
 # Create 'docs' optional cmake component to generate documentation.

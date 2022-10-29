@@ -17,9 +17,7 @@ namespace jiminy
     class FixedFrameConstraint;
     class JointConstraint;
 
-    template<typename DerivedConstraint>
-    using constraintsMapTpl_t = static_map_t<std::string, std::shared_ptr<DerivedConstraint> >;
-    using constraintsMap_t = constraintsMapTpl_t<AbstractConstraintBase>;
+    using constraintsMap_t = static_map_t<std::string, std::shared_ptr<AbstractConstraintBase> >;
 
     enum class constraintsHolderType_t : uint8_t
     {
@@ -29,7 +27,7 @@ namespace jiminy
         USER = 3
     };
 
-    std::array<constraintsHolderType_t, 4> const constraintsHolderTypesAll = {{
+    std::array<constraintsHolderType_t, 4> const constraintsHolderTypesAll {{
         constraintsHolderType_t::BOUNDS_JOINTS,
         constraintsHolderType_t::CONTACT_FRAMES,
         constraintsHolderType_t::COLLISION_BODIES,
@@ -39,16 +37,9 @@ namespace jiminy
     struct constraintsHolder_t
     {
     public:
-        // Disable the copy of the class
-        constraintsHolder_t(constraintsHolder_t const & constraintsHolder) = default;
-        constraintsHolder_t & operator = (constraintsHolder_t const & other) = default;
-
-        constraintsHolder_t(void);
-        ~constraintsHolder_t(void) = default;
-
         void clear(void);
 
-        std::tuple<constraintsMap_t *, constraintsMap_t::iterator>
+        std::pair<constraintsMap_t *, constraintsMap_t::iterator>
         find(std::string const & key,
              constraintsHolderType_t const & holderType);
 
@@ -197,7 +188,7 @@ namespace jiminy
             velocityLimitFromUrdf(boost::get<bool_t>(options.at("velocityLimitFromUrdf"))),
             velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -218,7 +209,7 @@ namespace jiminy
             enableFlexibleModel(boost::get<bool_t>(options.at("enableFlexibleModel"))),
             flexibilityConfig(boost::get<flexibilityConfig_t>(options.at("flexibilityConfig")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -229,7 +220,7 @@ namespace jiminy
             collisionOptions_t(configHolder_t const & options) :
             maxContactPointsPerBody(boost::get<uint32_t>(options.at("maxContactPointsPerBody")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -244,7 +235,7 @@ namespace jiminy
             joints(boost::get<configHolder_t>(options.at("joints"))),
             collisions(boost::get<configHolder_t>(options.at("collisions")))
             {
-                // Empty.
+                // Empty on purpose
             }
         };
 
@@ -356,10 +347,10 @@ namespace jiminy
         vectorN_t const & getPositionLimitMax(void) const;
         vectorN_t const & getVelocityLimit(void) const;
 
-        std::vector<std::string> const & getPositionFieldnames(void) const;
-        std::vector<std::string> const & getVelocityFieldnames(void) const;
-        std::vector<std::string> const & getAccelerationFieldnames(void) const;
-        std::vector<std::string> const & getForceExternalFieldnames(void) const;
+        std::vector<std::string> const & getLogFieldnamesPosition(void) const;
+        std::vector<std::string> const & getLogFieldnamesVelocity(void) const;
+        std::vector<std::string> const & getLogFieldnamesAcceleration(void) const;
+        std::vector<std::string> const & getLogFieldnamesForceExternal(void) const;
 
         hresult_t getFlexibleConfigurationFromRigid(vectorN_t const & qRigid,
                                                     vectorN_t       & qFlex) const;
@@ -436,10 +427,10 @@ namespace jiminy
         vectorN_t positionLimitMax_;                            ///< Lower position limit of the whole configuration vector
         vectorN_t velocityLimit_;                               ///< Maximum absolute velocity of the whole velocity vector
 
-        std::vector<std::string> positionFieldnames_;       ///< Fieldnames of the elements in the configuration vector of the model
-        std::vector<std::string> velocityFieldnames_;       ///< Fieldnames of the elements in the velocity vector of the model
-        std::vector<std::string> accelerationFieldnames_;   ///< Fieldnames of the elements in the acceleration vector of the model
-        std::vector<std::string> forceExternalFieldnames_;  ///< Concatenated fieldnames of the external force applied at each joint of the model, 'universe' excluded
+        std::vector<std::string> logFieldnamesPosition_;       ///< Fieldnames of the elements in the configuration vector of the model
+        std::vector<std::string> logFieldnamesVelocity_;       ///< Fieldnames of the elements in the velocity vector of the model
+        std::vector<std::string> logFieldnamesAcceleration_;   ///< Fieldnames of the elements in the acceleration vector of the model
+        std::vector<std::string> logFieldnamesForceExternal_;  ///< Concatenated fieldnames of the external force applied at each joint of the model, 'universe' excluded
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;

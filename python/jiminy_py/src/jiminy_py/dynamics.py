@@ -201,15 +201,15 @@ def update_quantities(robot: jiminy.Model,
     :param position: Robot position vector.
     :param velocity: Robot velocity vector.
     :param acceleration: Robot acceleration vector.
-    :param update_physics: Whether or not to compute the non-linear effects and
+    :param update_physics: Whether to compute the non-linear effects and
                            internal/external forces.
                            Optional: True by default.
-    :param update_com: Whether or not to compute the COM of the robot AND each
-                       link individually. The global COM is the first index.
+    :param update_com: Whether to compute the COM of the robot AND each link
+                       individually. The global COM is the first index.
                        Optional: False by default.
-    :param update_energy: Whether or not to compute the energy of the robot.
+    :param update_energy: Whether to compute the energy of the robot.
                           Optional: False by default
-    :param update_jacobian: Whether or not to compute the jacobians.
+    :param update_jacobian: Whether to compute the jacobians.
                             Optional: False by default.
     :param use_theoretical_model: Whether the state corresponds to the
                                   theoretical model when updating and fetching
@@ -769,8 +769,8 @@ def compute_freeflyer(trajectory_data: TrajectoryDataType,
 
     :param trajectory_data: Sequence of States for which to retrieve the
                             freeflyer.
-    :param freeflyer_continuity: Whether or not to enforce the continuity
-                                 in position of the freeflyer.
+    :param freeflyer_continuity: Whether to enforce the continuity in position
+                                 of the freeflyer.
                                  Optional: True by default.
     """
     robot = trajectory_data['robot']

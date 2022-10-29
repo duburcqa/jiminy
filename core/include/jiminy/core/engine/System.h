@@ -106,6 +106,7 @@ namespace jiminy
     struct systemState_t
     {
     public:
+        // Non-default constructor to be considered initialized even if not
         systemState_t(void);
 
         hresult_t initialize(Robot const & robot);
@@ -134,12 +135,6 @@ namespace jiminy
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     public:
-        systemDataHolder_t(void);
-        systemDataHolder_t(systemDataHolder_t && other) = default;
-        systemDataHolder_t & operator = (systemDataHolder_t && other) = default;
-        ~systemDataHolder_t(void) = default;
-
-    public:
         std::unique_ptr<LockGuardLocal> robotLock;
 
         forceProfileRegister_t forcesProfile;
@@ -154,13 +149,13 @@ namespace jiminy
         vector_aligned_t<forceVector_t> collisionBodiesForces;         ///< Contact forces for each geometries of each collision bodies in local frame
         matrix6N_t jointJacobian;                                      ///< Buffer used for intermediary computation of `data.u`
 
-        std::vector<std::string> positionFieldnames;
-        std::vector<std::string> velocityFieldnames;
-        std::vector<std::string> accelerationFieldnames;
-        std::vector<std::string> forceExternalFieldnames;
-        std::vector<std::string> commandFieldnames;
-        std::vector<std::string> motorEffortFieldnames;
-        std::string energyFieldname;
+        std::vector<std::string> logFieldnamesPosition;
+        std::vector<std::string> logFieldnamesVelocity;
+        std::vector<std::string> logFieldnamesAcceleration;
+        std::vector<std::string> logFieldnamesForceExternal;
+        std::vector<std::string> logFieldnamesCommand;
+        std::vector<std::string> logFieldnamesMotorEffort;
+        std::string logFieldnameEnergy;
 
         systemState_t state;       ///< Internal buffer with the state for the integration loop
         systemState_t statePrev;   ///< Internal state for the integration loop at the end of the previous iteration

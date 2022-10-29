@@ -1,5 +1,7 @@
-# Enable link rpath to find shared library dependencies at runtime
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+# Do nothing if already imported target
+if(TARGET jiminy::core)
+    return()
+endif()
 
 # Set Python find strategy to location by default
 if(CMAKE_VERSION VERSION_GREATER "3.15")
@@ -15,10 +17,13 @@ else()
     if(CMAKE_VERSION VERSION_LESS "3.12.4")
         find_program(Python_EXECUTABLE "python${PYTHON_REQUIRED_VERSION}")
     else()
-        if(CMAKE_VERSION VERSION_LESS "3.14")
-            set(Python_COMPONENTS_FIND Interpreter)
+        if(WIN32)
+            # Development must be specified on Windows, otherwise the executable
+            # is not required to have the same address size as the compilation
+            # environment, and the jiminy library will fail to load.
+            set(Python_COMPONENTS_FIND Interpreter Development)
         else()
-            set(Python_COMPONENTS_FIND Interpreter NumPy)
+            set(Python_COMPONENTS_FIND Interpreter)
         endif()
         unset(Python_EXECUTABLE)
         unset(Python_EXECUTABLE CACHE)
@@ -40,14 +45,36 @@ if(NOT Python_EXECUTABLE)
     endif()
 endif()
 
-# On windows, pinocchio is not able to find boost components for some reasons
+# Pinocchio Cmake configuration file set `Boost_NO_BOOST_CMAKE` to ON,
+# requiring to specify `BOOST_ROOT` manually. This is not sufficient
+# on Windows, and Pinocchio is still not able to find boost components
+# for some reason if not already imported before. Yet, it does not work
+# well on Unix if only static libs are available on the system...
 if(WIN32)
-    find_package(Boost REQUIRED COMPONENTS chrono system filesystem serialization date_time thread atomic)
+    find_package(Boost REQUIRED COMPONENTS
+        chrono system filesystem serialization date_time thread atomic)
+else()
+    find_package(Boost REQUIRED)
+    get_target_property(BOOST_INCLUDE_DIR Boost::headers INTERFACE_INCLUDE_DIRECTORIES)
+    get_filename_component(BOOST_ROOT "${BOOST_INCLUDE_DIR}" DIRECTORY)
 endif()
 
-# Make sure the right version of pinocchio, and eigen are available
-find_package(pinocchio @pinocchio_VERSION@ EXACT REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
-find_package(hpp-fcl 1.7.1 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
+# Make sure the right version of urdfdom, pinocchio, and eigen are available
+find_package(urdfdom REQUIRED NO_MODULE)
+if(NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
+    list(APPEND urdfdom_LIBRARIES "tinyxml")
+endif()
+if(NOT TARGET pinocchio::pinocchio)
+    unset(pinocchio_FOUND CACHE)
+endif()
+find_package(pinocchio @pinocchio_VERSION@ EXACT REQUIRED NO_MODULE)
+if(NOT TARGET hpp-fcl::hpp-fcl)
+    unset(hpp-fcl_FOUND CACHE)
+endif()
+find_package(hpp-fcl 1.7.1 REQUIRED NO_MODULE)
+if(NOT TARGET Eigen3::Eigen)
+    unset(Eigen3_FOUND CACHE)
+endif()
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)
 
 # Make sure jiminy Python module is available
@@ -55,21 +82,11 @@ execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 "from importlib.util import find_spec; print(int(find_spec('jiminy_py') is not None), end='')"
                 OUTPUT_VARIABLE jiminy_FOUND)
 if(NOT jiminy_FOUND)
-    if (jiminy_FIND_REQUIRED)
-        message(FATAL_ERROR "`jiminy_py` Python module not found, CMake will exit.")
+    if(jiminy_FIND_REQUIRED)
+        message(FATAL_ERROR "`jiminy_py` Python module not found.")
     else()
         return()
     endif()
-endif()
-
-# Define Python_NumPy_INCLUDE_DIRS if necessary
-if (NOT Python_NumPy_INCLUDE_DIRS)
-    execute_process(
-        COMMAND "${Python_EXECUTABLE}" -c
-        "import numpy; print(numpy.get_include(), end='')\n"
-        OUTPUT_VARIABLE __numpy_path)
-    find_path(Python_NumPy_INCLUDE_DIRS numpy/arrayobject.h
-        HINTS "${__numpy_path}" "${Python_INCLUDE_DIRS}" NO_DEFAULT_PATH)
 endif()
 
 # Find jiminy libraries and headers.
@@ -92,7 +109,6 @@ list(GET jiminy_LIBRARIES 0 jiminy_CORE_LIBRARY)
 set(jiminy_DEFINITIONS
     BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON
     BOOST_MPL_LIMIT_VECTOR_SIZE=30
-    BOOST_MPL_LIMIT_LIST_SIZE=30
 )
 if(WIN32)
     list(APPEND jiminy_DEFINITIONS
@@ -109,7 +125,7 @@ else()
     set(jiminy_OPTIONS -fPIC)
 endif()
 
-# Set architecture flags.
+# Set architecture flags
 list(APPEND jiminy_OPTIONS ${jiminy_OPTIONS} @CMAKE_CXX_ARCH@)
 if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
     list(APPEND jiminy_OPTIONS /wd9002 /fp:contract)
@@ -117,7 +133,7 @@ if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
 endif()
 
 # Define imported target
-add_library(jiminy::core SHARED IMPORTED GLOBAL)
+add_library(jiminy::core SHARED IMPORTED)
 set_target_properties(jiminy::core PROPERTIES
     IMPORTED_LOCATION "${jiminy_CORE_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${jiminy_INCLUDE_DIRS}"
@@ -128,9 +144,19 @@ set_target_properties(jiminy::core PROPERTIES
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
+target_link_libraries(
+    jiminy::core INTERFACE
+    pinocchio::pinocchio
+    hpp-fcl::hpp-fcl
+    ${urdfdom_LIBRARIES}
+    Eigen3::Eigen
+)
+
+# Enable link rpath to find shared library dependencies at runtime
+get_filename_component(jiminy_LIBDIR "${jiminy_CORE_LIBRARY}" DIRECTORY)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${jiminy_LIBDIR}")
 
 if(WIN32)
-    get_filename_component(jiminy_LIBDIR "${jiminy_CORE_LIBRARY}" DIRECTORY)
     get_filename_component(jiminy_LIBNAME "${jiminy_CORE_LIBRARY}" NAME_WE)
     set_target_properties(jiminy::core PROPERTIES
         IMPORTED_IMPLIB "${jiminy_LIBDIR}/${jiminy_LIBNAME}.lib"

@@ -55,15 +55,6 @@ index d675c2c..c503cf1 100644
    if(Qhull_FOUND)
      set(HPP_FCL_USE_SYSTEM_QHULL TRUE)
    else()
-@@ -143,7 +134,7 @@
-       PATHS ${Qhull_PREFIX}
-       )
-     find_library(Qhull_r_LIBRARY
--      NAMES libqhull_r.so
-+      NAMES libqhullstatic_r.a
-       PATHS ${Qhull_PREFIX}
-       )
-     if(NOT Qhull_r_LIBRARY)
 @@ -221,12 +212,10 @@ SET(${PROJECT_NAME}_HEADERS
    include/hpp/fcl/timings.h
    )
