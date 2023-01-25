@@ -386,17 +386,28 @@ namespace jiminy
                                                                float64_t   const & stiffness,
                                                                float64_t   const & damping,
                                                                float64_t   const & restLength = 0.0);
+
+        /// \brief 6-DoFs spring-damper coupling force modelling a flexible bushing.
+        ///
+        /// \details The spring-damper forces are computed at a frame being the linear
+        ///          interpolation (according on double-geodesic) between frame 1 and
+        ///          2 by a factor alpha. In particular, alpha = 0.0, 0.5, and 1.0
+        ///          corresponds to frame 1, halfway point, and frame 2.
+        ///
+        /// \see     https://drake.mit.edu/doxygen_cxx/classdrake_1_1multibody_1_1_linear_bushing_roll_pitch_yaw.html
         hresult_t registerViscoelasticForceCoupling(std::string const & systemName1,
                                                     std::string const & systemName2,
                                                     std::string const & frameName1,
                                                     std::string const & frameName2,
                                                     vector6_t   const & stiffness,
-                                                    vector6_t   const & damping);
+                                                    vector6_t   const & damping,
+                                                    float64_t   const & alpha = 0.5);
         hresult_t registerViscoelasticForceCoupling(std::string const & systemName,
                                                     std::string const & frameName1,
                                                     std::string const & frameName2,
                                                     vector6_t   const & stiffness,
-                                                    vector6_t   const & damping);
+                                                    vector6_t   const & damping,
+                                                    float64_t   const & alpha = 0.5);
         hresult_t removeForcesCoupling(std::string const & systemName1,
                                        std::string const & systemName2);
         hresult_t removeForcesCoupling(std::string const & systemName);

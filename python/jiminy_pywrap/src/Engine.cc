@@ -376,10 +376,11 @@ namespace python
                             std::string const &,
                             std::string const &,
                             vector6_t   const &,
-                            vector6_t   const &)
+                            vector6_t   const &,
+                            float64_t   const &)
                     >(&EngineMultiRobot::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2",
-                     "frame_name_1", "frame_name_2", "stiffness", "damping"))
+                     "frame_name_1", "frame_name_2", "stiffness", "damping", bp::arg("alpha") = 0.5))
                 .def("register_viscoelastic_force_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
@@ -387,10 +388,11 @@ namespace python
                             std::string const &,
                             std::string const &,
                             vector6_t   const &,
-                            vector6_t   const &)
+                            vector6_t   const &,
+                            float64_t   const &)
                     >(&EngineMultiRobot::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
-                     "stiffness", "damping"))
+                     "stiffness", "damping", bp::arg("alpha") = 0.5))
                 .def("register_viscoelastic_directional_force_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
@@ -922,9 +924,10 @@ namespace python
                             std::string const &,
                             std::string const &,
                             vector6_t   const &,
-                            vector6_t   const &)
+                            vector6_t   const &,
+                            float64_t   const &)
                     >(&Engine::registerViscoelasticForceCoupling),
-                    (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping"))
+                    (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping", bp::arg("alpha") = 0.5))
                 .def("register_viscoelastic_directional_force_coupling",
                     static_cast<
                         hresult_t (Engine::*)(
