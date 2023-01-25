@@ -50,7 +50,7 @@ echo "-- Python version: ${PYTHON_VERSION}"
 PYTHON_BIN="python${PYTHON_VERSION}"
 PYTHON_SITELIB="$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'), end='')")"
 echo "-- Python default site-packages: ${PYTHON_SITELIB}"
-if ! test -w "${PYTHON_SITELIB}" ; then
+if ! ${SUDO_CMD} test -w "${PYTHON_SITELIB}" ; then
     PYTHON_SITELIB="$(${SUDO_CMD} python3 -m site --user-site)"
 fi
 echo "-- Python writable site-packages: ${PYTHON_SITELIB}"

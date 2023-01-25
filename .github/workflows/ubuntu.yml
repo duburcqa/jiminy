@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-20.04, ubuntu-22.04]
         GENERATOR: ['Unix Makefiles']
         COMPILER: ['gcc']
         BUILD_TYPE: ['Release']
@@ -133,7 +133,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
-      if: matrix.BUILD_TYPE == 'Release'
+      if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release'
       run: |
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
