@@ -10,12 +10,12 @@ from numpy.random.mtrand import _rand as global_randstate
 
 
 ValueT = TypeVar('ValueT')
-StructNested = Union[Dict[str, 'StructNested'],  # type: ignore[misc]
-                     Sequence['StructNested'],  # type: ignore[misc]
+StructNested = Union[Dict[str, 'StructNested'],
+                     Sequence['StructNested'],
                      ValueT]
-FieldNested = StructNested[str]  # type: ignore[misc]
-DataNested = StructNested[np.ndarray]  # type: ignore[misc]
-SpaceNested = StructNested[gym.Space]  # type: ignore[misc]
+FieldNested = StructNested[str]
+DataNested = StructNested[np.ndarray]
+SpaceNested = StructNested[gym.Space]
 
 
 if tuple(map(int, (gym.__version__.split(".", 4)[:3]))) < (0, 23, 0):

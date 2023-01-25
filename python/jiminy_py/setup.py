@@ -25,6 +25,7 @@ class InstallPlatlib(install):
 # - Numpy API is not backward compatible but is forward compatible
 # - A few version must be blacklisted because of Boost::Python incompatibility
 # - For some reason, forward compatibility from 1.19 to 1.20+ seems broken
+# - Numba crashes with numpy 1.24
 np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
 np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
 if np_ver < (1, 20):
@@ -114,8 +115,7 @@ setup(
         # Panda3d is NOT supported by PyPy and cannot be built from source.
         # 1.10.10-1.10.12 fix numerous bugs.
         # 1.10.12 fix additional bugs but not crashes on macos.
-        "panda3d>=1.10.12; sys_platform != darwin",
-        "panda3d==1.10.12; sys_platform == darwin",
+        "panda3d==1.10.12",
         # Provide helper methods and class to make it easier to use panda3d for
         # robotic applications.
         "panda3d_viewer",
@@ -164,7 +164,7 @@ setup(
             # Python linter (Pinned to avoid segfault)
             "pylint==2.13.4",
             # Python static type checker
-            "mypy>=0.931",
+            "mypy>=0.971",
             # Fix dependency issue with 'sphinx'
             "jinja2>=3.0,<3.1",
             # Dependency for documentation generation
