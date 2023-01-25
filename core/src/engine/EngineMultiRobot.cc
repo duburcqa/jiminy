@@ -3571,6 +3571,8 @@ namespace jiminy
         }
 
         // Compute the flexibilities (only support joint_t::SPHERICAL so far)
+        float64_t angle;
+        matrix3_t rotJlog3;
         Robot::dynamicsOptions_t const & mdlDynOptions = system.robot->mdlOptions_->dynamics;
         std::vector<jointIndex_t> const & flexibilityIdx = system.robot->getFlexibleJointsModelIdx();
         for (std::size_t i = 0; i < flexibilityIdx.size(); ++i)
@@ -3582,11 +3584,13 @@ namespace jiminy
             vector3_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
             Eigen::Map<const quaternion_t> const quat(q.segment<4>(positionIdx).data());
-            vector3_t const angleAxis = pinocchio::quaternion::log3(quat);
-            assert((angleAxis.norm() < 0.5 * M_PI) && "Flexible joint angle must be smaller than pi/2.");
-            uInternal.segment<3>(velocityIdx).array() +=
-                - stiffness.array() * angleAxis.array()
-                - damping.array() * v.segment<3>(velocityIdx).array();
+            vector3_t const angleAxis = pinocchio::quaternion::log3(quat, angle);
+            assert((angle < 0.95 * M_PI) && "Flexible joint angle must be smaller than 0.95 * pi.");
+            pinocchio::Jlog3(angle, angleAxis, rotJlog3);
+            uInternal.segment<3>(velocityIdx) -=
+                rotJlog3 * (stiffness.array() * angleAxis.array()).matrix();
+            uInternal.segment<3>(velocityIdx).array() -=
+                damping.array() * v.segment<3>(velocityIdx).array();
         }
     }
 
