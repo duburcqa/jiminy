@@ -94,26 +94,29 @@ BUILD_TYPE="Release" ./build_tools/build_install_deps_unix.sh
 
 ```bash
 RootDir=".... The location of jiminy repository ...."
-PythonVer=".... Your version X.Y of Python, for instance 3.8 ...."
+PythonExe=".... Your Python executable, for instance $(which python3) ...."
 
-BUILD_TYPE="Release"
+BuildType="Release"
 InstallDir="$RootDir/install"
 
 unset Boost_ROOT
+
+PythonSitelib="$($PythonExe -c "import sysconfig; print(sysconfig.get_path('purelib'), end='')")"
+PythonVer="$($PythonExe -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
+
+mkdir -p "$PythonSitelib"
+echo "$InstallDir/lib/python$PythonVer/site-packages" \
+> "$PythonSitelib/addon_site.pth"
 
 mkdir "$RootDir/build"
 cd "$RootDir/build"
 cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-      -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="$PythonVer" \
+      -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_EXECUTABLE="$PythonExe" \
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-      -DCMAKE_CXX_FLAGS="-DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_BUILD_TYPE="$BuildType"
 make install -j2
-
-mkdir -p "$HOME/.local/lib/python${PythonVer}/site-packages"
-echo "$InstallDir/lib/python${PythonVer}/site-packages" \
-> "$HOME/.local/lib/python${PythonVer}/site-packages/user_site.pth"
 ```
 
 ## Including dependencies on Windows 10+
@@ -163,7 +166,7 @@ cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM
       -DBoost_USE_STATIC_LIBS=OFF `
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
       -DCMAKE_CXX_FLAGS="-DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
-      ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
+      )"
 cmake --build . --target all --config "${env:BUILD_TYPE}" --parallel 8
 
 if (-not (Test-Path -PathType Container "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core")) {

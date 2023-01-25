@@ -83,7 +83,7 @@ fi
 cd "$RootDir/eigenpy"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.10"
+git checkout --force "v2.6.11"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
@@ -298,8 +298,8 @@ cmake "$RootDir/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX=
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare" \
-      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare $(
+      ) -Wno-array-compare -Wno-unknown-warning-option" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################# Build and install qhull and hpp-fcl ######################################

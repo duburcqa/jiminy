@@ -462,7 +462,7 @@ namespace jiminy
                 // Compute intermediary quantities
                 rot12.noalias() = oMf1.rotation().transpose() * oMf2.rotation();
                 rotLog12 = pinocchio::log3(rot12, angle);
-                assert(((stiffness.tail<3>().array() < EPS).any() || angle < 0.95 * M_PI) &&
+                assert((angle < 0.95 * M_PI) &&
                        "Relative angle between reference frames of viscoelastic coupling must be smaller than 0.95 * pi.");
                 pinocchio::Jlog3(angle, rotLog12, rotJLog12);
                 fAng = stiffness.tail<3>().array() * rotLog12.array();

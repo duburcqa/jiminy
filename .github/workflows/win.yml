@@ -90,7 +90,7 @@ jobs:
               -DINSTALL_GYM_JIMINY=${{ (matrix.python-version == '3.10' && 'OFF') || 'ON' }} `
               -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
               ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
-              ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
+              )"
         cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {

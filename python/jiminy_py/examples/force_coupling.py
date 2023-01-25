@@ -86,7 +86,7 @@ forces_ref = [system_state.f_external[1]
               for system_state in engine.systems_states.values()]
 forces, kinetic_momentum, energy_robots, energy_spring = [], [], [], []
 try:
-    for i in range(10000):
+    for i in range(2000):
         for view in views:
             view.refresh()
         engine.step(dt)
