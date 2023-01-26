@@ -64,7 +64,7 @@ if [ ! -d "$RootDir/boost" ]; then
 fi
 cd "$RootDir/boost"
 git reset --hard
-git checkout --force "boost-1.76.0"
+git checkout --force "boost-1.78.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 
@@ -323,8 +323,8 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON \
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-ignored-qualifiers -Wno-uninitialized $(
-      ) -Wno-maybe-uninitialized -Wno-deprecated-copy" \
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-class-memaccess -Wno-sign-compare $(
+      ) -Wno-conversion -Wno-ignored-qualifiers -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
