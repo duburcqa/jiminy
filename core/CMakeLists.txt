@@ -107,8 +107,8 @@ target_compile_features(${PROJECT_NAME}-object PUBLIC cxx_std_17)
 
 # Set include directory
 target_include_directories(${PROJECT_NAME}-object PUBLIC
-    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>"
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>
 )
 
 # Configure jsoncpp and hdf5 dependencies.

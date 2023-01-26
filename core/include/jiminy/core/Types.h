@@ -9,9 +9,16 @@
 #include <vector>
 #include <unordered_map>
 
+#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 #include "pinocchio/fwd.hpp"            // To avoid having to include it everywhere
 #include "pinocchio/multibody/fwd.hpp"  // `pinocchio::Model::...Index`
 #include "pinocchio/spatial/fwd.hpp"    // `Pinocchio::Force`, `Pinocchio::Motion`
+#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
+#pragma GCC diagnostic pop
+#endif
 
 #include <Eigen/Core>
 #include <Eigen/Dense>

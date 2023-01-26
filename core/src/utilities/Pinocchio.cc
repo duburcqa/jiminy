@@ -1,5 +1,9 @@
 #include <numeric>
 
+#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 #include "pinocchio/parsers/urdf.hpp"                      // `pinocchio::urdf::buildGeom`, `pinocchio::urdf::buildModel`
 #include "pinocchio/spatial/se3.hpp"                       // `pinocchio::SE3`
 #include "pinocchio/spatial/force.hpp"                     // `pinocchio::Force`
@@ -11,6 +15,9 @@
 #include "pinocchio/multibody/visitor.hpp"                 // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/joint/joint-model-base.hpp"  // `pinocchio::JointModelBase`
 #include "pinocchio/algorithm/joint-configuration.hpp"     // `pinocchio::isNormalized`
+#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
+#pragma GCC diagnostic pop
+#endif
 
 #include "hpp/fcl/mesh_loader/loader.h"
 #include "hpp/fcl/BVH/BVH_model.h"

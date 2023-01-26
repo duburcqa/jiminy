@@ -17,6 +17,10 @@
 
 #include <functional>
 
+#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 #include "pinocchio/spatial/fwd.hpp"               // `Pinocchio::Inertia`
 #include "pinocchio/multibody/visitor.hpp"         // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/fwd.hpp"             // `pinocchio::ModelTpl`, `pinocchio::DataTpl`
@@ -26,6 +30,9 @@
 #include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crba`
 #include "pinocchio/algorithm/energy.hpp"          // `pinocchio::computeKineticEnergy`
 #include "pinocchio/algorithm/cholesky.hpp"        // `pinocchio::cholesky::`
+#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
+#pragma GCC diagnostic pop
+#endif
 
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"

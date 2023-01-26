@@ -3,10 +3,17 @@
 
 #include <sstream>
 
+#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 #include "pinocchio/multibody/fcl.hpp"           // `pinocchio::CollisionPair`
 #include "pinocchio/multibody/geometry.hpp"      // `pinocchio::GeometryModel`
 #include "pinocchio/serialization/model.hpp"     // `serialize<pinocchio::Model>`
 #include "pinocchio/serialization/geometry.hpp"  // `serialize<pinocchio::CollisionPair>`
+#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
+#pragma GCC diagnostic pop
+#endif
 
 #include "hpp/fcl/shape/convex.h"                    // `serialize<hpp::fcl::Convex>`
 #define HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
