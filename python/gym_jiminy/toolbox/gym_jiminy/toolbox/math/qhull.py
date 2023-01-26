@@ -91,7 +91,7 @@ def compute_distance_convex_to_ray(
         if 0.0 <= ratio < 1.0:
             proj = ratio * vectors[j] + points_0[j] - query_origin
             if proj.dot(query_vector) > 0.0:
-                return np.linalg.norm(proj)
+                return np.linalg.norm(proj)  # type: ignore[return-value]
 
     return 0.0  # This case cannot happens because for the explicit check
 
