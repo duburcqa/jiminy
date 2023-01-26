@@ -7,10 +7,6 @@
 #include <fstream>
 #include <streambuf>
 
-#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/spatial/inertia.hpp"                    // `pinocchio::Inertia`
 #include "pinocchio/spatial/force.hpp"                      // `pinocchio::Force`
@@ -25,9 +21,6 @@
 #include "pinocchio/algorithm/energy.hpp"                   // `pinocchio::computePotentialEnergy`
 #include "pinocchio/algorithm/joint-configuration.hpp"      // `pinocchio::normalize`
 #include "pinocchio/algorithm/geometry.hpp"                 // `pinocchio::computeCollisions`
-#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
-#pragma GCC diagnostic pop
-#endif
 
 #include "H5Cpp.h"
 #include "json/json.h"

@@ -1,10 +1,6 @@
 #include <fstream>
 #include <exception>
 
-#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
 #include "pinocchio/spatial/symmetric3.hpp"                // `pinocchio::Symmetric3 `
 #include "pinocchio/spatial/explog.hpp"                    // `pinocchio::exp3`
 #include "pinocchio/spatial/se3.hpp"                       // `pinocchio::SE3`
@@ -24,9 +20,6 @@
 #include "pinocchio/algorithm/jacobian.hpp"                // `pinocchio::computeJointJacobians`
 #include "pinocchio/algorithm/geometry.hpp"                // `pinocchio::updateGeometryPlacements`
 #include "pinocchio/algorithm/cholesky.hpp"                // `pinocchio::cholesky::`
-#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
-#pragma GCC diagnostic pop
-#endif
 
 #include <Eigen/Eigenvalues>
 

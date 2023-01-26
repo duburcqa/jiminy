@@ -1,14 +1,6 @@
-
-#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
 #include "pinocchio/multibody/model.hpp"     // `pinocchio::Model`
 #include "pinocchio/multibody/data.hpp"      // `pinocchio::Data`
 #include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
-#if (__GNUC__ == 12 && __GNUC_MINOR__ >= 0)
-#pragma GCC diagnostic pop
-#endif
 
 #include "jiminy/core/robot/PinocchioOverloadAlgorithms.h"
 #include "jiminy/core/constraints/AbstractConstraint.h"
