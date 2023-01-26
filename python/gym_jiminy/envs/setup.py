@@ -2,10 +2,10 @@ from pkg_resources import get_distribution
 from setuptools import setup, find_namespace_packages
 
 
-version = get_distribution('gym_jiminy').version
+version = get_distribution('gym-jiminy').version
 
 setup(
-    name="gym_jiminy_zoo",
+    name="gym-jiminy-zoo",
     version=version,
     description=(
         "Classic Reinforcement learning environments for Gym Jiminy."),
@@ -30,7 +30,7 @@ setup(
     packages=find_namespace_packages(),
     include_package_data=True,
     install_requires=[
-        f"gym_jiminy[toolbox]=={version}"
+        f"gym-jiminy[toolbox]=={version}"
     ],
     zip_safe=False
 )

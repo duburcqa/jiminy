@@ -100,9 +100,9 @@ jobs:
         cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
-        delocate-wheel --require-archs "${WHEEL_ARCH}" \
+        delocate-wheel -vvv --require-archs "${WHEEL_ARCH}" \
                        -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
-        delocate-addplat --rm-orig --clobber -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" \
+        delocate-addplat -vvv --rm-orig --clobber -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" \
                          "$RootDir/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py

@@ -35,7 +35,7 @@ elif np_ver < (1, 22):
 
 
 setup(
-    name="jiminy_py",
+    name="jiminy-py",
     version="@PROJECT_VERSION@",
     description=(
         "Fast and light weight simulator of rigid poly-articulated systems."),
@@ -89,7 +89,7 @@ setup(
     install_requires=[
         # Add support of TypedDict to any Python 3 version.
         # 3.10.0 adds 'ParamSpec' that is required for pylint>=2.11.1.
-        "typing_extensions>=3.10.0",
+        "typing-extensions>=3.10.0",
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
@@ -118,9 +118,9 @@ setup(
         "panda3d==1.10.12",
         # Provide helper methods and class to make it easier to use panda3d for
         # robotic applications.
-        "panda3d_viewer",
+        "panda3d-viewer",
         # Photo-realistic shader for Panda3d to improve rendering of meshes.
-        "panda3d_simplepbr",
+        "panda3d-simplepbr",
         # Used internally by Viewer to record video programmatically when
         # Panda3d is used as rendering backend.
         # >= 8.0.0 provides cross-platform precompiled binary wheels.
@@ -150,7 +150,7 @@ setup(
             # Used internally by Viewer to send/receive Javascript requests for
             # recording video using Meshcat backend.
             # `HTMLSession` is available since 0.3.4.
-            "requests_html>=0.3.4"
+            "requests-html>=0.3.4"
         ],
         "dev": [
             # Use indirectly to convert images to base64 after test failure
@@ -174,9 +174,9 @@ setup(
             # Generate Python docs and render '.rst' nicely
             "sphinx",
             # 'Read the Docs' Sphinx docs style
-            "sphinx_rtd_theme",
+            "sphinx-rtd-theme",
             # Render markdown in sphinx docs
-            "myst_parser",
+            "myst-parser",
             # Render Jupyter Notebooks in sphinx docs
             # v0.8.8 introduces a bug for empty 'raw' directives
             "nbsphinx!=0.8.8",
