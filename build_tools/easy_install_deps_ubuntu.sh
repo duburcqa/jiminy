@@ -80,6 +80,7 @@ fi
 
 # Install robotpkg tools suite.
 # Note that `apt-get` is used instead of `apt` because it supports wildcard in package names
+apt-mark unhold "robotpkg-py3*-eigenpy" "robotpkg-py3*-hpp-fcl" "robotpkg-py3*-pinocchio"
 apt-get install -y --allow-downgrades --allow-unauthenticated \
     robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=1.8.0 robotpkg-pinocchio=2.6.7 \
     robotpkg-py3*-eigenpy=2.6.11 robotpkg-py3*-hpp-fcl=1.8.0 robotpkg-py3*-pinocchio=2.6.7
