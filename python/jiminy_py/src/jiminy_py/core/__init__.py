@@ -15,6 +15,7 @@ from sysconfig import get_config_var as _get_config_var
 # the same boost python runtime is shared between every modules, even if linked
 # versions are different. It is necessary to share the same boost python
 # registers, required for inter-operability between modules.
+# This mechanism is causing segfault at import when compiled with Boost>=1.78.
 _pyver_suffix = "".join(map(str, _sys.version_info[:2]))
 if _sys.platform.startswith('win'):
     _lib_prefix = ""

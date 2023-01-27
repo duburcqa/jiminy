@@ -14,9 +14,10 @@ jobs:
     strategy:
       matrix:
         container: [
-          'quay.io/pypa/manylinux2014_x86_64:latest',    # Not compatible with CXX11 ABI
-          #'quay.io/pypa/manylinux_2_24_x86_64:latest',  # Not compatible with C++17
-          'quay.io/pypa/manylinux_2_28_x86_64:latest'    # Not compatible with Ubuntu 18.04
+          # 'manylinux2014_x86_64' image generates wheels not compatible with CXX11 ABI.
+          'quay.io/pypa/manylinux2014_x86_64:latest',
+          # 'manylinux_2_28_x86_64' image generates wheels not compatible with Ubuntu 18.04.
+          'quay.io/pypa/manylinux_2_28_x86_64:latest'
         ]
         PYTHON_VERSION: ['cp36', 'cp37', 'cp38', 'cp39', 'cp310']
 
