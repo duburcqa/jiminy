@@ -31,14 +31,14 @@ jobs:
 
     steps:
     - name: Configure Pagefile
-      uses: al-cheb/configure-pagefile-action@v1.2
+      uses: al-cheb/configure-pagefile-action@v1.3
     - name: Checkout jiminy
       uses: actions/checkout@v3
 
     #####################################################################################
 
     - name: Configure Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
         architecture: 'x64'
@@ -126,7 +126,7 @@ jobs:
             python -m pip install --force-reinstall --no-deps $wheel_path
         }
     - name: Upload the wheel for Windows of jiminy_py
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
         path: build/wheelhouse
@@ -184,12 +184,12 @@ jobs:
 
     steps:
     - name: Download the wheels previously generated
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse
         path: wheelhouse
     - name: Publish on PyPi the wheels
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@v1.6
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}

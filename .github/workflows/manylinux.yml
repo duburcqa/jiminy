@@ -135,7 +135,7 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Setup minimal build environment
       run: |
         PYTHON_EXECUTABLE="/usr/bin/python3"
@@ -152,7 +152,7 @@ jobs:
     #####################################################################################
 
     - name: Download the wheels previously generated
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse
         path: wheelhouse
@@ -193,12 +193,12 @@ jobs:
 
     steps:
     - name: Download the wheels previously generated
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse
         path: wheelhouse
     - name: Publish the wheels on PyPi
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@v1.6
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}

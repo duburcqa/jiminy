@@ -6,8 +6,6 @@ from packaging.utils import NormalizedName, BuildTag
 from packaging.version import Version
 from packaging.tags import Tag
 
-from delocate.cmd.delocate_addplat import main
-
 parse_wheel_filename_orig = packaging.utils.parse_wheel_filename
 
 def parse_wheel_filename(
@@ -18,6 +16,7 @@ def parse_wheel_filename(
 
 packaging.utils.parse_wheel_filename = parse_wheel_filename
 
+from delocate.cmd.delocate_addplat import main
 
 if __name__ == '__main__':
     sys.exit(main())

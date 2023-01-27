@@ -1,6 +1,5 @@
 import os
 import logging
-import time
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,7 +32,7 @@ stiffness = np.array([0.2, 0.5, 1.0, 0.2, 0.3, 0.6])
 damping = np.array([0.0, 0.7, 0.3, 0.5, 0.8, 1.1])
 alpha = 0.5
 engine.register_viscoelastic_force_coupling(
-    "robot1", "robot2", "root_joint", "root_joint", 
+    "robot1", "robot2", "root_joint", "root_joint",
     stiffness, damping, alpha)
 
 # Remove gravity

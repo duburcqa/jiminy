@@ -31,12 +31,12 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     #####################################################################################
 
     - name: Configure Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
         architecture: 'x64'
@@ -106,7 +106,8 @@ jobs:
             -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" "$RootDir/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
-      uses: actions/upload-artifact@v1
+      if: always()
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
         path: build/wheelhouse
@@ -154,12 +155,12 @@ jobs:
 
     steps:
     - name: Download the wheel previously generated
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse
         path: wheelhouse
     - name: Publish the wheel
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@v1.6
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
