@@ -1,40 +1,37 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 0ddc96b..b978939 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -197,7 +197,7 @@
-   src/version.cpp
- )
+@@ -202,7 +202,7 @@
+     src/std-vector.cpp
+     src/version.cpp)
  
--ADD_LIBRARY(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
-+ADD_LIBRARY(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
- TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME}
-   SYSTEM PUBLIC
-   ${Boost_INCLUDE_DIRS}
+-add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES}
++add_library(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCES}
+                                    ${${PROJECT_NAME}_HEADERS})
+ target_include_directories(
+   ${PROJECT_NAME} SYSTEM
 diff --git a/cmake/boost.cmake b/cmake/boost.cmake
-index 6177257..96988ff 100644
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
-@@ -151,7 +151,6 @@
-   FIND_PACKAGE(Boost ${BOOST_REQUIRED})
-   STRING(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
-   IF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
--    SET(BUILD_SHARED_LIBS ON)
-     SET(Boost_NO_BOOST_CMAKE ON)
-   ENDIF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
- 
+@@ -192,7 +192,6 @@
+   string(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
+   if("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}"
+                                                         VERSION_EQUAL "1.70")
+-    set(BUILD_SHARED_LIBS ON)
+     set(Boost_NO_BOOST_CMAKE ON)
+   endif("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70"
+         OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
 diff --git a/cmake/python.cmake b/cmake/python.cmake
-index 3286da3..a142198 100644
 --- a/cmake/python.cmake
 +++ b/cmake/python.cmake
-@@ -96,7 +96,9 @@
-       SET(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
-       SET(Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE ${PYTHON_EXECUTABLE})
+@@ -168,7 +168,9 @@
+       set(Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIR ${PYTHON_INCLUDE_DIR})
  
--      FIND_PACKAGE("Python${_PYTHON_VERSION_MAJOR}" REQUIRED COMPONENTS Interpreter Development)
-+      FIND_PACKAGE("Python${_PYTHON_VERSION_MAJOR}" COMPONENTS Interpreter)
+       find_package("Python${_PYTHON_VERSION_MAJOR}" REQUIRED
+-                   COMPONENTS ${PYTHON_COMPONENTS})
++                   COMPONENTS Interpreter)
 +      execute_process(COMMAND "${Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE}" -c "import sysconfig as sysconfig; print(sysconfig.get_path('include'))"
 +                      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIRS)
-     ELSE()
-       # No hind was provided. We can then check for first Python 2, then Python 3
-       FIND_PACKAGE(Python2 QUIET COMPONENTS Interpreter Development)
+     else()
+       # No hint was provided. We can then check for first Python 2, then Python
+       # 3

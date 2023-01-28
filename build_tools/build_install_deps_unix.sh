@@ -60,14 +60,13 @@ unset Boost_ROOT
 #   - Boost.Python == 1.76 fixes error handling at import
 #   - Boost >= 1.75 is required to compile ouf-of-the-box on MacOS for intel and Apple Silicon
 #   - Boost < 1.77 causes compilation failure with gcc-12.
-#   - Boost.Python >= 1.77 causes segfault if combined when dlopen RTLD_GLOBAL bit is set,
-#     which is necessary for interoperability between modules based on different versions.
+#   - Boost >= 1.78 affects the memory layout to improve alignment, breaking retro-compatibility
 if [ ! -d "$RootDir/boost" ]; then
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
 cd "$RootDir/boost"
 git reset --hard
-git checkout --force "boost-1.76.0"
+git checkout --force "boost-1.78.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 
@@ -86,7 +85,7 @@ fi
 cd "$RootDir/eigenpy"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.11"
+git checkout --force "v2.9.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
@@ -108,7 +107,7 @@ fi
 cd "$RootDir/console_bridge"
 git reset --hard
 git fetch --all
-git checkout --force "0.4.4"
+git checkout --force "1.0.2"
 
 ### Checkout urdfdom_headers
 if [ ! -d "$RootDir/urdfdom_headers" ]; then
@@ -124,7 +123,7 @@ if [ ! -d "$RootDir/urdfdom" ]; then
   git clone https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 fi
 cd "$RootDir/urdfdom"
-git checkout --force "1.0.4"
+git checkout --force "3.0.0"
 git reset --hard
 git fetch --all
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/urdfdom.patch"
@@ -136,7 +135,7 @@ fi
 cd "$RootDir/assimp"
 git reset --hard
 git fetch --all
-git checkout --force "v5.2.4"
+git checkout --force "v5.2.5"
 
 ### Checkout hpp-fcl
 if [ ! -d "$RootDir/hpp-fcl" ]; then
@@ -146,7 +145,7 @@ fi
 cd "$RootDir/hpp-fcl"
 git reset --hard
 git fetch --all
-git checkout --force "v1.8.0"
+git checkout --force "v2.2.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/hppfcl.patch"
@@ -161,7 +160,7 @@ fi
 cd "$RootDir/pinocchio"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.7"
+git checkout --force "v2.6.14"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"

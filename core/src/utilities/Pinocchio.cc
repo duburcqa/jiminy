@@ -1017,7 +1017,7 @@ namespace jiminy
                     auto & geometry = geomModel.geometryObjects[i].geometry;
                     if (geometry->getObjectType() == hpp::fcl::OT_BVH)
                     {
-                        hpp::fcl::BVHModelPtr_t bvh = boost::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
+                        hpp::fcl::BVHModelPtr_t bvh = std::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
                         bvh->buildConvexHull(true);
                         geometry = bvh->convex;
                     }
