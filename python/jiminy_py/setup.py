@@ -93,10 +93,10 @@ setup(
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
-        # >=1.20 breaks ABI
+        # 1.20 breaks ABI
         # >=1.21,<1.21.5 is causing segfault with boost::python.
         #     See issue: https://github.com/boostorg/python/issues/376
-        # >= 1.22 breaks API for compiled libs.
+        # 1.22 breaks API for compiled libs.
         np_req,
         # Parser for Jiminy's hardware description file.
         "toml",
@@ -104,7 +104,8 @@ setup(
         # volume bounding box.
         "trimesh",
         # Use to operate conveniently on nested log data.
-        "dm-tree",
+        # 0.1.7 breaking API and internal changes
+        "dm-tree>=0.1.7",
         # Used internally by Viewer to perform 1D polynomial interpolations.
         "scipy",
         # Used internally by Viewer to detect running Meshcat servers and
@@ -124,7 +125,7 @@ setup(
         # Used internally by Viewer to record video programmatically when
         # Panda3d is used as rendering backend.
         # >= 8.0.0 provides cross-platform precompiled binary wheels.
-        "av"
+        "av>=8.0.0"
     ],
     extras_require={
         "plot": [
@@ -188,7 +189,9 @@ setup(
             # - 3.2.0: enable defining custom patcher
             # - 3.3.0: Support Python 3.9 and manylinux_2_24 images
             # - 4.0.0: Many bug fixes, including RPATH of dependencies
-            "auditwheel>=4.0.0"
+            # - 5.1.0: Add manylinux_2_28 policy
+            # - 5.2.1: Speed up and binary size reduction
+            "auditwheel>=5.2.1"
         ]
     },
     zip_safe=False
