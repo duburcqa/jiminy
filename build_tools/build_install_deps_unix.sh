@@ -56,9 +56,12 @@ unset Boost_ROOT
 #   Patches can be generated using `git diff --submodule=diff` command.
 
 ### Checkout boost and its submodules
-#   Note that boost python must be patched to fix error handling at import (boost < 1.76),
-#   and fix support of PyPy (boost < 1.75).
-#   Boost >= 1.75 is required to compile ouf-of-the-box on MacOS for intel and Apple Silicon.
+#   - Boost.Python == 1.75 fixes support of PyPy
+#   - Boost.Python == 1.76 fixes error handling at import
+#   - Boost >= 1.75 is required to compile ouf-of-the-box on MacOS for intel and Apple Silicon
+#   - Boost < 1.77 causes compilation failure with gcc-12.
+#   - Boost.Python >= 1.77 causes segfault if combined when dlopen RTLD_GLOBAL bit is set,
+#     which is necessary for interoperability between modules based on different versions.
 if [ ! -d "$RootDir/boost" ]; then
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
@@ -83,7 +86,7 @@ fi
 cd "$RootDir/eigenpy"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.10"
+git checkout --force "v2.6.11"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
@@ -298,8 +301,8 @@ cmake "$RootDir/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX=
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare" \
-      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare $(
+      ) -Wno-array-compare -Wno-unknown-warning-option" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################# Build and install qhull and hpp-fcl ######################################
@@ -323,7 +326,8 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON \
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-ignored-qualifiers" \
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-class-memaccess -Wno-sign-compare $(
+      ) -Wno-conversion -Wno-ignored-qualifiers -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 

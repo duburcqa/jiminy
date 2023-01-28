@@ -14,9 +14,11 @@ jobs:
     strategy:
       matrix:
         container: [
-          'quay.io/pypa/manylinux2014_x86_64:latest',    # Not compatible with CXX11 ABI
-          #'quay.io/pypa/manylinux_2_24_x86_64:latest',  # Not compatible with C++17
-          'quay.io/pypa/manylinux_2_28_x86_64:latest'    # Not compatible with Ubuntu 18.04
+          # 'manylinux2014_x86_64' image generates wheels not compatible with CXX11 ABI.
+          'quay.io/pypa/manylinux2014_x86_64:latest',
+          # 'manylinux_2_28_x86_64' image generates wheels not compatible with Ubuntu 18.04.
+          # Pin to latest version before update from gcc 11 to 12, which is not supported yet.
+          'quay.io/pypa/manylinux_2_28_x86_64:2022-11-19-1b19e81'
         ]
         PYTHON_VERSION: ['cp36', 'cp37', 'cp38', 'cp39', 'cp310']
 
@@ -54,7 +56,7 @@ jobs:
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel cmake
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.24.0"
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
@@ -135,7 +137,7 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Setup minimal build environment
       run: |
         PYTHON_EXECUTABLE="/usr/bin/python3"
@@ -152,7 +154,7 @@ jobs:
     #####################################################################################
 
     - name: Download the wheels previously generated
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse
         path: wheelhouse
@@ -193,12 +195,12 @@ jobs:
 
     steps:
     - name: Download the wheels previously generated
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse
         path: wheelhouse
     - name: Publish the wheels on PyPi
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@v1.6
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}

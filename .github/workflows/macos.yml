@@ -31,12 +31,12 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     #####################################################################################
 
     - name: Configure Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
         architecture: 'x64'
@@ -51,7 +51,7 @@ jobs:
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel delocate
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade numpy
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.24.0"
     - name: Build project dependencies
       run: |
         MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
@@ -100,13 +100,14 @@ jobs:
         cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
-        delocate-wheel --require-archs "${WHEEL_ARCH}" \
+        delocate-wheel -vvv --require-archs "${WHEEL_ARCH}" \
                        -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
-        delocate-addplat --rm-orig --clobber -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" \
-                         "$RootDir/build/wheelhouse/"*.whl
+        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_addplat_macos.py" -vvv --rm-orig --clobber \
+            -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" "$RootDir/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
-      uses: actions/upload-artifact@v1
+      if: always()
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
         path: build/wheelhouse
@@ -154,12 +155,12 @@ jobs:
 
     steps:
     - name: Download the wheel previously generated
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse
         path: wheelhouse
     - name: Publish the wheel
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@v1.6
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}

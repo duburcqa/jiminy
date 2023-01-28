@@ -8,11 +8,10 @@
 #include <streambuf>
 
 #include "pinocchio/parsers/urdf.hpp"
-
 #include "pinocchio/spatial/inertia.hpp"                    // `pinocchio::Inertia`
 #include "pinocchio/spatial/force.hpp"                      // `pinocchio::Force`
 #include "pinocchio/spatial/se3.hpp"                        // `pinocchio::SE3`
-#include "pinocchio/spatial/explog.hpp"                     // `pinocchio::exp6`, `pinocchio::log6`
+#include "pinocchio/spatial/explog.hpp"                     // `pinocchio::exp3`, `pinocchio::log3`
 #include "pinocchio/spatial/explog-quaternion.hpp"          // `pinocchio::quaternion::log3`
 #include "pinocchio/multibody/visitor.hpp"                  // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/joint/joint-model-base.hpp"   // `pinocchio::JointModelBase`
@@ -390,7 +389,8 @@ namespace jiminy
                                                                   std::string const & frameName1,
                                                                   std::string const & frameName2,
                                                                   vector6_t   const & stiffness,
-                                                                  vector6_t   const & damping)
+                                                                  vector6_t   const & damping,
+                                                                  float64_t   const & alpha)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -421,6 +421,11 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Allocate memory
+            float64_t angle{0.0};
+            matrix3_t rot12, rotJLog12, rotJExp12, rotRef12, omega;
+            vector3_t rotLog12, pos12, posLocal12, fLin, fAng;
+
             auto forceFct = [=] (
                 float64_t const & /*t*/,
                 vectorN_t const & /*q_1*/,
@@ -453,19 +458,43 @@ namespace jiminy
                                                                 frameIdx2,
                                                                 pinocchio::LOCAL_WORLD_ALIGNED);
 
-                /* Compute the force coupling them.
-                   Note that the application point is the "middle" between frames to
-                   get sign reversed spatial forces on both frame. */
-                pinocchio::Motion const deltaPos12(
-                    oMf2.translation() - oMf1.translation(),
-                    pinocchio::log3(oMf2.rotation() * oMf1.rotation().transpose()));
-                assert(((stiffness.tail<3>().array() < EPS).any() || deltaPos12.angular().norm() < 0.5 * M_PI) &&
-                       "Relative angle between reference frames of viscoelastic coupling must be smaller than pi/2.");
-                pinocchio::Motion deltaVel12 = oVf2 - oVf1;
-                deltaVel12.linear() -= 0.5 * deltaPos12.linear().cross(oVf1.angular() + oVf2.angular());
-                pinocchio::Force f((stiffness.array() * deltaPos12.toVector().array() +
-                                    damping.array() * deltaVel12.toVector().array()).matrix());
-                f.angular() -= 0.5 * deltaPos12.linear().cross(f.linear());
+                // Compute intermediary quantities
+                rot12.noalias() = oMf1.rotation().transpose() * oMf2.rotation();
+                rotLog12 = pinocchio::log3(rot12, angle);
+                assert((angle < 0.95 * M_PI) &&
+                       "Relative angle between reference frames of viscoelastic coupling must be smaller than 0.95 * pi.");
+                pinocchio::Jlog3(angle, rotLog12, rotJLog12);
+                fAng = stiffness.tail<3>().array() * rotLog12.array();
+                rotLog12 *= alpha;
+                pinocchio::Jexp3(rotLog12, rotJExp12);
+                rotRef12.noalias() = oMf1.rotation() * pinocchio::exp3(rotLog12);
+                pos12 = oMf2.translation() - oMf1.translation();
+                posLocal12.noalias() = rotRef12.transpose() * pos12;
+                fLin = stiffness.head<3>().array() * posLocal12.array();
+                omega.noalias() = alpha * rotJExp12 * rotJLog12;
+
+                /* Compute the relative velocity. The application point is the "linear"
+                   interpolation between the frames placement with alpha ratio. */
+                pinocchio::Motion velLocal12(
+                    rotRef12.transpose() * (
+                        oVf2.linear() - oVf1.linear() + pos12.cross(
+                            alpha * oVf1.angular() + (1.0 - alpha) * oVf2.angular())),
+                    rotRef12.transpose() * (oVf2.angular() - oVf1.angular()));
+
+                // Compute the coupling force acting on frame 2
+                pinocchio::Force f;
+                f.linear() = damping.head<3>().array() * velLocal12.linear().array();
+                f.angular() = (1.0 - alpha) * f.linear().cross(posLocal12);
+                f.angular().array() += damping.tail<3>().array() * velLocal12.angular().array();
+                f.linear() += fLin;
+                f.linear() = rotRef12 * f.linear();
+                f.angular() = rotRef12 * f.angular();
+                f.angular() -= oMf2.rotation() * omega.colwise().cross(posLocal12).transpose() * fLin;
+                f.angular() += oMf1.rotation() * rotJLog12 * fAng;
+
+                // Deduce the force acting on frame 1 from action-reaction law
+                f.angular() += pos12.cross(f.linear());
+
                 return f;
             };
 
@@ -480,10 +509,11 @@ namespace jiminy
                                                                   std::string const & frameName1,
                                                                   std::string const & frameName2,
                                                                   vector6_t   const & stiffness,
-                                                                  vector6_t   const & damping)
+                                                                  vector6_t   const & damping,
+                                                                  float64_t   const & alpha)
     {
         return registerViscoelasticForceCoupling(
-            systemName, systemName, frameName1, frameName2, stiffness, damping);
+            systemName, systemName, frameName1, frameName2, stiffness, damping, alpha);
     }
 
     hresult_t EngineMultiRobot::registerViscoelasticDirectionalForceCoupling(std::string const & systemName1,
@@ -3540,6 +3570,8 @@ namespace jiminy
         }
 
         // Compute the flexibilities (only support joint_t::SPHERICAL so far)
+        float64_t angle;
+        matrix3_t rotJlog3;
         Robot::dynamicsOptions_t const & mdlDynOptions = system.robot->mdlOptions_->dynamics;
         std::vector<jointIndex_t> const & flexibilityIdx = system.robot->getFlexibleJointsModelIdx();
         for (std::size_t i = 0; i < flexibilityIdx.size(); ++i)
@@ -3551,11 +3583,13 @@ namespace jiminy
             vector3_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
             Eigen::Map<const quaternion_t> const quat(q.segment<4>(positionIdx).data());
-            vector3_t const angleAxis = pinocchio::quaternion::log3(quat);
-            assert((angleAxis.norm() < 0.5 * M_PI) && "Flexible joint angle must be smaller than pi/2.");
-            uInternal.segment<3>(velocityIdx).array() +=
-                - stiffness.array() * angleAxis.array()
-                - damping.array() * v.segment<3>(velocityIdx).array();
+            vector3_t const angleAxis = pinocchio::quaternion::log3(quat, angle);
+            assert((angle < 0.95 * M_PI) && "Flexible joint angle must be smaller than 0.95 * pi.");
+            pinocchio::Jlog3(angle, angleAxis, rotJlog3);
+            uInternal.segment<3>(velocityIdx) -=
+                rotJlog3 * (stiffness.array() * angleAxis.array()).matrix();
+            uInternal.segment<3>(velocityIdx).array() -=
+                damping.array() * v.segment<3>(velocityIdx).array();
         }
     }
 
@@ -3678,7 +3712,7 @@ namespace jiminy
             jointIndex_t const & parentJointIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
             vector3_t const offset = system2.robot->pncData_.oMf[frameIdx2].translation() -
                                      system1.robot->pncData_.oMf[frameIdx1].translation();
-            force.angular() += offset.cross(force.linear());
+            force.angular() -= offset.cross(force.linear());
             fext2[parentJointIdx2] += convertForceGlobalFrameToJoint(
                 system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, force);
         }

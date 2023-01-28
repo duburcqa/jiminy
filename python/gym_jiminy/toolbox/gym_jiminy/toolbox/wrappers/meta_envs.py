@@ -12,7 +12,7 @@ from gym import spaces
 from gym_jiminy.common.utils.helpers import DataNested
 
 
-DataTreeT = Dict[Any, Tuple[Any, "DataTreeT"]]  # type: ignore[misc]
+DataTreeT = Dict[Any, Tuple[Any, "DataTreeT"]]
 
 
 class HierarchicalTaskSettableEnv(gym.Env):

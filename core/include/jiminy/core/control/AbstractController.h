@@ -191,7 +191,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        void setOptions(configHolder_t const & ctrlOptions);
+        hresult_t setOptions(configHolder_t const & ctrlOptions);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

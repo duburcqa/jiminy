@@ -50,7 +50,7 @@ echo "-- Python version: ${PYTHON_VERSION}"
 PYTHON_BIN="python${PYTHON_VERSION}"
 PYTHON_SITELIB="$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'), end='')")"
 echo "-- Python default site-packages: ${PYTHON_SITELIB}"
-if ! test -w "${PYTHON_SITELIB}" ; then
+if ! ${SUDO_CMD} test -w "${PYTHON_SITELIB}" ; then
     PYTHON_SITELIB="$(${SUDO_CMD} python3 -m site --user-site)"
 fi
 echo "-- Python writable site-packages: ${PYTHON_SITELIB}"
@@ -59,8 +59,8 @@ echo "-- Python writable site-packages: ${PYTHON_SITELIB}"
 apt update && \
 apt install -y python3-pip && \
 ${SUDO_CMD} python3 -m pip install --upgrade pip && \
-${SUDO_CMD} python3 -m pip install --upgrade setuptools wheel && \
-${SUDO_CMD} python3 -m pip install --upgrade "numpy>=1.16,<1.22"
+${SUDO_CMD} python3 -m pip install --upgrade "setuptools<66.0" wheel && \
+${SUDO_CMD} python3 -m pip install --upgrade "numpy>=1.18,<1.24"
 
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc
@@ -80,9 +80,10 @@ fi
 
 # Install robotpkg tools suite.
 # Note that `apt-get` is used instead of `apt` because it supports wildcard in package names
+apt-mark unhold "robotpkg-py3*-eigenpy" "robotpkg-py3*-hpp-fcl" "robotpkg-py3*-pinocchio"
 apt-get install -y --allow-downgrades --allow-unauthenticated \
     robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=1.8.0 robotpkg-pinocchio=2.6.7 \
-    robotpkg-py3*-eigenpy=2.6.10 robotpkg-py3*-hpp-fcl=1.8.0 robotpkg-py3*-pinocchio=2.6.7
+    robotpkg-py3*-eigenpy=2.6.11 robotpkg-py3*-hpp-fcl=1.8.0 robotpkg-py3*-pinocchio=2.6.7
 apt-mark hold "robotpkg-py3*-eigenpy" "robotpkg-py3*-hpp-fcl" "robotpkg-py3*-pinocchio"
 
 # Add openrobots libraries to python packages search path

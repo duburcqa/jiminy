@@ -25,6 +25,7 @@ class InstallPlatlib(install):
 # - Numpy API is not backward compatible but is forward compatible
 # - A few version must be blacklisted because of Boost::Python incompatibility
 # - For some reason, forward compatibility from 1.19 to 1.20+ seems broken
+# - Numba crashes with numpy 1.24
 np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
 np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
 if np_ver < (1, 20):
@@ -34,7 +35,7 @@ elif np_ver < (1, 22):
 
 
 setup(
-    name="jiminy_py",
+    name="jiminy-py",
     version="@PROJECT_VERSION@",
     description=(
         "Fast and light weight simulator of rigid poly-articulated systems."),
@@ -88,7 +89,7 @@ setup(
     install_requires=[
         # Add support of TypedDict to any Python 3 version.
         # 3.10.0 adds 'ParamSpec' that is required for pylint>=2.11.1.
-        "typing_extensions>=3.10.0",
+        "typing-extensions>=3.10.0",
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
@@ -112,13 +113,14 @@ setup(
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
         # Panda3d is NOT supported by PyPy and cannot be built from source.
-        # 1.10.10-1.10.12 fix various blocking bugs.
-        "panda3d>=1.10.12",
+        # 1.10.10-1.10.12 fix numerous bugs.
+        # 1.10.12 fix additional bugs but not crashes on macos.
+        "panda3d==1.10.12",
         # Provide helper methods and class to make it easier to use panda3d for
         # robotic applications.
-        "panda3d_viewer",
+        "panda3d-viewer",
         # Photo-realistic shader for Panda3d to improve rendering of meshes.
-        "panda3d_simplepbr",
+        "panda3d-simplepbr",
         # Used internally by Viewer to record video programmatically when
         # Panda3d is used as rendering backend.
         # >= 8.0.0 provides cross-platform precompiled binary wheels.
@@ -148,7 +150,7 @@ setup(
             # Used internally by Viewer to send/receive Javascript requests for
             # recording video using Meshcat backend.
             # `HTMLSession` is available since 0.3.4.
-            "requests_html>=0.3.4"
+            "requests-html>=0.3.4"
         ],
         "dev": [
             # Use indirectly to convert images to base64 after test failure
@@ -162,7 +164,7 @@ setup(
             # Python linter (Pinned to avoid segfault)
             "pylint==2.13.4",
             # Python static type checker
-            "mypy>=0.931",
+            "mypy>=0.971",
             # Fix dependency issue with 'sphinx'
             "jinja2>=3.0,<3.1",
             # Dependency for documentation generation
@@ -172,9 +174,9 @@ setup(
             # Generate Python docs and render '.rst' nicely
             "sphinx",
             # 'Read the Docs' Sphinx docs style
-            "sphinx_rtd_theme",
+            "sphinx-rtd-theme",
             # Render markdown in sphinx docs
-            "myst_parser",
+            "myst-parser",
             # Render Jupyter Notebooks in sphinx docs
             # v0.8.8 introduces a bug for empty 'raw' directives
             "nbsphinx!=0.8.8",

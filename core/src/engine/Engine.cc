@@ -264,10 +264,11 @@ namespace jiminy
     hresult_t Engine::registerViscoelasticForceCoupling(std::string const & frameName1,
                                                         std::string const & frameName2,
                                                         vector6_t   const & stiffness,
-                                                        vector6_t   const & damping)
+                                                        vector6_t   const & damping,
+                                                        float64_t   const & alpha)
     {
         return EngineMultiRobot::registerViscoelasticForceCoupling(
-            "", "", frameName1, frameName2, stiffness, damping);
+            "", "", frameName1, frameName2, stiffness, damping, alpha);
     }
 
     hresult_t Engine::registerViscoelasticDirectionalForceCoupling(std::string const & frameName1,

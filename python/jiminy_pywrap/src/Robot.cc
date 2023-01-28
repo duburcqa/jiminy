@@ -433,44 +433,44 @@ namespace python
             return sensorsNamesPy;
         }
 
-        static void setOptions(Robot          & self,
-                               bp::dict const & configPy)
+        static hresult_t setOptions(Robot          & self,
+                                    bp::dict const & configPy)
         {
             configHolder_t config = self.getOptions();
             convertFromPython(configPy, config);
-            self.setOptions(config);
+            return self.setOptions(config);
         }
 
-        static void setModelOptions(Robot          & self,
-                                    bp::dict const & configPy)
+        static hresult_t setModelOptions(Robot          & self,
+                                         bp::dict const & configPy)
         {
             configHolder_t config = self.getModelOptions();
             convertFromPython(configPy, config);
-            self.setModelOptions(config);
+            return self.setModelOptions(config);
         }
 
-        static void setMotorsOptions(Robot          & self,
-                                     bp::dict const & configPy)
+        static hresult_t setMotorsOptions(Robot          & self,
+                                          bp::dict const & configPy)
         {
             configHolder_t config = self.getMotorsOptions();
             convertFromPython(configPy, config);
-            self.setMotorsOptions(config);
+            return self.setMotorsOptions(config);
         }
 
-        static void setSensorsOptions(Robot          & self,
-                                      bp::dict const & configPy)
+        static hresult_t setSensorsOptions(Robot          & self,
+                                           bp::dict const & configPy)
         {
             configHolder_t config = self.getSensorsOptions();
             convertFromPython(configPy, config);
-            self.setSensorsOptions(config);
+            return self.setSensorsOptions(config);
         }
 
-        static void setTelemetryOptions(Robot          & self,
-                                        bp::dict const & configPy)
+        static hresult_t setTelemetryOptions(Robot          & self,
+                                             bp::dict const & configPy)
         {
             configHolder_t config = self.getTelemetryOptions();
             convertFromPython(configPy, config);
-            self.setTelemetryOptions(config);
+            return self.setTelemetryOptions(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////

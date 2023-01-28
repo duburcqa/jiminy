@@ -3,23 +3,23 @@ from pkg_resources import get_distribution
 from setuptools import setup, find_namespace_packages
 
 
-version = get_distribution('jiminy_py').version
+version = get_distribution('jiminy-py').version
 
 extras = {
     "zoo": [
-        f"gym_jiminy_zoo=={version}",
+        f"gym-jiminy-zoo=={version}",
     ],
     "toolbox": [
-        f"gym_jiminy_toolbox=={version}"
+        f"gym-jiminy-toolbox=={version}"
     ],
     "rllib": [
-        f"gym_jiminy_rllib=={version}"
+        f"gym-jiminy-rllib=={version}"
     ]
 }
 extras["all"] = list(set(chain.from_iterable(extras.values())))
 
 setup(
-    name="gym_jiminy",
+    name="gym-jiminy",
     version=version,
     description=(
         "Python-native OpenAI Gym interface between Jiminy open-source "

@@ -10,7 +10,7 @@ on:
 jobs:
   build-and-test-win10:
     name: >-
-      (Windows) (${{ matrix.python-version }}) Build the dependencies.
+      (Windows) (${{ matrix.PYTHON_VERSION }}) Build the dependencies.
       Build the project and run the unit tests.
     runs-on: windows-2019
 
@@ -25,29 +25,29 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10']
+        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9', '3.10']
 
     #####################################################################################
 
     steps:
     - name: Configure Pagefile
-      uses: al-cheb/configure-pagefile-action@v1.2
+      uses: al-cheb/configure-pagefile-action@v1.3
     - name: Checkout jiminy
       uses: actions/checkout@v3
 
     #####################################################################################
 
     - name: Configure Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ matrix.PYTHON_VERSION }}
         architecture: 'x64'
     - name: Setup minimal build environment
       run: |
         git config --global advice.detachedHead false
         python -m pip install --upgrade pip
         python -m pip install --upgrade wheel pefile machomachomangler
-        python -m pip install --upgrade numpy
+        python -m pip install --upgrade "numpy<1.24.0"
         python -m pip uninstall -y pipx  # Uninstall unecessary packages causing conflicts with the new resolver
     - name: Build project dependencies
       run: |
@@ -85,9 +85,9 @@ jobs:
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-              -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
+              -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-              -DINSTALL_GYM_JIMINY=${{ (matrix.python-version == '3.10' && 'OFF') || 'ON' }} `
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.10' && 'OFF') || 'ON' }} `
               -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
               ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
               ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
@@ -126,7 +126,7 @@ jobs:
             python -m pip install --force-reinstall --no-deps $wheel_path
         }
     - name: Upload the wheel for Windows of jiminy_py
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
         path: build/wheelhouse
@@ -151,7 +151,7 @@ jobs:
 
         cmake "$RootDir/core/examples/external_project/" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-              -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}"
+              -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}"
         cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"
 
         & "$InstallDir/bin/pip_double_pendulum.exe"
@@ -167,7 +167,7 @@ jobs:
         python -m unittest discover -v
 
     - name: Running unit tests for gym_jiminy
-      if: matrix.python-version != '3.10'
+      if: matrix.PYTHON_VERSION != '3.10'
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
 
@@ -184,12 +184,12 @@ jobs:
 
     steps:
     - name: Download the wheels previously generated
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse
         path: wheelhouse
     - name: Publish on PyPi the wheels
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@v1.6
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
