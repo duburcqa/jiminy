@@ -242,12 +242,12 @@ namespace python
             }
         }
 
-        static void setOptions(AbstractController       & self,
-                               bp::dict           const & configPy)
+        static hresult_t setOptions(AbstractController       & self,
+                                    bp::dict           const & configPy)
         {
             configHolder_t config = self.getOptions();
             convertFromPython(configPy, config);
-            self.setOptions(config);
+            return self.setOptions(config);
         }
 
         static std::shared_ptr<Robot> getRobot(AbstractController & self)

@@ -256,10 +256,11 @@ namespace jiminy
         return ctrlOptionsHolder_;
     }
 
-    void AbstractController::setOptions(configHolder_t const & ctrlOptions)
+    hresult_t AbstractController::setOptions(configHolder_t const & ctrlOptions)
     {
         ctrlOptionsHolder_ = ctrlOptions;
         baseControllerOptions_ = std::make_unique<controllerOptions_t const>(ctrlOptionsHolder_);
+        return hresult_t::SUCCESS;
     }
 
     bool_t const & AbstractController::getIsInitialized(void) const

@@ -55,8 +55,6 @@ git fetch --all
 git checkout --force "boost-1.78.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-cd "libs/python"
-git checkout --force "boost-1.76.0"
 
 ### Checkout eigen3
 #   A specific commit (post 3.4.0) is supposed to fix CXX STANDARD detection with MSVC

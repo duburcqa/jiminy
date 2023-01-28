@@ -56,22 +56,20 @@ unset Boost_ROOT
 #   Patches can be generated using `git diff --submodule=diff` command.
 
 ### Checkout boost and its submodules
-#   Note that boost python must be patched to fix error handling at import (Boost.Python < 1.76),
-#   and fix support of PyPy (Boost.Python < 1.75).
-#   Boost >= 1.75 is required to compile ouf-of-the-box on MacOS for intel and Apple Silicon.
-#   Boost < 1.78 is causing compilation failure with gcc-12.
-#   Boost.Python >= 1.78 is causing segfault if combined when dlopen RTLD_GLOBAL bit is set,
-#   which is essential for interoperability of Boost.Python modules based on different version.
+#   - Boost.Python == 1.75 fixes support of PyPy
+#   - Boost.Python == 1.76 fixes error handling at import
+#   - Boost >= 1.75 is required to compile ouf-of-the-box on MacOS for intel and Apple Silicon
+#   - Boost < 1.77 causes compilation failure with gcc-12.
+#   - Boost.Python >= 1.77 causes segfault if combined when dlopen RTLD_GLOBAL bit is set,
+#     which is necessary for interoperability between modules based on different versions.
 if [ ! -d "$RootDir/boost" ]; then
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
 cd "$RootDir/boost"
 git reset --hard
-git checkout --force "boost-1.78.0"
+git checkout --force "boost-1.76.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-cd "libs/python"
-git checkout --force "boost-1.76.0"
 
 ### Checkout eigen3
 if [ ! -d "$RootDir/eigen3" ]; then

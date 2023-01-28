@@ -438,8 +438,8 @@ namespace python
 
                 .def("remove_all_forces", &EngineMultiRobot::removeAllForces)
 
-                .def("get_options", &EngineMultiRobot::getOptions)
                 .def("set_options", &PyEngineMultiRobotVisitor::setOptions)
+                .def("get_options", &EngineMultiRobot::getOptions)
 
                 .add_property("systems", bp::make_getter(&EngineMultiRobot::systems_,
                                          bp::return_internal_reference<>()))
