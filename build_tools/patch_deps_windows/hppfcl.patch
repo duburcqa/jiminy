@@ -1,11 +1,13 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -94,39 +94,30 @@
+@@ -94,40 +94,34 @@
  #ENDIF(WIN32)
  
  ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED PKG_CONFIG_REQUIRES "eigen3 >= 3.0.0")
 +ADD_PROJECT_DEPENDENCY(assimp REQUIRED "assimp >= 5.0.0" NO_MODULE)
++include(cmake/python.cmake)
+ 
  if(BUILD_PYTHON_INTERFACE)
    FIND_PACKAGE(eigenpy 2.7.10 REQUIRED)
  endif()
@@ -19,6 +21,8 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 -  ADD_PROJECT_DEPENDENCY(Boost REQUIRED chrono serialization)
 -ENDIF(WIN32)
  if(BUILD_PYTHON_INTERFACE)
++  FINDPYTHON(REQUIRED)
++  SEARCH_FOR_BOOST_PYTHON(REQUIRED)
    find_package(Boost REQUIRED COMPONENTS system)
  endif(BUILD_PYTHON_INTERFACE)
 +IF(WIN32)
@@ -50,7 +54,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
    if(Qhull_FOUND)
      set(HPP_FCL_USE_SYSTEM_QHULL TRUE)
    else()
-@@ -262,12 +252,10 @@
+@@ -262,12 +256,10 @@
    include/hpp/fcl/timings.h
    )
 
@@ -79,9 +83,9 @@ diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
  ADD_HEADER_GROUP(PROJECT_HEADERS_FULL_PATH)
 
 +ADD_PROJECT_DEPENDENCY(assimp REQUIRED)
- TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME}
-   SYSTEM PUBLIC
-   ${Boost_INCLUDE_DIRS}
+ MODERNIZE_TARGET_LINK_LIBRARIES(${LIBRARY_NAME} SCOPE PRIVATE
+   TARGETS assimp::assimp
+   LIBRARIES ${assimp_LIBRARIES}
 @@ -201,7 +201,7 @@
  if(HPP_FCL_HAS_QHULL)
    target_compile_definitions(${LIBRARY_NAME} PRIVATE -DHPP_FCL_HAS_QHULL)

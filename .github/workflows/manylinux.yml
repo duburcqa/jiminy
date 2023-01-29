@@ -55,7 +55,7 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel cmake
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "setuptools<66.0" wheel twine cmake
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.24.0"
     - name: Build project dependencies
       run: |

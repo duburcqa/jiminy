@@ -85,7 +85,7 @@ fi
 cd "$RootDir/eigenpy"
 git reset --hard
 git fetch --all
-git checkout --force "v2.8.1"
+git checkout --force "v2.8.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"

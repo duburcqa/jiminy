@@ -1,20 +1,26 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -148,7 +148,6 @@
-
+@@ -148,10 +148,12 @@
+ 
  SET_BOOST_DEFAULT_OPTIONS()
  EXPORT_BOOST_DEFAULT_OPTIONS()
 -ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
-
+ 
  IF(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "The Python bindings of Pinocchio will be compiled along the main library. If you want to disable this feature, please set the option BUILD_PYTHON_INTERFACE to OFF.")
-@@ -176,19 +175,19 @@
++  include(${CMAKE_CURRENT_LIST_DIR}/cmake/python.cmake)
++  FINDPYTHON(REQUIRED)
++  SEARCH_FOR_BOOST_PYTHON(REQUIRED)
+ 
+   set(PYTHON_COMPONENTS Interpreter Development.Module NumPy)
+   IF(BUILD_WITH_LIBPYTHON)
+@@ -176,19 +178,19 @@
  ELSE(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "Pinocchio won't be compiled with its Python bindings. If you want to enable this feature, please set the option BUILD_PYTHON_INTERFACE to ON.")
  ENDIF(BUILD_PYTHON_INTERFACE)
 +ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
-
+ 
  IF(BUILD_WITH_HPP_FCL_SUPPORT)
    ADD_DEFINITIONS(-DPINOCCHIO_WITH_HPP_FCL)
    LIST(APPEND CFLAGS_DEPENDENCIES "-DPINOCCHIO_WITH_HPP_FCL")
