@@ -116,14 +116,14 @@ fi
 cd "$RootDir/urdfdom_headers"
 git reset --hard
 git fetch --all
-git checkout --force "1.0.5"
+git checkout --force "1.0.4"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
 if [ ! -d "$RootDir/urdfdom" ]; then
   git clone https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 fi
 cd "$RootDir/urdfdom"
-git checkout --force "3.0.0"
+git checkout --force "1.0.3"
 git reset --hard
 git fetch --all
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/urdfdom.patch"

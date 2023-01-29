@@ -103,7 +103,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers")) {
 Set-Location -Path "$RootDir/urdfdom_headers"
 git reset --hard
 git fetch --all
-git checkout --force "1.0.5"
+git checkout --force "1.0.4"
 
 ### Checkout urdfdom, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom")) {
@@ -112,7 +112,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom")) {
 Set-Location -Path "$RootDir/urdfdom"
 git reset --hard
 git fetch --all
-git checkout --force "1.0.4"
+git checkout --force "1.0.3"
 dos2unix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
