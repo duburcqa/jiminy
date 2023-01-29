@@ -39,6 +39,9 @@ jobs:
     - name: Define environment variables
       run: |
         echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
+        echo "PYTHON_INCLUDE_DIRS=$(${PYTHON_EXECUTABLE} -c \
+          'import sysconfig as sysconfig; print(sysconfig.get_path("include"))')" >> $GITHUB_ENV
+
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
@@ -80,8 +83,8 @@ jobs:
         cd "$RootDir/build"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
-              -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-              -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+              -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
               -DINSTALL_GYM_JIMINY=${{ (matrix.os == 'ubuntu-22.04' && 'OFF') || 'ON' }} \
@@ -99,8 +102,9 @@ jobs:
         mkdir -p "$RootDir/core/examples/external_project/build"
         cd "$RootDir/core/examples/external_project/build"
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-               -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DCMAKE_PREFIX_PATH="$InstallDir" \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
+              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"

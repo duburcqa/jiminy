@@ -4082,7 +4082,7 @@ namespace jiminy
         int64_t numInt = 0, numFloat = 0;
         std::pair<int64_t &, int64_t &> numVar {numInt, numFloat};
         H5Literate(variablesGroup.getId(), H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL, [](
-            hid_t group, char const * name, H5L_info2_t const * /* oinfo */, void * op_data
+            hid_t group, char const * name, H5L_info_t const * /* oinfo */, void * op_data
             ) -> herr_t
         {
             auto [_numInt, _numFloat] =
@@ -4116,7 +4116,7 @@ namespace jiminy
             Eigen::Matrix<float64_t, Eigen::Dynamic, 1> &>;
         opDataT opData {logData, intVector, floatVector};
         H5Literate(variablesGroup.getId(), H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL, [](
-            hid_t group, char const * name, H5L_info2_t const * /* oinfo */, void * op_data
+            hid_t group, char const * name, H5L_info_t const * /* oinfo */, void * op_data
             ) -> herr_t
         {
             auto [_logData, _intVector, _floatVector] = *static_cast<opDataT *>(op_data);

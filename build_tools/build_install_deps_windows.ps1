@@ -72,7 +72,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 Set-Location -Path "$RootDir/eigenpy"
 git reset --hard
 git fetch --all
-git checkout --force "v2.7.6"
+git checkout --force "v2.8.1"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
@@ -133,7 +133,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
 git fetch --all
-git checkout --force "v1.8.1"
+git checkout --force "v2.2.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
@@ -149,7 +149,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 Set-Location -Path "$RootDir/pinocchio"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.7"
+git checkout --force "v2.6.14"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
