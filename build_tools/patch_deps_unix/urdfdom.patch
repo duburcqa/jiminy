@@ -35,3 +35,4 @@ diff --git a/urdf_parser/CMakeLists.txt b/urdf_parser/CMakeLists.txt
 +add_library(urdfdom_model_state src/urdf_model_state.cpp src/twist.cpp)
  target_link_libraries(urdfdom_model_state ${TinyXML_LIBRARIES} ${console_bridge_LIBRARIES})
  set_target_properties(urdfdom_model_state PROPERTIES SOVERSION ${URDF_MAJOR_MINOR_VERSION})
+ 

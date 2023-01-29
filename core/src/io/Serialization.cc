@@ -60,6 +60,7 @@ namespace boost
             UPCAST_FROM_TYPENAME(GEOM_CYLINDER, hpp::fcl::Cylinder)
             UPCAST_FROM_TYPENAME(GEOM_HALFSPACE, hpp::fcl::Halfspace)
             UPCAST_FROM_TYPENAME(GEOM_PLANE, hpp::fcl::Plane)
+            UPCAST_FROM_TYPENAME(GEOM_ELLIPSOID, hpp::fcl::Ellipsoid)
             UPCAST_FROM_TYPENAME(GEOM_CONVEX, hpp::fcl::Convex<hpp::fcl::Triangle>)
             UPCAST_FROM_TYPENAME(BV_AABB, hpp::fcl::BVHModel<hpp::fcl::AABB>)
             UPCAST_FROM_TYPENAME(BV_OBB, hpp::fcl::BVHModel<hpp::fcl::OBB>)

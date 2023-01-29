@@ -60,13 +60,13 @@ unset Boost_ROOT
 #   - Boost.Python == 1.76 fixes error handling at import
 #   - Boost >= 1.75 is required to compile ouf-of-the-box on MacOS for intel and Apple Silicon
 #   - Boost < 1.77 causes compilation failure with gcc-12.
-#   - Boost >= 1.78 affects the memory layout to improve alignment, breaking retro-compatibility
+#   - Boost >= 1.77 affects the memory layout to improve alignment, breaking retro-compatibility
 if [ ! -d "$RootDir/boost" ]; then
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
 cd "$RootDir/boost"
 git reset --hard
-git checkout --force "boost-1.78.0"
+git checkout --force "boost-1.76.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 
@@ -107,7 +107,7 @@ fi
 cd "$RootDir/console_bridge"
 git reset --hard
 git fetch --all
-git checkout --force "1.0.2"
+git checkout --force "0.3.2"
 
 ### Checkout urdfdom_headers
 if [ ! -d "$RootDir/urdfdom_headers" ]; then
