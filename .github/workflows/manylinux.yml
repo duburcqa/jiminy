@@ -124,7 +124,11 @@ jobs:
   test-user-linux:
     name: (ubuntu-20.04) Build a pip extension and run the unit tests.
     needs: build-manylinux
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
 
     defaults:
       run:

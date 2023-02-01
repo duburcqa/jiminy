@@ -69,6 +69,8 @@ git reset --hard
 git checkout --force "boost-1.76.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
+cd "$RootDir/boost/libs/python"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/boost-python.patch"
 
 ### Checkout eigen3
 if [ ! -d "$RootDir/eigen3" ]; then
@@ -85,7 +87,7 @@ fi
 cd "$RootDir/eigenpy"
 git reset --hard
 git fetch --all
-git checkout --force "v2.8.0"
+git checkout --force "v2.9.2"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
@@ -160,7 +162,7 @@ fi
 cd "$RootDir/pinocchio"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.14"
+git checkout --force "v2.6.16"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"
