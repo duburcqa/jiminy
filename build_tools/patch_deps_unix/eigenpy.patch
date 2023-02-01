@@ -1,19 +1,22 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -202,7 +202,7 @@
+@@ -202,7 +202,10 @@
      src/std-vector.cpp
      src/version.cpp)
  
 -add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES}
 +add_library(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCES}
                                     ${${PROJECT_NAME}_HEADERS})
++if(APPLE)
++  set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
++endif(APPLE)
  target_include_directories(
    ${PROJECT_NAME} SYSTEM
 diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
-@@ -192,7 +192,6 @@
+@@ -192,7 +195,6 @@
    string(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
    if("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}"
                                                          VERSION_EQUAL "1.70")
