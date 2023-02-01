@@ -1,35 +1,21 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -94,40 +94,34 @@
+@@ -94,6 +94,7 @@
  #ENDIF(WIN32)
  
  ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED PKG_CONFIG_REQUIRES "eigen3 >= 3.0.0")
 +ADD_PROJECT_DEPENDENCY(assimp REQUIRED "assimp >= 5.0.0" NO_MODULE)
-+include(cmake/python.cmake)
  
  if(BUILD_PYTHON_INTERFACE)
    FIND_PACKAGE(eigenpy 2.7.10 REQUIRED)
- endif()
- 
- # Required dependencies
- SET_BOOST_DEFAULT_OPTIONS()
- EXPORT_BOOST_DEFAULT_OPTIONS()
--IF(WIN32)
--  ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS chrono thread date_time serialization)
--ELSE(WIN32)
--  ADD_PROJECT_DEPENDENCY(Boost REQUIRED chrono serialization)
--ENDIF(WIN32)
+@@ -108,26 +109,16 @@
+   ADD_PROJECT_DEPENDENCY(Boost REQUIRED chrono serialization)
+ ENDIF(WIN32)
  if(BUILD_PYTHON_INTERFACE)
-+  FINDPYTHON(REQUIRED)
-+  SEARCH_FOR_BOOST_PYTHON(REQUIRED)
-   find_package(Boost REQUIRED COMPONENTS system)
++  ADD_PROJECT_DEPENDENCY(Boost REQUIRED system)
+-  find_package(Boost REQUIRED COMPONENTS system)
  endif(BUILD_PYTHON_INTERFACE)
-+IF(WIN32)
-+  ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS chrono thread date_time serialization)
-+ELSE(WIN32)
-+  ADD_PROJECT_DEPENDENCY(Boost REQUIRED chrono serialization)
-+ENDIF(WIN32)
  
  # Optional dependencies
 -ADD_PROJECT_DEPENDENCY(octomap PKG_CONFIG_REQUIRES "octomap >= 1.6")
