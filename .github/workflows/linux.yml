@@ -24,7 +24,7 @@ jobs:
       run:
         shell: bash
 
-    # Python bindings for Pinocchio 2.X does not fully support memory alignment
+    # Pinocchio bindings do not support memory alignment for now.
     # env:
     #   CMAKE_CXX_FLAGS: "-march=haswell"
 
@@ -104,7 +104,7 @@ jobs:
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
               -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
-              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"

@@ -79,7 +79,7 @@ jobs:
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp310' && 'OFF') || 'ON' }} \
-              -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
         # Bundle the boost python dependencies with jiminy
@@ -122,7 +122,7 @@ jobs:
     #####################################################################################
 
   test-user-linux:
-    name: (ubuntu-20.04) Build a pip extension and run the unit tests.
+    name: (${{ matrix.os }}) Build a pip extension and run the unit tests.
     needs: build-manylinux
     runs-on: ${{ matrix.os }}
 
@@ -167,7 +167,8 @@ jobs:
         # extract the "best" wheel for our system out of the wheelhouse, using pip's own resolution
         # we cannot directly install with find-links because it does not guarantee precedence of local wheels
         # see https://github.com/pypa/pip/issues/2589 (pip>=21.1)
-        "${PYTHON_EXECUTABLE}" -m pip download --no-index --find-links="$RootDir/wheelhouse" --no-deps --dest="$RootDir/dist" jiminy_py
+        "${PYTHON_EXECUTABLE}" -m pip download \
+          --no-index --find-links="$RootDir/wheelhouse" --no-deps --dest="$RootDir/dist" jiminy_py
         # rely on bash to expand the full wheel name
         "${PYTHON_EXECUTABLE}" -m pip install $RootDir/dist/jiminy_py*
 
@@ -179,7 +180,7 @@ jobs:
         cd "$RootDir/core/examples/external_project/build"
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
                -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"

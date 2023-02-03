@@ -101,7 +101,7 @@ index db414f9..49ce016 100644
 diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
 --- a/cmake/deprecated.hh.cmake
 +++ b/cmake/deprecated.hh.cmake
-@@ -29,8 +29,8 @@
+@@ -26,8 +26,8 @@
  #  define @PACKAGE_CPPNAME@_DEPRECATED [[deprecated]]
  #  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) [[deprecated(#message)]]
  # elif defined(__GNUC__) || defined(__clang__)

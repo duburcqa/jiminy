@@ -1,7 +1,7 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -202,7 +202,7 @@
+@@ -206,7 +206,7 @@
      src/std-vector.cpp
      src/version.cpp)
  
@@ -13,7 +13,23 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
-@@ -192,7 +192,6 @@
+@@ -141,7 +141,15 @@
+         "${PYTHON_EXPORT_DEPENDENCY_MACROS}\nSEARCH_FOR_BOOST_PYTHON(${BOOST_PYTHON_REQUIRED} NAME ${BOOST_PYTHON_NAME})"
+     )
+   endif()
++  set(Boost_USE_STATIC_LIBS OFF)
++  set(Boost_LIB_PREFIX "")
++  unset(Boost_LIBRARIES)
+   find_package(Boost ${BOOST_PYTHON_REQUIRED} COMPONENTS ${BOOST_PYTHON_NAME})
++  unset(Boost_LIBRARIES)
++  if(WIN32)
++    set(Boost_LIB_PREFIX "lib")
++  endif()
++  set(Boost_USE_STATIC_LIBS ON)
+   string(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
+
+   list(APPEND LOGGING_WATCHED_VARIABLES Boost_${UPPERCOMPONENT}_FOUND
+@@ -192,7 +200,6 @@
    string(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
    if("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}"
                                                          VERSION_EQUAL "1.70")
@@ -24,7 +40,7 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
 --- a/cmake/deprecated.hh.cmake
 +++ b/cmake/deprecated.hh.cmake
-@@ -29,8 +29,8 @@
+@@ -26,8 +26,8 @@
  #  define @PACKAGE_CPPNAME@_DEPRECATED [[deprecated]]
  #  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) [[deprecated(#message)]]
  # elif defined(__GNUC__) || defined(__clang__)

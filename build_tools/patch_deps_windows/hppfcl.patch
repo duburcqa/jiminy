@@ -40,7 +40,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
    if(Qhull_FOUND)
      set(HPP_FCL_USE_SYSTEM_QHULL TRUE)
    else()
-@@ -262,12 +256,10 @@
+@@ -262,12 +253,10 @@
    include/hpp/fcl/timings.h
    )
 
@@ -111,7 +111,7 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
 --- a/cmake/deprecated.hh.cmake
 +++ b/cmake/deprecated.hh.cmake
-@@ -29,8 +29,8 @@
+@@ -26,8 +26,8 @@
  #  define @PACKAGE_CPPNAME@_DEPRECATED [[deprecated]]
  #  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) [[deprecated(#message)]]
  # elif defined(__GNUC__) || defined(__clang__)
