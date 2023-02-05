@@ -9,7 +9,9 @@ on:
 
 jobs:
   build-and-test-linux:
-    name: (${{ matrix.os }}) Build the dependencies. Build the project and run the unit tests.
+    name: >-
+      (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }})
+      Build the dependencies. Build the project and run the unit tests.
     runs-on: ${{ matrix.os }}
 
     strategy:

@@ -331,8 +331,8 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-class-memaccess -Wno-sign-compare $(
-      ) -Wno-conversion -Wno-ignored-qualifiers -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy" \
-      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      ) -Wno-conversion -Wno-ignored-qualifiers -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy $(
+      ) -Wno-unknown-warning-option" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################# Build and install Pinocchio ##########################################
@@ -349,6 +349,6 @@ cmake "$RootDir/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREF
       -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF \
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
-      ) -Wno-unused-local-typedefs -Wno-uninitialized" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS  -Wno-uninitialized $(
+      ) -Wno-deprecated-declarations -Wno-unused-local-typedefs" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2

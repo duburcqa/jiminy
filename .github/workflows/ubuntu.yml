@@ -10,8 +10,9 @@ on:
 jobs:
   build-test-and-deploy-doc-ubuntu:
     name: >-
-      (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }}) Easy install the dependencies.
-      Build the project and run the unit tests. Generate and deploy the documentation.
+      (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }}) (${{ matrix.COMPILER }}, ${{ matrix.GENERATOR }})
+      Easy install the dependencies. Build the project and run the unit tests.
+      Generate and deploy the documentation.
     runs-on: ${{ matrix.os }}
 
     strategy:

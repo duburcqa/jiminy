@@ -136,3 +136,23 @@ index 59dff41..2765817 100644
 +    $<$<CONFIG:Debug>:/MDd> #---|-- Statically link the runtime libraries
 +    $<$<CONFIG:Release>:/MD> #--|
 +)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+--- a/include/hpp/fcl/serialization/eigen.h
++++ b/include/hpp/fcl/serialization/eigen.h
+@@ -37,6 +37,16 @@
+ #endif
+ #endif
+ 
++#include <boost/archive/xml_iarchive.hpp>
++#include <boost/archive/text_iarchive.hpp>
++#include <boost/archive/binary_iarchive.hpp>
++namespace Eigen { namespace internal {
++template<> struct traits<boost::archive::xml_iarchive> {enum {Flags=0};};
++template<> struct traits<boost::archive::text_iarchive> {enum {Flags=0};};
++template<> struct traits<boost::archive::binary_iarchive> {enum {Flags=0};};
++} }
++
++
+ namespace boost {
+ namespace serialization {
+ 
