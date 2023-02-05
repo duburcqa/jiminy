@@ -14,8 +14,6 @@ jobs:
     strategy:
       matrix:
         container: [
-          # 'manylinux2014_x86_64' image generates wheels not compatible with CXX11 ABI.
-          'quay.io/pypa/manylinux2014_x86_64:latest',
           # 'manylinux_2_28_x86_64' image generates wheels not compatible with Ubuntu 18.04.
           # Pin to latest version before update from gcc 11 to 12, which is not supported yet.
           'quay.io/pypa/manylinux_2_28_x86_64:2022-11-19-1b19e81'
@@ -27,7 +25,8 @@ jobs:
 
     defaults:
       run:
-        shell: bash -ieo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
+        # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
+        shell: bash -ieo pipefail {0}
 
     env:
       BUILD_TYPE: "Release"
@@ -36,13 +35,15 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      uses: actions/checkout@v1  # Cannot use v2 in manylinux containers because it relies on node+javascript
+      # Cannot use v2 in manylinux containers because it relies on node+javascript
+      uses: actions/checkout@v1
 
     #####################################################################################
 
     - name: Setup minimal build environment
       run: |
-        pythonLocation=$(find /opt/python -maxdepth 1 -name "$(echo "${{ matrix.PYTHON_VERSION }}*" | sed -e 's/\.//g')" -print -quit)
+        pythonLocation=$(find /opt/python -maxdepth 1 -name \
+          "$(echo "${{ matrix.PYTHON_VERSION }}*" | sed -e 's/\.//g')" -print -quit)
 
         echo "export PATH=\"${pythonLocation}/bin:\$PATH\"" >> $HOME/.bashrc
         source $HOME/.bashrc
@@ -60,7 +61,8 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary \
+          "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -84,8 +86,10 @@ jobs:
 
         # Bundle the boost python dependencies with jiminy
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
-        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
-        cp -r -H "$InstallDir/lib/python${PYTHON_VERSION}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c \
+          "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
+        cp -r -H "$InstallDir/lib/python${PYTHON_VERSION}/site-packages/." \
+                 "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
 
         # Install jiminy along with its dependencies
         make install
@@ -113,7 +117,7 @@ jobs:
         name: wheelhouse
         path: build/wheelhouse
     - name: Upload the wheels of Gym Jiminy
-      if: success() && matrix.container == 'quay.io/pypa/manylinux2014_x86_64:latest' && matrix.PYTHON_VERSION == 'cp36'
+      if: success() && matrix.container == 'quay.io/pypa/manylinux2014_x86_64:latest' && matrix.PYTHON_VERSION == 'cp38'
       uses: actions/upload-artifact@v1
       with:
         name: wheelhouse
@@ -128,11 +132,11 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04]
 
     defaults:
       run:
-        shell: bash -ieo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
+        shell: bash -ieo pipefail {0}
 
     env:
       BUILD_TYPE: "Release"
@@ -170,7 +174,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip download \
           --no-index --find-links="$RootDir/wheelhouse" --no-deps --dest="$RootDir/dist" jiminy_py
         # rely on bash to expand the full wheel name
-        "${PYTHON_EXECUTABLE}" -m pip install $RootDir/dist/jiminy_py*
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary $RootDir/dist/jiminy_py*
 
     #####################################################################################
 

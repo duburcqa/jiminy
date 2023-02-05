@@ -60,13 +60,14 @@ jobs:
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
-        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
+        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c \
+          "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
         if [[ ${PYTHON_VERSION:2} -lt 7 ]] ; then
           TORCH_VERSION="1.10.2"  # New versions do not support python 3.6
         else
           TORCH_VERSION="1.11.0"
         fi
-        BUILD_TYPE=${{ matrix.BUILD_TYPE }} ./build_tools/build_install_deps_unix.sh
+        BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
