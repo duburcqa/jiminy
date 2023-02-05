@@ -12,7 +12,7 @@ jobs:
     name: >-
       (Windows) (${{ matrix.PYTHON_VERSION }}) Build the dependencies.
       Build the project and run the unit tests.
-    runs-on: windows-2022
+    runs-on: windows-2019
 
     defaults:
       run:
@@ -20,9 +20,9 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
-      GENERATOR: "Visual Studio 17 2022"
+      GENERATOR: "Visual Studio 16 2019"
       # Pinocchio bindings do not support memory alignment for now.
-      # CMAKE_CXX_FLAGS: "/fp:contract /arch:AVX2"
+      CMAKE_CXX_FLAGS: "/d2ReducedOptimizeHugeFunctions"  # "/fp:contract /arch:AVX2"
 
     strategy:
       matrix:
