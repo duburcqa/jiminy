@@ -10,25 +10,25 @@ on:
 jobs:
   build-and-test-linux:
     name: >-
-      (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }})
+      (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
       Build the dependencies. Build the project and run the unit tests.
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
+        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9', '3.10']
         BUILD_TYPE: ['Release']
         include:
-          - os: ubuntu-20.04
+          - PYTHON_VERSION: '3.8'
             BUILD_TYPE: 'Debug'
 
     defaults:
       run:
         shell: bash
 
-    # Pinocchio bindings do not support memory alignment for now.
-    # env:
-    #   CMAKE_CXX_FLAGS: "-march=haswell"
+    env:
+      # Pinocchio bindings do not support memory alignment for now.
+      CMAKE_CXX_FLAGS: ""  #"-march=haswell"
 
     #####################################################################################
 
@@ -38,9 +38,17 @@ jobs:
 
     #####################################################################################
 
+    - name: Configure Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.PYTHON_VERSION }}
+        architecture: 'x64'
     - name: Define environment variables
       run: |
-        echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
+        PYTHON_EXECUTABLE="${pythonLocation}/bin/python3"
+
+        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
+        echo "PYTHON_EXECUTABLE=$(which python3)" >> $GITHUB_ENV
         echo "PYTHON_INCLUDE_DIRS=$(${PYTHON_EXECUTABLE} -c \
           'import sysconfig as sysconfig; print(sysconfig.get_path("include"))')" >> $GITHUB_ENV
 
@@ -60,9 +68,7 @@ jobs:
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
-        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c \
-          "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
-        if [[ ${PYTHON_VERSION:2} -lt 7 ]] ; then
+        if [ "${{ matrix.PYTHON_VERSION }}" = "3.6" ] ; then
           TORCH_VERSION="1.10.2"  # New versions do not support python 3.6
         else
           TORCH_VERSION="1.11.0"
@@ -73,7 +79,7 @@ jobs:
 
         PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"
-        echo "$InstallDir/lib/python${PYTHON_VERSION}/site-packages" \
+        echo "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages" \
         > "${PYTHON_USER_SITELIB}/user_site.pth"
 
     #####################################################################################
@@ -123,7 +129,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
-      if: matrix.os != 'ubuntu-22.04' && matrix.BUILD_TYPE == 'Release'
+      if: matrix.PYTHON_VERSION != '3.10' && matrix.BUILD_TYPE == 'Release'
       run: |
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

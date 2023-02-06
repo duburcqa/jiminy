@@ -52,8 +52,7 @@ jobs:
         python -m pip uninstall -y pipx  # Uninstall unecessary packages causing conflicts with the new resolver
     - name: Build project dependencies
       run: |
-        $PYTHON_VERSION = (python -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")
-        if ("${PYTHON_VERSION}" -eq "3.6") {
+        if ("${{ matrix.PYTHON_VERSION }}" -eq "3.6") {
           $TORCH_VERSION = "1.10.2"  # New versions do not support python 3.6
         } else {
           $TORCH_VERSION = "1.11.0"
