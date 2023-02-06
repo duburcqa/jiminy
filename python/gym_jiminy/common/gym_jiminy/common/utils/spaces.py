@@ -10,8 +10,8 @@ from numpy.random.mtrand import _rand as global_randstate
 
 
 ValueT = TypeVar('ValueT')
-StructNested = Union[Dict[str, 'StructNested'],
-                     Sequence['StructNested'],
+StructNested = Union[Dict[str, 'StructNested[ValueT]'],
+                     Sequence['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]

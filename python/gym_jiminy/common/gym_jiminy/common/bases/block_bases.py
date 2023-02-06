@@ -8,7 +8,8 @@ It implements:
     - the base controller block
     - the base observer block
 """
-from typing import Any, List
+from itertools import chain
+from typing import Any, Iterable
 
 import gym
 
@@ -47,10 +48,6 @@ class BlockInterface:
         self.env = env
         self.update_ratio = update_ratio
 
-        # Define some attributes
-        self.observation_space = None
-        self.action_space = None
-
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(**kwargs)
 
@@ -66,13 +63,13 @@ class BlockInterface:
         """
         return getattr(self.env, name)
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> Iterable[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return super().__dir__() + self.env.__dir__()  # type: ignore[operator]
+        return chain(super().__dir__(), self.env.__dir__())
 
     # methods to override:
     # ----------------------------

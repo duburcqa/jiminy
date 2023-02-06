@@ -15,13 +15,13 @@ import gym
 import toml
 from typing_extensions import TypedDict
 
-from .envs import BaseJiminyEnv
 from .bases import (BlockInterface,
                     BaseControllerBlock,
                     BaseObserverBlock,
                     BasePipelineWrapper,
                     ObservedJiminyEnv,
                     ControlledJiminyEnv)
+from .envs import BaseJiminyEnv
 
 
 class EnvConfig(TypedDict, total=False):
@@ -149,11 +149,11 @@ def build_pipeline(env_config: EnvConfig,
         if isinstance(wrapper_class, str):
             obj = locate(wrapper_class)
             assert (isinstance(obj, type) and
-                    issubclass(obj, (gym.Wrapper, BasePipelineWrapper)))
+                    issubclass(obj, BasePipelineWrapper))
             wrapper_class_obj = obj
         elif wrapper_class is not None:
-            assert issubclass(
-                wrapper_class, (gym.Wrapper, BasePipelineWrapper))
+            assert (isinstance(wrapper_class, type) and
+                    issubclass(wrapper_class, BasePipelineWrapper))
             wrapper_class_obj = wrapper_class
 
         # Handling of default wrapper class type
@@ -193,7 +193,7 @@ def build_pipeline(env_config: EnvConfig,
                 wrapper_kwargs
 
             # Initialize constructor arguments
-            args = []
+            args: Any = []
 
             # Define the arguments related to the environment
             if env_kwargs is not None:
@@ -209,8 +209,10 @@ def build_pipeline(env_config: EnvConfig,
                     block_kwargs_default = {**block_kwargs, **kwargs}
                 else:
                     block_kwargs_default = kwargs
+                env_unwrapped = env.unwrapped
+                assert isinstance(env_unwrapped, BaseJiminyEnv)
                 args.append(block_class_obj(
-                    env.unwrapped, **block_kwargs_default))
+                    env_unwrapped, **block_kwargs_default))
 
             # Define the arguments related to the wrapper
             if wrapper_kwargs is not None:
@@ -245,7 +247,8 @@ def build_pipeline(env_config: EnvConfig,
         return wrapped_env_class
 
     # Generate pipeline sequentially
-    pipeline_class = env_config['env_class']
+    pipeline_class: Union[
+        Type[BaseJiminyEnv], Type[gym.Wrapper], str] = env_config['env_class']
     if isinstance(pipeline_class, str):
         obj = locate(pipeline_class)
         assert (isinstance(obj, type) and
@@ -256,6 +259,7 @@ def build_pipeline(env_config: EnvConfig,
         pipeline_class = _build_wrapper(
             pipeline_class, env_kwargs, **config)
         env_kwargs = None
+    assert issubclass(pipeline_class, BasePipelineWrapper)
     return pipeline_class
 
 

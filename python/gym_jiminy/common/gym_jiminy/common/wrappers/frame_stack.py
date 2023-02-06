@@ -11,6 +11,7 @@ import gym
 
 from ..utils import DataNested, is_breakpoint, zeros
 from ..bases import BasePipelineWrapper
+from ..envs import BaseJiminyEnv
 
 
 class FilteredFrameStack(gym.Wrapper):
@@ -41,10 +42,19 @@ class FilteredFrameStack(gym.Wrapper):
                        wrapper generation.
         """
         # Sanitize user arguments if necessary
+        assert isinstance(env.observation_space, gym.spaces.Dict)
         if nested_filter_keys is None:
-            nested_filter_keys = self.env.observation_space.spaces.keys()
+            nested_filter_keys = list(env.observation_space.spaces.keys())
 
-        # Define helper that will be used to determine the leaf fields to stack
+        # Backup user arguments
+        self.nested_filter_keys: List[List[str]] = list(
+            list(fields) for fields in nested_filter_keys)
+        self.num_stack = num_stack
+
+        # Initialize base wrapper
+        super().__init__(env)  # Do not forward extra arguments, if any
+
+        # Get the leaf fields to stack
         def _get_branches(root: Any) -> Iterator[List[str]]:
             if isinstance(root, gym.spaces.Dict):
                 for field, node in root.spaces.items():
@@ -54,19 +64,11 @@ class FilteredFrameStack(gym.Wrapper):
                     else:
                         yield [field]
 
-        # Backup user arguments
-        self.nested_filter_keys: List[List[str]] = list(
-            map(list, nested_filter_keys))
-        self.num_stack = num_stack
-
-        # Initialize base wrapper
-        super().__init__(env)  # Do not forward extra arguments, if any
-
-        # Get the leaf fields to stack
         self.leaf_fields_list: List[List[str]] = []
         for fields in self.nested_filter_keys:
             root_field = reduce(
-                lambda d, key: d[key], fields, self.env.observation_space)
+                lambda d, key: d[key],
+                fields, self.env.observation_space)
             if isinstance(root_field, gym.spaces.Dict):
                 leaf_paths = _get_branches(root_field)
                 self.leaf_fields_list += [fields + path for path in leaf_paths]
@@ -76,6 +78,7 @@ class FilteredFrameStack(gym.Wrapper):
         # Compute stacked observation space
         self.observation_space = deepcopy(self.env.observation_space)
         for fields in self.leaf_fields_list:
+            assert isinstance(self.observation_space, gym.spaces.Dict)
             root_space = reduce(
                 lambda d, key: d[key], fields[:-1], self.observation_space)
             space = root_space[fields[-1]]
@@ -97,6 +100,7 @@ class FilteredFrameStack(gym.Wrapper):
         """
         # Initialize the frames by duplicating the original one
         for fields, frames in zip(self.leaf_fields_list, self._frames):
+            assert isinstance(self.env.observation_space, gym.spaces.Dict)
             leaf_space = reduce(
                 lambda d, key: d[key], fields, self.env.observation_space)
             for _ in range(self.num_stack):
@@ -127,7 +131,7 @@ class FilteredFrameStack(gym.Wrapper):
         return self.observation(measure)
 
     def step(self,
-             action: DataNested
+             action: Optional[DataNested] = None
              ) -> Tuple[DataNested, float, bool, Dict[str, Any]]:
         observation, reward, done, info = self.env.step(action)
         return self.compute_observation(observation), reward, done, info
@@ -142,7 +146,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: gym.Env,
+                 env: Union[BasePipelineWrapper, BaseJiminyEnv],
                  skip_frames_ratio: int = 0,
                  **kwargs: Any) -> None:
         """ TODO: Write documentation.

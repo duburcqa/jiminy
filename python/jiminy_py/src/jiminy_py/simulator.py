@@ -5,7 +5,8 @@ import logging
 import pathlib
 import tempfile
 from collections import OrderedDict
-from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
+from itertools import chain
+from typing import Optional, Union, Type, Dict, Tuple, Sequence, Iterable, Any
 
 import numpy as np
 
@@ -228,13 +229,13 @@ class Simulator:
         """
         return getattr(self.__getattribute__('engine'), name)
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> Iterable[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return super().__dir__() + self.engine.__dir__()
+        return chain(super().__dir__(), self.engine.__dir__())
 
     @property
     def pinocchio_model(self) -> pin.Model:

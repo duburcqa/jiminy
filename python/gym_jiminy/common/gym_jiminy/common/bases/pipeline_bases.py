@@ -11,7 +11,8 @@ It implements:
 """
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Union, Tuple, Dict, Any, List, Callable
+from itertools import chain
+from typing import Optional, Union, Tuple, Dict, Any, Iterable, Callable
 
 import numpy as np
 import gym
@@ -34,10 +35,10 @@ from .generic_bases import ObserverControllerInterface
 class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
     """Wrap a `BaseJiminyEnv` Gym environment and a single block, so that it
     appears as a single, unified, environment. Eventually, the environment can
-    already be wrapped inside one or several `gym.Wrapper` containers.
+    already be wrapped inside one or several `BasePipelineWrapper` containers.
 
     If several successive blocks must be used, just wrap successively each
-    block one by one with the resulting intermediary `PipelineWrapper`.
+    block one by one with the resulting intermediary `BasePipelineWrapper`.
 
     .. warning::
         This architecture is not designed for trainable blocks, but rather for
@@ -46,10 +47,10 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         It is recommended to add the controllers and observers into the
         policy itself if they have to be trainable.
     """
-    env: Union[gym.Wrapper, BaseJiminyEnv]
+    env: Union['BasePipelineWrapper', BaseJiminyEnv]
 
     def __init__(self,
-                 env: Union[gym.Wrapper, BaseJiminyEnv],
+                 env: Union['BasePipelineWrapper', BaseJiminyEnv],
                  **kwargs: Any) -> None:
         """
         :param kwargs: Extra keyword arguments for multiple inheritance.
@@ -64,15 +65,17 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         self.sensors_data: jiminy.sensorsData = self.env.sensors_data
 
         # Define some internal buffers
-        self._command = zeros(self.env.unwrapped.action_space)
+        assert isinstance(self.env.unwrapped, BaseJiminyEnv)
+        self._env_unwrapped: BaseJiminyEnv = self.env.unwrapped
+        self._command = zeros(self._env_unwrapped.action_space)
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> Iterable[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return super().__dir__() + self.env.__dir__()
+        return chain(super().__dir__(), self.env.__dir__())
 
     def _controller_handle(self,
                            t: float,
@@ -94,10 +97,12 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         the current one are already wrapped in the environment.
         """
         i = 0
-        block = self.env
+        block: Union[gym.Wrapper, BaseJiminyEnv] = self.env
         while not isinstance(block, BaseJiminyEnv):
             i += isinstance(block, self.__class__)
-            block = block.env
+            env_block = block.env
+            assert isinstance(env_block, (gym.Wrapper, BaseJiminyEnv))
+            block = env_block
         return i
 
     def get_observation(self) -> DataNested:
@@ -181,7 +186,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         # Compute block's reward and sum it to total
         reward += self.compute_reward(info=info)
         if self.enable_reward_terminal:
-            if done and self.env.unwrapped._num_steps_beyond_done == 0:
+            if done and self._env_unwrapped._num_steps_beyond_done == 0:
                 reward += self.compute_reward_terminal(info=info)
 
         return self.get_observation(), reward, done, info
@@ -261,11 +266,10 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         filters... It is recommended to add the observer into the policy
         itself if it has to be trainable.
     """  # noqa: E501  # pylint: disable=line-too-long
-    env: Union[gym.Wrapper, BaseJiminyEnv]
-    observation_space: Optional[gym.Space]
+    observation_space: gym.Space
 
     def __init__(self,
-                 env: Union[gym.Wrapper, BaseJiminyEnv],
+                 env: Union[BasePipelineWrapper, BaseJiminyEnv],
                  observer: BaseObserverBlock,
                  augment_observation: bool = False,
                  **kwargs: Any):
@@ -370,11 +374,13 @@ class ObservedJiminyEnv(BasePipelineWrapper):
                     assert isinstance(self._observation, dict)
                     # Make sure to store references
                     if isinstance(obs, gym.spaces.Dict):
+                        assert isinstance(obs, dict)
                         self._observation = obs
                     else:
                         self._observation['measures'] = obs
-                    self._observation.setdefault('features', OrderedDict())[
-                        self.observer_name] = features
+                    self._observation.setdefault(  # type: ignore[index]
+                        'features', OrderedDict())[
+                            self.observer_name] = features
                 else:
                     self._observation = features
 
@@ -427,10 +433,10 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         is recommended to add the controllers into the policy itself if it has
         to be trainable.
     """  # noqa: E501  # pylint: disable=line-too-long
-    observation_space: Optional[gym.Space]
+    observation_space: gym.Space
 
     def __init__(self,
-                 env: Union[gym.Wrapper, BaseJiminyEnv],
+                 env: Union[BasePipelineWrapper, BaseJiminyEnv],
                  controller: BaseControllerBlock,
                  augment_observation: bool = False,
                  **kwargs: Any):
@@ -594,8 +600,9 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                     self._observation = copy(obs)
                 else:
                     self._observation['measures'] = obs
-                self._observation.setdefault('targets', OrderedDict())[
-                    self.controller_name] = self._action
+                self._observation.setdefault(  # type: ignore[index,union-attr]
+                    'targets', OrderedDict())[
+                        self.controller_name] = self._action
             else:
                 self._observation = obs
 
