@@ -30,9 +30,9 @@ namespace boost
             ar & make_nvp("parentFrame", geom.parentFrame);
             ar & make_nvp("parentJoint", geom.parentJoint);
 
-            /* Manually polymorphic up-casting to avoid relying on boost
-               serialization for doing it otherwise it is conflict with
-               pinocchio bindings that is exposing the same objects. */
+            /* Manual polymorphic up-casting to avoid relying on boost
+               serialization for doing it, otherwise it would conflict
+               with any pinocchio bindings exposing the same objects. */
             hpp::fcl::NODE_TYPE nodeType;
             if (Archive::is_saving::value)
             {
@@ -44,7 +44,7 @@ namespace boost
             case hpp::fcl::NODE_TYPE::TYPENAME: \
                 if (Archive::is_loading::value) \
                 { \
-                    geom.geometry = boost::shared_ptr<CLASS>(static_cast<CLASS *>(malloc(sizeof(CLASS)))); \
+                    geom.geometry = std::shared_ptr<CLASS>(static_cast<CLASS *>(malloc(sizeof(CLASS)))); \
                     load_construct_data(ar, static_cast<CLASS *>(geom.geometry.get()), version); \
                 } \
                 ar & make_nvp("geometry", static_cast<CLASS &>(*geom.geometry.get())); \
@@ -60,6 +60,7 @@ namespace boost
             UPCAST_FROM_TYPENAME(GEOM_CYLINDER, hpp::fcl::Cylinder)
             UPCAST_FROM_TYPENAME(GEOM_HALFSPACE, hpp::fcl::Halfspace)
             UPCAST_FROM_TYPENAME(GEOM_PLANE, hpp::fcl::Plane)
+            UPCAST_FROM_TYPENAME(GEOM_ELLIPSOID, hpp::fcl::Ellipsoid)
             UPCAST_FROM_TYPENAME(GEOM_CONVEX, hpp::fcl::Convex<hpp::fcl::Triangle>)
             UPCAST_FROM_TYPENAME(BV_AABB, hpp::fcl::BVHModel<hpp::fcl::AABB>)
             UPCAST_FROM_TYPENAME(BV_OBB, hpp::fcl::BVHModel<hpp::fcl::OBB>)

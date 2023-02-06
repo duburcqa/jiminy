@@ -1,35 +1,21 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index d675c2c..c503cf1 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -91,43 +91,34 @@
+@@ -94,6 +94,7 @@
  #ENDIF(WIN32)
  
  ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED PKG_CONFIG_REQUIRES "eigen3 >= 3.0.0")
 +ADD_PROJECT_DEPENDENCY(assimp REQUIRED "assimp >= 5.0.0" NO_MODULE)
  
  if(BUILD_PYTHON_INTERFACE)
-   FIND_PACKAGE(eigenpy 2.2 REQUIRED)
- endif()
- 
- # Required dependencies
- SET_BOOST_DEFAULT_OPTIONS()
- EXPORT_BOOST_DEFAULT_OPTIONS()
--IF(WIN32)
--  ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS chrono thread date_time serialization)
--ELSE(WIN32)
--  ADD_PROJECT_DEPENDENCY(Boost REQUIRED chrono serialization)
--ENDIF(WIN32)
+   FIND_PACKAGE(eigenpy 2.7.10 REQUIRED)
+@@ -108,26 +109,16 @@
+   ADD_PROJECT_DEPENDENCY(Boost REQUIRED chrono serialization)
+ ENDIF(WIN32)
  if(BUILD_PYTHON_INTERFACE)
-   FINDPYTHON()
-   search_for_boost_python(REQUIRED)
-   find_package(Boost REQUIRED COMPONENTS system)
++  ADD_PROJECT_DEPENDENCY(Boost REQUIRED system)
+-  find_package(Boost REQUIRED COMPONENTS system)
  endif(BUILD_PYTHON_INTERFACE)
-+IF(WIN32)
-+  ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS chrono thread date_time serialization)
-+ELSE(WIN32)
-+  ADD_PROJECT_DEPENDENCY(Boost REQUIRED chrono serialization)
-+ENDIF(WIN32)
  
  # Optional dependencies
 -ADD_PROJECT_DEPENDENCY(octomap PKG_CONFIG_REQUIRES "octomap >= 1.6")
@@ -49,13 +35,12 @@ index d675c2c..c503cf1 100644
  
  option(HPP_FCL_HAS_QHULL "use qhull library to compute convex hulls." FALSE)
  if(HPP_FCL_HAS_QHULL)
-   CHECK_MINIMAL_CXX_STANDARD(11 ENFORCE)
 -  find_package(Qhull COMPONENTS qhull_r qhullcpp)
 +  ADD_PROJECT_DEPENDENCY(Qhull REQUIRED COMPONENTS qhullstatic_r qhullcpp)
    if(Qhull_FOUND)
      set(HPP_FCL_USE_SYSTEM_QHULL TRUE)
    else()
-@@ -221,12 +212,10 @@ SET(${PROJECT_NAME}_HEADERS
+@@ -262,12 +253,10 @@
    include/hpp/fcl/timings.h
    )
 
@@ -69,36 +54,25 @@ index d675c2c..c503cf1 100644
  pkg_config_append_libs("hpp-fcl")
  IF(HPP_FCL_HAS_OCTOMAP)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 043d18b..dcc79be 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -153,7 +153,6 @@ FOREACH(header ${${PROJECT_NAME}_HEADERS})
- ENDFOREACH()
- LIST(APPEND PROJECT_HEADERS_FULL_PATH ${PROJECT_BINARY_DIR}/include/hpp/fcl/config.hh)
+@@ -168,7 +168,6 @@
+ LIST(APPEND PROJECT_HEADERS_FULL_PATH ${PROJECT_BINARY_DIR}/include/hpp/fcl/deprecated.hh)
+ LIST(APPEND PROJECT_HEADERS_FULL_PATH ${PROJECT_BINARY_DIR}/include/hpp/fcl/warning.hh)
  add_library(${LIBRARY_NAME}
 -  SHARED
    ${PROJECT_HEADERS_FULL_PATH}
    ${${LIBRARY_NAME}_SOURCES}
    )
-@@ -162,6 +161,7 @@ add_library(${LIBRARY_NAME}
+@@ -179,6 +178,7 @@
  ADD_SOURCE_GROUP(${LIBRARY_NAME}_SOURCES)
  ADD_HEADER_GROUP(PROJECT_HEADERS_FULL_PATH)
 
 +ADD_PROJECT_DEPENDENCY(assimp REQUIRED)
- TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME}
-   SYSTEM PUBLIC
-   ${Boost_INCLUDE_DIRS}
-@@ -169,8 +169,7 @@
-
- TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
-   PRIVATE
--  ${assimp_LIBRARIES}
--  # assimp::assimp # Not working
-+  Boost::boost assimp::assimp
-   )
-
- TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
-@@ -190,7 +189,7 @@
+ MODERNIZE_TARGET_LINK_LIBRARIES(${LIBRARY_NAME} SCOPE PRIVATE
+   TARGETS assimp::assimp
+   LIBRARIES ${assimp_LIBRARIES}
+@@ -201,7 +201,7 @@
  if(HPP_FCL_HAS_QHULL)
    target_compile_definitions(${LIBRARY_NAME} PRIVATE -DHPP_FCL_HAS_QHULL)
    if (HPP_FCL_USE_SYSTEM_QHULL)
@@ -108,46 +82,46 @@ index 043d18b..dcc79be 100644
      target_include_directories(${LIBRARY_NAME} SYSTEM PRIVATE
        ${Qhull_r_INCLUDE_DIR} ${Qhullcpp_PREFIX})
 diff --git a/cmake/boost.cmake b/cmake/boost.cmake
-index bea38e4..3dcfbf6 100644
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
-@@ -102,7 +102,15 @@ MACRO(SEARCH_FOR_BOOST_PYTHON)
-     MESSAGE(WARNING "Impossible to check Boost.Python version. Trying with 'python'.")
-   ENDIF(NOT BOOST_PYTHON_FOUND)
-
+@@ -141,7 +141,15 @@
+         "${PYTHON_EXPORT_DEPENDENCY_MACROS}\nSEARCH_FOR_BOOST_PYTHON(${BOOST_PYTHON_REQUIRED} NAME ${BOOST_PYTHON_NAME})"
+     )
+   endif()
 +  set(Boost_USE_STATIC_LIBS OFF)
 +  set(Boost_LIB_PREFIX "")
 +  unset(Boost_LIBRARIES)
-   FIND_PACKAGE(Boost ${BOOST_PYTHON_REQUIRED} COMPONENTS ${BOOST_PYTHON_NAME})
+   find_package(Boost ${BOOST_PYTHON_REQUIRED} COMPONENTS ${BOOST_PYTHON_NAME})
 +  unset(Boost_LIBRARIES)
 +  if(WIN32)
 +    set(Boost_LIB_PREFIX "lib")
 +  endif()
 +  set(Boost_USE_STATIC_LIBS ON)
-   STRING(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
+   string(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
 
-   LIST(APPEND LOGGING_WATCHED_VARIABLES
-@@ -151,7 +159,6 @@ MACRO(SEARCH_FOR_BOOST)
-   FIND_PACKAGE(Boost ${BOOST_REQUIRED})
-   STRING(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
-   IF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
--    SET(BUILD_SHARED_LIBS ON)
-     SET(Boost_NO_BOOST_CMAKE ON)
-   ENDIF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
- 
+   list(APPEND LOGGING_WATCHED_VARIABLES Boost_${UPPERCOMPONENT}_FOUND
+@@ -192,7 +200,6 @@
+   string(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
+   if("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}"
+                                                         VERSION_EQUAL "1.70")
+-    set(BUILD_SHARED_LIBS ON)
+     set(Boost_NO_BOOST_CMAKE ON)
+   endif("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70"
+         OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
 diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
-index 0726e3e..8fd0928 100644
 --- a/cmake/deprecated.hh.cmake
 +++ b/cmake/deprecated.hh.cmake
-@@ -26,7 +26,7 @@
- #  define @PACKAGE_CPPNAME@_DEPRECATED __attribute__ ((deprecated))
+@@ -26,8 +26,8 @@
+ #  define @PACKAGE_CPPNAME@_DEPRECATED [[deprecated]]
+ #  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) [[deprecated(#message)]]
+ # elif defined(__GNUC__) || defined(__clang__)
+-#  define @PACKAGE_CPPNAME@_DEPRECATED __attribute__ ((deprecated))
+-#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) __attribute__ (( deprecated(#message) ))
++#  define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
++#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message)
  # else
  #  if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
--#   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)
-+#   define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
- #  else
- // If the compiler is not recognized, drop the feature.
- #   define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
+ #   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)
 diff --git a/third-parties/qhull/CMakeLists.txt b/third-parties/qhull/CMakeLists.txt
 index 59dff41..2765817 100644
 --- a/third-parties/qhull/CMakeLists.txt
@@ -162,3 +136,23 @@ index 59dff41..2765817 100644
 +    $<$<CONFIG:Debug>:/MDd> #---|-- Statically link the runtime libraries
 +    $<$<CONFIG:Release>:/MD> #--|
 +)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+--- a/include/hpp/fcl/serialization/eigen.h
++++ b/include/hpp/fcl/serialization/eigen.h
+@@ -37,6 +37,16 @@
+ #endif
+ #endif
+ 
++#include <boost/archive/xml_iarchive.hpp>
++#include <boost/archive/text_iarchive.hpp>
++#include <boost/archive/binary_iarchive.hpp>
++namespace Eigen { namespace internal {
++template<> struct traits<boost::archive::xml_iarchive> {enum {Flags=0};};
++template<> struct traits<boost::archive::text_iarchive> {enum {Flags=0};};
++template<> struct traits<boost::archive::binary_iarchive> {enum {Flags=0};};
++} }
++
++
+ namespace boost {
+ namespace serialization {
+ 

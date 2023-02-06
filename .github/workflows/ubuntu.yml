@@ -10,13 +10,14 @@ on:
 jobs:
   build-test-and-deploy-doc-ubuntu:
     name: >-
-      (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }}) Easy install the dependencies.
-      Build the project and run the unit tests. Generate and deploy the documentation.
+      (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }}) (${{ matrix.COMPILER }}, ${{ matrix.GENERATOR }})
+      Easy install the dependencies. Build the project and run the unit tests.
+      Generate and deploy the documentation.
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
         GENERATOR: ['Unix Makefiles']
         COMPILER: ['gcc']
         BUILD_TYPE: ['Release']
@@ -53,6 +54,9 @@ jobs:
         fi
 
         echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
+        echo "PYTHON_INCLUDE_DIRS=$(${PYTHON_EXECUTABLE} -c \
+          'import sysconfig as sysconfig; print(sysconfig.get_path("include"))')" >> $GITHUB_ENV
+
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
@@ -93,8 +97,8 @@ jobs:
 
         cmake "$RootDir" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
               -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
-              -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBoost_NO_SYSTEM_PATHS=OFF \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DINSTALL_GYM_JIMINY=${{ (matrix.os == 'ubuntu-22.04' && 'OFF') || 'ON' }} \
               -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
@@ -116,7 +120,8 @@ jobs:
         cmake "$RootDir" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
               -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
-              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
+              -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
           ninja install
         else

@@ -41,14 +41,6 @@ namespace jiminy
     }
 }
 
-#ifdef _MSC_VER
-namespace Eigen { namespace internal {
-template<> struct traits<boost::archive::xml_iarchive> {enum {Flags=0};};
-template<> struct traits<boost::archive::text_iarchive> {enum {Flags=0};};
-template<> struct traits<boost::archive::binary_iarchive> {enum {Flags=0};};
-} }
-#endif
-
 
 namespace boost
 {

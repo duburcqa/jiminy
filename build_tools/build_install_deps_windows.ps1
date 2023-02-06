@@ -12,12 +12,21 @@ if (-not (Test-Path env:BUILD_TYPE)) {
   ${BUILD_TYPE} = "${env:BUILD_TYPE}"
 }
 
+### Set the default generate if undefined.
+#   The appropriate toolset will be selected automatically by cmake.
+if (-not (Test-Path env:GENERATOR)) {
+  ${GENERATOR} = "Visual Studio 17 2022"
+  Write-Output "GENERATOR is unset. Defaulting to '${GENERATOR}'."
+} else {
+  ${GENERATOR} = "${env:GENERATOR}"
+}
+
 ### Set common CMAKE_C/CXX_FLAGS
-${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /EHsc /bigobj /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX"
+${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /MP2 /EHsc /bigobj /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX"
 if (${BUILD_TYPE} -eq "Debug") {
   ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Zi /Od"
 } else {
-  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /O2 /Ob3 -DNDEBUG"
+  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /O2 /Ob3 /wd9025 -DNDEBUG"
 }
 Write-Output "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 
@@ -55,6 +64,8 @@ git fetch --all
 git checkout --force "boost-1.78.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
+cd "$RootDir/boost/libs/python"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/boost-python.patch"
 
 ### Checkout eigen3
 #   A specific commit (post 3.4.0) is supposed to fix CXX STANDARD detection with MSVC
@@ -72,7 +83,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 Set-Location -Path "$RootDir/eigenpy"
 git reset --hard
 git fetch --all
-git checkout --force "v2.7.6"
+git checkout --force "v2.9.2"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
@@ -94,7 +105,7 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge")) {
 Set-Location -Path "$RootDir/console_bridge"
 git reset --hard
 git fetch --all
-git checkout --force "0.4.4"
+git checkout --force "1.0.2"
 
 ### Checkout urdfdom_headers
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers")) {
@@ -112,7 +123,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom")) {
 Set-Location -Path "$RootDir/urdfdom"
 git reset --hard
 git fetch --all
-git checkout --force "1.0.4"
+git checkout --force "3.0.0"
 dos2unix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
@@ -123,7 +134,7 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp")) {
 Set-Location -Path "$RootDir/assimp"
 git reset --hard
 git fetch --all
-git checkout --force "v5.2.4"
+git checkout --force "v5.2.5"
 
 ### Checkout hpp-fcl, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
@@ -133,7 +144,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
 git fetch --all
-git checkout --force "v1.8.1"
+git checkout --force "v2.2.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
@@ -149,7 +160,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 Set-Location -Path "$RootDir/pinocchio"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.7"
+git checkout --force "v2.6.16"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
@@ -198,7 +209,7 @@ if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
          --with-filesystem --with-atomic --with-serialization --with-thread `
          --build-type=minimal architecture=x86 address-model=64 threading=single `
          --layout=system --lto=off link=static runtime-link=shared debug-symbols=off `
-         toolset=msvc-14.2 cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" `
+         cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" `
          variant="$BuildTypeB2" install -q -d0 -j2
 
 # Boost::Python is never compiled in debug mode because already registered converter triggers an assert
@@ -206,7 +217,7 @@ if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
          --with-python `
          --build-type=minimal architecture=x86 address-model=64 threading=single `
          --layout=system --lto=off link=shared runtime-link=shared debug-symbols=off `
-         toolset=msvc-14.2 cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" `
+         cxxflags="-std=c++17 ${CMAKE_CXX_FLAGS}" `
          variant="release" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
@@ -215,9 +226,9 @@ if (-not (Test-Path -PathType Container "$RootDir/eigen3/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/eigen3/build"
 }
 Set-Location -Path "$RootDir/eigen3/build"
-cmake "$RootDir/eigen3" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/eigen3" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
+      -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ################################### Build and install eigenpy ##########################################
@@ -227,15 +238,15 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/eigenpy/build"
 }
 Set-Location -Path "$RootDir/eigenpy/build"
-cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/eigenpy" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
-      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DGENERATE_PYTHON_STUBS=OFF `
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_ALL_NO_LIB $(
-)     -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4005 $(
+)     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ################################## Build and install tinyxml ###########################################
@@ -244,7 +255,7 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/tinyxml/build"
 }
 Set-Location -Path "$RootDir/tinyxml/build"
-cmake "$RootDir/tinyxml" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/tinyxml" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DTIXML_USE_STL"
@@ -257,7 +268,7 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/console_bridge/build"
 }
 Set-Location -Path "$RootDir/console_bridge/build"
-cmake "$RootDir/console_bridge" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/console_bridge" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
@@ -270,8 +281,8 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom_headers/build"
 }
 Set-Location -Path "$RootDir/urdfdom_headers/build"
-cmake "$RootDir/urdfdom_headers" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
+cmake "$RootDir/urdfdom_headers" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_INSTALL_PREFIX="$InstallDir"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ################################## Build and install urdfdom ###########################################
@@ -281,10 +292,9 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom/build"
 }
 Set-Location -Path "$RootDir/urdfdom/build"
-cmake "$RootDir/urdfdom" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/urdfdom" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DBUILD_TESTING=OFF `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DBUILD_TESTING=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DURDFDOM_STATIC"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
@@ -295,12 +305,13 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/assimp/build"
 }
 Set-Location -Path "$RootDir/assimp/build"
-cmake "$RootDir/assimp" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/assimp" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF `
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DASSIMP_INSTALL_PDB=OFF `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4005" -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4005" `
+      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ############################# Build and install qhull and hpp-fcl ######################################
@@ -310,7 +321,7 @@ cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 #   add the desired flag at the end of CMAKE_CXX_FLAGS ("/MT", "/MD"...). It will take precedence over
 #   any existing flag if any.
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
-cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}"
@@ -321,15 +332,15 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/build"
 }
 Set-Location -Path "$RootDir/hpp-fcl/build"
-cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/hpp-fcl" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-      -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON `
+      -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON -DGENERATE_PYTHON_STUBS=OFF `
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4068 /wd4267 /wd4005 $(
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4068 /wd4267 /wd4005 /wd4081 $(
 )     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DHPP_FCL_STATIC"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
@@ -340,12 +351,12 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/pinocchio/build"
 }
 Set-Location -Path "$RootDir/pinocchio/build"
-cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/pinocchio" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
-      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DGENERATE_PYTHON_STUBS=OFF `
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
       -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF `
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `

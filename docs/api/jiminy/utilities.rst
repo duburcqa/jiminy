@@ -66,12 +66,6 @@ Pinocchio
 .. doxygenfunction:: jiminy::getJointTypeVelocitySuffixes
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getBodyIdx
-   :project: jiminy
-
-.. doxygenfunction:: jiminy::getBodiesIdx
-   :project: jiminy
-
 .. doxygenfunction:: jiminy::getFrameIdx
    :project: jiminy
 

@@ -26,7 +26,8 @@ def find_include_files(input_files_fullpath: Sequence[str],
     while len(lookup_file_list):
         input_file_fullpath = lookup_file_list.pop()
         try:
-            with open(input_file_fullpath, "r") as input_file:
+            with open(
+                    input_file_fullpath, "r", encoding="utf-8") as input_file:
                 for line in input_file:
                     if "#include" in line:
                         relative_path = re.search(r'(?<=")[^ ]+(?="$)', line)
@@ -85,7 +86,7 @@ if __name__ == "__main__":
         parents=True, exist_ok=True)
 
     # Read input file
-    with open(input_file_fullpath, "r") as input_file:
+    with open(input_file_fullpath, "r", encoding="utf-8") as input_file:
         input_str = input_file.read()
 
     # Extract boost python method definitions

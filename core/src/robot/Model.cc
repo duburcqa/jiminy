@@ -473,18 +473,18 @@ namespace jiminy
             for (std::string const & frameName : frameNames)
             {
                 // Get the frame idx
-                frameIndex_t frameId;
-                getFrameIdx(pncModelOrig_, frameName, frameId);  // It cannot fail
+                frameIndex_t frameIdx;
+                getFrameIdx(pncModelOrig_, frameName, frameIdx);  // It cannot fail at this point
 
                 // Remove the frame from the the original rigid model
                 pncModelOrig_.frames.erase(std::next(
-                    pncModelOrig_.frames.begin(), static_cast<uint32_t>(frameId)));
+                    pncModelOrig_.frames.begin(), static_cast<uint32_t>(frameIdx)));
                 pncModelOrig_.nframes--;
 
                 // Remove the frame from the the original flexible model
-                getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
+                getFrameIdx(pncModelFlexibleOrig_, frameName, frameIdx);  // It cannot fail at this point
                 pncModelFlexibleOrig_.frames.erase(std::next(
-                    pncModelFlexibleOrig_.frames.begin(), static_cast<uint32_t>(frameId)));
+                    pncModelFlexibleOrig_.frames.begin(), static_cast<uint32_t>(frameIdx)));
                 pncModelFlexibleOrig_.nframes--;
             }
 
@@ -1015,7 +1015,8 @@ namespace jiminy
                 // Extract some proxies
                 std::string const & frameName = flexibleJoint.frameName;
                 std::string flexName = frameName;
-                pinocchio::FrameIndex frameIdx = pncModelFlexibleOrig_.getFrameId(frameName);
+                frameIndex_t frameIdx;
+                getFrameIdx(pncModelFlexibleOrig_, frameName, frameIdx);  // It cannot fail at this point
                 pinocchio::Frame const & frame = pncModelFlexibleOrig_.frames[frameIdx];
 
                 // Add joint to model, differently depending on its type
@@ -1458,7 +1459,8 @@ namespace jiminy
                         // Only the frame name remains unchanged no matter what
                         pinocchio::Frame const & frameOrig = pncModelOrig_.frames[geom.parentFrame];
                         std::string const parentJointName = pncModelOrig_.names[frameOrig.parent];
-                        pinocchio::FrameIndex const frameIdx = pncModel_.getFrameId(frameOrig.name);
+                        frameIndex_t frameIdx;
+                        getFrameIdx(pncModel_, frameOrig.name, frameIdx);  // It cannot fail at this point
                         pinocchio::Frame const & frame = pncModel_.frames[frameIdx];
                         pinocchio::JointIndex const newParentIdx = frame.parent;
                         pinocchio::JointIndex const oldParentIdx = pncModel_.getJointId(parentJointName);

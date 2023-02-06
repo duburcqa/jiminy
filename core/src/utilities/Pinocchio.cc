@@ -251,13 +251,18 @@ namespace jiminy
                           std::string      const & frameName,
                           frameIndex_t           & frameIdx)
     {
-        if (!model.existFrame(frameName))
+        auto frameIt = std::find_if(model.frames.begin(), model.frames.end(),
+                                    [&frameName](pinocchio::Frame const & frame)
+                                    {
+                                        return frame.name == frameName;
+                                    });
+
+        if (frameIt == model.frames.end())
         {
             PRINT_ERROR("Frame '", frameName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-
-        frameIdx = model.getFrameId(frameName);
+        frameIdx = std::distance(model.frames.begin(), frameIt);
 
         return hresult_t::SUCCESS;
     }
@@ -276,41 +281,6 @@ namespace jiminy
                 frameIndex_t frameIdx;
                 returnCode = getFrameIdx(model, name, frameIdx);
                 framesIdx.push_back(frameIdx);
-            }
-        }
-
-        return returnCode;
-    }
-
-    hresult_t getBodyIdx(pinocchio::Model const & model,
-                         std::string      const & bodyName,
-                         frameIndex_t           & bodyIdx)
-    {
-        if (!model.existBodyName(bodyName))
-        {
-            PRINT_ERROR("Body '", bodyName, "' not found in robot model.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        bodyIdx = model.getBodyId(bodyName);
-
-        return hresult_t::SUCCESS;
-    }
-
-    hresult_t getBodiesIdx(pinocchio::Model          const & model,
-                           std::vector<std::string>  const & bodiesNames,
-                           std::vector<frameIndex_t>       & bodiesIdx)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        bodiesIdx.resize(0);
-        for (std::string const & name : bodiesNames)
-        {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                frameIndex_t frameIdx;
-                returnCode = getFrameIdx(model, name, frameIdx);
-                bodiesIdx.push_back(frameIdx);
             }
         }
 
@@ -714,7 +684,8 @@ namespace jiminy
         modelInOut.jointPlacements[childJointIdx] = SE3::Identity();
 
         // Add new joint to frame list
-        frameIndex_t const & childFrameIdx = modelInOut.getFrameId(childJointNameIn);
+        frameIndex_t childFrameIdx;
+        getFrameIdx(modelInOut, childJointNameIn, childFrameIdx);  // It cannot fail at this point
         frameIndex_t const & newFrameIdx = modelInOut.addJointFrame(
             newJointIdx, static_cast<int32_t>(modelInOut.frames[childFrameIdx].previousFrame));
 
@@ -754,9 +725,10 @@ namespace jiminy
             PRINT_ERROR("Frame does not exist.");
             return hresult_t::ERROR_GENERIC;
         }
-        frameIndex_t const frameIdx = modelInOut.getFrameId(frameNameIn);
+        frameIndex_t frameIdx;
+        getFrameIdx(modelInOut, frameNameIn, frameIdx);  // It cannot fail at this point
         Model::Frame & frame = modelInOut.frames[frameIdx];
-        if (frame.type != FIXED_JOINT)
+        if (frame.type != pinocchio::FrameType::FIXED_JOINT)
         {
             PRINT_ERROR("Frame must be associated with fixed joint.");
             return hresult_t::ERROR_GENERIC;
@@ -771,7 +743,7 @@ namespace jiminy
         for (frameIndex_t i = 1; i < static_cast<frameIndex_t>(modelInOut.nframes); ++i)
         {
             // Skip joints and frames not having the right parent joint
-            if (modelInOut.frames[i].type == JOINT)
+            if (modelInOut.frames[i].type == pinocchio::FrameType::JOINT)
             {
                 jointIndex_t const & jointIdx = modelInOut.frames[i].parent;
                 if (modelInOut.parents[jointIdx] != parentJointIdx)
@@ -795,7 +767,7 @@ namespace jiminy
                     break;
                 }
             }
-            while (childFrameIdx > 0 && modelInOut.frames[childFrameIdx].type != JOINT);
+            while (childFrameIdx > 0 && modelInOut.frames[childFrameIdx].type != pinocchio::FrameType::JOINT);
         }
 
         // TODO: The inertia of the newly created joint is the one of all child frames
@@ -833,7 +805,7 @@ namespace jiminy
         jointIndex_t childMinJointIdx = newJointIdx;
         for (frameIndex_t const & childFrameIdx : childFramesIdx)
         {
-            if (modelInOut.frames[childFrameIdx].type == JOINT)
+            if (modelInOut.frames[childFrameIdx].type == pinocchio::FrameType::JOINT)
             {
                 childMinJointIdx = std::min(childMinJointIdx, modelInOut.frames[childFrameIdx].parent);
             }
@@ -843,7 +815,7 @@ namespace jiminy
         for (frameIndex_t const & childFrameIdx : childFramesIdx)
         {
             // Get joint index for frames that are actual joints
-            if (modelInOut.frames[childFrameIdx].type != JOINT)
+            if (modelInOut.frames[childFrameIdx].type != pinocchio::FrameType::JOINT)
             {
                 continue;
             }
@@ -866,7 +838,7 @@ namespace jiminy
         for (frameIndex_t const & childFrameIdx : childFramesIdx)
         {
             // Skip actual joints
-            if (modelInOut.frames[childFrameIdx].type == JOINT)
+            if (modelInOut.frames[childFrameIdx].type == pinocchio::FrameType::JOINT)
             {
                 continue;
             }
@@ -878,7 +850,7 @@ namespace jiminy
         }
 
         // Replace fixed frame by joint frame
-        frame.type = JOINT;
+        frame.type = pinocchio::FrameType::JOINT;
         frame.parent = newJointIdx;
         frame.inertia.setZero();
         frame.placement.setIdentity();
@@ -1017,7 +989,7 @@ namespace jiminy
                     auto & geometry = geomModel.geometryObjects[i].geometry;
                     if (geometry->getObjectType() == hpp::fcl::OT_BVH)
                     {
-                        hpp::fcl::BVHModelPtr_t bvh = boost::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
+                        hpp::fcl::BVHModelPtr_t bvh = std::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
                         bvh->buildConvexHull(true);
                         geometry = bvh->convex;
                     }

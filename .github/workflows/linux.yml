@@ -9,7 +9,9 @@ on:
 
 jobs:
   build-and-test-linux:
-    name: (${{ matrix.os }}) Build the dependencies. Build the project and run the unit tests.
+    name: >-
+      (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }})
+      Build the dependencies. Build the project and run the unit tests.
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -24,7 +26,7 @@ jobs:
       run:
         shell: bash
 
-    # Python bindings for Pinocchio 2.X does not fully support memory alignment
+    # Pinocchio bindings do not support memory alignment for now.
     # env:
     #   CMAKE_CXX_FLAGS: "-march=haswell"
 
@@ -39,6 +41,9 @@ jobs:
     - name: Define environment variables
       run: |
         echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
+        echo "PYTHON_INCLUDE_DIRS=$(${PYTHON_EXECUTABLE} -c \
+          'import sysconfig as sysconfig; print(sysconfig.get_path("include"))')" >> $GITHUB_ENV
+
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
@@ -55,13 +60,14 @@ jobs:
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
-        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
+        PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c \
+          "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
         if [[ ${PYTHON_VERSION:2} -lt 7 ]] ; then
           TORCH_VERSION="1.10.2"  # New versions do not support python 3.6
         else
           TORCH_VERSION="1.11.0"
         fi
-        BUILD_TYPE=${{ matrix.BUILD_TYPE }} ./build_tools/build_install_deps_unix.sh
+        BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
@@ -80,8 +86,8 @@ jobs:
         cd "$RootDir/build"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
-              -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-              -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+              -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
               -DINSTALL_GYM_JIMINY=${{ (matrix.os == 'ubuntu-22.04' && 'OFF') || 'ON' }} \
@@ -99,8 +105,9 @@ jobs:
         mkdir -p "$RootDir/core/examples/external_project/build"
         cd "$RootDir/core/examples/external_project/build"
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-               -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DCMAKE_PREFIX_PATH="$InstallDir" \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"

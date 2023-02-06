@@ -12,7 +12,7 @@ jobs:
     name: >-
       (Windows) (${{ matrix.PYTHON_VERSION }}) Build the dependencies.
       Build the project and run the unit tests.
-    runs-on: windows-2019
+    runs-on: windows-2022
 
     defaults:
       run:
@@ -20,8 +20,9 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
+      GENERATOR: "Visual Studio 17 2022"
       # Pinocchio bindings do not support memory alignment for now.
-      # CMAKE_CXX_FLAGS: "/arch:AVX2 -D__FMA__"  # Must add `/fp:contract` for MSVC > 2019
+      CMAKE_CXX_FLAGS: "/d2ReducedOptimizeHugeFunctions"  # "/fp:contract /arch:AVX2"
 
     strategy:
       matrix:
@@ -79,7 +80,7 @@ jobs:
           New-Item -ItemType "directory" -Force -Path "$RootDir/build"
         }
         Set-Location -Path $RootDir/build
-        cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+        cmake "$RootDir" -G "${env:GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
@@ -149,9 +150,10 @@ jobs:
         $JIMINY_LIB_DIR = (python -c "import os, jiminy_py ; print(os.path.dirname(jiminy_py.get_libraries()))")
         ${env:Path} += ";$JIMINY_LIB_DIR"
 
-        cmake "$RootDir/core/examples/external_project/" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+        cmake "$RootDir/core/examples/external_project/" -G "${env:GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-              -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}"
+              -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}" `
+              -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS}"
         cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"
 
         & "$InstallDir/bin/pip_double_pendulum.exe"

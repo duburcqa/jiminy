@@ -1,21 +1,30 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index cf984477..db497fb7 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -143,7 +143,6 @@
-
+@@ -148,7 +148,6 @@
+ 
  SET_BOOST_DEFAULT_OPTIONS()
  EXPORT_BOOST_DEFAULT_OPTIONS()
 -ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
-
+ 
  IF(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "The Python bindings of Pinocchio will be compiled along the main library. If you want to disable this feature, please set the option BUILD_PYTHON_INTERFACE to OFF.")
-@@ -165,19 +164,19 @@
+@@ -157,6 +158,9 @@
+   IF(BUILD_WITH_LIBPYTHON)
+     set(PYTHON_COMPONENTS ${PYTHON_COMPONENTS} Development)
+   ENDIF()
++  include(${CMAKE_CURRENT_LIST_DIR}/cmake/python.cmake)
++  FINDPYTHON(REQUIRED)
++  SEARCH_FOR_BOOST_PYTHON(REQUIRED)
+ 
+   ADD_PROJECT_DEPENDENCY(eigenpy 2.7.10 REQUIRED)
+ 
+@@ -176,19 +178,19 @@
  ELSE(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "Pinocchio won't be compiled with its Python bindings. If you want to enable this feature, please set the option BUILD_PYTHON_INTERFACE to ON.")
  ENDIF(BUILD_PYTHON_INTERFACE)
 +ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
-
+ 
  IF(BUILD_WITH_HPP_FCL_SUPPORT)
    ADD_DEFINITIONS(-DPINOCCHIO_WITH_HPP_FCL)
    LIST(APPEND CFLAGS_DEPENDENCIES "-DPINOCCHIO_WITH_HPP_FCL")
@@ -36,67 +45,52 @@ index cf984477..db497fb7 100644
        MESSAGE(STATUS "Found hpp-fcl Python bindings.")
      ELSE()
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index b18e001f..d6ce025d 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -17,7 +17,7 @@ ENDIF()
+@@ -17,7 +17,7 @@
  GET_DIRECTORY_PROPERTY(CURRENT_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
  
  # Create target libpinocchio.so
 -ADD_LIBRARY(${PROJECT_NAME} SHARED ${HEADERS} ${${PROJECT_NAME}_SOURCES})
 +ADD_LIBRARY(${PROJECT_NAME} ${HEADERS} ${${PROJECT_NAME}_SOURCES})
- SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
- TARGET_COMPILE_DEFINITIONS(${PROJECT_NAME} PUBLIC ${CURRENT_COMPILE_DEFINITIONS})
- 
-diff --git a/bindings/python/multibody/geometry-object.hpp b/bindings/python/multibody/geometry-object.hpp
-index 8307b532..803d8a76 100644
---- a/bindings/python/multibody/geometry-object.hpp
-+++ b/bindings/python/multibody/geometry-object.hpp
-@@ -83,7 +83,6 @@ namespace pinocchio
-           .staticmethod("CreateCapsule")
- #endif // PINOCCHIO_WITH_HPP_FCL
-         ;
--        bp::register_ptr_to_python<CollisionGeometryPtr>();
-       }
- 
- #ifdef PINOCCHIO_WITH_HPP_FCL
+ SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES
+   LINKER_LANGUAGE CXX
+   INSTALL_RPATH "\$ORIGIN")
 diff --git a/cmake/boost.cmake b/cmake/boost.cmake
-index b2cf262..fbd00f3 100644
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
-@@ -101,8 +101,16 @@ MACRO(SEARCH_FOR_BOOST_PYTHON)
-   IF(NOT BOOST_PYTHON_FOUND)
-     MESSAGE(WARNING "Impossible to check Boost.Python version. Trying with 'python'.")
-   ENDIF(NOT BOOST_PYTHON_FOUND)
-
+@@ -141,7 +141,15 @@
+         "${PYTHON_EXPORT_DEPENDENCY_MACROS}\nSEARCH_FOR_BOOST_PYTHON(${BOOST_PYTHON_REQUIRED} NAME ${BOOST_PYTHON_NAME})"
+     )
+   endif()
 +  set(Boost_USE_STATIC_LIBS OFF)
 +  set(Boost_LIB_PREFIX "")
 +  unset(Boost_LIBRARIES)
-   FIND_PACKAGE(Boost ${BOOST_PYTHON_REQUIRED} COMPONENTS ${BOOST_PYTHON_NAME})
+   find_package(Boost ${BOOST_PYTHON_REQUIRED} COMPONENTS ${BOOST_PYTHON_NAME})
 +  unset(Boost_LIBRARIES)
 +  if(WIN32)
 +    set(Boost_LIB_PREFIX "lib")
 +  endif()
 +  set(Boost_USE_STATIC_LIBS ON)
-   STRING(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
+   string(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
 
-   LIST(APPEND LOGGING_WATCHED_VARIABLES
-@@ -151,7 +159,6 @@ MACRO(SEARCH_FOR_BOOST)
-   FIND_PACKAGE(Boost ${BOOST_REQUIRED})
-   STRING(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
-   IF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
--    SET(BUILD_SHARED_LIBS ON)
-     SET(Boost_NO_BOOST_CMAKE ON)
-   ENDIF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
- 
+   list(APPEND LOGGING_WATCHED_VARIABLES Boost_${UPPERCOMPONENT}_FOUND
+@@ -192,7 +200,6 @@
+   string(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
+   if("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}"
+                                                         VERSION_EQUAL "1.70")
+-    set(BUILD_SHARED_LIBS ON)
+     set(Boost_NO_BOOST_CMAKE ON)
+   endif("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70"
+         OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
 diff --git a/cmake/python.cmake b/cmake/python.cmake
 index db414f9..49ce016 100644
 --- a/cmake/python.cmake
 +++ b/cmake/python.cmake
-@@ -414,6 +414,14 @@ ENDMACRO()
- MACRO(PYTHON_BUILD MODULE FILE)
+@@ -517,6 +517,14 @@
    # Regex from IsValidTargetName in CMake/Source/cmGeneratorExpression.cxx
-   STRING(REGEX REPLACE "[^A-Za-z0-9_.+-]" "_" compile_pyc "compile_pyc_${CMAKE_CURRENT_SOURCE_DIR}")
+   string(REGEX REPLACE "[^A-Za-z0-9_.+-]" "_" compile_pyc
+                        "compile_pyc_${CMAKE_CURRENT_SOURCE_DIR}")
 +
 +  string(LENGTH ${compile_pyc} compile_pyc_LENGTH)
 +  math(EXPR compile_pyc_START "${compile_pyc_LENGTH}-50")
@@ -105,225 +99,20 @@ index db414f9..49ce016 100644
 +  endif()
 +  string(SUBSTRING ${compile_pyc} ${compile_pyc_START} -1 compile_pyc)
 +
-   IF(NOT TARGET ${compile_pyc})
-     ADD_CUSTOM_TARGET(${compile_pyc} ALL)
-   ENDIF()
+   if(NOT TARGET ${compile_pyc})
+     add_custom_target(${compile_pyc} ALL)
+   endif()
 diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
-index 0726e3e..8fd0928 100644
 --- a/cmake/deprecated.hh.cmake
 +++ b/cmake/deprecated.hh.cmake
-@@ -26,7 +26,7 @@
- #  define @PACKAGE_CPPNAME@_DEPRECATED __attribute__ ((deprecated))
+@@ -26,8 +26,8 @@
+ #  define @PACKAGE_CPPNAME@_DEPRECATED [[deprecated]]
+ #  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) [[deprecated(#message)]]
+ # elif defined(__GNUC__) || defined(__clang__)
+-#  define @PACKAGE_CPPNAME@_DEPRECATED __attribute__ ((deprecated))
+-#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) __attribute__ (( deprecated(#message) ))
++#  define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
++#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message)
  # else
  #  if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
--#   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)
-+#   define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
- #  else
- // If the compiler is not recognized, drop the feature.
- #   define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
-diff --git a/bindings/python/algorithm/expose-com.cpp b/bindings/python/algorithm/expose-com.cpp
-index 50c5ab03..8d31119d 100644
---- a/bindings/python/algorithm/expose-com.cpp
-+++ b/bindings/python/algorithm/expose-com.cpp
-@@ -138,13 +138,11 @@ namespace pinocchio
-               "Compute the mass of each kinematic subtree and store it in the vector data.mass.");
- 
-       bp::def("centerOfMass",
-               com_0_proxy,
--              com_0_overload(bp::args("model","data",
--                                      "q",
--                                      "compute_subtree_coms"),
--                  "Compute the center of mass, putting the result in Data and return it."
--                  "If compute_subtree_coms is True, the algorithm also computes the center of mass of the subtrees."
--              )[bp::return_value_policy<bp::return_by_value>()]
-+              (bp::arg("model"), "data", "q", "compute_subtree_coms"),
-+              "Compute the center of mass, putting the result in Data and return it.\n"
-+              "If compute_subtree_coms is True, the algorithm also computes the center of mass of the subtrees.",
-+              bp::return_value_policy<bp::return_by_value>()
-       );
- 
-       bp::def("centerOfMass",
-@@ -169,18 +167,6 @@ namespace pinocchio
-               )[bp::return_value_policy<bp::return_by_value>()]
-       );
-
--      bp::def("centerOfMass",
--              com_level_proxy_deprecated_signature,
--              com_level_overload_deprecated_signature(
--                                                      bp::args("Model","Data",
--                                                               "kinematic_level",
--                                                               "computeSubtreeComs If true, the algorithm computes also the center of mass of the subtrees"
--                                                               ),
--                                                      "Computes the center of mass position, velocity and acceleration of a given model according to the current kinematic values contained in data and the requested kinematic_level.\n"
--                                                      "If kinematic_level = 0, computes the CoM position, if kinematic_level = 1, also computes the CoM velocity and if kinematic_level = 2, it also computes the CoM acceleration."
--                                                      )[deprecated_function<>()]
--              );
--
-       bp::def("centerOfMass",
-               com_level_proxy,
-               com_level_overload(bp::args("model","data",
-diff --git a/bindings/python/algorithm/expose-joints.cpp b/bindings/python/algorithm/expose-joints.cpp
-index 9d72c12a..41aa429f 100644
---- a/bindings/python/algorithm/expose-joints.cpp
-+++ b/bindings/python/algorithm/expose-joints.cpp
-@@ -24,115 +24,11 @@
-     {
-       return randomConfiguration(model);
-     }
--
--    bp::tuple dIntegrate_proxy(const Model & model,
--                               const Eigen::VectorXd & q,
--                               const Eigen::VectorXd & v)
--    {
--      Eigen::MatrixXd J0(Eigen::MatrixXd::Zero(model.nv,model.nv));
--      Eigen::MatrixXd J1(Eigen::MatrixXd::Zero(model.nv,model.nv));
--
--      dIntegrate(model,q,v,J0,ARG0);
--      dIntegrate(model,q,v,J1,ARG1);
--
--      return bp::make_tuple(J0,J1);
--    }
--
--    Eigen::MatrixXd dIntegrate_arg_proxy(const Model & model,
--                                         const Eigen::VectorXd & q,
--                                         const Eigen::VectorXd & v,
--                                         const ArgumentPosition arg)
--    {
--      Eigen::MatrixXd J(Eigen::MatrixXd::Zero(model.nv,model.nv));
--      
--      dIntegrate(model,q,v,J,arg, SETTO);
--      
--      return J;
--    }
--
--    Eigen::MatrixXd dIntegrateTransport_proxy(const Model & model,
--                                              const Eigen::VectorXd & q,
--                                              const Eigen::VectorXd & v,
--                                              const Eigen::MatrixXd & Jin,
--                                              const ArgumentPosition arg)
--    {
--      int ncols = Jin.cols();
--      Eigen::MatrixXd Jout(Eigen::MatrixXd::Zero(model.nv,ncols));
--      dIntegrateTransport(model, q, v, Jin, Jout, arg);
--      return Jout;
--    }
--
--    bp::tuple dDifference_proxy(const Model & model,
--                                const Eigen::VectorXd & q1,
--                                const Eigen::VectorXd & q2)
--    {
--      Eigen::MatrixXd J0(Eigen::MatrixXd::Zero(model.nv,model.nv));
--      Eigen::MatrixXd J1(Eigen::MatrixXd::Zero(model.nv,model.nv));
--
--      dDifference(model,q1,q2,J0,ARG0);
--      dDifference(model,q1,q2,J1,ARG1);
--
--      return bp::make_tuple(J0,J1);
--    }
--
--    Eigen::MatrixXd dDifference_arg_proxy(const Model & model,
--                                          const Eigen::VectorXd & q1,
--                                          const Eigen::VectorXd & q2,
--                                          const ArgumentPosition arg)
--    {
--      Eigen::MatrixXd J(Eigen::MatrixXd::Zero(model.nv,model.nv));
--      
--      dDifference(model,q1,q2,J,arg);
--      
--      return J;
--    }
-
-     void exposeJointsAlgo()
-     {
-       using namespace Eigen;
-
--      bp::def("integrate",
--              &integrate<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
--              bp::args("model","q","v"),
--              "Integrate the joint configuration vector q with a tangent vector v during one unit time.\n"
--              "This is the canonical integrator of a Configuration Space composed of Lie groups, such as most robots.\n\n"
--              "Parameters:\n"
--              "\tmodel: model of the kinematic tree\n"
--              "\tq: the joint configuration vector (size model.nq)\n"
--              "\tv: the joint velocity vector (size model.nv)\n");
--      
--      bp::def("dIntegrate",
--              &dIntegrate_proxy,
--              bp::args("model","q","v"),
--              "Computes the partial derivatives of the integrate function with respect to the first "
--              "and the second argument, and returns the two Jacobians as a tuple.\n\n"
--              "Parameters:\n"
--              "\tmodel: model of the kinematic tree\n"
--              "\tq: the joint configuration vector (size model.nq)\n"
--              "\tv: the joint velocity vector (size model.nv)\n");
--
--      bp::def("dIntegrate",
--              &dIntegrate_arg_proxy,
--              bp::args("model","q","v","argument_position"),
--              "Computes the partial derivatives of the integrate function with respect to the first (arg == ARG0) "
--              "or the second argument (arg == ARG1).\n\n"
--              "Parameters:\n"
--              "\tmodel: model of the kinematic tree\n"
--              "\tq: the joint configuration vector (size model.nq)\n"
--              "\tv: the joint velocity vector (size model.nv)\n"
--              "\targument_position: either pinocchio.ArgumentPosition.ARG0 or pinocchio.ArgumentPosition.ARG1, depending on the desired Jacobian value.\n");
--
--      bp::def("dIntegrateTransport",
--              &dIntegrateTransport_proxy,
--              bp::args("model","q","v","Jin","argument_position"),
--              "Takes a matrix expressed at q (+) v and uses parallel transport to express it in the tangent space at q."
--              "\tThis operation does the product of the matrix by the Jacobian of the integration operation, but more efficiently."
--              "Parameters:\n"
--              "\tmodel: model of the kinematic tree\n"
--              "\tq: the joint configuration vector (size model.nq)\n"
--              "\tv: the joint velocity vector (size model.nv)\n"
--              "\tJin: the input matrix (row size model.nv)"
--              "\targument_position: either pinocchio.ArgumentPosition.ARG0 (q) or pinocchio.ArgumentPosition.ARG1 (v), depending on the desired Jacobian value.\n");
-
-       bp::def("interpolate",
-               &interpolate<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
-@@ -120,16 +40,6 @@
-               "\tq2: the terminal joint configuration vector (size model.nq)\n"
-               "\talpha: the interpolation coefficient in [0,1]\n");
-
--      bp::def("difference",
--              &difference<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
--              bp::args("model","q1","q2"),
--              "Difference between two joint configuration vectors, i.e. the tangent vector that must be integrated during one unit time"
--              "to go from q1 to q2.\n\n"
--              "Parameters:\n"
--              "\tmodel: model of the kinematic tree\n"
--              "\tq1: the initial joint configuration vector (size model.nq)\n"
--              "\tq2: the terminal joint configuration vector (size model.nq)\n");
--      
-       bp::def("squaredDistance",
-               &squaredDistance<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
-               bp::args("model","q1","q2"),
-@@ -148,27 +58,6 @@
-               "\tq1: the initial joint configuration vector (size model.nq)\n"
-               "\tq2: the terminal joint configuration vector (size model.nq)\n");
- 
--      bp::def("dDifference",
--              &dDifference_proxy,
--              bp::args("model","q1","q2"),
--              "Computes the partial derivatives of the difference function with respect to the first "
--              "and the second argument, and returns the two Jacobians as a tuple.\n\n"
--              "Parameters:\n"
--              "\tmodel: model of the kinematic tree\n"
--              "\tq1: the initial joint configuration vector (size model.nq)\n"
--              "\tq2: the terminal joint configuration vector (size model.nq)\n");
--      
--      bp::def("dDifference",
--              &dDifference_arg_proxy,
--              bp::args("model","q1","q2","argument_position"),
--              "Computes the partial derivatives of the difference function with respect to the first (arg == ARG0) "
--              "or the second argument (arg == ARG1).\n\n"
--              "Parameters:\n"
--              "\tmodel: model of the kinematic tree\n"
--              "\tq1: the initial joint configuration vector (size model.nq)\n"
--              "\tq2: the terminal joint configuration vector (size model.nq)\n"
--              "\targument_position: either pinocchio.ArgumentPosition.ARG0 or pinocchio.ArgumentPosition.ARG1, depending on the desired Jacobian value.\n");
--      
-       bp::def("randomConfiguration",
-               &randomConfiguration_proxy,
-               bp::arg("model"),
+ #   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)

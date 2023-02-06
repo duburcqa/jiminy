@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_pywrap VERSION ${BUILD_VERSION})
 
 # Find libraries and headers
-find_package(eigenpy 2.0.2 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
+find_package(eigenpy 2.6.2 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
 
 # Enable all warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")

@@ -59,7 +59,6 @@ TEST_P(ModelTestFixture, CreateFlexible)
     model->setOptions(options);
     model->reset();
 
-
     ASSERT_TRUE(model->getFlexibleConfigurationFromRigid(q, qflex) == hresult_t::SUCCESS);
     ASSERT_EQ(qflex.size(), q.size() + quaternion_t::Coefficients::RowsAtCompileTime * flexConfig.size());
 
@@ -70,8 +69,9 @@ TEST_P(ModelTestFixture, CreateFlexible)
 
     for (uint32_t i = 0; i < model->pncModelOrig_.frames.size(); i++)
     {
-        frameIndex_t const flexId = model->pncModel_.getFrameId(model->pncModelOrig_.frames[i].name);
-        ASSERT_TRUE(pncData.oMf[i].isApprox(model->pncData_.oMf[flexId]));
+        pinocchio::Frame const & frame = model->pncModelOrig_.frames[i];
+        frameIndex_t const flexIdx = model->pncModel_.getFrameId(frame.name);
+        ASSERT_TRUE(pncData.oMf[i].isApprox(model->pncData_.oMf[flexIdx]));
     }
 
     for (uint32_t i = 0; i < model->visualData_.oMg.size(); i++)
