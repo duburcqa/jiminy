@@ -7,8 +7,10 @@ import array
 import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from itertools import chain
 from pathlib import PureWindowsPath
-from typing import Callable, Optional, Dict, Tuple, Union, Sequence, Any, List
+from typing import (
+    Callable, Optional, Dict, Tuple, Union, Sequence, Any, Iterable)
 
 import numpy as np
 
@@ -1511,8 +1513,8 @@ class Panda3dViewer(panda3d_viewer.viewer.Viewer):
     def __getattr__(self, name: str) -> Any:
         return getattr(self.__getattribute__('_app'), name)
 
-    def __dir__(self) -> List[str]:
-        return super().__dir__() + self._app.__dir__()
+    def __dir__(self) -> Iterable[str]:
+        return chain(super().__dir__(), self._app.__dir__())
 
     def set_material(self, *args: Any, **kwargs: Any) -> None:
         self._app.set_material(*args, **kwargs)

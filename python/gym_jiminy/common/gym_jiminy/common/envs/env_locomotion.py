@@ -302,7 +302,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
 
-    def _get_time_space(self) -> gym.Space:
+    def _get_time_space(self) -> gym.spaces.Box:
         """Get time space.
 
         It takes advantage of knowing the maximum simulation duration to shrink

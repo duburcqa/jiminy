@@ -7,8 +7,9 @@ import tempfile
 from copy import deepcopy
 from collections import OrderedDict
 from collections.abc import Mapping
+from itertools import chain
 from typing import (
-    Optional, Tuple, Dict, Any, Callable, List, Union, Iterator,
+    Optional, Tuple, Dict, Any, Callable, List, Iterable, Union, Iterator,
     Mapping as MappingT, MutableMapping as MutableMappingT)
 
 import tree
@@ -210,13 +211,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         return getattr(self.__getattribute__('simulator'), name)
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> Iterable[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return super().__dir__() + self.simulator.__dir__()
+        return chain(super().__dir__(), self.simulator.__dir__())
 
     def __del__(self) -> None:
         try:
@@ -1361,16 +1362,19 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # pylint: disable=arguments-differ
 
         assert isinstance(self._observation, dict)
-        self._observation['t'][0] = self.stepper_state.t
+        t = self._observation['t']
+        assert isinstance(t, np.ndarray)
+        t[0] = self.stepper_state.t
+        state = self._observation['state']
+        assert isinstance(state, dict)
         if not self.simulator.is_simulation_running:
-            (self._observation['state']['Q'],
-             self._observation['state']['V']) = self.simulator.state
+            state['Q'], state['V'] = self.simulator.state
             if self.sensors_data:
                 self._observation['sensors'] = self.sensors_data
         else:
-            position, velocity = self.simulator.state
-            self._observation['state']['Q'][:] = position
-            self._observation['state']['V'][:] = velocity
+            q, v = state['Q'], state['V']
+            assert isinstance(q, np.ndarray) and isinstance(v, np.ndarray)
+            q[:], v[:] = self.simulator.state
 
     def compute_command(self,
                         measure: DataNested,
