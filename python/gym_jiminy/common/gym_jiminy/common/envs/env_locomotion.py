@@ -392,8 +392,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             reward_dict['done'] = 1.0
 
         # Compute the total reward
-        reward_total = sum([self.reward_mixture[name] * value
-                            for name, value in reward_dict.items()])
+        reward_total = sum(self.reward_mixture[name] * value
+                           for name, value in reward_dict.items())
 
         return reward_total
 
@@ -416,7 +416,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             reward_dict['direction'] = - frontal_displacement
 
         # Compute the total reward
-        reward_total = sum([self.reward_mixture[name] * value
-                            for name, value in reward_dict.items()])
+        reward_total = sum(self.reward_mixture[name] * value
+                           for name, value in reward_dict.items())
 
         return reward_total

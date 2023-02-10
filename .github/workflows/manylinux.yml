@@ -18,7 +18,7 @@ jobs:
           # Pin to latest version before update from gcc 11 to 12, which is not supported yet.
           'quay.io/pypa/manylinux_2_28_x86_64:2022-11-19-1b19e81'
         ]
-        PYTHON_VERSION: ['cp36', 'cp37', 'cp38', 'cp39', 'cp310']
+        PYTHON_VERSION: ['cp38', 'cp39', 'cp310', 'cp311']
 
     runs-on: ubuntu-20.04
     container: ${{ matrix.container }}
@@ -61,8 +61,7 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary \
-          "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3,<0.22" "stable_baselines3"
 
     #####################################################################################
 
@@ -80,7 +79,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp310' && 'OFF') || 'ON' }} \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp311' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 

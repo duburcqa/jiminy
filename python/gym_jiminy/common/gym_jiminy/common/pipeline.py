@@ -9,11 +9,10 @@ making it easier to maintain and avoiding code duplications between usecases.
 import json
 import pathlib
 from pydoc import locate
-from typing import Optional, Union, Dict, Any, Type, Sequence, List
+from typing import Optional, Union, Dict, Any, Type, Sequence, List, TypedDict
 
 import gym
 import toml
-from typing_extensions import TypedDict
 
 from .bases import (BlockInterface,
                     BaseControllerBlock,

@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 import numba as nb
 from numba.np.extensions import cross2d
-from scipy.spatial.qhull import _Qhull, QhullError
+from scipy.spatial.qhull import _qhull
 
 from .generic import squared_norm_2
 
@@ -114,14 +114,14 @@ class ConvexHull:
         # Create convex full if possible
         if len(self._points) > 2:
             try:
-                self._hull = _Qhull(points=self._points,
-                                    options=b"",
-                                    mode_option=b"i",
-                                    required_options=b"Qt",
-                                    furthest_site=False,
-                                    incremental=False,
-                                    interior_point=None)
-            except QhullError as e:
+                self._hull = _qhull._Qhull(points=self._points,
+                                           options=b"",
+                                           mode_option=b"i",
+                                           required_options=b"Qt",
+                                           furthest_site=False,
+                                           incremental=False,
+                                           interior_point=None)
+            except _qhull.QhullError as e:
                 raise ValueError(
                     f"Impossible to compute convex hull ({self._points})."
                     ) from e

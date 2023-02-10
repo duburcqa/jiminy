@@ -53,18 +53,17 @@ setup(
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.6,<3.11",
+    python_requires=">=3.8,<3.12",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10"
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11"
     ],
     keywords="robotics physics simulator",
     distclass=BinaryDistribution,
@@ -87,9 +86,6 @@ setup(
         "jiminy_replay=jiminy_py.viewer.replay:_play_logs_files_entrypoint"
     ]},
     install_requires=[
-        # Add support of TypedDict to any Python 3 version.
-        # 3.10.0 adds 'ParamSpec' that is required for pylint>=2.11.1.
-        "typing-extensions>=3.10.0",
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
@@ -104,10 +100,7 @@ setup(
         # volume bounding box.
         "trimesh",
         # Use to operate conveniently on nested log data.
-        # 0.1.7 breaking API and internal changes
         "dm-tree>=0.1.7",
-        # Used internally by Viewer to perform 1D polynomial interpolations.
-        "scipy",
         # Used internally by Viewer to detect running Meshcat servers and
         # avoid orphan child processes.
         "psutil",
@@ -154,20 +147,18 @@ setup(
             "requests-html>=0.3.4"
         ],
         "dev": [
+            # Used in uni tests for numerical integration and interpolation
+            "scipy",
             # Use indirectly to convert images to base64 after test failure
             "pillow",
             # Stub for static type checking
             "types-toml",
             # Check PEP8 conformance of Python native code
             "flake8",
-            # Python linter dependency (Pinned to avoid segfault)
-            "astroid==2.11.2",
             # Python linter (Pinned to avoid segfault)
-            "pylint==2.13.4",
+            "pylint",
             # Python static type checker
-            "mypy>=0.971",
-            # Fix dependency issue with 'sphinx'
-            "jinja2>=3.0,<3.1",
+            "mypy>=1.0.0",
             # Dependency for documentation generation
             "pygments",
             # Dependency for documentation generation

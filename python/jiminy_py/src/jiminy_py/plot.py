@@ -8,9 +8,7 @@ from itertools import cycle
 from functools import partial
 from collections import OrderedDict
 from weakref import WeakKeyDictionary
-from typing import Dict, Optional, Any, Tuple, List, Union, Callable
-
-from typing_extensions import TypedDict
+from typing import Dict, Optional, Any, Tuple, List, Union, Callable, TypedDict
 
 import numpy as np
 try:

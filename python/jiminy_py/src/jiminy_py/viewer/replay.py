@@ -16,7 +16,6 @@ from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 import av
 import numpy as np
 from tqdm import tqdm
-from scipy.interpolate import interp1d
 
 import pinocchio as pin
 
@@ -31,6 +30,7 @@ from .viewer import (COLORS,
                      Tuple4FType,
                      CameraPoseType,
                      CameraMotionType,
+                     interp1d,
                      get_default_backend,
                      Viewer)
 from .meshcat.utilities import interactive_mode
@@ -445,14 +445,8 @@ def play_trajectories(trajs_data: Union[
                     model, t_orig, pos_orig, time_global))
                 if data_orig[0].v is not None:
                     vel_orig = np.stack([s.v for s in data_orig], axis=0)
-                    velocity_interp = interp1d(
-                        t_orig,
-                        vel_orig,
-                        axis=0,
-                        assume_sorted=True,
-                        bounds_error=False,
-                        fill_value=(vel_orig[0], vel_orig[-1]))
-                    velocity_evolutions.append(velocity_interp(time_global))
+                    velocity_evolutions.append(interp1d(
+                        t_orig, vel_orig, time_global))
                 else:
                     velocity_evolutions.append((None,) * len(time_global))
                 if data_orig[0].f_ext is not None:
@@ -460,14 +454,8 @@ def play_trajectories(trajs_data: Union[
                     for i in range(len(data_orig[0].f_ext)):
                         f_ext_orig = np.stack([
                             s.f_ext[i] for s in data_orig], axis=0)
-                        forces_interp = interp1d(
-                            t_orig,
-                            f_ext_orig,
-                            axis=0,
-                            assume_sorted=True,
-                            bounds_error=False,
-                            fill_value=(f_ext_orig[0], f_ext_orig[-1]))
-                        forces.append(forces_interp(time_global))
+                        forces.append(interp1d(
+                            t_orig, f_ext_orig, time_global))
                     force_evolutions.append([
                         [f_ext[i] for f_ext in forces]
                         for i in range(len(time_global))])

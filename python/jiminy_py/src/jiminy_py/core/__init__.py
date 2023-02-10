@@ -51,7 +51,7 @@ if not _is_boost_shared and _is_dependency_available:
 # Since Python >= 3.8, PATH and the current working directory are no longer
 # used for DLL resolution on Windows OS. One is expected to explicitly call
 # `os.add_dll_directory` instead.
-if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
+if _sys.platform.startswith('win'):
     _os.add_dll_directory(_os.path.join(_os.path.dirname(__file__), "lib"))
     for path in _os.environ['PATH'].split(_os.pathsep):
         if _os.path.exists(path):

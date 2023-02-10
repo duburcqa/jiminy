@@ -1,9 +1,8 @@
 import logging
 from copy import deepcopy
-from typing import Optional, Tuple, Sequence, Callable
+from typing import Optional, Tuple, Sequence, Callable, TypedDict
 
 import numpy as np
-from typing_extensions import TypedDict
 
 from eigenpy import LDLT
 import hppfcl

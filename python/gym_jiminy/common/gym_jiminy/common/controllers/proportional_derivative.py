@@ -123,7 +123,7 @@ class PDController(BaseControllerBlock):
                           for name in self.robot.motors_names]
         return OrderedDict(Q=pos_fieldnames, V=vel_fieldnames)
 
-    def compute_command(self,
+    def compute_command(self,  # type: ignore[override]
                         measure: DataNested,
                         action: gym.spaces.Dict
                         ) -> np.ndarray:

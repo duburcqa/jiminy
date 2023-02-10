@@ -19,11 +19,10 @@ from urllib.request import urlopen
 from functools import wraps, partial
 from bisect import bisect_right
 from threading import RLock
-from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
+from typing import (
+    Optional, Union, Sequence, Tuple, Dict, Callable, Any, TypedDict)
 
 import numpy as np
-from scipy.interpolate import interp1d
-from typing_extensions import TypedDict
 
 from panda3d_viewer.viewer_errors import ViewerClosedError
 try:
@@ -81,6 +80,38 @@ class _DuplicateFilter:
 
 logger = logging.getLogger(__name__)
 logger.addFilter(_DuplicateFilter())
+
+
+def interp1d(t_in: np.ndarray,
+             y_in: np.ndarray,
+             t_out: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    """One-dimensional linear interpolation for monotonically increasing sample
+    points.
+
+    :param t_in: The time of the input data points, must be increasing.
+    :param y_in: The value of the data points, same length as `t_in`.
+    :param t_out: The time at which to evaluate the interpolated values.
+
+    see::
+        This method generalizes `numpy.interp`. It is similar to
+        `scipy.interpolate.interp1d`.
+    """
+    i = -1
+    is_scalar = isinstance(t_out, float)
+    if is_scalar:
+        t_out = np.array([t_out])
+    y_out = np.empty((t_out.size, y_in.shape[-1]))
+    for t, y in zip(t_out, y_out):
+        while i < t_in.size - 1 and t_in[i + 1] < t:
+            i += 1
+        if 0 <= i and i < t_in.size - 1:
+            ratio = (t - t_in[i]) / (t_in[i + 1] - t_in[i])
+            y[:] = ratio * y_in[i + 1] + (1.0 - ratio) * y_in[i]
+        elif i < 0:
+            y[:] = y_in[0]
+        else:
+            y[:] = y_in[t_in.size - 1]
+    return y_out if not is_scalar else y_out[0]
 
 
 def check_display_available() -> bool:
@@ -1418,32 +1449,21 @@ class Viewer:
             Camera breakpoint poses over time, as a list of
             `CameraMotionBreakpointType` dict. Here is an example::
 
-                [{'t': 0.00,
+                [{'t': 0.0,
                   'pose': ([3.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2])},
-                 {'t': 0.33,
+                 {'t': 0.3,
                   'pose': ([4.5, 0.0, 1.4], [1.4, np.pi / 6, np.pi / 2])},
-                 {'t': 0.66,
+                 {'t': 0.6,
                   'pose': ([8.5, 0.0, 1.4], [1.4, np.pi / 3, np.pi / 2])},
-                 {'t': 1.00,
+                 {'t': 1.0,
                   'pose': ([9.5, 0.0, 1.4], [1.4, np.pi / 2, np.pi / 2])}]
         """
         t_camera = np.asarray([
             camera_break['t'] for camera_break in camera_motion])
-        interp_kind = 'linear' if len(t_camera) < 4 else 'cubic'
-        camera_xyz = np.stack([camera_break['pose'][0]
-                               for camera_break in camera_motion], axis=0)
-        camera_motion_xyz = interp1d(
-            t_camera, camera_xyz,
-            kind=interp_kind, bounds_error=False,
-            fill_value=(camera_xyz[0], camera_xyz[-1]), axis=0)
-        camera_rpy = np.stack([camera_break['pose'][1]
-                               for camera_break in camera_motion], axis=0)
-        camera_motion_rpy = interp1d(
-            t_camera, camera_rpy,
-            kind=interp_kind, bounds_error=False,
-            fill_value=(camera_rpy[0], camera_rpy[-1]), axis=0)
-        Viewer._camera_motion = lambda t: [
-            camera_motion_xyz(t), camera_motion_rpy(t)]
+        camera_xyzrpy = np.stack([np.concatenate(camera_break['pose'])
+                                  for camera_break in camera_motion], axis=0)
+        Viewer._camera_motion = lambda t: np.split(
+            interp1d(t_camera, camera_xyzrpy, t), 2)
 
     @staticmethod
     def remove_camera_motion() -> None:

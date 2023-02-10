@@ -272,8 +272,8 @@ def _meshcat_server(info: Dict[str, str], verbose: bool) -> None:
         sys.stdout = open(os.devnull, 'w')
         sys.stderr = open(os.devnull, 'w')
 
-    # See https://bugs.python.org/issue37373 :(
-    if sys.platform.startswith('win') and sys.version_info >= (3, 8):
+    # See https://bugs.python.org/issue37373
+    if sys.platform.startswith('win'):
         asyncio.set_event_loop_policy(
             asyncio.WindowsSelectorEventLoopPolicy())
 
