@@ -23,17 +23,19 @@ find_package(pinocchio 2.6.13 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
 find_package(hpp-fcl 2.0.0 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)
 
-# Pinocchio-specific stuffs
-set(COMPILE_FLAGS "-DPINOCCHIO_WITH_URDFDOM -DPINOCCHIO_WITH_HPP_FCL")
+# Pinocchio-specific stuffs.
+# Note that the maximum cpp version of Eigen must be consistent with
+# jiminy, otherwise memory alignment issues may occur.
+set(COMPILE_FLAGS -DPINOCCHIO_WITH_URDFDOM -DPINOCCHIO_WITH_HPP_FCL)
 if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom version undefined
     if (urdfdom_VERSION VERSION_GREATER_EQUAL "0.4.0")
-        set(COMPILE_FLAGS "${COMPILE_FLAGS} -DPINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR")
+        list(APPEND COMPILE_FLAGS -DPINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR)
     endif()
     if (urdfdom_VERSION VERSION_GREATER "0.4.2")
-        set(COMPILE_FLAGS "${COMPILE_FLAGS} -DPINOCCHIO_URDFDOM_USE_STD_SHARED_PTR")
+        list(APPEND COMPILE_FLAGS -DPINOCCHIO_URDFDOM_USE_STD_SHARED_PTR)
     endif()
 endif()
-add_definitions("${COMPILE_FLAGS}")
+add_definitions(${COMPILE_FLAGS})
 
 # Boost-specific stuffs. It must be defined before pinocchio does it,
 # otherwise it messes with LTO.

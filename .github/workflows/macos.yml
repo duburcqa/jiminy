@@ -59,7 +59,7 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
           ./build_tools/build_install_deps_unix.sh
         if [ "${{ matrix.PYTHON_VERSION }}" != '3.11' ] ; then
-          "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
+          "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
           "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3,<0.22" "importlib-metadata>=3.3.0" stable_baselines3
         fi
 
