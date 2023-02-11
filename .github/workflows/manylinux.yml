@@ -61,7 +61,6 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3,<0.22" "stable_baselines3"
 
     #####################################################################################
 
@@ -116,7 +115,7 @@ jobs:
         name: wheelhouse
         path: build/wheelhouse
     - name: Upload the wheels of Gym Jiminy
-      if: success() && matrix.container == 'quay.io/pypa/manylinux2014_x86_64:latest' && matrix.PYTHON_VERSION == 'cp38'
+      if: success() && matrix.PYTHON_VERSION == 'cp38'
       uses: actions/upload-artifact@v1
       with:
         name: wheelhouse
@@ -156,7 +155,7 @@ jobs:
     - name: Installing requirements
       run: |
         sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary pillow
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary pillow scipy
 
     #####################################################################################
 

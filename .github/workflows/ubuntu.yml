@@ -74,7 +74,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" --trusted-host pypi.org \
         --trusted-host pytorch.org --trusted-host download.pytorch.org --trusted-host files.pypi.org \
         --trusted-host files.pytorch.org -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3,<0.22" "stable_baselines3"
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3,<0.22" "importlib-metadata>=3.3.0" stable_baselines3
 
     #####################################################################################
 
@@ -153,14 +153,15 @@ jobs:
         for name in "${gym_modules[@]}"; do
           cd "$RootDir/python/gym_jiminy/$name"
 
-          pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=20 --max-nested-blocks=7 \
+          pylint --ignore-imports=y --min-similarity-lines=20 --max-nested-blocks=7 \
+                 --extension-pkg-allow-list=numpy,jiminy_py.core,pinocchio,scipy.spatial._qhull,torch \
+                 --generated-members=numpy,jiminy_py.core,pinocchio,scipy.spatial._qhull,torch \
                  --good-names=i,l,I,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,_ \
-                 --disable=fixme,abstract-method,protected-access,useless-super-delegation \
-                 --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
+                 --disable=too-many-instance-attributes,too-many-arguments,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \
-                 --disable=unspecified-encoding,logging-fstring-interpolation,use-dict-literal \
-                 --disable=cyclic-import \
-                 --generated-members=numpy.*,torch.*,jiminy_py.core.*,pinocchio.* "gym_jiminy/"
+                 --disable=fixme,abstract-method,protected-access,useless-parent-delegation \
+                 --disable=use-dict-literal,unspecified-encoding \
+                 --disable=cyclic-import "gym_jiminy/"
 
           mypy --allow-redefinition --check-untyped-defs --disallow-incomplete-defs --disallow-untyped-defs \
                --ignore-missing-imports --no-implicit-optional --strict-equality --strict-optional \

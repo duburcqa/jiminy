@@ -22,6 +22,7 @@ jobs:
         shell: bash -ieo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
 
     env:
+      TORCH_VERSION: "1.13.1"
       BUILD_TYPE: "Release"
       MACOSX_DEPLOYMENT_TARGET: "10.14"
       OSX_ARCHITECTURES: "x86_64;arm64"
@@ -57,7 +58,10 @@ jobs:
       run: |
         MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
           ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3,<0.22" "stable_baselines3"
+        if [ "${{ matrix.PYTHON_VERSION }}" != '3.11' ] ; then
+          "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
+          "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3,<0.22" "importlib-metadata>=3.3.0" stable_baselines3
+        fi
 
     #####################################################################################
 

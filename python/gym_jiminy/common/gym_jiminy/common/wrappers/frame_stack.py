@@ -67,7 +67,7 @@ class FilteredFrameStack(gym.Wrapper):
         self.leaf_fields_list: List[List[str]] = []
         for fields in self.nested_filter_keys:
             root_field = reduce(
-                lambda d, key: d[key],  # type: ignore[index]
+                lambda d, key: d[key],
                 fields, self.env.observation_space)
             if isinstance(root_field, gym.spaces.Dict):
                 leaf_paths = _get_branches(root_field)
@@ -89,8 +89,7 @@ class FilteredFrameStack(gym.Wrapper):
             low = np.repeat(space.low[np.newaxis], self.num_stack, axis=0)
             high = np.repeat(space.high[np.newaxis], self.num_stack, axis=0)
             root_space.spaces[fields[-1]] = gym.spaces.Box(
-                low=low, high=high, dtype=space.dtype  # type: ignore[arg-type]
-                )
+                low=low, high=high, dtype=space.dtype)
 
         # Allocate internal frames buffers
         self._frames: List[deque] = [

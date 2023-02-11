@@ -4,6 +4,7 @@
 // with something that is not an exoskeleton).
 
 #include <iostream>
+#include <filesystem>
 
 #include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/BasicMotors.h"
@@ -11,8 +12,6 @@
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/utilities/Helpers.h"
 #include "jiminy/core/Types.h"
-
-#include <boost/filesystem.hpp>
 
 
 using namespace jiminy;
@@ -49,11 +48,11 @@ int main(int /* argc */, char_t * /* argv */[])
     // =====================================================================
 
     // Set URDF and log output.
-    boost::filesystem::path const filePath(__FILE__);
+    std::filesystem::path const filePath(__FILE__);
     auto const jiminySrcPath = filePath.parent_path().parent_path().parent_path().parent_path();
     auto const dataPath = jiminySrcPath / "data/toys_models";
     auto const urdfPath = dataPath / "double_pendulum/double_pendulum.urdf";
-    auto const outputDirPath = boost::filesystem::temp_directory_path();
+    auto const outputDirPath = std::filesystem::temp_directory_path();
 
     // =====================================================================
     // ============ Instantiate and configure the simulation ===============

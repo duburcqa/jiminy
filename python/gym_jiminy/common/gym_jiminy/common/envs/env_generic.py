@@ -517,7 +517,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if is_success:
             self._registered_variables[name] = (fieldnames, value)
 
-    def reset(self,  # type: ignore[override]
+    def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
                   Optional[ControllerHandleType]]]]] = None
@@ -1518,7 +1518,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv):
             achieved_goal=self._get_achieved_goal(),
             desired_goal=self._desired_goal)
 
-    def reset(self,  # type: ignore[override]
+    def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
                   Optional[ControllerHandleType]]]]] = None

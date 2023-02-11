@@ -94,13 +94,7 @@ namespace jiminy
     template<typename InputIt, typename UnaryFunction>
     std::tuple<bool_t, float64_t> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f)
     {
-        // `transform_reduce` is par of C++17 but not available on gcc 7.5 by default on Ubuntu 18.04
-        // float64_t const minValue = std::transform_reduce(first, last, INF, minClipped<>, f);
-        float64_t const minValue = std::accumulate(first, last, INF,
-            [&f](float64_t const & value, typename std::iterator_traits<InputIt>::value_type const & elem)
-            {
-                return minClipped(f(elem), value);
-            });
+        float64_t const minValue = std::transform_reduce(first, last, INF, minClipped<>, f);
         if (!std::isfinite(minValue))
         {
             return {true, INF};

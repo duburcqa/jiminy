@@ -135,7 +135,7 @@ setup(
             # to display tile floor.
             # 0.3.2 fixes the rendering of DAE meshes.
             "meshcat>=0.3.2",
-            # Used internally by Viewer to read/write Meshcat snapshots.
+            # Used internally by Viewer to read/write Meshcat snapshots
             "pillow",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
@@ -149,14 +149,12 @@ setup(
         "dev": [
             # Used in uni tests for numerical integration and interpolation
             "scipy",
-            # Use indirectly to convert images to base64 after test failure
-            "pillow",
             # Stub for static type checking
             "types-toml",
             # Check PEP8 conformance of Python native code
             "flake8",
-            # Python linter (Pinned to avoid segfault)
-            "pylint",
+            # Python linter
+            "pylint>=2.16.0",
             # Python static type checker
             "mypy>=1.0.0",
             # Dependency for documentation generation

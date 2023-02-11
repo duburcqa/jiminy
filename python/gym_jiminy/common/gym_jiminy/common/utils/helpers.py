@@ -99,13 +99,14 @@ def register_variables(controller: jiminy.AbstractController,
             tree.flatten(data)):
         if np.issubsctype(value, np.float64):
             assert isinstance(fieldname, list), (
-                "'fieldname' ({fieldname}) should be a list of strings.")
+                f"'fieldname' ({fieldname}) should be a list of strings.")
             hresult = controller.register_variables(fieldname, value)
             if hresult != jiminy.hresult_t.SUCCESS:
                 return False
         else:
             logger.warning(
-                f"Variable of dtype '{value.dtype}' cannot be registered to "
-                "the telemetry and must have dtype 'np.float64' instead.")
+                "Variable of dtype '%s' cannot be registered to "
+                "the telemetry and must have dtype 'np.float64' instead.",
+                value.dtype)
             return False
     return True

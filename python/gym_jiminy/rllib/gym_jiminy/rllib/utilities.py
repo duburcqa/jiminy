@@ -584,7 +584,7 @@ def train(train_agent: Trainer,
                             plt.title(title)
                         plt.show()
                     except IndexError as e:
-                        logger.warning(f"Rendering statistics failed: {e}")
+                        logger.warning("Rendering statistics failed: %s", e)
 
             # Backup the policy
             if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
@@ -660,8 +660,10 @@ def test(test_agent: Trainer,
         obs_filter_fn = None
     elif isinstance(obs_filter, MeanStdFilter):
         obs_mean, obs_std = obs_filter.rs.mean, obs_filter.rs.std
-        obs_filter_fn = \
-            lambda obs: (obs - obs_mean) / (obs_std + 1.0e-8)  # noqa: E731
+
+        def obs_filter_fn(obs):
+            nonlocal obs_mean, obs_std
+            return (obs - obs_mean) / (obs_std + 1.0e-8)
     else:
         raise RuntimeError(f"Filter '{obs_filter.__class__}' not supported.")
 
