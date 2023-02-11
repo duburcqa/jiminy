@@ -339,7 +339,7 @@ namespace jiminy
 
     public:
         EngineMultiRobot(void);
-        ~EngineMultiRobot(void);
+        virtual ~EngineMultiRobot(void);
 
         hresult_t addSystem(std::string const & systemName,
                             std::shared_ptr<Robot> robot,

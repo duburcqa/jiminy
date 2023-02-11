@@ -9,19 +9,15 @@ on:
 
 jobs:
   build-manylinux:
-    name: (${{ matrix.container }}) (${{ matrix.PYTHON_VERSION }}) Build wheels.
+    name: (${{ matrix.PYTHON_VERSION }}) Build wheels.
 
     strategy:
       matrix:
-        container: [
-          # 'manylinux_2_28_x86_64' image generates wheels not compatible with Ubuntu 18.04.
-          # Pin to latest version before update from gcc 11 to 12, which is not supported yet.
-          'quay.io/pypa/manylinux_2_28_x86_64:2022-11-19-1b19e81'
-        ]
         PYTHON_VERSION: ['cp38', 'cp39', 'cp310', 'cp311']
 
     runs-on: ubuntu-20.04
-    container: ${{ matrix.container }}
+    # Pin to latest version before update from gcc 11 to 12, which is not supported yet.
+    container: 'quay.io/pypa/manylinux_2_28_x86_64:2022-11-19-1b19e81'
 
     defaults:
       run:
@@ -35,8 +31,7 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      # Cannot use v2 in manylinux containers because it relies on node+javascript
-      uses: actions/checkout@v1
+      uses: actions/checkout@v3
 
     #####################################################################################
 
@@ -110,13 +105,13 @@ jobs:
         "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_repair_linux.py" repair \
             -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
     - name: Upload the wheel of Jiminy for Linux
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
         path: build/wheelhouse
     - name: Upload the wheels of Gym Jiminy
       if: success() && matrix.PYTHON_VERSION == 'cp38'
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
         path: build/pypi/dist/gym_jiminy

@@ -56,7 +56,7 @@ namespace jiminy
         ControllerFunctor(F1 && commandFct,
                           F2 && internalDynamicsFct);
 
-        ~ControllerFunctor(void) = default;
+        virtual ~ControllerFunctor(void) = default;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

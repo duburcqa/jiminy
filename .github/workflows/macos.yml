@@ -24,7 +24,7 @@ jobs:
     env:
       TORCH_VERSION: "1.13.1"
       BUILD_TYPE: "Release"
-      MACOSX_DEPLOYMENT_TARGET: "10.14"
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
       OSX_ARCHITECTURES: "x86_64;arm64"
       WHEEL_ARCH: "universal2"
 

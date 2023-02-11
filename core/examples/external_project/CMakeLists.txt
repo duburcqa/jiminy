@@ -2,7 +2,7 @@
 # added to the search path manually, or copied alonside this executable.
 
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Enable C++ language
 enable_language(CXX)
@@ -37,7 +37,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries
-target_link_libraries(${PROJECT_NAME} jiminy::core stdc++fs)
+target_link_libraries(${PROJECT_NAME} jiminy::core)
 
 # Install
 install(TARGETS ${PROJECT_NAME}

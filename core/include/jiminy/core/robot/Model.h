@@ -246,7 +246,7 @@ namespace jiminy
 
     public:
         Model(void);
-        ~Model(void) = default;
+        virtual ~Model(void) = default;
 
         hresult_t initialize(pinocchio::Model         const & pncModel,
                              pinocchio::GeometryModel const & collisionModel,

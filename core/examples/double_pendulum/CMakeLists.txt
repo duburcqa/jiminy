@@ -1,5 +1,5 @@
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Project name
 project(${LIBRARY_NAME}_double_pendulum VERSION ${BUILD_VERSION})
@@ -14,7 +14,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries
-target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core stdc++fs)
+target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core)
 
 # Install
 install(TARGETS ${PROJECT_NAME}

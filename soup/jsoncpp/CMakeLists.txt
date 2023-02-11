@@ -1,5 +1,5 @@
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Project and library name
 project(jsoncpp_external)
@@ -16,7 +16,7 @@ endif()
 # Download, build and install jsoncpp.
 externalproject_add(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/open-source-parsers/jsoncpp.git
-     GIT_TAG           1.9.4
+     GIT_TAG           1.9.5
      GIT_SHALLOW       TRUE
      GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
 

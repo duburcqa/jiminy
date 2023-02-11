@@ -1,5 +1,5 @@
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Project name
 project(${LIBRARY_NAME}_pywrap VERSION ${BUILD_VERSION})

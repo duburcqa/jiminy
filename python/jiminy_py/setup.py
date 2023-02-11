@@ -147,7 +147,9 @@ setup(
             "requests-html>=0.3.4"
         ],
         "dev": [
-            # Used in uni tests for numerical integration and interpolation
+            # Used in unit tests for checking if viewer screen captures match
+            "pillow",
+            # Used in unit tests for numerical integration and interpolation
             "scipy",
             # Stub for static type checking
             "types-toml",

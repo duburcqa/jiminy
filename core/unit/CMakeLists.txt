@@ -1,5 +1,5 @@
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Project name
 project(unit VERSION ${BUILD_VERSION})
@@ -21,7 +21,7 @@ gtest_discover_tests(${PROJECT_NAME})
 
 # Add definition of unit test data folder
 target_compile_definitions(${PROJECT_NAME} PUBLIC
-    "-DUNIT_TEST_DATA_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/data/\""
+    UNIT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/"
 )
 
 # Link with Jiminy core library
