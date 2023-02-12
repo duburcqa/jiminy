@@ -12,7 +12,7 @@ jobs:
     name: >-
       (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
       Build the dependencies. Build the project and run the unit tests.
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
@@ -28,8 +28,7 @@ jobs:
 
     env:
       TORCH_VERSION: "1.13.1"
-      # Pinocchio bindings do not support memory alignment for now.
-      CMAKE_CXX_FLAGS: ""  #"-march=haswell"
+      CMAKE_CXX_FLAGS: "-march=haswell"
 
     #####################################################################################
 
