@@ -1,6 +1,4 @@
-#define BOOST_PYTHON_NUMPY_INTERNAL
-#include "eigenpy/fwd.hpp"
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 #include <boost/python/numpy.hpp>
 
 #include "jiminy/python/Compatibility.h"

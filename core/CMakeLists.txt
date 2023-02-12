@@ -88,7 +88,7 @@ target_compile_features(${PROJECT_NAME}-object PUBLIC cxx_std_17)
 # Pinocchio-specific stuffs.
 # Note that the maximum cpp version of Eigen must be consistent with
 # jiminy, otherwise memory alignment issues may occur.
-set(COMPILE_FLAGS PINOCCHIO_WITH_URDFDOM PINOCCHIO_WITH_HPP_FCL)
+set(COMPILE_FLAGS EIGEN_MAX_CPP_VER=11 PINOCCHIO_WITH_URDFDOM PINOCCHIO_WITH_HPP_FCL)
 if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom version undefined
     if (urdfdom_VERSION VERSION_GREATER_EQUAL "0.4.0")
         list(APPEND COMPILE_FLAGS PINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR)

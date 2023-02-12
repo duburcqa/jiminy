@@ -10,7 +10,7 @@
 
 #include <boost/optional.hpp>
 
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 #include <boost/python/raw_function.hpp>
 
 #include "jiminy/python/Utilities.h"

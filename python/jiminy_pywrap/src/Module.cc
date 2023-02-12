@@ -15,8 +15,7 @@
 
 /* Eigenpy must be imported first, since it sets pre-processor
    definitions used by Boost Python to configure Python C API. */
-#include "eigenpy/eigenpy.hpp"
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 #include <boost/python/numpy.hpp>
 
 #include "jiminy/python/Compatibility.h"

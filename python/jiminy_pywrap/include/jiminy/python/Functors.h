@@ -3,7 +3,7 @@
 
 #include "jiminy/core/Types.h"
 
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 
 #include "jiminy/python/Utilities.h"
 
