@@ -28,7 +28,7 @@ jobs:
 
     env:
       TORCH_VERSION: "1.13.1"
-      CMAKE_CXX_FLAGS: "-march=haswell"
+      CMAKE_CXX_FLAGS: "-march=x86-64-v3 -mtune=generic"
 
     #####################################################################################
 
@@ -91,8 +91,7 @@ jobs:
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.11' && 'OFF') || 'ON' }} \
-              -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
-              -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j2
 
         echo "LD_LIBRARY_PATH=$InstallDir/lib:$InstallDir/lib64:/usr/local/lib" >> $GITHUB_ENV

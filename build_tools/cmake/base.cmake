@@ -43,9 +43,9 @@ else()
                    -Wconversion -Wdelete-non-virtual-dtor \
                    -Wno-sign-conversion -Wno-non-virtual-dtor \
                    -Wno-unknown-pragmas -Wno-unknown-warning-option \
-                   -Wno-undefined-var-template -Wno-long-long \
-                   -Wno-error=deprecated -Wno-error=uninitialized \
-                   -Wno-error=maybe-uninitialized")
+                   -Wno-unknown-warning -Wno-undefined-var-template \
+                   -Wno-long-long -Wno-error=maybe-uninitialized \
+                   -Wno-error=uninitialized -Wno-error=deprecated")
 endif()
 
 # Shared libraries need PIC

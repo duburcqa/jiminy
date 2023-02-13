@@ -89,7 +89,7 @@ endif()
 # Note that jiminy is compiled under C++17 using either old or new CXX11 ABI.
 # Make sure very project dependencies are compiled for the same CXX11 ABI
 # otherwise segfaults may occur. It should be fine for the standard library,
-# but not for precompiled boost libraries such as boost::filesystem.
+# but not for precompiled boost libraries.
 # https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 "import jiminy_py; print(jiminy_py.get_include(), end='')"

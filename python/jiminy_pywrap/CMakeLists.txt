@@ -4,8 +4,8 @@ cmake_minimum_required(VERSION 3.12.4)
 # Project name
 project(${LIBRARY_NAME}_pywrap VERSION ${BUILD_VERSION})
 
-# Find libraries and headers
-find_package(eigenpy 2.6.2 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
+# Find libraries and headers.
+find_package(eigenpy 2.9.0 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # >=2.9.0 fully support vectorization
 
 # Enable all warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")

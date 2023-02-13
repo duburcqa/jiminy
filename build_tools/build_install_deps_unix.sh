@@ -22,7 +22,6 @@ if [ -z ${OSX_ARCHITECTURES} ]; then
 fi
 
 ### Set common CMAKE_C/CXX_FLAGS
-CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -fPIC"
 if [ "${BUILD_TYPE}" == "Release" ]; then
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
 elif [ "${BUILD_TYPE}" == "Debug" ]; then
@@ -205,7 +204,7 @@ else
   echo "Build type '${BUILD_TYPE}' not supported." >&2
   exit 1
 fi
-CMAKE_CXX_FLAGS_B2="-std=c++11"
+CMAKE_CXX_FLAGS_B2="-fPIC -std=c++11"
 if [ "${OSTYPE//[0-9.]/}" == "darwin" ]; then
   CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
 fi
@@ -247,34 +246,45 @@ make install -j2
 
 mkdir -p "$RootDir/eigenpy/build"
 cd "$RootDir/eigenpy/build"
-cmake "$RootDir/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/eigenpy" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
-      -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" -DGENERATE_PYTHON_STUBS=ON \
-      -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-aliasing" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF \
+      -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DPYTHON_STANDARD_LAYOUT=ON \
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
+      -DGENERATE_PYTHON_STUBS=ON -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} $(
+      ) -Wno-strict-aliasing" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################## Build and install tinyxml ###########################################
 
 mkdir -p "$RootDir/tinyxml/build"
 cd "$RootDir/tinyxml/build"
-cmake "$RootDir/tinyxml" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/tinyxml" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DTIXML_USE_STL" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DTIXML_USE_STL" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+
 make install -j2
 
 ############################## Build and install console_bridge ########################################
 
 mkdir -p "$RootDir/console_bridge/build"
 cd "$RootDir/console_bridge/build"
-cmake "$RootDir/console_bridge" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/console_bridge" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################### Build and install urdfdom_headers ######################################
@@ -288,51 +298,61 @@ make install -j2
 
 mkdir -p "$RootDir/urdfdom/build"
 cd "$RootDir/urdfdom/build"
-cmake "$RootDir/urdfdom" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/urdfdom" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_PREFIX_PATH="$InstallDir" -DBUILD_TESTING=OFF \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
+      -DBUILD_TESTING=OFF -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ###################################### Build and install assimp ########################################
 
 mkdir -p "$RootDir/assimp/build"
 cd "$RootDir/assimp/build"
-cmake "$RootDir/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/assimp" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
-      -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
+      -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF \
+      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare $(
-      ) -Wno-array-compare -Wno-unknown-warning-option" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      ) -Wno-array-compare -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################# Build and install qhull and hpp-fcl ######################################
 
 mkdir -p "$RootDir/hpp-fcl/third-parties/qhull/build"
 cd "$RootDir/hpp-fcl/third-parties/qhull/build"
-cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/hpp-fcl/third-parties/qhull" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
-      -DGENERATE_PYTHON_STUBS=ON \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-conversion" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 mkdir -p "$RootDir/hpp-fcl/build"
 cd "$RootDir/hpp-fcl/build"
-cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/hpp-fcl" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
-      -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF \
+      -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DPYTHON_STANDARD_LAYOUT=ON \
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
-      -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON \
-      -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-class-memaccess -Wno-sign-compare $(
-      ) -Wno-conversion -Wno-ignored-qualifiers -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy $(
-      ) -Wno-unknown-warning-option" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DHPP_FCL_HAS_QHULL=ON -DBUILD_PYTHON_INTERFACE=ON -DGENERATE_PYTHON_STUBS=ON \
+      -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} $(
+      ) -Wno-unused-parameter -Wno-class-memaccess -Wno-sign-compare-Wno-conversion -Wno-ignored-qualifiers $(
+      ) -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy -Wno-unknown-warning-option $(
+      ) -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################# Build and install Pinocchio ##########################################
@@ -340,16 +360,19 @@ make install -j2
 ### Build and install pinocchio, finally !
 mkdir -p "$RootDir/pinocchio/build"
 cd "$RootDir/pinocchio/build"
-cmake "$RootDir/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/pinocchio" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
-      -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" -DGENERATE_PYTHON_STUBS=ON \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF \
+      -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DPYTHON_STANDARD_LAYOUT=ON \
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
       -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF \
-      -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS -Wno-uninitialized $(
-      ) -Wno-type-limits -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-extra $(
-      ) -Wno-unknown-warning-option" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DGENERATE_PYTHON_STUBS=ON -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
+      ) -Wno-uninitialized -Wno-type-limits -Wno-deprecated-declarations -Wno-unused-local-typedefs $(
+      ) -Wno-extra -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2

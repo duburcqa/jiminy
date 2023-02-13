@@ -28,6 +28,7 @@ externalproject_add(zlib_external
           -DSKIP_INSTALL_FILES=ON  # Disable install of manual and pkgconfig files
           -DSKIP_INSTALL_LIBRARIES=ON  # Do not install libraries automatically. It will be handled manually to avoid installing shared libs
           -DBUILD_SHARED_LIBS=OFF
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON
           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_C_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
@@ -116,6 +117,7 @@ externalproject_add(${PROJECT_NAME}
           -DBUILD_STATIC_LIBS=ON
           -DBUILD_SHARED_LIBS=OFF
           -DBUILD_STATIC_EXECS=OFF
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON
           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_C_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
