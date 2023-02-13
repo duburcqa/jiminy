@@ -770,7 +770,7 @@ namespace jiminy
             while (childFrameIdx > 0 && modelInOut.frames[childFrameIdx].type != pinocchio::FrameType::JOINT);
         }
 
-        // TODO: The inertia of the newly created joint is the one of all child frames
+        // The inertia of the newly created joint is the one of all child frames
         Inertia childBodyInertia = frame.inertia.se3Action(frame.placement);
         for (frameIndex_t const & childFrameIdx : childFramesIdx)
         {

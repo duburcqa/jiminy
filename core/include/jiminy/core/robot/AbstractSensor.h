@@ -53,7 +53,7 @@ namespace jiminy
     {
         /* Using friend to avoid double delegation, which would make public
            the attach whereas only robot is able to call it.
-           TODO: remove friend declaration and use pluggin mechanism instead.
+           TODO: remove friend declaration and use plugin mechanism instead.
            It consist in populating a factory method in Robot at runtime with
            lambda function able to create each type of sensors. These lambda
            functions are registered by each sensor using static method. */

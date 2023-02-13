@@ -74,6 +74,9 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3,<0.22" "importlib-metadata>=3.3.0" stable_baselines3
 
+        "${PYTHON_EXECUTABLE}" -m pip install playwright
+        playwright install-deps
+
     #####################################################################################
 
     - name: PEP8 Code Style Check

@@ -19,8 +19,8 @@ if(urdfdom_VERSION)
 else()
     message(STATUS "Found urdfdom")
 endif()
-find_package(pinocchio 2.6.13 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH) # >=2.6.13 fixes shared pointers inter-ops
-find_package(hpp-fcl 2.2.0 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # >=2.9.0 improves serialization
+find_package(pinocchio 2.6.15 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # >=2.6.15 fixes integrate SE3 in place
+find_package(hpp-fcl 2.2.0 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)     # >=2.9.0 improves serialization
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)
 
 # Specialize jiminy core configuration file

@@ -82,7 +82,7 @@ setup(
     entry_points={"console_scripts": [
         "jiminy_plot=jiminy_py.plot:plot_log_interactive",
         ("jiminy_meshcat_server="
-         "jiminy_py.meshcat.server:start_meshcat_server_standalone"),
+         "jiminy_py.viewer.meshcat.server:start_meshcat_server_standalone"),
         "jiminy_replay=jiminy_py.viewer.replay:_play_logs_files_entrypoint"
     ]},
     install_requires=[
@@ -139,12 +139,7 @@ setup(
             "pillow",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
-            # 0.2.6 changes the API for `get_ws_entrypoint`
-            "pyppeteer>=0.2.6",
-            # Used internally by Viewer to send/receive Javascript requests for
-            # recording video using Meshcat backend.
-            # `HTMLSession` is available since 0.3.4.
-            "requests-html>=0.3.4"
+            "playwright"
         ],
         "dev": [
             # Used in unit tests for checking if viewer screen captures match
