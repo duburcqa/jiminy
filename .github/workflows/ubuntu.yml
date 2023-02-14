@@ -72,7 +72,7 @@ jobs:
         fi
 
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3,<0.22" "importlib-metadata>=3.3.0" stable_baselines3
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
 
     #####################################################################################
 
@@ -151,7 +151,7 @@ jobs:
                  --generated-members=torch \
                  --good-names=i,l,I,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,_ \
                  --disable=too-many-instance-attributes,too-many-arguments,too-many-lines \
-                 --disable=too-many-locals,too-many-branches,too-many-statements \
+                 --disable=too-many-locals,too-many-branches,too-many-statements,too-few-public-methods \
                  --disable=fixme,abstract-method,protected-access,useless-parent-delegation \
                  --disable=use-dict-literal,unspecified-encoding \
                  --disable=cyclic-import "gym_jiminy/"

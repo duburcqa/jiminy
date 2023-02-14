@@ -2,7 +2,6 @@
 """
 import os
 import re
-import math
 import json
 import time
 import shutil
@@ -11,54 +10,44 @@ import pathlib
 import logging
 import inspect
 import tracemalloc
-from tempfile import mkstemp
+from itertools import chain
 from datetime import datetime
 from collections import defaultdict
-from typing import Optional, Callable, Dict, Any, Tuple, Union, List
+from tempfile import mkstemp, mkdtemp
+from typing import Optional, Callable, Dict, Any, Union
+from operator import attrgetter
 
 import gym
 import numpy as np
 import plotext as plt
+import tree
 
 import ray
-import ray.cloudpickle as pickle
-from ray import ray_constants
-from ray.state import GlobalState
 from ray._private import services
+from ray._private.state import GlobalState
 from ray._private.gcs_utils import AvailableResources
 from ray._private.test_utils import monitor_memory_usage
-from ray._raylet import (  # pylint: disable=no-name-in-module,import-error
-    GcsClientOptions)
+from ray._raylet import GcsClientOptions
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
+from ray.rllib.algorithms.algorithm import Algorithm
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.tune.utils.util import SafeFallbackEncoder
-from ray.rllib.policy import Policy
-from ray.rllib.policy.torch_policy import TorchPolicy
-from ray.rllib.policy.tf_policy import TFPolicy
-from ray.rllib.utils.filter import NoFilter, MeanStdFilter
-from ray.rllib.agents.trainer import Trainer
-from ray.rllib.models.preprocessors import get_preprocessor
-from ray.rllib.env.env_context import EnvContext
+from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID, concat_samples
 from ray.rllib.evaluation.worker_set import WorkerSet
+from ray.rllib.evaluation.rollout_worker import RolloutWorker
+from ray.rllib.evaluation.metrics import collect_metrics
+from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED_THIS_ITER
+from ray.rllib.utils.typing import SampleBatchType
 
 from jiminy_py.viewer import play_logs_files
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import clip, DataNested
-
-try:
-    import torch
-except ModuleNotFoundError:
-    pass
-try:
-    import tensorflow as tf
-except ModuleNotFoundError:
-    pass
 
 
 logger = logging.getLogger(__name__)
 
 
-HISTOGRAM_BINS = 20
+HISTOGRAM_BINS = 15
 
 PRINT_RESULT_FIELDS_FILTER = [
     "training_iteration",
@@ -73,7 +62,7 @@ PRINT_RESULT_FIELDS_FILTER = [
 
 def initialize(num_cpus: int,
                num_gpus: int,
-               log_root_path: str,
+               log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
                logger_cls: type = TBXLogger,
                launch_tensorboard: bool = True,
@@ -101,6 +90,7 @@ def initialize(num_cpus: int,
                     be reserve and allocated by the process, in particular
                     using Tensorflow backend.
     :param log_root_path: Fullpath of root log directory.
+                          Default to root temporary directory.
     :param log_name: Name of the subdirectory where to save data. `None` to
                      use default name, empty string '' to set it interactively
                      in command prompt. It must be a valid Python identifier.
@@ -121,40 +111,40 @@ def initialize(num_cpus: int,
     assert issubclass(logger_cls, Logger), (
         "Logger class must derive from `ray.tune.logger.Logger`")
 
+    # handling of default log directory
+    log_root_path = mkdtemp()
+
     # Check if cluster servers are already running, and if requested resources
     # are available.
-    is_cluster_running = False
-    redis_addresses = services.find_redis_address()
-    if redis_addresses:
-        for redis_address in redis_addresses:
-            # Connect to redis global state accessor
-            state = GlobalState()
-            options = GcsClientOptions.from_redis_address(
-                redis_address, ray_constants.REDIS_DEFAULT_PASSWORD)
-            state._initialize_global_state(options)
-            state._really_init_global_state()
-            global_state_accessor = state.global_state_accessor
-            assert global_state_accessor is not None
+    is_cluster_running, ray_address = False, None
+    for ray_address in services.find_gcs_addresses():
+        # Connect to redis global state accessor
+        state = GlobalState()
+        options = GcsClientOptions.from_gcs_address(ray_address)
+        state._initialize_global_state(options)
+        state._really_init_global_state()
+        global_state_accessor = state.global_state_accessor
+        assert global_state_accessor is not None
 
-            # Get available resources
-            resources: Dict[str, int] = defaultdict(int)
-            for info in global_state_accessor.get_all_available_resources():
-                # pylint: disable=no-member
-                message = AvailableResources.FromString(info)
-                for field, capacity in message.resources_available.items():
-                    resources[field] += capacity
+        # Get available resources
+        resources: Dict[str, Union[int, float]] = defaultdict(int)
+        for info in global_state_accessor.get_all_available_resources():
+            # pylint: disable=no-member
+            message = AvailableResources.FromString(info)
+            for field, capacity in message.resources_available.items():
+                resources[field] += capacity
 
-            # Disconnect global state accessor
-            time.sleep(0.1)
-            state.disconnect()
+        # Disconnect global state accessor
+        time.sleep(0.1)
+        state.disconnect()
 
-            # Check if enough computation resources are available
-            is_cluster_running = (resources["CPU"] >= num_cpus and
-                                  resources["GPU"] >= num_gpus)
+        # Check if enough computation resources are available
+        is_cluster_running = (
+            resources["CPU"] >= num_cpus and resources["GPU"] >= num_gpus)
 
-            # Stop looking as soon as a cluster with enough resources is found
-            if is_cluster_running:
-                break
+        # Stop looking as soon as a cluster with enough resources is found
+        if is_cluster_running:
+            break
 
     # Connect to Ray server if necessary, starting one if not already running
     if not ray.is_initialized():
@@ -178,17 +168,23 @@ def initialize(num_cpus: int,
             # Connect to existing Ray cluster
             ray.init(
                 # Address of Ray cluster to connect to
-                address=redis_addresses,
-                _node_ip_address=next(iter(redis_addresses)).split(":", 1)[0])
+                address=ray_address,
+                # _node_ip_address=next(iter(ray_address)).split(":", 1)[0]
+                logging_level=logging.DEBUG if debug else logging.ERROR,
+                )
 
     # Configure Tensorboard
     if launch_tensorboard:
         try:
             # pylint: disable=import-outside-toplevel,import-error
             from tensorboard.program import TensorBoard
+            from contextlib import redirect_stdout
             tb = TensorBoard()
-            tb.configure(host="0.0.0.0", logdir=os.path.abspath(log_root_path))
-            url = tb.launch()
+            tb.configure(host="0.0.0.0",
+                         load_fast=False,
+                         logdir=os.path.abspath(log_root_path))
+            with open(os.devnull, 'w') as stdout, redirect_stdout(stdout):
+                url = tb.launch()
             if verbose:
                 print(f"Started Tensorboard {url}.",
                       f"Root directory: {log_root_path}")
@@ -206,7 +202,7 @@ def initialize(num_cpus: int,
                 "Enter desired log subdirectory name (empty for default)...")
             if not log_name or re.match(r'^[A-Za-z0-9_]+$', log_name):
                 break
-            print("Unvalid name. Only Python identifiers are supported.")
+            print("Invalid name. Only Python identifiers are supported.")
 
     # Handling of default log name and sanity checks
     if not log_name:
@@ -230,272 +226,76 @@ def initialize(num_cpus: int,
     return logger_creator
 
 
-def compute_action(policy: Policy,
-                   input_dict: Dict[str, np.ndarray],
-                   explore: bool) -> Tuple[Any, Any]:
-    """Compute predicted action by the policy.
-
-    .. note::
-        It supports both Pytorch and Tensorflow backends (both eager and
-        compiled graph modes).
-
-    :param policy: `rllib.policy.Policy` to use to predict the action, which is
-                   a thin wrapper around the actual policy model.
-    :param input_dict: Input dictionary for forward as input of the policy.
-    :param explore: Whether to enable exploration during sampling of actions.
-    """
-    if policy.framework == 'torch':
-        assert isinstance(policy, TorchPolicy)
-        input_dict = policy._lazy_tensor_dict(input_dict)
-        with torch.no_grad():
-            policy.model.eval()
-            if policy.action_distribution_fn is not None:
-                action_logits, dist_class, state = \
-                    policy.action_distribution_fn(
-                        policy=policy,
-                        model=policy.model,
-                        obs_batch=input_dict["obs"],
-                        explore=explore,
-                        is_training=False)
-            else:
-                action_logits, state = policy.model(input_dict)
-                dist_class = policy.dist_class
-            action_dist = dist_class(action_logits, policy.model)
-            if explore:
-                action_torch = action_dist.sample()
-            else:
-                action_torch = action_dist.deterministic_sample()
-            action = action_torch.cpu().numpy()
-    elif tf.compat.v1.executing_eagerly():
-        assert isinstance(policy, TFPolicy)
-        action_logits, state = policy.model(input_dict)
-        action_dist = policy.dist_class(action_logits, policy.model)
-        if explore:
-            action_tf = action_dist.sample()
-        else:
-            action_tf = action_dist.deterministic_sample()
-        action = action_tf.numpy()
-    else:
-        # This obscure piece of code takes advantage of already existing
-        # placeholders to avoid creating new nodes to evalute computation
-        # graph. It is several order of magnitude more efficient than calling
-        # `action_logits, _ = model(input_dict).eval(session=policy._sess)`.
-        assert isinstance(policy, TFPolicy)
-        feed_dict = {policy._input_dict[key]: value
-                     for key, value in input_dict.items()
-                     if key in policy._input_dict.keys()}
-        feed_dict[policy._is_exploring] = np.array(True)
-        action, *state = policy._sess.run(
-            [policy._sampled_action] + policy._state_outputs,
-            feed_dict=feed_dict)
-    return action, state
-
-
-def build_policy_wrapper(policy: Policy,
-                         obs_filter_fn: Optional[
-                             Callable[[np.ndarray], np.ndarray]] = None,
-                         n_frames_stack: int = 1,
-                         clip_action: bool = False,
-                         explore: bool = False) -> Callable[
-                             [DataNested, Optional[float]], DataNested]:
-    """Wrap a policy into a simple callable.
-
-    .. note::
-        The internal state of the policy, if any, is managed internally.
-
-    .. warning:
-        One is responsible of instantiating a new wrapper to reset the internal
-        state between simulations if necessary, for example for recurrent
-        network or for policy depending on several frames.
-
-    :param policy: Policy to evaluate.
-    :param obs_filter_fn: Observation filter to apply on (flattened)
-                          observation from the environment, usually used
-                          from moving average normalization. `None` to
-                          disable.
-                          Optional: Disabled by default.
-    :param n_frames_stack: Number of frames to stack in the input to provide
-                           to the policy. Note that previous observation,
-                           action, and reward will be stacked.
-                           Optional: 1 by default.
-    :param clip_action: Whether to clip action to make sure the
-                        prediction by the policy is not out-of-bounds.
-                        Optional: Disabled by default.
-    :param explore: Whether to enable exploration during sampling of the
-                    actions predicted by the policy.
-                    Optional: Disabled by default.
-    """
-    # Extract some proxies for convenience
-    observation_space = policy.observation_space
-    action_space = policy.action_space
-
-    # Build preprocessor to flatten environment observation
-    observation_space_orig = observation_space
-    if hasattr(observation_space_orig, "original_space"):
-        observation_space_orig = observation_space.original_space
-    preprocessor_class = get_preprocessor(observation_space_orig)
-    preprocessor = preprocessor_class(observation_space_orig)
-    obs_flat = observation_space.sample()
-
-    # Initialize frame stack
-    input_dict = {
-        "obs": np.zeros([1, *observation_space.shape]),
-        "prev_n_obs": np.zeros([1, n_frames_stack, *observation_space.shape]),
-        "prev_n_act": np.zeros([1, n_frames_stack, *action_space.shape]),
-        "prev_n_rew": np.zeros([1, n_frames_stack])}
-
-    # Run the simulation
-    def forward(obs: DataNested,
-                reward: Optional[float]) -> DataNested:
-        nonlocal policy, obs_flat, input_dict, explore, clip_action
-
-        # Compute flat observation
-        preprocessor.write(obs, obs_flat, 0)
-
-        # Filter observation if necessary
-        if obs_filter_fn is not None:
-            obs_flat = obs_filter_fn(obs_flat)
-
-        # Update current observation and previous reward buffers
-        input_dict["obs"][0] = obs_flat
-        if reward is not None:
-            input_dict["prev_n_rew"][0, -1] = reward
-
-        # Compute action
-        action, _ = compute_action(policy, input_dict, explore)
-        if clip_action:
-            action = clip(action_space, action)
-
-        # Update previous observation and action buffers
-        input_dict["prev_n_obs"][0, -1] = input_dict["obs"][0]
-        input_dict["prev_n_act"][0, -1] = action
-
-        # Shift input dict history by one
-        for field in input_dict.values():
-            field[:] = np.roll(field, shift=-1, axis=1)
-
-        return action.squeeze(0)
-
-    return forward
-
-
-def build_policy_from_checkpoint(
-        policy_class: type,
-        env_creator: Callable[[Dict[str, Any]], gym.Env],
-        checkpoint_path: str,
-        config: Dict[str, Any]) -> Policy:
-    """ TODO: Write documentation
-    """
-    # Load checkpoint policy state
-    with open(checkpoint_path, "rb") as checkpoint_dump:
-        checkpoint_state = pickle.load(checkpoint_dump)
-        worker_dump = checkpoint_state['worker']
-        worker_state = pickle.loads(worker_dump)
-        policy_state = worker_state['state']['default_policy']
-
-    # Initiate temporary environment to get observation and action spaces
-    env = env_creator(config.get("env_config", {}))
-
-    # Get preprocessed observation space
-    preprocessor_class = get_preprocessor(env.observation_space)
-    preprocessor = preprocessor_class(env.observation_space)
-    observation_space = preprocessor.observation_space
-
-    # Instantiate policy and load checkpoint state
-    policy = policy_class(observation_space, env.action_space, config)
-    policy.set_state(policy_state)
-
-    return policy
-
-
-def train(train_agent: Trainer,
+def train(algo: Algorithm,
           max_timesteps: int = 0,
           max_iters: int = 0,
-          evaluation_num: int = 10,
-          evaluation_period: int = 0,
           checkpoint_period: int = 0,
-          record_video: bool = True,
           verbose: bool = True,
           debug: bool = False) -> str:
-    """Train a model on a specific environment using a given agent.
+    """Train a model on a specific environment using a given algorithm.
 
-    Note that the agent is associated with a given reinforcement learning
-    algorithm, and instanciated for a specific environment and neural network
-    model. Thus, it already wraps all the required information to actually
-    perform training.
+    The algorithm is associated with a given reinforcement learning algorithm,
+    instantiated for a specific environment and policy model. Thus, it already
+    wraps all the required information to actually perform training.
 
     .. note::
-        This function can be terminated early using CTRL+C.
+        This function can be aborted using CTRL+C without raising an exception.
 
-    :param train_agent: Training agent.
+    :param algo: Training algorithm.
     :param max_timesteps: Maximum number of training timesteps. 0 to disable.
                           Optional: Disabled by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
                       Optional: Disabled by default.
-    :param evaluation_num: How any evaluation to run. The log files of the best
-                           and worst performing trials will be exported, and
-                           some statistics will be reported if 'verbose' is
-                           enabled.
-    :param evaluation_period: Run one simulation (with exploration) every given
-                              number of training steps, and save the log file
-                              and a video of the result in log folder if
-                              requested. 0 to disable.
-                              Optional: Disabled by default.
     :param checkpoint_period: Backup trainer every given number of training
                               steps in log folder if requested. 0 to disable.
                               Optional: Disabled by default.
-    :param record_video: Whether to enable video recording during evaluation.
-                         Video will be recorded for best and worst trials.
-                         Optional: True by default.
-    :param debug: Whether to monitor memory allocation to debug memory leaks.
-                  Optional: Disabled by default.
     :param verbose: Whether to print high-level information after each training
                     iteration.
                     Optional: True by default.
+    :param debug: Whether to monitor memory allocation to debug memory leaks.
+                  Optional: Disabled by default.
 
-    :returns: Fullpath of agent's final state dump. Note that it also contains
-              the trained neural network model.
+    :returns: Fullpath of algorithm's final state dump. This includes the
+              trained policy model.
     """
     # Get environment's reward threshold, if any
-    assert isinstance(train_agent.workers, WorkerSet)
-    env_spec, *_ = [val for worker in train_agent.workers.foreach_worker(
-        lambda worker: worker.foreach_env(lambda env: env.spec))
-        for val in worker]
-    if env_spec is None or env_spec.reward_threshold is None:
-        reward_threshold = math.inf
+    assert isinstance(algo.workers, WorkerSet)
+    env_spec, *_ = chain(*algo.workers.foreach_env(attrgetter('spec')))
+    if env_spec is None or env_spec is None:
+        reward_threshold = float('inf')
     else:
         reward_threshold = env_spec.reward_threshold
 
     # Backup some information
-    if not train_agent.iteration:
+    if algo.iteration == 0:
         # Make sure log dir exists
-        os.makedirs(train_agent.logdir, exist_ok=True)
+        os.makedirs(algo.logdir, exist_ok=True)
 
         # Backup environment's source file
-        env_type, *_ = [val for worker in train_agent.workers.foreach_worker(
-            lambda worker: worker.foreach_env(lambda env: type(env.unwrapped)))
-            for val in worker]
+        (env_type,) = set(
+            chain(*algo.workers.foreach_env(lambda e: type(e.unwrapped))))
         while True:
             try:
                 path = inspect.getfile(env_type)
-                shutil.copy2(path, train_agent.logdir, follow_symlinks=True)
+                shutil.copy2(path, algo.logdir, follow_symlinks=True)
             except TypeError:
                 pass
             try:
-                env_type = env_type.__bases__[0]
-            except IndexError:
+                env_type, *_ = env_type.__bases__
+            except ValueError:
                 break
 
         # Backup main's source file, if any
-        frame = inspect.stack()[1]  # assuming called directly from main script
-        main_file = inspect.getfile(frame[0])
-        main_backup_name = f"{train_agent.logdir}/main.py"
-        if main_file.endswith(".py"):
-            shutil.copy2(main_file, main_backup_name, follow_symlinks=True)
+        frame_info_0, frame_info_1, *_ = inspect.stack()
+        root_file = frame_info_0.filename
+        if os.path.exists(root_file):
+            source_file = frame_info_1.filename
+            main_backup_name = f"{algo.logdir}/main.py"
+            shutil.copy2(source_file, main_backup_name, follow_symlinks=True)
 
         # Backup RLlib config
-        with open(f"{train_agent.logdir}/params.json", 'w') as file:
-            json.dump(train_agent.config,
+        with open(f"{algo.logdir}/params.json", 'w') as file:
+            json.dump(algo.config.to_dict(),
                       file,
                       indent=2,
                       sort_keys=True,
@@ -509,7 +309,7 @@ def train(train_agent: Trainer,
     try:
         while True:
             # Perform one iteration of training the policy
-            result = train_agent.train()
+            result = algo.train()
             iter_num = result["training_iteration"]
 
             # Monitor memory allocation since the beginning and between iters
@@ -531,64 +331,9 @@ def train(train_agent: Trainer,
                     msg_data.append(f"{field}: {result[field]:.5g}")
             print(" - ".join(msg_data))
 
-            # Record video and log data of the result
-            if evaluation_period > 0 and iter_num % evaluation_period == 0:
-                duration = []
-                total_rewards = []
-                log_files_tmp = []
-                test_env = train_agent.env_creator(
-                    train_agent.config["env_config"])
-                seed = train_agent.config["seed"] or 0
-                for i in range(evaluation_num):
-                    # Evaluate the policy once
-                    test(train_agent,
-                         explore=True,
-                         seed=seed+i,
-                         test_env=test_env,
-                         enable_stats=False,
-                         enable_replay=False)
-
-                    # Export temporary log file
-                    fd, log_path = mkstemp(prefix="log_", suffix=".hdf5")
-                    os.close(fd)
-                    test_env.write_log(log_path)
-
-                    # Monitor some statistics
-                    duration.append(test_env.num_steps * test_env.step_dt)
-                    total_rewards.append(test_env.total_reward)
-                    log_files_tmp.append(log_path)
-
-                # Backup log file of best trial
-                trial_best_idx = np.argmax(duration)
-                log_path = f"{train_agent.logdir}/iter_{iter_num}.hdf5"
-                shutil.move(log_files_tmp[trial_best_idx], log_path)
-
-                # Record video of best trial if requested
-                if record_video:
-                    video_path = f"{train_agent.logdir}/iter_{iter_num}.mp4"
-                    play_logs_files(log_path,
-                                    record_video_path=video_path,
-                                    scene_name=f"iter_{iter_num}")
-
-                # Ascii histogram if requested
-                if verbose:
-                    try:
-                        plt.clear_figure()
-                        plt.subplots(1, 2)
-                        for i, (title, data) in enumerate(zip(
-                                ("Episode duration", "Total reward"),
-                                (duration, total_rewards))):
-                            plt.subplot(1, i)
-                            plt.hist(data, HISTOGRAM_BINS)
-                            plt.plotsize(50, 20)
-                            plt.title(title)
-                        plt.show()
-                    except IndexError as e:
-                        logger.warning("Rendering statistics failed: %s", e)
-
             # Backup the policy
             if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
-                train_agent.save()
+                algo.save()
 
             # Check terminal conditions
             if 0 < max_timesteps < result["timesteps_total"]:
@@ -606,94 +351,216 @@ def train(train_agent: Trainer,
         logger.warning(str(e))
 
     # Backup trained agent and return file location
-    return train_agent.save()
+    return algo.save()
 
 
-def test(test_agent: Trainer,
-         explore: bool = True,
-         seed: Optional[int] = None,
-         n_frames_stack: int = 1,
-         enable_stats: bool = True,
-         enable_replay: bool = True,
-         test_env: Optional[BaseJiminyEnv] = None,
-         viewer_kwargs: Optional[Dict[str, Any]] = None,
-         **kwargs: Any) -> Union[BaseJiminyEnv, List[Dict[str, Any]]]:
-    """Test a model on a specific environment using a given agent.
+def evaluate(algo: Algorithm,
+             eval_workers: Optional[WorkerSet] = None,
+             evaluation_num: Optional[int] = None,
+             print_stats: bool = False,
+             enable_replay: Optional[bool] = None,
+             record_video: bool = False,
+             raw_data: bool = False,
+             **kwargs: Any) -> Union[dict, SampleBatchType]:
+    """Evaluates the current policy under `evaluation_config` configuration,
+    then returns some performance metrics.
+
+    .. details::
+        This method is specifically tailored for Gym environments inheriting
+        from `BaseJiminyEnv`. It can be used to monitor the training progress.
 
     .. note::
-        This function can be terminated early using CTRL+C.
+        This function can be aborted using CTRL+C without raising an exception.
 
-    :param test_agent: Agent to evaluate on a single simulation.
-    :param seed: Seed of the environment to be used for the evaluation of the
-                 policy. Note that the environment's seed is always reset.
-                 Optional: `test_agent.config["seed"] or 0` if not especified.
-    :param explore: Whether to enable exploration during sampling of the
-                    actions predicted by the policy.
-                    Optional: Disabled by default.
-    :param n_frames_stack: Number of frames to stack in the input to provide
-                           to the policy. Note that previous observation,
-                           action, and reward will be stacked.
-                           Optional: 1 by default.
-    :param enable_stats: Whether to print high-level statistics after the
-                         simulation.
-                         Optional: Enabled by default.
-    :param enable_replay: Whether to enable replay of the simulation,
-                          and eventually recording through `viewer_kwargs`.
-                          Optional: Enabled by default.
-    :param test_env: Environment on which to evaluate the policy. It must be
-                     already instantiated and ready-to-use.
-    :param viewer_kwargs: Extra keyword arguments to forward to the viewer if
-                          replay has been requested.
+    .. warning::
+        Remote evaluation workers are not supported for now.
+
+    :param eval_workers: Rollout workers for evaluation.
+                         Optional: `algo.evaluation_workers` by default.
+    :param evaluation_num: How any evaluation to run. The log files of the best
+                           performing trial will be exported.
+                           Optional: `algo.config["evaluation_duration"]` by
+                           default.
+    :param print_stats: Whether to print high-level statistics.
+                        Optional: Enabled by default.
+    :param enable_replay: Whether to enable replay of the simulation.
+                          Optional: The opposite of `record_video` by default.
+    :param record_video: Whether to enable video recording during evaluation.
+                         The video will feature the best and worst trials.
+                         Optional: Disable by default.
+    :param raw_data: Whether to return raw collected data or aggregated
+                     performance metrics.
+    :param kwargs: Extra keyword arguments to forward to the viewer if any.
     """
-    # Instantiate the environment if not provided
-    if test_env is None:
-        test_env = test_agent.env_creator(EnvContext(
-            **test_agent.config["env_config"], **kwargs))
+    # Handling of default arguments
+    if eval_workers is None:
+        eval_workers = algo.evaluation_workers
 
-    # Get policy model
-    policy = test_agent.get_policy()
+    # Extract evaluation config
+    eval_cfg = algo.evaluation_config
 
-    # Get observation filter if any
-    assert isinstance(test_agent.workers, WorkerSet)
-    obs_filter = test_agent.workers.local_worker().filters["default_policy"]
-    if isinstance(obs_filter, NoFilter):
-        obs_filter_fn = None
-    elif isinstance(obs_filter, MeanStdFilter):
-        obs_mean, obs_std = obs_filter.rs.mean, obs_filter.rs.std
+    # Check some pre-conditions for using this method
+    (env_type,) = set(
+        chain(*eval_workers.foreach_env(lambda e: type(e.unwrapped))))
+    if not issubclass(env_type, BaseJiminyEnv):
+        raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
+    if algo.config["evaluation_duration_unit"] == "auto":
+        raise ValueError("evaluation_duration_unit='timesteps' not supported.")
+    num_episodes = evaluation_num or algo.config["evaluation_duration"]
+    if num_episodes == "auto":
+        raise ValueError("evaluation_duration='auto' not supported.")
 
-        def obs_filter_fn(obs):
-            nonlocal obs_mean, obs_std
-            return (obs - obs_mean) / (obs_std + 1.0e-8)
-    else:
-        raise RuntimeError(f"Filter '{obs_filter.__class__}' not supported.")
+    # Get the step size of the environment
+    (env_dt,) = set(chain(*eval_workers.foreach_env(attrgetter("step_dt"))))
 
-    # Forward viewer keyword arguments
-    if viewer_kwargs is not None:
-        kwargs.update(viewer_kwargs)
+    # Helpers to force writing log at episode termination
+    class WriteLogHook:
+        """Stateful function used has a temporary wrapper around an original
+        `on_episode_end` callback instance method to force writing log right
+        after termination and before reset. This is necessary because
+        `worker.sample()` always reset the environment at the end by design.
+        """
+        def __init__(self, on_episode_end: Callable) -> None:
+            self.__func__ = on_episode_end
 
-    # Wrap policy as a callback function
-    policy_fn = build_policy_wrapper(policy,
-                                     obs_filter_fn,
-                                     n_frames_stack,
-                                     test_agent.config["clip_actions"],
-                                     explore)
+        def __call__(self: DefaultCallbacks, *,
+                     worker: RolloutWorker,
+                     **kwargs: Any) -> None:
+            def write_log(env: gym.Env) -> str:
+                fd, log_path = mkstemp(prefix="log_", suffix=".hdf5")
+                os.close(fd)
+                env.write_log(log_path, format="hdf5")
+                return log_path
 
-    # Evaluate the policy
-    info_episode = test_env.evaluate(test_env,
-                                     policy_fn,
-                                     seed or test_agent.config["seed"] or 0,
-                                     horizon=test_agent.config["horizon"],
-                                     enable_stats=enable_stats,
-                                     enable_replay=enable_replay,
-                                     **kwargs)
+            worker.callbacks.log_files = worker.foreach_env(write_log)
+            self.__func__(worker=worker, **kwargs)
 
-    return test_env, info_episode
+    def toggle_write_log_hook(worker: RolloutWorker) -> None:
+        """Add write log callback hook if not already setup, remove otherwise.
+        """
+        callbacks = worker.callbacks
+        if isinstance(callbacks.on_episode_end, WriteLogHook):
+            callbacks.on_episode_end = callbacks.on_episode_end.__func__
+        else:
+            callbacks.on_episode_end = WriteLogHook(callbacks.on_episode_end)
+
+    # Collect samples.
+    # `sample` either produces 1 episode or exactly `evaluation_duration` based
+    # on `unit` being set to "episodes" or "timesteps" respectively.
+    # See https://github.com/ray-project/ray/blob/98b267f390290f2b2e839a9f1f762cf8c67d1a4a/rllib/algorithms/algorithm.py#L937  # noqa: E501
+    all_batches = []
+    all_log_files, all_num_steps, all_total_rewards = [], [], []
+    eval_workers.foreach_worker(toggle_write_log_hook)
+    for _ in range(num_episodes):
+        # Run a complete episode
+        batch = local_worker.sample().as_multi_agent()[DEFAULT_POLICY_ID]
+        num_steps = batch.env_steps()
+        total_reward = np.sum(batch[batch.REWARDS])
+        (log_file,) = local_worker.callbacks.log_files
+
+        # Store all batches for later use
+        if raw_data or algo.reward_estimators:
+            all_batches.append(batch)
+
+        # Keep track of basic info
+        all_num_steps.append(num_steps)
+        all_total_rewards.append(total_reward)
+        all_log_files.append(log_file)
+    eval_workers.foreach_worker(toggle_write_log_hook)
+
+    # Backup only the log file corresponding of the best trial
+    log_labels = ("best", "worst")[:num_episodes]
+    log_paths = []
+    for suffix, idx in zip(log_labels, (
+            np.argmax(all_total_rewards), np.argmin(all_total_rewards))):
+        log_path = f"{algo.logdir}/iter_{algo.iteration}-{suffix}.hdf5"
+        shutil.move(all_log_files[idx], log_path)
+        log_paths.append(log_path)
+
+    # Compute high-level performance metrics
+    metrics = collect_metrics(
+        eval_workers,
+        keep_custom_metrics=eval_cfg["keep_per_episode_custom_metrics"],
+        timeout_seconds=eval_cfg["metrics_episode_collection_timeout_s"])
+    metrics[NUM_ENV_STEPS_SAMPLED_THIS_ITER] = sum(all_num_steps)
+
+    # Ascii histogram if requested
+    if print_stats:
+        if num_episodes >= 10:
+            try:
+                plt.clear_figure()
+                plt.subplots(1, 2)
+                plt.theme('pro')  # 'clear' for terminal-like black and white
+                for i, (data, title) in enumerate((
+                        (env_dt * np.array(all_num_steps), "Episode duration"),
+                        (all_total_rewards, "Total reward"))):
+                    plt.subplot(1, i + 1)
+                    plt.hist(data, HISTOGRAM_BINS)
+                    plt.plotsize(50, 20)
+                    plt.title(title)
+                plt.show()
+            except IndexError as e:
+                logger.warning("Ascii rendering failure for statistics: %s", e)
+        else:
+            logger.warning(
+                "'evaluation_duration' must be at least than 10 to compute "
+                "and print meaningful statistics.")
+
+    # Replay and/or record a video of the best trial if requested.
+    # The viewer must be closed after replay if recording is requested,
+    # otherwise the graphical window will dramatically slowdown rendering.
+    viewer_kwargs, *_ = chain(
+        *eval_workers.foreach_env(attrgetter("viewer_kwargs")))
+    viewer_kwargs = {**dict(
+        viewers=[],
+        delete_robot_on_close=True),
+        **viewer_kwargs, **dict(
+        scene_name=f"iter_{algo.iteration}",
+        robots_colors=('green', 'red') if len(log_labels) == 2 else None,
+        close_backend=enable_replay and record_video),
+        **kwargs, **dict(
+        legend=log_labels if len(log_labels) == 2 else None)}
+    record_video = record_video or "record_video_path" in viewer_kwargs
+    if record_video:
+        video_path = viewer_kwargs.pop(
+            "record_video_path", f"{algo.logdir}/iter_{algo.iteration}.mp4")
+    if enable_replay is None:
+        enable_replay = not record_video
+    if enable_replay:
+        viewer_kwargs["viewers"] = play_logs_files(log_paths, **viewer_kwargs)
+    if record_video:
+        viewer_kwargs["viewers"] = play_logs_files(
+            log_paths, record_video_path=video_path, **viewer_kwargs)
+    for viewer in viewer_kwargs["viewers"]:
+        viewer.close()
+
+    # Return collected data without computing metrics if requested
+    if raw_data:
+        return concat_samples(all_batches)
+
+    # Compute off-policy estimates
+    estimates = defaultdict(list)
+    for name, estimator in algo.reward_estimators.items():
+        for batch in all_batches:
+            estimate_result = estimator.estimate(
+                batch,
+                split_batch_by_episode=algo.config[
+                    "ope_split_batch_by_episode"])
+            estimates[name].append(estimate_result)
+
+    # Accumulate estimates from all batches
+    if estimates:
+        metrics["off_policy_estimator"] = {}
+        for name, estimate_list in estimates.items():
+            avg_estimate = tree.map_structure(
+                lambda *x: np.mean(x, axis=0), *estimate_list)
+            metrics["off_policy_estimator"][name] = avg_estimate
+
+    return metrics
 
 
 __all__ = [
     "initialize",
-    "build_policy_wrapper",
-    "build_policy_from_checkpoint",
     "train",
-    "test"
+    "evaluate"
 ]

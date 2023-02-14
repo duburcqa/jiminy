@@ -1,40 +1,43 @@
 """ TODO: Write documentation.
 """
-from typing import Any, Dict, Optional
+from operator import methodcaller
+from typing import Any, Dict, Optional, Union
 
 from ray.rllib.env import BaseEnv
 from ray.rllib.policy import Policy
 from ray.rllib.evaluation.episode import Episode
-from ray.rllib.evaluation.worker_set import WorkerSet
+from ray.rllib.evaluation.episode_v2 import EpisodeV2
 from ray.rllib.evaluation.rollout_worker import RolloutWorker
-from ray.rllib.agents.trainer import Trainer
-from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.algorithms.algorithm import Algorithm
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.utils.typing import PolicyID
 
 
 class MonitorInfoCallback(DefaultCallbacks):
     """ TODO: Write documentation.
-    """
-    # Base on `rllib/examples/custom_metrics_and_callbacks.py` example.
 
+    Base on `rllib/examples/custom_metrics_and_callbacks.py` example.
+    """
     def on_episode_step(self,
                         *,
-                        worker: RolloutWorker,
+                        worker: "RolloutWorker",
                         base_env: BaseEnv,
                         policies: Optional[Dict[PolicyID, Policy]] = None,
-                        episode: Episode,
-                        **kwargs: Any) -> None:
+                        episode: Union[Episode, EpisodeV2],
+                        env_index: Optional[int] = None,
+                        **kwargs) -> None:
         """ TODO: Write documentation.
         """
         super().on_episode_step(worker=worker,
                                 base_env=base_env,
                                 policies=policies,
                                 episode=episode,
+                                env_index=env_index,
                                 **kwargs)
         info = episode.last_info_for()
         if info is not None:
             for key, value in info.items():
-                # TODO: This line cause memory to grow unboundely
+                # TODO: This line cause memory to grow unboundedly
                 episode.hist_data.setdefault(key, []).append(value)
 
     def on_episode_end(self,
@@ -51,8 +54,8 @@ class MonitorInfoCallback(DefaultCallbacks):
                                policies=policies,
                                episode=episode,
                                **kwargs)
-        episode.custom_metrics["episode_duration"] = \
-            base_env.get_sub_environments()[0].step_dt * episode.length
+        (step_dt,) = set(e.step_dt for e in base_env.get_sub_environments())
+        episode.custom_metrics["episode_duration"] = step_dt * episode.length
 
 
 class CurriculumUpdateCallback(DefaultCallbacks):
@@ -60,20 +63,13 @@ class CurriculumUpdateCallback(DefaultCallbacks):
     """
     def on_train_result(self,
                         *,
-                        trainer: Trainer,
+                        algorithm: Algorithm,
                         result: dict,
-                        **kwargs: Any) -> None:
+                        **kwargs) -> None:
         """ TODO: Write documentation.
         """
-        super().on_train_result(trainer=trainer, result=result, **kwargs)
-
-        # Assertion(s) for type checker
-        workers = trainer.workers
-        assert isinstance(workers, WorkerSet)
-
-        workers.foreach_worker(
-            lambda worker: worker.foreach_env(
-                lambda env: env.update(result)))
+        super().on_train_result(algorithm=algorithm, result=result, **kwargs)
+        algorithm.workers.foreach_env(methodcaller('update', result))
 
 
 __all__ = [

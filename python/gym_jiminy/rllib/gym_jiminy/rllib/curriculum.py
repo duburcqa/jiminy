@@ -2,7 +2,7 @@
 """ TODO: Write documentation.
 """
 import re
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Type, Union, Optional
 
 import numpy as np
 
@@ -11,30 +11,36 @@ from ray.tune.result import TRAINING_ITERATION, TIMESTEPS_TOTAL
 from ray.rllib.env import BaseEnv
 from ray.rllib.policy import Policy
 from ray.rllib.evaluation.episode import Episode
-from ray.rllib.evaluation.worker_set import WorkerSet
+from ray.rllib.evaluation.episode_v2 import EpisodeV2
 from ray.rllib.evaluation.rollout_worker import RolloutWorker
-from ray.rllib.agents.trainer import Trainer
-from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.algorithms.algorithm import Algorithm
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.utils.typing import PolicyID
 
 from gym_jiminy.toolbox.wrappers.meta_envs import DataTreeT
 
 
-def build_task_scheduling_callback(history_length: int,
-                                   softmin_beta: float) -> type:
+def build_task_scheduling_callback(
+        history_length: int,
+        softmin_beta: float,
+        callbacks_class: Type[DefaultCallbacks] = DefaultCallbacks) -> type:
     """ TODO: Write documentation.
     """
-    class TaskSchedulingSamplingCallback(DefaultCallbacks):
+    class TaskSchedulingSamplingCallback(callbacks_class):
         """ TODO: Write documentation.
+
+        .. warning::
+            Note that the driver and the workers have different instantiation
+            of the callbacks. As a result, they do not share the same internal
+            state, i.e. `on_episode_end` and `on_train_result` methods cannot
+            rely on shared attributes.
         """
-        def __init__(self) -> None:
+        def __init__(self,
+                     legacy_callbacks_dict: Dict[str, callable] = None
+                     ) -> None:
             """ TODO: Write documentation.
             """
-            # Note that the driver and the workers have different instantiation
-            # of the callbacks. As a result, they do not share the same
-            # internal state, i.e. `on_episode_end` and `on_train_result`
-            # methods cannot rely on shared attributes.
-            super().__init__()
+            super().__init__(legacy_callbacks_dict)
             self._task_tree_scores: DataTreeT = {}
 
         def on_episode_end(self,
@@ -42,8 +48,9 @@ def build_task_scheduling_callback(history_length: int,
                            worker: RolloutWorker,
                            base_env: BaseEnv,
                            policies: Dict[PolicyID, Policy],
-                           episode: Episode,
-                           **kwargs: Any) -> None:
+                           episode: Union[Episode, EpisodeV2, Exception],
+                           env_index: Optional[int] = None,
+                           **kwargs) -> None:
             """ TODO: Write documentation.
             """
             # Call base implementation
@@ -80,9 +87,9 @@ def build_task_scheduling_callback(history_length: int,
 
         def on_train_result(self,
                             *,
-                            trainer: Trainer,
+                            algorithm: Algorithm,
                             result: dict,
-                            **kwargs: Any) -> None:
+                            **kwargs) -> None:
             """ TODO: Write documentation.
             """
             # Gather task scores
@@ -160,7 +167,7 @@ def build_task_scheduling_callback(history_length: int,
                         task_branches_probas.append(task_branch_next_probas)
                         task_branches_mean.append(task_branch_next_mean)
 
-            # Compute sampling statitics for currents training iteration
+            # Compute sampling statistics for currents training iteration
             task_tree_num: DataTreeT = {}
             task_branches_num = [task_tree_num]
             task_branches_new = [task_tree_scores_new]
@@ -179,7 +186,7 @@ def build_task_scheduling_callback(history_length: int,
             # Add statistics regarding task curriculum learning
             result["task_metrics"] = {}
 
-            # Monitor sampling statitics for every task levels
+            # Monitor sampling statistics for every task levels
             tasks: List[List[Any]] = [[]]
             task_branches = [task_tree_num]
             while task_branches:
@@ -205,14 +212,9 @@ def build_task_scheduling_callback(history_length: int,
                     if task_branch_next:
                         task_branches.append(task_branch_next)
 
-            # Assertion(s) for type checker
-            workers = trainer.workers
-            assert isinstance(workers, WorkerSet)
-
             # Update envs accordingly
-            workers.foreach_worker(
-                lambda worker: worker.foreach_env(
-                    lambda env: env.task_tree_probas.update(task_tree_probas)))
+            algorithm.workers.foreach_env(
+                lambda env: env.task_tree_probas.update(task_tree_probas))
 
     return TaskSchedulingSamplingCallback
 

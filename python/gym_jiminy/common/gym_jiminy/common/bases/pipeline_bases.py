@@ -265,7 +265,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         robotic-oriented observers, such as sensor fusion algorithms, Kalman
         filters... It is recommended to add the observer into the policy
         itself if it has to be trainable.
-    """  # noqa: E501  # pylint: disable=line-too-long
+    """
     observation_space: gym.Space
 
     def __init__(self,
