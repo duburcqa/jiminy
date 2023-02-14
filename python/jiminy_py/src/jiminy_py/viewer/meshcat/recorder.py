@@ -188,8 +188,9 @@ def meshcat_recorder(meshcat_url: str,
 # ============ Meshcat recorder client ============
 
 def _manager_process_startup():
-    """This method cannot be a lambda, which is incompatible with
-    `ForkingPickler` used on Darwin and Windows to spawn processes.
+    """Required for Windows and OS X support, which use spawning instead of
+    forking to create subprocesses, requiring passing pickle-compliant
+    objects, and therefore prohibiting the use of native lambda functions.
     """
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 

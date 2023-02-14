@@ -6,7 +6,6 @@ import inspect as _inspect
 import logging as _logging
 from importlib import import_module as _import_module
 from importlib.util import find_spec as _find_spec
-from contextlib import redirect_stderr as _redirect_stderr
 from sysconfig import get_config_var as _get_config_var
 
 
@@ -57,30 +56,13 @@ if _sys.platform.startswith('win'):
         if _os.path.exists(path):
             _os.add_dll_directory(path)
 
-# Import eigenpy first since jiminy depends on it
-if _is_boost_shared and _find_spec("eigenpy") is not None:
-    # Module already available on the system
-    _import_module("eigenpy")
-else:
-    # Importing the embedded version as fallback
-    _sys.modules["eigenpy"] = _import_module(".".join((__name__, "eigenpy")))
-
-# Import core submodule.
-# For some reason, the serialization registration of pinocchio for hpp-fcl
-# `exposeFCL` is conflicting with the one implemented by jiminy. It is
-# necessary to import jiminy first to make it work.
-with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
-    from .core import *  # noqa: F403
-    from .core import __version__, __raw_version__
-
-# Import other dependencies to hide boost python converter errors
-with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
-    for _module_name in ("hppfcl", "pinocchio"):
-        if _is_boost_shared and _find_spec(_module_name) is not None:
-            _import_module(_module_name)
-        else:
-            _module = _import_module(".".join((__name__, _module_name)))
-            _sys.modules[_module_name] = _module
+# Import all dependencies in the right order
+for _module_name in ("eigenpy", "hppfcl", "pinocchio"):
+    if _is_boost_shared and _find_spec(_module_name) is not None:
+        _import_module(_module_name)
+    else:
+        _module = _import_module(".".join((__name__, _module_name)))
+        _sys.modules[_module_name] = _module
 
 # Register pinocchio_pywrap and submodules to avoid importing bindings twice,
 # which messes up with boost python converters.
@@ -92,6 +74,10 @@ for _module_name, _module_obj in _submodules:
     _sys.modules[_module_real_path] = _module_obj
     _module_sym_path = ".".join(('pinocchio', _module_name))
     _sys.modules[_module_sym_path] = _module_obj
+
+# Import core submodule
+from .core import *  # noqa: F403
+from .core import __version__, __raw_version__
 
 # Update core submodule to appear as member of current module
 __all__ = []

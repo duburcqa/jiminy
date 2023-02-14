@@ -8,6 +8,7 @@ import umsgpack
 import tornado.web
 import tornado.ioloop
 import multiprocessing
+import multiprocessing.managers
 from typing import Optional, Tuple, Sequence, Dict
 
 import zmq
@@ -269,8 +270,7 @@ def _meshcat_server(info: Dict[str, str], verbose: bool) -> None:
     """
     # Redirect both stdout and stderr to devnull if not verbose
     if not verbose:
-        sys.stdout = open(os.devnull, 'w')
-        sys.stderr = open(os.devnull, 'w')
+        sys.stdout, sys.stderr = open(os.devnull, 'w'), open(os.devnull, 'w')
 
     # See https://bugs.python.org/issue37373
     if sys.platform.startswith('win'):
@@ -296,7 +296,8 @@ def start_meshcat_server(verbose: bool = False
                          ) -> Tuple[multiprocessing.Process, str, str, str]:
     """Run meshcat server in background using multiprocessing Process.
     """
-    manager = multiprocessing.Manager()
+    manager = multiprocessing.managers.SyncManager()
+    manager.start()
     info = manager.dict()
     server = multiprocessing.Process(
         target=_meshcat_server, args=(info, verbose), daemon=True)
@@ -307,7 +308,8 @@ def start_meshcat_server(verbose: bool = False
         pass
     zmq_url, web_url, comm_url = \
         info['zmq_url'], info['web_url'], info['comm_url']
-    manager.shutdown()
+    if hasattr(manager, 'shutdown'):
+        manager.shutdown()
 
     return server, zmq_url, web_url, comm_url
 

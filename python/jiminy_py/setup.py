@@ -23,10 +23,10 @@ class InstallPlatlib(install):
 # Enforce the right numpy version. It assumes the version currently available
 # was used to compile all the C++ extension modules shipping with Jiminy.
 # - Numpy API is not backward compatible but is forward compatible
-# - A few version must be blacklisted because of Boost::Python incompatibility
 # - For some reason, forward compatibility from 1.19 to 1.20+ seems broken
-# - Numba crashes with numpy 1.24
-np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
+# - A few version must be blacklisted because of Boost::Python incompatibility
+# - Numba does not support numpy 1.24 for now
+np_ver = tuple(map(int, get_distribution('numpy').version.split(".", 3)[:2]))
 np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
 if np_ver < (1, 20):
     np_req += ",<1.20.0"
@@ -89,10 +89,10 @@ setup(
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
-        # 1.20 breaks ABI
-        # >=1.21,<1.21.5 is causing segfault with boost::python.
-        #     See issue: https://github.com/boostorg/python/issues/376
-        # 1.22 breaks API for compiled libs.
+        # - 1.20 breaks ABI
+        # - >=1.21,<1.21.5 is causing segfault with boost::python.
+        #   See issue: https://github.com/boostorg/python/issues/376
+        # - 1.22 breaks API for compiled libs.
         np_req,
         # Parser for Jiminy's hardware description file.
         "toml",
@@ -105,19 +105,17 @@ setup(
         # avoid orphan child processes.
         "psutil",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
-        # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
-        # Panda3d is NOT supported by PyPy and cannot be built from source.
-        # 1.10.10-1.10.12 fix numerous bugs.
-        # 1.10.12 fix additional bugs but not crashes on macos.
+        # Panda3d is NOT supported by PyPy even if built from source.
+        # - 1.10.12 fixes numerous bugs
+        # - 1.10.13 crashes when generating wheels on MacOS
         "panda3d==1.10.12",
-        # Provide helper methods and class to make it easier to use panda3d for
-        # robotic applications.
+        # Provide helpers to make life easier with panda3d for roboticists
         "panda3d-viewer",
         # Photo-realistic shader for Panda3d to improve rendering of meshes.
         "panda3d-simplepbr",
         # Used internally by Viewer to record video programmatically when
         # Panda3d is used as rendering backend.
-        # >= 8.0.0 provides cross-platform precompiled binary wheels.
+        # - >= 8.0.0 provides cross-platform precompiled binary wheels
         "av>=8.0.0"
     ],
     extras_require={
@@ -127,13 +125,7 @@ setup(
         ],
         "meshcat": [
             # Web-based mesh visualizer used as Viewer's backend.
-            # 0.0.18 introduces many new features, including loading generic
-            # geometries and jiminy_py viewer relies on it to render collision
-            # bodies.
-            # 0.3.1 updates threejs from 122 to 132, breaking compatibility
-            # with the old, now deprecated, geometry class used to internally
-            # to display tile floor.
-            # 0.3.2 fixes the rendering of DAE meshes.
+            # - 0.3.2 fixes the rendering of DAE meshes
             "meshcat>=0.3.2",
             # Used internally by Viewer to read/write Meshcat snapshots
             "pillow",
@@ -172,10 +164,6 @@ setup(
             # Bridge between doxygen and sphinx. Used to generate C++ API docs
             "breathe",
             # Repair wheels to embed shared libraries.
-            # - 3.2.0: enable defining custom patcher
-            # - 3.3.0: Support Python 3.9 and manylinux_2_24 images
-            # - 4.0.0: Many bug fixes, including RPATH of dependencies
-            # - 5.1.0: Add manylinux_2_28 policy
             # - 5.2.1: Speed up and binary size reduction
             "auditwheel>=5.2.1"
         ]

@@ -1476,7 +1476,7 @@ panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
     def __getstate__(self) -> dict:
         """Required for Windows and OS X support, which use spawning instead of
-        forking to create subprocesses, requiring pickling of process instance.
+        forking to create subprocesses, requiring pickling objects.
         """
         return vars(self)
 

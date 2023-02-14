@@ -1681,8 +1681,7 @@ class Viewer:
 
     @__must_be_open
     @__with_lock
-    def save_frame(self,
-                   image_path: str,
+    def save_frame(image_path: str,
                    width: int = None,
                    height: int = None) -> None:
         """Save a snapshot in png format.
@@ -1695,16 +1694,16 @@ class Viewer:
         """
         image_path = str(pathlib.Path(image_path).with_suffix('.png'))
         if Viewer.backend.startswith('panda3d'):
-            _width, _height = self._gui.getSize()
+            _width, _height = Viewer._backend_obj.gui.getSize()
             if width is None:
                 width = _width
             if height is None:
                 height = _height
             if _width != width or _height != height:
-                self._gui.set_window_size(width, height)
-            self._gui.save_screenshot(image_path)
+                Viewer._backend_obj.gui.set_window_size(width, height)
+            Viewer._backend_obj.gui.save_screenshot(image_path)
         else:
-            img_data = self.capture_frame(width, height, raw_data=True)
+            img_data = Viewer.capture_frame(width, height, raw_data=True)
             with open(image_path, "wb") as f:
                 f.write(img_data)
 
