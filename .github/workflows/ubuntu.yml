@@ -143,17 +143,12 @@ jobs:
     - name: Python linter and static type checker
       if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
       run: |
-        gym_modules=(
-          "common"
-          "toolbox"
-          "rllib"
-        )
-        for name in "${gym_modules[@]}"; do
+        for name in "common" "toolbox" "rllib"; do
           cd "$RootDir/python/gym_jiminy/$name"
 
           pylint --ignore-imports=y --min-similarity-lines=20 --max-nested-blocks=7 \
-                 --extension-pkg-allow-list=numpy,jiminy_py.core,pinocchio,scipy.spatial._qhull,torch \
-                 --generated-members=numpy,jiminy_py.core,pinocchio,scipy.spatial._qhull,torch \
+                 --extension-pkg-allow-list=numpy,jiminy_py.core,pinocchio,scipy.spatial._qhull,ray._raylet,torch \
+                 --generated-members=torch \
                  --good-names=i,l,I,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,_ \
                  --disable=too-many-instance-attributes,too-many-arguments,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements \
