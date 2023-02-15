@@ -261,15 +261,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_window_size(*WINDOW_SIZE_DEFAULT)
         config.set_window_fixed(False)
         config.enable_antialiasing(True, multisamples=4)
-        config.set_value('framebuffer-software', '0')
-        config.set_value('framebuffer-hardware', '0')
+        config.set_value('framebuffer-software', False)
+        config.set_value('framebuffer-hardware', False)
         config.set_value('load-display', 'pandagl')
         config.set_value('aux-display',
                          'p3headlessgl'
                          '\naux-display pandadx9'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
-        config.set_value('sync-video', '0')
+        config.set_value('sync-video', False)
         config.set_value('default-near', 0.1)
         config.set_value('gl-version', '3 1')
         config.set_value('notify-level', 'fatal')
@@ -520,9 +520,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.buff.remove_display_region(self.offscreen_display_region)
             self.close_window(self.buff, keepCamera=False)
 
-        # Set offscreen buffer frame properties
+        # Set offscreen buffer frame properties.
         # Note that accumulator bits and back buffers is not supported by
         # resizeable buffers.
+        # See https://github.com/panda3d/panda3d/issues/1121
         fbprops = FrameBufferProperties()
         fbprops.set_rgba_bits(8, 8, 8, 0)
         fbprops.set_float_color(False)
@@ -550,7 +551,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.winList.append(win)
 
         # Attach a texture as screenshot requires copying GPU data to RAM
-        self.buff.add_render_texture(Texture(), GraphicsOutput.RTM_copy_ram)
+        self.buff.add_render_texture(
+            Texture(), GraphicsOutput.RTM_triggered_copy_ram)
 
         # Create 3D camera region for the scene.
         # Set near distance of camera lens to allow seeing model from close.
@@ -1400,6 +1402,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Refresh the scene to make sure it is perfectly up-to-date.
         # It will take into account the updated position of the camera.
+        self.buff.trigger_copy()
         self.graphics_engine.render_frame()
 
         # Capture frame as image
@@ -1443,6 +1446,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     structured `np.ndarray` of uint8 with dimensions [H, W, D].
         """
         # Refresh the scene
+        self.buff.trigger_copy()
         self.graphics_engine.render_frame()
 
         # Get frame as raw texture
