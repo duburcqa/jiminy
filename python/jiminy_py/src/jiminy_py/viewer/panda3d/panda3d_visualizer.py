@@ -260,7 +260,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             config = ViewerConfig()
         config.set_window_size(*WINDOW_SIZE_DEFAULT)
         config.set_window_fixed(False)
-        config.enable_antialiasing(True, multisamples=2)
+        config.enable_antialiasing(True, multisamples=4)
         config.set_value('framebuffer-software', '0')
         config.set_value('framebuffer-hardware', '0')
         config.set_value('load-display', 'pandagl')
@@ -523,9 +523,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Set offscreen buffer frame properties
         # Note that accumulator bits and back buffers is not supported by
         # resizeable buffers.
-        fbprops = FrameBufferProperties(self.win.getFbProperties())
-        fbprops.set_accum_bits(0)
-        fbprops.set_back_buffers(0)
+        fbprops = FrameBufferProperties()
+        fbprops.set_rgba_bits(8, 8, 8, 0)
+        fbprops.set_float_color(False)
+        fbprops.set_depth_bits(16)
+        fbprops.set_float_depth(True)
+        fbprops.set_multisamples(4)
 
         # Set offscreen buffer windows properties
         winprops = WindowProperties()
@@ -547,8 +550,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.winList.append(win)
 
         # Attach a texture as screenshot requires copying GPU data to RAM
-        texture = Texture()
-        self.buff.add_render_texture(texture, GraphicsOutput.RTM_copy_ram)
+        self.buff.add_render_texture(Texture(), GraphicsOutput.RTM_copy_ram)
 
         # Create 3D camera region for the scene.
         # Set near distance of camera lens to allow seeing model from close.
