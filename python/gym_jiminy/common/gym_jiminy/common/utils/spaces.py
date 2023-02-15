@@ -6,7 +6,6 @@ from typing import Optional, Union, Dict, Sequence, TypeVar
 import gym
 import tree
 import numpy as np
-from numpy.random.mtrand import _rand as global_randstate
 
 
 ValueT = TypeVar('ValueT')
@@ -16,6 +15,9 @@ StructNested = Union[Dict[str, 'StructNested[ValueT]'],
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
 SpaceNested = StructNested[gym.Space]
+
+
+global_rng = np.random.default_rng()
 
 
 if tuple(map(int, (gym.__version__.split(".", 4)[:3]))) < (0, 23, 0):
@@ -95,10 +97,8 @@ def sample(low: Union[float, np.ndarray] = -1.0,
                     f"'high' and 'scale' {dev.shape} if specified.") from e
 
     # Sample from normalized distribution.
-    # Note that some distributions are not normalized by default
-    if rg is None:
-        rg = global_randstate
-    distrib_fn = getattr(rg, dist)
+    # Note that some distributions are not normalized by default.
+    distrib_fn = getattr(rg or global_rng, dist)
     if dist == 'uniform':
         value = distrib_fn(low=-1.0, high=1.0, size=shape)
     else:
