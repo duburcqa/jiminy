@@ -727,7 +727,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param action: Action to perform. `None` to not update the action.
 
         :returns: Next observation, reward, status of the episode (done or
-                  not), and a dictionary of extra information
+                  not), plus some of extra information
         """
         # Make sure a simulation is already running
         if not self.simulator.is_simulation_running:
@@ -827,18 +827,20 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param mode: Rendering mode. It can be either 'human' to display the
                      current simulation state, or 'rgb_array' to return a
                      snapshot as an RGB array without showing it on the screen.
-                     Optional: 'human' by default if available, 'rgb_array'
-                     otherwise.
+                     Optional: 'human' by default if available with the current
+                     backend (or default if none), 'rgb_array' otherwise.
         :param kwargs: Extra keyword arguments to forward to
                        `jiminy_py.simulator.Simulator.render` method.
 
         :returns: RGB array if 'mode' is 'rgb_array', None otherwise.
         """
         # Handling of default rendering mode
+        viewer_backend = (self.simulator.viewer or Viewer).backend
         if mode is None:
             # 'rgb_array' by default if the current for future backend is
             # 'panda3d-sync', otherwise 'human' if available.
-            backend = (kwargs.get('backend', self.simulator.viewer_backend) or
+            backend = (kwargs.get('backend', None) or viewer_backend or
+                       self.simulator.viewer_kwargs.get('backend', None) or
                        get_default_backend())
             if backend == "panda3d-sync":
                 mode = 'rgb_array'
@@ -847,11 +849,22 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             else:
                 mode = 'rgb_array'
 
+        # Make sure that the request makes sense
+        if mode == 'human' and {
+                **kwargs, **self.simulator.viewer_kwargs
+                }.get('backend', None) == 'panda3d-sync':
+            raise ValueError(
+                "mode='human' is incompatible with backend='panda3d-sync'.")
+
         # Make sure the rendering mode is valid.
         # Note that it is not possible to raise an exception, because the
         # default is overwritten by gym wrappers by mistake to 'human'.
         if mode not in self.metadata['render.modes']:
             mode = 'rgb_array'
+
+        # Set the available rendering modes
+        if mode == 'human' and viewer_backend == "panda3d-sync":
+            Viewer.close()
 
         # Call base implementation
         return self.simulator.render(

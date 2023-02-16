@@ -122,7 +122,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                       initialized. Build default robot using 'urdf_path',
                       'hardware_path' and 'mesh_path' if omitted.
                       Optional: None by default.
-        :param kwargs: Keyword arguments to forward to `BaseJiminyEnv` class.
+        :param kwargs: Keyword arguments to forward to `Simulator` and
+                       `BaseJiminyEnv` constructors.
         """
         # Handling of default arguments
         if reward_mixture is None:

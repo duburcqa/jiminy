@@ -36,7 +36,7 @@ class SimulatorTest(unittest.TestCase):
 
         # Create simulator.
         # The existing options file should be loaded automatically.
-        simulator = Simulator(robot, viewer_backend="panda3d-sync")
+        simulator = Simulator(robot, viewer_kwargs={"backend": "panda3d-sync"})
 
         # Check synchronous rendering:
         # simulation started before display and the other way around.

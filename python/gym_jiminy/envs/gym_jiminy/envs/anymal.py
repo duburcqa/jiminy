@@ -43,7 +43,11 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
     """ TODO: Write documentation.
     """
     def __init__(self, debug: bool = False, **kwargs):
-        """ TODO: Write documentation.
+        """
+        :param debug: Whether the debug mode must be enabled.
+                      See `BaseJiminyEnv` constructor for details.
+        :param kwargs: Keyword arguments to forward to `Simulator` and
+                       `BaseJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
         data_root_dir = resource_filename(

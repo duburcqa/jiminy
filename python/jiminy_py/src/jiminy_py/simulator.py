@@ -5,6 +5,7 @@ import logging
 import pathlib
 import tempfile
 from collections import OrderedDict
+from copy import deepcopy
 from itertools import chain
 from typing import Optional, Union, Type, Dict, Tuple, Sequence, Iterable, Any
 
@@ -62,7 +63,7 @@ class Simulator:
                  controller: Optional[jiminy.AbstractController] = None,
                  engine_class: Type[jiminy.Engine] = jiminy.Engine,
                  use_theoretical_model: bool = False,
-                 viewer_backend: Optional[str] = None,
+                 viewer_kwargs: Optional[Dict[str, Any]] = None,
                  **kwargs: Any) -> None:
         """
         :param robot: Jiminy robot already initialized.
@@ -73,15 +74,19 @@ class Simulator:
         :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
                                       fetching the robot's state.
-        :param viewer_backend: Backend of the viewer, e.g. panda3d or meshcat.
-                               Optional: It is setup-dependent. See `Viewer`
-                               documentation for details about it.
+        :param viewer_kwargs: Keyword arguments to override by default whenever
+                              a viewer must be instantiated, e.g. when `render`
+                              method is first called. Specifically, `backend`
+                              is ignored if one is already available.
+                              Optional: Empty by default.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
         # Backup the user arguments
         self.use_theoretical_model = use_theoretical_model
-        self.viewer_backend = viewer_backend
+        self.viewer_kwargs = dict(
+            robot_name=f"{robot.name}_{next(tempfile._get_candidate_names())}",
+            **deepcopy(viewer_kwargs or {}))
 
         # Wrap callback in nested function to hide update of progress bar
         def callback_wrapper(t: float,
@@ -450,7 +455,7 @@ class Simulator:
                or return an RGB array instead.
 
         :param return_rgb_array: Whether to return the current frame as an rgb
-                                 array.
+                                 array or render it directly.
         :param width: Width of the returned RGB frame, if enabled.
         :param height: Height of the returned RGB frame, if enabled.
         :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch,
@@ -468,47 +473,31 @@ class Simulator:
         :returns: Rendering as an RGB array (3D numpy array), if enabled, None
                   otherwise.
         """
-        # Consider no viewer is available if the backend is the wrong one
-        if kwargs.get("backend", self.viewer_backend) != self.viewer_backend:
-            if self.viewer is not None:
-                self.viewer.close()
-                self.viewer = None
-
         # Handle default arguments
         if update_ground_profile is None:
             update_ground_profile = not self.is_viewer_available
 
+        # Close the current viewer backend if not suitable
+        if kwargs.get("backend", Viewer.backend) != Viewer.backend:
+            Viewer.close()
+
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not self.is_viewer_available:
-            # Generate a new unique identifier if necessary
-            if self.viewer is None:
-                uniq_id = next(tempfile._get_candidate_names())
-                robot_name = f"{uniq_id}_robot"
-                scene_name = f"{uniq_id}_scene"
-            else:
-                robot_name = self.viewer.robot_name
-                scene_name = self.viewer.scene_name
-
             # Create new viewer instance
-            viewer_backend = self.viewer_backend or Viewer.backend
             self.viewer = Viewer(self.robot,
                                  use_theoretical_model=False,
                                  open_gui_if_parent=False,
-                                 **{'scene_name': scene_name,
-                                    'robot_name': robot_name,
-                                    'backend': viewer_backend,
+                                 **{'backend': (self.viewer or Viewer).backend,
                                     'delete_robot_on_close': True,
+                                    **self.viewer_kwargs,
                                     **kwargs})
-
-            # Backup current backend
-            self.viewer_backend = self.viewer_backend or Viewer.backend
 
             # Share the external force buffer of the viewer with the engine
             if self.is_simulation_running:
                 self.viewer.f_external = self.system_state.f_external[1:]
 
-            if self.viewer_backend.startswith('panda3d'):
+            if self.viewer.backend.startswith('panda3d'):
                 # Enable display of COM, DCM and contact markers by default if
                 # the robot has freeflyer.
                 if self.robot.has_freeflyer:
@@ -538,7 +527,7 @@ class Simulator:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
 
         # Enable the ground profile is requested and available
-        if self.viewer_backend.startswith('panda3d') and update_ground_profile:
+        if self.viewer.backend.startswith('panda3d') and update_ground_profile:
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
             Viewer.update_floor(ground_profile, show_meshes=False)
@@ -601,7 +590,7 @@ class Simulator:
                 "`replay` method, or provided data manually.")
 
         # Make sure the viewer is instantiated before replaying
-        backend = (kwargs.get('backend', self.viewer_backend) or
+        backend = (kwargs.get('backend', (self.viewer or Viewer).backend) or
                    get_default_backend())
         must_not_open_gui = (
             backend.startswith("panda3d") or
@@ -620,7 +609,7 @@ class Simulator:
             update_hooks,
             viewers=viewers,
             **{'verbose': True,
-               'backend': self.viewer_backend,
+               **self.viewer_kwargs,
                **extra_kwargs,
                'display_f_external': None,
                **kwargs})

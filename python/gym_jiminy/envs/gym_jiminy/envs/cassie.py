@@ -58,7 +58,15 @@ STD_RATIO = {
 
 
 class CassieJiminyEnv(WalkerJiminyEnv):
+    """ TODO: Write documentation.
+    """
     def __init__(self, debug: bool = False, **kwargs):
+        """
+        :param debug: Whether the debug mode must be enabled.
+                      See `BaseJiminyEnv` constructor for details.
+        :param kwargs: Keyword arguments to forward to `Simulator` and
+                       `BaseJiminyEnv` constructors.
+        """
         # Get the urdf and mesh paths
         data_root_dir = resource_filename(
             "gym_jiminy.envs", "data/bipedal_robots/cassie")
