@@ -383,10 +383,8 @@ class Viewer:
                             RGBA codes as a list of 4 floating-point values
                             ranging from 0.0 and 1.0, and a few named colors.
                             Optional: Disabled by default.
-        :param lock: Custom threading.RLock. Required for parallel rendering.
-                     It is required since some backends does not support
-                     multiple simultaneous connections (e.g. corbasever).
-                     `None` to use the unique lock of the current thread.
+        :param lock: Custom threading.RLock for parallel rendering. `None` to
+                     use the unique lock associated with the current thread.
                      Optional: `None` by default.
         :param backend: Name of the rendering backend to use. It can be either
                         'panda3d', 'panda3d-qt', 'meshcat'. None to keep using
@@ -1171,7 +1169,6 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
-    @__with_lock
     def _delete_nodes_viewer(nodes_path: Sequence[str]) -> None:
         """Delete an object or a group of objects in the scene.
 
@@ -1285,7 +1282,6 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
-    @__with_lock
     def get_camera_transform() -> Tuple[Tuple3FType, Tuple3FType]:
         """Get transform of the camera pose.
 
@@ -2020,7 +2016,6 @@ class Viewer:
         self._gui.remove_node(self._markers_group, name)
 
     @__must_be_open
-    @__with_lock
     def refresh(self,
                 force_update_visual: bool = False,
                 force_update_collision: bool = False,
