@@ -3,7 +3,6 @@ from gym.envs.registration import register
 from .cartpole import CartPoleJiminyEnv
 from .acrobot import AcrobotJiminyEnv, AcrobotJiminyGoalEnv
 from .ant import AntEnv
-from .spotmicro import SpotmicroJiminyEnv
 from .cassie import CassieJiminyEnv, CassiePDControlJiminyEnv
 from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
 from .atlas import (AtlasJiminyEnv,
@@ -17,7 +16,6 @@ __all__ = [
     'AcrobotJiminyEnv',
     'AcrobotJiminyGoalEnv',
     'AntEnv',
-    'SpotmicroJiminyEnv',
     'CassieJiminyEnv',
     'CassiePDControlJiminyEnv',
     'ANYmalJiminyEnv',
@@ -45,10 +43,6 @@ register(
     entry_point='gym_jiminy.envs:AntEnv',
     max_episode_steps=1000,
     reward_threshold=6000.0
-)
-register(
-    id='spotmicro-v0',
-    entry_point='gym_jiminy.envs:SpotmicroJiminyEnv'
 )
 register(
     id='cassie-v0',
