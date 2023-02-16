@@ -14,8 +14,8 @@ from ..bases import BasePipelineWrapper
 from ..envs import BaseJiminyEnv
 
 
-class FilteredFrameStack(gym.Wrapper):
-    """Observation wrapper that stacks filtered observations in a rolling
+class PartialFrameStack(gym.Wrapper):
+    """Observation wrapper that partially stacks observations in a rolling
     manner.
 
     It combines and extends OpenAI Gym wrappers `FrameStack` and
@@ -46,7 +46,7 @@ class FilteredFrameStack(gym.Wrapper):
         if nested_filter_keys is None:
             nested_filter_keys = list(env.observation_space.spaces.keys())
 
-        # Backup user arguments
+        # Backup user argument(s)
         self.nested_filter_keys: List[List[str]] = list(
             list(fields) for fields in nested_filter_keys)
         self.num_stack = num_stack
@@ -158,7 +158,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
         super().__init__(env, **kwargs)
 
         # Instantiate wrapper
-        self.wrapper = FilteredFrameStack(env, **kwargs)
+        self.wrapper = PartialFrameStack(env, **kwargs)
 
         # Define the observation and action spaces
         self.action_space = self.env.action_space
