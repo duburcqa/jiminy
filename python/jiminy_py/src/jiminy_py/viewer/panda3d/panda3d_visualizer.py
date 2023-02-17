@@ -889,9 +889,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     frame: Optional[FrameType] = None) -> None:
         """Patched to make sure node's name is valid and set the color scale.
         """
-        assert re.match(r'^[A-Za-z0-9_]+$', name), (
-            "Node's name is restricted to case-insensitive ASCII alphanumeric "
-            "string (including underscores).")
+        if not re.match(r'^[A-Za-z0-9_]+$', name):
+            raise RuntimeError(
+                "Node's name restricted to case-insensitive ASCII "
+                "alphanumeric characters plus underscore.")
         node.set_color_scale((1.2, 1.2, 1.2, 1.0))
         super().append_node(root_path, name, node, frame)
 
@@ -1112,7 +1113,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             raise ImportError(
                 "Method not supported. Please install 'jiminy_py[plot]'.")
 
-        # Remove existing watermark, if any
+        # Remove existing legend, if any
         if self._legend is not None:
             self._legend.remove_node()
             self._legend = None

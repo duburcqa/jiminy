@@ -135,11 +135,10 @@ def play_trajectories(trajs_data: Union[
                                option is only supported by meshcat backend.
                                None to disable.
                                Optional: No watermark by default.
-    :param legend: List of text defining the legend for each robot. It is not
-                   persistent but disabled after replay. This option is only
-                   supported by meshcat backend. None to disable.
-                   Optional: No legend if no color by default, the robots names
-                   otherwise.
+    :param legend: List of labels defining the legend for each robot. It is not
+                   persistent but disabled after replay. None to disable.
+                   Optional: No legend by default for a single robot without
+                   color, the name of each robot otherwise.
     :param enable_clock: Add clock on bottom right corner of the viewer.
                          Only available with 'panda3d' rendering backend.
                          Optional: Disabled by default.
@@ -183,9 +182,9 @@ def play_trajectories(trajs_data: Union[
                          input before starting to play the trajectories.
                          Only available if `record_video_path` is None.
                          Optional: False by default.
-    :param backend: Backend, one of 'panda3d', 'meshcat'. If `None`, the most
-                    appropriate backend will be selected automatically, based
-                    on hardware and python environment.
+    :param backend: Backend, one of 'meshcat', 'panda3d' and'panda3d-sync. If
+                    `None`, the most appropriate backend will be selected
+                    automatically based on hardware and python environment.
                     Optional: `None` by default.
     :param delete_robot_on_close: Whether to delete the robot from the viewer
                                   when closing it.

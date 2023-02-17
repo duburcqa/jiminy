@@ -490,6 +490,10 @@ class Viewer:
         if scene_name == Viewer.window_name:
             raise ValueError(
                 "The name of the scene and window must be different.")
+        if not re.match(r'^[A-Za-z0-9_]+$', scene_name + robot_name):
+            raise RuntimeError(
+                "Scene and robot names restricted to case-insensitive ASCII "
+                "alphanumeric characters plus underscore.")
 
         # Robot names must be unique, then backup the desired one
         if robot_name in Viewer._backend_robot_names:
@@ -985,6 +989,7 @@ class Viewer:
                         Viewer._backend_obj.stop()
                     except ViewerClosedError:
                         pass
+                Viewer._backend_proc.wait(0.1)
                 Viewer._backend_proc.kill()
             atexit.unregister(Viewer.close)
             Viewer.backend = None
