@@ -1487,20 +1487,26 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
         vars(self).update(state)
 
     def __getattr__(self, name: str) -> Callable:
-        """Patched to avoid deadlock when closing window, and to discard any
-        incoming message before sending request since it is probably coming
-        from a former request that has been keyboard-interrupted.
+        """Patched to avoid deadlock after closing main window, and to discard
+        any incoming message before sending request since it is probably coming
+        from a ealier request that has been keyboard-interrupted.
         """
-        def _send(*args, **kwargs):
+        def _send(*args: Any, **kwargs: Any) -> Any:
             if self._host_conn.closed:
-                raise ViewerClosedError('User closed the main window')
+                raise ViewerClosedError(
+                    "Viewer not available. Maybe the graphical window has "
+                    "been closed.")
             if self._host_conn.poll(0.0):
                 try:
                     reply = self._host_conn.recv()
                 except EOFError:
                     pass
             self._host_conn.send((name, args, kwargs))
-            reply = self._host_conn.recv()
+            if self._host_conn.poll(10.0):
+                reply = self._host_conn.recv()
+            else:
+                # Something is wrong... aborting to avoid potential deadlock
+                return
             if isinstance(reply, Exception):
                 if isinstance(reply, ViewerClosedError):
                     # Close pipe to make sure it does not get used in future
@@ -1524,7 +1530,7 @@ class Panda3dViewer(panda3d_viewer.viewer.Viewer):
         return getattr(self.__getattribute__('_app'), name)
 
     def __dir__(self) -> Iterable[str]:
-        return chain(super().__dir__(), self._app.__dir__())
+        return chain(super().__dir__(), dir(Panda3dApp))
 
     def set_material(self, *args: Any, **kwargs: Any) -> None:
         self._app.set_material(*args, **kwargs)
