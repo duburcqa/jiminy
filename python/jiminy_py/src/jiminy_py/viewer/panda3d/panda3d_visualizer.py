@@ -47,9 +47,9 @@ WINDOW_SIZE_DEFAULT = (600, 600)
 CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
 LEGEND_DPI = 400
-LEGEND_SCALE_MAX = 0.5
+LEGEND_SCALE_MAX = 0.42
 CLOCK_SCALE = 0.1
-WIDGET_MARGIN_REL = 0.05
+WIDGET_MARGIN_REL = 0.02
 
 PANDA3D_FRAMERATE_MAX = 40
 
@@ -1264,6 +1264,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 node.clear_color()
             else:
                 node.set_color(Vec4(*color))
+                if texture_path:
+                    node.set_color_scale((1.0, 1.0, 1.0, 1.0))
+                else:
+                    node.set_color_scale((1.2, 1.2, 1.2, 1.0))
 
                 material = Material()
                 material.set_ambient(Vec4(*color))

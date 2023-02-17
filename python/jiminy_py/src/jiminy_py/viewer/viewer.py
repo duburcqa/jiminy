@@ -55,16 +55,17 @@ DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 CONTACT_FORCE_SCALE = 10000.0  # [N]
 EXTERNAL_FORCE_SCALE = 800.0  # [N]
 
-COLORS = {'red': (0.9, 0.15, 0.15, 1.0),
-          'blue': (0.3, 0.3, 1.0, 1.0),
+COLORS = {'red': (0.85, 0.2, 0.2, 1.0),
+          'blue': (0.35, 0.5, 1.0, 1.0),
           'green': (0.4, 0.7, 0.3, 1.0),
-          'yellow': (1.0, 0.7, 0.0, 1.0),
-          'purple': (0.6, 0.2, 0.9, 1.0),
-          'orange': (1.0, 0.45, 0.0, 1.0),
-          'grey': (0.55, 0.55, 0.55, 1.0),
-          'cyan': (0.2, 0.7, 1.0, 1.0),
-          'white': (1.0, 1.0, 1.0, 1.0),
-          'black': (0.2, 0.2, 0.25, 1.0)}
+          'yellow': (0.9, 0.8, 0.0, 1.0),
+          'purple': (0.65, 0.4, 1.0, 1.0),
+          'orange': (0.95, 0.6, 0.0, 1.0),
+          'pink': (0.9, 0.4, 0.7, 1.0),
+          'grey': (0.7, 0.7, 0.7, 1.0),
+          'cyan': (0.1, 0.8, 1.0, 1.0),
+          'white': (0.95, 0.95, 0.95, 1.0),
+          'black': (0.45, 0.45, 0.5, 1.0)}
 
 
 # Create logger
@@ -1576,6 +1577,7 @@ class Viewer:
                         *node_name, color, disable_material=color_ is not None)
             self.robot_color = color
             Viewer._backend_robot_colors[self.robot_name] = color
+            Viewer._backend_obj.gui.set_legend()
         else:
             logger.warning("This method is only supported by Panda3d.")
 
