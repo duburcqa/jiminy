@@ -130,6 +130,22 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
+        # Configure default camera pose if not already the case
+        if "camera_xyzrpy" not in self.simulator.viewer_kwargs:
+            if self.robot.has_freeflyer:
+                # Get root frame name.
+                # The first and second frames are respectively "universe" no
+                # matter if the robot has a freeflyer or not, and the second
+                # one is the freeflyer joint "root_joint" if any.
+                root_name = self.robot.pinocchio_model.frames[2].name
+
+                # Note that the actual signature is hacked to set relative pose
+                self.simulator.viewer_kwargs["camera_xyzrpy"] = (
+                    *DEFAULT_CAMERA_XYZRPY_REL, root_name)
+            else:
+                self.simulator.viewer_kwargs["camera_xyzrpy"] = (
+                    (0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi))
+
         # Set the available rendering modes
         self.metadata['render.modes'] = ['rgb_array']
         if check_display_available():
@@ -939,19 +955,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Stop any running simulation before replay if `is_done` is True
         if self.simulator.is_simulation_running and self.is_done():
             self.simulator.stop()
-
-        # Set default camera pose if viewer not already available
-        if not self.simulator.is_viewer_available and \
-                self.robot.has_freeflyer and not Viewer.has_gui():
-            # Get root frame name.
-            # The first and second frames are respectively "universe" no matter
-            # if the robot has a freeflyer or not, and the second one is the
-            # freeflyer joint "root_joint" if any.
-            root_name = self.robot.pinocchio_model.frames[2].name
-
-            # Set default camera pose options.
-            # Note that the actual signature is hacked to set relative pose.
-            kwargs["camera_xyzrpy"] = (*DEFAULT_CAMERA_XYZRPY_REL, root_name)
 
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose,

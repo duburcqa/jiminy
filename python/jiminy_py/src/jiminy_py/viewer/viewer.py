@@ -974,8 +974,7 @@ class Viewer:
             # automatically. One must call `Viewer.close` to do otherwise.
             Viewer._backend_robot_names.clear()
             Viewer._backend_robot_colors.clear()
-            Viewer._camera_xyzrpy = list(
-                deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
+            Viewer._camera_xyzrpy = list(deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
             Viewer.detach_camera()
             Viewer.remove_camera_motion()
             if Viewer.is_alive():
@@ -1518,9 +1517,9 @@ class Viewer:
         if camera_xyzrpy is not None:
             camera_xyzrpy = list(camera_xyzrpy)
             if camera_xyzrpy[0] is None:
-                camera_xyzrpy[0] = deepcopy(DEFAULT_CAMERA_XYZRPY_REL[0])
+                camera_xyzrpy[0] = DEFAULT_CAMERA_XYZRPY_REL[0].copy()
             if camera_xyzrpy[1] is None:
-                camera_xyzrpy[1] = deepcopy(DEFAULT_CAMERA_XYZRPY_REL[1])
+                camera_xyzrpy[1] = DEFAULT_CAMERA_XYZRPY_REL[1].copy()
 
         # Set camera pose if relative pose is not locked but provided
         if not lock_relative_pose and camera_xyzrpy is not None:

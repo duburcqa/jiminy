@@ -213,8 +213,6 @@ def play_trajectories(trajs_data: Union[
         update_hooks = [None] * len(trajs_data)
     if not isinstance(update_hooks, (list, tuple)):
         update_hooks = [update_hooks]
-    if viewers is None:
-        viewers = [None] * len(trajs_data)
     if not isinstance(viewers, (list, tuple)):
         viewers = [viewers]
     if len(viewers) == 0:

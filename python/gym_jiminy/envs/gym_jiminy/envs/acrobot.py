@@ -105,6 +105,10 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
 
+        # Overwrite default camera pose
+        simulator.viewer_kwargs.setdefault("camera_xyzrpy", (
+            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi)))
+
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
             self.AVAIL_CTRL = [-motor.command_limit, 0.0, motor.command_limit]
@@ -241,13 +245,6 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         else:
             reward = -1.0
         return reward
-
-    def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
-        """Render the robot at current sate.
-        """
-        if not self.simulator.is_viewer_available:
-            kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
-        return super().render(mode, **kwargs)
 
 
 class AcrobotJiminyGoalEnv(AcrobotJiminyEnv, BaseJiminyGoalEnv):

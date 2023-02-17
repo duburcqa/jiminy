@@ -524,7 +524,7 @@ class Simulator:
 
             # Initialize camera pose
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
-                camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
+                camera_xyzrpy = ((9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2))
 
         # Enable the ground profile is requested and available
         if self.viewer.backend.startswith('panda3d') and update_ground_profile:

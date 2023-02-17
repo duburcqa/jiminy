@@ -104,15 +104,17 @@ class SimulateFlexibleArm(unittest.TestCase):
         # Remove temporary file
         os.remove(urdf_path)
 
-        # Camera pose
-        self.camera_xyzrpy = ([0.0, -2.0, 0.0], [np.pi/2, 0.0, 0])
-
         # Instantiate and initialize the controller
         controller = jiminy.ControllerFunctor()
         controller.initialize(robot)
 
         # Create a simulator using this robot and controller
-        self.simulator = Simulator(robot, controller)
+        self.simulator = Simulator(
+            robot,
+            controller,
+            viewer_kwargs=dict(
+                camera_xyzrpy=((0.0, -2.0, 0.0), (np.pi/2, 0.0, 0.0))
+            ))
 
     def tearDown(self):
         Viewer.close()
@@ -139,11 +141,12 @@ class SimulateFlexibleArm(unittest.TestCase):
         os.close(fd)
 
         # Record the result
-        viewer, *_ = play_logs_files(log_path,
-                                     delete_robot_on_close=True,
-                                     camera_xyzrpy=self.camera_xyzrpy,
-                                     record_video_path=video_path,
-                                     verbose=False)
+        viewer, *_ = play_logs_files(
+            log_path,
+            delete_robot_on_close=True,
+            **self.simulator.viewer_kwargs,
+            record_video_path=video_path,
+            verbose=False)
         viewer.close()
 
         # Remove temporary log and video file
@@ -196,9 +199,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         q_rigid = self.simulator.system_state.q.copy()
 
         # Render the scene
-        img_rigid = self.simulator.render(
-            return_rgb_array=True,
-            camera_xyzrpy=self.camera_xyzrpy)
+        img_rigid = self.simulator.render(return_rgb_array=True)
 
         # Check different flexibility ordering
         q_flex, img_flex, pnc_model_flex, visual_model_flex = [], [], [], []
@@ -231,8 +232,7 @@ class SimulateFlexibleArm(unittest.TestCase):
                     self.simulator.system_state.q))
 
             # Render the scene
-            img_flex.append(self.simulator.render(
-                return_rgb_array=True, camera_xyzrpy=self.camera_xyzrpy))
+            img_flex.append(self.simulator.render(return_rgb_array=True))
 
         # Compare the final results
         for q in q_flex:

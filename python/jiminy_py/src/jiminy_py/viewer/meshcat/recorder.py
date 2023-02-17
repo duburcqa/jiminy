@@ -105,12 +105,14 @@ def meshcat_recorder(meshcat_url: str,
     asyncio.set_event_loop(loop)
 
     # Download browser if necessary
-    completed_process = subprocess.run(
-        [str(compute_driver_executable()), "install", "chromium"],
-        timeout=PLAYWRIGHT_DOWNLOAD_TIMEOUT,
-        env=get_driver_env())
-    if completed_process.returncode > 0:
-        raise RuntimeError("Impossible to download browser.")
+    try:
+        subprocess.run(
+            [str(compute_driver_executable()), "install", "chromium"],
+            timeout=PLAYWRIGHT_DOWNLOAD_TIMEOUT,
+            env=get_driver_env(),
+            check=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError("Impossible to download browser.") from e
 
     # Create headless browser in background and connect to Meshcat
     browser = None
