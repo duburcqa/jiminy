@@ -47,7 +47,7 @@ WINDOW_SIZE_DEFAULT = (600, 600)
 CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
 LEGEND_DPI = 400
-LEGEND_SCALE = 0.3
+LEGEND_SCALE_MAX = 0.5
 CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.05
 
@@ -1115,6 +1115,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Remove existing legend, if any
         if self._legend is not None:
+            self.offA2dBottomCenter.node().remove_child(self._legend.node())
             self._legend.remove_node()
             self._legend = None
 
@@ -1122,63 +1123,56 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if items is None or not items:
             return
 
-        # Switch to non-interactive backend to avoid hanging for some reason
-        plt_backend = plt.get_backend()
-        plt.switch_backend("Agg")
-
-        # Create empty figure with the legend
+        # Render the legend
         color_default = (0.0, 0.0, 0.0, 1.0)
         handles = [Patch(color=c or color_default, label=t) for t, c in items]
-        fig, ax = plt.subplots()
+        width_win, height_win = self.getSize()
+        fig, ax = plt.subplots(
+            figsize=(width_win / LEGEND_DPI, height_win / LEGEND_DPI),
+            dpi=LEGEND_DPI)
         legend = ax.legend(handles=handles,
                            ncol=len(handles),
                            framealpha=1,
                            frameon=True)
         ax.set_axis_off()
-
-        # Render the legend
         fig.draw(renderer=fig.canvas.get_renderer())
 
         # Compute bbox size to be power of 2 for software rendering.
         bbox = legend.get_window_extent().padded(2)
         bbox_inches = bbox.transformed(fig.dpi_scale_trans.inverted())
         bbox_pixels = np.array(bbox_inches.extents) * LEGEND_DPI
-        bbox_pixels = np.floor(bbox_pixels)
-        bbox_pixels[2:] = bbox_pixels[:2] + 2 ** np.ceil(np.log(
-            bbox_pixels[2:] - bbox_pixels[:2]) / np.log(2.0)) + 0.1
+        width, height = map(int, bbox_pixels[2:] - bbox_pixels[:2])
+        bbox_size_2 = (2 ** np.ceil(
+            np.log2(bbox_pixels[2:] - bbox_pixels[:2]))).astype(dtype=int)
+        bbox_size_delta = bbox_size_2 - (bbox_pixels[2:] - bbox_pixels[:2])
+        bbox_pixels[:2] = np.floor(bbox_pixels[:2] - 0.5 * bbox_size_delta)
+        bbox_pixels[2:] = bbox_pixels[:2] + bbox_size_2 + 0.1
         bbox_inches = bbox.from_extents(bbox_pixels / LEGEND_DPI)
 
         # Export the figure, limiting the bounding box to the legend area,
         # slightly extended to ensure the surrounding rounded corner box of
         # is not cropped. Transparency is enabled, so it is not an issue.
         io_buf = io.BytesIO()
-        fig.savefig(io_buf, format='rgba', dpi=LEGEND_DPI, transparent=True,
+        fig.savefig(io_buf, format='rgba', dpi='figure', transparent=True,
                     bbox_inches=bbox_inches)
         io_buf.seek(0)
         img_raw = io_buf.getvalue()
-        width, height = map(int, bbox_pixels[2:] - bbox_pixels[:2])
 
         # Delete the legend along with its temporary figure
         plt.close(fig)
 
-        # Restore original backend
-        plt.switch_backend(plt_backend)
-
         # Create texture in which to render the image buffer
         tex = Texture()
         tex.setup2dTexture(
-            width, height, Texture.T_unsigned_byte, Texture.F_rgba8)
+            *bbox_size_2, Texture.T_unsigned_byte, Texture.F_rgba8)
         tex.set_ram_image_as(img_raw, 'rgba')
 
         # Compute relative image size
-        width_win, height_win = self.getSize()
-        imgAspectRatio = width / height
-        width_rel = LEGEND_SCALE * width / width_win
-        height_rel = LEGEND_SCALE * height / height_win
-        if height_rel * imgAspectRatio < width_rel:
-            width_rel = height_rel * imgAspectRatio
-        else:
-            height_rel = width_rel / imgAspectRatio
+        legend_scale_rel = min(
+            (1.0 - 2 * WIDGET_MARGIN_REL) * width_win / width,
+            LEGEND_SCALE_MAX) * width / width_win
+        width_rel = legend_scale_rel * (tex.x_size / width)
+        height_rel = width_rel * (tex.y_size / tex.x_size)
 
         # Create legend on main window
         self._legend = OnscreenImage(image=tex,
