@@ -1487,17 +1487,20 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
         vars(self).update(state)
 
     def __getattr__(self, name: str) -> Callable:
-        """Patched to avoid deadlock when closing window.
+        """Patched to avoid deadlock when closing window, and to discard any
+        incoming message before sending request since it is probably coming
+        from a former request that has been keyboard-interrupted.
         """
         def _send(*args, **kwargs):
             if self._host_conn.closed:
                 raise ViewerClosedError('User closed the main window')
+            if self._host_conn.poll(0.0):
+                try:
+                    reply = self._host_conn.recv()
+                except EOFError:
+                    pass
             self._host_conn.send((name, args, kwargs))
-            try:
-                reply = self._host_conn.recv()
-            except EOFError:
-                # This exception may arise if the last command was interrupted
-                reply = self._host_conn.recv()
+            reply = self._host_conn.recv()
             if isinstance(reply, Exception):
                 if isinstance(reply, ViewerClosedError):
                     # Close pipe to make sure it does not get used in future
