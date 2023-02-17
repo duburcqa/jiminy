@@ -201,7 +201,7 @@ def play_trajectories(trajs_data: Union[
                     Optional: None by default.
     :param verbose: Add information to keep track of the process.
                     Optional: True by default.
-    :param kwargs: Unused keyword arguments to allow chaining renderining
+    :param kwargs: Unused keyword arguments to allow chaining rendering
                    methods with ease.
 
     :returns: List of viewers used to play the trajectories.
@@ -226,6 +226,8 @@ def play_trajectories(trajs_data: Union[
             if viewer is not None and not viewer.is_open():
                 viewers[i] = None
                 break
+        if all(viewer is None for viewer in viewers):
+            viewers = None
 
     # Get backend
     if backend is None:
@@ -237,10 +239,10 @@ def play_trajectories(trajs_data: Union[
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode
     # with htlm rendering support. Then load it in running cell.
-    must_record_temporary_video = (
+    record_video_html_embedded = (
         record_video_path is None and
         backend == "panda3d-sync" and interactive_mode() >= 2)
-    if must_record_temporary_video:
+    if record_video_html_embedded:
         fd, record_video_path = tempfile.mkstemp(suffix='.mp4')
         os.close(fd)
 
@@ -252,10 +254,7 @@ def play_trajectories(trajs_data: Union[
 
     # Set default video recording size
     if record_video_size is None:
-        if must_record_temporary_video:
-            record_video_size = (800, 400)
-        else:
-            record_video_size = (800, 800)
+        record_video_size = (800, 400 if record_video_html_embedded else 800)
 
     # Handling of default options if no viewer is available
     if viewers is None and backend.startswith('panda3d'):
@@ -493,7 +492,7 @@ def play_trajectories(trajs_data: Union[
         # Add frames to video sequentially
         for i, t_cur in enumerate(tqdm(
                 time_global, desc="Rendering frames",
-                disable=(not verbose and not must_record_temporary_video))):
+                disable=(not verbose and not record_video_html_embedded))):
             try:
                 # Update 3D view
                 for viewer, pos, vel, forces, xyz_offset, update_hook in zip(
@@ -597,7 +596,7 @@ def play_trajectories(trajs_data: Union[
         Viewer.close()
 
     # Show video if temporary
-    if must_record_temporary_video:
+    if record_video_html_embedded:
         from IPython.core.display import HTML, display
         video_base64 = b64encode(open(record_video_path, 'rb').read()).decode()
         os.remove(record_video_path)
@@ -776,8 +775,7 @@ def _play_logs_files_entrypoint() -> None:
                 remove_widgets_overlay=False),
                 **kwargs})
         kwargs["start_paused"] = False
-        if not hasattr(kwargs, "camera_xyzrpy"):
-            kwargs["camera_xyzrpy"] = None
+        kwargs.setdefault("camera_xyzrpy", None)
         if kwargs["record_video_path"] is None:
             while True:
                 reply = input("Do you want to replay again (y/[n])?").lower()
