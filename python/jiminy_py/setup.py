@@ -127,6 +127,8 @@ setup(
             # Web-based mesh visualizer used as Viewer's backend.
             # - 0.3.2 fixes the rendering of DAE meshes
             "meshcat>=0.3.2",
+            # Low-level backend for Ipython powering Jupyter notebooks
+            "ipykernel>=5.0,<7.0"
             # Used internally by Viewer to read/write Meshcat snapshots
             "pillow",
             # Used internally by Viewer to enable recording video

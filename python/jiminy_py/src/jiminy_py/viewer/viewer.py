@@ -119,7 +119,7 @@ def check_display_available() -> bool:
     """Check if graphical server is available locally for onscreen rendering
     or if the viewer can be opened in an interactive cell.
     """
-    if interactive_mode() >= 3:
+    if interactive_mode() >= 2:
         return True
     if multiprocessing.current_process().daemon:
         return False
@@ -134,6 +134,7 @@ def get_default_backend() -> str:
 
     Panda3d is preferred over meshcat in non-interactive mode, and on google
     colab because of known latency issue making it unusable.
+    See https://github.com/googlecolab/colabtools/issues/2870
 
     .. note::
         Both Meshcat and Panda3d supports Nvidia EGL rendering without
@@ -142,7 +143,7 @@ def get_default_backend() -> str:
     """
     mode = interactive_mode()
     if mode >= 2:
-        if mode == 3:
+        if mode == 2:
             try:
                 get_backend_type('meshcat')
                 return 'meshcat'
@@ -459,7 +460,7 @@ class Viewer:
                 elif backend == 'meshcat':
                     # Opening a new display cell automatically if there is
                     # no other display cell already opened.
-                    open_gui_if_parent = interactive_mode() >= 3 and (
+                    open_gui_if_parent = interactive_mode() >= 2 and (
                         Viewer._backend_obj is None or
                         not Viewer._backend_obj.comm_manager.n_comm)
                 elif backend == 'panda3d':
@@ -827,7 +828,7 @@ class Viewer:
         elif Viewer.backend == 'meshcat':
             viewer_url = Viewer._backend_obj.gui.url()
 
-            if interactive_mode() >= 3:
+            if interactive_mode() >= 2:
                 from IPython.core.display import HTML, display
 
                 # Scrap the viewer html content, including javascript
@@ -868,8 +869,8 @@ class Viewer:
                             f'var ws_path = "{ws_path}";')
                         break
 
-                if interactive_mode() == 3:
-                    # Isolate HTML in iframe on Jupyter
+                if interactive_mode() == 2:
+                    # Isolate HTML in iframe
                     html_content = html_content.replace(
                         "\"", "&quot;").replace("'", "&apos;")
                     display(HTML(f"""

@@ -21,17 +21,7 @@ from .server import start_meshcat_server
 from .recorder import MeshcatRecorder
 
 
-if interactive_mode() >= 3:
-    # Google colab is using an older version of ipykernel (4.10), which is
-    # not compatible with >= 5.0. The new API is more flexible and enable
-    # to process only the relevant messages because every incoming messages
-    # is first added in a priority queue waiting for being processed. Thus,
-    # it is possible to process part of those messages without altering the
-    # other ones. It is not possible with the old API since every incoming
-    # message must be either processed right after flushing, or discarded.
-    # Emulating or restore the queue would be possible theoretically but it
-    # is tricky to do it properly, so instead every message is process
-    # without distinction.
+if interactive_mode() >= 2:
     import ipykernel
     ipykernel_version_major = int(ipykernel.__version__[0])
     if ipykernel_version_major < 6:
@@ -54,7 +44,7 @@ if interactive_mode() >= 3:
         def __init__(self):
             from IPython import get_ipython
             self.__kernel = get_ipython().kernel
-            self._is_colab = (interactive_mode() == 4)
+            self._is_colab = (interactive_mode() == 3)
             self.qsize_old = 0
             self.is_running = False
 
@@ -335,7 +325,7 @@ class MeshcatWrapper:
         # been chosen to add extra ROUTER/ROUTER sockets instead of replacing
         # the original ones to avoid altering too much the original
         # implementation of Meshcat.
-        if must_launch_server and interactive_mode() >= 3:
+        if must_launch_server and interactive_mode() >= 2:
             self.comm_manager = CommManager(comm_url)
 
         # Make sure the server is properly closed

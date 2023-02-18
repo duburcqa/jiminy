@@ -259,7 +259,7 @@ def play_trajectories(trajs_data: Union[
     if viewers is None and backend.startswith('panda3d'):
         # Delete robot by default only if not in interactive viewer
         if delete_robot_on_close is None:
-            delete_robot_on_close = interactive_mode() < 3
+            delete_robot_on_close = interactive_mode() < 2
 
         # Handling of default display of CoM, DCM and contact forces
         if display_com is None:
