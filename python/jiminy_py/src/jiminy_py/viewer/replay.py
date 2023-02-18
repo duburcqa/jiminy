@@ -230,10 +230,10 @@ def play_trajectories(trajs_data: Union[
 
     # Get backend
     if backend is None:
-        if viewers is None:
-            backend = get_default_backend()
-        else:
+        if Viewer.is_alive():
             backend = Viewer.backend
+        else:
+            backend = get_default_backend()
 
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode

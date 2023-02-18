@@ -48,6 +48,7 @@ CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
 LEGEND_DPI = 400
 LEGEND_SCALE_MAX = 0.42
+WATERMARK_SCALE_MAX = 0.2
 CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.02
 
@@ -893,7 +894,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             raise RuntimeError(
                 "Node's name restricted to case-insensitive ASCII "
                 "alphanumeric characters plus underscore.")
-        node.set_color_scale((1.2, 1.2, 1.2, 1.0))
+        node.set_color_scale((*(3 * (1.2,)), 1.0))
         super().append_node(root_path, name, node, frame)
 
     def highlight_node(self, root_path: str, name: str, enable: bool) -> None:
@@ -1082,15 +1083,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         width_rel, height_rel = width / width_win, height / height_win
 
         # Make sure it does not take too much space of window
-        if width_rel > 0.2:
-            width_rel, height_rel = 0.2, height_rel / width_rel * 0.2
-        if height_rel > 0.2:
-            width_rel, height_rel = width_rel / height_rel * 0.2, 0.2
+        if width_rel > WATERMARK_SCALE_MAX:
+            width_rel = WATERMARK_SCALE_MAX
+            height_rel = WATERMARK_SCALE_MAX * height_rel / width_rel
+        if height_rel > height_rel:
+            height_rel = WATERMARK_SCALE_MAX
+            width_rel = WATERMARK_SCALE_MAX * width_rel / height_rel
 
         # Create image watermark on main window
         self._watermark = OnscreenImage(image=img_fullpath,
                                         parent=self.a2dBottomLeft,
                                         scale=(width_rel, 1, height_rel))
+        self._watermark.set_transparency(TransparencyAttrib.MAlpha)
 
         # Add it on secondary window
         self.offA2dBottomLeft.node().add_child(self._watermark.node())
@@ -1140,8 +1144,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Compute bbox size to be power of 2 for software rendering.
         bbox = legend.get_window_extent().padded(2)
         bbox_inches = bbox.transformed(fig.dpi_scale_trans.inverted())
-        bbox_pixels = np.array(bbox_inches.extents) * LEGEND_DPI
-        width, height = map(int, bbox_pixels[2:] - bbox_pixels[:2])
+        bbox_pixels = LEGEND_DPI * np.array(bbox_inches.extents)
         bbox_size_2 = (2 ** np.ceil(
             np.log2(bbox_pixels[2:] - bbox_pixels[:2]))).astype(dtype=int)
         bbox_size_delta = bbox_size_2 - (bbox_pixels[2:] - bbox_pixels[:2])
@@ -1167,7 +1170,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             *bbox_size_2, Texture.T_unsigned_byte, Texture.F_rgba8)
         tex.set_ram_image_as(img_raw, 'rgba')
 
-        # Compute relative image size
+        # Compute relative image size, ignoring the real width of the
+        # texture since it has transparent background.
+        # We assume that the width of the window is the limiting dimension.
+        width = int(bbox_pixels[2] - bbox_pixels[0])
         legend_scale_rel = min(
             (1.0 - 2 * WIDGET_MARGIN_REL) * width_win / width,
             LEGEND_SCALE_MAX) * width / width_win
@@ -1178,15 +1184,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._legend = OnscreenImage(image=tex,
                                      parent=self.a2dBottomCenter,
                                      scale=(width_rel, 1, height_rel))
+        self._legend.set_transparency(TransparencyAttrib.MAlpha)
 
-        # Add it on secondary window
+        # Add legend on offscreen window
         self.offA2dBottomCenter.node().add_child(self._legend.node())
 
         # Move the legend in top left corner
         self._legend.set_pos(0, 0, WIDGET_MARGIN_REL + height_rel)
 
-        # Flip the vertical axis and enable transparency
-        self._legend.set_transparency(TransparencyAttrib.MAlpha)
+        # Flip the vertical axis
         if self.buff.inverted:
             self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
@@ -1264,10 +1270,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 node.clear_color()
             else:
                 node.set_color(Vec4(*color))
-                if texture_path:
-                    node.set_color_scale((1.0, 1.0, 1.0, 1.0))
-                else:
-                    node.set_color_scale((1.2, 1.2, 1.2, 1.0))
+                node.set_color_scale(
+                    4 * (1.0,) if texture_path else (*(3 * (1.2,)), 1.0))
 
                 material = Material()
                 material.set_ambient(Vec4(*color))
@@ -1276,7 +1280,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 material.set_roughness(0.4)
                 node.set_material(material, 1)
 
-                if color[3] < 1:
+                if color[3] < 1.0:
                     node.set_transparency(TransparencyAttrib.M_alpha)
                 else:
                     node.set_transparency(TransparencyAttrib.M_none)

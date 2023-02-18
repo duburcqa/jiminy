@@ -447,7 +447,7 @@ def evaluate(algo: Algorithm,
     # Collect samples.
     # `sample` either produces 1 episode or exactly `evaluation_duration` based
     # on `unit` being set to "episodes" or "timesteps" respectively.
-    # See https://github.com/ray-project/ray/blob/98b267f390290f2b2e839a9f1f762cf8c67d1a4a/rllib/algorithms/algorithm.py#L937  # noqa: E501
+    # See https://github.com/ray-project/ray/blob/98b267f390290f2b2e839a9f1f762cf8c67d1a4a/rllib/algorithms/algorithm.py#L937  # noqa: E501  # pylint: disable=line-too-long
     all_batches = []
     all_log_files, all_num_steps, all_total_rewards = [], [], []
     eval_workers.foreach_worker(toggle_write_log_hook)
