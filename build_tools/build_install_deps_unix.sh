@@ -71,6 +71,8 @@ git reset --hard
 git checkout --force "boost-1.76.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
+cd "$RootDir/boost/libs/math"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/boost-math.patch"
 cd "$RootDir/boost/libs/python"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/boost-python.patch"
 

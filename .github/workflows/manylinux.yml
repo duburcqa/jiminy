@@ -16,8 +16,7 @@ jobs:
         PYTHON_VERSION: ['cp38', 'cp39', 'cp310', 'cp311']
 
     runs-on: ubuntu-20.04
-    # Pin to latest version before update from gcc 11 to 12, which is not supported yet.
-    container: 'quay.io/pypa/manylinux_2_28_x86_64:2022-11-19-1b19e81'
+    container: 'quay.io/pypa/manylinux_2_28_x86_64:latest'
 
     defaults:
       run:
@@ -177,7 +176,7 @@ jobs:
         cd "$RootDir/core/examples/external_project/build"
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
                -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"
