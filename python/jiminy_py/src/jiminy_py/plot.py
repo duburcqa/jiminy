@@ -384,9 +384,8 @@ class TabbedFigure:
 
         # Update figure and show it without blocking if not done automatically
         self.adjust_layout(refresh_canvas=refresh_canvas)
-        if not self.offscreen:
-            if not matplotlib.get_backend().endswith('nbagg'):
-                self.figure.show()
+        if not self.offscreen and interactive_mode() < 2:
+            self.figure.show()
 
     def set_active_tab(self, tab_name: str) -> None:
         event = LocationEvent("click", self.figure.canvas, 0, 0)
@@ -588,8 +587,8 @@ def plot_log(log_data: Dict[str, Any],
         time, tabs_data, **{"plot_method": "plot", **kwargs})
 
     # Show the figure if appropriate, blocking if necessary
-    if block and not figure.offscreen and interactive_mode() > 2:
-        plt.show(block=True)
+    if block and not figure.offscreen:
+        plt.show(block=block)
 
     return figure
 

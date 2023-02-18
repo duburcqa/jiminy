@@ -848,12 +848,17 @@ class Viewer:
                 # the case if the environment is not jupyter-notebook nor
                 # colab but rather jupyterlab or vscode for instance.
                 from IPython import get_ipython
-                from notebook import notebookapp
                 kernel = get_ipython().kernel
                 conn_file = kernel.config['IPKernelApp']['connection_file']
                 kernel_id = conn_file.split('-', 1)[1].split('.')[0]
                 server_pid = Process(os.getpid()).parent().pid
-                server_list = list(notebookapp.list_running_servers())
+                server_list = []
+                try:
+                    from notebook import notebookapp
+                    server_list += list(notebookapp.list_running_servers())
+                except ImportError:
+                    # `notebook>=7.0` has removed this submodule entirely
+                    pass
                 try:
                     from jupyter_server import serverapp
                     server_list += list(serverapp.list_running_servers())

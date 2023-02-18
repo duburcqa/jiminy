@@ -65,7 +65,7 @@ if interactive_mode() >= 2:
             if ipykernel_version_major > 5:
                 shell_stream = self.__kernel.shell_stream
             else:
-                shell_stream = self.__kernel.shell_streams[0]
+                shell_stream, *_ = self.__kernel.shell_streams
             shell_stream.flush(zmq.POLLIN)
 
             # One must go through all the messages to keep them in order
