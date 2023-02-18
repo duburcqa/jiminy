@@ -2,6 +2,7 @@ import os
 import fnmatch
 import pathlib
 import argparse
+import logging
 from math import ceil, sqrt, floor
 from textwrap import dedent
 from itertools import cycle
@@ -12,6 +13,7 @@ from typing import Dict, Optional, Any, Tuple, List, Union, Callable, TypedDict
 
 import numpy as np
 try:
+    import matplotlib
     import matplotlib.pyplot as plt
 except ImportError:
     raise ImportError(
@@ -113,6 +115,17 @@ class TabbedFigure:
         # Backup user arguments
         self.sync_tabs = sync_tabs
         self.offscreen = offscreen
+
+        # Warn the user if Matplotlib backend is not fully compatible
+        if interactive_mode() >= 2 and matplotlib.get_backend() != 'nbAgg':
+            msg = (
+                "Matplotlib's 'widget' and 'inline' backends are not properly "
+                "supported.")
+            if interactive_mode() == 2:
+                msg += (
+                    " Please add '%matplotlib notebook' at the top and "
+                    "restart the kernel.")
+            logging.warning(msg)
 
         # Internal state buffers
         self.figure = plt.figure()
@@ -262,9 +275,6 @@ class TabbedFigure:
         """
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
-        # button = self.tab_active["button"]
-        # button.ax.draw_artist(button.ax)
-        # button.ax.figure.canvas.blit(button.ax.bbox)
 
     def add_tab(self,
                 tab_name: str,
@@ -372,10 +382,11 @@ class TabbedFigure:
             button.color = 'green'
             button.hovercolor = 'green'
 
-        # Update figure and show it without blocking
+        # Update figure and show it without blocking if not done automatically
         self.adjust_layout(refresh_canvas=refresh_canvas)
         if not self.offscreen:
-            self.figure.show()
+            if not matplotlib.get_backend().endswith('nbagg'):
+                self.figure.show()
 
     def set_active_tab(self, tab_name: str) -> None:
         event = LocationEvent("click", self.figure.canvas, 0, 0)
@@ -493,13 +504,13 @@ def plot_log(log_data: Dict[str, Any],
         velocity and acceleration subplots.
         Optional: False by default.
     :param block: Whether to wait for the figure to be closed before
-                  returning.
+                  returning. Non-op for offscreen rendering and notebooks.
                   Optional: False in interactive mode, True otherwise.
     :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
     """
     # Blocking by default if not interactive
     if block is None:
-        block = interactive_mode() < 1
+        block = interactive_mode() == 0
 
     # Extract log data
     if not log_data:
@@ -577,8 +588,8 @@ def plot_log(log_data: Dict[str, Any],
         time, tabs_data, **{"plot_method": "plot", **kwargs})
 
     # Show the figure if appropriate, blocking if necessary
-    if not figure.offscreen:
-        plt.show(block=block)
+    if block and not figure.offscreen and interactive_mode() > 2:
+        plt.show(block=True)
 
     return figure
 

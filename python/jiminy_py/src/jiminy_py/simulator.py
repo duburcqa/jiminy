@@ -642,7 +642,7 @@ class Simulator:
             Enable display of flexible joints in robot's configuration,
             velocity and acceleration subplots.
             Optional: False by default.
-        :parem block: Whether to wait for the figure to be closed before
+        :param block: Whether to wait for the figure to be closed before
                       returning.
                       Optional: False in interactive mode, True otherwise.
         :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
