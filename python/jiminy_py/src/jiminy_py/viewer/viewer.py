@@ -1562,25 +1562,27 @@ class Viewer:
                       values ranging from 0.0 and 1.0, and a few named colors.
                       Optional: Disabled by default.
         """
+        # Return early if this method is not supported by the current backend
+        if not Viewer.backend.startswith('panda3d'):
+            logger.warning("This method is only supported by Panda3d.")
+            return
+
         # Sanitize user-specified color code
         color_ = get_color_code(color)
 
-        if Viewer.backend.startswith('panda3d'):
-            for model, geom_type in zip(
-                    [self._client.visual_model, self._client.collision_model],
-                    pin.GeometryType.names.values()):
-                for geom in model.geometryObjects:
-                    node_name = self._client.getViewerNodeName(geom, geom_type)
-                    color = color_
-                    if color is None and geom.overrideMaterial:
-                        color = geom.meshColor
-                    self._gui.set_material(
-                        *node_name, color, disable_material=color_ is not None)
-            self.robot_color = color
-            Viewer._backend_robot_colors[self.robot_name] = color
-            Viewer._backend_obj.gui.set_legend()
-        else:
-            logger.warning("This method is only supported by Panda3d.")
+        for model, geom_type in zip(
+                (self._client.visual_model, self._client.collision_model),
+                pin.GeometryType.names.values()):
+            for geom in model.geometryObjects:
+                node_name = self._client.getViewerNodeName(geom, geom_type)
+                color = color_
+                if color is None and geom.overrideMaterial:
+                    color = geom.meshColor
+                self._gui.set_material(
+                    *node_name, color, disable_material=color_ is not None)
+        self.robot_color = color
+        Viewer._backend_robot_colors[self.robot_name] = color
+        Viewer._backend_obj.gui.set_legend()
 
     @staticmethod
     @__must_be_open
@@ -1606,24 +1608,26 @@ class Viewer:
         :param show_meshes: Whether to highlight the meshes.
                             Optional: disabled by default.
         """
-        if Viewer.backend.startswith('panda3d'):
-            # Restore tile ground if heightmap is not specified
-            if ground_profile is None:
-                Viewer._backend_obj.gui.update_floor()
-                return
-
-            # Discretize heightmap
-            grid = discretize_heightmap(ground_profile, grid_size, grid_unit)
-
-            # Make sure it is not flat ground
-            if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
-                    np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
-                Viewer._backend_obj.gui.update_floor()
-                return
-
-            Viewer._backend_obj.gui.update_floor(grid, show_meshes)
-        else:
+        # Return early if this method is not supported by the current backend
+        if not Viewer.backend.startswith('panda3d'):
             logger.warning("This method is only supported by Panda3d.")
+            return
+
+        # Restore tile ground if heightmap is not specified
+        if ground_profile is None:
+            Viewer._backend_obj.gui.update_floor()
+            return
+
+        # Discretize heightmap
+        grid = discretize_heightmap(ground_profile, grid_size, grid_unit)
+
+        # Make sure it is not flat ground
+        if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
+                np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
+            Viewer._backend_obj.gui.update_floor()
+            return
+
+        Viewer._backend_obj.gui.update_floor(grid, show_meshes)
 
     @staticmethod
     @__must_be_open
@@ -1852,9 +1856,13 @@ class Viewer:
         :param visibility: Whether to enable or disable display of the center
                            of mass.
         """
+        # Make sure the current backend is supported by this method.
         if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
+            if visibility:
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         for name in self.markers:
             if name.startswith("COM_0"):
@@ -1875,10 +1883,13 @@ class Viewer:
         :param visibility: Whether to enable or disable display of the capture
                            point.
         """
-        # Make sure the current backend is supported by this method
+        # Make sure the current backend is supported by this method.
         if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
+            if visibility:
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         # Update visibility
         for name in self.markers:
@@ -1907,10 +1918,13 @@ class Viewer:
 
         :param visibility: Whether to display the contact frames.
         """
-        # Make sure the current backend is supported by this method
+        # Make sure the current backend is supported by this method.
         if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
+            if visibility:
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         # Update visibility
         for name in self.markers:
@@ -1942,10 +1956,13 @@ class Viewer:
 
         :param visibility: Whether to display the contact forces.
         """
-        # Make sure the current backend is supported by this method
+        # Make sure the current backend is supported by this method.
         if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
+            if visibility:
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         # Update visibility
         for name in self.markers:
@@ -1985,14 +2002,17 @@ class Viewer:
                            ordering is consistent with pinocchio model (i.e.
                            `pinocchio_model.names`).
         """
-        # Make sure the current backend is supported by this method
-        if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
-
         # Convert boolean visiblity to mask if necessary
         if isinstance(visibility, bool):
-            visibility = [visibility] * (self._client.model.njoints - 1)
+            visibility = (self._client.model.njoints - 1) * (visibility,)
+
+        # Make sure the current backend is supported by this method.
+        if not Viewer.backend.startswith('panda3d'):
+            if any(visibility):
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         # Check that the length of the mask is consistent with the model
         assert len(visibility) == self._client.model.njoints - 1, (
