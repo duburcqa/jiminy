@@ -17,9 +17,14 @@ import ray
 from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS
 from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.algorithms.algorithm import Algorithm
 
 from gym_jiminy.common.wrappers import FrameRateLimiter
-from gym_jiminy.rllib.utilities import initialize, train, evaluate
+from gym_jiminy.rllib.utilities import (initialize,
+                                        train,
+                                        build_eval_worker_from_checkpoint,
+                                        evaluate_algo,
+                                        evaluate_local_worker)
 
 # ============================== User parameters ==============================
 
@@ -198,7 +203,7 @@ algo_config.evaluation(
     evaluation_parallel_to_training=True,
     # Custom evaluation method
     custom_evaluation_function=partial(
-        evaluate,
+        evaluate_algo,
         print_stats=True,
         enable_replay=True,
         record_video=True
@@ -278,12 +283,15 @@ algo = algo_config.build()
 # Train the agent
 checkpoint_path = train(algo, max_timesteps=150000)
 
-# =========================== Enjoy a trained agent ===========================
-
-algo.restore(checkpoint_path)
-evaluate(algo, evaluation_num=1, close_backend=True)
-
 # =========================== Terminate Ray backend ===========================
 
 algo.stop()
 ray.shutdown()
+
+# ======================= Enjoy a trained agent locally =======================
+
+register_env("test", lambda env_config: FrameRateLimiter(
+    gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
+
+worker = build_eval_worker_from_checkpoint(checkpoint_path)
+evaluate_local_worker(worker, evaluation_num=1, close_backend=True)

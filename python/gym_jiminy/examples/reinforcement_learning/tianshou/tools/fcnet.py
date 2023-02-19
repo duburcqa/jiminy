@@ -74,7 +74,7 @@ class Critic(nn.Module):
         self.last = nn.Linear(64, 1)
 
     def forward(self, obs: np.ndarray, **kwargs) -> np.ndarray:
-        logits, _ = self.preprocess(obs, state=kwargs.get('state', None))
+        logits, _ = self.preprocess(obs, state=kwargs.get('state'))
         logits = self.last(logits)
         return logits
 

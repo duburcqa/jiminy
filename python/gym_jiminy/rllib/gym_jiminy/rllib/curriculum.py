@@ -2,7 +2,8 @@
 """ TODO: Write documentation.
 """
 import re
-from typing import List, Any, Dict, Type, Union, Optional
+from typing import List, Any, Dict, Union, Optional, Callable
+from typing_extensions import TypeAlias
 
 import numpy as np
 
@@ -23,7 +24,7 @@ from gym_jiminy.toolbox.wrappers.meta_envs import DataTreeT
 def build_task_scheduling_callback(
         history_length: int,
         softmin_beta: float,
-        callbacks_class: Type[DefaultCallbacks] = DefaultCallbacks) -> type:
+        callbacks_class: TypeAlias = DefaultCallbacks) -> type:
     """ TODO: Write documentation.
     """
     class TaskSchedulingSamplingCallback(callbacks_class):
@@ -35,9 +36,10 @@ def build_task_scheduling_callback(
             state, i.e. `on_episode_end` and `on_train_result` methods cannot
             rely on shared attributes.
         """
-        def __init__(self,
-                     legacy_callbacks_dict: Dict[str, callable] = None
-                     ) -> None:
+        def __init__(
+                self,
+                legacy_callbacks_dict: Optional[Dict[str, Callable]] = None
+                ) -> None:
             """ TODO: Write documentation.
             """
             super().__init__(legacy_callbacks_dict)
@@ -50,7 +52,7 @@ def build_task_scheduling_callback(
                            policies: Dict[PolicyID, Policy],
                            episode: Union[Episode, EpisodeV2, Exception],
                            env_index: Optional[int] = None,
-                           **kwargs) -> None:
+                           **kwargs: Any) -> None:
             """ TODO: Write documentation.
             """
             # Call base implementation
@@ -59,6 +61,8 @@ def build_task_scheduling_callback(
                                    policies=policies,
                                    episode=episode,
                                    **kwargs)
+            if not isinstance(episode, (Episode, EpisodeV2)):
+                return
 
             # Monitor episode duration for each gait
             for env in base_env.get_sub_environments():
@@ -88,8 +92,8 @@ def build_task_scheduling_callback(
         def on_train_result(self,
                             *,
                             algorithm: Algorithm,
-                            result: dict,
-                            **kwargs) -> None:
+                            result: Dict[str, Any],
+                            **kwargs: Any) -> None:
             """ TODO: Write documentation.
             """
             # Gather task scores
@@ -213,6 +217,7 @@ def build_task_scheduling_callback(
                         task_branches.append(task_branch_next)
 
             # Update envs accordingly
+            assert algorithm.workers is not None
             algorithm.workers.foreach_env(
                 lambda env: env.task_tree_probas.update(task_tree_probas))
 

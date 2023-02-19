@@ -4,6 +4,7 @@ from operator import methodcaller
 from typing import Any, Dict, Optional, Union
 
 from ray.rllib.env import BaseEnv
+from ray.rllib.env.base_env import _DUMMY_AGENT_ID
 from ray.rllib.policy import Policy
 from ray.rllib.evaluation.episode import Episode
 from ray.rllib.evaluation.episode_v2 import EpisodeV2
@@ -25,7 +26,7 @@ class MonitorInfoCallback(DefaultCallbacks):
                         policies: Optional[Dict[PolicyID, Policy]] = None,
                         episode: Union[Episode, EpisodeV2],
                         env_index: Optional[int] = None,
-                        **kwargs) -> None:
+                        **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
         super().on_episode_step(worker=worker,
@@ -34,7 +35,10 @@ class MonitorInfoCallback(DefaultCallbacks):
                                 episode=episode,
                                 env_index=env_index,
                                 **kwargs)
-        info = episode.last_info_for()
+        if isinstance(episode, Episode):
+            info = episode.last_info_for()
+        else:
+            info = episode._last_infos.get(_DUMMY_AGENT_ID)
         if info is not None:
             for key, value in info.items():
                 # TODO: This line cause memory to grow unboundedly
@@ -64,10 +68,11 @@ class CurriculumUpdateCallback(DefaultCallbacks):
     def on_train_result(self,
                         *,
                         algorithm: Algorithm,
-                        result: dict,
-                        **kwargs) -> None:
+                        result: Dict[str, Any],
+                        **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
+        assert algorithm.workers is not None
         super().on_train_result(algorithm=algorithm, result=result, **kwargs)
         algorithm.workers.foreach_env(methodcaller('update', result))
 

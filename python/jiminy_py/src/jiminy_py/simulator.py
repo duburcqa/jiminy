@@ -594,7 +594,7 @@ class Simulator:
                    get_default_backend())
         must_not_open_gui = (
             backend.startswith("panda3d") or
-            kwargs.get('record_video_path', None) is not None)
+            kwargs.get('record_video_path') is not None)
         self.render(**{
             'return_rgb_array': must_not_open_gui,
             'update_floor': True,

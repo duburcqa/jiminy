@@ -253,7 +253,7 @@ def build_pipeline(env_config: EnvConfig,
         assert (isinstance(obj, type) and
                 issubclass(obj, (gym.Wrapper, BaseJiminyEnv)))
         pipeline_class = obj
-    env_kwargs = env_config.get('env_kwargs', None)
+    env_kwargs = env_config.get('env_kwargs')
     for config in blocks_config:
         pipeline_class = _build_wrapper(
             pipeline_class, env_kwargs, **config)

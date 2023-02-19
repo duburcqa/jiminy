@@ -17,7 +17,7 @@ from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.policy import Policy
 from ray.rllib.policy.view_requirement import ViewRequirement
-from ray.rllib.algorithms.algorithm_config import AlgorithmConfig, NotProvided
+from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.ppo import PPOConfig as _PPOConfig, PPO as _PPO
 from ray.rllib.algorithms.ppo.ppo_torch_policy import (
     PPOTorchPolicy as _PPOTorchPolicy)
@@ -170,7 +170,7 @@ class PPOConfig(_PPOConfig):
     """Provide additional parameters on top of the original PPO algorithm to
     configure several regularization losses. See `PPOTorchPolicy` for details.
     """
-    def __init__(self, algo_class=None):
+    def __init__(self, algo_class: Optional[Type["PPO"]] = None):
         super().__init__(algo_class=algo_class or PPO)
 
         self.enable_adversarial_noise = False
@@ -190,46 +190,46 @@ class PPOConfig(_PPOConfig):
     def training(
         self,
         *,
-        enable_adversarial_noise: Optional[bool] = NotProvided,
-        spatial_noise_scale: Optional[float] = NotProvided,
-        sgld_beta_inv: Optional[float] = NotProvided,
-        sgld_n_steps: Optional[int] = NotProvided,
-        temporal_barrier_scale: Optional[float] = NotProvided,
-        temporal_barrier_threshold: Optional[float] = NotProvided,
-        temporal_barrier_reg: Optional[float] = NotProvided,
-        symmetric_policy_reg: Optional[float] = NotProvided,
-        caps_temporal_reg: Optional[float] = NotProvided,
-        caps_spatial_reg: Optional[float] = NotProvided,
-        caps_global_reg: Optional[float] = NotProvided,
-        l2_reg: Optional[float] = NotProvided,
-        **kwargs,
+        enable_adversarial_noise: Optional[bool] = None,
+        spatial_noise_scale: Optional[float] = None,
+        sgld_beta_inv: Optional[float] = None,
+        sgld_n_steps: Optional[int] = None,
+        temporal_barrier_scale: Optional[float] = None,
+        temporal_barrier_threshold: Optional[float] = None,
+        temporal_barrier_reg: Optional[float] = None,
+        symmetric_policy_reg: Optional[float] = None,
+        caps_temporal_reg: Optional[float] = None,
+        caps_spatial_reg: Optional[float] = None,
+        caps_global_reg: Optional[float] = None,
+        l2_reg: Optional[float] = None,
+        **kwargs: Any,
     ) -> "PPOConfig":
         # Pass kwargs onto super's `training()` method.
         super().training(**kwargs)
 
-        if enable_adversarial_noise is not NotProvided:
+        if enable_adversarial_noise is not None:
             self.enable_adversarial_noise = enable_adversarial_noise
-        if spatial_noise_scale is not NotProvided:
+        if spatial_noise_scale is not None:
             self.spatial_noise_scale = spatial_noise_scale
-        if sgld_beta_inv is not NotProvided:
+        if sgld_beta_inv is not None:
             self.sgld_beta_inv = sgld_beta_inv
-        if sgld_n_steps is not NotProvided:
+        if sgld_n_steps is not None:
             self.sgld_n_steps = sgld_n_steps
-        if temporal_barrier_scale is not NotProvided:
+        if temporal_barrier_scale is not None:
             self.temporal_barrier_scale = temporal_barrier_scale
-        if temporal_barrier_threshold is not NotProvided:
+        if temporal_barrier_threshold is not None:
             self.temporal_barrier_threshold = temporal_barrier_threshold
-        if temporal_barrier_reg is not NotProvided:
+        if temporal_barrier_reg is not None:
             self.temporal_barrier_reg = temporal_barrier_reg
-        if symmetric_policy_reg is not NotProvided:
+        if symmetric_policy_reg is not None:
             self.symmetric_policy_reg = symmetric_policy_reg
-        if caps_temporal_reg is not NotProvided:
+        if caps_temporal_reg is not None:
             self.caps_temporal_reg = caps_temporal_reg
-        if caps_spatial_reg is not NotProvided:
+        if caps_spatial_reg is not None:
             self.caps_spatial_reg = caps_spatial_reg
-        if caps_global_reg is not NotProvided:
+        if caps_global_reg is not None:
             self.caps_global_reg = caps_global_reg
-        if l2_reg is not NotProvided:
+        if l2_reg is not None:
             self.l2_reg = l2_reg
 
         return self
@@ -252,7 +252,7 @@ class PPO(_PPO):
                                  ) -> Optional[Type[Policy]]:
         """Returns a default Policy class to use, given a config.
         """
-        framework = config["framework"]
+        framework = config.framework_str
         if framework == "torch":
             return PPOTorchPolicy
         raise ValueError(f"The framework {framework} is not supported.")
@@ -273,7 +273,10 @@ class PPOTorchPolicy(_PPOTorchPolicy):
             symmetric actions associated with symmetric observations.
             - L2 regularization of policy network weights
     """
-    def __init__(self, observation_space, action_space, config):
+    def __init__(self,
+                 observation_space: gym.spaces.Space,
+                 action_space: gym.spaces.Space,
+                 config: PPOConfig) -> None:
         """Initialize PPO Torch policy.
 
         It extracts observation mirroring transforms for symmetry computations.
@@ -283,7 +286,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
             Dict[str, torch.Tensor], torch.Tensor]] = None
         self.action_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
-        if config["symmetric_policy_reg"] > 0.0:
+        if config.symmetric_policy_reg > 0.0:
             is_obs_dict = hasattr(observation_space, "original_space")
             if is_obs_dict:
                 observation_space = observation_space.original_space
@@ -308,6 +311,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
             self.action_mirror_mat = action_mirror_mat.T.contiguous()
 
         super().__init__(observation_space, action_space, config)
+        self.config: Dict[str, Any]
 
     def _get_default_view_requirements(self) -> None:
         """Add previous observation to view requirements for CAPS
@@ -474,7 +478,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
                 self.action_mirror_mat)
 
         # Update total loss
-        stats = model.tower_stats
+        stats = model.tower_stats  # type: ignore[attr-defined]
         if self.config["caps_temporal_reg"] > 0.0 or \
                 self.config["temporal_barrier_reg"] > 0.0:
             # Compute action temporal delta

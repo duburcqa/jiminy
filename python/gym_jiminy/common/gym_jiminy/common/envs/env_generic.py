@@ -855,8 +855,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if mode is None:
             # 'rgb_array' by default if the current for future backend is
             # 'panda3d-sync', otherwise 'human' if available.
-            backend = (kwargs.get('backend', None) or viewer_backend or
-                       self.simulator.viewer_kwargs.get('backend', None) or
+            backend = (kwargs.get('backend') or viewer_backend or
+                       self.simulator.viewer_kwargs.get('backend') or
                        get_default_backend())
             if backend == "panda3d-sync":
                 mode = 'rgb_array'
@@ -868,7 +868,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Make sure that the request makes sense
         if mode == 'human' and {
                 **kwargs, **self.simulator.viewer_kwargs
-                }.get('backend', None) == 'panda3d-sync':
+                }.get('backend') == 'panda3d-sync':
             raise ValueError(
                 "mode='human' is incompatible with backend='panda3d-sync'.")
 
@@ -910,7 +910,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # individual scalar data over time to be displayed to the same subplot.
         t = log_vars["Global.Time"]
         tab_data = {}
-        action_fieldnames = self.log_fieldnames.get("action", None)
+        action_fieldnames = self.log_fieldnames.get("action")
         if action_fieldnames is None:
             # It was impossible to register the action to the telemetry, likely
             # because of incompatible dtype. Early return without adding tab.
@@ -948,7 +948,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Note that backend is closed automatically is there is no viewer
         # backend available at this point, to reduce memory pressure, but it
         # will take time to restart it systematically for every recordings.
-        if kwargs.get('record_video_path', None) is not None:
+        if kwargs.get('record_video_path') is not None:
             kwargs['mode'] = 'rgb_array'
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
