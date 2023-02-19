@@ -996,7 +996,7 @@ class Viewer:
                         Viewer._backend_obj.stop()
                     except ViewerClosedError:
                         pass
-                Viewer._backend_proc.wait(0.1)
+                Viewer._backend_proc.wait(0.2)
                 Viewer._backend_proc.kill()
             atexit.unregister(Viewer.close)
             Viewer.backend = None
@@ -1180,6 +1180,7 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
+    @__with_lock
     def _delete_nodes_viewer(nodes_path: Sequence[str]) -> None:
         """Delete an object or a group of objects in the scene.
 
@@ -1293,6 +1294,7 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
+    @__with_lock
     def get_camera_transform() -> Tuple[Tuple3FType, Tuple3FType]:
         """Get transform of the camera pose.
 
@@ -2048,6 +2050,7 @@ class Viewer:
         self._gui.remove_node(self._markers_group, name)
 
     @__must_be_open
+    @__with_lock
     def refresh(self,
                 force_update_visual: bool = False,
                 force_update_collision: bool = False,

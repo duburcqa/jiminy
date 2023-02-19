@@ -10,6 +10,7 @@ import pathlib
 import logging
 import inspect
 import tracemalloc
+from threading import RLock, Thread
 from itertools import chain
 from datetime import datetime
 from collections import defaultdict
@@ -45,7 +46,7 @@ from gym_jiminy.common.envs import BaseJiminyEnv
 
 
 logger = logging.getLogger(__name__)
-
+viewer_lock = RLock()  # Unique lock for threads
 
 HISTOGRAM_BINS = 15
 
@@ -372,9 +373,6 @@ def evaluate(algo: Algorithm,
     .. note::
         This function can be aborted using CTRL+C without raising an exception.
 
-    .. warning::
-        Remote evaluation workers are not supported for now.
-
     :param eval_workers: Rollout workers for evaluation.
                          Optional: `algo.evaluation_workers` by default.
     :param evaluation_num: How any evaluation to run. The log files of the best
@@ -447,32 +445,71 @@ def evaluate(algo: Algorithm,
     # Collect samples.
     # `sample` either produces 1 episode or exactly `evaluation_duration` based
     # on `unit` being set to "episodes" or "timesteps" respectively.
-    # See https://github.com/ray-project/ray/blob/98b267f390290f2b2e839a9f1f762cf8c67d1a4a/rllib/algorithms/algorithm.py#L937  # noqa: E501  # pylint: disable=line-too-long
+    # See https://github.com/ray-project/ray/blob/ray-2.2.0/rllib/algorithms/algorithm.py#L937  # noqa: E501  # pylint: disable=line-too-long
     all_batches = []
     all_log_files, all_num_steps, all_total_rewards = [], [], []
     eval_workers.foreach_worker(toggle_write_log_hook)
-    for _ in range(num_episodes):
-        # Run a complete episode
-        batch = local_worker.sample().as_multi_agent()[DEFAULT_POLICY_ID]
-        num_steps = batch.env_steps()
-        total_reward = np.sum(batch[batch.REWARDS])
-        (log_file,) = local_worker.callbacks.log_files
+    if eval_workers.num_remote_workers() == 0:
+        local_worker = eval_workers.local_worker()
+        for _ in range(num_episodes):
+            # Run a complete episode
+            batch = local_worker.sample().as_multi_agent()[DEFAULT_POLICY_ID]
+            num_steps = batch.env_steps()
+            total_reward = np.sum(batch[batch.REWARDS])
+            (log_file,) = local_worker.callbacks.log_files
 
-        # Store all batches for later use
-        if raw_data or algo.reward_estimators:
-            all_batches.append(batch)
+            # Store all batches for later use
+            if raw_data or algo.reward_estimators:
+                all_batches.append(batch)
 
-        # Keep track of basic info
-        all_num_steps.append(num_steps)
-        all_total_rewards.append(total_reward)
-        all_log_files.append(log_file)
+            # Keep track of basic info
+            all_num_steps.append(num_steps)
+            all_total_rewards.append(total_reward)
+            all_log_files.append(log_file)
+    elif eval_workers.num_healthy_remote_workers() > 0:
+        while (delta_episodes := num_episodes - len(all_log_files)) > 0:
+            if eval_workers.num_healthy_remote_workers() == 0:
+                # All of the remote evaluation workers died. Stopping.
+                break
+
+            # Select proper number of evaluation workers for this round
+            selected_eval_worker_ids = [
+                worker_id for i, worker_id in enumerate(
+                    eval_workers.healthy_worker_ids()) if i < delta_episodes]
+
+            # Run a complete episode per selected worker
+            batches = eval_workers.foreach_worker(
+                func=lambda w: w.sample(),
+                local_worker=False,
+                remote_worker_ids=selected_eval_worker_ids,
+                timeout_seconds=algo.config["evaluation_sample_timeout_s"])
+            if len(batches) != len(selected_eval_worker_ids):
+                logger.warning(
+                    "Calling `sample()` on your remote evaluation worker(s) "
+                    "resulted in a timeout. Please configure the parameter "
+                    "`evaluation_sample_timeout_s` accordingly.")
+                break
+
+            # Keep track of basic info
+            for ma_batch in batches:
+                batch = ma_batch.as_multi_agent()[DEFAULT_POLICY_ID]
+                all_num_steps.append(batch.env_steps())
+                all_total_rewards.append(np.sum(batch[batch.REWARDS]))
+            all_log_files += chain(*eval_workers.foreach_worker(
+                lambda w: w.callbacks.log_files))
+
+            # Store all batches for later use
+            if algo.reward_estimators:
+                all_batches.extend(batches)
+    else:
+        # Can't find a good way to run the evaluation. Wait for next iteration.
+        pass
     eval_workers.foreach_worker(toggle_write_log_hook)
 
     # Backup only the log file corresponding of the best trial
-    log_labels = ("best", "worst")[:num_episodes]
-    log_paths = []
-    for suffix, idx in zip(log_labels, (
-            np.argmax(all_total_rewards), np.argmin(all_total_rewards))):
+    idx_worst, idx_best = np.argsort(all_total_rewards)[[0, -1]]
+    log_labels, log_paths = ("best", "worst")[:len(all_total_rewards)], []
+    for suffix, idx in zip(log_labels, (idx_best, idx_worst)):
         log_path = f"{algo.logdir}/iter_{algo.iteration}-{suffix}.hdf5"
         shutil.move(all_log_files[idx], log_path)
         log_paths.append(log_path)
@@ -509,30 +546,46 @@ def evaluate(algo: Algorithm,
     # Replay and/or record a video of the best trial if requested.
     # The viewer must be closed after replay if recording is requested,
     # otherwise the graphical window will dramatically slowdown rendering.
+    # Threading is used to enable replay and record while training keeps going.
+    # A lock must be used to force waiting for the current evaluation to finish
+    # before starting a new one, otherwise it will crash because of request
+    # collisions, and it is undesirable anyway.
+    def async_locked_play_and_record(
+            lock, log_paths, enable_replay, **viewer_kwargs):
+        video_path = viewer_kwargs.pop("record_video_path", None)
+        with lock:
+            if enable_replay:
+                viewers = play_logs_files(log_paths, **viewer_kwargs)
+                for viewer in viewers:
+                    viewer.close()
+            if video_path is not None:
+                viewers = play_logs_files(
+                    log_paths, record_video_path=video_path, **viewer_kwargs)
+                for viewer in viewers:
+                    viewer.close()
+
     viewer_kwargs, *_ = chain(
         *eval_workers.foreach_env(attrgetter("viewer_kwargs")))
-    viewer_kwargs = {**dict(
-        viewers=[],
-        delete_robot_on_close=True),
+    viewer_kwargs = {
         **viewer_kwargs, **dict(
-        scene_name=f"iter_{algo.iteration}",
-        robots_colors=('green', 'red') if len(log_labels) == 2 else None,
-        close_backend=enable_replay and record_video),
+            scene_name=f"iter_{algo.iteration}",
+            robots_colors=('green', 'red') if len(log_labels) == 2 else None,
+            close_backend=enable_replay and record_video,
+            verbose=False),
         **kwargs, **dict(
-        legend=log_labels if len(log_labels) == 2 else None)}
-    record_video = record_video or "record_video_path" in viewer_kwargs
+            legend=log_labels if len(log_labels) == 2 else None,
+            delete_robot_on_close=True)}
     if record_video:
-        video_path = viewer_kwargs.pop(
+        viewer_kwargs.setdefault(
             "record_video_path", f"{algo.logdir}/iter_{algo.iteration}.mp4")
     if enable_replay is None:
-        enable_replay = not record_video
-    if enable_replay:
-        viewer_kwargs["viewers"] = play_logs_files(log_paths, **viewer_kwargs)
-    if record_video:
-        viewer_kwargs["viewers"] = play_logs_files(
-            log_paths, record_video_path=video_path, **viewer_kwargs)
-    for viewer in viewer_kwargs["viewers"]:
-        viewer.close()
+        enable_replay = "record_video_path" not in viewer_kwargs
+    thread = Thread(
+        target=async_locked_play_and_record,
+        args=(viewer_lock, log_paths, enable_replay,),
+        kwargs=viewer_kwargs)
+    thread.daemon = True
+    thread.start()
 
     # Return collected data without computing metrics if requested
     if raw_data:

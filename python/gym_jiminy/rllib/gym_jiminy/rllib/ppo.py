@@ -1,3 +1,8 @@
+"""Implement several regularization losses on top of the original PPO algorithm
+to encourage smoothness of the action and clustering of the behavior of the
+policy without having to rework the reward function itself. It takes advantage
+of the analytical gradient of the policy.
+"""
 import math
 import operator
 from functools import reduce
@@ -162,6 +167,9 @@ def _compute_mirrored_value(value: torch.Tensor,
 
 
 class PPOConfig(_PPOConfig):
+    """Provide additional parameters on top of the original PPO algorithm to
+    configure several regularization losses. See `PPOTorchPolicy` for details.
+    """
     def __init__(self, algo_class=None):
         super().__init__(algo_class=algo_class or PPO)
 
@@ -228,7 +236,7 @@ class PPOConfig(_PPOConfig):
 
 
 class PPO(_PPO):
-    """Custom PPO Algorithm with additional regularization losses on top of the
+    """Custom PPO algorithm with additional regularization losses on top of the
     original surrogate loss. See `PPOTorchPolicy` for details.
     """
     @classmethod
@@ -247,8 +255,7 @@ class PPO(_PPO):
         framework = config["framework"]
         if framework == "torch":
             return PPOTorchPolicy
-        else:
-            raise ValueError(f"The framework {framework} is not supported.")
+        raise ValueError(f"The framework {framework} is not supported.")
 
 
 class PPOTorchPolicy(_PPOTorchPolicy):

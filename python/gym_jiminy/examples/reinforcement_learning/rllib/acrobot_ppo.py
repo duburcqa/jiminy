@@ -30,7 +30,7 @@ GYM_ENV_KWARGS = {
 SPEED_RATIO = 1.0
 DEBUG = False
 SEED = 0
-N_THREADS = 8
+N_THREADS = 9
 N_GPU = 0
 
 # ====================== Initialize Ray and Tensorboard =======================
@@ -77,7 +77,7 @@ algo_config.resources(
 )
 algo_config.rollouts(
     # Number of rollout worker processes for parallel sampling
-    num_rollout_workers=N_THREADS,
+    num_rollout_workers=N_THREADS-1,
     # Number of environments per worker processes
     num_envs_per_worker=1,
     # Whether to create the envs per worker in individual remote processes
@@ -187,16 +187,20 @@ algo_config.exploration(
 
 algo_config.evaluation(
     # Evaluate every `evaluation_interval` training iterations
-    evaluation_interval=15,
+    evaluation_interval=20,
     # Number of evaluation steps based on specified unit
     evaluation_duration=10,
     # The unit with which to count the evaluation duration
     evaluation_duration_unit="episodes",
+    # Number of parallel workers to use for evaluation
+    evaluation_num_workers=1,
+    # Whether to run evaluation in parallel to a Algorithm.train()
+    evaluation_parallel_to_training=True,
     # Custom evaluation method
     custom_evaluation_function=partial(
         evaluate,
         print_stats=True,
-        enable_replay=False,
+        enable_replay=True,
         record_video=True
     ),
     # Partially override configuration for evaluation
