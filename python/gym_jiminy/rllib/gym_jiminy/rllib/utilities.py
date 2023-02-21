@@ -414,9 +414,7 @@ class _WriteLogHook:
     def __init__(self, on_episode_end: Callable) -> None:
         self.__func__ = on_episode_end
 
-    def __call__(self, *,
-                    worker: RolloutWorker,
-                    **kwargs: Any) -> None:
+    def __call__(self, *, worker: RolloutWorker, **kwargs: Any) -> None:
         def write_log(env: gym.Env) -> str:
             fd, log_path = mkstemp(prefix="log_", suffix=".hdf5")
             os.close(fd)
@@ -439,7 +437,12 @@ def toggle_write_log_hook(worker: RolloutWorker) -> None:
 
 
 def pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
-    """
+    """Render histograms directly from within the terminal without involving
+    any graphical server. These figures can be saves in text files and
+    copy-pasted easily. Internally, it is simply calling on `plotext.hist`.
+
+    :param data: Sequence of pairs containing first the label and second
+                 all the samples available as a 1D array.
     """
     try:
         plt.clear_figure()
@@ -578,7 +581,7 @@ def evaluate_algo(algo: Algorithm,
     """
     # Handling of default argument(s)
     if eval_workers is None:
-        eval_workers = algo.eval_workers
+        eval_workers = algo.evaluation_workers
     assert eval_workers is not None
     if isinstance(eval_workers, RolloutWorker):
         local_worker = eval_workers
@@ -612,9 +615,9 @@ def evaluate_algo(algo: Algorithm,
             local_worker, num_episodes, print_stats=False, enable_replay=False)
 
         # Extract some high-level statistics
-        all_num_steps, all_total_rewards = map(list, zip(*(
-            (batch.env_steps(), np.sum(batch[batch.REWARDS]))
-            for batch in all_batches)))
+        all_num_steps = [batch.env_steps() for batch in all_batches]
+        all_total_rewards = [
+            np.sum(batch[batch.REWARDS]) for batch in all_batches]
     elif eval_workers.num_healthy_remote_workers() > 0:
         all_batches, all_log_paths = [], []
         all_num_steps, all_total_rewards = [], []

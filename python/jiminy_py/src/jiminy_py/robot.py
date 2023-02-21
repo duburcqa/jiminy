@@ -7,7 +7,8 @@ import tempfile
 import numpy as np
 import xml.etree.ElementTree as ET
 from collections import OrderedDict, defaultdict
-from typing import Optional, Dict, Any
+from types import ModuleType
+from typing import Optional, Dict, Any, Sequence
 
 import trimesh
 
@@ -25,6 +26,8 @@ from pinocchio.rpy import rpyToMatrix
 
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 DEFAULT_FRICTION_DRY_SLOPE = 0.0
+
+EXTENSION_MODULES: Sequence[ModuleType] = ()
 
 
 class _DuplicateFilter:
@@ -676,7 +679,16 @@ def load_hardware_description_file(
                 continue
 
             # Create the motor and attach it
-            motor = getattr(jiminy, motor_type)(motor_name)
+            motor = None
+            for module in (jiminy, *EXTENSION_MODULES):
+                try:
+                    motor = getattr(module, motor_type)(motor_name)
+                    break
+                except AttributeError:
+                    pass
+            if motor is None:
+                raise RuntimeError(
+                    f"Cannot instantiate motor of type '{motor_type}'.")
             robot.attach_motor(motor)
 
             # Initialize the motor
@@ -712,7 +724,16 @@ def load_hardware_description_file(
                     continue
 
             # Create the sensor and attach it
-            sensor = getattr(jiminy, sensor_type)(sensor_name)
+            sensor = None
+            for module in (jiminy, *EXTENSION_MODULES):
+                try:
+                    sensor = getattr(module, sensor_type)(sensor_name)
+                    break
+                except AttributeError:
+                    pass
+            if sensor is None:
+                raise RuntimeError(
+                    f"Cannot instantiate sensor of type '{sensor_type}'.")
             robot.attach_sensor(sensor)
 
             # Initialize the sensor
