@@ -101,13 +101,6 @@ InstallDir="$RootDir/install"
 
 unset Boost_ROOT
 
-PythonSitelib="$($PythonExe -c "import sysconfig; print(sysconfig.get_path('purelib'), end='')")"
-PythonVer="$($PythonExe -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
-
-mkdir -p "$PythonSitelib"
-echo "$InstallDir/lib/python$PythonVer/site-packages" \
-> "$PythonSitelib/addon_site.pth"
-
 mkdir "$RootDir/build"
 cd "$RootDir/build"
 cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \

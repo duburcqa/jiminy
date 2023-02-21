@@ -136,6 +136,10 @@ setup(
             "playwright"
         ],
         "dev": [
+            # Generate Python type hints files (aka. stubs) for C extensions.
+            # Natively, it only supports PyBind11, but it has been patched to
+            # partially support of Boost::Python (`build_tools/stub_gen.py`).
+            "pybind11_stubgen",
             # Used in unit tests for checking if viewer screen captures match
             "pillow",
             # Used in unit tests for numerical integration and interpolation

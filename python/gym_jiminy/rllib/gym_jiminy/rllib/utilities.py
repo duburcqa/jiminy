@@ -34,13 +34,12 @@ from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
-from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
+from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.evaluation.metrics import collect_metrics
 from ray.rllib.utils.checkpoints import get_checkpoint_info
 from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED_THIS_ITER
-from ray.rllib.utils.typing import SampleBatchType
 
 from jiminy_py.viewer import async_play_and_record_logs_files
 from gym_jiminy.common.envs import BaseJiminyEnv
@@ -456,13 +455,13 @@ def pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
         logger.warning("Ascii rendering failure for statistics: %s", e)
 
 
-def evaluate_local_worker(worker: RolloutWorker = None,
+def evaluate_local_worker(worker: RolloutWorker,
                           evaluation_num: int = 1,
                           print_stats: Optional[bool] = None,
                           enable_replay: Optional[bool] = None,
                           block: bool = True,
                           **kwargs: Any
-                          ) -> Tuple[List[SampleBatchType], List[str]]:
+                          ) -> Tuple[List[SampleBatch], List[str]]:
     """Evaluates the performance of a given local worker.
 
     .. details::
@@ -507,8 +506,8 @@ def evaluate_local_worker(worker: RolloutWorker = None,
         total_reward = np.sum(batch[batch.REWARDS])
 
         # Backup the log files
-        (log_file,) = worker.callbacks.log_paths
-        all_log_paths.append(log_file)
+        (log_path,) = worker.callbacks.log_paths  # type: ignore[attr-defined]
+        all_log_paths.append(log_path)
 
         # Store all batches for later use
         all_batches.append(batch)
@@ -613,7 +612,7 @@ def evaluate_algo(algo: Algorithm,
             local_worker, num_episodes, print_stats=False, enable_replay=False)
 
         # Extract some high-level statistics
-        all_num_steps, all_total_rewards = map(np.array, zip(*(
+        all_num_steps, all_total_rewards = map(list, zip(*(
             (batch.env_steps(), np.sum(batch[batch.REWARDS]))
             for batch in all_batches)))
     elif eval_workers.num_healthy_remote_workers() > 0:

@@ -72,11 +72,6 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
 
-        PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
-        mkdir -p "${PYTHON_USER_SITELIB}"
-        echo "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages" \
-        > "${PYTHON_USER_SITELIB}/user_site.pth"
-
     #####################################################################################
 
     - name: Build and install Jiminy

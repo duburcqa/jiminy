@@ -595,24 +595,24 @@ namespace python
             return convertToPython<std::vector<vectorN_t> >(aSplit, true);
         }
 
-        static void registerForceImpulse(EngineMultiRobot       & self,
-                                         std::string      const & systemName,
-                                         std::string      const & frameName,
-                                         float64_t        const & t,
-                                         float64_t        const & dt,
-                                         vector6_t        const & F)
+        static hresult_t registerForceImpulse(EngineMultiRobot       & self,
+                                              std::string      const & systemName,
+                                              std::string      const & frameName,
+                                              float64_t        const & t,
+                                              float64_t        const & dt,
+                                              vector6_t        const & F)
         {
-            self.registerForceImpulse(systemName, frameName, t, dt, pinocchio::Force(F));
+            return self.registerForceImpulse(systemName, frameName, t, dt, pinocchio::Force(F));
         }
 
-        static void registerForceProfile(EngineMultiRobot       & self,
-                                         std::string      const & systemName,
-                                         std::string      const & frameName,
-                                         bp::object       const & forcePy,
-                                         float64_t        const & updatePeriod)
+        static hresult_t registerForceProfile(EngineMultiRobot       & self,
+                                              std::string      const & systemName,
+                                              std::string      const & frameName,
+                                              bp::object       const & forcePy,
+                                              float64_t        const & updatePeriod)
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            self.registerForceProfile(systemName, frameName, std::move(forceFct), updatePeriod);
+            return self.registerForceProfile(systemName, frameName, std::move(forceFct), updatePeriod);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -989,22 +989,22 @@ namespace python
             }
         }
 
-        static void registerForceImpulse(Engine            & self,
-                                         std::string const & frameName,
-                                         float64_t   const & t,
-                                         float64_t   const & dt,
-                                         vector6_t   const & F)
+        static hresult_t registerForceImpulse(Engine            & self,
+                                              std::string const & frameName,
+                                              float64_t   const & t,
+                                              float64_t   const & dt,
+                                              vector6_t   const & F)
         {
-            self.registerForceImpulse(frameName, t, dt, pinocchio::Force(F));
+            return self.registerForceImpulse(frameName, t, dt, pinocchio::Force(F));
         }
 
-        static void registerForceProfile(Engine            & self,
-                                         std::string const & frameName,
-                                         bp::object  const & forcePy,
-                                         float64_t   const & updatePeriod)
+        static hresult_t registerForceProfile(Engine            & self,
+                                              std::string const & frameName,
+                                              bp::object  const & forcePy,
+                                              float64_t   const & updatePeriod)
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            self.registerForceProfile(frameName, std::move(forceFct), updatePeriod);
+            return self.registerForceProfile(frameName, std::move(forceFct), updatePeriod);
         }
 
         static hresult_t registerForceCoupling(Engine            & self,

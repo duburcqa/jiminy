@@ -39,9 +39,6 @@ RootDir="$(dirname $ScriptDir)"
 InstallDir="$RootDir/install"
 mkdir -p "$InstallDir"
 
-### Add install library to path. This is necessary to generate stubs.
-LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
-
 ### Eigenpy and Pinocchio are using the deprecated FindPythonInterp
 #   cmake helper to detect Python executable, which is not working
 #   properly when several executables exist.
@@ -49,6 +46,15 @@ if [ -z ${PYTHON_EXECUTABLE} ]; then
   PYTHON_EXECUTABLE=$(python3 -c "import sys; sys.stdout.write(sys.executable)")
   echo "PYTHON_EXECUTABLE is unset. Defaulting to '${PYTHON_EXECUTABLE}'."
 fi
+
+### Configure site-packages pythonic "symlink" pointing to install directory
+PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
+PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
+mkdir -p "${PYTHON_USER_SITELIB}"
+echo "$InstallDir/lib/python${PYTHON_VERSION}/site-packages" > "${PYTHON_USER_SITELIB}/install_site.pth"
+
+### Add install library to path. This is necessary to generate stubs.
+LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
 ### Remove the preinstalled boost library from search path
 unset Boost_ROOT
@@ -187,7 +193,6 @@ cd "$RootDir/boost"
 ### File "project-config.jam" create by bootstrap must be edited manually
 #   to specify Python included dir manually, since it is not detected
 #   successfully in some cases.
-PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
 PYTHON_INCLUDE_DIRS="$(${PYTHON_EXECUTABLE} -c "import sysconfig as sysconfig; print(sysconfig.get_path('include'))")"
 PYTHON_CONFIG_JAM="using python : ${PYTHON_VERSION} : ${PYTHON_EXECUTABLE} : ${PYTHON_INCLUDE_DIRS} ;"
 sed -i.old "/using python/c\\

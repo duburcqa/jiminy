@@ -96,9 +96,15 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
+        # Generate stubs
         cd "$RootDir/build"
+        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stub_gen.py" --ignore-invalid=all jiminy_py
+        cp "stubs/jiminy_py-stubs/core/__init__.pyi" "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core/"
+
+        # Generate wheels
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
+        # Bundle non-standard dependencies with the wheels for optimal portability.
         # Note that `--strip` option is not used but rather done manually because the
         # built-in option corrupts the shared library for some reason...
         "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_repair_linux.py" repair \
@@ -188,7 +194,7 @@ jobs:
     #####################################################################################
 
   publish-pypi-manylinux:
-    name: (Manylinux) Publish on PyPi the wheel for Linux of jiminy_py and gym_jiminy
+    name: Publish on PyPi the wheel for Linux of jiminy_py and gym_jiminy
 
     needs: test-user-linux
     runs-on: ubuntu-20.04

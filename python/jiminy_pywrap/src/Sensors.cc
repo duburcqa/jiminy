@@ -33,7 +33,7 @@ namespace python
                 .def("__len__", &PySensorsDataMapVisitor::len,
                                 (bp::arg("self")))
                 .def("__getitem__", &PySensorsDataMapVisitor::getItem,
-                                    (bp::arg("self"), "(sensor_type, sensor_name)"))
+                                    (bp::arg("self"), "sensor_info"))
                 .def("__getitem__", &PySensorsDataMapVisitor::getItemSplit,
                                     (bp::arg("self"), "sensor_type", "sensor_name"))
                 .def("__getitem__", &PySensorsDataMapVisitor::getSub,

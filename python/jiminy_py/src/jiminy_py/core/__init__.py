@@ -47,9 +47,8 @@ if not _is_boost_shared and _is_dependency_available:
         "Boost::Python not found on the system. Impossible to import "
         "system-wide jiminy dependencies.")
 
-# Since Python >= 3.8, PATH and the current working directory are no longer
-# used for DLL resolution on Windows OS. One is expected to explicitly call
-# `os.add_dll_directory` instead.
+# The env variable PATH and the current working directory are ignored by
+# default for DLL resolution on Windows OS.
 if _sys.platform.startswith('win'):
     _os.add_dll_directory(_os.path.join(_os.path.dirname(__file__), "lib"))
     for path in _os.environ['PATH'].split(_os.pathsep):
