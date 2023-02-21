@@ -9,7 +9,7 @@ import argparse
 from base64 import b64encode
 from bisect import bisect_right
 from functools import partial
-from threading import Thread
+from threading import RLock, Thread
 from itertools import cycle, islice
 from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 
@@ -42,6 +42,7 @@ VIDEO_QUALITY = 0.3  # [Mbytes/s]
 
 logger = logging.getLogger(__name__)
 
+viewer_lock = RLock()  # Unique lock for threads
 
 ColorType = Union[Tuple4FType, str]
 
@@ -188,7 +189,8 @@ def play_trajectories(trajs_data: Union[
                     Optional: `None` by default.
     :param delete_robot_on_close: Whether to delete the robot from the viewer
                                   when closing it.
-                                  Optional: True by default.
+                                  Optional: True by default for Panda3d backend
+                                  in non-interactive mode, False otherwise.
     :param remove_widgets_overlay: Remove overlay (legend, watermark, clock,
                                    ...) automatically before returning.
                                    Optional: Enabled by default.
@@ -560,9 +562,9 @@ def play_trajectories(trajs_data: Union[
                       speed_ratio,
                       xyz_offset,
                       update_hook,
-                      enable_clock)))
+                      enable_clock),
+                daemon=True))
         for thread in threads:
-            thread.daemon = True
             thread.start()
         for thread in threads:
             try:
@@ -699,7 +701,7 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 
     :param logs_files: Either a single simulation log files in any format, or
                        a list.
-    :param mesh_package_dirs: Prepend custom mesh package seach path
+    :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
                               generated on a different environment.
@@ -724,6 +726,72 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 
     # Forward arguments to lower-level method
     return play_logs_data(robots, logs_data, **kwargs)
+
+
+def async_play_and_record_logs_files(
+        logs_files: Union[str, Sequence[str]],
+        enable_replay: Optional[bool] = None,
+        mesh_package_dirs: Union[str, Sequence[str]] = (),
+        **kwargs: Any) -> Thread:
+    """Play and/or replay the content of a logfile in a viewer asynchronously.
+
+    .. note::
+        This call can be made blocking at any point in time by calling `join()`
+        on the returned `Thread` instance.
+
+    :param logs_files: Simulation log files in any of the supported formats.
+    :param enable_replay: Whether to force replay the simulation. It would
+                          first replay then record if this option is enabled
+                          and `record_video_path` is specified.
+    :param mesh_package_dirs: Prepend custom mesh package search path
+                              directories to the ones provided by log file.
+    :param kwargs: Keyword arguments to forward to `play_logs_files` method.
+    """
+    # Handling of default argument(s)
+    if enable_replay is None:
+        enable_replay = "record_video_path" not in kwargs
+
+    # Define method to pass to threading
+    def _locked_play_and_record(lock: RLock,
+                                logs_files: Sequence[str],
+                                mesh_package_dirs: Union[str, Sequence[str]],
+                                enable_replay: bool,
+                                **kwargs: Any) -> None:
+        """A lock is used to force waiting for the current evaluation to finish
+        before starting a new one, otherwise it will crash because of request
+        collisions, and it is undesirable anyway.
+
+        The viewer must be closed after replay if recording is requested,
+        otherwise the graphical window will dramatically slowdown rendering.
+        """
+        record_video_path = kwargs.pop("record_video_path", None)
+        with lock:
+            if enable_replay:
+                viewers = play_logs_files(
+                    logs_files, mesh_package_dirs, **kwargs)
+                for viewer in viewers:
+                    viewer.close()
+            if record_video_path is not None:
+                viewers = play_logs_files(
+                    logs_files, mesh_package_dirs,
+                    record_video_path=record_video_path, **kwargs)
+                for viewer in viewers:
+                    viewer.close()
+
+    # Start replay and record thread
+    thread = Thread(
+        target=_locked_play_and_record,
+        args=(viewer_lock, logs_files, mesh_package_dirs, enable_replay),
+        kwargs={
+            **dict(
+                close_backend=enable_replay and "record_video_path" in kwargs,
+                verbose=False),
+            **kwargs, **dict(
+                delete_robot_on_close=True)},
+        daemon=True)
+    thread.start()
+
+    return thread
 
 
 def _play_logs_files_entrypoint() -> None:

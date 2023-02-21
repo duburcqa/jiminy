@@ -224,8 +224,8 @@ class CommManager:
             self.__comm_socket.close(linger=5)
             self.__comm_socket = None
 
-        self.__thread = threading.Thread(target=forward_comm_thread)
-        self.__thread.daemon = True
+        self.__thread = threading.Thread(
+            target=forward_comm_thread, daemon=True)
         self.__thread.start()
 
         self.__kernel = get_ipython().kernel
