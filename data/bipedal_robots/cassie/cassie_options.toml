@@ -14,10 +14,10 @@ randomSeed = 0
 [engine.constraints]
 solver = "PGS"
 regularization = 2.0e-3
-stabilizationFreq = 20.0
 
 [engine.contacts]
 model = "constraint"
+stabilizationFreq = 20.0
 transitionEps = 2.0e-3
 friction = 0.5
 

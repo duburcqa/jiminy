@@ -82,9 +82,7 @@ def generate_flexible_arm(mass_segments: float,
 
 
 class SimulateFlexibleArm(unittest.TestCase):
-    """
-    @brief Simulate the motion of a pendulum, comparing against python
-           integration.
+    """Simulate the motion of a pendulum, comparing against python integration.
     """
     def setUp(self):
         # Create temporary urdf file
@@ -156,8 +154,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         return True
 
     def test_write_replay_standalone_log(self):
-        """
-        @brief Check if reading/writing standalone log file is working.
+        """Check if reading/writing standalone log file is working.
         """
         # Configure log file to be standalone
         engine_options = self.simulator.engine.get_options()
@@ -183,9 +180,8 @@ class SimulateFlexibleArm(unittest.TestCase):
         self.assertEqual(len(Viewer._backend_robot_names), 0)
 
     def test_rigid_vs_flex_at_frame(self):
-        """
-        @brief Test if the result is the same with and without flexibility
-        if the inertia is extremely large.
+        """Test if the result is the same with and without flexibility if the
+        inertia is extremely large.
         """
         # Set initial condition and simulation duration
         q0, v0 = np.array([0.]), np.array([0.])

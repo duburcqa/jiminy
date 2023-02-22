@@ -567,9 +567,9 @@ class Viewer:
         """
         self.close()
 
-    def __must_be_open(fct: Callable) -> Callable:
-        @wraps(fct)
-        def fct_safe(*args: Any, **kwargs: Any) -> Any:
+    def __must_be_open(fun: Callable) -> Callable:
+        @wraps(fun)
+        def fun_safe(*args: Any, **kwargs: Any) -> Any:
             self = Viewer
             if args and isinstance(args[0], Viewer):
                 self = args[0]
@@ -577,20 +577,20 @@ class Viewer:
             if not self.is_open():
                 raise RuntimeError(
                     "No backend available. Please start one before calling "
-                    f"'{fct.__name__}'.")
-            return fct(*args, **kwargs)
-        return fct_safe
+                    f"'{fun.__name__}'.")
+            return fun(*args, **kwargs)
+        return fun_safe
 
-    def __with_lock(fct: Callable) -> Callable:
-        @wraps(fct)
-        def fct_safe(*args: Any, **kwargs: Any) -> Any:
+    def __with_lock(fun: Callable) -> Callable:
+        @wraps(fun)
+        def fun_safe(*args: Any, **kwargs: Any) -> Any:
             self = Viewer
             if args and isinstance(args[0], Viewer):
                 self = args[0]
             self = kwargs.get('self', self)
             with self._lock:
-                return fct(*args, **kwargs)
-        return fct_safe
+                return fun(*args, **kwargs)
+        return fun_safe
 
     @__must_be_open
     @__with_lock

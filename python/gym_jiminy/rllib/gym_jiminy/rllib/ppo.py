@@ -261,17 +261,16 @@ class PPO(_PPO):
 class PPOTorchPolicy(_PPOTorchPolicy):
     """Add regularization losses on top of the original loss of PPO.
 
-    .. details::
-        More specifically, it adds:
-            - CAPS regularization, which combines the spatial and temporal
-            difference betwen previous and current state
-            - Global regularization, which is the average norm of the action
-            - temporal barrier, which is exponential barrier loss when the
-            normalized action is above a threshold (much like interior point
-            methods).
-            - symmetry regularization, which is the error between actions and
-            symmetric actions associated with symmetric observations.
-            - L2 regularization of policy network weights
+    More specifically, it adds:
+        - CAPS regularization, which combines the spatial and temporal
+        difference betwen previous and current state
+        - Global regularization, which is the average norm of the action
+        - temporal barrier, which is exponential barrier loss when the
+        normalized action is above a threshold (much like interior point
+        methods).
+        - symmetry regularization, which is the error between actions and
+        symmetric actions associated with symmetric observations.
+        - L2 regularization of policy network weights
     """
     def __init__(self,
                  observation_space: gym.spaces.Space,

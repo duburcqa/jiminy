@@ -467,9 +467,8 @@ def evaluate_local_worker(worker: RolloutWorker,
                           ) -> Tuple[List[SampleBatch], List[str]]:
     """Evaluates the performance of a given local worker.
 
-    .. details::
-        This method is specifically tailored for Gym environments inheriting
-        from `BaseJiminyEnv`.
+    This method is specifically tailored for Gym environments inheriting from
+    `BaseJiminyEnv`.
 
     :param worker: Rollout workers for evaluation.
     :param evaluation_num: How any evaluation to run. The log files of the best
@@ -565,9 +564,8 @@ def evaluate_algo(algo: Algorithm,
     """Evaluates the current algorithm under `evaluation_config` configuration,
     then returns some performance metrics.
 
-    .. details::
-        This method is specifically tailored for Gym environments inheriting
-        from `BaseJiminyEnv`. It can be used to monitor the training progress.
+    This method is specifically tailored for Gym environments inheriting from
+    `BaseJiminyEnv`. It can be used to monitor the training progress.
 
     :param eval_workers: Rollout workers for evaluation.
                          Optional: `algo.eval_workers` by default.

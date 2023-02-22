@@ -25,9 +25,7 @@ TOLERANCE = 1.0e-7
 
 
 class SimulateSimplePendulum(unittest.TestCase):
-    """
-    @brief Simulate the motion of a pendulum, comparing against python
-           integration.
+    """Simulate the motion of a pendulum, comparing against python integration.
     """
     def setUp(self):
         # Load URDF, create model.
@@ -56,18 +54,18 @@ class SimulateSimplePendulum(unittest.TestCase):
             x0: Union[Dict[str, np.ndarray], np.ndarray],
             split: bool = False) -> Union[
                 Sequence[np.ndarray], Tuple[np.ndarray, np.ndarray]]:
-        """
-        @brief Simulate the dynamics of the system and retrieve the imu
-               sensor evolution over time.
+        """Simulate the dynamics of the system and retrieve the imu sensor
+        evolution over time.
 
-        @param engine  List of time instant at which to evaluate the solution.
-        @param tf  Duration of the simulation.
-        @param x0  Initial state of the system.
-        @param split  Whether to return quat, gyro, accel separately or as a
-                    unique vector.
+        :param engine: List of time instant at which to evaluate the solution.
+        :param tf: Duration of the simulation.
+        :param x0: Initial state of the system.
+        :param split: Whether to return quat, gyro, accel separately or as a
+                      unique vector.
 
-        @return - time: np.ndarray[len(time)]
-                - imu data evolution: np.ndarray[len(time),dim(imu.fieldnames)]
+        :returns: Pair containing first the sequence of time and second the
+        associated sequence of IMU measurements as a 2D array each line
+        corresponds to a given time.
         """
         # Run simulation
         q0, v0 = x0[:engine.robot.nq], x0[-engine.robot.nv:]
@@ -96,8 +94,7 @@ class SimulateSimplePendulum(unittest.TestCase):
             return time, imu_jiminy
 
     def test_armature(self):
-        """
-        @brief Verify the dynamics of the system when adding rotor inertia.
+        """Verify the dynamics of the system when adding rotor inertia.
         """
         # Configure the robot: set rotor inertia
         J = 0.1
@@ -140,14 +137,12 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
     def test_pendulum_integration(self):
-        """
-        @brief   Compare pendulum motion, as simulated by Jiminy, against an
-                 equivalent simulation done in python.
+        """Compare pendulum motion, as simulated by Jiminy, against an
+        equivalent simulation done in python.
 
-        @details Since we don't have a simple analytical expression for the
-                 solution of a (nonlinear) pendulum motion, we perform the
-                 simulation in Python, with the same integrator, and compare
-                 both results.
+        Since we don't have a simple analytical expression for the solution of
+        a (nonlinear) pendulum motion, we perform the simulation in Python,
+        with the same integrator, and compare both results.
         """
         # Create an engine: no controller and no internal dynamics
         engine = jiminy.Engine()
@@ -171,24 +166,23 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
 
     def test_imu_sensor(self):
-        """
-        @brief   Test IMU sensor on pendulum motion.
+        """Test IMU sensor on pendulum motion.
 
-        @details Note that the actual expected solution of the pendulum motion
-                 is used to compute the expected IMU data, instead of the
-                 result of the simulation done by jiminy itself. So this test
-                 is checking at the same time that the result of the simulation
-                 matches the solution, and that the sensor IMU data are valid.
-                 Though it is redundant, it validates that an IMU mounted on a
-                 pendulum gives the signal one would expect from an IMU on a
-                 pendulum, which is what a user would expect. Moreover, Jiminy
-                 output log does not feature the acceleration - to this test is
-                 indirectly checking that the acceleration computed by jiminy
-                 is valid.
+        .. note::
+            Since we don't have a simple analytical expression for the solution
+            of a (nonlinear) pendulum motion, we perform the simulation in
+            python, with the same integrator.
 
-        @remark  Since we don't have a simple analytical expression for the
-                 solution of a (nonlinear) pendulum motion, we perform the
-                 simulation in python, with the same integrator.
+        .. warning::
+            The actual expected solution of the pendulum motion is used to
+            compute the expected IMU data, instead of the result of the
+            simulation done by jiminy itself. So this test is checking at the
+            same time that the result of the simulation matches the solution,
+            and that the sensor IMU data are valid. Though it is redundant, it
+            validates that an IMU mounted on a pendulum gives the signal one
+            would expect from an IMU on a pendulum, which is what a user would
+            expect. Moreover, this test is indirectly checking that the
+            acceleration computed by jiminy is valid.
         """
         # Create an engine: no controller and no internal dynamics
         engine = jiminy.Engine()
@@ -243,8 +237,7 @@ class SimulateSimplePendulum(unittest.TestCase):
             expected_accel[2:, :], accel_jiminy[2:, :], atol=TOLERANCE))
 
     def test_sensor_delay(self):
-        """
-        @brief   Test sensor delay for an IMU sensor on a simple pendulum.
+        """Test sensor delay for an IMU sensor on a simple pendulum.
         """
         # Configure the IMU
         imu_options = self.imu_sensor.get_options()
@@ -307,9 +300,8 @@ class SimulateSimplePendulum(unittest.TestCase):
             imu_jiminy_delayed_1, imu_jiminy_shifted_1, atol=TOLERANCE))
 
     def test_sensor_noise_bias(self):
-        """
-        @brief Test sensor noise and bias for an IMU sensor on a simple
-               pendulum in static pose.
+        """Test sensor noise and bias for an IMU sensor on a simple pendulum
+        in static pose.
         """
         # Create an engine: no controller and no internal dynamics
         engine = jiminy.Engine()
@@ -372,11 +364,10 @@ class SimulateSimplePendulum(unittest.TestCase):
             imu_options['bias'][-3:], accel_bias, atol=1.0e-2))
 
     def test_pendulum_force_impulse(self):
-        """
-        @brief   Validate the impulse-momentum theorem
+        """Validate the impulse-momentum theorem
 
-        @details The analytical expression for the solution is exact for
-                 impulse of force that are perfect dirac functions.
+        The analytical expression for the solution is exact for impulse of
+        force that are perfect dirac functions.
         """
         # Create an engine: no controller and no internal dynamics
         engine = jiminy.Engine()
@@ -495,13 +486,14 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=1e-6))
 
     def test_flexibility_armature(self):
-        """
-        @brief Test the addition of a flexibility in the system.
+        """Test the addition of a flexibility in the system.
 
-        @details This test asserts that, by adding a flexibility and a rotor
-                 inertia, the output is 'sufficiently close' to a SEA system:
-                 see 'note_on_flexibility_model.pdf' for more information as to
-                 why this is not a true equality.
+        This test asserts that, by adding a flexibility and a rotor inertia,
+        the output is 'sufficiently close' to a SEA system:
+
+        .. seealso::
+            See 'note_on_flexibility_model.pdf' for more information as to why
+            this is not a true equality.
         """
         # Physical parameters: rotor inertia, spring stiffness and damping.
         J = 0.1
@@ -584,8 +576,7 @@ class SimulateSimplePendulum(unittest.TestCase):
             x_jiminy_extract, x_analytical, atol=1e-4))
 
     def test_fixed_body_constraint_armature(self):
-        """
-        @brief Test fixed body constraint together with rotor inertia.
+        """Test fixed body constraint together with rotor inertia.
         """
         # Create robot with freeflyer, set rotor inertia.
         robot = load_urdf_default(

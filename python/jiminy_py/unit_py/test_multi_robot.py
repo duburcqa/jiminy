@@ -15,12 +15,10 @@ TOLERANCE = 1e-7
 
 class SimulateMultiRobot(unittest.TestCase):
     def test_multi_robot(self):
-        """
-        @brief   Simulate interaction between two robots.
+        """Simulate interaction between two robots.
 
-        @details The system simulated can be represented as such: each system
-                 is a single mass linked to a spring, and a spring k_12 links
-                 both systems.
+        The system simulated can be represented as such: each system is a
+        single mass linked to a spring, and a spring k_12 links both systems:
 
                     k1     M1   k(1->2)  M2
                 //| <><>  |__| <><><><> |  |

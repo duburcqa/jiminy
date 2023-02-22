@@ -106,13 +106,14 @@ class SimulateSimpleMass(unittest.TestCase):
         return engine
 
     def _test_collision_and_contact_dynamics(self, shape):
-        """
-        @brief    Validate the collision body and contact point dynamics.
+        """Validate the collision body and contact point dynamics.
 
-        @details  The energy is expected to decrease slowly when penetrating
-                  into the ground, but should stay constant otherwise. Then,
-                  the equilibrium point must also match the physics. Note that
-                  the friction model is not assessed here.
+        The energy is expected to decrease slowly when penetrating into the
+        ground, but should stay constant otherwise. Then, the equilibrium point
+        must also match the physics.
+
+        .. warning::
+            The friction model is not assessed here.
         """
         # Create the robot
         robot, weight, height, joint_idx, _ = self._setup(shape)
@@ -176,13 +177,14 @@ class SimulateSimpleMass(unittest.TestCase):
             self._test_collision_and_contact_dynamics(shape)
 
     def test_contact_sensor(self):
-        """
-        @brief    Validate output of contact sensor.
+        """Validate output of contact sensor.
 
-        @details  The energy is expected to decrease slowly when penetrating
-                  into the ground, but should stay constant otherwise. Then,
-                  the equilibrium point must also match the physics. Note that
-                  the friction model is not assessed here.
+        The energy is expected to decrease slowly when penetrating into the
+        ground, but should stay constant otherwise. Then, the equilibrium
+        point must also match the physics.
+
+        .. warning::
+            The friction model is not assessed here.
         """
         # Create the robot
         robot, *_, joint_idx, frame_pose = self._setup(ShapeType.POINT)
@@ -222,12 +224,11 @@ class SimulateSimpleMass(unittest.TestCase):
         engine.simulate(tf, q0, v0)
 
     def _test_friction_model(self, shape):
-        """
-        @brief    Validate the friction model.
+        """Validate the friction model.
 
-        @details  The transition between dry, dry-viscous, and viscous friction
-                  is assessed. The energy variation and the steady state are
-                  also compared to the theoretical model.
+        The transition between dry, dry-viscous, and viscous friction is
+        assessed. The energy variation and the steady state are also compared
+        to the theoretical model.
         """
         # Create the robot and engine
         robot, weight, height, *_ = self._setup(shape)
@@ -316,11 +317,9 @@ class SimulateSimpleMass(unittest.TestCase):
             self._test_friction_model(shape)
 
     def test_fixed_frame_constraint(self):
-        """
-        @brief    Validate the fixed frame constraint.
+        """Validate the fixed frame constraint.
 
-        @details  Check that the error is strictly decreasing, with the
-                  expected rate.
+        Check that the error is strictly decreasing, with the expected rate.
         """
         # Create the robot and engine
         robot = load_urdf_default("sphere_primitive.urdf", has_freeflyer=True)
@@ -362,10 +361,9 @@ class SimulateSimpleMass(unittest.TestCase):
         engine.stop()
 
     def test_quaternion_continuity(self):
-        """
-        @brief    Validate the continuity of the quaternion.
+        """Validate the continuity of the quaternion.
 
-        @details  Check both the value of the freeflyer state and IMU sensors.
+        Check both the value of the freeflyer state and IMU sensors.
         """
         # Create the robot and engine
         robot = load_urdf_default("sphere_primitive.urdf", has_freeflyer=True)

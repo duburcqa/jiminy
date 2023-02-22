@@ -750,11 +750,11 @@ class Simulator:
             :returns: Update dictionary.
             """
             for key, value in new_dict.items():
-                _key_root = "/".join((_key_root, key))
+                key_root = "/".join((_key_root, key))
                 if key not in original:
-                    raise ValueError(f"Key '{_key_root}' not found")
+                    raise ValueError(f"Key '{key_root}' not found")
                 if isinstance(value, dict):
-                    deep_update(original[key], value, _key_root=_key_root)
+                    deep_update(original[key], value, _key_root=key_root)
                 else:
                     original[key] = new_dict[key]
             return original
