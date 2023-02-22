@@ -734,17 +734,31 @@ class Simulator:
             Configuration can be exported beforehand using `export_options`
             method.
         """
-        def deep_update(source, overrides):
+        def deep_update(original: Dict[str, Any],
+                        new_dict: Dict[str, Any],
+                        *, _key_root: str = "") -> Dict[str, Any]:
+            """Updates `original` dict with values from `new_dict` recursively.
+            If a new key should be introduced, then an error is thrown instead.
+
+            .. warning::
+                Modify `original` in place.
+
+            :param original: Dictionary with default values.
+            :param new_dict: Dictionary with values to be updated.
+            :param _key_root: Internal variable keeping track of current depth
+                              within nested dict hierarchy.
+            :returns: Update dictionary.
             """
-            Update a nested dictionary or similar mapping.
-            Modify ``source`` in place.
-            """
-            for key, value in overrides.items():
-                if isinstance(value, dict) and value:
-                    source[key] = deep_update(source[key], value)
+            for key, value in new_dict.items():
+                key_full = "/".join(key_root, key)
+                if key not in original:
+                    raise ValueError(f"Key '{key_full}' not found")
+                if isinstance(value, dict):
+                    original[key] = deep_update(
+                        original[key], value, key_full)
                 else:
-                    source[key] = overrides[key]
-            return source
+                    original[key] = new_dict[key]
+            return original
 
         if config_path is None:
             if isinstance(self.robot, BaseJiminyRobot):
