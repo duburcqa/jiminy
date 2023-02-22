@@ -412,12 +412,6 @@ def play_trajectories(trajs_data: Union[
             if verbose and interactive_mode() < 2:
                 print("Browser connected! Replaying simulation...")
 
-    # Handle start-in-pause mode
-    if start_paused and record_video_path is None and interactive_mode() < 2:
-        input("Press Enter to continue...")
-        if not Viewer.is_alive():
-            return viewers
-
     # Replay the trajectory
     if record_video_path is not None:
         # Extract and resample trajectory data at fixed framerate
@@ -544,6 +538,15 @@ def play_trajectories(trajs_data: Union[
     else:
         # Make sure a gui is opened
         viewer.open_gui()
+
+        # Handle start-in-pause mode
+        if start_paused:
+            if interactive_mode() < 2:
+                input("Press Enter to continue...")
+                if not Viewer.is_alive():
+                    return viewers
+            else:
+                logger.warn("Start paused is disabled in interactive mode.")
 
         # Play trajectories with multithreading
         def replay_thread(viewer, *args):
