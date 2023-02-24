@@ -660,6 +660,7 @@ namespace jiminy
         stepperState_t stepperState_;
         vector_aligned_t<systemDataHolder_t> systemsDataHolder_;
         forceCouplingRegister_t forcesCoupling_;
+        vector_aligned_t<forceVector_t> contactForcesPrev_;
         vector_aligned_t<forceVector_t> fPrev_;
         vector_aligned_t<motionVector_t> aPrev_;
         std::shared_ptr<logData_t> logData_;
