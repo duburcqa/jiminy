@@ -1500,23 +1500,6 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            /* Compute the efforts, internal and external forces applied on every systems,
-               excluding user-specified internal dynamics if any. */
-            computeAllTerms(t, qSplit, vSplit);
-
-            // Initialize the sensor data
-            systemIt = systems_.begin();
-            systemDataIt = systemsDataHolder_.begin();
-            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
-            {
-                vectorN_t const & q = systemDataIt->state.q;
-                vectorN_t const & v = systemDataIt->state.v;
-                vectorN_t const & a = systemDataIt->state.a;
-                vectorN_t const & uMotor = systemDataIt->state.uMotor;
-                forceVector_t const & fext = systemDataIt->state.fExternal;
-                systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
-            }
-
             // Instantiate the desired LCP solver
             systemIt = systems_.begin();
             systemDataIt = systemsDataHolder_.begin();
@@ -1542,24 +1525,31 @@ namespace jiminy
                 }
             }
 
-            // Backup all external forces except constraint forces
-            vector_aligned_t<forceVector_t> fextNoContacts;
-            fextNoContacts.reserve(systems_.size());
-            std::transform(systemsDataHolder_.begin(), systemsDataHolder_.end(),
-                           std::back_inserter(fextNoContacts),
-                           [](auto const & systemData) -> forceVector_t
-                           {
-                               return systemData.state.fExternal;
-                           });
+            /* Compute the efforts, internal and external forces applied on every
+               systems excluding user-specified internal dynamics if any. */
+            computeAllTerms(t, qSplit, vSplit);
 
-            // Solve algebric coupling between accelerations, sensors and controllers.
-            // By iterating several times until it (hopefully) converges.
+            // Backup all external forces and internal efforts excluding constraint forces
+            vector_aligned_t<forceVector_t> fextNoConst;
+            std::vector<vectorN_t> uInternalConst;
+            fextNoConst.reserve(systems_.size());
+            uInternalConst.reserve(systems_.size());
+            for (auto const & systemData : systemsDataHolder_)
+            {
+                fextNoConst.push_back(systemData.state.fExternal);
+                uInternalConst.push_back(systemData.state.uInternal);
+            }
+
+            /* Solve algebric coupling between accelerations, sensors and controllers,
+               by iterating several times until it (hopefully) converges. */
             for (uint32_t i = 0; i < INIT_ITERATIONS; ++i)
             {
                 systemIt = systems_.begin();
                 systemDataIt = systemsDataHolder_.begin();
-                auto fextNoContactsIt = fextNoContacts.begin();
-                for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt, ++fextNoContactsIt)
+                auto fextNoConstIt = fextNoConst.begin();
+                auto uInternalConstIt = uInternalConst.begin();
+                for ( ; systemIt != systems_.end();
+                    ++systemIt, ++systemDataIt, ++fextNoConstIt, ++uInternalConstIt)
                 {
                     // Get some system state proxies
                     vectorN_t const & q = systemDataIt->state.q;
@@ -1572,8 +1562,9 @@ namespace jiminy
                     vectorN_t & uCustom = systemDataIt->state.uCustom;
                     forceVector_t & fext = systemDataIt->state.fExternal;
 
-                    // Reinitialize the external forces
-                    fext = *fextNoContactsIt;
+                    // Reset the external forces and internal efforts
+                    fext = *fextNoConstIt;
+                    uInternal = *uInternalConstIt;
 
                     // Compute dynamics
                     a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext, i > 0);
@@ -1586,7 +1577,7 @@ namespace jiminy
                         return hresult_t::ERROR_GENERIC;
                     }
 
-                    // Update the sensor data once again, with the updated effort and acceleration
+                    // Compute the sensor data with the updated effort and acceleration
                     systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
 
                     // Compute the actual motor effort

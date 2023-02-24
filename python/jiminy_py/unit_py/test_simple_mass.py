@@ -8,6 +8,7 @@ from itertools import product
 from scipy.signal import savgol_filter
 
 import jiminy_py.core as jiminy
+from jiminy_py.core import ForceSensor, ContactSensor
 
 from pinocchio import Force, SE3, log3
 
@@ -52,24 +53,23 @@ class SimulateSimpleMass(unittest.TestCase):
         # Create the jiminy robot and controller
         robot = load_urdf_default(urdf_name, has_freeflyer=True)
 
-        # Add contact point or collision body, along with related sensor,
-        # depending on shape type.
+        # Add contact point or collision body depending on shape type
         if shape != ShapeType.POINT:
             # Add collision body
             robot.add_collision_bodies([self.body_name])
-
-            # Add a force sensor
-            force_sensor = jiminy.ForceSensor(self.body_name)
-            robot.attach_sensor(force_sensor)
-            force_sensor.initialize(self.body_name)
         else:
             # Add contact point
             robot.add_contact_points([self.body_name])
 
             # Add a contact sensor
-            contact_sensor = jiminy.ContactSensor(self.body_name)
+            contact_sensor = ContactSensor(self.body_name)
             robot.attach_sensor(contact_sensor)
             contact_sensor.initialize(self.body_name)
+
+        # Add a force sensor
+        force_sensor = ForceSensor(self.body_name)
+        robot.attach_sensor(force_sensor)
+        force_sensor.initialize(self.body_name)
 
         # Extract some information about the engine and the robot
         m = robot.pinocchio_model.inertias[-1].mass
@@ -195,17 +195,18 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # No control law, only check sensors data
         def check_sensors_data(t, q, v, sensors_data, command):
-            nonlocal engine, frame_pose
-
             # Verify sensor data, if the engine has been initialized
+            nonlocal engine, frame_pose
             if engine.is_initialized:
-                contact_data = sensors_data[
-                    jiminy.ContactSensor.type, self.body_name]
-                f = Force(contact_data, np.zeros(3))
-                f_joint_sensor = frame_pose * f
-                f_jiminy = engine.system_state.f_external[joint_idx]
+                f_linear = sensors_data[ContactSensor.type, self.body_name]
+                f_wrench = sensors_data[ForceSensor.type, self.body_name]
+                f_contact_sensor = frame_pose * Force(- f_linear, np.zeros(3))
+                f_force_sensor = frame_pose * Force(*np.split(- f_wrench, 2))
+                f_true = engine.system_state.f_external[joint_idx]
                 self.assertTrue(np.allclose(
-                    f_joint_sensor.vector, f_jiminy.vector, atol=TOLERANCE))
+                    f_contact_sensor.linear, f_true.linear, atol=TOLERANCE))
+                self.assertTrue(np.allclose(
+                    f_force_sensor.vector, f_true.vector, atol=TOLERANCE))
 
         # Internal dynamics: make the mass spin to generate nontrivial
         # rotations.
@@ -221,7 +222,7 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # Run the test for different combinations of options
         for contact_model, sensor_period in product(
-                ("spring_damper", "constraint"), (0.0, self.dtMax)):
+                ("constraint", "spring_damper"), (0.0, self.dtMax)):
             # Set options
             engine_options = engine.get_options()
             engine_options['contacts']['model'] = contact_model
@@ -230,9 +231,7 @@ class SimulateSimpleMass(unittest.TestCase):
             engine.set_options(engine_options)
 
             # Run simulation
-            tf = 1.5
-            q0, v0 = neutral_state(robot, split=True)
-            engine.simulate(tf, q0, v0)
+            engine.simulate(1.0, *neutral_state(robot, split=True))
 
     def _test_friction_model(self, shape):
         """Validate the friction model.

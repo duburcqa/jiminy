@@ -311,7 +311,7 @@ namespace jiminy
 
         std::vector<frameIndex_t> const & contactFramesIdx = robot->getContactFramesIdx();
         auto it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
-        data() = robot->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
+        data() = - robot->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
 
         return hresult_t::SUCCESS;
     }
