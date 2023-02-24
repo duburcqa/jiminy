@@ -728,7 +728,7 @@ class Viewer:
                                 pose=[frame_pose.translation, None],
                                 remove_if_exists=True,
                                 auto_refresh=False,
-                                radius=0.02)
+                                radius=0.01)
 
             self.display_contact_frames(self._display_contact_frames)
 

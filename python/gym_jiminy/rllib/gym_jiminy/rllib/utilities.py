@@ -397,7 +397,9 @@ def _extract_eval_worker_info_from_checkpoint(
 
 
 def build_eval_policy_from_checkpoint(checkpoint_path: str) -> Tuple[
-        PolicyMap, Dict[PolicyID, Filter], Dict[PolicyID, Preprocessor]]:
+        PolicyMap,
+        Dict[PolicyID, Filter],
+        Dict[PolicyID, Optional[Preprocessor]]]:
     """ TODO: Write documentation
     """
     # Extract local evaluation worker information
@@ -408,11 +410,11 @@ def build_eval_policy_from_checkpoint(checkpoint_path: str) -> Tuple[
     preprocessing_enabled = not config._disable_preprocessor_api and (
         config.model.get("custom_preprocessor") or
         config.preprocessor_pref is not None)
-    preprocessors: Dict[PolicyID, Preprocessor] = {}
+    preprocessors: Dict[PolicyID, Optional[Preprocessor]] = {}
     filters: Dict[PolicyID, Filter] = defaultdict(NoFilter)
 
     # Create empty policy map
-    seed = config.seed + config.in_evaluation * 10000
+    seed = (config.seed or 0) + config.in_evaluation * 10000
     policy_map = PolicyMap(
         worker_index=0,
         num_workers=0,

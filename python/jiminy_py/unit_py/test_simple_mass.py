@@ -200,8 +200,8 @@ class SimulateSimpleMass(unittest.TestCase):
             if engine.is_initialized:
                 f_linear = sensors_data[ContactSensor.type, self.body_name]
                 f_wrench = sensors_data[ForceSensor.type, self.body_name]
-                f_contact_sensor = frame_pose * Force(- f_linear, np.zeros(3))
-                f_force_sensor = frame_pose * Force(*np.split(- f_wrench, 2))
+                f_contact_sensor = frame_pose * Force(f_linear, np.zeros(3))
+                f_force_sensor = frame_pose * Force(*np.split(f_wrench, 2))
                 f_true = engine.system_state.f_external[joint_idx]
                 self.assertTrue(np.allclose(
                     f_contact_sensor.linear, f_true.linear, atol=TOLERANCE))
@@ -220,14 +220,16 @@ class SimulateSimpleMass(unittest.TestCase):
             compute_command=check_sensors_data,
             internal_dynamics=spinning_force)
 
+        # Increase the intergation timestep
+        engine_options = engine.get_options()
+        engine_options["stepper"]["controllerUpdatePeriod"] = 1e-3
+
         # Run the test for different combinations of options
         for contact_model, sensor_period in product(
-                ("constraint", "spring_damper"), (0.0, self.dtMax)):
+                ("constraint", "spring_damper"), (0.0, 1e-3)):
             # Set options
-            engine_options = engine.get_options()
             engine_options['contacts']['model'] = contact_model
             engine_options["stepper"]["sensorsUpdatePeriod"] = sensor_period
-            engine_options["stepper"]["controllerUpdatePeriod"] = self.dtMax
             engine.set_options(engine_options)
 
             # Run simulation

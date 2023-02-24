@@ -1567,7 +1567,7 @@ namespace jiminy
                     uInternal = *uInternalConstIt;
 
                     // Compute dynamics
-                    a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext, i > 0);
+                    a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext, i == 0);
 
                     // Make sure there is no nan at this point
                     if ((a.array() != a.array()).any())
