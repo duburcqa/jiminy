@@ -1492,24 +1492,24 @@ namespace jiminy
                excluding user-specified internal dynamics if any. */
             computeAllTerms(t, qSplit, vSplit);
 
+            // Initialize the sensor data
             systemIt = systems_.begin();
             systemDataIt = systemsDataHolder_.begin();
-            auto fPrevIt = fPrev_.begin();
-            auto aPrevIt = aPrev_.begin();
-            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt, ++fPrevIt, ++aPrevIt)
+            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
             {
-                // Get some system state proxies
                 vectorN_t const & q = systemDataIt->state.q;
                 vectorN_t const & v = systemDataIt->state.v;
-                vectorN_t & a = systemDataIt->state.a;
-                vectorN_t & u = systemDataIt->state.u;
-                vectorN_t & command = systemDataIt->state.command;
-                vectorN_t & uMotor = systemDataIt->state.uMotor;
-                vectorN_t & uInternal = systemDataIt->state.uInternal;
-                vectorN_t & uCustom = systemDataIt->state.uCustom;
-                forceVector_t & fext = systemDataIt->state.fExternal;
+                vectorN_t const & a = systemDataIt->state.a;
+                vectorN_t const & uMotor = systemDataIt->state.uMotor;
+                forceVector_t const & fext = systemDataIt->state.fExternal;
+                systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
+            }
 
-                // Instantiate desired LCP solver
+            // Instantiate the desired LCP solver
+            systemIt = systems_.begin();
+            systemDataIt = systemsDataHolder_.begin();
+            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+            {
                 std::string const & constraintSolverType = engineOptions_->constraints.solver;
                 switch (CONSTRAINT_SOLVERS_MAP.at(constraintSolverType))
                 {
@@ -1524,52 +1524,97 @@ namespace jiminy
                         engineOptions_->stepper.tolRel,
                         PGS_MAX_ITERATIONS);
                         break;
-                    case constraintSolver_t::NONE:
-                    default:
-                        break;
+                case constraintSolver_t::NONE:
+                default:
+                    break;
                 }
+            }
 
-                // Initialize the sensor data
-                systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
+            // Backup all external forces except constraint forces
+            vector_aligned_t<forceVector_t> fextNoContacts;
+            fextNoContacts.reserve(systems_.size());
+            std::transform(systemsDataHolder_.begin(), systemsDataHolder_.end(),
+                           std::back_inserter(fextNoContacts),
+                           [](auto const & systemData) -> forceVector_t
+                           {
+                               return systemData.state.fExternal;
+                           });
 
-                // Compute the actual motor effort
-                computeCommand(*systemIt, t, q, v, command);
-
-                // Compute the actual motor effort
-                systemIt->robot->computeMotorsEfforts(t, q, v, a, command);
-                uMotor = systemIt->robot->getMotorsEfforts();
-
-                // Compute the internal dynamics
-                uCustom.setZero();
-                systemIt->controller->internalDynamics(t, q, v, uCustom);
-
-                // Compute the total effort vector
-                u = uInternal + uCustom;
-                for (auto const & motor : systemIt->robot->getMotors())
+            // Solve algebric coupling between accelerations, sensors and controllers.
+            // By iterating several times until it (hopefully) converges.
+            for (uint32_t i = 0; i < INIT_ITERATIONS; ++i)
+            {
+                systemIt = systems_.begin();
+                systemDataIt = systemsDataHolder_.begin();
+                auto fextNoContactsIt = fextNoContacts.begin();
+                for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt, ++fextNoContactsIt)
                 {
-                    std::size_t const & motorIdx = motor->getIdx();
-                    int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
-                    u[motorVelocityIdx] += uMotor[motorIdx];
+                    // Get some system state proxies
+                    vectorN_t const & q = systemDataIt->state.q;
+                    vectorN_t const & v = systemDataIt->state.v;
+                    vectorN_t & a = systemDataIt->state.a;
+                    vectorN_t & u = systemDataIt->state.u;
+                    vectorN_t & command = systemDataIt->state.command;
+                    vectorN_t & uMotor = systemDataIt->state.uMotor;
+                    vectorN_t & uInternal = systemDataIt->state.uInternal;
+                    vectorN_t & uCustom = systemDataIt->state.uCustom;
+                    forceVector_t & fext = systemDataIt->state.fExternal;
+
+                    // Reinitialize the external forces
+                    fext = *fextNoContactsIt;
+
+                    // Compute dynamics
+                    a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext, i > 0);
+
+                    // Make sure there is no nan at this point
+                    if ((a.array() != a.array()).any())
+                    {
+                        PRINT_ERROR("Impossible to compute the acceleration. Probably a "
+                                    "subtree has zero inertia along an articulated axis.");
+                        return hresult_t::ERROR_GENERIC;
+                    }
+
+                    // Update the sensor data once again, with the updated effort and acceleration
+                    systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
+
+                    // Compute the actual motor effort
+                    computeCommand(*systemIt, t, q, v, command);
+
+                    // Compute the actual motor effort
+                    systemIt->robot->computeMotorsEfforts(t, q, v, a, command);
+                    uMotor = systemIt->robot->getMotorsEfforts();
+
+                    // Compute the internal dynamics
+                    uCustom.setZero();
+                    systemIt->controller->internalDynamics(t, q, v, uCustom);
+
+                    // Compute the total effort vector
+                    u = uInternal + uCustom;
+                    for (auto const & motor : systemIt->robot->getMotors())
+                    {
+                        std::size_t const & motorIdx = motor->getIdx();
+                        int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
+                        u[motorVelocityIdx] += uMotor[motorIdx];
+                    }
                 }
+            }
 
-                // Compute dynamics
-                a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext);
-
-                // Make sure there is no nan at this point
-                if ((a.array() != a.array()).any())
-                {
-                    PRINT_ERROR("Impossible to compute the acceleration. Probably a "
-                                "subtree has zero inertia along an articulated axis.");
-                    return hresult_t::ERROR_GENERIC;
-                }
-
-                // Compute joints accelerations and forces
-                computeExtraTerms(*systemIt, *systemDataIt);
-                syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
-
-                // Update the sensor data once again, with the updated effort and acceleration
+            // Update sensor data one last time to take into account the actual acceleration
+            systemIt = systems_.begin();
+            systemDataIt = systemsDataHolder_.begin();
+            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+            {
+                vectorN_t const & q = systemDataIt->state.q;
+                vectorN_t const & v = systemDataIt->state.v;
+                vectorN_t const & a = systemDataIt->state.a;
+                vectorN_t const & uMotor = systemDataIt->state.uMotor;
+                forceVector_t const & fext = systemDataIt->state.fExternal;
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
             }
+
+            // Compute joints accelerations and forces
+            computeAllExtraTerms(systems_, systemsDataHolder_);
+            syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
 
             // Synchronize the global stepper state with the individual system states
             syncStepperStateWithSystems();

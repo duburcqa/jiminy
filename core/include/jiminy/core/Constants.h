@@ -35,6 +35,7 @@ namespace jiminy
     extern float64_t const SIMULATION_MIN_TIMESTEP;
     extern float64_t const SIMULATION_MAX_TIMESTEP;
 
+    extern uint32_t const INIT_ITERATIONS;
     extern uint32_t const PGS_MAX_ITERATIONS;
     extern float64_t const PGS_MIN_REGULARIZER;
 }

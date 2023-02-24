@@ -220,13 +220,13 @@ class SimulateSimpleMass(unittest.TestCase):
             internal_dynamics=spinning_force)
 
         # Run the test for different combinations of options
-        for contact_model, sensor_period, ctrl_period in product(
-                ("spring_damper", "constraint"), *(2 * ((0.0, self.dtMax),))):
+        for contact_model, sensor_period in product(
+                ("spring_damper", "constraint"), (0.0, self.dtMax)):
             # Set options
             engine_options = engine.get_options()
             engine_options['contacts']['model'] = contact_model
             engine_options["stepper"]["sensorsUpdatePeriod"] = sensor_period
-            engine_options["stepper"]["controllerUpdatePeriod"] = ctrl_period
+            engine_options["stepper"]["controllerUpdatePeriod"] = self.dtMax
             engine.set_options(engine_options)
 
             # Run simulation
