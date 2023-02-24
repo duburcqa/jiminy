@@ -59,7 +59,7 @@ namespace jiminy
         Eigen::aligned_allocator<std::pair<const K, M> > >;
 
     template<typename M>
-    using vector_aligned_t = std::vector<M, Eigen::aligned_allocator<M> >;
+    using vector_aligned_t = pinocchio::container::aligned_vector<M>;
 
     // Eigen types
     using matrixN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic>;
@@ -75,8 +75,8 @@ namespace jiminy
     using quaternion_t = Eigen::Quaternion<float64_t>;
 
     // Pinocchio types
-    using motionVector_t = pinocchio::container::aligned_vector<pinocchio::Motion>;
-    using forceVector_t = pinocchio::container::aligned_vector<pinocchio::Force>;
+    using motionVector_t = vector_aligned_t<pinocchio::Motion>;
+    using forceVector_t = vector_aligned_t<pinocchio::Force>;
     using jointIndex_t = pinocchio::JointIndex;
     using frameIndex_t = pinocchio::FrameIndex;
     using geomIndex_t = pinocchio::GeomIndex;

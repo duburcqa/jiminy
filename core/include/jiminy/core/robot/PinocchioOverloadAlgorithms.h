@@ -57,7 +57,7 @@ namespace pinocchio_overload
          Eigen::MatrixBase<ConfigVectorType>                    const & q,
          Eigen::MatrixBase<TangentVectorType1>                  const & v,
          Eigen::MatrixBase<TangentVectorType2>                  const & a,
-         pinocchio::container::aligned_vector<ForceDerived>     const & fext)
+         vector_aligned_t<ForceDerived>                         const & fext)
     {
         (void) pinocchio::rnea(model, data, q, v, a, fext);
         data.tau.array() += model.rotorInertia.array() * a.array();
@@ -398,7 +398,7 @@ namespace pinocchio_overload
         Eigen::MatrixBase<ConfigVectorType>                      const & q,
         Eigen::MatrixBase<TangentVectorType1>                    const & v,
         Eigen::MatrixBase<TangentVectorType2>                    const & tau,
-        pinocchio::container::aligned_vector<ForceDerived>       const & fext)
+        vector_aligned_t<ForceDerived>                           const & fext)
     {
         assert(model.check(data) && "data is not consistent with model.");
         assert(q.size() == model.nq && "The joint configuration vector is not of right size");

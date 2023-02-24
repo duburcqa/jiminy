@@ -4,6 +4,7 @@ method of jiminy on simple mass.
 import unittest
 import numpy as np
 from enum import Enum
+from itertools import product
 from scipy.signal import savgol_filter
 
 import jiminy_py.core as jiminy
@@ -218,10 +219,20 @@ class SimulateSimpleMass(unittest.TestCase):
             compute_command=check_sensors_data,
             internal_dynamics=spinning_force)
 
-        # Run simulation
-        q0, v0 = neutral_state(robot, split=True)
-        tf = 1.5
-        engine.simulate(tf, q0, v0)
+        # Run the test for different combinations of options
+        for contact_model, sensor_period, ctrl_period in product(
+                ("spring_damper", "constraint"), *(2 * ((0.0, self.dtMax),))):
+            # Set options
+            engine_options = engine.get_options()
+            engine_options['contacts']['model'] = contact_model
+            engine_options["stepper"]["sensorsUpdatePeriod"] = sensor_period
+            engine_options["stepper"]["controllerUpdatePeriod"] = ctrl_period
+            engine.set_options(engine_options)
+
+            # Run simulation
+            tf = 1.5
+            q0, v0 = neutral_state(robot, split=True)
+            engine.simulate(tf, q0, v0)
 
     def _test_friction_model(self, shape):
         """Validate the friction model.

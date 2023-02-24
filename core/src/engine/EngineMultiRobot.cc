@@ -3875,7 +3875,8 @@ namespace jiminy
                                                             vectorN_t const & q,
                                                             vectorN_t const & v,
                                                             vectorN_t const & u,
-                                                            forceVector_t & fext)
+                                                            forceVector_t & fext,
+                                                            bool_t const & ignoreBounds)
     {
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
@@ -3906,7 +3907,7 @@ namespace jiminy
 
             // Call forward dynamics
             systemData.constraintSolver->SolveBoxedForwardDynamics(
-                engineOptions_->constraints.regularization);
+                engineOptions_->constraints.regularization, ignoreBounds);
 
             // Restore contact frame forces and bounds internal efforts
             systemData.constraintsHolder.foreach(

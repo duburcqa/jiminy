@@ -49,7 +49,8 @@ namespace jiminy
         ///        s.t. if fIndices[i].size() == 0, lo[i] < x[i] < hi[i]
         ///             else, sqrt(x[i] ** 2 + sum_{j>=1}(x[fIndices[i][j]] ** 2)) < hi[i] * max(0.0, x[fIndices[i][0]])
         ///
-        virtual bool_t SolveBoxedForwardDynamics(float64_t const & inv_damping) = 0;
+        virtual bool_t SolveBoxedForwardDynamics(float64_t const & inv_damping,
+                                                 bool_t const & ignoreBounds) = 0;
     };
 
     class PGSSolver : public AbstractConstraintSolver
@@ -70,7 +71,8 @@ namespace jiminy
                   uint32_t const & maxIter);
         virtual ~PGSSolver(void) = default;
 
-        virtual bool_t SolveBoxedForwardDynamics(float64_t const & inv_damping) override final;
+        virtual bool_t SolveBoxedForwardDynamics(float64_t const & inv_damping,
+                                                 bool_t const & ignoreBounds = false) override final;
 
     private:
         void ProjectedGaussSeidelIter(matrixN_t const & A,

@@ -597,7 +597,8 @@ namespace jiminy
                                               vectorN_t const & q,
                                               vectorN_t const & v,
                                               vectorN_t const & u,
-                                              forceVector_t & fext);
+                                              forceVector_t & fext,
+                                              bool_t const & ignoreBounds = false);
 
     public:
         hresult_t getLog(std::shared_ptr<logData_t const> & logData);
@@ -627,7 +628,7 @@ namespace jiminy
              Eigen::MatrixBase<ConfigVectorType>                    const & q,
              Eigen::MatrixBase<TangentVectorType1>                  const & v,
              Eigen::MatrixBase<TangentVectorType2>                  const & a,
-             pinocchio::container::aligned_vector<ForceDerived>     const & fext);
+             vector_aligned_t<ForceDerived>                         const & fext);
         template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
                  typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
                  typename ForceDerived>
@@ -637,7 +638,7 @@ namespace jiminy
             Eigen::MatrixBase<ConfigVectorType>                    const & q,
             Eigen::MatrixBase<TangentVectorType1>                  const & v,
             Eigen::MatrixBase<TangentVectorType2>                  const & tau,
-            pinocchio::container::aligned_vector<ForceDerived>     const & fext);
+            vector_aligned_t<ForceDerived>                         const & fext);
 
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;

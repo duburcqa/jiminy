@@ -255,7 +255,8 @@ namespace jiminy
         return false;
     }
 
-    bool_t PGSSolver::SolveBoxedForwardDynamics(float64_t const & inv_damping)
+    bool_t PGSSolver::SolveBoxedForwardDynamics(float64_t const & inv_damping,
+                                                bool_t const & ignoreBounds)
     {
         // Update constraints start indices, jacobian, drift and multipliers
         Eigen::Index constraintRows = 0U;
@@ -320,7 +321,7 @@ namespace jiminy
 
         // Compute resulting forces solving forward dynamics
         bool_t isSuccess = false;
-        if (isUnbounded)
+        if (ignoreBounds || isUnbounded)
         {
             /* There is no inequality constraint, so the problem can be
                solved exactly and efficiently using cholesky decomposition.
