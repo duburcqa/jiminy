@@ -2329,16 +2329,21 @@ class Viewer:
                 if t_simu > time_interval[1]:
                     break
             except Exception as e:
-                # Get backend before closing
-                backend = Viewer.backend
+                # Get backend info to analyze the root cause of the exception
+                backend, is_open = Viewer.backend, self.is_open()
 
-                # If no backend, just return without error because the backend
-                # was probably killed on purpose during multi-threaded replay.
+                # If no backend, probably it has been closed in the meantime
+                # during multi-threaded replay. So just return without error.
                 if backend is None:
                     return
 
                 # Make sure the viewer is always properly closed
                 Viewer.close()
+
+                # Once again, the backend was most likely killed on purpose
+                # during multi-threaded replay. Returning without error.
+                if not is_open:
+                    return
 
                 # Re-raise the original exception if unexpected
                 if backend.startswith('panda3d'):

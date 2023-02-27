@@ -5,7 +5,7 @@ of the analytical gradient of the policy.
 """
 import math
 import operator
-from functools import reduce
+from functools import reduce, partial
 from typing import Optional, Union, Type, List, Dict, Any, Tuple
 
 import gym
@@ -38,12 +38,19 @@ def get_action_mean(model: ModelV2,
         multivariate independent normal distribution, for which the mean can be
         very efficiently extracted as a view of the logits.
     """
-    if issubclass(dist_class, TorchDiagGaussian):
+    # Extract wrapped distribution class
+    dist_class_unwrapped = dist_class
+    if isinstance(dist_class_unwrapped, partial):
+        dist_class_unwrapped = dist_class_unwrapped.func
+
+    # Efficient specialization for `TorchDiagGaussian` distribution
+    if issubclass(dist_class_unwrapped, TorchDiagGaussian):
         action_mean, _ = torch.chunk(action_logits, 2, dim=1)
-    else:
-        action_dist = dist_class(action_logits, model)
-        action_mean = action_dist.deterministic_sample()
-    return action_mean
+        return action_mean
+
+    # Slow but generic fallback
+    action_dist = dist_class(action_logits, model)
+    return action_dist.deterministic_sample()
 
 
 def get_adversarial_observation_sgld(
@@ -173,11 +180,11 @@ class PPOConfig(_PPOConfig):
     def __init__(self, algo_class: Optional[Type["PPO"]] = None):
         super().__init__(algo_class=algo_class or PPO)
 
-        self.enable_adversarial_noise = False
         self.spatial_noise_scale = 1.0
+        self.enable_adversarial_noise = False
         self.sgld_beta_inv = 1e-8
         self.sgld_n_steps = 10
-        self.temporal_barrier_scale = 1.0
+        self.temporal_barrier_scale = 10.0
         self.temporal_barrier_threshold = float('inf')
         self.temporal_barrier_reg = 0.0
         self.symmetric_policy_reg = 0.0
@@ -275,17 +282,20 @@ class PPOTorchPolicy(_PPOTorchPolicy):
     def __init__(self,
                  observation_space: gym.spaces.Space,
                  action_space: gym.spaces.Space,
-                 config: PPOConfig) -> None:
+                 config: Union[PPOConfig, Dict[str, Any]]) -> None:
         """Initialize PPO Torch policy.
 
         It extracts observation mirroring transforms for symmetry computations.
         """
+        # Convert any type of input dict input classical dictionary for compat
+        config = dict(PPOConfig().to_dict(), **config)
+
         # Extract and convert observation and acrtion mirroring transform
         self.obs_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
         self.action_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
-        if config.symmetric_policy_reg > 0.0:
+        if config["symmetric_policy_reg"] > 0.0:
             is_obs_dict = hasattr(observation_space, "original_space")
             if is_obs_dict:
                 observation_space = observation_space.original_space

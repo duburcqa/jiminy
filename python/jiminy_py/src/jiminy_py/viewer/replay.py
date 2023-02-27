@@ -251,8 +251,8 @@ def play_trajectories(trajs_data: Union[
     # Make sure it is possible to replay something
     if backend == "panda3d-sync" and record_video_path is None:
         raise RuntimeError(
-            "Impossible to replay video using 'panda3d-sync' backend. Please "
-            "set 'record_video_path' to save it as a file.")
+            "Impossible to replay simulation using 'panda3d-sync' backend. "
+            "Please set 'record_video_path' to save it as a file.")
 
     # Set default video recording size
     if record_video_size is None:

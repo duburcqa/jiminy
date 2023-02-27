@@ -578,7 +578,7 @@ def build_policy_wrapper(policy_map: PolicyMap,
         # by AgentCollector. Because of this, the Policy output is also
         # batched, so the single action must be unpacked.
         policy_output = policy.compute_actions_from_input_dict(
-            ac_output.data.sample_batch)
+            ac_output.data.sample_batch, explore=config.explore)
         policy_output = tree.map_structure(itemgetter(0), policy_output)
 
         # Post-process the policy output
