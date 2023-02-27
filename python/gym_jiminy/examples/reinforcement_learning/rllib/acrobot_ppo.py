@@ -9,6 +9,7 @@ It solves it consistently in less than 100000 timesteps in average.
 
 # ======================== Configure Python workspace =========================
 
+import sys
 import logging
 from functools import partial
 
@@ -16,10 +17,9 @@ import gym
 import ray
 from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS
-from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.algorithms.algorithm import Algorithm
 
 from gym_jiminy.common.wrappers import FrameRateLimiter
+from gym_jiminy.rllib.ppo import PPOConfig
 from gym_jiminy.rllib.utilities import (initialize,
                                         train,
                                         build_eval_policy_from_checkpoint,
@@ -141,7 +141,7 @@ algo_config.environment(
     # Normalize actions to the upper and lower bounds of the action space
     normalize_actions=False,
     # Whether to clip actions to the upper and lower bounds of the action space
-    clip_actions=True,
+    clip_actions=False,
     # Whether to clip rewards during postprocessing by the policy
     clip_rewards=False,
     # Arguments to pass to the env creator
@@ -207,7 +207,7 @@ algo_config.evaluation(
     custom_evaluation_function=partial(
         evaluate_algo,
         print_stats=True,
-        enable_replay=(get_default_backend() != "panda3d-sync"),
+        enable_replay=(not sys.platform.startswith("win")),
         record_video=True
     ),
     # Partially override configuration for evaluation
@@ -263,6 +263,17 @@ algo_config.training(
     vf_clip_param=float("inf"),
 )
 
+# Regularization settings
+algo_config.training(
+    enable_adversarial_noise=True,
+    temporal_barrier_threshold=0.5,
+    temporal_barrier_reg=1e-1,
+    caps_temporal_reg=5e-3,
+    caps_spatial_reg=1e-2,
+    caps_global_reg=1e-4,
+    l2_reg=1e-6,
+)
+
 # Optimization settings
 algo_config.training(
     # Learning rate schedule
@@ -301,5 +312,6 @@ evaluate_local_worker(worker, evaluation_num=1, close_backend=True)
 # Build a standalone single-agent evaluation policy
 env = gym.make(GYM_ENV_NAME, **algo_config.env_config)
 policy_map = build_eval_policy_from_checkpoint(checkpoint_path)
-policy_fn = build_policy_wrapper(policy_map)
-env.evaluate(env, policy_fn, seed=0)
+policy_fn = build_policy_wrapper(policy_map, clip_actions=False, explore=False)
+for seed in (1, 1, 2):
+    env.evaluate(env, policy_fn, seed=seed)

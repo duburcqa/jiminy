@@ -6,6 +6,7 @@ import json
 import time
 import shutil
 import socket
+import ctypes
 import pathlib
 import logging
 import inspect
@@ -714,7 +715,8 @@ def evaluate_local_worker(worker: RolloutWorker,
                         Optional: `evaluation_num >= 10` by default.
     :param enable_replay: Whether to enable replay of the simulation.
                           Optional: True by default if `record_video_path` is
-                          not provided, False otherwise.
+                          not provided and the default/current backend supports
+                          it, False otherwise.
     :param block: Whether calling this method should be blocking.
                   Optional: True by default.
     :param kwargs: Extra keyword arguments to forward to the viewer if any.
@@ -786,7 +788,11 @@ def evaluate_local_worker(worker: RolloutWorker,
         enable_replay=enable_replay,
         **viewer_kwargs)
     if block:
-        thread.join()
+        try:
+            thread.join()
+        except KeyboardInterrupt:
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
 
     # Return all collected data
     return all_batches, all_log_paths

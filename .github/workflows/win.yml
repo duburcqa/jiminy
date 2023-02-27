@@ -173,7 +173,6 @@ jobs:
         python -m unittest discover -v
 
         Set-Location -Path "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
-        $JIMINY_VIEWER_DEFAULT_BACKEND = "panda3d-sync"
         python acrobot_ppo.py
 
 #########################################################################################

@@ -6,7 +6,7 @@ of the analytical gradient of the policy.
 import math
 import operator
 from functools import reduce, partial
-from typing import Optional, Union, Type, List, Dict, Any, Tuple
+from typing import Optional, Union, Type, List, Dict, Any, Tuple, cast
 
 import gym
 import torch
@@ -28,7 +28,7 @@ from ray.rllib.utils.typing import TensorType
 
 
 def get_action_mean(model: ModelV2,
-                    dist_class: Type[ActionDistribution],
+                    dist_class: Union[partial, Type[ActionDistribution]],
                     action_logits: torch.Tensor) -> torch.Tensor:
     """Compute the mean value of the actions based on action distribution
     logits and type of distribution.
@@ -39,9 +39,13 @@ def get_action_mean(model: ModelV2,
         very efficiently extracted as a view of the logits.
     """
     # Extract wrapped distribution class
-    dist_class_unwrapped = dist_class
-    if isinstance(dist_class_unwrapped, partial):
-        dist_class_unwrapped = dist_class_unwrapped.func
+    dist_class_unwrapped: Type[ActionDistribution]
+    if isinstance(dist_class, partial):
+        dist_class_func = cast(Type[ActionDistribution], dist_class.func)
+        assert issubclass(dist_class_func, ActionDistribution)
+        dist_class_unwrapped = dist_class_func
+    else:
+        dist_class_unwrapped = dist_class
 
     # Efficient specialization for `TorchDiagGaussian` distribution
     if issubclass(dist_class_unwrapped, TorchDiagGaussian):
@@ -97,19 +101,20 @@ def get_adversarial_observation_sgld(
     observation_noisy = observation_true + step_eps * 2.0 * (
         torch.empty_like(observation_true).bernoulli_(p=0.5) - 0.5)
     for i in range(n_steps):
-        # Make sure gradient computation is required
-        observation_noisy.requires_grad_(True)
+        with torch.torch.enable_grad():
+            # Make sure gradient computation is required
+            observation_noisy.requires_grad_(True)
 
-        # Compute mean field action for noisy observation
-        train_batch_copy["obs"] = observation_noisy
-        action_noisy_logits, _ = model(train_batch_copy)
-        action_noisy_mean = get_action_mean(
-            model, dist_class, action_noisy_logits)
+            # Compute mean field action for noisy observation
+            train_batch_copy["obs"] = observation_noisy
+            action_noisy_logits, _ = model(train_batch_copy)
+            action_noisy_mean = get_action_mean(
+                model, dist_class, action_noisy_logits)
 
-        # Compute action different and associated gradient
-        loss = torch.mean(torch.sum(
-            (action_noisy_mean - action_true_mean) ** 2, dim=-1))
-        loss.backward()
+            # Compute action different and associated gradient
+            loss = torch.mean(torch.sum(
+                (action_noisy_mean - action_true_mean) ** 2, dim=-1))
+            loss.backward()
 
         # compute the noisy gradient for observation update
         noise_factor = math.sqrt(2.0 * step_eps * beta_inv) / (i + 2)
@@ -270,7 +275,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
     More specifically, it adds:
         - CAPS regularization, which combines the spatial and temporal
-        difference betwen previous and current state
+        difference between previous and current state
         - Global regularization, which is the average norm of the action
         - temporal barrier, which is exponential barrier loss when the
         normalized action is above a threshold (much like interior point
@@ -288,14 +293,14 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         It extracts observation mirroring transforms for symmetry computations.
         """
         # Convert any type of input dict input classical dictionary for compat
-        config = dict(PPOConfig().to_dict(), **config)
+        config_dict: Dict[str, Any] = dict(PPOConfig().to_dict(), **config)
 
         # Extract and convert observation and acrtion mirroring transform
         self.obs_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
         self.action_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
-        if config["symmetric_policy_reg"] > 0.0:
+        if config_dict["symmetric_policy_reg"] > 0.0:
             is_obs_dict = hasattr(observation_space, "original_space")
             if is_obs_dict:
                 observation_space = observation_space.original_space
@@ -319,7 +324,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
                                              device=self.device)
             self.action_mirror_mat = action_mirror_mat.T.contiguous()
 
-        super().__init__(observation_space, action_space, config)
+        super().__init__(observation_space, action_space, config_dict)
         self.config: Dict[str, Any]
 
     def _get_default_view_requirements(self) -> None:
