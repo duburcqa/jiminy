@@ -151,7 +151,7 @@ def get_default_backend() -> str:
                 pass
         return 'panda3d-sync'
     if is_display_available():
-        return 'panda3d'
+        return os.getenv('JIMINY_VIEWER_DEFAULT_BACKEND', 'panda3d')
     return 'panda3d-sync'
 
 
@@ -342,6 +342,10 @@ class Viewer:
     .. note::
         The environment variable 'JIMINY_INTERACTIVE_DISABLE' can be
         used to force disabling interactive display.
+
+    .. note::
+        The environment variable 'JIMINY_VIEWER_DEFAULT_BACKEND' can be
+        used to overwrite the default backend.
     """
     backend = None
     window_name = 'jiminy'

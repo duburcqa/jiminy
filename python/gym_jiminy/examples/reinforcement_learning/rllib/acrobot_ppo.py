@@ -207,7 +207,7 @@ algo_config.evaluation(
     custom_evaluation_function=partial(
         evaluate_algo,
         print_stats=True,
-        enable_replay=True,
+        enable_replay=(get_default_backend() != "panda3d-sync"),
         record_video=True
     ),
     # Partially override configuration for evaluation
