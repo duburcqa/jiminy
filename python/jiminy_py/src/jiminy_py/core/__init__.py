@@ -44,8 +44,8 @@ _is_dependency_available = any(
     for _module_name in ("eigenpy", "hppfcl", "pinocchio"))
 if not _is_boost_shared and _is_dependency_available:
     _logging.warning(
-        "Boost::Python not found on the system. Impossible to import "
-        "system-wide jiminy dependencies.")
+        "Boost::Python not found on the system. Importing bundled jiminy "
+        "dependencies instead of system-wide install as a fallback.")
 
 # The env variable PATH and the current working directory are ignored by
 # default for DLL resolution on Windows OS.

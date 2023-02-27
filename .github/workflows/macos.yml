@@ -141,14 +141,20 @@ jobs:
         cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
+        # Do NOT set LD_LIBRARY_PATH to check the import of bundled dependencies as fallback
         cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym jiminy
       if: matrix.PYTHON_VERSION != '3.11'
       run: |
+        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+        cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
+        "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
 #########################################################################################
 

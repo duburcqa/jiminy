@@ -32,6 +32,7 @@ from .viewer import (COLORS,
                      CameraMotionType,
                      interp1d,
                      get_default_backend,
+                     is_display_available,
                      Viewer)
 from .meshcat.utilities import interactive_mode
 
@@ -753,6 +754,11 @@ def async_play_and_record_logs_files(
     # Handling of default argument(s)
     if enable_replay is None:
         enable_replay = "record_video_path" not in kwargs
+
+    # Disable replay if not available and video recording is requested
+    if enable_replay and not is_display_available():
+        logger.warn("No display available. Disabling replay.")
+        enable_replay = False
 
     # Define method to pass to threading
     def _locked_play_and_record(lock: RLock,

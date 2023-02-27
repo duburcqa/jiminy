@@ -115,7 +115,7 @@ def interp1d(t_in: np.ndarray,
     return y_out if not is_scalar else y_out[0]
 
 
-def check_display_available() -> bool:
+def is_display_available() -> bool:
     """Check if graphical server is available locally for onscreen rendering
     or if the viewer can be opened in an interactive cell.
     """
@@ -150,7 +150,7 @@ def get_default_backend() -> str:
             except ImportError:
                 pass
         return 'panda3d-sync'
-    if check_display_available():
+    if is_display_available():
         return 'panda3d'
     return 'panda3d-sync'
 
@@ -455,7 +455,7 @@ class Viewer:
 
             # Decide whether to open gui
             if open_gui_if_parent is None:
-                if not check_display_available():
+                if not is_display_available():
                     open_gui_if_parent = False
                 elif backend == 'meshcat':
                     # Opening a new display cell automatically if there is
@@ -815,7 +815,7 @@ class Viewer:
             return
 
         # Check if a display is available
-        if not check_display_available():
+        if not is_display_available():
             raise RuntimeError(
                 "No display available. Impossible to open a gui.")
 

@@ -24,7 +24,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ForceSensor as force,
                             ImuSensor as imu)
 from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
-                                     check_display_available,
+                                     is_display_available,
                                      get_default_backend,
                                      Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
@@ -148,7 +148,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Set the available rendering modes
         self.metadata['render.modes'] = ['rgb_array']
-        if check_display_available():
+        if is_display_available():
             self.metadata['render.modes'].append('human')
 
         # Define some proxies for fast access
@@ -1068,12 +1068,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
     @staticmethod
     def evaluate(env: Union["BaseJiminyEnv", gym.Wrapper],
-                 policy_fn: Callable[
-                     [DataNested, Optional[float]], DataNested],
+                 policy_fn: Callable[[
+                    DataNested, Optional[float], bool, Dict[str, Any]
+                    ], DataNested],
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
-                 enable_replay: bool = True,
+                 enable_replay: Optional[bool] = None,
                  **kwargs: Any) -> List[Dict[str, Any]]:
         r"""Evaluate a policy on the environment over a complete episode.
 
@@ -1087,7 +1088,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 following signature (**rew** = None at reset):
 
             | policy_fn\(**obs**: DataNested,
-            |            **reward**: Optional[float]
+            |            **reward**: Optional[float],
+            |            **done**: bool,
+            |            **info**: Dict[str, Any]
             |            \) -> DataNested  # **action**
         :param seed: Seed of the environment to be used for the evaluation of
                      the policy.
@@ -1101,10 +1104,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param enable_replay: Whether to enable replay of the simulation, and
                               eventually recording if the extra
                               keyword argument `record_video_path` is provided.
-                              Optional: Enabled by default.
+                              Optional: Enabled by default if display is
+                              available, disabled otherwise.
         :param kwargs: Extra keyword arguments to forward to the `replay`
                        method if replay is requested.
         """
+        # Handling of default arguments
+        if enable_replay is None:
+            enable_replay = is_display_available()
+
         # Get unwrapped environment
         if isinstance(env, gym.Wrapper):
             # Make sure the unwrapped environment derive from this class
@@ -1121,18 +1129,19 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Initialize the simulation
         obs = env.reset()
-        reward = None
+        reward, done = None, False
+        info: Dict[str, Any] = {}
 
         # Run the simulation
+        info_episode = []
         try:
-            info_episode = []
-            done = False
             while not done:
-                action = policy_fn(obs, reward)
+                action = policy_fn(obs, reward, done, info)
                 obs, reward, done, info = env.step(action)
                 info_episode.append(info)
                 if done or (horizon is not None and env.num_steps > horizon):
                     break
+            env.stop()
         except KeyboardInterrupt:
             pass
 

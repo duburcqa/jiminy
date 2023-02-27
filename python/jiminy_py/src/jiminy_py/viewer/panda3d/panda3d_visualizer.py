@@ -4,7 +4,9 @@ import re
 import sys
 import math
 import array
+import signal
 import warnings
+import threading
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from itertools import chain
@@ -15,6 +17,10 @@ from typing import (
 import numpy as np
 
 import simplepbr
+import direct.task.Task
+from direct.showbase.ShowBase import ShowBase
+from direct.gui.OnscreenImage import OnscreenImage
+from direct.gui.OnscreenText import OnscreenText
 from panda3d.core import (
     NodePath, Point3, Vec3, Vec4, Mat4, Quat, LQuaternion, Geom, GeomEnums,
     GeomNode, GeomTriangles, GeomVertexData, GeomVertexArrayFormat,
@@ -25,9 +31,6 @@ from panda3d.core import (
     CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
     ClockObject, GraphicsPipe, GraphicsOutput, GraphicsWindow,
     RenderModeAttrib, WindowProperties, FrameBufferProperties, loadPrcFileData)
-from direct.showbase.ShowBase import ShowBase
-from direct.gui.OnscreenImage import OnscreenImage
-from direct.gui.OnscreenText import OnscreenText
 
 import panda3d_viewer
 import panda3d_viewer.viewer
@@ -58,6 +61,23 @@ PANDA3D_FRAMERATE_MAX = 40
 Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
 Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
 FrameType = Union[Tuple[Tuple3FType, Tuple4FType], np.ndarray]
+
+
+def _signal_guarded(signalnum: int,
+                    handler: Union[signal.Handlers, Callable]
+                    ) -> Union[signal.Handlers, Callable]:
+    """Guard `signal.signal` to make it a no-op outside of main thread instead
+    of raising an exception. This typically happens during async rendering.
+    """
+    if threading.current_thread() is threading.main_thread():
+        return signal.signal(signalnum, handler)
+    return signal.getsignal(signalnum)
+
+
+_signal_guarded_module = type(signal)(signal.__name__, signal.__doc__)
+_signal_guarded_module.__dict__.update(signal.__dict__)
+_signal_guarded_module.__dict__['signal'] = _signal_guarded
+direct.task.Task.signal = _signal_guarded_module
 
 
 def _sanitize_path(path: str) -> str:

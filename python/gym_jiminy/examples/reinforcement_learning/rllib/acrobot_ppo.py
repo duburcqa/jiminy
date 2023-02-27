@@ -22,9 +22,11 @@ from ray.rllib.algorithms.algorithm import Algorithm
 from gym_jiminy.common.wrappers import FrameRateLimiter
 from gym_jiminy.rllib.utilities import (initialize,
                                         train,
+                                        build_eval_policy_from_checkpoint,
+                                        build_policy_wrapper,
                                         build_eval_worker_from_checkpoint,
-                                        evaluate_algo,
-                                        evaluate_local_worker)
+                                        evaluate_local_worker,
+                                        evaluate_algo)
 
 # ============================== User parameters ==============================
 
@@ -290,8 +292,14 @@ ray.shutdown()
 
 # ======================= Enjoy a trained agent locally =======================
 
+# Build a standalone local evaluation worker (not requiring ray backend)
 register_env("test", lambda env_config: FrameRateLimiter(
     gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
-
 worker = build_eval_worker_from_checkpoint(checkpoint_path)
 evaluate_local_worker(worker, evaluation_num=1, close_backend=True)
+
+# Build a standalone single-agent evaluation policy
+env = gym.make(GYM_ENV_NAME, **algo_config.env_config)
+policy_map = build_eval_policy_from_checkpoint(checkpoint_path)
+policy_fn = build_policy_wrapper(policy_map)
+env.evaluate(env, policy_fn, seed=0)
