@@ -679,13 +679,13 @@ def _pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
     """
     try:
         plt.clear_figure()
-        plt.subplots(1, len(data))
-        plt.theme('clear')
+        fig = plt.subplots(1, len(data))
+        plt.theme('clear')  # 'pro' to support color lines
         for i, (title, values) in enumerate(data):
-            plt.subplot(1, i + 1)
-            plt.hist(values, HISTOGRAM_BINS, marker="sd")
-            plt.plotsize(50, 20)
-            plt.title(title)
+            ax = fig.subplot(1, i + 1)
+            ax.hist(values, HISTOGRAM_BINS, marker="sd")
+            ax.plotsize(50, 20)
+            ax.title(title)
         plt.show()
     except UnicodeEncodeError as e:
         logger.warning("Terminal does not support unicode: %s", e)
@@ -787,7 +787,7 @@ def evaluate_local_worker(worker: RolloutWorker,
         list(set(all_log_paths[idx] for idx in (idx_best, idx_worst))),
         enable_replay=enable_replay,
         **viewer_kwargs)
-    if block:
+    if block and thread is not None:
         try:
             thread.join()
         except KeyboardInterrupt:

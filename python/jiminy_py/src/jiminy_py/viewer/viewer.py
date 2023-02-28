@@ -123,7 +123,9 @@ def is_display_available() -> bool:
         return True
     if multiprocessing.current_process().daemon:
         return False
-    if not (sys.platform.startswith("win") or os.environ.get("DISPLAY")):
+    if sys.platform.startswith("win"):
+        return True
+    if not os.environ.get("DISPLAY"):
         return False
     return True
 
@@ -132,8 +134,8 @@ def get_default_backend() -> str:
     """Determine the default backend viewer, depending eventually on the
     running environment, hardware, and set of available backends.
 
-    Panda3d is preferred over meshcat in non-interactive mode, and on google
-    colab because of known latency issue making it unusable.
+    Panda3d is preferred over Meshcat in non-interactive mode, and on Google
+    Colaboratory because of known latency issue making it unusable.
     See https://github.com/googlecolab/colabtools/issues/2870
 
     .. note::
@@ -444,6 +446,7 @@ class Viewer:
             uniq_id = next(tempfile._get_candidate_names())
             robot_name = "_".join(("robot", uniq_id))
 
+        # Pick the default backend if unspecified and none is already selected
         if backend is None:
             if Viewer.backend is not None:
                 backend = Viewer.backend

@@ -231,16 +231,18 @@ def play_trajectories(trajs_data: Union[
         if all(viewer is None for viewer in viewers):
             viewers = None
 
-    # Get backend
+    # Pick the default backend if unspecified and none is already running
     if backend is None:
         if Viewer.is_alive():
             backend = Viewer.backend
+        elif record_video_path is not None:
+            backend = "panda3d-sync"
         else:
             backend = get_default_backend()
 
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode
-    # with htlm rendering support. Then load it in running cell.
+    # with HTML rendering support. Then load it in running cell.
     record_video_html_embedded = (
         record_video_path is None and
         backend == "panda3d-sync" and interactive_mode() >= 2)
@@ -524,7 +526,10 @@ def play_trajectories(trajs_data: Union[
                     # Write frame
                     for packet in stream.encode(frame):
                         out.mux(packet)
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, RuntimeError):
+                # RuntimeError would be raised if the backend got closed during
+                # recording, which typically happens when terminating Python
+                # forcibly during async recording.
                 break
 
         # Finalize video recording
@@ -736,7 +741,7 @@ def async_play_and_record_logs_files(
         logs_files: Union[str, Sequence[str]],
         enable_replay: Optional[bool] = None,
         mesh_package_dirs: Union[str, Sequence[str]] = (),
-        **kwargs: Any) -> Thread:
+        **kwargs: Any) -> Optional[Thread]:
     """Play and/or replay the content of a logfile in a viewer asynchronously.
 
     .. note::
@@ -747,18 +752,29 @@ def async_play_and_record_logs_files(
     :param enable_replay: Whether to force replay the simulation. It would
                           first replay then record if this option is enabled
                           and `record_video_path` is specified.
+                          Optional: True by default if `record_video_path` is
+                          not specified and the current backend supports
+                          onscreen rendering, False otherwise.
     :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file.
     :param kwargs: Keyword arguments to forward to `play_logs_files` method.
     """
     # Handling of default argument(s)
+    enable_recording = "record_video_path" in kwargs
     if enable_replay is None:
-        enable_replay = "record_video_path" not in kwargs
+        if Viewer.backend != "panda3d-sync" or interactive_mode() >= 2:
+            enable_replay = not enable_recording
+        else:
+            enable_replay = False
 
     # Disable replay if not available and video recording is requested
     if enable_replay and not is_display_available():
         logger.warn("No display available. Disabling replay.")
         enable_replay = False
+
+    # Nothing to do. Silently returning early.
+    if not enable_recording and not enable_replay:
+        return
 
     # Define method to pass to threading
     def _locked_play_and_record(lock: RLock,
@@ -793,7 +809,7 @@ def async_play_and_record_logs_files(
         args=(viewer_lock, logs_files, mesh_package_dirs, enable_replay),
         kwargs={
             **dict(
-                close_backend=enable_replay and "record_video_path" in kwargs,
+                close_backend=(enable_replay and enable_recording),
                 verbose=False),
             **kwargs, **dict(
                 delete_robot_on_close=True)},

@@ -25,6 +25,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ImuSensor as imu)
 from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      is_display_available,
+                                     interactive_mode,
                                      get_default_backend,
                                      Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
@@ -853,7 +854,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Handling of default rendering mode
         viewer_backend = (self.simulator.viewer or Viewer).backend
         if mode is None:
-            # 'rgb_array' by default if the current for future backend is
+            # 'rgb_array' by default if the backend is or will be
             # 'panda3d-sync', otherwise 'human' if available.
             backend = (kwargs.get('backend') or viewer_backend or
                        self.simulator.viewer_kwargs.get('backend') or
@@ -1111,7 +1112,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # Handling of default arguments
         if enable_replay is None:
-            enable_replay = is_display_available()
+            enable_replay = (
+                Viewer.backend != "panda3d-sync" or interactive_mode() >= 2)
 
         # Get unwrapped environment
         if isinstance(env, gym.Wrapper):

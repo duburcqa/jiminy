@@ -27,9 +27,16 @@ class Getch:
                          releasing the GIL periodically for other threads.
                          Optional: Disabled by default.
         """
+        # Make sure the Python runtime environment is supported
+        if os.name not in ("posix", "nt"):
+            raise RuntimeError(f"Runtime system '{os.name}' not supported.")
+
+        # Backup user arguments
         self.stop_event = stop_event
         self.max_rate = max_rate
-        if sys.platform.startswith('linux'):
+
+        # The terminal must be configured to catch stdin on POSIX systems
+        if os.name == "posix":
             import fcntl
             import termios
             self.fd = sys.stdin.fileno()
@@ -46,7 +53,7 @@ class Getch:
         stream are restored at python exit, otherwise the user may not be
         able to enter any command without closing the terminal.
         """
-        if sys.platform.startswith('linux'):
+        if os.name == "posix":
             import fcntl
             import termios
             termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.oldterm)
@@ -57,7 +64,7 @@ class Getch:
         return it. Any previous characters not fetched before calling this
         method will be discarded.
         """
-        if sys.platform.startswith('linux'):  # pylint: disable=no-else-return
+        if os.name == "nt":
             char = ''
             try:
                 import termios
@@ -65,7 +72,7 @@ class Getch:
                 while self.stop_event is None or \
                         not self.stop_event.is_set():
                     if self.max_rate is not None:
-                        # Busy loop is not used to avoid unnecessary cpu load
+                        # No pure busy loop to avoid unnecessary cpu load
                         time.sleep(self.max_rate)
                     try:
                         char += sys.stdin.read(1)
@@ -76,15 +83,16 @@ class Getch:
             except Exception:  # pylint: disable=broad-except
                 pass
             return char
-        else:
-            import msvcrt
-            while self.stop_event is None or \
-                    not self.stop_event.is_set():
-                if self.max_rate is not None:
-                    time.sleep(self.max_rate)
-                if msvcrt.kbhit():
-                    return msvcrt.getch()
-            return ''
+
+        # Windows OS must be handled separately
+        import msvcrt
+        while self.stop_event is None or \
+                not self.stop_event.is_set():
+            if self.max_rate is not None:
+                time.sleep(self.max_rate)
+            if msvcrt.kbhit():
+                return msvcrt.getch()
+        return ''
 
 
 def _input_deamon(input_queue: queue.Queue,

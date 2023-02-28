@@ -1134,8 +1134,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             import matplotlib.pyplot as plt
             from matplotlib.patches import Patch
         except ImportError:
-            raise ImportError(
-                "Method not supported. Please install 'jiminy_py[plot]'.")
+            warnings.warn(
+                "Method not supported. Please install 'jiminy_py[plot]'.",
+                category=UserWarning, stacklevel=2)
+            return
 
         # Remove existing legend, if any
         if self._legend is not None:
@@ -1146,6 +1148,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Do nothing if items is not specified
         if items is None or not items:
             return
+
+        # Switch to non-interactive backend when running within thread and
+        # on MacOS to avoid various problems including potential segfault.
+        must_switch_backend = (
+            threading.current_thread() is not threading.main_thread() or
+            sys.platform.startswith('darwin'))
+        if must_switch_backend:
+            plt_backend = plt.get_backend()
+            plt.switch_backend("Agg")
 
         # Render the legend
         color_default = (0.0, 0.0, 0.0, 1.0)
@@ -1176,13 +1187,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # slightly extended to ensure the surrounding rounded corner box of
         # is not cropped. Transparency is enabled, so it is not an issue.
         io_buf = io.BytesIO()
-        fig.savefig(io_buf, format='rgba', dpi='figure', transparent=True,
-                    bbox_inches=bbox_inches)
+        fig.savefig(
+            io_buf, format='rgba', dpi='figure', transparent=True,
+            bbox_inches=bbox_inches)
         io_buf.seek(0)
         img_raw = io_buf.getvalue()
 
         # Delete the legend along with its temporary figure
         plt.close(fig)
+
+        # Restore original backend if necessary
+        if must_switch_backend:
+            plt.switch_backend(plt_backend)
 
         # Create texture in which to render the image buffer
         tex = Texture()
