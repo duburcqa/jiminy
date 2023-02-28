@@ -11,6 +11,8 @@ import pathlib
 from pydoc import locate
 from typing import Optional, Union, Dict, Any, Type, Sequence, List, TypedDict
 
+from typing_extensions import TypeAlias
+
 import gym
 import toml
 
@@ -181,8 +183,7 @@ def build_pipeline(env_config: EnvConfig,
         # Implementation of __init__ method must be done after declaration of
         # the class, because the required closure for calling `super()` is not
         # available when creating a class dynamically.
-        def __init__(self: wrapped_env_class,  # type: ignore[valid-type]
-                     **kwargs: Any) -> None:
+        def __init__(self: TypeAlias, **kwargs: Any) -> None:
             """
             :param kwargs: Keyword arguments to forward to both the wrapped
                            environment and the controller. It will overwrite

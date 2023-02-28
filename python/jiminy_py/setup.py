@@ -101,9 +101,6 @@ setup(
         "trimesh",
         # Use to operate conveniently on nested log data.
         "dm-tree>=0.1.7",
-        # Used internally by Viewer to detect running Meshcat servers and
-        # avoid orphan child processes.
-        "psutil",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # Panda3d is NOT supported by PyPy even if built from source.
         # - 1.10.12 fixes numerous bugs
@@ -127,6 +124,9 @@ setup(
             # Web-based mesh visualizer used as Viewer's backend.
             # - 0.3.2 fixes the rendering of DAE meshes
             "meshcat>=0.3.2",
+            # Used to detect running Meshcat servers and avoid orphan child
+            # processes.
+            "psutil",
             # Low-level backend for Ipython powering Jupyter notebooks
             "ipykernel>=5.0,<7.0"
             # Used internally by Viewer to read/write Meshcat snapshots

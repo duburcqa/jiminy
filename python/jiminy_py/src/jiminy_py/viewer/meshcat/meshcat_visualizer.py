@@ -1,3 +1,6 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=attribute-defined-outside-init
 import os
 import math
 import base64
@@ -28,15 +31,19 @@ class Cone(Geometry):
         super().__init__()
         self.radius = radius
         self.height = height
-        self.radialSegments = 32
+        self.radial_segments = 32
 
-    def lower(self, object_data: Any) -> MsgType:
+    def lower(self,
+              object_data: Any  # pylint: disable=unused-argument
+              ) -> MsgType:
+        """ TODO: Write documentation.
+        """
         return {
-            u"uuid": self.uuid,
-            u"type": u"ConeGeometry",
-            u"radius": self.radius,
-            u"height": self.height,
-            u"radialSegments": self.radialSegments
+            "uuid": self.uuid,
+            "type": "ConeGeometry",
+            "radius": self.radius,
+            "height": self.height,
+            "radialSegments": self.radial_segments
         }
 
 
@@ -84,6 +91,8 @@ class Capsule(TriangularMeshGeometry):
 
 
 class DaeMeshGeometryWithTexture(ReferenceSceneElement):
+    """ TODO: Write documentation.
+    """
     def __init__(self,
                  dae_path: str,
                  cache: Optional[Set[str]] = None) -> None:
@@ -166,8 +175,8 @@ class MeshcatVisualizer(BaseVisualizer):
     Based on https://github.com/stack-of-tasks/pinocchio/blob/master/bindings/python/pinocchio/visualize/meshcat_visualizer.py
     Copyright (c) 2014-2020, CNRS
     Copyright (c) 2018-2020, INRIA
-    """  # noqa: E501
-    def initViewer(self,
+    """  # noqa: E501  # pylint: disable=line-too-long
+    def initViewer(self,  # pylint: disable=invalid-name,arguments-differ
                    viewer: meshcat.Visualizer = None,
                    loadModel: bool = False,
                    mustOpen: bool = False,
@@ -192,19 +201,22 @@ class MeshcatVisualizer(BaseVisualizer):
             self.viewer.open()
 
         if loadModel:
-            self.loadViewerModel(rootNodeName=self.model.name)
+            self.loadViewerModel(root_node_name=self.model.name)
 
-    def getViewerNodeName(self,
+    def getViewerNodeName(self,  # pylint: disable=invalid-name
                           geometry_object: pin.GeometryObject,
-                          geometry_type: pin.GeometryType):
+                          geometry_type: pin.GeometryType) -> str:
         """Return the name of the geometry object inside the viewer.
         """
         if geometry_type is pin.GeometryType.VISUAL:
             return '/'.join((self.visual_group, geometry_object.name))
-        elif geometry_type is pin.GeometryType.COLLISION:
-            return '/'.join((self.collision_group, geometry_object.name))
+        # if geometry_type is pin.GeometryType.COLLISION:
+        return '/'.join((self.collision_group, geometry_object.name))
 
-    def loadPrimitive(self, geometry_object: pin.GeometryObject):
+    def loadPrimitive(self,  # pylint: disable=invalid-name
+                      geometry_object: pin.GeometryObject) -> None:
+        """ TODO: Write documentation.
+        """
         geom = geometry_object.geometry
         if isinstance(geom, hppfcl.Capsule):
             obj = Capsule(2. * geom.halfLength, geom.radius)
@@ -242,14 +254,18 @@ class MeshcatVisualizer(BaseVisualizer):
             obj = TriangularMeshGeometry(vertices, faces)
             geometry_object.meshScale = np.ones(3)  # It is already at scale !
         else:
-            msg = "Unsupported geometry type for %s (%s)" % (
-                geometry_object.name, type(geom))
-            warnings.warn(msg, category=UserWarning, stacklevel=2)
+            warnings.warn(
+                f"Unsupported geometry type for {geometry_object.name} "
+                f"({type(geom)})",
+                category=UserWarning, stacklevel=2)
             obj = None
 
         return obj
 
-    def loadMesh(self, geometry_object: pin.GeometryObject):
+    def loadMesh(self,  # pylint: disable=invalid-name
+                 geometry_object: pin.GeometryObject):
+        """ TODO: Write documentation.
+        """
         # Mesh path is empty if Pinocchio is built without HPP-FCL bindings
         mesh_path = geometry_object.meshPath
         if mesh_path == "":
@@ -273,13 +289,16 @@ class MeshcatVisualizer(BaseVisualizer):
 
         return obj
 
-    def loadViewerGeometryObject(self,
-                                 geometry_object: pin.GeometryObject,
-                                 geometry_type: pin.GeometryType,
-                                 color: Optional[np.ndarray] = None,
-                                 Material: Type[meshcat.geometry.Material] =
-                                 meshcat.geometry.MeshPhongMaterial):
+    def loadViewerGeometryObject(  # pylint: disable=invalid-name
+            self,
+            geometry_object: pin.GeometryObject,
+            geometry_type: pin.GeometryType,
+            color: Optional[np.ndarray] = None,
+            material_cls: Type[
+                meshcat.geometry.Material] = meshcat.geometry.MeshPhongMaterial
+            ) -> None:
         """Load a single geometry object"""
+        # pylint: disable=broad-exception-caught
         node_name = self.getViewerNodeName(geometry_object, geometry_type)
 
         # Create meshcat object based on the geometry.
@@ -293,25 +312,26 @@ class MeshcatVisualizer(BaseVisualizer):
             else:
                 obj = self.loadPrimitive(geometry_object)
         except Exception as e:
-            msg = ("Error while loading geometry object: %s\nError message:\n"
-                   "%s") % (geometry_object.name, e)
-            warnings.warn(msg, category=UserWarning, stacklevel=2)
+            warnings.warn(
+                "Error while loading geometry object: "
+                f"{geometry_object.name}\n Error message:\n{e}",
+                category=UserWarning, stacklevel=2)
             return
 
         # Set material color from URDF
-        material = Material()
+        material = material_cls()
         if color is None:
-            meshColor = geometry_object.meshColor
+            mesh_color = geometry_object.meshColor
         else:
-            meshColor = color
-        material.color = (int(meshColor[0] * 255) * 256 ** 2 +
-                          int(meshColor[1] * 255) * 256 +
-                          int(meshColor[2] * 255))
+            mesh_color = color
+        material.color = (int(mesh_color[0] * 255) * 256 ** 2 +
+                          int(mesh_color[1] * 255) * 256 +
+                          int(mesh_color[2] * 255))
 
         # Add transparency, if needed.
-        if float(meshColor[3]) < 1.0:
+        if float(mesh_color[3]) < 1.0:
             material.transparent = True
-            material.opacity = float(meshColor[3])
+            material.opacity = float(mesh_color[3])
 
         # Add meshcat object to the scene
         v = self.viewer[node_name]
@@ -323,17 +343,17 @@ class MeshcatVisualizer(BaseVisualizer):
         else:
             v.set_object(obj, material)
 
-    def loadViewerModel(self,
-                        rootNodeName: str,
+    def loadViewerModel(self,  # pylint: disable=arguments-differ
+                        root_node_name: str,
                         color: Optional[np.ndarray] = None):
         """Load the robot in a MeshCat viewer.
-        Parameters:
-            rootNodeName: name to give to the robot in the viewer
-            color: optional, color to give to the robot. This overwrites the
-            color present in the urdf. The format is a list of four RGBA floats
-            (between 0 and 1)
+
+        :param root_node_name: name to give to the robot in the viewer
+        :param color: Color to give to the robot. This overwrites the color
+                      present in the URDF file. The format is a 1D array of
+                      four RGBA floats scaled between 0.0 and 1.0.
         """
-        self.root_name = rootNodeName
+        self.root_name = root_node_name
 
         # Load robot visual meshes
         self.visual_group = "/".join((self.root_name, "visuals"))
@@ -352,9 +372,10 @@ class MeshcatVisualizer(BaseVisualizer):
         # The cache is cleared after loading every loading to avoid edge-cases
         self.cache.clear()
 
-    def display(self, q: np.ndarray):
+    def display(self, q: np.ndarray):  # pylint: disable=signature-differs
         """Display the robot at configuration q in the viewer by placing all
         the bodies."""
+        # pylint: disable=invalid-name
         pin.forwardKinematics(self.model, self.data, q)
 
         if self.display_visuals:
@@ -368,9 +389,9 @@ class MeshcatVisualizer(BaseVisualizer):
                     (visual.meshScale, np.array([1.0]))).flat)
                 T = np.array(M.homogeneous).dot(S)
                 # Update viewer configuration
-                nodeName = self.getViewerNodeName(
+                node_name = self.getViewerNodeName(
                     visual, pin.GeometryType.VISUAL)
-                self.viewer[nodeName].set_transform(T)
+                self.viewer[node_name].set_transform(T)
 
         if self.display_collisions:
             pin.updateGeometryPlacements(
@@ -385,9 +406,9 @@ class MeshcatVisualizer(BaseVisualizer):
                     (collision.meshScale, np.array([1.0]))).flat)
                 T = np.array(M.homogeneous).dot(S)
                 # Update viewer configuration
-                nodeName = self.getViewerNodeName(
+                node_name = self.getViewerNodeName(
                     collision, pin.GeometryType.collision)
-                self.viewer[nodeName].set_transform(T)
+                self.viewer[node_name].set_transform(T)
 
     def displayCollisions(self, visibility: bool):
         """Set whether to display collision objects or not.

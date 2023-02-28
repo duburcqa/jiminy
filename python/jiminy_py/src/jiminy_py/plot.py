@@ -1,4 +1,8 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-name-in-module
 import os
+import sys
 import fnmatch
 import pathlib
 import argparse
@@ -15,13 +19,13 @@ import numpy as np
 try:
     import matplotlib
     import matplotlib.pyplot as plt
-except ImportError:
+except ImportError as e:
     raise ImportError(
-        "Submodule not available. Please install 'jiminy_py[plot]'.")
+        "Submodule not available. Please install 'jiminy_py[plot]'.") from e
 except RuntimeError as e:
     # You can get a runtime error if Matplotlib is installed but cannot be
     # imported because of some conflicts with jupyter event loop for instance.
-    raise ImportError(e)
+    raise ImportError("Matplotlib cannot be imported.") from e
 from matplotlib import colors
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -94,7 +98,7 @@ class TabbedFigure:
         It only supports plotting time-dependent data, the later corresponding
         to the horizontal axis of every subplots.
     """
-    def __init__(self,
+    def __init__(self,  # pylint: disable=unused-argument
                  sync_tabs: bool = False,
                  window_title: str = "jiminy",
                  offscreen: bool = False,
@@ -154,7 +158,8 @@ class TabbedFigure:
         self.close()
 
     def adjust_layout(self,
-                      event: Optional[Event] = None, *,
+                      event: Optional[  # pylint: disable=unused-argument
+                          Event] = None, *,
                       refresh_canvas: bool = False) -> None:
         """Optimize subplot grid and buttons width for best fit, then adjust
         layout based on window size.
@@ -276,7 +281,7 @@ class TabbedFigure:
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
-    def add_tab(self,
+    def add_tab(self,  # pylint: disable=unused-argument
                 tab_name: str,
                 time: np.ndarray,
                 data: Union[np.ndarray, Dict[str, Union[
@@ -388,6 +393,8 @@ class TabbedFigure:
             self.figure.show()
 
     def set_active_tab(self, tab_name: str) -> None:
+        """ TODO: Write documentation.
+        """
         event = LocationEvent("click", self.figure.canvas, 0, 0)
         event.inaxes = self.tabs_data[tab_name]["button"].ax
         self.__click(event, force_update=True)
@@ -417,7 +424,7 @@ class TabbedFigure:
         if not self.tabs_data:
             if self.figure._suptitle is not None:
                 self.figure._suptitle.remove()
-                self._suptitle = None
+                self.figure._suptitle = None
             for ax in tab["axes"]:
                 ax.remove()
             if self.legend is not None:
@@ -445,7 +452,7 @@ class TabbedFigure:
             pdf_path, format='pdf', bbox_inches=self.bbox_inches)
 
     def save_all_tabs(self, pdf_path: str) -> List[str]:
-        """Export every tabs in a signle pdf, limiting systematically the
+        """Export every tabs in a single pdf, limiting systematically the
         bounding box to the subplots and legend.
 
         :param pdf_path: Desired location for generated pdf file.
@@ -594,6 +601,8 @@ def plot_log(log_data: Dict[str, Any],
 
 
 def plot_log_interactive():
+    """ TODO: Write documentation.
+    """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
         description=dedent("""\
@@ -639,7 +648,7 @@ def plot_log_interactive():
     if len(plotting_commands) == 0:
         print("Available data:", *map(
             lambda s: f"- {s}", log_vars.keys()), sep="\n")
-        exit(0)
+        sys.exit(0)
 
     # Load comparision logs, if any.
     compare_data = OrderedDict()
@@ -655,17 +664,17 @@ def plot_log_interactive():
     for cmd in plotting_commands:
         # Check that the command is valid, i.e. that all elements exits.
         # If it is the case, add it to the list.
-        same_subplot = (cmd[0] == ':')
+        same_subplot = cmd[0] == ':'
         headers = cmd.strip(':').split(':')
 
         # Expand each element according to wildcard expression
         matching_fieldnames = []
-        for h in headers:
-            match = sorted(fnmatch.filter(log_vars.keys(), h))
+        for header in headers:
+            match = sorted(fnmatch.filter(log_vars.keys(), header))
             if len(match) > 0:
                 matching_fieldnames.append(match)
             else:
-                print(f"No matching headers for expression {h}")
+                print(f"No matching headers for expression {header}")
         if len(matching_fieldnames) == 0:
             continue
 
@@ -674,7 +683,7 @@ def plot_log_interactive():
             plotted_elements.append([
                 e for l_sub in matching_fieldnames for e in l_sub])
         else:
-            n_subplots = min([len(header) for header in matching_fieldnames])
+            n_subplots = min(len(header) for header in matching_fieldnames)
             for i in range(n_subplots):
                 plotted_elements.append(
                     [header[i] for header in matching_fieldnames])

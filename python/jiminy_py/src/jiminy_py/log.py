@@ -1,3 +1,6 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-name-in-module,no-member
 import os
 import tempfile
 from bisect import bisect_right
@@ -135,7 +138,7 @@ def build_robot_from_log(
 
         # Initialize the model
         robot.initialize(pinocchio_model, collision_model, visual_model)
-    except KeyError:
+    except KeyError as e:
         # Extract initialization arguments
         urdf_data = log_constants[
             ".".join((ENGINE_NAMESPACE, "urdf_file"))]
@@ -148,7 +151,7 @@ def build_robot_from_log(
         if len(urdf_data) <= 1:
             raise RuntimeError(
                 "Impossible to build robot. The log is not persistent and the "
-                "robot was not associated with a valid URDF file.")
+                "robot was not associated with a valid URDF file.") from e
 
         # Write urdf data in temporary file
         urdf_path = os.path.join(
@@ -277,7 +280,10 @@ def update_sensors_data_from_log(log_data: Dict[str, Any],
                 sensors_set.append(sensor)
                 sensors_log.append(sensor_log)
 
-    def update_hook(t: float, q: np.ndarray, v: np.ndarray) -> None:
+    def update_hook(t: float,
+                    q: np.ndarray,  # pylint: disable=unused-argument
+                    v: np.ndarray  # pylint: disable=unused-argument
+                    ) -> None:
         nonlocal times, sensors_set, sensors_log
 
         # Get surrounding indices in log data

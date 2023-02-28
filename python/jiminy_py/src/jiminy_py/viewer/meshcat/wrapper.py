@@ -1,3 +1,5 @@
+""" TODO: Write documentation.
+"""
 import os
 import urllib
 import base64
@@ -5,13 +7,13 @@ import atexit
 import asyncio
 import logging
 import pathlib
-import umsgpack
 import threading
-import tornado.ioloop
 from contextlib import redirect_stdout, redirect_stderr
 from typing import Optional, Sequence, Dict, Any
 
 import zmq
+import umsgpack
+import tornado.ioloop
 from zmq.eventloop.zmqstream import ZMQStream
 
 import meshcat
@@ -23,10 +25,11 @@ from .recorder import MeshcatRecorder
 
 if interactive_mode() >= 2:
     import ipykernel
-    ipykernel_version_major = int(ipykernel.__version__[0])
-    if ipykernel_version_major < 6:
+    IPYKERNEL_VERSION_MAJOR = int(ipykernel.__version__[0])
+    if IPYKERNEL_VERSION_MAJOR < 6:
+        # pylint: disable=no-name-in-module
         from ipykernel.kernelbase import SHELL_PRIORITY
-    elif ipykernel_version_major > 6:
+    elif IPYKERNEL_VERSION_MAJOR > 6:
         logging.warning(
             "ipykernel version 7 detected. The viewer works optimally with "
             " ipykernel 5 or 6. Revert to old version in case of issues.")
@@ -42,9 +45,10 @@ if interactive_mode() >= 2:
         side effects.
         """
         def __init__(self):
+            # pylint: disable=import-outside-toplevel
             from IPython import get_ipython
             self.__kernel = get_ipython().kernel
-            self._is_colab = (interactive_mode() == 3)
+            self._is_colab = interactive_mode() == 3
             self.qsize_old = 0
             self.is_running = False
 
@@ -61,8 +65,8 @@ if interactive_mode() >= 2:
             # Note that it is a faster implementation of `ZMQStream.flush()`
             # to only handle incoming messages. It reduces the computation from
             # about 15us to 15ns.
-            # https://github.com/zeromq/pyzmq/blob/e424f83ceb0856204c96b1abac93a1cfe205df4a/zmq/eventloop/zmqstream.py#L313
-            if ipykernel_version_major > 5:
+            # https://github.com/zeromq/pyzmq/blob/v25.0.0/zmq/eventloop/zmqstream.py#L452  # noqa: E501  # pylint: disable=line-too-long
+            if IPYKERNEL_VERSION_MAJOR > 5:
                 shell_stream = self.__kernel.shell_stream
             else:
                 shell_stream, *_ = self.__kernel.shell_streams
@@ -177,7 +181,10 @@ if interactive_mode() >= 2:
 
 
 class CommManager:
-    def __new__(cls, *args: Any, **kwargs: Any) -> "CommManager":
+    """ TODO: Write documentation.
+    """
+    def __new__(cls,  # pylint: disable=unused-argument
+                *args: Any, **kwargs: Any) -> "CommManager":
         self = super().__new__(cls)
         self.__ioloop = None
         self.__comm_socket = None
@@ -187,6 +194,7 @@ class CommManager:
         return self
 
     def __init__(self, comm_url: str):
+        # pylint: disable=import-outside-toplevel
         from IPython import get_ipython
 
         def forward_comm_thread():
@@ -208,6 +216,7 @@ class CommManager:
                     self.__ioloop.call_later(1.0, background_watchdog)
             background_watchdog()
 
+            # pylint: disable=abstract-class-instantiated
             # Start comm socket
             context = zmq.Context()
             self.__comm_socket = context.socket(zmq.XREQ)
@@ -236,6 +245,8 @@ class CommManager:
         self.close()
 
     def close(self) -> None:
+        """ TODO: Write documentation.
+        """
         if 'meshcat' in self.__kernel.comm_manager.targets:
             self.__kernel.comm_manager.unregister_target(
                 'meshcat', self.__comm_register)
@@ -258,7 +269,8 @@ class CommManager:
 
     def __comm_register(self,
                         comm: 'ipykernel.comm.Comm',  # noqa
-                        msg: Dict[str, Any]) -> None:
+                        msg: Dict[str, Any]  # pylint: disable=unused-argument
+                        ) -> None:
         # There is a major limitation of using `comm.on_msg` callback
         # mechanism: if the main thread is already busy for some reason, for
         # instance waiting for a reply from the server ZMQ socket, then
@@ -274,7 +286,7 @@ class CommManager:
             self.__comm_stream.flush(zmq.POLLOUT)
 
         @comm.on_close
-        def _close(evt: Any) -> None:
+        def _close(event: Any) -> None:  # pylint: disable=unused-argument
             self.__comm_socket.send(f"close:{comm.comm_id}".encode())
             self.__comm_stream.flush(zmq.POLLOUT)
 
@@ -283,7 +295,10 @@ class CommManager:
 
 
 class MeshcatWrapper:
-    def __new__(cls, *args: Any, **kwargs: Any) -> "MeshcatWrapper":
+    """ TODO: Write documentation.
+    """
+    def __new__(cls,  # pylint: disable=unused-argument
+                *args: Any, **kwargs: Any) -> "MeshcatWrapper":
         self = super().__new__(cls)
         self.server_proc = None
         self.recorder = None
@@ -335,6 +350,8 @@ class MeshcatWrapper:
         self.close()
 
     def close(self) -> None:
+        """ TODO: Write documentation.
+        """
         if self.__zmq_socket is not None:
             self.__zmq_socket.send(b"stop")
             self.__zmq_socket.close()
@@ -347,6 +364,8 @@ class MeshcatWrapper:
             self.recorder = None
 
     def wait(self, require_client: bool = False) -> str:
+        """ TODO: Write documentation.
+        """
         if require_client:
             # Calling the original `wait` method must be avoided since it is
             # blocking. Here we are waiting for a new comm to connect. Always
@@ -397,6 +416,8 @@ class MeshcatWrapper:
         return self.__zmq_socket.recv().decode("utf-8")
 
     def set_legend_item(self, uniq_id: str, color: str, text: str) -> None:
+        """ TODO: Write documentation.
+        """
         self.__zmq_socket.send_multipart([
             b"set_property",      # Frontend command. Used by Python zmq server
             b"",                  # Tree path. Empty path means root
@@ -410,13 +431,15 @@ class MeshcatWrapper:
         self.__zmq_socket.recv()  # Receive acknowledgement
 
     def remove_legend_item(self, uniq_id: str) -> None:
+        """ TODO: Write documentation.
+        """
         self.__zmq_socket.send_multipart([
             b"set_property",
             b"",
             umsgpack.packb({
-                u"type": "legend",
-                u"id": uniq_id,   # Unique identifier of legend item to remove
-                u"text": ""       # Empty message means delete the item, if any
+                "type": "legend",
+                "id": uniq_id,   # Unique identifier of legend item to remove
+                "text": ""       # Empty message means delete the item, if any
             })
         ])
         self.__zmq_socket.recv()
@@ -425,6 +448,8 @@ class MeshcatWrapper:
                       img_fullpath: str,
                       width: int,
                       height: int) -> None:
+        """ TODO: Write documentation.
+        """
         # Handle file format
         url = urllib.parse.urlparse(img_fullpath)
         if all([url.scheme in ["http", "https"], url.netloc, url.path]):
@@ -453,40 +478,50 @@ class MeshcatWrapper:
             b"set_property",
             b"",
             umsgpack.packb({
-                u"type": "watermark",
-                u"data": img_data,
-                u"width": width,
-                u"height": height
+                "type": "watermark",
+                "data": img_data,
+                "width": width,
+                "height": height
             })
         ])
         self.__zmq_socket.recv()
 
     def remove_watermark(self) -> None:
+        """ TODO: Write documentation.
+        """
         self.__zmq_socket.send_multipart([
             b"set_property",
             b"",
             umsgpack.packb({
-                u"type": "watermark",
-                u"data": ""   # Empty string means delete the watermark, if any
+                "type": "watermark",
+                "data": ""   # Empty string means delete the watermark, if any
             })
         ])
         self.__zmq_socket.recv()
 
     def start_recording(self, fps: float, width: int, height: int) -> None:
+        """ TODO: Write documentation.
+        """
         if not self.recorder.is_open:
             self.recorder.open()
             self.wait(require_client=True)
         self.recorder.start_video_recording(fps, width, height)
 
     def stop_recording(self, path: str) -> None:
+        """ TODO: Write documentation.
+        """
         self.recorder.stop_and_save_video(path)
 
     def add_frame(self) -> None:
+        """ TODO: Write documentation.
+        """
         self.recorder.add_video_frame()
 
     def capture_frame(self,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> str:
+        """ TODO: Write documentation.
+        """
         if self.recorder.is_open:
             self.wait(require_client=False)
         else:

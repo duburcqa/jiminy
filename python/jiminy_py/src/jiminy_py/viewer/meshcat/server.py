@@ -1,17 +1,20 @@
+""" TODO: Write documentation.
+"""
 import os
 import sys
-import psutil
 import signal
 import logging
 import asyncio
-import umsgpack
-import tornado.web
-import tornado.ioloop
+import argparse
 import multiprocessing
 import multiprocessing.managers
 from typing import Optional, Tuple, Sequence, Dict
 
 import zmq
+import psutil
+import umsgpack
+import tornado.web
+import tornado.ioloop
 from zmq.eventloop.zmqstream import ZMQStream
 
 from meshcat.servers.tree import walk, find_node
@@ -30,22 +33,26 @@ logging.getLogger('tornado.access').disabled = True
 # ================ Monkey-patch =======================
 
 # Add support of cross-origin connection.
-# It is useful to execute custom javascript commands within
-# a Jupyter Notebook, and it is not an actual security flaw
-# for local servers since they are not accessible from the
-# outside anyway.
+# It is useful to execute custom javascript commands within a Jupyter Notebook,
+# and it is not an actual security flaw for local servers since they are not
+# accessible from the outside anyway.
 WebSocketHandler.check_origin = lambda self, origin: True
 
 
-# Override the default html page to disable auto-update of
-# three js "controls" of the camera, so that it can be moved
-# programmatically in any position, without any constraint, as
-# long as the user is not moving it manually using the mouse.
+# Override the default html page to disable auto-update of three js "controls"
+# of the camera, so that it can be moved programmatically in any position,
+# without any constraint, as long as the user is not moving it manually using
+# the mouse.
 class MyFileHandler(StaticFileHandlerNoCache):
-    def initialize(self,
+    """ TODO: Write documentation.
+    """
+    def initialize(self,  # pylint: disable=arguments-differ
                    default_path: str,
                    default_filename: str,
                    fallback_path: str) -> None:
+        """ TODO: Write documentation.
+        """
+        # pylint: disable=attribute-defined-outside-init
         self.default_path = os.path.abspath(default_path)
         self.default_filename = default_filename
         self.fallback_path = os.path.abspath(fallback_path)
@@ -54,6 +61,8 @@ class MyFileHandler(StaticFileHandlerNoCache):
     def validate_absolute_path(self,
                                root: str,
                                absolute_path: str) -> str:
+        """ TODO: Write documentation.
+        """
         if os.path.isdir(absolute_path):
             if not self.request.path.endswith("/"):
                 self.redirect(self.request.path + "/", permanent=True)
@@ -66,16 +75,17 @@ class MyFileHandler(StaticFileHandlerNoCache):
         return os.path.join(self.fallback_path, absolute_path[(len(root)+1):])
 
 
-# Implement bidirectional communication because zmq and the
-# websockets by gathering and forward messages received from
-# the websockets to zmq. Note that there is currently no way
-# to identify the client associated to each reply, but it is
-# usually not a big deal, since the same answers is usual
+# Implement bidirectional communication because zmq and the websockets by
+# gathering and forward messages received from the websockets to zmq. Note that
+# there is currently no way to identify the client associated to each reply,
+# but it is usually not a big deal, since the same answers is usually
 # expected from each of them. Comma is used as a delimiter.
 #
-# It also fixes flushing issue when 'handle_zmq' is not directly
-# responsible for sending a message through the zmq socket.
+# It also fixes flushing issue when 'handle_zmq' is not directly responsible
+# for sending a message through the zmq socket.
 def handle_web(self, message: str) -> None:
+    """ TODO: Write documentation.
+    """
     # Ignore watchdog for websockets since it would be closed if non-responding
     if message != 'meshcat:watchdog':
         self.bridge.websocket_msg.append(message)
@@ -98,6 +108,8 @@ WebSocketHandler.on_message = handle_web  # noqa
 
 
 class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
+    """ TODO: Write documentation.
+    """
     def __init__(self,
                  zmq_url: Optional[str] = None,
                  comm_url: Optional[str] = None,
@@ -108,8 +120,8 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         # Create a new zmq socket specifically for kernel communications
         if comm_url is None:
             def f(port):
-                return self.setup_comm("{:s}://{:s}:{:d}".format(
-                    DEFAULT_ZMQ_METHOD, self.host, port))
+                return self.setup_comm(
+                    f"{DEFAULT_ZMQ_METHOD}://{self.host}:{port}")
             (self.comm_zmq, self.comm_stream, self.comm_url), _ = \
                 find_available_port(f, DEFAULT_COMM_PORT)
         else:
@@ -127,6 +139,8 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         self.watchdog_comm()
 
     def setup_comm(self, url: str) -> Tuple[zmq.Socket, ZMQStream, str]:
+        """ TODO: Write documentation.
+        """
         comm_zmq = self.context.socket(zmq.XREQ)
         comm_zmq.bind(url)
         comm_stream = ZMQStream(comm_zmq)
@@ -134,6 +148,8 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         return comm_zmq, comm_stream, url
 
     def make_app(self) -> tornado.web.Application:
+        """ TODO: Write documentation.
+        """
         return tornado.web.Application([
             (r"/static/?(.*)", MyFileHandler, {
                 "default_path": VIEWER_ROOT,
@@ -143,6 +159,8 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         ])
 
     def wait_for_websockets(self) -> None:
+        """ TODO: Write documentation.
+        """
         if self.websocket_pool or self.comm_pool:
             self.zmq_socket.send(b"ok")
             self.zmq_stream.flush()
@@ -150,6 +168,8 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             self.ioloop.call_later(0.1, self.wait_for_websockets)
 
     def watchdog_comm(self) -> None:
+        """ TODO: Write documentation.
+        """
         # Purge non-responding comms
         for comm_id in self.comm_pool.copy():
             if comm_id not in self.watch_pool:
@@ -172,6 +192,8 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         self.ioloop.call_later(WAIT_COM_TIMEOUT, self.watchdog_comm)
 
     def handle_zmq(self, frames: Sequence[bytes]) -> None:
+        """ TODO: Write documentation.
+        """
         cmd = frames[0].decode("utf-8")
         if cmd == "ready":
             self.comm_stream.flush()
@@ -202,6 +224,8 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             super().handle_zmq(frames)
 
     def handle_comm(self, frames: Sequence[bytes]) -> None:
+        """ TODO: Write documentation.
+        """
         cmd = frames[0].decode("utf-8")
         comm_id = cmd.split(':', 2)[1].encode()
         if cmd.startswith("open:"):
@@ -225,7 +249,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             if message == "watchdog":
                 self.watch_pool.add(comm_id)
                 return
-            elif comm_id in self.comm_pool:
+            if comm_id in self.comm_pool:
                 # The comm may have already been thrown away already
                 self.comm_msg[comm_id] = message
         if self.is_waiting_ready_msg and \
@@ -240,26 +264,32 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             self.websocket_msg = []
 
     def forward_to_websockets(self, frames: Sequence[bytes]) -> None:
+        """ TODO: Write documentation.
+        """
         super().forward_to_websockets(frames)
         *_, data = frames
         for comm_id in self.comm_pool:
             self.forward_to_comm(comm_id, data)
 
     def forward_to_comm(self, comm_id: str, message: str) -> None:
+        """ TODO: Write documentation.
+        """
         self.comm_zmq.send_multipart([comm_id, message])
         self.comm_stream.flush(zmq.POLLOUT)
 
     def send_scene(self,
                    websocket: Optional[WebSocketHandler] = None,
                    comm_id: Optional[str] = None) -> None:
+        """ TODO: Write documentation.
+        """
         if websocket is not None:
             super().send_scene(websocket)
         elif comm_id is not None:
             for node in walk(self.tree):
                 if node.object is not None:
                     self.forward_to_comm(comm_id, node.object)
-                for p in node.properties:
-                    self.forward_to_comm(comm_id, p)
+                for prop in node.properties:
+                    self.forward_to_comm(comm_id, prop)
                 if node.transform is not None:
                     self.forward_to_comm(comm_id, node.transform)
 
@@ -270,9 +300,11 @@ def _meshcat_server(info: Dict[str, str], verbose: bool) -> None:
     """Meshcat server daemon, using in/out argument to get the zmq url instead
     of reading stdout as it was.
     """
+    # pylint: disable=consider-using-with
     # Redirect both stdout and stderr to devnull if not verbose
     if not verbose:
-        sys.stdout, sys.stderr = open(os.devnull, 'w'), open(os.devnull, 'w')
+        devnull = open(os.devnull, 'w')
+        sys.stdin = sys.stderr = devnull
 
     # See https://bugs.python.org/issue37373
     if sys.platform.startswith('win'):
@@ -293,31 +325,32 @@ def _meshcat_server(info: Dict[str, str], verbose: bool) -> None:
     info['comm_url'] = bridge.comm_url
     bridge.run()
 
+    if not verbose:
+        devnull.close()
+
 
 def start_meshcat_server(verbose: bool = False
                          ) -> Tuple[multiprocessing.Process, str, str, str]:
     """Run meshcat server in background using multiprocessing Process.
     """
-    manager = multiprocessing.managers.SyncManager()
-    manager.start()
-    info = manager.dict()
-    server = multiprocessing.Process(
-        target=_meshcat_server, args=(info, verbose), daemon=True)
-    server.start()
+    with multiprocessing.managers.SyncManager() as manager:
+        info = manager.dict()
+        server = multiprocessing.Process(
+            target=_meshcat_server, args=(info, verbose), daemon=True)
+        server.start()
 
-    # Wait for the process to finish initialization
-    while 'comm_url' not in info.keys():
-        pass
-    zmq_url, web_url, comm_url = \
-        info['zmq_url'], info['web_url'], info['comm_url']
-    if hasattr(manager, 'shutdown'):
-        manager.shutdown()
+        # Wait for the process to finish initialization
+        while 'comm_url' not in info.keys():
+            pass
+        zmq_url, web_url, comm_url = \
+            info['zmq_url'], info['web_url'], info['comm_url']
 
     return server, zmq_url, web_url, comm_url
 
 
 def start_meshcat_server_standalone() -> None:
-    import argparse
+    """ TODO: Write documentation.
+    """
     argparse.ArgumentParser(description=(
         "Serve the Jiminy MeshCat HTML files and listen for ZeroMQ commands"))
 

@@ -30,8 +30,6 @@ setup(
     packages=find_namespace_packages(),
     install_requires=[
         f"gym-jiminy[toolbox]=={version}",
-        # Backporting of `TypeAlias` introduced in Python 3.10
-        "typing_extensions>=3.7.4.2",
         # Highly efficient distributed computation library used for RL
         # - <1.6.0: GPU detection must be patched to work
         # - 1.11.0: Breaking changes

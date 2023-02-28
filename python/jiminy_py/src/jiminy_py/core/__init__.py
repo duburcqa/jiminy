@@ -1,3 +1,5 @@
+# pylint: disable=missing-module-docstring,invalid-name,import-error,
+# pylint: disable=undefined-variable,wrong-import-position
 import os as _os
 import re as _re
 import sys as _sys
@@ -89,14 +91,20 @@ for name in dir(core):
 
 # Define helpers to build extension modules
 def get_cmake_module_path():
+    """ TODO: Write documentation.
+    """
     return _os.path.join(_os.path.dirname(__file__), "cmake")
 
 
 def get_include():
+    """ TODO: Write documentation.
+    """
     return _os.path.join(_os.path.dirname(__file__), "include")
 
 
 def get_libraries():
+    """ TODO: Write documentation.
+    """
     ver_short = '.'.join(__version__.split('.')[:2])
     lib_dir = _os.path.join(_os.path.dirname(__file__), "lib")
     libraries_fullpath = []

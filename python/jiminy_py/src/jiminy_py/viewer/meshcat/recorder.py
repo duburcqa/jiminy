@@ -1,3 +1,6 @@
+
+""" TODO: Write documentation.
+"""
 import asyncio
 import signal
 import subprocess
@@ -25,6 +28,8 @@ WINDOW_SIZE_DEFAULT = (600, 600)
 # ============ Javascript routines ============
 
 def _stop_animate(client: Page) -> None:
+    """ TODO: Write documentation.
+    """
     client.evaluate("""
         () => {
             stop_animate();
@@ -52,6 +57,8 @@ def _capture_frame(client: Page, width: int, height: int) -> Any:
 
 def _start_video_recording(
         client: Page, fps: int, width: int, height: int) -> None:
+    """ TODO: Write documentation.
+    """
     client.set_viewport_size({'width': width, 'height': height})
     client.evaluate(f"""
         () => {{
@@ -64,6 +71,8 @@ def _start_video_recording(
 
 
 def _add_video_frame(client: Page) -> None:
+    """ TODO: Write documentation.
+    """
     client.evaluate("""
         () => {
             captureFrameAndWidgets(viewer).then(function(canvas) {
@@ -74,6 +83,8 @@ def _add_video_frame(client: Page) -> None:
 
 
 def _stop_and_save_video(client: Page, path: Path) -> None:
+    """ TODO: Write documentation.
+    """
     # Start waiting for the download
     with client.expect_download() as download_info:
         client.evaluate(f"""
@@ -96,6 +107,8 @@ def _stop_and_save_video(client: Page, path: Path) -> None:
 def meshcat_recorder(meshcat_url: str,
                      request_shm: multiprocessing.Value,
                      message_shm: multiprocessing.Value) -> None:
+    """ TODO: Write documentation.
+    """
     # Do not catch signal interrupt automatically, to avoid killing meshcat
     # server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -156,6 +169,7 @@ def meshcat_recorder(meshcat_url: str,
         while request_shm.value != "quit":
             request = request_shm.value
             if request != "":
+                # pylint: disable=broad-exception-caught
                 args = map(str.strip, message_shm.value.split("|"))
                 output = None
                 try:
@@ -202,7 +216,8 @@ class MeshcatRecorder:
     parallel asyncio loop execution, which is necessary to support recording in
     Jupyter notebook.
     """
-    def __new__(cls, *args: Any, **kwargs: Any) -> "MeshcatRecorder":
+    def __new__(cls,  # pylint: disable=unused-argument
+                *args: Any, **kwargs: Any) -> "MeshcatRecorder":
         self = super().__new__(cls)
         self.is_open = False
         self.is_recording = False
@@ -216,6 +231,9 @@ class MeshcatRecorder:
         self.url = url
 
     def open(self) -> None:
+        """ TODO: Write documentation.
+        """
+        # pylint: disable=consider-using-with
         self.__manager = multiprocessing.managers.SyncManager()
         self.__manager.start(_manager_process_startup)
 
@@ -239,7 +257,7 @@ class MeshcatRecorder:
         if self.__shm['request'].value == "quit":
             msg = "Impossible to start browser in background"
             raise RuntimeError(f"{msg}:\n    {self.__shm['message'].value}")
-        elif time_waiting > timeout:
+        if time_waiting > timeout:
             raise RuntimeError("Backend browser not responding.")
         self.__browser_pid = int(self.__shm['message'].value)
         self.__shm['message'].value = ""
@@ -250,8 +268,11 @@ class MeshcatRecorder:
         self.release()
 
     def release(self) -> None:
+        """ TODO: Write documentation.
+        """
         if self.__shm is not None:
             if self.proc.is_alive():
+                # pylint: disable=broad-exception-caught
                 try:
                     self._send_request(request="quit", timeout=2.0)
                 except Exception:
@@ -280,6 +301,8 @@ class MeshcatRecorder:
                       request: str,
                       message: Optional[str] = None,
                       timeout: Optional[str] = None) -> None:
+        """ TODO: Write documentation.
+        """
         if timeout is None:
             timeout = PLAYWRIGHT_START_TIMEOUT * 1e-3
         if not self.is_open:
@@ -295,7 +318,7 @@ class MeshcatRecorder:
             if time.time() > timeout:
                 self.release()
                 raise RuntimeError("Timeout.")
-            elif not self.proc.is_alive():
+            if not self.proc.is_alive():
                 err = self.__shm['message'].value
                 self.release()
                 raise RuntimeError(
@@ -305,6 +328,8 @@ class MeshcatRecorder:
     def capture_frame(self,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> str:
+        """ TODO: Write documentation.
+        """
         self._send_request(
             "take_snapshot", message=f"{width or -1}|{height or -1}")
         return self.__shm['message'].value
@@ -313,11 +338,15 @@ class MeshcatRecorder:
                               fps: float,
                               width: int,
                               height: int) -> None:
+        """ TODO: Write documentation.
+        """
         self._send_request(
             "start_record", message=f"{fps}|{width}|{height}", timeout=10.0)
         self.is_recording = True
 
     def add_video_frame(self) -> None:
+        """ TODO: Write documentation.
+        """
         if not self.is_recording:
             raise RuntimeError(
                 "No video being recorded at the moment. Please start "
@@ -325,6 +354,8 @@ class MeshcatRecorder:
         self._send_request("add_frame")
 
     def stop_and_save_video(self, path: str) -> None:
+        """ TODO: Write documentation.
+        """
         if not self.is_recording:
             raise RuntimeError(
                 "No video being recorded at the moment. Please start "

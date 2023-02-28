@@ -1,3 +1,6 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-name-in-module,attribute-defined-outside-init,invalid-name
 import io
 import os
 import re
@@ -112,7 +115,7 @@ def make_gradient_skybox(sky_color: Tuple3FType,
     """
     # Check validity of arguments
     assert subdiv >= 2, "Number of sub-division must be larger than 2."
-    assert 0.0 <= offset and offset <= 1.0, "Offset must be in [0.0, 1.0]."
+    assert 0.0 <= offset <= 1.0, "Offset must be in [0.0, 1.0]."
 
     # Define vertex format
     vformat = GeomVertexFormat()
@@ -217,7 +220,7 @@ def make_cone(num_sides: int = 16) -> Geom:
     # Note that by default, rendering is one-sided. It only renders the outside
     # face, that is defined based on the "winding" order of the vertices making
     # the triangles. For reference, see:
-    # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2
+    # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2  # noqa: E501  # pylint: disable=line-too-long
     prim = GeomTriangles(Geom.UH_static)
     prim.reserveNumVertices(6 * num_sides)
     for i in range(num_sides):
@@ -276,7 +279,10 @@ def make_heightmap(heightmap: np.ndarray) -> Geom:
 
 
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
-    def __init__(self, config: Optional[ViewerConfig] = None) -> None:
+    """ TODO: Write documentation.
+    """
+    def __init__(self,  # pylint: disable=super-init-not-called
+                 config: Optional[ViewerConfig] = None) -> None:
         # Enforce viewer configuration
         if config is None:
             config = ViewerConfig()
@@ -305,10 +311,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Initialize base implementation.
         # Note that the original constructor is by-passed on purpose.
-        ShowBase.__init__(self)
+        ShowBase.__init__(self)  # pylint: disable=non-parent-init-called
 
         # Monkey-patch task manager to ignore SIGINT from keyboard interrupt
-        def keyboardInterruptHandler(signalNumber, stackFrame):
+        def keyboardInterruptHandler(
+                *args: Any, **kwargs: Any  # pylint: disable=unused-argument
+                ) -> None:
             pass
 
         self.taskMgr.keyboardInterruptHandler = keyboardInterruptHandler
@@ -736,13 +744,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.latitude_deg -= (y - self.last_mouse_y) * 0.2
 
             # Limit angles to [-180;+180] x [-90;+90]
-            if (self.longitude_deg > 180.0):
+            if self.longitude_deg > 180.0:
                 self.longitude_deg = self.longitude_deg - 360.0
-            if (self.longitude_deg < -180.0):
+            if self.longitude_deg < -180.0:
                 self.longitude_deg = self.longitude_deg + 360.0
-            if (self.latitude_deg > (90.0 - 0.001)):
+            if self.latitude_deg > (90.0 - 0.001):
                 self.latitude_deg = 90.0 - 0.001
-            if (self.latitude_deg < (-90.0 + 0.001)):
+            if self.latitude_deg < (-90.0 + 0.001):
                 self.latitude_deg = -90.0 + 0.001
 
             longitude = self.longitude_deg * np.pi / 180.0
@@ -778,6 +786,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # End task
         if task is not None:
             return task.cont
+        return None
 
     def _make_light_ambient(self, color: Tuple3FType) -> NodePath:
         """Patched to fix wrong color alpha.
@@ -971,7 +980,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_scale(radius, radius, length)
         self.append_node(root_path, name, node, frame)
 
-    def append_cylinder(self,
+    def append_cylinder(self,  # pylint: disable=arguments-renamed
                         root_path: str,
                         name: str,
                         radius: float,
@@ -1107,7 +1116,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if width_rel > WATERMARK_SCALE_MAX:
             width_rel = WATERMARK_SCALE_MAX
             height_rel = WATERMARK_SCALE_MAX * height_rel / width_rel
-        if height_rel > height_rel:
+        if height_rel > WATERMARK_SCALE_MAX:
             height_rel = WATERMARK_SCALE_MAX
             width_rel = WATERMARK_SCALE_MAX * width_rel / height_rel
 
@@ -1132,6 +1141,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                        Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
         # Make sure plot submodule is available
         try:
+            # pylint: disable=import-outside-toplevel
             from matplotlib import cbook
             from matplotlib.patches import Patch
         except ImportError:
@@ -1228,10 +1238,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def set_clock(self, time: Optional[float] = None) -> None:
         # Make sure plot submodule is available
         try:
+            # pylint: disable=import-outside-toplevel
             from matplotlib import font_manager
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
-                "Method not supported. Please install 'jiminy_py[plot]'.")
+                "Method not supported. Please install 'jiminy_py[plot]'."
+                ) from e
 
         # Remove existing watermark, if any
         if time is None:
@@ -1506,6 +1518,8 @@ panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
 
 
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
+    """ TODO: Write documentation.
+    """
     def __getstate__(self) -> dict:
         """Required for Windows and OS X support, which use spawning instead of
         forking to create subprocesses, requiring pickling objects.
@@ -1536,8 +1550,8 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
             if self._host_conn.poll(10.0):
                 reply = self._host_conn.recv()
             else:
-                # Something is wrong... aborting to avoid potential deadlock
-                return
+                # Something is wrong... aborting to prevent potential deadlock
+                return None
             if isinstance(reply, Exception):
                 if isinstance(reply, ViewerClosedError):
                     # Close pipe to make sure it does not get used in future
@@ -1557,6 +1571,8 @@ panda3d_viewer.viewer_proxy.ViewerAppProxy = Panda3dProxy  # noqa
 
 
 class Panda3dViewer(panda3d_viewer.viewer.Viewer):
+    """ TODO: Write documentation.
+    """
     def __getattr__(self, name: str) -> Any:
         return getattr(self.__getattribute__('_app'), name)
 
@@ -1589,8 +1605,8 @@ class Panda3dVisualizer(BaseVisualizer):
     Based on https://github.com/stack-of-tasks/pinocchio/blob/master/bindings/python/pinocchio/visualize/panda3d_visualizer.py
     Copyright (c) 2014-2020, CNRS
     Copyright (c) 2018-2020, INRIA
-    """  # noqa: E501
-    def initViewer(self,
+    """  # noqa: E501  # pylint: disable=line-too-long
+    def initViewer(self,  # pylint: disable=arguments-differ,unused-argument
                    viewer: Optional[Union[Panda3dViewer, Panda3dApp]] = None,
                    loadModel: bool = False,
                    **kwargs: Any) -> None:
@@ -1606,7 +1622,7 @@ class Panda3dVisualizer(BaseVisualizer):
             self.viewer = Panda3dViewer(window_title="jiminy")
 
         if loadModel:
-            self.loadViewerModel(rootNodeName=self.model.name)
+            self.loadViewerModel(root_node_name=self.model.name)
 
     def getViewerNodeName(self,
                           geometry_object: pin.GeometryObject,
@@ -1615,8 +1631,8 @@ class Panda3dVisualizer(BaseVisualizer):
         """
         if geometry_type is pin.GeometryType.VISUAL:
             return self.visual_group, geometry_object.name
-        elif geometry_type is pin.GeometryType.COLLISION:
-            return self.collision_group, geometry_object.name
+        # if geometry_type is pin.GeometryType.COLLISION:
+        return self.collision_group, geometry_object.name
 
     def loadViewerGeometryObject(self,
                                  geometry_object: pin.GeometryObject,
@@ -1735,12 +1751,12 @@ class Panda3dVisualizer(BaseVisualizer):
         # Set material
         self.viewer.set_material(*node_name, color, texture_path)
 
-    def loadViewerModel(self,
-                        rootNodeName: str,
+    def loadViewerModel(self,  # pylint: disable=arguments-differ
+                        root_node_name: str,
                         color: Optional[np.ndarray] = None) -> None:
         """Create a group of nodes displaying the robot meshes in the viewer.
         """
-        self.root_name = rootNodeName
+        self.root_name = root_node_name
 
         # Load robot visual meshes
         self.visual_group = "/".join((self.root_name, "visuals"))
@@ -1758,7 +1774,8 @@ class Panda3dVisualizer(BaseVisualizer):
                 collision, pin.GeometryType.COLLISION, color)
         self.displayCollisions(False)
 
-    def display(self, q: np.ndarray) -> None:
+    def display(self,  # pylint: disable=signature-differs
+                q: np.ndarray) -> None:
         """Display the robot at configuration q in the viewer by placing all
         the bodies."""
         pin.forwardKinematics(self.model, self.data, q)

@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring
 from .viewer import (ViewerClosedError,
                      Viewer,
                      sleep,

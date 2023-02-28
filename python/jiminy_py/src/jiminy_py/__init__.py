@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,undefined-all-variable
 from .core import *  # noqa: F403
 from . import robot
 from . import dynamics

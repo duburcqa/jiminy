@@ -1,3 +1,6 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-member
 import os
 import time
 import ctypes
@@ -48,7 +51,7 @@ viewer_lock = RLock()  # Unique lock for threads
 ColorType = Union[Tuple4FType, str]
 
 
-def play_trajectories(trajs_data: Union[
+def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
                           TrajectoryDataType, Sequence[TrajectoryDataType]],
                       update_hooks: Optional[Union[
                           Callable[[float, np.ndarray, np.ndarray], None],
@@ -208,6 +211,7 @@ def play_trajectories(trajs_data: Union[
 
     :returns: List of viewers used to play the trajectories.
     """
+    # pylint: disable=used-before-assignment
     # Make sure sequence arguments are list or tuple
     if not isinstance(trajs_data, (list, tuple)):
         trajs_data = [trajs_data]
@@ -328,7 +332,7 @@ def play_trajectories(trajs_data: Union[
                 backend=backend,
                 scene_name=scene_name,
                 delete_robot_on_close=delete_robot_on_close,
-                open_gui_if_parent=(record_video_path is None))
+                open_gui_if_parent=record_video_path is None)
             viewers[i] = viewer
 
         # Reset the configuration of the robot
@@ -353,12 +357,12 @@ def play_trajectories(trajs_data: Union[
 
     # Make sure clock is only enabled for panda3d backend
     if enable_clock and not Viewer.backend.startswith('panda3d'):
-        logger.warn(
+        logger.warning(
             "`enable_clock` is only available with 'panda3d' backend.")
         enable_clock = False
 
     # Early return if nothing to replay
-    if all(not len(traj['evolution_robot']) for traj in trajs_data):
+    if all(not traj['evolution_robot'] for traj in trajs_data):
         logger.debug("Nothing to replay.")
         return viewers
 
@@ -370,9 +374,10 @@ def play_trajectories(trajs_data: Union[
     if legend is not None:
         try:
             Viewer.set_legend(legend)
-        except ImportError:
-            raise logger.warn(
-                "Impossible to add legend. Please install 'jiminy_py[plot]'.")
+        except ImportError as e:
+            raise logger.warning(
+                "Impossible to add legend. Please install 'jiminy_py[plot]'."
+                ) from e
 
     # Add watermark if requested
     if watermark_fullpath is not None:
@@ -554,7 +559,7 @@ def play_trajectories(trajs_data: Union[
                 if not Viewer.is_alive():
                     return viewers
             else:
-                logger.warn("Start paused is disabled in interactive mode.")
+                logger.warning("Start paused is disabled in interactive mode.")
 
         # Play trajectories with multithreading
         def replay_thread(viewer, *args):
@@ -609,6 +614,7 @@ def play_trajectories(trajs_data: Union[
 
     # Show video if temporary
     if record_video_html_embedded:
+        # pylint: disable=import-outside-toplevel,no-name-in-module
         from IPython.core.display import HTML, display
         video_base64 = b64encode(open(record_video_path, 'rb').read()).decode()
         os.remove(record_video_path)
@@ -655,7 +661,7 @@ def extract_replay_data_from_log(
         update_hook = update_sensors_data_from_log(log_data, robot)
     else:
         if robot.sensors_names:
-            logger.warn(
+            logger.warning(
                 "At least one of the robot is locked, which means that a "
                 "simulation using the robot is still running. It will be "
                 "impossible to display sensor data. Call `simulator.stop` to "
@@ -770,12 +776,12 @@ def async_play_and_record_logs_files(
 
     # Disable replay if not available and video recording is requested
     if enable_replay and not is_display_available():
-        logger.warn("No display available. Disabling replay.")
+        logger.warning("No display available. Disabling replay.")
         enable_replay = False
 
     # Nothing to do. Silently returning early.
     if not enable_recording and not enable_replay:
-        return
+        return None
 
     # Define method to pass to threading
     def _locked_play_and_record(lock: RLock,
@@ -800,7 +806,7 @@ def async_play_and_record_logs_files(
                         viewer.close()
                 except RuntimeError as e:
                     # Replay may fail if current backend does not support it
-                    logger.warn(
+                    logger.warning(
                         f"The current viewer backend '{Viewer.backend}' does "
                         "not support replaying simulation: %s", e)
             if record_video_path is not None:
@@ -880,7 +886,7 @@ def _play_logs_files_entrypoint() -> None:
                 reply = input("Do you want to replay again (y/[n])?").lower()
                 if not reply or reply in ("y", "n"):
                     break
-            repeat = (reply == "y")
+            repeat = reply == "y"
         else:
             repeat = False
 

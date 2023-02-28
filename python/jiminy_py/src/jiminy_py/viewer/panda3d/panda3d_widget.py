@@ -1,5 +1,6 @@
 """ TODO: Write documentation.
 """
+# pylint: disable=no-name-in-module,invalid-name
 from typing import Optional, Tuple, Any
 
 from matplotlib.backends.qt_compat import (
@@ -45,14 +46,19 @@ class Panda3dQWidget(Panda3dApp, QtWidgets.QWidget):
         self.clock.start()
 
     def destroy(self) -> None:
+        """ TODO: Write documentation.
+        """
         Panda3dApp.destroy(self)
         QtWidgets.QWidget.destroy(self)
 
     def close(self) -> bool:
+        """ TODO: Write documentation.
+        """
         Panda3dApp.destroy(self)
         return QtWidgets.QWidget.close(self)
 
-    def paintEvent(self, event: Any) -> None:
+    def paintEvent(self,
+                   event: Any) -> None:  # pylint: disable=unused-argument
         """Pull the contents of the panda texture to the widget.
         """
         # Updating the pose of the camera

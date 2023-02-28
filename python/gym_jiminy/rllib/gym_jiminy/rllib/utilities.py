@@ -11,6 +11,7 @@ import pathlib
 import logging
 import inspect
 import tracemalloc
+from contextlib import redirect_stdout
 from importlib.abc import MetaPathFinder
 from itertools import chain
 from datetime import datetime
@@ -197,7 +198,6 @@ def initialize(num_cpus: int,
         try:
             # pylint: disable=import-outside-toplevel,import-error
             from tensorboard.program import TensorBoard
-            from contextlib import redirect_stdout
             tb = TensorBoard()
             tb.configure(host="0.0.0.0",
                          load_fast=False,
@@ -368,7 +368,7 @@ def train(algo: Algorithm,
         if verbose:
             print("Interrupting training...")
     except RayTaskError as e:
-        logger.warning(str(e))
+        logger.warning("%s", e)
 
     # Backup trained agent and return file location
     return algo.save()

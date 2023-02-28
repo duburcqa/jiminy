@@ -1163,7 +1163,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 env.replay(**kwargs)
             except Exception as e:  # pylint: disable=broad-except
                 # Do not fail because of replay/recording exception
-                logger.warn(str(e))
+                logger.warn("%s", e)
 
         return info_episode
 

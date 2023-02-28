@@ -1,14 +1,17 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-name-in-module,no-member
 import os
-import toml
 import atexit
 import logging
 import pathlib
 import tempfile
-from collections import OrderedDict
 from copy import deepcopy
 from itertools import chain
+from collections import OrderedDict
 from typing import Optional, Union, Type, Dict, Tuple, Sequence, Iterable, Any
 
+import toml
 import numpy as np
 
 import pinocchio as pin
@@ -42,9 +45,11 @@ class Simulator:
     user only as to create a robot and associated controller if any, and
     give high-level instructions to the simulator.
     """
-    def __new__(cls, *args: Any, **kwargs: Any) -> "Simulator":
+    def __new__(cls,  # pylint: disable=unused-argument
+                *args: Any,
+                **kwargs: Any) -> "Simulator":
         # Instantiate base class
-        self = super().__new__(cls)
+        self = super().__new__(cls)  # pylint: disable=no-value-for-parameter
 
         # Viewer management
         self.viewer = None
@@ -58,7 +63,7 @@ class Simulator:
 
         return self
 
-    def __init__(self,
+    def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Robot,
                  controller: Optional[jiminy.AbstractController] = None,
                  engine_class: Type[jiminy.Engine] = jiminy.Engine,
@@ -249,8 +254,7 @@ class Simulator:
         """
         if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_model_th
-        else:
-            return self.robot.pinocchio_model
+        return self.robot.pinocchio_model
 
     @property
     def pinocchio_data(self) -> pin.Data:
@@ -259,8 +263,7 @@ class Simulator:
         """
         if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_data_th
-        else:
-            return self.robot.pinocchio_data
+        return self.robot.pinocchio_data
 
     @property
     def state(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -285,9 +288,9 @@ class Simulator:
         return self.viewer is not None and self.viewer.is_open()
 
     def _callback(self,
-                  t: float,
-                  q: np.ndarray,
-                  v: np.ndarray,
+                  t: float,  # pylint: disable=unused-argument
+                  q: np.ndarray,  # pylint: disable=unused-argument
+                  v: np.ndarray,  # pylint: disable=unused-argument
                   out: np.ndarray) -> None:
         """Callback method for the simulation.
         """
@@ -416,9 +419,9 @@ class Simulator:
         try:
             return_code = self.engine.simulate(
                 t_end, q_init, v_init, a_init, is_state_theoretical)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning(
-                "The simulation failed due to Python exception:\n", str(e))
+                "The simulation failed due to Python exception:\n %s", e)
             return_code = jiminy.hresult_t.ERROR_GENERIC
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
@@ -511,12 +514,12 @@ class Simulator:
                 # Enable display of external forces by default only for
                 # the joints having an external force registered to it.
                 if "display_f_external" not in kwargs:
-                    force_frames = set([
+                    force_frames = set(
                         self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_profile])
-                    force_frames |= set([
+                        for f_i in self.engine.forces_profile)
+                    force_frames |= set(
                         self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_impulse])
+                        for f_i in self.engine.forces_impulse)
                     visibility = self.viewer._display_f_external
                     for i in force_frames:
                         visibility[i - 1] = True
@@ -543,9 +546,10 @@ class Simulator:
         # Try refreshing the viewer
         self.viewer.refresh()
 
-        # Compute rgb array if needed
+        # Compute and return rgb array if needed
         if return_rgb_array:
             return Viewer.capture_frame(width, height)
+        return None
 
     def replay(self,
                extra_logs_files: Sequence[Dict[str, np.ndarray]] = (),
@@ -649,10 +653,12 @@ class Simulator:
         """
         # Make sure plot submodule is available
         try:
+            # pylint: disable=import-outside-toplevel
             from .plot import plot_log
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
-                "Method not supported. Please install 'jiminy_py[plot]'.")
+                "This method not supported. Please install 'jiminy_py[plot]'."
+                ) from e
 
         # Create figure, without closing the existing one
         self.figure = plot_log(
