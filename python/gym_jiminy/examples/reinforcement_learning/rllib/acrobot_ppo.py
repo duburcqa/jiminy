@@ -9,7 +9,7 @@ It solves it consistently in less than 100000 timesteps in average.
 
 # ======================== Configure Python workspace =========================
 
-import sys
+import os
 import logging
 from functools import partial
 
@@ -207,7 +207,8 @@ algo_config.evaluation(
     custom_evaluation_function=partial(
         evaluate_algo,
         print_stats=True,
-        enable_replay=(not sys.platform.startswith("win")),
+        enable_replay=(
+            os.getenv('JIMINY_VIEWER_DEFAULT_BACKEND') != "panda3d-sync"),
         record_video=True
     ),
     # Partially override configuration for evaluation

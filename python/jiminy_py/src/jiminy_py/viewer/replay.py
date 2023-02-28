@@ -231,12 +231,14 @@ def play_trajectories(trajs_data: Union[
         if all(viewer is None for viewer in viewers):
             viewers = None
 
-    # Pick the default backend if unspecified and none is already running
+    # Pick the default backend if unspecified and none is already running. Note
+    # that repeatedly switching between "panda3d-sync" and "panda3d" backends
+    # is causing segfaults. See https://github.com/panda3d/panda3d/issues/1372.
     if backend is None:
         if Viewer.is_alive():
             backend = Viewer.backend
-        elif record_video_path is not None:
-            backend = "panda3d-sync"
+        # elif record_video_path is not None:
+        #     backend = "panda3d-sync"
         else:
             backend = get_default_backend()
 
@@ -792,10 +794,14 @@ def async_play_and_record_logs_files(
         record_video_path = kwargs.pop("record_video_path", None)
         with lock:
             if enable_replay:
-                viewers = play_logs_files(
-                    logs_files, mesh_package_dirs, **kwargs)
-                for viewer in viewers:
-                    viewer.close()
+                try:
+                    viewers = play_logs_files(
+                        logs_files, mesh_package_dirs, **kwargs)
+                    for viewer in viewers:
+                        viewer.close()
+                except RuntimeError:
+                    # Replay may fail if current backend does not support it
+                    logger.warn("Impossible to replay the simulation.")
             if record_video_path is not None:
                 viewers = play_logs_files(
                     logs_files, mesh_package_dirs,

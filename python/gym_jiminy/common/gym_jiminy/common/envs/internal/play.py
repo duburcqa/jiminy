@@ -90,8 +90,8 @@ class Getch:
                 not self.stop_event.is_set():
             if self.max_rate is not None:
                 time.sleep(self.max_rate)
-            if msvcrt.kbhit():
-                return msvcrt.getch()
+            if msvcrt.kbhit():  # type: ignore[attr-defined]
+                return msvcrt.getch()  # type: ignore[attr-defined]
         return ''
 
 

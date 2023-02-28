@@ -152,7 +152,7 @@ jobs:
           pylint --ignore-imports=y --min-similarity-lines=20 --max-nested-blocks=7 \
                  --extension-pkg-allow-list=numpy,jiminy_py.core,pinocchio,scipy.spatial._qhull,ray._raylet,torch \
                  --generated-members=torch \
-                 --good-names=i,l,I,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,_ \
+                 --good-names=i,l,I,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,ax,_ \
                  --disable=too-many-instance-attributes,too-many-arguments,too-many-lines \
                  --disable=too-many-locals,too-many-branches,too-many-statements,too-few-public-methods \
                  --disable=fixme,abstract-method,protected-access,useless-parent-delegation \

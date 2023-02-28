@@ -6,6 +6,7 @@ import math
 import array
 import signal
 import warnings
+import importlib
 import threading
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -1131,7 +1132,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                        Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
         # Make sure plot submodule is available
         try:
-            import matplotlib.pyplot as plt
+            from matplotlib import cbook
             from matplotlib.patches import Patch
         except ImportError:
             warnings.warn(
@@ -1149,22 +1150,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if items is None or not items:
             return
 
-        # Switch to non-interactive backend when running within thread and
-        # on MacOS to avoid various problems including potential segfault.
-        must_switch_backend = (
-            threading.current_thread() is not threading.main_thread() or
-            sys.platform.startswith('darwin'))
-        if must_switch_backend:
-            plt_backend = plt.get_backend()
-            plt.switch_backend("Agg")
+        # Create non-interactive headless figure unrelated to current backend
+        width_win, height_win = self.getSize()
+        plt_agg = importlib.import_module(cbook._backend_module_name('Agg'))
+        manager = plt_agg.new_figure_manager(
+            num=0, figsize=(width_win / LEGEND_DPI, height_win / LEGEND_DPI),
+            dpi=LEGEND_DPI)
+        fig = manager.canvas.figure
+        ax = fig.subplots()
 
         # Render the legend
         color_default = (0.0, 0.0, 0.0, 1.0)
         handles = [Patch(color=c or color_default, label=t) for t, c in items]
-        width_win, height_win = self.getSize()
-        fig, ax = plt.subplots(
-            figsize=(width_win / LEGEND_DPI, height_win / LEGEND_DPI),
-            dpi=LEGEND_DPI)
         legend = ax.legend(handles=handles,
                            ncol=len(handles),
                            framealpha=1,
@@ -1194,11 +1191,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         img_raw = io_buf.getvalue()
 
         # Delete the legend along with its temporary figure
-        plt.close(fig)
-
-        # Restore original backend if necessary
-        if must_switch_backend:
-            plt.switch_backend(plt_backend)
+        manager.destroy()
 
         # Create texture in which to render the image buffer
         tex = Texture()

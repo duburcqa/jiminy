@@ -155,7 +155,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
         cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
-        "${PYTHON_EXECUTABLE}" acrobot_ppo.py
+        JIMINY_VIEWER_DEFAULT_BACKEND="panda3d-sync" "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
 #########################################################################################
 

@@ -32,8 +32,7 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/exportCmakeConfigFiles.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 
 # Set the compilation flags.
-# Note that is is not possible `add_compile_options`
-# because it does not propagate to external projects.
+# Not using `add_compile_options` because it does not propagate to external projects.
 set(CMAKE_CXX_FLAGS "$ENV{CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS}")
 if(WIN32)
     string(REGEX MATCH "/arch:[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
@@ -70,7 +69,7 @@ if(BUILD_PYTHON_INTERFACE)
     add_subdirectory(python)
 endif()
 
-# Create 'docs' optional cmake component to generate documentation.
+# Create 'docs' optional cmake component to generate documentation
 create_component_docs()
 
 # Install the source cmake files
