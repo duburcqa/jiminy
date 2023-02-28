@@ -336,6 +336,7 @@ class MeshcatWrapper:
 
     def close(self) -> None:
         if self.__zmq_socket is not None:
+            self.__zmq_socket.send(b"stop")
             self.__zmq_socket.close()
             self.__zmq_socket = None
         if self.comm_manager is not None:

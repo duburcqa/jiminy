@@ -912,7 +912,7 @@ class Viewer:
 
                     # Display the content directly inside the main window
                     display(HTML(html_content))
-            else:
+            elif not Viewer.has_gui():
                 try:
                     webbrowser.get()
                     webbrowser.open(viewer_url, new=2, autoraise=True)
@@ -933,10 +933,8 @@ class Viewer:
         if Viewer.is_alive():
             # Make sure the viewer still has gui if necessary
             if Viewer.backend == 'meshcat':
-                comm_manager = Viewer._backend_obj.comm_manager
-                if comm_manager is not None:
-                    ack = Viewer._backend_obj.wait(require_client=False)
-                    Viewer._has_gui = any(msg for msg in ack.split(","))
+                ack = Viewer._backend_obj.wait(require_client=False)
+                Viewer._has_gui = any(msg for msg in ack.split(","))
             return Viewer._has_gui
         return False
 

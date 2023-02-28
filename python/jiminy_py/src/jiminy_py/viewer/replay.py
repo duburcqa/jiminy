@@ -764,10 +764,9 @@ def async_play_and_record_logs_files(
     # Handling of default argument(s)
     enable_recording = "record_video_path" in kwargs
     if enable_replay is None:
-        if Viewer.backend != "panda3d-sync" or interactive_mode() >= 2:
-            enable_replay = not enable_recording
-        else:
-            enable_replay = False
+        enable_replay = not enable_recording and (
+            (Viewer.backend or get_default_backend()) != "panda3d-sync" or
+            interactive_mode() >= 2)
 
     # Disable replay if not available and video recording is requested
     if enable_replay and not is_display_available():
@@ -799,9 +798,11 @@ def async_play_and_record_logs_files(
                         logs_files, mesh_package_dirs, **kwargs)
                     for viewer in viewers:
                         viewer.close()
-                except RuntimeError:
+                except RuntimeError as e:
                     # Replay may fail if current backend does not support it
-                    logger.warn("Impossible to replay the simulation.")
+                    logger.warn(
+                        f"The current viewer backend '{Viewer.backend}' does "
+                        "not support replaying simulation: %s", e)
             if record_video_path is not None:
                 viewers = play_logs_files(
                     logs_files, mesh_package_dirs,

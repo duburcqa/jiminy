@@ -687,8 +687,8 @@ def _pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
             ax.plotsize(50, 20)
             ax.title(title)
         plt.show()
-    except UnicodeEncodeError as e:
-        logger.warning("Terminal does not support unicode: %s", e)
+    except (IndexError, UnicodeEncodeError) as e:
+        logger.warning("'plotext' figure rendering failure: %s", e)
         for i, (title, values) in enumerate(data):
             print(
                 f"* {title}: {np.mean(values):.2f} +/- {np.std(values):.2f} "

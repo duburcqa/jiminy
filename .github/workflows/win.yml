@@ -31,8 +31,6 @@ jobs:
     #####################################################################################
 
     steps:
-    - name: Configure Pagefile
-      uses: al-cheb/configure-pagefile-action@v1.3
     - name: Checkout jiminy
       uses: actions/checkout@v3
 

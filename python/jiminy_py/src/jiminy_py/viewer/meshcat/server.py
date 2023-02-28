@@ -196,6 +196,8 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                 self.comm_zmq.send_multipart([comm_id, *frames[3::3]])
             self.zmq_socket.send(b"ok")
             self.zmq_stream.flush(zmq.POLLOUT)
+        elif cmd == "stop":
+            self.ioloop.stop()
         else:
             super().handle_zmq(frames)
 

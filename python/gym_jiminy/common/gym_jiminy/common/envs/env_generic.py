@@ -1113,7 +1113,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Handling of default arguments
         if enable_replay is None:
             enable_replay = (
-                Viewer.backend != "panda3d-sync" or interactive_mode() >= 2)
+                (Viewer.backend or get_default_backend()) != "panda3d-sync" or
+                interactive_mode() >= 2)
 
         # Get unwrapped environment
         if isinstance(env, gym.Wrapper):
