@@ -146,24 +146,13 @@ jobs:
     - name: Python linter and static type checker
       if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
       run: |
+        cd "$RootDir/python/jiminy_py/"
+        pylint --rcfile="$RootDir/.pylintrc" "src/"
+        mypy --config-file="$RootDir/.mypy.ini" -p src
         for name in "common" "toolbox" "rllib"; do
           cd "$RootDir/python/gym_jiminy/$name"
-
-          pylint --ignore-imports=y --min-similarity-lines=20 --max-nested-blocks=7 \
-                 --extension-pkg-allow-list=numpy,jiminy_py.core,pinocchio,scipy.spatial._qhull,ray._raylet,torch \
-                 --generated-members=torch \
-                 --good-names=i,l,I,j,k,t,q,v,x,e,u,s,v,b,c,f,M,dt,rg,fd,lo,hi,tb,ax,_ \
-                 --disable=too-many-instance-attributes,too-many-arguments,too-many-lines \
-                 --disable=too-many-locals,too-many-branches,too-many-statements,too-few-public-methods \
-                 --disable=fixme,abstract-method,protected-access,useless-parent-delegation \
-                 --disable=use-dict-literal,unspecified-encoding \
-                 --disable=cyclic-import "gym_jiminy/"
-
-          mypy --allow-redefinition --check-untyped-defs --disallow-incomplete-defs --disallow-untyped-defs \
-               --ignore-missing-imports --no-implicit-optional --strict-equality --strict-optional \
-               --warn-no-return --warn-redundant-casts --warn-unreachable --warn-unused-configs --warn-unused-ignores \
-               --pretty --show-error-codes --show-error-context --show-traceback \
-               --namespace-packages -p gym_jiminy
+          pylint --rcfile="$RootDir/.pylintrc" "gym_jiminy/"
+          mypy --config-file="$RootDir/.mypy.ini" -p gym_jiminy
         done
 
     #####################################################################################

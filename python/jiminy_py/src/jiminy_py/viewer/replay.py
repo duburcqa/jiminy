@@ -1,3 +1,4 @@
+# mypy: disable-error-code="attr-defined, name-defined"
 """ TODO: Write documentation.
 """
 # pylint: disable=no-member
@@ -14,7 +15,8 @@ from bisect import bisect_right
 from functools import partial
 from threading import RLock, Thread
 from itertools import cycle, islice
-from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
+from typing import (
+    Optional, Union, Sequence, Tuple, Dict, Any, Callable, cast, List)
 
 import av
 import numpy as np
@@ -48,44 +50,43 @@ logger = logging.getLogger(__name__)
 
 viewer_lock = RLock()  # Unique lock for threads
 
-ColorType = Union[Tuple4FType, str]
+ColorType = Union[str, Tuple4FType]
 
 
-def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
-                          TrajectoryDataType, Sequence[TrajectoryDataType]],
-                      update_hooks: Optional[Union[
-                          Callable[[float, np.ndarray, np.ndarray], None],
-                          Sequence[Callable[
-                              [float, np.ndarray, np.ndarray], None]]]] = None,
-                      time_interval: Optional[Union[
-                          np.ndarray, Tuple[float, float]]] = (0.0, np.inf),
-                      speed_ratio: float = 1.0,
-                      xyz_offsets: Optional[Union[
-                          Tuple3FType, Sequence[Tuple3FType]]] = None,
-                      robots_colors: Optional[Union[
-                          ColorType, Sequence[ColorType]]] = None,
-                      travelling_frame: Optional[Union[str, int]] = None,
-                      camera_xyzrpy: Optional[CameraPoseType] = (None, None),
-                      camera_motion: Optional[CameraMotionType] = None,
-                      watermark_fullpath: Optional[str] = None,
-                      legend: Optional[Union[str, Sequence[str]]] = None,
-                      enable_clock: bool = False,
-                      display_com: Optional[bool] = None,
-                      display_dcm: Optional[bool] = None,
-                      display_contacts: Optional[bool] = None,
-                      display_f_external: Optional[
-                          Union[Sequence[bool], bool]] = None,
-                      scene_name: str = 'world',
-                      record_video_path: Optional[str] = None,
-                      record_video_size: Optional[Tuple[int, int]] = None,
-                      start_paused: bool = False,
-                      backend: Optional[str] = None,
-                      delete_robot_on_close: Optional[bool] = None,
-                      remove_widgets_overlay: bool = True,
-                      close_backend: bool = False,
-                      viewers: Optional[Sequence[Optional[Viewer]]] = None,
-                      verbose: bool = True,
-                      **kwargs: Any) -> Sequence[Viewer]:
+def play_trajectories(
+        trajs_data: Union[  # pylint: disable=unused-argument
+            TrajectoryDataType, Sequence[TrajectoryDataType]],
+        update_hooks: Optional[Union[
+            Callable[[float, np.ndarray, np.ndarray], None],
+            Sequence[Optional[Callable[[float, np.ndarray, np.ndarray], None]]]
+            ]] = None,
+        time_interval: Union[np.ndarray, Tuple[float, float]] = (0.0, np.inf),
+        speed_ratio: float = 1.0,
+        xyz_offsets: Optional[
+            Union[Tuple3FType, Sequence[Optional[Tuple3FType]]]] = None,
+        robots_colors: Optional[
+            Union[ColorType, Sequence[Optional[ColorType]]]] = None,
+        travelling_frame: Optional[Union[str, int]] = None,
+        camera_xyzrpy: Optional[CameraPoseType] = (None, None),
+        camera_motion: Optional[CameraMotionType] = None,
+        watermark_fullpath: Optional[str] = None,
+        legend: Optional[Union[str, Sequence[str]]] = None,
+        enable_clock: bool = False,
+        display_com: Optional[bool] = None,
+        display_dcm: Optional[bool] = None,
+        display_contacts: Optional[bool] = None,
+        display_f_external: Optional[Union[Sequence[bool], bool]] = None,
+        scene_name: str = 'world',
+        record_video_path: Optional[str] = None,
+        record_video_size: Optional[Tuple[int, int]] = None,
+        start_paused: bool = False,
+        backend: Optional[str] = None,
+        delete_robot_on_close: Optional[bool] = None,
+        remove_widgets_overlay: bool = True,
+        close_backend: bool = False,
+        viewers: Optional[Union[Viewer, Sequence[Optional[Viewer]]]] = None,
+        verbose: bool = True,
+        **kwargs: Any) -> Sequence[Viewer]:
     """Replay one or several robot trajectories in a viewer.
 
     The ratio between the replay and the simulation time is kept constant to
@@ -137,7 +138,7 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
                           Optional: None by default.
     :param watermark_fullpath: Add watermark to the viewer. It is not
                                persistent but disabled after replay. This
-                               option is only supported by meshcat backend.
+                               option is only supported by Meshcat backend.
                                None to disable.
                                Optional: No watermark by default.
     :param legend: List of labels defining the legend for each robot. It is not
@@ -213,23 +214,25 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
     """
     # pylint: disable=used-before-assignment
     # Make sure sequence arguments are list or tuple
-    if not isinstance(trajs_data, (list, tuple)):
+    if isinstance(trajs_data, dict):
         trajs_data = [trajs_data]
     if update_hooks is None:
         update_hooks = [None] * len(trajs_data)
-    if not isinstance(update_hooks, (list, tuple)):
+    if callable(update_hooks):
         update_hooks = [update_hooks]
-    if not isinstance(viewers, (list, tuple)):
+    if isinstance(viewers, Viewer):
         viewers = [viewers]
-    if len(viewers) == 0:
+    elif not viewers:
         viewers = None
 
     # Make sure the viewers are still running if specified
     if not Viewer.is_alive():
         viewers = None
     if viewers is not None:
+        viewers = list(viewers)
         for i, viewer in enumerate(viewers):
-            if viewer is not None and not viewer.is_open():
+            if (viewer is not None and
+                    not viewer.is_open()):  # type: ignore[misc]
                 viewers[i] = None
                 break
         if all(viewer is None for viewer in viewers):
@@ -245,6 +248,7 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
         #     backend = "panda3d-sync"
         else:
             backend = get_default_backend()
+    assert backend is not None
 
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode
@@ -266,48 +270,56 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
     if record_video_size is None:
         record_video_size = (800, 400 if record_video_html_embedded else 800)
 
-    # Handling of default options if no viewer is available
-    if viewers is None and backend.startswith('panda3d'):
-        # Delete robot by default only if not in interactive viewer
-        if delete_robot_on_close is None:
-            delete_robot_on_close = interactive_mode() < 2
+    # Delete robot by default only if not in interactive viewer
+    if delete_robot_on_close is None:
+        delete_robot_on_close = (
+            backend.startswith('panda3d') and interactive_mode() < 2)
 
+    # Handling of default options if no viewer is available
+    if viewers is None:
         # Handling of default display of CoM, DCM and contact forces
-        if display_com is None:
-            display_com = True
-        if display_dcm is None:
-            display_dcm = True
-        if display_contacts is None:
-            display_contacts = all(func is not None for func in update_hooks)
+        if backend.startswith('panda3d'):
+            if display_com is None:
+                display_com = True
+            if display_dcm is None:
+                display_dcm = True
+            if display_contacts is None:
+                display_contacts = all(fun is not None for fun in update_hooks)
 
     # Make sure it is possible to display contacts if requested
     if display_contacts:
-        if any(traj['robot'].is_locked for traj in trajs_data):
-            logger.debug(
-                "`display_contacts` is not available if robot is locked. "
-                "Please stop any running simulation before replay.")
-            display_contacts = False
+        for traj in trajs_data:
+            robot = traj['robot']
+            assert robot is not None
+            if robot.is_locked:
+                logger.debug(
+                    "`display_contacts` is not available if robot is locked. "
+                    "Please stop any running simulation before replay.")
+                display_contacts = False
+                break
 
     # Sanitize user-specified robot offsets
     if xyz_offsets is None:
-        xyz_offsets = len(trajs_data) * [None]
+        xyz_offsets = len(trajs_data) * (None,)
     elif len(xyz_offsets) != len(trajs_data):
-        xyz_offsets = np.tile(xyz_offsets, (len(trajs_data), 1))
+        assert isinstance(xyz_offsets[0], float)
+        xyz_offsets = np.tile(
+            xyz_offsets, (len(trajs_data), 1))  # type: ignore[arg-type]
+    assert xyz_offsets is not None
 
     # Sanitize user-specified robot colors
     if robots_colors is None:
         if len(trajs_data) == 1:
-            robots_colors = [None]
+            robots_colors = (None,)
         else:
             robots_colors = list(islice(
                 cycle(COLORS.values()), len(trajs_data)))
-    elif not isinstance(robots_colors, (list, tuple)) or \
-            isinstance(robots_colors[0], float):
-        robots_colors = [robots_colors]
+    elif isinstance(robots_colors, str) or isinstance(robots_colors[0], float):
+        robots_colors = [robots_colors]  # type: ignore[list-item]
     assert len(robots_colors) == len(trajs_data)
 
     # Sanitize user-specified legend
-    if legend is not None and not isinstance(legend, (list, tuple)):
+    if legend is not None and isinstance(legend, str):
         legend = [legend]
 
     # Make sure the viewers instances are consistent with the trajectories
@@ -318,10 +330,13 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
     # Instantiate or refresh viewers if necessary
     for i, (viewer, traj, color) in enumerate(zip(
             viewers, trajs_data, robots_colors)):
+        # Extract robot from trajectory
+        robot = traj['robot']
+        assert robot is not None
+
         # Create new viewer instance if necessary, and load the robot in it
         if viewer is None:
             uniq_id = next(tempfile._get_candidate_names())
-            robot = traj['robot']
             robot_name = f"{uniq_id}_robot_{i}"
             use_theoretical_model = traj['use_theoretical_model']
             viewer = Viewer(
@@ -337,16 +352,20 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
 
         # Reset the configuration of the robot
         if traj['use_theoretical_model']:
-            model = traj['robot'].pinocchio_model_th
+            model = robot.pinocchio_model_th
         else:
-            model = traj['robot'].pinocchio_model
+            model = robot.pinocchio_model
         viewer.display(pin.neutral(model))
 
         # Reset robot model in viewer if requested color has changed.
         # `_setup` is called instead of `set_color` because the latter is not
         # supported by meshcat.
         if color is not None and color != viewer.robot_color:
-            viewer._setup(traj['robot'], color)
+            viewer._setup(robot, color)
+
+    # Assert(s) for type checker
+    assert all(viewers)
+    viewers = cast(List[Viewer], viewers)
 
     # Add default legend with robots names if replaying multiple trajectories
     if all(color is not None for color in robots_colors) and legend is None:
@@ -354,9 +373,10 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
 
     # Use first viewers as main viewer to call static methods conveniently
     viewer = viewers[0]
+    assert Viewer._backend_obj is not None
 
     # Make sure clock is only enabled for panda3d backend
-    if enable_clock and not Viewer.backend.startswith('panda3d'):
+    if enable_clock and not backend.startswith('panda3d'):
         logger.warning(
             "`enable_clock` is only available with 'panda3d' backend.")
         enable_clock = False
@@ -374,10 +394,10 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
     if legend is not None:
         try:
             Viewer.set_legend(legend)
-        except ImportError as e:
-            raise logger.warning(
-                "Impossible to add legend. Please install 'jiminy_py[plot]'."
-                ) from e
+        except ImportError:
+            logger.warning(
+                "Impossible to add legend. Please install 'jiminy_py[plot]'.")
+            legend = None
 
     # Add watermark if requested
     if watermark_fullpath is not None:
@@ -396,7 +416,7 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
             for f_ext in viewer_i.f_external:
                 f_ext.vector[:] = 0.0
             viewer_i.display(data[i].q, data[i].v, offset)
-        if Viewer.backend.startswith('panda3d'):
+        if backend.startswith('panda3d'):
             if display_com is not None:
                 viewer_i.display_center_of_mass(display_com)
             if display_dcm is not None:
@@ -414,7 +434,7 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
 
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:
-        if Viewer.backend == 'meshcat':
+        if backend == 'meshcat':
             if verbose and interactive_mode() < 2:
                 print("Waiting for meshcat client in browser to connect: "
                       f"{Viewer._backend_obj.gui.url()}")
@@ -433,29 +453,38 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
 
         time_global = np.arange(
             time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
-        position_evolutions, velocity_evolutions, force_evolutions = [], [], []
+        position_evolutions: List[Optional[np.ndarray]] = []
+        velocity_evolutions: List[Optional[
+            Union[np.ndarray, Sequence[None]]]] = []
+        force_evolutions: List[Optional[
+            Union[List[List[np.ndarray]], Sequence[None]]]] = []
         for traj in trajs_data:
             if len(traj['evolution_robot']):
                 data_orig = traj['evolution_robot']
+                robot = traj['robot']
+                assert robot is not None
                 if traj['use_theoretical_model']:
-                    model = traj['robot'].pinocchio_model_th
+                    model = robot.pinocchio_model_th
                 else:
-                    model = traj['robot'].pinocchio_model
+                    model = robot.pinocchio_model
                 t_orig = np.array([s.t for s in data_orig])
                 pos_orig = np.stack([s.q for s in data_orig], axis=0)
                 position_evolutions.append(jiminy.interpolate(
                     model, t_orig, pos_orig, time_global))
                 if data_orig[0].v is not None:
-                    vel_orig = np.stack([s.v for s in data_orig], axis=0)
+                    vel_orig = np.stack([
+                        s.v  # type: ignore[misc]
+                        for s in data_orig], axis=0)
                     velocity_evolutions.append(interp1d(
                         t_orig, vel_orig, time_global))
                 else:
                     velocity_evolutions.append((None,) * len(time_global))
                 if data_orig[0].f_ext is not None:
-                    forces = []
+                    forces: List[np.ndarray] = []
                     for i in range(len(data_orig[0].f_ext)):
                         f_ext_orig = np.stack([
-                            s.f_ext[i] for s in data_orig], axis=0)
+                            s.f_ext[i]  # type: ignore[index]
+                            for s in data_orig], axis=0)
                         forces.append(interp1d(
                             t_orig, f_ext_orig, time_global))
                     force_evolutions.append([
@@ -469,13 +498,13 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
                 force_evolutions.append(None)
 
         # Initialize video recording
-        if Viewer.backend == 'meshcat':
+        if backend == 'meshcat':
             # Sanitize the recording path to enforce '.webm' extension
             record_video_path = str(
                 pathlib.Path(record_video_path).with_suffix('.webm'))
 
             # Start backend recording thread
-            viewer._backend_obj.start_recording(
+            Viewer._backend_obj.start_recording(
                 VIDEO_FRAMERATE, *record_video_size)
         else:
             # Sanitize the recording path to enforce '.mp4' extension
@@ -503,6 +532,7 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
                 for viewer, pos, vel, forces, xyz_offset, update_hook in zip(
                         viewers, position_evolutions, velocity_evolutions,
                         force_evolutions, xyz_offsets, update_hooks):
+                    assert viewer is not None
                     if pos is None:
                         continue
                     q, v, f_ext = pos[i], vel[i], forces[i]
@@ -520,13 +550,13 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
                     Viewer.set_clock(t_cur)
 
                 # Add frame to video
-                if Viewer.backend == 'meshcat':
-                    viewer._backend_obj.add_frame()
+                if backend == 'meshcat':
+                    Viewer._backend_obj.add_frame()
                 else:
                     # Update frame.
                     # Note that `capture_frame` is by far the main bottleneck
                     # of the whole recording process (~75% on discrete gpu).
-                    buffer = viewer.capture_frame(
+                    buffer = Viewer.capture_frame(
                         *record_video_size, raw_data=True)
                     memoryview(frame.planes[0])[:] = buffer
 
@@ -540,9 +570,10 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
                 break
 
         # Finalize video recording
-        if Viewer.backend == 'meshcat':
+        if backend == 'meshcat':
             # Stop backend recording thread
-            viewer._backend_obj.stop_recording(record_video_path)
+            assert record_video_path is not None
+            Viewer._backend_obj.stop_recording(record_video_path)
         else:
             # Flush and close recording file
             for packet in stream.encode(None):
@@ -550,7 +581,7 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
             out.close()
     else:
         # Make sure a gui is opened
-        viewer.open_gui()
+        Viewer.open_gui()
 
         # Handle start-in-pause mode
         if start_paused:
@@ -562,7 +593,7 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
                 logger.warning("Start paused is disabled in interactive mode.")
 
         # Play trajectories with multithreading
-        def replay_thread(viewer, *args):
+        def replay_thread(viewer: Viewer, *args: Any) -> None:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             viewer.replay(*args)
@@ -586,6 +617,7 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
             try:
                 thread.join()
             except KeyboardInterrupt:
+                assert thread.ident is not None
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(
                     ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
 
@@ -616,6 +648,7 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
     if record_video_html_embedded:
         # pylint: disable=import-outside-toplevel,no-name-in-module
         from IPython.core.display import HTML, display
+        assert record_video_path is not None
         video_base64 = b64encode(open(record_video_path, 'rb').read()).decode()
         os.remove(record_video_path)
         display(HTML(f"""
@@ -631,7 +664,9 @@ def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
 def extract_replay_data_from_log(
         log_data: Dict[str, np.ndarray],
         robot: jiminy.Robot) -> Tuple[
-            TrajectoryDataType, Callable[[float], None], Any]:
+            TrajectoryDataType,
+            Optional[Callable[[float, np.ndarray, np.ndarray], None]],
+            Dict[str, Any]]:
     """Extract replay data from log data.
 
     :param robot: Jiminy robot for which to extract log data.
@@ -674,7 +709,7 @@ def extract_replay_data_from_log(
 def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
                    logs_data: Union[Sequence[Dict[str, np.ndarray]],
                                     Dict[str, np.ndarray]],
-                   **kwargs) -> Sequence[Viewer]:
+                   **kwargs: Any) -> Sequence[Viewer]:
     """Play log data in a viewer.
 
     This method simply formats the data then calls `play_trajectories`.
@@ -685,9 +720,9 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
     """
     # Reformat input arguments as lists
-    if not isinstance(logs_data, (list, tuple)):
+    if isinstance(logs_data, dict):
         logs_data = [logs_data]
-    if not isinstance(robots, (list, tuple)):
+    if isinstance(robots, jiminy.Robot):
         robots = [robots]
 
     # Extract a replay data for `play_trajectories` for each pair (robot, log)
@@ -710,7 +745,7 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
 
 def play_logs_files(logs_files: Union[str, Sequence[str]],
                     mesh_package_dirs: Union[str, Sequence[str]] = (),
-                    **kwargs) -> Sequence[Viewer]:
+                    **kwargs: Any) -> Sequence[Viewer]:
     """Play the content of a logfile in a viewer.
 
     This method reconstruct the exact model used during the simulation
@@ -725,7 +760,7 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
     """
     # Reformat as list
-    if not isinstance(logs_files, (list, tuple)):
+    if isinstance(logs_files, str):
         logs_files = [logs_files]
 
     # Extract log data and build robot for each log file
@@ -876,7 +911,7 @@ def _play_logs_files_entrypoint() -> None:
     while repeat:
         viewers = play_logs_files(
             viewers=viewers,
-            **{**dict(
+            **{**dict(  # type: ignore[arg-type]
                 remove_widgets_overlay=False),
                 **kwargs})
         kwargs["start_paused"] = False
@@ -893,3 +928,11 @@ def _play_logs_files_entrypoint() -> None:
     # Do not exit method as long as a graphical window is open
     while Viewer.has_gui():
         time.sleep(0.5)
+
+
+__all__ = [
+    'extract_replay_data_from_log',
+    'play_logs_data',
+    'play_logs_files',
+    'async_play_and_record_logs_files',
+]

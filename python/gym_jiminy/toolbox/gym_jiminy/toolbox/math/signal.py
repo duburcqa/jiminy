@@ -24,9 +24,9 @@ def _toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
     :param col: First column of the matrix.
     :param row: First row of the matrix.
 
-    see::
+    .. seealso::
         https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.toeplitz.html
-    """
+    """  # noqa: E501  # pylint: disable=line-too-long
     vals = np.concatenate((col[::-1], row[1:]))
     stride = vals.strides[0]  # pylint: disable=E1136
     return as_strided(vals[len(col)-1:],

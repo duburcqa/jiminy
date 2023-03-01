@@ -1,6 +1,6 @@
 """ TODO: Write documentation.
 """
-# pylint: disable=no-name-in-module,attribute-defined-outside-init,invalid-name
+# pylint: disable=attribute-defined-outside-init,invalid-name
 import io
 import os
 import re
@@ -15,8 +15,9 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from itertools import chain
 from pathlib import PureWindowsPath
+from multiprocessing.connection import Connection
 from typing import (
-    Callable, Optional, Dict, Tuple, Union, Sequence, Any, Iterable)
+    Callable, Optional, Dict, Tuple, Union, Sequence, Any, Iterable, Literal)
 
 import numpy as np
 
@@ -25,15 +26,15 @@ import direct.task.Task
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
-from panda3d.core import (
+from panda3d.core import (  # pylint: disable=no-name-in-module
     NodePath, Point3, Vec3, Vec4, Mat4, Quat, LQuaternion, Geom, GeomEnums,
     GeomNode, GeomTriangles, GeomVertexData, GeomVertexArrayFormat,
     GeomVertexFormat, GeomVertexWriter, PNMImage, PNMImageHeader, TextNode,
     OmniBoundingVolume, CompassEffect, BillboardEffect, InternalName, Filename,
-    Material, Texture, TextureStage, TransparencyAttrib, PGTop, Camera,
+    Material, Texture, TextureStage, TransparencyAttrib, PGTop, Camera, Lens,
     PerspectiveLens, OrthographicLens, Shader, ShaderAttrib, AntialiasAttrib,
     CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
-    ClockObject, GraphicsPipe, GraphicsOutput, GraphicsWindow,
+    ClockObject, GraphicsPipe, GraphicsOutput, GraphicsWindow, DisplayRegion,
     RenderModeAttrib, WindowProperties, FrameBufferProperties, loadPrcFileData)
 
 import panda3d_viewer
@@ -64,12 +65,15 @@ PANDA3D_FRAMERATE_MAX = 40
 
 Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
 Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
+ShapeType = Literal[
+    'cone', 'box', 'sphere', 'capsule', 'cylinder', 'frame', 'arrow']
 FrameType = Union[Tuple[Tuple3FType, Tuple4FType], np.ndarray]
 
 
-def _signal_guarded(signalnum: int,
-                    handler: Union[signal.Handlers, Callable]
-                    ) -> Union[signal.Handlers, Callable]:
+def _signal_guarded(
+        signalnum: int,
+        handler: Optional[Union[signal.Handlers, Callable[..., Any], int]]
+        ) -> Optional[Union[signal.Handlers, Callable[..., Any], int]]:
     """Guard `signal.signal` to make it a no-op outside of main thread instead
     of raising an exception. This typically happens during async rendering.
     """
@@ -104,10 +108,10 @@ def _sanitize_path(path: str) -> str:
     return path
 
 
-def make_gradient_skybox(sky_color: Tuple3FType,
-                         ground_color: Tuple3FType,
+def make_gradient_skybox(sky_color: Tuple4FType,
+                         ground_color: Tuple4FType,
                          offset: float = 0.0,
-                         subdiv: int = 2):
+                         subdiv: int = 2) -> NodePath:
     """Simple gradient to be used as skybox.
 
     For reference, see:
@@ -307,7 +311,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         loadPrcFileData('', str(config))
 
         # Define offscreen buffer
-        self.buff = None
+        self.buff: Optional[GraphicsOutput] = None
 
         # Initialize base implementation.
         # Note that the original constructor is by-passed on purpose.
@@ -358,13 +362,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Define clock. It will be used later to limit framerate
         self.clock = ClockObject.get_global_clock()
-        self.framerate = None
+        self.framerate: Optional[float] = None
 
         # Create scene tree
         self._scene_root = self.render.attach_new_node('scene_root')
         self._scene_scale = self.config.GetFloat('scene-scale', 1.0)
         self._scene_root.set_scale(self._scene_scale)
-        self._groups = {}
+        self._groups: Dict[str, NodePath] = {}
 
         # Create default scene objects
         self._fog = self._make_fog()
@@ -430,12 +434,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.offA2dBottomRight.set_pos(self.a2dRight, 0, self.a2dBottom)
 
         # Define widget overlay
-        self.offscreen_graphics_lens = None
-        self.offscreen_display_region = None
+        self.offscreen_graphics_lens: Optional[Lens] = None
+        self.offscreen_display_region: Optional[DisplayRegion] = None
         self._help_label = None
-        self._watermark = None
-        self._legend = None
-        self._clock = None
+        self._watermark: Optional[OnscreenImage] = None
+        self._legend: Optional[OnscreenImage] = None
+        self._clock: Optional[OnscreenText] = None
 
         # Define input control
         self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
@@ -449,9 +453,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.last_mouse_y = 0.0
 
         # Define object/highlighting selector
-        self.picker_ray = None
-        self.picker_node = None
-        self.picked_object = None
+        self.picker_ray: Optional[CollisionRay] = None
+        self.picker_node: Optional[CollisionNode] = None
+        self.picked_object: Optional[Tuple[str, str]] = None
         self.click_mouse_x = 0.0
         self.click_mouse_y = 0.0
 
@@ -618,6 +622,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         aspect_ratio = self.get_aspect_ratio(self.buff)
 
         # Adjust 3D rendering aspect ratio
+        assert self.offscreen_graphics_lens is not None
         self.offscreen_graphics_lens.set_aspect_ratio(aspect_ratio)
 
         # Adjust existing anchors for offscreen 2D rendering
@@ -692,6 +697,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.picked_object = None
 
         # Select new object if the user actually clicked on a selectable node
+        assert self.picker_ray is not None
         object_found = False
         mpos = self.mouseWatcherNode.getMouse()
         self.picker_ray.set_from_lens(self.camNode, mpos.getX(), mpos.getY())
@@ -1034,9 +1040,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     name: str,
                     mesh_path: str,
                     scale: Optional[Tuple3FType] = None,
-                    frame: Union[np.ndarray, Tuple[
-                        Union[np.ndarray, Sequence[float]],
-                        Union[np.ndarray, Sequence[float]]]] = None,
+                    frame: Optional[FrameType] = None,
                     no_cache: Optional[bool] = None) -> None:
         """Append a mesh node to the group.
 
@@ -1065,7 +1069,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 xml_iter = ET.iterparse(xml_path, events=["start-ns"])
                 xml_namespaces = dict(prefix_namespace_pair
                                       for _, prefix_namespace_pair in xml_iter)
-                return xml_iter.root, xml_namespaces
+                return (xml_iter.root,  # type: ignore[attr-defined]
+                        xml_namespaces)
 
             root, ns = parse_xml(mesh_path)
             if ns:
@@ -1075,6 +1080,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
             # Change the orientation of the mesh if necessary
             if field_axis is not None:
+                assert field_axis.text is not None
                 axis = field_axis.text.lower()
                 if axis == 'z_up':
                     mesh.set_mat(Mat4.yToZUpMat())
@@ -1105,8 +1111,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if width is None or height is None:
             image_header = PNMImageHeader()
             image_header.readHeader(Filename(img_fullpath))
-            width = width or float(image_header.getXSize())
-            height = height or float(image_header.getYSize())
+            width = width or int(image_header.getXSize())
+            height = height or int(image_header.getYSize())
 
         # Compute relative image size
         width_win, height_win = self.getSize()
@@ -1133,8 +1139,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._watermark.set_pos(
             WIDGET_MARGIN_REL + width_rel, 0, WIDGET_MARGIN_REL + height_rel)
 
+        # Flip the vertical axis
+        assert self.buff is not None
         if self.buff.inverted:
-            self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
+            self._watermark.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
     def set_legend(self,
                    items: Optional[Sequence[
@@ -1232,6 +1240,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._legend.set_pos(0, 0, WIDGET_MARGIN_REL + height_rel)
 
         # Flip the vertical axis
+        assert self.buff is not None
         if self.buff.inverted:
             self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
@@ -1294,11 +1303,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      name: str,
                      color: Optional[Tuple4FType] = None,
                      texture_path: str = '',
-                     disable_material: bool = False) -> None:
+                     disable_material: Optional[bool] = None) -> None:
         """Patched to avoid raising an exception if node does not exist, and to
         clear color if not specified. In addition, texture are disabled if the
         color is specified, and a physics-based shader is used if available.
         """
+        # Handling of default argument
+        if disable_material is None:
+            disable_material = color is not None
+
         node = self._groups[root_path].find(name)
         if node:
             if disable_material:
@@ -1319,7 +1332,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 material.set_diffuse(Vec4(*color))
                 material.set_specular(Vec3(1, 1, 1))
                 material.set_roughness(0.4)
-                node.set_material(material, 1)
+                node.set_material(material, True)
 
                 if color[3] < 1.0:
                     node.set_transparency(TransparencyAttrib.M_alpha)
@@ -1333,7 +1346,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def set_scale(self,
                   root_path: str,
                   name: str,
-                  scale: Optional[Tuple3FType] = None) -> None:
+                  scale: Tuple3FType) -> None:
         """Override scale of node of a node.
         """
         node = self._groups[root_path].find(name)
@@ -1348,7 +1361,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     node.set_tag("status", "auto")
                     node.show()
 
-    def set_scales(self, root_path, name_scales_dict):
+    def set_scales(self,
+                   root_path: str,
+                   name_scales_dict: Dict[str, Tuple3FType]) -> None:
         """Override scale of nodes within a group.
         """
         for name, scale in name_scales_dict.items():
@@ -1417,6 +1432,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.camera_lookat = np.asarray(pos)
 
     def set_window_size(self, width: int, height: int) -> None:
+        assert self.buff is not None
         self.buff.set_size(width, height)
         self._adjust_offscreen_window_aspect_ratio()
 
@@ -1446,6 +1462,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Refresh the scene to make sure it is perfectly up-to-date.
         # It will take into account the updated position of the camera.
+        assert self.buff is not None
         self.buff.trigger_copy()
         self.graphics_engine.render_frame()
 
@@ -1454,7 +1471,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if not self.buff.get_screenshot(image):
             return False
 
-        # Flip the image if the buffer is also flipped to revert the effect
+        # Flip the image if the buffer is also flipped to revert the effect*
         if self.buff.inverted:
             image.flip(flip_x=False, flip_y=True, transpose=False)
 
@@ -1490,10 +1507,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     structured `np.ndarray` of uint8 with dimensions [H, W, D].
         """
         # Refresh the scene
+        assert self.buff is not None
         self.buff.trigger_copy()
         self.graphics_engine.render_frame()
 
         # Get frame as raw texture
+        assert self.buff is not None
         texture = self.buff.get_texture()
 
         # Extract raw array buffer from texture
@@ -1520,23 +1539,24 @@ panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
     """ TODO: Write documentation.
     """
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> Dict[str, Any]:
         """Required for Windows and OS X support, which use spawning instead of
         forking to create subprocesses, requiring pickling objects.
         """
-        return vars(self)
+        return self.__dict__
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: Dict[str, Any]) -> None:
         """Defined for the same reason than `__getstate__`.
         """
-        vars(self).update(state)
+        self.__dict__.update(state)
 
-    def __getattr__(self, name: str) -> Callable:
+    def __getattr__(self, name: str) -> Callable[..., Any]:
         """Patched to avoid deadlock after closing main window, and to discard
         any incoming message before sending request since it is probably coming
         from a ealier request that has been keyboard-interrupted.
         """
         def _send(*args: Any, **kwargs: Any) -> Any:
+            self._host_conn: Connection
             if self._host_conn.closed:
                 raise ViewerClosedError(
                     "Viewer not available. Maybe the graphical window has "
@@ -1588,7 +1608,7 @@ class Panda3dViewer(panda3d_viewer.viewer.Viewer):
     def append_cylinder(self, *args: Any, **kwargs: Any) -> None:
         self._app.append_cylinder(*args, **kwargs)
 
-    def save_screenshot(self, filename: Optional[str] = None):
+    def save_screenshot(self, filename: Optional[str] = None) -> bool:
         return self._app.save_screenshot(filename)
 
     def get_screenshot(self,
@@ -1612,8 +1632,8 @@ class Panda3dVisualizer(BaseVisualizer):
                    **kwargs: Any) -> None:
         """Init the viewer by attaching to / creating a GUI viewer.
         """
-        self.visual_group = None
-        self.collision_group = None
+        self.visual_group: Optional[str] = None
+        self.collision_group: Optional[str] = None
         self.display_visuals = False
         self.display_collisions = False
         self.viewer = viewer
@@ -1630,8 +1650,10 @@ class Panda3dVisualizer(BaseVisualizer):
         """Return the name of the geometry object inside the viewer.
         """
         if geometry_type is pin.GeometryType.VISUAL:
+            assert self.visual_group is not None
             return self.visual_group, geometry_object.name
         # if geometry_type is pin.GeometryType.COLLISION:
+        assert self.collision_group is not None
         return self.collision_group, geometry_object.name
 
     def loadViewerGeometryObject(self,
@@ -1640,6 +1662,9 @@ class Panda3dVisualizer(BaseVisualizer):
                                  color: Optional[np.ndarray] = None) -> None:
         """Load a single geometry object
         """
+        # Assert(s) for type checker
+        assert self.viewer is not None
+
         # Skip ground plane
         if geometry_object.name == "ground":
             return
@@ -1756,6 +1781,9 @@ class Panda3dVisualizer(BaseVisualizer):
                         color: Optional[np.ndarray] = None) -> None:
         """Create a group of nodes displaying the robot meshes in the viewer.
         """
+        # Assert(s) for type checker
+        assert self.viewer is not None
+
         self.root_name = root_node_name
 
         # Load robot visual meshes
@@ -1780,7 +1808,10 @@ class Panda3dVisualizer(BaseVisualizer):
         the bodies."""
         pin.forwardKinematics(self.model, self.data, q)
 
-        def move(group, model, data):
+        def move(group: str, model: pin.Model, data: pin.Data) -> None:
+            # Assert(s) for type checker
+            assert self.viewer is not None
+
             pin.updateGeometryPlacements(self.model, self.data, model, data)
             name_pose_dict = {}
             for obj in model.geometryObjects:
@@ -1790,18 +1821,26 @@ class Panda3dVisualizer(BaseVisualizer):
             self.viewer.move_nodes(group, name_pose_dict)
 
         if self.display_visuals:
+            assert self.visual_group is not None
             move(self.visual_group, self.visual_model, self.visual_data)
 
         if self.display_collisions:
+            assert self.collision_group is not None
             move(self.collision_group, self.collision_model,
                  self.collision_data)
 
     def displayCollisions(self, visibility: bool) -> None:
         """Set whether to display collision objects or not."""
+        # Assert(s) for type checker
+        assert self.viewer is not None and self.collision_group is not None
+
         self.viewer.show_group(self.collision_group, visibility)
         self.display_collisions = visibility
 
     def displayVisuals(self, visibility: bool) -> None:
         """Set whether to display visual objects or not."""
+        # Assert(s) for type checker
+        assert self.viewer is not None and self.visual_group is not None
+
         self.viewer.show_group(self.visual_group, visibility)
         self.display_visuals = visibility

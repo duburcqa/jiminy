@@ -47,8 +47,6 @@ setup(
     packages=find_namespace_packages(),
     install_requires=[
         f"jiminy-py=={version}",
-        # Backporting of `TypeAlias` introduced in Python 3.10
-        "typing_extensions>=3.7.4.2",
         # Use to perform linear algebra computation
         "numpy",
         # Use internally to speedup computation of math methods

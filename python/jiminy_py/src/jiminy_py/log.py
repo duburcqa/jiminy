@@ -1,11 +1,13 @@
+# mypy: disable-error-code="attr-defined, name-defined"
 """ TODO: Write documentation.
 """
-# pylint: disable=no-name-in-module,no-member
 import os
 import tempfile
 from bisect import bisect_right
 from collections import OrderedDict
-from typing import Any, Callable, Tuple, Dict, Optional, Sequence, Union
+from typing import (
+    Any, Callable, List, Dict, Optional, Sequence, Union, Literal, Type,
+    overload)
 
 import tree
 import numpy as np
@@ -13,16 +15,19 @@ import numpy as np
 import pinocchio as pin
 
 from . import core as jiminy
-from .core import (EncoderSensor as encoder,
-                   EffortSensor as effort,
-                   ContactSensor as contact,
-                   ForceSensor as force,
-                   ImuSensor as imu)
+from .core import (  # pylint: disable=no-name-in-module
+    EncoderSensor as encoder,
+    EffortSensor as effort,
+    ContactSensor as contact,
+    ForceSensor as force,
+    ImuSensor as imu)
 from .dynamics import State, TrajectoryDataType
 
 
 ENGINE_NAMESPACE = "HighLevelController"
-SENSORS_FIELDS = {
+SENSORS_FIELDS: Dict[
+        Type[jiminy.AbstractSensor], Union[List[str], Dict[str, List[str]]]
+        ] = {
     encoder: encoder.fieldnames,
     effort: effort.fieldnames,
     contact: contact.fieldnames,
@@ -37,20 +42,35 @@ SENSORS_FIELDS = {
 }
 
 
-FieldNested = Union[
-    Dict[str, 'FieldNested'], Sequence['FieldNested'],
-    str]  # type: ignore[misc]
+FieldNested = Union[Dict[str, 'FieldNested'], Sequence['FieldNested'], str]
 
 
 read_log = jiminy.core.EngineMultiRobot.read_log
 
 
-def extract_variables_from_log(log_vars: Dict[str, Any],
+@overload
+def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
                                fieldnames: FieldNested,
-                               namespace: Optional[str] = ENGINE_NAMESPACE,
-                               *, as_dict: bool = False) -> Optional[Union[
-                                   Tuple[Optional[np.ndarray], ...],
-                                   Dict[str, Optional[np.ndarray]]]]:
+                               namespace: Optional[str] = ENGINE_NAMESPACE, *,
+                               as_dict: Literal[False] = False
+                               ) -> List[np.ndarray]:
+    ...
+
+
+@overload
+def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
+                               fieldnames: FieldNested,
+                               namespace: Optional[str] = ENGINE_NAMESPACE, *,
+                               as_dict: Literal[True]
+                               ) -> Dict[str, np.ndarray]:
+    ...
+
+
+def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
+                               fieldnames: FieldNested,
+                               namespace: Optional[str] = ENGINE_NAMESPACE, *,
+                               as_dict: bool = False) -> Union[
+                                   List[np.ndarray], Dict[str, np.ndarray]]:
     """Extract values associated with a set of variables in a specific
     namespace.
 
@@ -66,31 +86,36 @@ def extract_variables_from_log(log_vars: Dict[str, Any],
         `np.ndarray` or None for each fieldname individually depending if it is
         found or not.
     """
-    # Key are the concatenation of the path and value
-    keys = [
-        ".".join(map(str, filter(
-            lambda key: isinstance(key, str), (*fieldname_path, fieldname))))
-        for fieldname_path, fieldname in tree.flatten_with_path(fieldnames)]
-
-    # Extract value from log if it exists
-    values = [
-        log_vars.get(
-            ".".join(filter(None, (namespace, key))), None) for key in keys]
-
-    # Return None if no value was found
-    if not values or all(elem is None for elem in values):
-        return None
-
+    # Extract values from log if it exists
     if as_dict:
-        # Return flat mapping from fieldnames (without prefix) to scalar values
-        values = OrderedDict(zip(keys, values))
+        keys: List[str] = []
+    values: List[np.ndarray] = []
+    for fieldname_path, fieldname in tree.flatten_with_path(fieldnames):
+        # A key is the concatenation of namespace and full path of fieldname
+        key = ".".join(map(str, filter(
+            lambda key: isinstance(key, str),
+            (namespace, *fieldname_path, fieldname))))
+
+        # Raise an exception if the key does not exists and not fail safe
+        if key not in log_vars:
+            raise ValueError(f"Variable '{key}' not found in log file.")
+
+        # Extract the value corresponding to the key
+        if as_dict:
+            keys.append(key)
+        values.append(log_vars[key])
+
+    # Return flat mapping from fieldnames (without prefix) to scalar values
+    if as_dict:
+        return OrderedDict(zip(keys, values))
 
     return values
 
 
 def build_robot_from_log(
         log_data: Dict[str, Any],
-        mesh_package_dirs: Union[str, Sequence[str]] = ()) -> jiminy.Model:
+        mesh_package_dirs: Union[str, Sequence[str]] = ()
+        ) -> jiminy.Model:
     """Build robot from log.
 
     .. note::
@@ -171,6 +196,7 @@ def build_robot_from_log(
             ".".join((ENGINE_NAMESPACE, "options"))]
         robot.set_options(all_options["system"]["robot"])
 
+        # pylint: disable=no-member
         # Update model and data.
         # Dirty hack based on serialization/deserialization to update in-place.
         # Note that string archive cannot be used because it is not reliable
@@ -239,16 +265,18 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
         if has_forces:
             f_ext = [forces[i, (6 * (j - 1)):(6 * j)]
                      for j in range(1, robot.pinocchio_model.njoints)]
-        evolution_robot.append(State(t=t, q=q, v=v, f_ext=f_ext))
+        evolution_robot.append(State(
+            t=t, q=q, v=v, f_ext=f_ext))  # type: ignore[arg-type]
 
     return {"evolution_robot": evolution_robot,
             "robot": robot,
             "use_theoretical_model": False}
 
 
-def update_sensors_data_from_log(log_data: Dict[str, Any],
-                                 robot: jiminy.Model
-                                 ) -> Callable[[float], None]:
+def update_sensors_data_from_log(
+        log_data: Dict[str, Any],
+        robot: jiminy.Model
+        ) -> Callable[[float, np.ndarray, np.ndarray], None]:
     """Helper to make it easy to emulate sensor data update based on log data.
 
     .. note::

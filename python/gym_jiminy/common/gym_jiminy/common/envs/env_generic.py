@@ -18,11 +18,12 @@ import gym
 from gym import logger, spaces
 
 import jiminy_py.core as jiminy
-from jiminy_py.core import (EncoderSensor as encoder,
-                            EffortSensor as effort,
-                            ContactSensor as contact,
-                            ForceSensor as force,
-                            ImuSensor as imu)
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    EncoderSensor as encoder,
+    EffortSensor as effort,
+    ContactSensor as contact,
+    ForceSensor as force,
+    ImuSensor as imu)
 from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      is_display_available,
                                      interactive_mode,
@@ -234,7 +235,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), self.simulator.__dir__())
+        return chain(super().__dir__(), dir(self.simulator))
 
     def __del__(self) -> None:
         try:

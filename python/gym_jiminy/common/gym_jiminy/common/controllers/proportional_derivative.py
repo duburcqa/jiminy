@@ -8,7 +8,8 @@ import numpy as np
 import numba as nb
 import gym
 
-from jiminy_py.core import EncoderSensor as encoder
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    EncoderSensor as encoder)
 
 from ..bases import BaseControllerBlock
 from ..envs import BaseJiminyEnv

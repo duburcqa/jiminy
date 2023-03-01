@@ -69,7 +69,7 @@ class BlockInterface:
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), self.env.__dir__())
+        return chain(super().__dir__(), dir(self.env))
 
     # methods to override:
     # ----------------------------

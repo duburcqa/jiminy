@@ -2,9 +2,7 @@
 """ TODO: Write documentation.
 """
 import re
-from typing import List, Any, Dict, Union, Optional, Callable
-
-from typing_extensions import TypeAlias
+from typing import List, Any, Dict, Union, Optional, Callable, Type
 
 import numpy as np
 
@@ -25,10 +23,12 @@ from gym_jiminy.toolbox.wrappers.meta_envs import DataTreeT
 def build_task_scheduling_callback(
         history_length: int,
         softmin_beta: float,
-        callbacks_class: TypeAlias = DefaultCallbacks) -> type:
+        callbacks_class: Type[DefaultCallbacks] = DefaultCallbacks
+        ) -> Type[DefaultCallbacks]:
     """ TODO: Write documentation.
     """
-    class TaskSchedulingSamplingCallback(callbacks_class):
+    class TaskSchedulingSamplingCallback(
+            callbacks_class):  # type: ignore[valid-type,misc]
         """ TODO: Write documentation.
 
         .. warning::
@@ -39,8 +39,8 @@ def build_task_scheduling_callback(
         """
         def __init__(
                 self,
-                legacy_callbacks_dict: Optional[Dict[str, Callable]] = None
-                ) -> None:
+                legacy_callbacks_dict: Optional[
+                    Dict[str, Callable[..., Any]]] = None) -> None:
             """ TODO: Write documentation.
             """
             super().__init__(legacy_callbacks_dict)

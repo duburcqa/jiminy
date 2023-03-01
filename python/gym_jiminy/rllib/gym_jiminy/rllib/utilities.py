@@ -640,7 +640,7 @@ class _WriteLogHook:
     termination and before reset. This is necessary because `worker.sample()`
     always reset the environment at the end by design.
     """
-    def __init__(self, on_episode_end: Callable) -> None:
+    def __init__(self, on_episode_end: Callable[..., Any]) -> None:
         self.__func__ = on_episode_end
 
     def __call__(self, *, worker: RolloutWorker, **kwargs: Any) -> None:
@@ -791,6 +791,7 @@ def evaluate_local_worker(worker: RolloutWorker,
         try:
             thread.join()
         except KeyboardInterrupt:
+            assert thread.ident is not None
             ctypes.pythonapi.PyThreadState_SetAsyncExc(
                 ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
 

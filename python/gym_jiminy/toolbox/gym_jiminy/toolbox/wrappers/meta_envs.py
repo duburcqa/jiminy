@@ -21,7 +21,7 @@ class HierarchicalTaskSettableEnv(gym.Env):
     .. note::
         This class extends the API of Ray RLlib `TaskSettableEnv`. See:
         https://github.com/ray-project/ray/blob/master/rllib/env/apis/task_settable_env.py
-    """
+    """  # noqa: E501  # pylint: disable=line-too-long
     task_space: Optional[spaces.Tuple] = None
 
     def get_task(self) -> Tuple[Any, ...]:

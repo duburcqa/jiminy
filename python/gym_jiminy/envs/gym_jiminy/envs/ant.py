@@ -67,7 +67,7 @@ class AntEnv(BaseJiminyEnv):
         super().__init__(
             simulator=simulator,
             debug=debug,
-            **{**dict(
+            **{**dict(  # type: ignore[arg-type]
                 step_dt=STEP_DT,
                 enforce_bounded_spaces=False),
                 **kwargs})
@@ -122,13 +122,13 @@ class AntEnv(BaseJiminyEnv):
         state_space = self._get_state_space()
 
         low = np.concatenate([
-            np.full_like(state_space['Q'].low[2:], -np.infty),
-            np.full_like(state_space['V'].low, -np.infty),
+            np.full_like(state_space['Q'].low[2:], -np.inf),
+            np.full_like(state_space['V'].low, -np.inf),
             np.full(len(self.bodies_idx) * 6, -1.0)
         ])
         high = np.concatenate([
-            np.full_like(state_space['Q'].high[2:], np.infty),
-            np.full_like(state_space['V'].high, np.infty),
+            np.full_like(state_space['Q'].high[2:], np.inf),
+            np.full_like(state_space['V'].high, np.inf),
             np.full(len(self.bodies_idx) * 6, 1.0)
         ])
 

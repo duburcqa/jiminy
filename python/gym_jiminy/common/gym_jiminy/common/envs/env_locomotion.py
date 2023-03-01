@@ -6,13 +6,14 @@ from typing import Optional, Dict, Union, Callable, Any
 import numpy as np
 import gym
 
-from jiminy_py.core import (EncoderSensor as encoder,
-                            EffortSensor as effort,
-                            ContactSensor as contact,
-                            ForceSensor as force,
-                            ImuSensor as imu,
-                            PeriodicGaussianProcess,
-                            Robot)
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    EncoderSensor as encoder,
+    EffortSensor as effort,
+    ContactSensor as contact,
+    ForceSensor as force,
+    ImuSensor as imu,
+    PeriodicGaussianProcess,
+    Robot)
 from jiminy_py.simulator import Simulator
 
 import pinocchio as pin

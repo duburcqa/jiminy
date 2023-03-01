@@ -1,3 +1,4 @@
+# mypy: disable-error-code="attr-defined, name-defined"
 """ TODO: Write documentation.
 """
 # pylint: disable=invalid-name,no-member
@@ -25,29 +26,30 @@ logger = logging.getLogger(__name__)
 # ######################### Generic math ##############################
 # #####################################################################
 
-def SE3ToXYZRPY(M):
+def SE3ToXYZRPY(M: pin.SE3) -> np.ndarray:
     """Convert Pinocchio SE3 object to [X,Y,Z,Roll,Pitch,Yaw] vector.
     """
     return np.concatenate((M.translation, matrixToRpy(M.rotation)))
 
 
-def XYZRPYToSE3(xyzrpy):
+def XYZRPYToSE3(xyzrpy: np.ndarray) -> np.ndarray:
     """Convert [X,Y,Z,Roll,Pitch,Yaw] vector to Pinocchio SE3 object.
     """
     return pin.SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3])
 
 
-def XYZRPYToXYZQuat(xyzrpy):
+def XYZRPYToXYZQuat(xyzrpy: np.ndarray) -> np.ndarray:
     """Convert [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].
     """
-    return pin.SE3ToXYZQUAT(XYZRPYToSE3(xyzrpy))
+    xyz, rpy = xyzrpy[:3], xyzrpy[3:]
+    return np.concatenate((xyz, pin.Quaternion(rpyToMatrix(rpy)).coeffs()))
 
 
-def XYZQuatToXYZRPY(xyzquat):
+def XYZQuatToXYZRPY(xyzquat: np.ndarray) -> np.ndarray:
     """Convert [X,Y,Z,Qx,Qy,Qz,Qw] to [X,Y,Z,Roll,Pitch,Yaw].
     """
-    return np.concatenate((
-        xyzquat[:3], matrixToRpy(pin.Quaternion(xyzquat[3:]).matrix())))
+    xyz, quat = xyzquat[:3], xyzquat[3:]
+    return np.concatenate((xyz, matrixToRpy(pin.Quaternion(quat).matrix())))
 
 
 def velocityXYZRPYToXYZQuat(xyzrpy: np.ndarray,
@@ -59,8 +61,7 @@ def velocityXYZRPYToXYZQuat(xyzrpy: np.ndarray,
         returned linear velocity in XYZQuat is in local frame.
     """
     rpy = xyzrpy[3:]
-    R = rpyToMatrix(rpy)
-    J_rpy = computeRpyJacobian(rpy)
+    R, J_rpy = rpyToMatrix(rpy), computeRpyJacobian(rpy)
     return np.concatenate((R.T @ dxyzrpy[:3], J_rpy @ dxyzrpy[3:]))
 
 
@@ -128,7 +129,7 @@ class State:
         # External forces
         self.f_ext = deepcopy(f_ext) if copy else f_ext
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Convert the kinematics and dynamics data into string.
 
         :returns: The kinematics and dynamics data as a string.
@@ -482,7 +483,7 @@ def compute_transform_contact(
 
     # Take into account the collision bodies
     # TODO: Take into account the ground profile
-    min_distance = np.inf
+    min_distance = float('inf')
     deepest_idx = None
     for i, dist_req in enumerate(robot.collision_data.distanceResults):
         if np.linalg.norm(dist_req.normal) > 1e-6:
@@ -530,7 +531,7 @@ def compute_freeflyer_state_from_fixed_body(
         fixed_body_name: Optional[str] = None,
         ground_profile: Optional[Callable[
             [np.ndarray], Tuple[float, np.ndarray]]] = None,
-        use_theoretical_model: Optional[bool] = None) -> str:
+        use_theoretical_model: Optional[bool] = None) -> None:
     """Fill rootjoint data from articular data when a body is fixed and
     aligned with world frame.
 
@@ -575,7 +576,7 @@ def compute_freeflyer_state_from_fixed_body(
     """
     # Early return if no freeflyer
     if not robot.has_freeflyer:
-        return None
+        return
 
     # Handling of default arguments
     if use_theoretical_model is None:
@@ -631,8 +632,6 @@ def compute_freeflyer_state_from_fixed_body(
                 robot, fixed_body_name, use_theoretical_model)
             base_link_acceleration = - ff_a_fixedBody
             acceleration[:6] = base_link_acceleration.vector
-
-    return fixed_body_name
 
 
 def compute_efforts_from_fixed_body(
@@ -782,12 +781,12 @@ def compute_freeflyer(trajectory_data: TrajectoryDataType,
     """
     robot = trajectory_data['robot']
 
-    contact_frame_prev = None
+    contact_frame_prev: Optional[str] = None
     w_M_ff_offset = pin.SE3.Identity()
     w_M_ff_prev = None
     for s in trajectory_data['evolution_robot']:
         # Compute freeflyer using contact frame as reference frame
-        s.contact_frame = compute_freeflyer_state_from_fixed_body(
+        compute_freeflyer_state_from_fixed_body(
             robot, s.q, s.v, s.a, s.contact_frame, None)
 
         # Move freeflyer to ensure continuity over time, if requested
@@ -796,8 +795,8 @@ def compute_freeflyer(trajectory_data: TrajectoryDataType,
             w_M_ff = pin.XYZQUATToSE3(s.q[:7])
 
             # Update the internal buffer of the freeflyer transform
-            if contact_frame_prev is not None \
-                    and contact_frame_prev != s.contact_frame:
+            if (contact_frame_prev is not None and
+                    contact_frame_prev != s.contact_frame):
                 w_M_ff_offset = w_M_ff_offset * w_M_ff_prev * w_M_ff.inverse()
             contact_frame_prev = s.contact_frame
             w_M_ff_prev = w_M_ff
@@ -817,5 +816,7 @@ def compute_efforts(trajectory_data: TrajectoryDataType) -> None:
     use_theoretical_model = trajectory_data['use_theoretical_model']
 
     for s in trajectory_data['evolution_robot']:
+        assert s.q is not None and s.v is not None and s.a is not None
+        assert s.contact_frames is not None
         s.tau, s.f_ext = compute_efforts_from_fixed_body(
             robot, s.q, s.v, s.a, s.contact_frame, use_theoretical_model)
