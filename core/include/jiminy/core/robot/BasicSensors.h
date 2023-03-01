@@ -16,7 +16,7 @@ namespace jiminy
 
     public:
         ImuSensor(std::string const & name);
-        ~ImuSensor(void) = default;
+        virtual ~ImuSensor(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
 
@@ -47,7 +47,7 @@ namespace jiminy
     {
     public:
         ContactSensor(std::string const & name);
-        ~ContactSensor(void) = default;
+        virtual ~ContactSensor(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
 
@@ -75,7 +75,7 @@ namespace jiminy
     {
     public:
         ForceSensor(std::string const & name);
-        ~ForceSensor(void) = default;
+        virtual ~ForceSensor(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
 
@@ -106,7 +106,7 @@ namespace jiminy
     {
     public:
         EncoderSensor(std::string const & name);
-        ~EncoderSensor(void) = default;
+        virtual ~EncoderSensor(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
 
@@ -136,7 +136,7 @@ namespace jiminy
     {
     public:
         EffortSensor(std::string const & name);
-        ~EffortSensor(void) = default;
+        virtual ~EffortSensor(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
 

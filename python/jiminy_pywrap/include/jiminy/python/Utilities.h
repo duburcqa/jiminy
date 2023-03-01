@@ -8,12 +8,7 @@
 
 #include <boost/mpl/vector.hpp>
 
-/* Define Python C API, consistent with eigenpy, but do NOT import
-   it to avoid "multiple definitions" error. Note that eigenpy must
-   be imported before boost python to avoid compilation failure. */
-#define BOOST_PYTHON_NUMPY_INTERNAL
-#include "eigenpy/fwd.hpp"
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 #include <boost/python/numpy.hpp>
 #include <boost/python/object/function_doc_signature.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>

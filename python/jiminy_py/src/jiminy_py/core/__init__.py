@@ -1,3 +1,5 @@
+# pylint: disable=missing-module-docstring,invalid-name,import-error,
+# pylint: disable=undefined-variable,wrong-import-position
 import os as _os
 import re as _re
 import sys as _sys
@@ -6,7 +8,6 @@ import inspect as _inspect
 import logging as _logging
 from importlib import import_module as _import_module
 from importlib.util import find_spec as _find_spec
-from contextlib import redirect_stderr as _redirect_stderr
 from sysconfig import get_config_var as _get_config_var
 
 
@@ -45,42 +46,24 @@ _is_dependency_available = any(
     for _module_name in ("eigenpy", "hppfcl", "pinocchio"))
 if not _is_boost_shared and _is_dependency_available:
     _logging.warning(
-        "Boost::Python not found on the system. Impossible to import "
-        "system-wide jiminy dependencies.")
+        "Boost::Python not found on the system. Importing bundled jiminy "
+        "dependencies instead of system-wide install as a fallback.")
 
-# Since Python >= 3.8, PATH and the current working directory are no longer
-# used for DLL resolution on Windows OS. One is expected to explicitly call
-# `os.add_dll_directory` instead.
-if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
+# The env variable PATH and the current working directory are ignored by
+# default for DLL resolution on Windows OS.
+if _sys.platform.startswith('win'):
     _os.add_dll_directory(_os.path.join(_os.path.dirname(__file__), "lib"))
     for path in _os.environ['PATH'].split(_os.pathsep):
         if _os.path.exists(path):
             _os.add_dll_directory(path)
 
-# Import eigenpy first since jiminy depends on it
-if _is_boost_shared and _find_spec("eigenpy") is not None:
-    # Module already available on the system
-    _import_module("eigenpy")
-else:
-    # Importing the embedded version as fallback
-    _sys.modules["eigenpy"] = _import_module(".".join((__name__, "eigenpy")))
-
-# Import core submodule.
-# For some reason, the serialization registration of pinocchio for hpp-fcl
-# `exposeFCL` is conflicting with the one implemented by jiminy. It is
-# necessary to import jiminy first to make it work.
-with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
-    from .core import *  # noqa: F403
-    from .core import __version__, __raw_version__
-
-# Import other dependencies to hide boost python converter errors
-with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
-    for _module_name in ("hppfcl", "pinocchio"):
-        if _is_boost_shared and _find_spec(_module_name) is not None:
-            _import_module(_module_name)
-        else:
-            _module = _import_module(".".join((__name__, _module_name)))
-            _sys.modules[_module_name] = _module
+# Import all dependencies in the right order
+for _module_name in ("eigenpy", "hppfcl", "pinocchio"):
+    if _is_boost_shared and _find_spec(_module_name) is not None:
+        _import_module(_module_name)
+    else:
+        _module = _import_module(".".join((__name__, _module_name)))
+        _sys.modules[_module_name] = _module
 
 # Register pinocchio_pywrap and submodules to avoid importing bindings twice,
 # which messes up with boost python converters.
@@ -93,6 +76,10 @@ for _module_name, _module_obj in _submodules:
     _module_sym_path = ".".join(('pinocchio', _module_name))
     _sys.modules[_module_sym_path] = _module_obj
 
+# Import core submodule
+from .core import *  # noqa: F403
+from .core import __version__, __raw_version__
+
 # Update core submodule to appear as member of current module
 __all__ = []
 for name in dir(core):
@@ -104,14 +91,20 @@ for name in dir(core):
 
 # Define helpers to build extension modules
 def get_cmake_module_path():
+    """ TODO: Write documentation.
+    """
     return _os.path.join(_os.path.dirname(__file__), "cmake")
 
 
 def get_include():
+    """ TODO: Write documentation.
+    """
     return _os.path.join(_os.path.dirname(__file__), "include")
 
 
 def get_libraries():
+    """ TODO: Write documentation.
+    """
     ver_short = '.'.join(__version__.split('.')[:2])
     lib_dir = _os.path.join(_os.path.dirname(__file__), "lib")
     libraries_fullpath = []

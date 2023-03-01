@@ -9,13 +9,7 @@
 
 #include <boost/optional.hpp>
 
-/* Note that it is necessary to import eigenpy to get access to the converters.
-   otherwise, the compilation will (sometimes) fail with a strange error message:
-
-   /usr/include/boost/python/detail/destroy.hpp:20:9: error: 'Eigen::MatrixBase<Derived>::~MatrixBase() ...' is protected within this context
-   20 |         p->~T(); */
-#include <eigenpy/eigenpy.hpp>
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Helpers.h"

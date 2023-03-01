@@ -1,5 +1,5 @@
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Project and library name
 project(hdf5_external)
@@ -28,10 +28,11 @@ externalproject_add(zlib_external
           -DSKIP_INSTALL_FILES=ON  # Disable install of manual and pkgconfig files
           -DSKIP_INSTALL_LIBRARIES=ON  # Do not install libraries automatically. It will be handled manually to avoid installing shared libs
           -DBUILD_SHARED_LIBS=OFF
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON
           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
-          -DCMAKE_C_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
-          -DCMAKE_C_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG}
+          -DCMAKE_C_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
+          -DCMAKE_C_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG_EXTERNAL}
           -DCMAKE_C_FLAGS_RELEASE:STRING=${CMAKE_CXX_FLAGS_RELEASE}
           -DCMAKE_C_FLAGS_RELWITHDEBINFO:STRING=${CMAKE_CXX_FLAGS_RELWITHDEBINFO}
           -Wno-dev  # Silent Cmake warnings about deprecated support of Cmake < 2.8.12
@@ -68,39 +69,33 @@ else()
 endif()
 
 # Pick different version of HDF5 depending on the platform:
-# macOS Universal Binaries is supported since 2021/02/07, github-311
-# 'hdf5-1_10_6' and 'hdf5_1_12-initial' are the latest versions not requiring CMake >= 3.12.
-if(CMAKE_VERSION VERSION_LESS "3.12")
-     set(HDF5_VERSION "hdf5_1_12-initial")
-else()
-     set(HDF5_VERSION "hdf5-1_12_1")
-endif()
+# macOS Universal Binaries is supported since 2021/02/07, github-311.
 
 # Download, build and install hdf5.
 externalproject_add(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/HDFGroup/hdf5.git
-     GIT_TAG           ${HDF5_VERSION}
+     GIT_TAG           hdf5-1_14_0
      GIT_SHALLOW       TRUE
      GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
 
      CMAKE_ARGS
           -DHDF5_ENABLE_DEV_WARNINGS=OFF
           -DHDF5_ENABLE_ALL_WARNINGS=OFF
+          -DHDF5_DISABLE_COMPILER_WARNINGS=ON
           -DHDF5_ENABLE_COVERAGE=OFF
           -DHDF5_ENABLE_USING_MEMCHECKER=OFF
-          -DHDF5_MEMORY_ALLOC_SANITY_CHECK=OFF
           -DHDF5_ENABLE_PREADWRITE=ON
           -DHDF5_ENABLE_DEPRECATED_SYMBOLS=ON
-          #-DHDF5_MINGW_STATIC_GCC_LIBS=OFF
+          -DHDF5_MINGW_STATIC_GCC_LIBS=OFF
           -DHDF5_BUILD_GENERATORS=OFF
           -DHDF5_ENABLE_TRACE=OFF
-          #-DHDF5_ENABLE_INSTRUMENT=OFF
+          -DHDF5_ENABLE_INSTRUMENT=OFF
           -DHDF5_ENABLE_EMBEDDED_LIBINFO=ON
           -DHDF5_ENABLE_HDFS=OFF
           -DHDF5_ENABLE_PARALLEL=OFF
           -DHDF5_ENABLE_THREADSAFE=OFF
-          #-DHDF5_ENABLE_MAP_API=OFF
-          #-DHDF5_BUILD_UTILS=OFF
+          -DHDF5_ENABLE_MAP_API=OFF
+          -DHDF5_BUILD_UTILS=OFF
           -DHDF5_BUILD_TOOLS=OFF
           -DHDF5_BUILD_EXAMPLES=OFF
           -DHDF5_BUILD_HL_LIB=OFF
@@ -116,21 +111,21 @@ externalproject_add(${PROJECT_NAME}
           -DZLIB_PACKAGE_NAME:STRING=NOT_FOUND  # Hack to avoid finding some zlib config files already installed and not skipping find_package(ZLIB)
           -DZLIB_ROOT:PATH=${CMAKE_INSTALL_PREFIX}
           -DZLIB_LIBRARY:PATH=${zlib_PATH}  # Using ZLIB_ROOT only is finding the shared lib instead of the static one
-          -DHDF5_DISABLE_COMPILER_WARNINGS=ON
-          -DHDF5_ENABLE_SYMBOLS=ON
+          -DHDF5_ENABLE_SYMBOLS=OFF
           -DHDF5_ENABLE_OPTIMIZATION=ON
           -DBUILD_TESTING=OFF
-          #-DBUILD_STATIC_LIBS=ON
+          -DBUILD_STATIC_LIBS=ON
           -DBUILD_SHARED_LIBS=OFF
           -DBUILD_STATIC_EXECS=OFF
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON
           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
-          -DCMAKE_C_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
-          -DCMAKE_C_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG}
+          -DCMAKE_C_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
+          -DCMAKE_C_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG_EXTERNAL}
           -DCMAKE_C_FLAGS_RELEASE:STRING=${CMAKE_CXX_FLAGS_RELEASE}
           -DCMAKE_C_FLAGS_RELWITHDEBINFO:STRING=${CMAKE_CXX_FLAGS_RELWITHDEBINFO}
-          -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
-          -DCMAKE_CXX_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG}
+          -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
+          -DCMAKE_CXX_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG_EXTERNAL}
           -DCMAKE_CXX_FLAGS_RELEASE:STRING=${CMAKE_CXX_FLAGS_RELEASE}
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING=${CMAKE_CXX_FLAGS_RELWITHDEBINFO}
           ${EXTERNALPROJECT_OSX_CONFIG}

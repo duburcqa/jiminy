@@ -2,7 +2,7 @@
 # added to the search path manually, or copied alonside this executable.
 
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Enable C++ language
 enable_language(CXX)
@@ -26,7 +26,6 @@ project(pip_double_pendulum VERSION 0.0)
 # Find libraries and headers
 # jiminy headers and library is provided with `pip install jiminy_py`
 find_package(jiminy REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem)
 
 # Make executables
 add_executable(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/double_pendulum.cc")
@@ -38,7 +37,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries
-target_link_libraries(${PROJECT_NAME} jiminy::core Boost::filesystem)
+target_link_libraries(${PROJECT_NAME} jiminy::core)
 
 # Install
 install(TARGETS ${PROJECT_NAME}

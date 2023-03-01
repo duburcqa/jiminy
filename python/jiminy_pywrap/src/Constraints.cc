@@ -6,7 +6,7 @@
 #include "jiminy/core/constraints/SphereConstraint.h"
 #include "jiminy/core/constraints/WheelConstraint.h"
 
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Functors.h"

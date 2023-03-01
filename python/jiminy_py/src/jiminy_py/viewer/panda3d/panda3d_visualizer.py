@@ -1,10 +1,16 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-name-in-module,attribute-defined-outside-init,invalid-name
 import io
 import os
 import re
 import sys
 import math
 import array
+import signal
 import warnings
+import importlib
+import threading
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from itertools import chain
@@ -15,6 +21,10 @@ from typing import (
 import numpy as np
 
 import simplepbr
+import direct.task.Task
+from direct.showbase.ShowBase import ShowBase
+from direct.gui.OnscreenImage import OnscreenImage
+from direct.gui.OnscreenText import OnscreenText
 from panda3d.core import (
     NodePath, Point3, Vec3, Vec4, Mat4, Quat, LQuaternion, Geom, GeomEnums,
     GeomNode, GeomTriangles, GeomVertexData, GeomVertexArrayFormat,
@@ -25,9 +35,6 @@ from panda3d.core import (
     CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
     ClockObject, GraphicsPipe, GraphicsOutput, GraphicsWindow,
     RenderModeAttrib, WindowProperties, FrameBufferProperties, loadPrcFileData)
-from direct.showbase.ShowBase import ShowBase
-from direct.gui.OnscreenImage import OnscreenImage
-from direct.gui.OnscreenText import OnscreenText
 
 import panda3d_viewer
 import panda3d_viewer.viewer
@@ -47,9 +54,10 @@ WINDOW_SIZE_DEFAULT = (600, 600)
 CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
 LEGEND_DPI = 400
-LEGEND_SCALE = 0.3
+LEGEND_SCALE_MAX = 0.42
+WATERMARK_SCALE_MAX = 0.2
 CLOCK_SCALE = 0.1
-WIDGET_MARGIN_REL = 0.05
+WIDGET_MARGIN_REL = 0.02
 
 PANDA3D_FRAMERATE_MAX = 40
 
@@ -57,6 +65,23 @@ PANDA3D_FRAMERATE_MAX = 40
 Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
 Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
 FrameType = Union[Tuple[Tuple3FType, Tuple4FType], np.ndarray]
+
+
+def _signal_guarded(signalnum: int,
+                    handler: Union[signal.Handlers, Callable]
+                    ) -> Union[signal.Handlers, Callable]:
+    """Guard `signal.signal` to make it a no-op outside of main thread instead
+    of raising an exception. This typically happens during async rendering.
+    """
+    if threading.current_thread() is threading.main_thread():
+        return signal.signal(signalnum, handler)
+    return signal.getsignal(signalnum)
+
+
+_signal_guarded_module = type(signal)(signal.__name__, signal.__doc__)
+_signal_guarded_module.__dict__.update(signal.__dict__)
+_signal_guarded_module.__dict__['signal'] = _signal_guarded
+direct.task.Task.signal = _signal_guarded_module
 
 
 def _sanitize_path(path: str) -> str:
@@ -90,7 +115,7 @@ def make_gradient_skybox(sky_color: Tuple3FType,
     """
     # Check validity of arguments
     assert subdiv >= 2, "Number of sub-division must be larger than 2."
-    assert 0.0 <= offset and offset <= 1.0, "Offset must be in [0.0, 1.0]."
+    assert 0.0 <= offset <= 1.0, "Offset must be in [0.0, 1.0]."
 
     # Define vertex format
     vformat = GeomVertexFormat()
@@ -195,7 +220,7 @@ def make_cone(num_sides: int = 16) -> Geom:
     # Note that by default, rendering is one-sided. It only renders the outside
     # face, that is defined based on the "winding" order of the vertices making
     # the triangles. For reference, see:
-    # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2
+    # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2  # noqa: E501  # pylint: disable=line-too-long
     prim = GeomTriangles(Geom.UH_static)
     prim.reserveNumVertices(6 * num_sides)
     for i in range(num_sides):
@@ -254,22 +279,25 @@ def make_heightmap(heightmap: np.ndarray) -> Geom:
 
 
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
-    def __init__(self, config: Optional[ViewerConfig] = None) -> None:
+    """ TODO: Write documentation.
+    """
+    def __init__(self,  # pylint: disable=super-init-not-called
+                 config: Optional[ViewerConfig] = None) -> None:
         # Enforce viewer configuration
         if config is None:
             config = ViewerConfig()
         config.set_window_size(*WINDOW_SIZE_DEFAULT)
         config.set_window_fixed(False)
-        config.enable_antialiasing(True, multisamples=2)
-        config.set_value('framebuffer-software', '0')
-        config.set_value('framebuffer-hardware', '0')
+        config.enable_antialiasing(True, multisamples=4)
+        config.set_value('framebuffer-software', False)
+        config.set_value('framebuffer-hardware', False)
         config.set_value('load-display', 'pandagl')
         config.set_value('aux-display',
                          'p3headlessgl'
                          '\naux-display pandadx9'
                          '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
-        config.set_value('sync-video', '0')
+        config.set_value('sync-video', False)
         config.set_value('default-near', 0.1)
         config.set_value('gl-version', '3 1')
         config.set_value('notify-level', 'fatal')
@@ -283,10 +311,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Initialize base implementation.
         # Note that the original constructor is by-passed on purpose.
-        ShowBase.__init__(self)
+        ShowBase.__init__(self)  # pylint: disable=non-parent-init-called
 
         # Monkey-patch task manager to ignore SIGINT from keyboard interrupt
-        def keyboardInterruptHandler(signalNumber, stackFrame):
+        def keyboardInterruptHandler(
+                *args: Any, **kwargs: Any  # pylint: disable=unused-argument
+                ) -> None:
             pass
 
         self.taskMgr.keyboardInterruptHandler = keyboardInterruptHandler
@@ -520,12 +550,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.buff.remove_display_region(self.offscreen_display_region)
             self.close_window(self.buff, keepCamera=False)
 
-        # Set offscreen buffer frame properties
+        # Set offscreen buffer frame properties.
         # Note that accumulator bits and back buffers is not supported by
         # resizeable buffers.
-        fbprops = FrameBufferProperties(self.win.getFbProperties())
-        fbprops.set_accum_bits(0)
-        fbprops.set_back_buffers(0)
+        # See https://github.com/panda3d/panda3d/issues/1121
+        fbprops = FrameBufferProperties()
+        fbprops.set_rgba_bits(8, 8, 8, 0)
+        fbprops.set_float_color(False)
+        fbprops.set_depth_bits(16)
+        fbprops.set_float_depth(True)
+        fbprops.set_multisamples(4)
 
         # Set offscreen buffer windows properties
         winprops = WindowProperties()
@@ -547,8 +581,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.winList.append(win)
 
         # Attach a texture as screenshot requires copying GPU data to RAM
-        texture = Texture()
-        self.buff.add_render_texture(texture, GraphicsOutput.RTM_copy_ram)
+        self.buff.add_render_texture(
+            Texture(), GraphicsOutput.RTM_triggered_copy_ram)
 
         # Create 3D camera region for the scene.
         # Set near distance of camera lens to allow seeing model from close.
@@ -710,13 +744,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.latitude_deg -= (y - self.last_mouse_y) * 0.2
 
             # Limit angles to [-180;+180] x [-90;+90]
-            if (self.longitude_deg > 180.0):
+            if self.longitude_deg > 180.0:
                 self.longitude_deg = self.longitude_deg - 360.0
-            if (self.longitude_deg < -180.0):
+            if self.longitude_deg < -180.0:
                 self.longitude_deg = self.longitude_deg + 360.0
-            if (self.latitude_deg > (90.0 - 0.001)):
+            if self.latitude_deg > (90.0 - 0.001):
                 self.latitude_deg = 90.0 - 0.001
-            if (self.latitude_deg < (-90.0 + 0.001)):
+            if self.latitude_deg < (-90.0 + 0.001):
                 self.latitude_deg = -90.0 + 0.001
 
             longitude = self.longitude_deg * np.pi / 180.0
@@ -752,6 +786,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # End task
         if task is not None:
             return task.cont
+        return None
 
     def _make_light_ambient(self, color: Tuple3FType) -> NodePath:
         """Patched to fix wrong color alpha.
@@ -885,10 +920,11 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     frame: Optional[FrameType] = None) -> None:
         """Patched to make sure node's name is valid and set the color scale.
         """
-        assert re.match(r'^[A-Za-z0-9_]+$', name), (
-            "Node's name is restricted to case-insensitive ASCII alphanumeric "
-            "string (including underscores).")
-        node.set_color_scale((1.2, 1.2, 1.2, 1.0))
+        if not re.match(r'^[A-Za-z0-9_]+$', name):
+            raise RuntimeError(
+                "Node's name restricted to case-insensitive ASCII "
+                "alphanumeric characters plus underscore.")
+        node.set_color_scale((*(3 * (1.2,)), 1.0))
         super().append_node(root_path, name, node, frame)
 
     def highlight_node(self, root_path: str, name: str, enable: bool) -> None:
@@ -944,7 +980,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_scale(radius, radius, length)
         self.append_node(root_path, name, node, frame)
 
-    def append_cylinder(self,
+    def append_cylinder(self,  # pylint: disable=arguments-renamed
                         root_path: str,
                         name: str,
                         radius: float,
@@ -1077,15 +1113,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         width_rel, height_rel = width / width_win, height / height_win
 
         # Make sure it does not take too much space of window
-        if width_rel > 0.2:
-            width_rel, height_rel = 0.2, height_rel / width_rel * 0.2
-        if height_rel > 0.2:
-            width_rel, height_rel = width_rel / height_rel * 0.2, 0.2
+        if width_rel > WATERMARK_SCALE_MAX:
+            width_rel = WATERMARK_SCALE_MAX
+            height_rel = WATERMARK_SCALE_MAX * height_rel / width_rel
+        if height_rel > WATERMARK_SCALE_MAX:
+            height_rel = WATERMARK_SCALE_MAX
+            width_rel = WATERMARK_SCALE_MAX * width_rel / height_rel
 
         # Create image watermark on main window
         self._watermark = OnscreenImage(image=img_fullpath,
                                         parent=self.a2dBottomLeft,
                                         scale=(width_rel, 1, height_rel))
+        self._watermark.set_transparency(TransparencyAttrib.MAlpha)
 
         # Add it on secondary window
         self.offA2dBottomLeft.node().add_child(self._watermark.node())
@@ -1102,14 +1141,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                        Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
         # Make sure plot submodule is available
         try:
-            import matplotlib.pyplot as plt
+            # pylint: disable=import-outside-toplevel
+            from matplotlib import cbook
             from matplotlib.patches import Patch
         except ImportError:
-            raise ImportError(
-                "Method not supported. Please install 'jiminy_py[plot]'.")
+            warnings.warn(
+                "Method not supported. Please install 'jiminy_py[plot]'.",
+                category=UserWarning, stacklevel=2)
+            return
 
-        # Remove existing watermark, if any
+        # Remove existing legend, if any
         if self._legend is not None:
+            self.offA2dBottomCenter.node().remove_child(self._legend.node())
             self._legend.remove_node()
             self._legend = None
 
@@ -1117,87 +1160,90 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if items is None or not items:
             return
 
-        # Switch to non-interactive backend to avoid hanging for some reason
-        plt_backend = plt.get_backend()
-        plt.switch_backend("Agg")
+        # Create non-interactive headless figure unrelated to current backend
+        width_win, height_win = self.getSize()
+        plt_agg = importlib.import_module(cbook._backend_module_name('Agg'))
+        manager = plt_agg.new_figure_manager(
+            num=0, figsize=(width_win / LEGEND_DPI, height_win / LEGEND_DPI),
+            dpi=LEGEND_DPI)
+        fig = manager.canvas.figure
+        ax = fig.subplots()
 
-        # Create empty figure with the legend
+        # Render the legend
         color_default = (0.0, 0.0, 0.0, 1.0)
         handles = [Patch(color=c or color_default, label=t) for t, c in items]
-        fig, ax = plt.subplots()
         legend = ax.legend(handles=handles,
                            ncol=len(handles),
                            framealpha=1,
                            frameon=True)
         ax.set_axis_off()
-
-        # Render the legend
         fig.draw(renderer=fig.canvas.get_renderer())
 
         # Compute bbox size to be power of 2 for software rendering.
         bbox = legend.get_window_extent().padded(2)
         bbox_inches = bbox.transformed(fig.dpi_scale_trans.inverted())
-        bbox_pixels = np.array(bbox_inches.extents) * LEGEND_DPI
-        bbox_pixels = np.floor(bbox_pixels)
-        bbox_pixels[2:] = bbox_pixels[:2] + 2 ** np.ceil(np.log(
-            bbox_pixels[2:] - bbox_pixels[:2]) / np.log(2.0)) + 0.1
+        bbox_pixels = LEGEND_DPI * np.array(bbox_inches.extents)
+        bbox_size_2 = (2 ** np.ceil(
+            np.log2(bbox_pixels[2:] - bbox_pixels[:2]))).astype(dtype=int)
+        bbox_size_delta = bbox_size_2 - (bbox_pixels[2:] - bbox_pixels[:2])
+        bbox_pixels[:2] = np.floor(bbox_pixels[:2] - 0.5 * bbox_size_delta)
+        bbox_pixels[2:] = bbox_pixels[:2] + bbox_size_2 + 0.1
         bbox_inches = bbox.from_extents(bbox_pixels / LEGEND_DPI)
 
         # Export the figure, limiting the bounding box to the legend area,
         # slightly extended to ensure the surrounding rounded corner box of
         # is not cropped. Transparency is enabled, so it is not an issue.
         io_buf = io.BytesIO()
-        fig.savefig(io_buf, format='rgba', dpi=LEGEND_DPI, transparent=True,
-                    bbox_inches=bbox_inches)
+        fig.savefig(
+            io_buf, format='rgba', dpi='figure', transparent=True,
+            bbox_inches=bbox_inches)
         io_buf.seek(0)
         img_raw = io_buf.getvalue()
-        width, height = map(int, bbox_pixels[2:] - bbox_pixels[:2])
 
         # Delete the legend along with its temporary figure
-        plt.close(fig)
-
-        # Restore original backend
-        plt.switch_backend(plt_backend)
+        manager.destroy()
 
         # Create texture in which to render the image buffer
         tex = Texture()
         tex.setup2dTexture(
-            width, height, Texture.T_unsigned_byte, Texture.F_rgba8)
+            *bbox_size_2, Texture.T_unsigned_byte, Texture.F_rgba8)
         tex.set_ram_image_as(img_raw, 'rgba')
 
-        # Compute relative image size
-        width_win, height_win = self.getSize()
-        imgAspectRatio = width / height
-        width_rel = LEGEND_SCALE * width / width_win
-        height_rel = LEGEND_SCALE * height / height_win
-        if height_rel * imgAspectRatio < width_rel:
-            width_rel = height_rel * imgAspectRatio
-        else:
-            height_rel = width_rel / imgAspectRatio
+        # Compute relative image size, ignoring the real width of the
+        # texture since it has transparent background.
+        # We assume that the width of the window is the limiting dimension.
+        width = int(bbox_pixels[2] - bbox_pixels[0])
+        legend_scale_rel = min(
+            (1.0 - 2 * WIDGET_MARGIN_REL) * width_win / width,
+            LEGEND_SCALE_MAX) * width / width_win
+        width_rel = legend_scale_rel * (tex.x_size / width)
+        height_rel = width_rel * (tex.y_size / tex.x_size)
 
         # Create legend on main window
         self._legend = OnscreenImage(image=tex,
                                      parent=self.a2dBottomCenter,
                                      scale=(width_rel, 1, height_rel))
+        self._legend.set_transparency(TransparencyAttrib.MAlpha)
 
-        # Add it on secondary window
+        # Add legend on offscreen window
         self.offA2dBottomCenter.node().add_child(self._legend.node())
 
         # Move the legend in top left corner
         self._legend.set_pos(0, 0, WIDGET_MARGIN_REL + height_rel)
 
-        # Flip the vertical axis and enable transparency
-        self._legend.set_transparency(TransparencyAttrib.MAlpha)
+        # Flip the vertical axis
         if self.buff.inverted:
             self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
     def set_clock(self, time: Optional[float] = None) -> None:
         # Make sure plot submodule is available
         try:
+            # pylint: disable=import-outside-toplevel
             from matplotlib import font_manager
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
-                "Method not supported. Please install 'jiminy_py[plot]'.")
+                "Method not supported. Please install 'jiminy_py[plot]'."
+                ) from e
 
         # Remove existing watermark, if any
         if time is None:
@@ -1265,6 +1311,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 node.clear_color()
             else:
                 node.set_color(Vec4(*color))
+                node.set_color_scale(
+                    4 * (1.0,) if texture_path else (*(3 * (1.2,)), 1.0))
 
                 material = Material()
                 material.set_ambient(Vec4(*color))
@@ -1273,7 +1321,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 material.set_roughness(0.4)
                 node.set_material(material, 1)
 
-                if color[3] < 1:
+                if color[3] < 1.0:
                     node.set_transparency(TransparencyAttrib.M_alpha)
                 else:
                     node.set_transparency(TransparencyAttrib.M_none)
@@ -1398,6 +1446,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Refresh the scene to make sure it is perfectly up-to-date.
         # It will take into account the updated position of the camera.
+        self.buff.trigger_copy()
         self.graphics_engine.render_frame()
 
         # Capture frame as image
@@ -1441,6 +1490,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     structured `np.ndarray` of uint8 with dimensions [H, W, D].
         """
         # Refresh the scene
+        self.buff.trigger_copy()
         self.graphics_engine.render_frame()
 
         # Get frame as raw texture
@@ -1468,9 +1518,11 @@ panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
 
 
 class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
+    """ TODO: Write documentation.
+    """
     def __getstate__(self) -> dict:
         """Required for Windows and OS X support, which use spawning instead of
-        forking to create subprocesses, requiring pickling of process instance.
+        forking to create subprocesses, requiring pickling objects.
         """
         return vars(self)
 
@@ -1480,17 +1532,26 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
         vars(self).update(state)
 
     def __getattr__(self, name: str) -> Callable:
-        """Patched to avoid deadlock when closing window.
+        """Patched to avoid deadlock after closing main window, and to discard
+        any incoming message before sending request since it is probably coming
+        from a ealier request that has been keyboard-interrupted.
         """
-        def _send(*args, **kwargs):
+        def _send(*args: Any, **kwargs: Any) -> Any:
             if self._host_conn.closed:
-                raise ViewerClosedError('User closed the main window')
+                raise ViewerClosedError(
+                    "Viewer not available. Maybe the graphical window has "
+                    "been closed.")
+            if self._host_conn.poll(0.0):
+                try:
+                    reply = self._host_conn.recv()
+                except EOFError:
+                    pass
             self._host_conn.send((name, args, kwargs))
-            try:
+            if self._host_conn.poll(10.0):
                 reply = self._host_conn.recv()
-            except EOFError:
-                # This exception may arise if the last command was interrupted
-                reply = self._host_conn.recv()
+            else:
+                # Something is wrong... aborting to prevent potential deadlock
+                return None
             if isinstance(reply, Exception):
                 if isinstance(reply, ViewerClosedError):
                     # Close pipe to make sure it does not get used in future
@@ -1510,11 +1571,13 @@ panda3d_viewer.viewer_proxy.ViewerAppProxy = Panda3dProxy  # noqa
 
 
 class Panda3dViewer(panda3d_viewer.viewer.Viewer):
+    """ TODO: Write documentation.
+    """
     def __getattr__(self, name: str) -> Any:
         return getattr(self.__getattribute__('_app'), name)
 
     def __dir__(self) -> Iterable[str]:
-        return chain(super().__dir__(), self._app.__dir__())
+        return chain(super().__dir__(), dir(Panda3dApp))
 
     def set_material(self, *args: Any, **kwargs: Any) -> None:
         self._app.set_material(*args, **kwargs)
@@ -1542,8 +1605,8 @@ class Panda3dVisualizer(BaseVisualizer):
     Based on https://github.com/stack-of-tasks/pinocchio/blob/master/bindings/python/pinocchio/visualize/panda3d_visualizer.py
     Copyright (c) 2014-2020, CNRS
     Copyright (c) 2018-2020, INRIA
-    """  # noqa: E501
-    def initViewer(self,
+    """  # noqa: E501  # pylint: disable=line-too-long
+    def initViewer(self,  # pylint: disable=arguments-differ,unused-argument
                    viewer: Optional[Union[Panda3dViewer, Panda3dApp]] = None,
                    loadModel: bool = False,
                    **kwargs: Any) -> None:
@@ -1559,7 +1622,7 @@ class Panda3dVisualizer(BaseVisualizer):
             self.viewer = Panda3dViewer(window_title="jiminy")
 
         if loadModel:
-            self.loadViewerModel(rootNodeName=self.model.name)
+            self.loadViewerModel(root_node_name=self.model.name)
 
     def getViewerNodeName(self,
                           geometry_object: pin.GeometryObject,
@@ -1568,8 +1631,8 @@ class Panda3dVisualizer(BaseVisualizer):
         """
         if geometry_type is pin.GeometryType.VISUAL:
             return self.visual_group, geometry_object.name
-        elif geometry_type is pin.GeometryType.COLLISION:
-            return self.collision_group, geometry_object.name
+        # if geometry_type is pin.GeometryType.COLLISION:
+        return self.collision_group, geometry_object.name
 
     def loadViewerGeometryObject(self,
                                  geometry_object: pin.GeometryObject,
@@ -1688,12 +1751,12 @@ class Panda3dVisualizer(BaseVisualizer):
         # Set material
         self.viewer.set_material(*node_name, color, texture_path)
 
-    def loadViewerModel(self,
-                        rootNodeName: str,
+    def loadViewerModel(self,  # pylint: disable=arguments-differ
+                        root_node_name: str,
                         color: Optional[np.ndarray] = None) -> None:
         """Create a group of nodes displaying the robot meshes in the viewer.
         """
-        self.root_name = rootNodeName
+        self.root_name = root_node_name
 
         # Load robot visual meshes
         self.visual_group = "/".join((self.root_name, "visuals"))
@@ -1711,7 +1774,8 @@ class Panda3dVisualizer(BaseVisualizer):
                 collision, pin.GeometryType.COLLISION, color)
         self.displayCollisions(False)
 
-    def display(self, q: np.ndarray) -> None:
+    def display(self,  # pylint: disable=signature-differs
+                q: np.ndarray) -> None:
         """Display the robot at configuration q in the viewer by placing all
         the bodies."""
         pin.forwardKinematics(self.model, self.data, q)

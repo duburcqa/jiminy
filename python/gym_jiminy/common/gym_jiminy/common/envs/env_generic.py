@@ -24,7 +24,8 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ForceSensor as force,
                             ImuSensor as imu)
 from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
-                                     check_display_available,
+                                     is_display_available,
+                                     interactive_mode,
                                      get_default_backend,
                                      Viewer)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
@@ -130,9 +131,25 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
+        # Configure default camera pose if not already the case
+        if "camera_xyzrpy" not in self.simulator.viewer_kwargs:
+            if self.robot.has_freeflyer:
+                # Get root frame name.
+                # The first and second frames are respectively "universe" no
+                # matter if the robot has a freeflyer or not, and the second
+                # one is the freeflyer joint "root_joint" if any.
+                root_name = self.robot.pinocchio_model.frames[2].name
+
+                # Note that the actual signature is hacked to set relative pose
+                self.simulator.viewer_kwargs["camera_xyzrpy"] = (
+                    *DEFAULT_CAMERA_XYZRPY_REL, root_name)
+            else:
+                self.simulator.viewer_kwargs["camera_xyzrpy"] = (
+                    (0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi))
+
         # Set the available rendering modes
         self.metadata['render.modes'] = ['rgb_array']
-        if check_display_available():
+        if is_display_available():
             self.metadata['render.modes'].append('human')
 
         # Define some proxies for fast access
@@ -727,7 +744,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param action: Action to perform. `None` to not update the action.
 
         :returns: Next observation, reward, status of the episode (done or
-                  not), and a dictionary of extra information
+                  not), plus some of extra information
         """
         # Make sure a simulation is already running
         if not self.simulator.is_simulation_running:
@@ -827,18 +844,20 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param mode: Rendering mode. It can be either 'human' to display the
                      current simulation state, or 'rgb_array' to return a
                      snapshot as an RGB array without showing it on the screen.
-                     Optional: 'human' by default if available, 'rgb_array'
-                     otherwise.
+                     Optional: 'human' by default if available with the current
+                     backend (or default if none), 'rgb_array' otherwise.
         :param kwargs: Extra keyword arguments to forward to
                        `jiminy_py.simulator.Simulator.render` method.
 
         :returns: RGB array if 'mode' is 'rgb_array', None otherwise.
         """
         # Handling of default rendering mode
+        viewer_backend = (self.simulator.viewer or Viewer).backend
         if mode is None:
-            # 'rgb_array' by default if the current for future backend is
+            # 'rgb_array' by default if the backend is or will be
             # 'panda3d-sync', otherwise 'human' if available.
-            backend = (kwargs.get('backend', self.simulator.viewer_backend) or
+            backend = (kwargs.get('backend') or viewer_backend or
+                       self.simulator.viewer_kwargs.get('backend') or
                        get_default_backend())
             if backend == "panda3d-sync":
                 mode = 'rgb_array'
@@ -847,11 +866,22 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             else:
                 mode = 'rgb_array'
 
+        # Make sure that the request makes sense
+        if mode == 'human' and {
+                **kwargs, **self.simulator.viewer_kwargs
+                }.get('backend') == 'panda3d-sync':
+            raise ValueError(
+                "mode='human' is incompatible with backend='panda3d-sync'.")
+
         # Make sure the rendering mode is valid.
         # Note that it is not possible to raise an exception, because the
         # default is overwritten by gym wrappers by mistake to 'human'.
         if mode not in self.metadata['render.modes']:
             mode = 'rgb_array'
+
+        # Set the available rendering modes
+        if mode == 'human' and viewer_backend == "panda3d-sync":
+            Viewer.close()
 
         # Call base implementation
         return self.simulator.render(
@@ -881,7 +911,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # individual scalar data over time to be displayed to the same subplot.
         t = log_vars["Global.Time"]
         tab_data = {}
-        action_fieldnames = self.log_fieldnames.get("action", None)
+        action_fieldnames = self.log_fieldnames.get("action")
         if action_fieldnames is None:
             # It was impossible to register the action to the telemetry, likely
             # because of incompatible dtype. Early return without adding tab.
@@ -919,26 +949,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Note that backend is closed automatically is there is no viewer
         # backend available at this point, to reduce memory pressure, but it
         # will take time to restart it systematically for every recordings.
-        if kwargs.get('record_video_path', None) is not None:
+        if kwargs.get('record_video_path') is not None:
             kwargs['mode'] = 'rgb_array'
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Stop any running simulation before replay if `is_done` is True
         if self.simulator.is_simulation_running and self.is_done():
             self.simulator.stop()
-
-        # Set default camera pose if viewer not already available
-        if not self.simulator.is_viewer_available and \
-                self.robot.has_freeflyer and not Viewer.has_gui():
-            # Get root frame name.
-            # The first and second frames are respectively "universe" no matter
-            # if the robot has a freeflyer or not, and the second one is the
-            # freeflyer joint "root_joint" if any.
-            root_name = self.robot.pinocchio_model.frames[2].name
-
-            # Set default camera pose options.
-            # Note that the actual signature is hacked to set relative pose.
-            kwargs["camera_xyzrpy"] = (*DEFAULT_CAMERA_XYZRPY_REL, root_name)
 
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose,
@@ -1052,12 +1069,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
     @staticmethod
     def evaluate(env: Union["BaseJiminyEnv", gym.Wrapper],
-                 policy_fn: Callable[
-                     [DataNested, Optional[float]], DataNested],
+                 policy_fn: Callable[[
+                    DataNested, Optional[float], bool, Dict[str, Any]
+                    ], DataNested],
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
-                 enable_replay: bool = True,
+                 enable_replay: Optional[bool] = None,
                  **kwargs: Any) -> List[Dict[str, Any]]:
         r"""Evaluate a policy on the environment over a complete episode.
 
@@ -1071,7 +1089,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 following signature (**rew** = None at reset):
 
             | policy_fn\(**obs**: DataNested,
-            |            **reward**: Optional[float]
+            |            **reward**: Optional[float],
+            |            **done**: bool,
+            |            **info**: Dict[str, Any]
             |            \) -> DataNested  # **action**
         :param seed: Seed of the environment to be used for the evaluation of
                      the policy.
@@ -1085,10 +1105,17 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param enable_replay: Whether to enable replay of the simulation, and
                               eventually recording if the extra
                               keyword argument `record_video_path` is provided.
-                              Optional: Enabled by default.
+                              Optional: Enabled by default if display is
+                              available, disabled otherwise.
         :param kwargs: Extra keyword arguments to forward to the `replay`
                        method if replay is requested.
         """
+        # Handling of default arguments
+        if enable_replay is None:
+            enable_replay = (
+                (Viewer.backend or get_default_backend()) != "panda3d-sync" or
+                interactive_mode() >= 2)
+
         # Get unwrapped environment
         if isinstance(env, gym.Wrapper):
             # Make sure the unwrapped environment derive from this class
@@ -1105,18 +1132,19 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Initialize the simulation
         obs = env.reset()
-        reward = None
+        reward, done = None, False
+        info: Dict[str, Any] = {}
 
         # Run the simulation
+        info_episode = []
         try:
-            info_episode = []
-            done = False
             while not done:
-                action = policy_fn(obs, reward)
+                action = policy_fn(obs, reward, done, info)
                 obs, reward, done, info = env.step(action)
                 info_episode.append(info)
                 if done or (horizon is not None and env.num_steps > horizon):
                     break
+            env.stop()
         except KeyboardInterrupt:
             pass
 
@@ -1135,7 +1163,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 env.replay(**kwargs)
             except Exception as e:  # pylint: disable=broad-except
                 # Do not fail because of replay/recording exception
-                logger.warn(str(e))
+                logger.warn("%s", e)
 
         return info_episode
 

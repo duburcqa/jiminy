@@ -1,171 +1,79 @@
-import os
-import sys
-import time
-import logging
-import signal
-import psutil
-import pathlib
+
+""" TODO: Write documentation.
+"""
 import asyncio
+import signal
 import subprocess
 import multiprocessing
 import multiprocessing.managers
-from pathlib import Path
-from ctypes import c_char_p
+import os
+import time
 from contextlib import redirect_stderr
-from typing import Awaitable, Any, Optional
+from ctypes import c_char_p
+from pathlib import Path
+from typing import Any, Optional
 
-from .utilities import interactive_mode
+import psutil
 
-
-PYPPETEER_STARTUP_TIMEOUT = 300.0  # 5min to download chrome (~150Mo)
-PYPPETEER_REQUEST_TIMEOUT = 40.0
-
-
-if interactive_mode() == 4:
-    # Must overload 'chromium_executable' for Google Colaboratory to
-    # the native browser instead: "/usr/lib/chromium-browser/chromium-browser".
-    # Note that the downside is that chrome must be installed manually.
-    import pyppeteer.chromium_downloader
-    pyppeteer.chromium_downloader.chromium_executable = \
-        lambda: Path("/usr/lib/chromium-browser/chromium-browser")
-    if not pyppeteer.chromium_downloader.check_chromium():
-        logging.warning(
-            "Chrome must be installed manually on Google Colab. It must be "
-            "done using '!apt install chromium-chromedriver'.")
-else:
-    # Must use a recent release that supports webgl rendering with hardware
-    # acceleration. It speeds up rendering at least by a factor 5 using on
-    # a midrange dedicated GPU.
-    os.environ['PYPPETEER_CHROMIUM_REVISION'] = '943836'
-
-    # Disable certificate for downloading chromium for old pyppeteer versions
-    os.environ['PYPPETEER_DOWNLOAD_HOST'] = 'http://storage.googleapis.com'
-    import pyppeteer
-    import pyppeteer.chromium_downloader
-    if (not pyppeteer.chromium_downloader.check_chromium() and
-            int(pyppeteer.__version__[0]) < 1):
-        logging.warning("Disabling certificate check to download chromium.")
+from playwright.sync_api import sync_playwright, Page, Error
+from playwright._impl._driver import compute_driver_executable, get_driver_env
 
 
-# `requests_html` must be imported after setting the chromium release to be
-# used because it is importing `pyppeteer` itself.
-from requests_html import HTMLSession, HTMLResponse
+PLAYWRIGHT_DOWNLOAD_TIMEOUT = 180.0  # 3min to download browser (~130Mo)
+PLAYWRIGHT_START_TIMEOUT = 40000.0   # 40s
 
-# ==================== Monkey-patch pyppeteer ============================
-
-from pyppeteer.errors import NetworkError, BrowserError
-from pyppeteer.connection import (
-    Connection, logger, logger_connection, logger_session)
-from pyppeteer.browser import Browser
-from pyppeteer.launcher import Launcher, get_ws_endpoint
+WINDOW_SIZE_DEFAULT = (600, 600)
 
 
-# Disable pyppeteer logger(s)
-logger.disabled = True
-logger_connection.disabled = True
-logger_session.disabled = True
+# ============ Javascript routines ============
+
+def _stop_animate(client: Page) -> None:
+    """ TODO: Write documentation.
+    """
+    client.evaluate("""
+        () => {
+            stop_animate();
+        }
+    """)
 
 
-# Make sure raise SIGINT does not kill chrome pyppeteer browser backend
-# automatically, so that it allows a closing handle to be manually registered.
-# Note that only "egl" webgl renderer supports hardware acceleration in
-# headless mode without X server on Linux. Moreover, headless mode with
-# hardware acceleration enables seems to crash Chrome on Windows. If so, it can
-# be disable by adding the extra command '"--disable-gpu"'.
-async def launch(self) -> Browser:
-    """Start chrome process and return `Browser` object."""
-    self.chromeClosed = False
-    self.connection = None
-
-    options = dict()
-    options['env'] = self.env
-    cmd = self.cmd + [
-        "--enable-webgl",
-        "--use-gl=egl",
-        "--disable-gpu-vsync",
-        "--ignore-gpu-blacklist",
-        "--ignore-certificate-errors",
-        "--disable-infobars",
-        "--disable-breakpad",
-        "--disable-setuid-sandbox",
-        "--proxy-server='direct://'",
-        "--proxy-bypass-list=*"]
-    if "--disable-gpu" in cmd:
-        cmd.remove("--disable-gpu")
-
-    if not self.dumpio:
-        options['stderr'] = subprocess.DEVNULL
-    if sys.platform.startswith('win'):
-        startupflags = subprocess.CREATE_NEW_PROCESS_GROUP
-        if sys.version_info >= (3, 7):
-            startupflags |= (subprocess.DETACHED_PROCESS |
-                             subprocess.HIGH_PRIORITY_CLASS)
-        self.proc = subprocess.Popen(
-            cmd, **options, creationflags=startupflags, shell=False)
-    else:
-        def proc_setup():
-            os.setpgrp()
-            os.nice(20)
-
-        self.proc = subprocess.Popen(
-            cmd, **options, preexec_fn=proc_setup, shell=False)
-
-    self.browserWSEndpoint = get_ws_endpoint(self.url)
-    self.connection = Connection(self.browserWSEndpoint, self._loop)
-    browser = await Browser.create(
-        self.connection,
-        [],
-        self.ignoreHTTPSErrors,
-        self.defaultViewport,
-        self.proc,
-        self.killChrome)
-    await self.ensureInitialPage(browser)
-    return browser
-Launcher.launch = launch  # noqa
-
-
-# ============ Asynchronous Javascript routines ============
-
-async def capture_frame_async(client: HTMLResponse,
-                              width: int,
-                              height: int) -> Awaitable[Any]:
+def _capture_frame(client: Page, width: int, height: int) -> Any:
     """Send a javascript command to the hidden browser to capture frame, then
     wait for it (since it is async).
     """
-    _width = client.html.page.viewport['width']
-    _height = client.html.page.viewport['height']
+    _width, _height = (client.viewport_size[e] for e in ('width', 'height'))
     if not width > 0:
         width = _width
     if not height > 0:
         height = _height
     if _width != width or _height != height:
-        await client.html.page.setViewport(
-            {'width': width, 'height': height})
-    return await client.html.page.evaluate("""
+        client.set_viewport_size({"width": width, "height": height})
+    return client.evaluate("""
         () => {
             return viewer.capture_image();
         }
     """)
 
 
-async def start_video_recording_async(client: HTMLResponse,
-                                      fps: int,
-                                      width: int,
-                                      height: int) -> Awaitable[None]:
-    await client.html.page.setViewport(
-            {'width': width, 'height': height})
-    await client.html.page.evaluate(f"""
+def _start_video_recording(
+        client: Page, fps: int, width: int, height: int) -> None:
+    """ TODO: Write documentation.
+    """
+    client.set_viewport_size({'width': width, 'height': height})
+    client.evaluate(f"""
         () => {{
             viewer.animator.capturer = new WebMWriter({{
-                quality: 0.99999,  // Lossless codex VP8L is not supported
+                quality: 0.99,  // Lossless codex VP8L is not supported
                 frameRate: {fps}
             }});
         }}
     """)
 
 
-async def add_video_frame_async(client: HTMLResponse) -> Awaitable[None]:
-    await client.html.page.evaluate("""
+def _add_video_frame(client: Page) -> None:
+    """ TODO: Write documentation.
+    """
+    client.evaluate("""
         () => {
             captureFrameAndWidgets(viewer).then(function(canvas) {
                 viewer.animator.capturer.addFrame(canvas);
@@ -174,24 +82,24 @@ async def add_video_frame_async(client: HTMLResponse) -> Awaitable[None]:
     """)
 
 
-async def stop_and_save_video_async(client: HTMLResponse,
-                                    path: str) -> Awaitable[None]:
-    directory = os.path.dirname(path)
-    filename = os.path.splitext(os.path.basename(path))[0]
-    await client.html.page._client.send(
-        'Page.setDownloadBehavior',
-        {'behavior': 'allow', 'downloadPath': directory})
-    await client.html.page.evaluate(f"""
-        () => {{
-            viewer.animator.capturer.complete().then(function(blob) {{
-                const a = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                a.href = url;
-                a.download = "{filename}";
-                a.click();
-            }});
-        }}
-    """)
+def _stop_and_save_video(client: Page, path: Path) -> None:
+    """ TODO: Write documentation.
+    """
+    # Start waiting for the download
+    with client.expect_download() as download_info:
+        client.evaluate(f"""
+            () => {{
+                viewer.animator.capturer.complete().then(function(blob) {{
+                    const a = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    a.href = url;
+                    a.download = "{path.name}";
+                    a.click();
+                }});
+            }}
+        """)
+    # Save downloaded file
+    download_info.value.save_as(path)
 
 
 # ============ Meshcat recorder multiprocessing worker ============
@@ -199,13 +107,8 @@ async def stop_and_save_video_async(client: HTMLResponse,
 def meshcat_recorder(meshcat_url: str,
                      request_shm: multiprocessing.Value,
                      message_shm: multiprocessing.Value) -> None:
-    # Raise exception is Python is not installed properly
-    if sys.platform.startswith('win') and "WindowsApps" in sys.executable:
-        raise RuntimeError(
-            "Python installed from Microsoft Store is not compatible with "
-            "pyppeteer auto-install backend chromium procedure. Please "
-            "re-install Python manually to be able to use Meshcat recorder.")
-
+    """ TODO: Write documentation.
+    """
     # Do not catch signal interrupt automatically, to avoid killing meshcat
     # server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -214,72 +117,97 @@ def meshcat_recorder(meshcat_url: str,
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    # Open a Meshcat client in background in a hidden chrome browser instance
-    session = HTMLSession()
-    client = session.get(meshcat_url)
+    # Download browser if necessary
     try:
-        client.html.render(keep_page=True)
-        message_shm.value = f"{session._browser.process.pid}"
-    except BrowserError as e:
+        subprocess.run(
+            [str(compute_driver_executable()), "install", "chromium"],
+            timeout=PLAYWRIGHT_DOWNLOAD_TIMEOUT,
+            env=get_driver_env(),
+            check=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError("Impossible to download browser.") from e
+
+    # Create headless browser in background and connect to Meshcat
+    browser = None
+    playwright = sync_playwright().start()
+    try:
+        with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
+            browser = playwright.chromium.launch(
+                headless=True,
+                handle_sigint=False,
+                args=[
+                    "--enable-webgl",
+                    "--enable-unsafe-webgpu",
+                    "--enable-features=Vulkan,UseSkiaRenderer",
+                    "--use-vulkan=swiftshader",
+                    "--use-angle=vulkan",
+                    "--use-gl=egl",
+                    # "--use-gl=swiftshader",
+                    "--disable-gpu-vsync",
+                    "--ignore-gpu-blacklist"
+                ],
+                timeout=PLAYWRIGHT_START_TIMEOUT)
+        client = browser.new_page(
+            viewport=dict(zip(("width", "height"), WINDOW_SIZE_DEFAULT)),
+            java_script_enabled=True,
+            accept_downloads=True)
+        client.goto(
+            meshcat_url, wait_until="load", timeout=PLAYWRIGHT_START_TIMEOUT)
+        message_shm.value = str(
+            browser._impl_obj._browser_type._connection._transport._proc.pid)
+    except Error as e:
         request_shm.value = "quit"
         message_shm.value = str(e)
 
     # Stop the animation loop by default, since it is not relevant for
     # recording only
     if request_shm.value != "quit":
-        async def stop_animate_async(client):
-            await client.html.page.evaluate("""
-                () => {
-                    stop_animate();
-                }
-            """)
-        loop.run_until_complete(stop_animate_async(client))
+        _stop_animate(client)
 
     # Infinite loop, waiting for requests
     try:
         while request_shm.value != "quit":
             request = request_shm.value
             if request != "":
+                # pylint: disable=broad-exception-caught
                 args = map(str.strip, message_shm.value.split("|"))
-                if request == "take_snapshot":
-                    width, height = map(int, args)
-                    coro = capture_frame_async(client, width, height)
-                elif request == "start_record":
-                    fps, width, height = map(int, args)
-                    coro = start_video_recording_async(
-                        client, fps, width, height)
-                elif request == "add_frame":
-                    coro = add_video_frame_async(client)
-                elif request == "stop_and_save_record":
-                    (path,) = args
-                    coro = stop_and_save_video_async(client, path)
-                else:
-                    continue
+                output = None
                 try:
-                    output = loop.run_until_complete(coro)
-                    if output is not None:
-                        message_shm.value = output
+                    if request == "take_snapshot":
+                        width, height = map(int, args)
+                        output = _capture_frame(client, width, height)
+                    elif request == "start_record":
+                        fps, width, height = map(int, args)
+                        _start_video_recording(client, fps, width, height)
+                    elif request == "add_frame":
+                        _add_video_frame(client)
+                    elif request == "stop_and_save_record":
+                        (path,) = args
+                        _stop_and_save_video(client, Path(path))
                     else:
-                        message_shm.value = ""
+                        continue
+                    message_shm.value = output if output is not None else ""
+                    request_shm.value = ""
                 except Exception as e:
                     message_shm.value = str(e)
-                    request_shm.value = "quit"
-                else:
-                    request_shm.value = ""
-    except (ConnectionError, NetworkError):
+                    break
+    except (ConnectionError, Error):
         pass
-    with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
-        session.close()
-    try:
-        message_shm.value = ""
-        request_shm.value = ""
-    except ConnectionError:
-        pass
+    if browser is not None:
+        with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
+            try:
+                browser.close()
+            except Error:
+                pass
 
 
 # ============ Meshcat recorder client ============
 
-def manager_process_startup():
+def _manager_process_startup():
+    """Required for Windows and OS X support, which use spawning instead of
+    forking to create subprocesses, requiring passing pickle-compliant
+    objects, and therefore prohibiting the use of native lambda functions.
+    """
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
@@ -288,7 +216,8 @@ class MeshcatRecorder:
     parallel asyncio loop execution, which is necessary to support recording in
     Jupyter notebook.
     """
-    def __new__(cls, *args: Any, **kwargs: Any) -> "MeshcatRecorder":
+    def __new__(cls,  # pylint: disable=unused-argument
+                *args: Any, **kwargs: Any) -> "MeshcatRecorder":
         self = super().__new__(cls)
         self.is_open = False
         self.is_recording = False
@@ -302,8 +231,11 @@ class MeshcatRecorder:
         self.url = url
 
     def open(self) -> None:
+        """ TODO: Write documentation.
+        """
+        # pylint: disable=consider-using-with
         self.__manager = multiprocessing.managers.SyncManager()
-        self.__manager.start(manager_process_startup)
+        self.__manager.start(_manager_process_startup)
 
         self.__shm = {
             'request': self.__manager.Value(c_char_p, ""),
@@ -316,18 +248,17 @@ class MeshcatRecorder:
             daemon=True)
         self.proc.start()
 
+        timeout = PLAYWRIGHT_DOWNLOAD_TIMEOUT + PLAYWRIGHT_START_TIMEOUT * 1e-3
         time_start, time_waiting = time.time(), 0.0
         while self.__shm['message'].value == "":
             time_waiting = time.time() - time_start
-            if time_waiting > PYPPETEER_STARTUP_TIMEOUT:
+            if time_waiting > timeout:
                 break
         if self.__shm['request'].value == "quit":
-            msg = "Impossible to start chromimum browser in background"
-            if not sys.platform.startswith("win"):
-                msg = f"{msg}.\nTry installing missing chrome dependencies."
+            msg = "Impossible to start browser in background"
             raise RuntimeError(f"{msg}:\n    {self.__shm['message'].value}")
-        elif time_waiting > PYPPETEER_STARTUP_TIMEOUT:
-            raise RuntimeError("Pupetter chromimum browser not responding.")
+        if time_waiting > timeout:
+            raise RuntimeError("Backend browser not responding.")
         self.__browser_pid = int(self.__shm['message'].value)
         self.__shm['message'].value = ""
 
@@ -337,10 +268,13 @@ class MeshcatRecorder:
         self.release()
 
     def release(self) -> None:
+        """ TODO: Write documentation.
+        """
         if self.__shm is not None:
             if self.proc.is_alive():
+                # pylint: disable=broad-exception-caught
                 try:
-                    self._send_request(request="quit", timeout=0.5)
+                    self._send_request(request="quit", timeout=2.0)
                 except Exception:
                     # This method must not fail under any circumstances
                     pass
@@ -357,16 +291,20 @@ class MeshcatRecorder:
                 pass
             self.__browser_pid = None
         if self.__manager is not None:
-            self.__manager.shutdown()
+            if hasattr(self.__manager, "shutdown"):
+                # `SyncManager.shutdown` method is only available once started
+                self.__manager.shutdown()
             self.__manager = None
         self.is_open = False
 
     def _send_request(self,
                       request: str,
                       message: Optional[str] = None,
-                      timeout: Optional[float] = None) -> None:
+                      timeout: Optional[str] = None) -> None:
+        """ TODO: Write documentation.
+        """
         if timeout is None:
-            timeout = PYPPETEER_REQUEST_TIMEOUT
+            timeout = PLAYWRIGHT_START_TIMEOUT * 1e-3
         if not self.is_open:
             raise RuntimeError(
                 "Meshcat recorder is not open. Impossible to send requests.")
@@ -380,15 +318,18 @@ class MeshcatRecorder:
             if time.time() > timeout:
                 self.release()
                 raise RuntimeError("Timeout.")
-            elif not self.proc.is_alive():
+            if not self.proc.is_alive():
+                err = self.__shm['message'].value
                 self.release()
                 raise RuntimeError(
                     "Backend browser has encountered an unrecoverable "
-                    "error: ", self.__shm['message'].value)
+                    f"error:\n{err}")
 
     def capture_frame(self,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> str:
+        """ TODO: Write documentation.
+        """
         self._send_request(
             "take_snapshot", message=f"{width or -1}|{height or -1}")
         return self.__shm['message'].value
@@ -397,32 +338,24 @@ class MeshcatRecorder:
                               fps: float,
                               width: int,
                               height: int) -> None:
+        """ TODO: Write documentation.
+        """
         self._send_request(
             "start_record", message=f"{fps}|{width}|{height}", timeout=10.0)
         self.is_recording = True
 
     def add_video_frame(self) -> None:
+        """ TODO: Write documentation.
+        """
         if not self.is_recording:
             raise RuntimeError(
                 "No video being recorded at the moment. Please start "
                 "recording before adding frames.")
         self._send_request("add_frame")
 
-    def stop_and_save_video(self, path: str) -> bool:
-        def file_available(path):
-            if not os.path.exists(path):
-                return False
-            for proc in psutil.process_iter():
-                try:
-                    if 'chrome' in proc.name():
-                        for item in proc.open_files():
-                            if path == item.path:
-                                return False
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    # The process ended before examining its files
-                    pass
-            return True
-
+    def stop_and_save_video(self, path: str) -> None:
+        """ TODO: Write documentation.
+        """
         if not self.is_recording:
             raise RuntimeError(
                 "No video being recorded at the moment. Please start "
@@ -430,10 +363,9 @@ class MeshcatRecorder:
         if "|" in path:
             raise ValueError(
                 "'|' character is not supported in video export path.")
-        path = os.path.abspath(pathlib.Path(path).with_suffix('.webm'))
-        if os.path.exists(path):
-            os.remove(path)
-        self._send_request("stop_and_save_record", message=path, timeout=30.0)
+        path = Path(path).with_suffix('.webm').absolute()
+        if path.exists():
+            path.unlink()
+        self._send_request(
+            "stop_and_save_record", message=str(path))
         self.is_recording = False
-        while not file_available(path):
-            pass

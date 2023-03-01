@@ -1,13 +1,17 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-name-in-module,no-member
 import os
-import toml
 import atexit
 import logging
 import pathlib
 import tempfile
-from collections import OrderedDict
+from copy import deepcopy
 from itertools import chain
+from collections import OrderedDict
 from typing import Optional, Union, Type, Dict, Tuple, Sequence, Iterable, Any
 
+import toml
 import numpy as np
 
 import pinocchio as pin
@@ -41,9 +45,11 @@ class Simulator:
     user only as to create a robot and associated controller if any, and
     give high-level instructions to the simulator.
     """
-    def __new__(cls, *args: Any, **kwargs: Any) -> "Simulator":
+    def __new__(cls,  # pylint: disable=unused-argument
+                *args: Any,
+                **kwargs: Any) -> "Simulator":
         # Instantiate base class
-        self = super().__new__(cls)
+        self = super().__new__(cls)  # pylint: disable=no-value-for-parameter
 
         # Viewer management
         self.viewer = None
@@ -57,12 +63,12 @@ class Simulator:
 
         return self
 
-    def __init__(self,
+    def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Robot,
                  controller: Optional[jiminy.AbstractController] = None,
                  engine_class: Type[jiminy.Engine] = jiminy.Engine,
                  use_theoretical_model: bool = False,
-                 viewer_backend: Optional[str] = None,
+                 viewer_kwargs: Optional[Dict[str, Any]] = None,
                  **kwargs: Any) -> None:
         """
         :param robot: Jiminy robot already initialized.
@@ -73,15 +79,19 @@ class Simulator:
         :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
                                       fetching the robot's state.
-        :param viewer_backend: Backend of the viewer, e.g. panda3d or meshcat.
-                               Optional: It is setup-dependent. See `Viewer`
-                               documentation for details about it.
+        :param viewer_kwargs: Keyword arguments to override by default whenever
+                              a viewer must be instantiated, e.g. when `render`
+                              method is first called. Specifically, `backend`
+                              is ignored if one is already available.
+                              Optional: Empty by default.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
         # Backup the user arguments
         self.use_theoretical_model = use_theoretical_model
-        self.viewer_backend = viewer_backend
+        self.viewer_kwargs = dict(
+            robot_name=f"{robot.name}_{next(tempfile._get_candidate_names())}",
+            **deepcopy(viewer_kwargs or {}))
 
         # Wrap callback in nested function to hide update of progress bar
         def callback_wrapper(t: float,
@@ -244,8 +254,7 @@ class Simulator:
         """
         if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_model_th
-        else:
-            return self.robot.pinocchio_model
+        return self.robot.pinocchio_model
 
     @property
     def pinocchio_data(self) -> pin.Data:
@@ -254,8 +263,7 @@ class Simulator:
         """
         if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_data_th
-        else:
-            return self.robot.pinocchio_data
+        return self.robot.pinocchio_data
 
     @property
     def state(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -280,9 +288,9 @@ class Simulator:
         return self.viewer is not None and self.viewer.is_open()
 
     def _callback(self,
-                  t: float,
-                  q: np.ndarray,
-                  v: np.ndarray,
+                  t: float,  # pylint: disable=unused-argument
+                  q: np.ndarray,  # pylint: disable=unused-argument
+                  v: np.ndarray,  # pylint: disable=unused-argument
                   out: np.ndarray) -> None:
         """Callback method for the simulation.
         """
@@ -411,9 +419,9 @@ class Simulator:
         try:
             return_code = self.engine.simulate(
                 t_end, q_init, v_init, a_init, is_state_theoretical)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning(
-                "The simulation failed due to Python exception:\n", str(e))
+                "The simulation failed due to Python exception:\n %s", e)
             return_code = jiminy.hresult_t.ERROR_GENERIC
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
@@ -450,7 +458,7 @@ class Simulator:
                or return an RGB array instead.
 
         :param return_rgb_array: Whether to return the current frame as an rgb
-                                 array.
+                                 array or render it directly.
         :param width: Width of the returned RGB frame, if enabled.
         :param height: Height of the returned RGB frame, if enabled.
         :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch,
@@ -468,47 +476,31 @@ class Simulator:
         :returns: Rendering as an RGB array (3D numpy array), if enabled, None
                   otherwise.
         """
-        # Consider no viewer is available if the backend is the wrong one
-        if kwargs.get("backend", self.viewer_backend) != self.viewer_backend:
-            if self.viewer is not None:
-                self.viewer.close()
-                self.viewer = None
-
         # Handle default arguments
         if update_ground_profile is None:
             update_ground_profile = not self.is_viewer_available
 
+        # Close the current viewer backend if not suitable
+        if kwargs.get("backend", Viewer.backend) != Viewer.backend:
+            Viewer.close()
+
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not self.is_viewer_available:
-            # Generate a new unique identifier if necessary
-            if self.viewer is None:
-                uniq_id = next(tempfile._get_candidate_names())
-                robot_name = f"{uniq_id}_robot"
-                scene_name = f"{uniq_id}_scene"
-            else:
-                robot_name = self.viewer.robot_name
-                scene_name = self.viewer.scene_name
-
             # Create new viewer instance
-            viewer_backend = self.viewer_backend or Viewer.backend
             self.viewer = Viewer(self.robot,
                                  use_theoretical_model=False,
                                  open_gui_if_parent=False,
-                                 **{'scene_name': scene_name,
-                                    'robot_name': robot_name,
-                                    'backend': viewer_backend,
+                                 **{'backend': (self.viewer or Viewer).backend,
                                     'delete_robot_on_close': True,
+                                    **self.viewer_kwargs,
                                     **kwargs})
-
-            # Backup current backend
-            self.viewer_backend = self.viewer_backend or Viewer.backend
 
             # Share the external force buffer of the viewer with the engine
             if self.is_simulation_running:
                 self.viewer.f_external = self.system_state.f_external[1:]
 
-            if self.viewer_backend.startswith('panda3d'):
+            if self.viewer.backend.startswith('panda3d'):
                 # Enable display of COM, DCM and contact markers by default if
                 # the robot has freeflyer.
                 if self.robot.has_freeflyer:
@@ -522,12 +514,12 @@ class Simulator:
                 # Enable display of external forces by default only for
                 # the joints having an external force registered to it.
                 if "display_f_external" not in kwargs:
-                    force_frames = set([
+                    force_frames = set(
                         self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_profile])
-                    force_frames |= set([
+                        for f_i in self.engine.forces_profile)
+                    force_frames |= set(
                         self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_impulse])
+                        for f_i in self.engine.forces_impulse)
                     visibility = self.viewer._display_f_external
                     for i in force_frames:
                         visibility[i - 1] = True
@@ -535,10 +527,10 @@ class Simulator:
 
             # Initialize camera pose
             if self.viewer.is_backend_parent and camera_xyzrpy is None:
-                camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
+                camera_xyzrpy = ((9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2))
 
         # Enable the ground profile is requested and available
-        if self.viewer_backend.startswith('panda3d') and update_ground_profile:
+        if self.viewer.backend.startswith('panda3d') and update_ground_profile:
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
             Viewer.update_floor(ground_profile, show_meshes=False)
@@ -554,9 +546,10 @@ class Simulator:
         # Try refreshing the viewer
         self.viewer.refresh()
 
-        # Compute rgb array if needed
+        # Compute and return rgb array if needed
         if return_rgb_array:
             return Viewer.capture_frame(width, height)
+        return None
 
     def replay(self,
                extra_logs_files: Sequence[Dict[str, np.ndarray]] = (),
@@ -601,11 +594,11 @@ class Simulator:
                 "`replay` method, or provided data manually.")
 
         # Make sure the viewer is instantiated before replaying
-        backend = (kwargs.get('backend', self.viewer_backend) or
+        backend = (kwargs.get('backend', (self.viewer or Viewer).backend) or
                    get_default_backend())
         must_not_open_gui = (
             backend.startswith("panda3d") or
-            kwargs.get('record_video_path', None) is not None)
+            kwargs.get('record_video_path') is not None)
         self.render(**{
             'return_rgb_array': must_not_open_gui,
             'update_floor': True,
@@ -620,7 +613,7 @@ class Simulator:
             update_hooks,
             viewers=viewers,
             **{'verbose': True,
-               'backend': self.viewer_backend,
+               **self.viewer_kwargs,
                **extra_kwargs,
                'display_f_external': None,
                **kwargs})
@@ -653,17 +646,19 @@ class Simulator:
             Enable display of flexible joints in robot's configuration,
             velocity and acceleration subplots.
             Optional: False by default.
-        :parem block: Whether to wait for the figure to be closed before
+        :param block: Whether to wait for the figure to be closed before
                       returning.
                       Optional: False in interactive mode, True otherwise.
         :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
         """
         # Make sure plot submodule is available
         try:
+            # pylint: disable=import-outside-toplevel
             from .plot import plot_log
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
-                "Method not supported. Please install 'jiminy_py[plot]'.")
+                "This method not supported. Please install 'jiminy_py[plot]'."
+                ) from e
 
         # Create figure, without closing the existing one
         self.figure = plot_log(
@@ -745,17 +740,30 @@ class Simulator:
             Configuration can be exported beforehand using `export_options`
             method.
         """
-        def deep_update(source, overrides):
+        def deep_update(original: Dict[str, Any],
+                        new_dict: Dict[str, Any],
+                        *, _key_root: str = "") -> Dict[str, Any]:
+            """Updates `original` dict with values from `new_dict` recursively.
+            If a new key should be introduced, then an error is thrown instead.
+
+            .. warning::
+                Modify `original` in place.
+
+            :param original: Dictionary with default values.
+            :param new_dict: Dictionary with values to be updated.
+            :param _key_root: Internal variable keeping track of current depth
+                              within nested dict hierarchy.
+            :returns: Update dictionary.
             """
-            Update a nested dictionary or similar mapping.
-            Modify ``source`` in place.
-            """
-            for key, value in overrides.items():
-                if isinstance(value, dict) and value:
-                    source[key] = deep_update(source[key], value)
+            for key, value in new_dict.items():
+                key_root = "/".join((_key_root, key))
+                if key not in original:
+                    raise ValueError(f"Key '{key_root}' not found")
+                if isinstance(value, dict):
+                    deep_update(original[key], value, _key_root=key_root)
                 else:
-                    source[key] = overrides[key]
-            return source
+                    original[key] = new_dict[key]
+            return original
 
         if config_path is None:
             if isinstance(self.robot, BaseJiminyRobot):

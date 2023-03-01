@@ -1,9 +1,11 @@
 # pylint: disable=missing-module-docstring
 
-from .frame_stack import FilteredFrameStack, StackedJiminyEnv
+from .frame_rate_limiter import FrameRateLimiter
+from .frame_stack import PartialFrameStack, StackedJiminyEnv
 
 
 __all__ = [
-    'FilteredFrameStack',
+    'FrameRateLimiter',
+    'PartialFrameStack',
     'StackedJiminyEnv'
 ]

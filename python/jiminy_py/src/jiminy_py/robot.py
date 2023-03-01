@@ -1,14 +1,18 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-name-in-module,import-error,no-member,wrong-import-order
 import os
 import re
-import toml
 import logging
 import pathlib
 import tempfile
-import numpy as np
 import xml.etree.ElementTree as ET
 from collections import OrderedDict, defaultdict
-from typing import Optional, Dict, Any
+from types import ModuleType
+from typing import Optional, Dict, Any, Sequence
 
+import toml
+import numpy as np
 import trimesh
 
 from . import core as jiminy
@@ -26,15 +30,24 @@ from pinocchio.rpy import rpyToMatrix
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 DEFAULT_FRICTION_DRY_SLOPE = 0.0
 
+EXTENSION_MODULES: Sequence[ModuleType] = ()
+
 
 class _DuplicateFilter:
+    """ TODO: Write documentation.
+    """
     def __init__(self):
         self.msgs = set()
 
     def filter(self, record):
-        rv = record.msg not in self.msgs
-        self.msgs.add(record.msg)
-        return rv
+        """Filter all messages that have already been logged once.
+
+        All new messages are stored in a singleton buffer.
+        """
+        if record.msg not in self.msgs:
+            self.msgs.add(record.msg)
+            return False
+        return True
 
 
 logger = logging.getLogger(__name__)
@@ -238,8 +251,8 @@ def generate_default_hardware_description_file(
                 sensor_type = force.type
             else:
                 logger.warning(
-                    "Unsupported Gazebo sensor plugin of type "
-                    f"'{sensor_type}'")
+                    "Unsupported Gazebo sensor plugin of type '%s'.",
+                    sensor_type)
                 continue
 
             # Extract the sensor update period
@@ -306,7 +319,7 @@ def generate_default_hardware_description_file(
                         frame_pose=6*[0.0])
                 })
             else:
-                logger.warning(f"Unsupported Gazebo plugin '{plugin}'")
+                logger.warning("Unsupported Gazebo plugin '%s'", plugin)
 
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
     if link_root and imu.type not in hardware_info['Sensor'].keys():
@@ -376,8 +389,8 @@ def generate_default_hardware_description_file(
         if transmission_type != 'simpletransmission':
             logger.warning(
                 "Jiminy only support SimpleTransmission for now. Skipping"
-                f"transmission {transmission_name} of type "
-                f"{transmission_type}.")
+                "transmission '%s' of type '%s'.", transmission_name,
+                transmission_type)
             continue
 
         # Extract the motor name
@@ -394,7 +407,7 @@ def generate_default_hardware_description_file(
         if joint_type not in ["revolute", "continuous", "prismatic"]:
             logger.warning(
                 "Jiminy only support 1-dof joint actuators and effort "
-                f"sensors. Attached joint cannot of type '{joint_type}'.")
+                "sensors. Attached joint cannot of type '%s'.", joint_type)
             continue
 
         # Extract the transmission ratio (motor / joint)
@@ -550,7 +563,7 @@ def load_hardware_description_file(
                 "is not supported. Enabling only primitive collision for "
                 "this body.")
             continue
-        elif body_name in geometry_types['collision']['primitive']:
+        if body_name in geometry_types['collision']['primitive']:
             pass
         elif body_name in geometry_types['collision']['mesh']:
             if not avoid_instable_collisions:
@@ -562,16 +575,16 @@ def load_hardware_description_file(
         elif body_name not in geometry_types['visual']['mesh']:
             logger.warning(
                 "No visual mesh nor collision geometry associated with "
-                f"collision body '{body_name}'. Fallback to adding a single "
-                "contact point at body frame.")
+                "collision body '%s'. Fallback to adding a single contact "
+                "point at body frame.", body_name)
             contact_frames_names.append(body_name)
             continue
         else:
             logger.warning(
-                "No collision geometry associated with the collision "
-                f"body '{body_name}'. Fallback to replacing it by contact "
-                "points at the vertices of the minimal volume bounding box of "
-                "the available visual meshes.")
+                "No collision geometry associated with the collision body "
+                "'%s'. Fallback to replacing it by contact points at the "
+                "vertices of the minimal volume bounding box of the available "
+                "visual meshes.", body_name)
 
         # Check if collision primitive box are available
         collision_boxes_size, collision_boxes_origin = [], []
@@ -588,8 +601,8 @@ def load_hardware_description_file(
                 continue
             logger.warning(
                 "Collision body associated with box geometry is not "
-                "numerically stable for now. Replacing it by contact "
-                "points at the vertices.")
+                "numerically stable for now. Replacing it by contact points "
+                "at the vertices.")
 
             for i, (box_size, box_origin) in enumerate(zip(
                     collision_boxes_size, collision_boxes_origin)):
@@ -671,12 +684,20 @@ def load_hardware_description_file(
             # Make sure the motor can be instantiated
             joint_name = motor_descr.pop('joint_name')
             if not robot.pinocchio_model.existJointName(joint_name):
-                logger.warning(
-                    f"'{joint_name}' is not a valid joint name.")
+                logger.warning("'%s' is not a valid joint name.", joint_name)
                 continue
 
             # Create the motor and attach it
-            motor = getattr(jiminy, motor_type)(motor_name)
+            motor = None
+            for module in (jiminy, *EXTENSION_MODULES):
+                try:
+                    motor = getattr(module, motor_type)(motor_name)
+                    break
+                except AttributeError:
+                    pass
+            if motor is None:
+                raise RuntimeError(
+                    f"Cannot instantiate motor of type '{motor_type}'.")
             robot.attach_motor(motor)
 
             # Initialize the motor
@@ -688,8 +709,8 @@ def load_hardware_description_file(
             for name, value in motor_descr.items():
                 if name not in option_fields:
                     logger.warning(
-                        f"'{name}' is not a valid option for the motor "
-                        f"{motor_name} of type {motor_type}.")
+                        "'%s' is not a valid option for the motor '%s' of "
+                        "type '%s'.", name, motor_name, motor_type)
                 options[name] = value
             options['enableArmature'] = True
             motor.set_options(options)
@@ -702,17 +723,26 @@ def load_hardware_description_file(
                 joint_name = sensor_descr.pop('joint_name')
                 if not robot.pinocchio_model.existJointName(joint_name):
                     logger.warning(
-                        f"'{joint_name}' is not a valid joint name.")
+                        "'%s' is not a valid joint name.", joint_name)
                     continue
             elif sensor_type == effort.type:
                 motor_name = sensor_descr.pop('motor_name')
                 if motor_name not in robot.motors_names:
                     logger.warning(
-                        f"'{motor_name}' is not a valid motor name.")
+                        "'%s' is not a valid motor name.", motor_name)
                     continue
 
             # Create the sensor and attach it
-            sensor = getattr(jiminy, sensor_type)(sensor_name)
+            sensor = None
+            for module in (jiminy, *EXTENSION_MODULES):
+                try:
+                    sensor = getattr(module, sensor_type)(sensor_name)
+                    break
+                except AttributeError:
+                    pass
+            if sensor is None:
+                raise RuntimeError(
+                    f"Cannot instantiate sensor of type '{sensor_type}'.")
             robot.attach_sensor(sensor)
 
             # Initialize the sensor
@@ -771,8 +801,8 @@ def load_hardware_description_file(
             for name, value in sensor_descr.items():
                 if name not in option_fields:
                     logger.warning(
-                        f"'{name}' is not a valid option for the sensor "
-                        f"{sensor_name} of type {sensor_type}.")
+                        "'%s' is not a valid option for the sensor '%s' of "
+                        "type '%s'.", name, sensor_name, sensor_type)
                 options[name] = value
             sensor.set_options(options)
 
@@ -798,9 +828,12 @@ class BaseJiminyRobot(jiminy.Robot):
         name than the URDF file will be detected automatically without
         requiring to manually specify its path.
     """
-    def __new__(cls, *args: Any, **kwargs: Any) -> "BaseJiminyRobot":
-        self = super().__new__(cls)
+    def __new__(cls,  # pylint: disable=unused-argument
+                *args: Any,
+                **kwargs: Any) -> "BaseJiminyRobot":
+        self = super().__new__(cls)  # pylint: disable=no-value-for-parameter
         self.extra_info = {}
+        self.hardware_path = None
         self._urdf_path_orig = None
         return self
 

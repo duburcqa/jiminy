@@ -122,7 +122,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                       initialized. Build default robot using 'urdf_path',
                       'hardware_path' and 'mesh_path' if omitted.
                       Optional: None by default.
-        :param kwargs: Keyword arguments to forward to `BaseJiminyEnv` class.
+        :param kwargs: Keyword arguments to forward to `Simulator` and
+                       `BaseJiminyEnv` constructors.
         """
         # Handling of default arguments
         if reward_mixture is None:
@@ -392,8 +393,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             reward_dict['done'] = 1.0
 
         # Compute the total reward
-        reward_total = sum([self.reward_mixture[name] * value
-                            for name, value in reward_dict.items()])
+        reward_total = sum(self.reward_mixture[name] * value
+                           for name, value in reward_dict.items())
 
         return reward_total
 
@@ -416,7 +417,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             reward_dict['direction'] = - frontal_displacement
 
         # Compute the total reward
-        reward_total = sum([self.reward_mixture[name] * value
-                            for name, value in reward_dict.items()])
+        reward_total = sum(self.reward_mixture[name] * value
+                           for name, value in reward_dict.items())
 
         return reward_total

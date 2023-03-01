@@ -1,14 +1,16 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=invalid-name,no-member
 import logging
 from copy import deepcopy
-from typing import Optional, Tuple, Sequence, Callable
+from typing import Optional, Tuple, Sequence, Callable, TypedDict, Any
 
 import numpy as np
-from typing_extensions import TypedDict
 
 from eigenpy import LDLT
 import hppfcl
 import pinocchio as pin
-from pinocchio.rpy import (rpyToMatrix,
+from pinocchio.rpy import (rpyToMatrix,  # pylint: disable=import-error
                            matrixToRpy,
                            computeRpyJacobian,
                            computeRpyJacobianInverse)
@@ -88,7 +90,7 @@ def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
 class State:
     """Store the kinematics and dynamics data of the robot at a given time.
     """
-    def __init__(self,
+    def __init__(self,  # pylint: disable=unused-argument
                  t: float,
                  q: np.ndarray,
                  v: Optional[np.ndarray] = None,
@@ -97,7 +99,7 @@ class State:
                  contact_frames: Optional[Sequence[str]] = None,
                  f_ext: Optional[Sequence[np.ndarray]] = None,
                  copy: bool = False,
-                 **kwargs):
+                 **kwargs: Any) -> None:
         """
         :param t: Time.
         :param q: Configuration vector.
@@ -139,6 +141,9 @@ class State:
 
 
 class TrajectoryDataType(TypedDict, total=False):
+    """Basic data structure storing the required information about a trajectory
+    to later replay it using `jiminy_py.viewer.play_trajectories`.
+    """
     # List of State objects of increasing time.
     evolution_robot: Sequence[State]
     # Jiminy robot. None if omitted.
@@ -404,6 +409,8 @@ def compute_transform_contact(
     :returns: The transform the apply in order to touch the ground.
               If the robot has no contact point, then the identity is returned.
     """
+    # pylint: disable=unsupported-assignment-operation,unsubscriptable-object
+
     # Compute the transform in the world of the contact points
     contact_frames_transform = []
     for frame_idx in robot.contact_frames_idx:

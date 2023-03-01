@@ -1,3 +1,6 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-member
 import os
 import time
 import ctypes
@@ -9,14 +12,13 @@ import argparse
 from base64 import b64encode
 from bisect import bisect_right
 from functools import partial
-from threading import Thread
+from threading import RLock, Thread
 from itertools import cycle, islice
 from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 
 import av
 import numpy as np
 from tqdm import tqdm
-from scipy.interpolate import interp1d
 
 import pinocchio as pin
 
@@ -31,7 +33,9 @@ from .viewer import (COLORS,
                      Tuple4FType,
                      CameraPoseType,
                      CameraMotionType,
+                     interp1d,
                      get_default_backend,
+                     is_display_available,
                      Viewer)
 from .meshcat.utilities import interactive_mode
 
@@ -42,11 +46,12 @@ VIDEO_QUALITY = 0.3  # [Mbytes/s]
 
 logger = logging.getLogger(__name__)
 
+viewer_lock = RLock()  # Unique lock for threads
 
 ColorType = Union[Tuple4FType, str]
 
 
-def play_trajectories(trajs_data: Union[
+def play_trajectories(trajs_data: Union[  # pylint: disable=unused-argument
                           TrajectoryDataType, Sequence[TrajectoryDataType]],
                       update_hooks: Optional[Union[
                           Callable[[float, np.ndarray, np.ndarray], None],
@@ -135,11 +140,10 @@ def play_trajectories(trajs_data: Union[
                                option is only supported by meshcat backend.
                                None to disable.
                                Optional: No watermark by default.
-    :param legend: List of text defining the legend for each robot. It is not
-                   persistent but disabled after replay. This option is only
-                   supported by meshcat backend. None to disable.
-                   Optional: No legend if no color by default, the robots names
-                   otherwise.
+    :param legend: List of labels defining the legend for each robot. It is not
+                   persistent but disabled after replay. None to disable.
+                   Optional: No legend by default for a single robot without
+                   color, the name of each robot otherwise.
     :param enable_clock: Add clock on bottom right corner of the viewer.
                          Only available with 'panda3d' rendering backend.
                          Optional: Disabled by default.
@@ -183,13 +187,14 @@ def play_trajectories(trajs_data: Union[
                          input before starting to play the trajectories.
                          Only available if `record_video_path` is None.
                          Optional: False by default.
-    :param backend: Backend, one of 'panda3d', 'meshcat'. If `None`, the most
-                    appropriate backend will be selected automatically, based
-                    on hardware and python environment.
+    :param backend: Backend, one of 'meshcat', 'panda3d' and'panda3d-sync. If
+                    `None`, the most appropriate backend will be selected
+                    automatically based on hardware and python environment.
                     Optional: `None` by default.
     :param delete_robot_on_close: Whether to delete the robot from the viewer
                                   when closing it.
-                                  Optional: True by default.
+                                  Optional: True by default for Panda3d backend
+                                  in non-interactive mode, False otherwise.
     :param remove_widgets_overlay: Remove overlay (legend, watermark, clock,
                                    ...) automatically before returning.
                                    Optional: Enabled by default.
@@ -201,11 +206,12 @@ def play_trajectories(trajs_data: Union[
                     Optional: None by default.
     :param verbose: Add information to keep track of the process.
                     Optional: True by default.
-    :param kwargs: Unused keyword arguments to allow chaining renderining
+    :param kwargs: Unused keyword arguments to allow chaining rendering
                    methods with ease.
 
     :returns: List of viewers used to play the trajectories.
     """
+    # pylint: disable=used-before-assignment
     # Make sure sequence arguments are list or tuple
     if not isinstance(trajs_data, (list, tuple)):
         trajs_data = [trajs_data]
@@ -213,8 +219,6 @@ def play_trajectories(trajs_data: Union[
         update_hooks = [None] * len(trajs_data)
     if not isinstance(update_hooks, (list, tuple)):
         update_hooks = [update_hooks]
-    if viewers is None:
-        viewers = [None] * len(trajs_data)
     if not isinstance(viewers, (list, tuple)):
         viewers = [viewers]
     if len(viewers) == 0:
@@ -228,42 +232,45 @@ def play_trajectories(trajs_data: Union[
             if viewer is not None and not viewer.is_open():
                 viewers[i] = None
                 break
+        if all(viewer is None for viewer in viewers):
+            viewers = None
 
-    # Get backend
+    # Pick the default backend if unspecified and none is already running. Note
+    # that repeatedly switching between "panda3d-sync" and "panda3d" backends
+    # is causing segfaults. See https://github.com/panda3d/panda3d/issues/1372.
     if backend is None:
-        if viewers is None:
-            backend = get_default_backend()
-        else:
+        if Viewer.is_alive():
             backend = Viewer.backend
+        # elif record_video_path is not None:
+        #     backend = "panda3d-sync"
+        else:
+            backend = get_default_backend()
 
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode
-    # with htlm rendering support. Then load it in running cell.
-    must_record_temporary_video = (
+    # with HTML rendering support. Then load it in running cell.
+    record_video_html_embedded = (
         record_video_path is None and
         backend == "panda3d-sync" and interactive_mode() >= 2)
-    if must_record_temporary_video:
+    if record_video_html_embedded:
         fd, record_video_path = tempfile.mkstemp(suffix='.mp4')
         os.close(fd)
 
     # Make sure it is possible to replay something
     if backend == "panda3d-sync" and record_video_path is None:
         raise RuntimeError(
-            "Impossible to replay video using 'panda3d-sync' backend. Please "
-            "set 'record_video_path' to save it as a file.")
+            "Impossible to replay simulation using 'panda3d-sync' backend. "
+            "Please set 'record_video_path' to save it as a file.")
 
     # Set default video recording size
     if record_video_size is None:
-        if must_record_temporary_video:
-            record_video_size = (800, 400)
-        else:
-            record_video_size = (800, 800)
+        record_video_size = (800, 400 if record_video_html_embedded else 800)
 
     # Handling of default options if no viewer is available
     if viewers is None and backend.startswith('panda3d'):
         # Delete robot by default only if not in interactive viewer
         if delete_robot_on_close is None:
-            delete_robot_on_close = interactive_mode() < 3
+            delete_robot_on_close = interactive_mode() < 2
 
         # Handling of default display of CoM, DCM and contact forces
         if display_com is None:
@@ -325,7 +332,7 @@ def play_trajectories(trajs_data: Union[
                 backend=backend,
                 scene_name=scene_name,
                 delete_robot_on_close=delete_robot_on_close,
-                open_gui_if_parent=(record_video_path is None))
+                open_gui_if_parent=record_video_path is None)
             viewers[i] = viewer
 
         # Reset the configuration of the robot
@@ -350,12 +357,12 @@ def play_trajectories(trajs_data: Union[
 
     # Make sure clock is only enabled for panda3d backend
     if enable_clock and not Viewer.backend.startswith('panda3d'):
-        logger.warn(
+        logger.warning(
             "`enable_clock` is only available with 'panda3d' backend.")
         enable_clock = False
 
     # Early return if nothing to replay
-    if all(not len(traj['evolution_robot']) for traj in trajs_data):
+    if all(not traj['evolution_robot'] for traj in trajs_data):
         logger.debug("Nothing to replay.")
         return viewers
 
@@ -367,9 +374,10 @@ def play_trajectories(trajs_data: Union[
     if legend is not None:
         try:
             Viewer.set_legend(legend)
-        except ImportError:
-            raise logger.warn(
-                "Impossible to add legend. Please install 'jiminy_py[plot]'.")
+        except ImportError as e:
+            raise logger.warning(
+                "Impossible to add legend. Please install 'jiminy_py[plot]'."
+                ) from e
 
     # Add watermark if requested
     if watermark_fullpath is not None:
@@ -414,12 +422,6 @@ def play_trajectories(trajs_data: Union[
             if verbose and interactive_mode() < 2:
                 print("Browser connected! Replaying simulation...")
 
-    # Handle start-in-pause mode
-    if start_paused and record_video_path is None and interactive_mode() < 2:
-        input("Press Enter to continue...")
-        if not Viewer.is_alive():
-            return viewers
-
     # Replay the trajectory
     if record_video_path is not None:
         # Extract and resample trajectory data at fixed framerate
@@ -445,14 +447,8 @@ def play_trajectories(trajs_data: Union[
                     model, t_orig, pos_orig, time_global))
                 if data_orig[0].v is not None:
                     vel_orig = np.stack([s.v for s in data_orig], axis=0)
-                    velocity_interp = interp1d(
-                        t_orig,
-                        vel_orig,
-                        axis=0,
-                        assume_sorted=True,
-                        bounds_error=False,
-                        fill_value=(vel_orig[0], vel_orig[-1]))
-                    velocity_evolutions.append(velocity_interp(time_global))
+                    velocity_evolutions.append(interp1d(
+                        t_orig, vel_orig, time_global))
                 else:
                     velocity_evolutions.append((None,) * len(time_global))
                 if data_orig[0].f_ext is not None:
@@ -460,14 +456,8 @@ def play_trajectories(trajs_data: Union[
                     for i in range(len(data_orig[0].f_ext)):
                         f_ext_orig = np.stack([
                             s.f_ext[i] for s in data_orig], axis=0)
-                        forces_interp = interp1d(
-                            t_orig,
-                            f_ext_orig,
-                            axis=0,
-                            assume_sorted=True,
-                            bounds_error=False,
-                            fill_value=(f_ext_orig[0], f_ext_orig[-1]))
-                        forces.append(forces_interp(time_global))
+                        forces.append(interp1d(
+                            t_orig, f_ext_orig, time_global))
                     force_evolutions.append([
                         [f_ext[i] for f_ext in forces]
                         for i in range(len(time_global))])
@@ -507,7 +497,7 @@ def play_trajectories(trajs_data: Union[
         # Add frames to video sequentially
         for i, t_cur in enumerate(tqdm(
                 time_global, desc="Rendering frames",
-                disable=(not verbose and not must_record_temporary_video))):
+                disable=(not verbose and not record_video_html_embedded))):
             try:
                 # Update 3D view
                 for viewer, pos, vel, forces, xyz_offset, update_hook in zip(
@@ -543,7 +533,10 @@ def play_trajectories(trajs_data: Union[
                     # Write frame
                     for packet in stream.encode(frame):
                         out.mux(packet)
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, RuntimeError):
+                # RuntimeError would be raised if the backend got closed during
+                # recording, which typically happens when terminating Python
+                # forcibly during async recording.
                 break
 
         # Finalize video recording
@@ -558,6 +551,15 @@ def play_trajectories(trajs_data: Union[
     else:
         # Make sure a gui is opened
         viewer.open_gui()
+
+        # Handle start-in-pause mode
+        if start_paused:
+            if interactive_mode() < 2:
+                input("Press Enter to continue...")
+                if not Viewer.is_alive():
+                    return viewers
+            else:
+                logger.warning("Start paused is disabled in interactive mode.")
 
         # Play trajectories with multithreading
         def replay_thread(viewer, *args):
@@ -576,9 +578,9 @@ def play_trajectories(trajs_data: Union[
                       speed_ratio,
                       xyz_offset,
                       update_hook,
-                      enable_clock)))
+                      enable_clock),
+                daemon=True))
         for thread in threads:
-            thread.daemon = True
             thread.start()
         for thread in threads:
             try:
@@ -611,7 +613,8 @@ def play_trajectories(trajs_data: Union[
         Viewer.close()
 
     # Show video if temporary
-    if must_record_temporary_video:
+    if record_video_html_embedded:
+        # pylint: disable=import-outside-toplevel,no-name-in-module
         from IPython.core.display import HTML, display
         video_base64 = b64encode(open(record_video_path, 'rb').read()).decode()
         os.remove(record_video_path)
@@ -658,7 +661,7 @@ def extract_replay_data_from_log(
         update_hook = update_sensors_data_from_log(log_data, robot)
     else:
         if robot.sensors_names:
-            logger.warn(
+            logger.warning(
                 "At least one of the robot is locked, which means that a "
                 "simulation using the robot is still running. It will be "
                 "impossible to display sensor data. Call `simulator.stop` to "
@@ -715,7 +718,7 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 
     :param logs_files: Either a single simulation log files in any format, or
                        a list.
-    :param mesh_package_dirs: Prepend custom mesh package seach path
+    :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
                               generated on a different environment.
@@ -740,6 +743,93 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 
     # Forward arguments to lower-level method
     return play_logs_data(robots, logs_data, **kwargs)
+
+
+def async_play_and_record_logs_files(
+        logs_files: Union[str, Sequence[str]],
+        enable_replay: Optional[bool] = None,
+        mesh_package_dirs: Union[str, Sequence[str]] = (),
+        **kwargs: Any) -> Optional[Thread]:
+    """Play and/or replay the content of a logfile in a viewer asynchronously.
+
+    .. note::
+        This call can be made blocking at any point in time by calling `join()`
+        on the returned `Thread` instance.
+
+    :param logs_files: Simulation log files in any of the supported formats.
+    :param enable_replay: Whether to force replay the simulation. It would
+                          first replay then record if this option is enabled
+                          and `record_video_path` is specified.
+                          Optional: True by default if `record_video_path` is
+                          not specified and the current backend supports
+                          onscreen rendering, False otherwise.
+    :param mesh_package_dirs: Prepend custom mesh package search path
+                              directories to the ones provided by log file.
+    :param kwargs: Keyword arguments to forward to `play_logs_files` method.
+    """
+    # Handling of default argument(s)
+    enable_recording = "record_video_path" in kwargs
+    if enable_replay is None:
+        enable_replay = not enable_recording and (
+            (Viewer.backend or get_default_backend()) != "panda3d-sync" or
+            interactive_mode() >= 2)
+
+    # Disable replay if not available and video recording is requested
+    if enable_replay and not is_display_available():
+        logger.warning("No display available. Disabling replay.")
+        enable_replay = False
+
+    # Nothing to do. Silently returning early.
+    if not enable_recording and not enable_replay:
+        return None
+
+    # Define method to pass to threading
+    def _locked_play_and_record(lock: RLock,
+                                logs_files: Sequence[str],
+                                mesh_package_dirs: Union[str, Sequence[str]],
+                                enable_replay: bool,
+                                **kwargs: Any) -> None:
+        """A lock is used to force waiting for the current evaluation to finish
+        before starting a new one, otherwise it will crash because of request
+        collisions, and it is undesirable anyway.
+
+        The viewer must be closed after replay if recording is requested,
+        otherwise the graphical window will dramatically slowdown rendering.
+        """
+        record_video_path = kwargs.pop("record_video_path", None)
+        with lock:
+            if enable_replay:
+                try:
+                    viewers = play_logs_files(
+                        logs_files, mesh_package_dirs, **kwargs)
+                    for viewer in viewers:
+                        viewer.close()
+                except RuntimeError as e:
+                    # Replay may fail if current backend does not support it
+                    logger.warning(
+                        f"The current viewer backend '{Viewer.backend}' does "
+                        "not support replaying simulation: %s", e)
+            if record_video_path is not None:
+                viewers = play_logs_files(
+                    logs_files, mesh_package_dirs,
+                    record_video_path=record_video_path, **kwargs)
+                for viewer in viewers:
+                    viewer.close()
+
+    # Start replay and record thread
+    thread = Thread(
+        target=_locked_play_and_record,
+        args=(viewer_lock, logs_files, mesh_package_dirs, enable_replay),
+        kwargs={
+            **dict(
+                close_backend=(enable_replay and enable_recording),
+                verbose=False),
+            **kwargs, **dict(
+                delete_robot_on_close=True)},
+        daemon=True)
+    thread.start()
+
+    return thread
 
 
 def _play_logs_files_entrypoint() -> None:
@@ -790,14 +880,13 @@ def _play_logs_files_entrypoint() -> None:
                 remove_widgets_overlay=False),
                 **kwargs})
         kwargs["start_paused"] = False
-        if not hasattr(kwargs, "camera_xyzrpy"):
-            kwargs["camera_xyzrpy"] = None
+        kwargs.setdefault("camera_xyzrpy", None)
         if kwargs["record_video_path"] is None:
             while True:
                 reply = input("Do you want to replay again (y/[n])?").lower()
                 if not reply or reply in ("y", "n"):
                     break
-            repeat = (reply == "y")
+            repeat = reply == "y"
         else:
             repeat = False
 

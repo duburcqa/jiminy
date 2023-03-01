@@ -61,7 +61,7 @@ class BlockInterface:
         It enables to get access to the attribute and methods of the low-level
         Jiminy engine directly, without having to do it through `env`.
         """
-        return getattr(self.env, name)
+        return getattr(self.__getattribute__('env'), name)
 
     def __dir__(self) -> Iterable[str]:
         """Attribute lookup.

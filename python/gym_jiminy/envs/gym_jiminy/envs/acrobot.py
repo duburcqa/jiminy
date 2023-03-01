@@ -62,12 +62,20 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
              Reinforcement learning: An introduction.
              Cambridge: MIT press, 1998.
     """
-    def __init__(self, continuous: bool = False, debug: bool = False) -> None:
+    def __init__(self,
+                 continuous: bool = False,
+                 debug: bool = False,
+                 viewer_kwargs: Optional[Dict[str, Any]] = None) -> None:
         """
         :param continuous: Whether the action space is continuous. If not
                            continuous, the action space has only 3 states, i.e.
                            low, zero, and high.
                            Optional: True by default.
+        :param debug: Whether the debug mode must be enabled.
+                      See `BaseJiminyEnv` constructor for details.
+        :param viewer_kwargs: Keyword arguments to override by default whenever
+                              a viewer must be instantiated
+                              See `Simulator` constructor for details.
         """
         # Backup some input arguments
         self.continuous = continuous
@@ -95,7 +103,11 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
             encoder.initialize(joint_name)
 
         # Instantiate simulator
-        simulator = Simulator(robot)
+        simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
+
+        # Overwrite default camera pose
+        simulator.viewer_kwargs.setdefault("camera_xyzrpy", (
+            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi)))
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
@@ -233,13 +245,6 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         else:
             reward = -1.0
         return reward
-
-    def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
-        """Render the robot at current sate.
-        """
-        if not self.simulator.is_viewer_available:
-            kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
-        return super().render(mode, **kwargs)
 
 
 class AcrobotJiminyGoalEnv(AcrobotJiminyEnv, BaseJiminyGoalEnv):

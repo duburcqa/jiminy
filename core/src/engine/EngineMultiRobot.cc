@@ -69,6 +69,7 @@ namespace jiminy
     stepperState_(),
     systemsDataHolder_(),
     forcesCoupling_(),
+    contactForcesPrev_(),
     fPrev_(),
     aPrev_(),
     logData_(nullptr)
@@ -1071,9 +1072,15 @@ namespace jiminy
     }
 
     void syncAccelerationsAndForces(systemHolder_t const & system,
-                                    forceVector_t & f,
-                                    motionVector_t & a)
+                                    forceVector_t        & contactForces,
+                                    forceVector_t        & f,
+                                    motionVector_t       & a)
     {
+        for (std::size_t i = 0; i < system.robot->getContactFramesNames().size(); ++i)
+        {
+            contactForces[i] = system.robot->contactForces_[i];
+        }
+
         for (int32_t i = 0; i < system.robot->pncModel_.njoints; ++i)
         {
             f[i] = system.robot->pncData_.f[i];
@@ -1082,15 +1089,18 @@ namespace jiminy
     }
 
     void syncAllAccelerationsAndForces(std::vector<systemHolder_t> const & systems,
-                                       vector_aligned_t<forceVector_t> & f,
-                                       vector_aligned_t<motionVector_t> & a)
+                                       vector_aligned_t<forceVector_t>   & contactForces,
+                                       vector_aligned_t<forceVector_t>   & f,
+                                       vector_aligned_t<motionVector_t>  & a)
     {
         std::vector<systemHolder_t>::const_iterator systemIt = systems.begin();
+        auto contactForcesIt = contactForces.begin();
         auto fPrevIt = f.begin();
         auto aPrevIt = a.begin();
-        for ( ; systemIt != systems.end(); ++systemIt, ++fPrevIt, ++aPrevIt)
+        for ( ; systemIt != systems.end();
+             ++systemIt, ++contactForcesIt, ++fPrevIt, ++aPrevIt)
         {
-            syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
+            syncAccelerationsAndForces(*systemIt, *contactForcesIt, *fPrevIt, *aPrevIt);
         }
     }
 
@@ -1306,15 +1316,17 @@ namespace jiminy
         stepperState_.reset(SIMULATION_MIN_TIMESTEP, qSplit, vSplit, aSplit);
 
         // Initialize previous joints forces and accelerations
+        contactForcesPrev_.clear();
         fPrev_.clear();
         aPrev_.clear();
+        contactForcesPrev_.reserve(systems_.size());
         fPrev_.reserve(systems_.size());
         aPrev_.reserve(systems_.size());
         for (auto const & system : systems_)
         {
-            uint32_t njoints = system.robot->pncModel_.njoints;
-            fPrev_.emplace_back(njoints, pinocchio::Force::Zero());
-            aPrev_.emplace_back(njoints, pinocchio::Motion::Zero());
+            contactForcesPrev_.push_back(system.robot->contactForces_);
+            fPrev_.push_back(system.robot->pncData_.f);
+            aPrev_.push_back(system.robot->pncData_.a);
         }
 
         // Synchronize the individual system states with the global stepper state
@@ -1488,28 +1500,11 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            /* Compute the efforts, internal and external forces applied on every systems,
-               excluding user-specified internal dynamics if any. */
-            computeAllTerms(t, qSplit, vSplit);
-
+            // Instantiate the desired LCP solver
             systemIt = systems_.begin();
             systemDataIt = systemsDataHolder_.begin();
-            auto fPrevIt = fPrev_.begin();
-            auto aPrevIt = aPrev_.begin();
-            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt, ++fPrevIt, ++aPrevIt)
+            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
             {
-                // Get some system state proxies
-                vectorN_t const & q = systemDataIt->state.q;
-                vectorN_t const & v = systemDataIt->state.v;
-                vectorN_t & a = systemDataIt->state.a;
-                vectorN_t & u = systemDataIt->state.u;
-                vectorN_t & command = systemDataIt->state.command;
-                vectorN_t & uMotor = systemDataIt->state.uMotor;
-                vectorN_t & uInternal = systemDataIt->state.uInternal;
-                vectorN_t & uCustom = systemDataIt->state.uCustom;
-                forceVector_t & fext = systemDataIt->state.fExternal;
-
-                // Instantiate desired LCP solver
                 std::string const & constraintSolverType = engineOptions_->constraints.solver;
                 switch (CONSTRAINT_SOLVERS_MAP.at(constraintSolverType))
                 {
@@ -1524,52 +1519,105 @@ namespace jiminy
                         engineOptions_->stepper.tolRel,
                         PGS_MAX_ITERATIONS);
                         break;
-                    case constraintSolver_t::NONE:
-                    default:
-                        break;
+                case constraintSolver_t::NONE:
+                default:
+                    break;
                 }
+            }
 
-                // Initialize the sensor data
-                systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
+            /* Compute the efforts, internal and external forces applied on every
+               systems excluding user-specified internal dynamics if any. */
+            computeAllTerms(t, qSplit, vSplit);
 
-                // Compute the actual motor effort
-                computeCommand(*systemIt, t, q, v, command);
+            // Backup all external forces and internal efforts excluding constraint forces
+            vector_aligned_t<forceVector_t> fextNoConst;
+            std::vector<vectorN_t> uInternalConst;
+            fextNoConst.reserve(systems_.size());
+            uInternalConst.reserve(systems_.size());
+            for (auto const & systemData : systemsDataHolder_)
+            {
+                fextNoConst.push_back(systemData.state.fExternal);
+                uInternalConst.push_back(systemData.state.uInternal);
+            }
 
-                // Compute the actual motor effort
-                systemIt->robot->computeMotorsEfforts(t, q, v, a, command);
-                uMotor = systemIt->robot->getMotorsEfforts();
-
-                // Compute the internal dynamics
-                uCustom.setZero();
-                systemIt->controller->internalDynamics(t, q, v, uCustom);
-
-                // Compute the total effort vector
-                u = uInternal + uCustom;
-                for (auto const & motor : systemIt->robot->getMotors())
+            /* Solve algebric coupling between accelerations, sensors and controllers,
+               by iterating several times until it (hopefully) converges. */
+            for (uint32_t i = 0; i < INIT_ITERATIONS; ++i)
+            {
+                systemIt = systems_.begin();
+                systemDataIt = systemsDataHolder_.begin();
+                auto fextNoConstIt = fextNoConst.begin();
+                auto uInternalConstIt = uInternalConst.begin();
+                for ( ; systemIt != systems_.end();
+                    ++systemIt, ++systemDataIt, ++fextNoConstIt, ++uInternalConstIt)
                 {
-                    std::size_t const & motorIdx = motor->getIdx();
-                    int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
-                    u[motorVelocityIdx] += uMotor[motorIdx];
+                    // Get some system state proxies
+                    vectorN_t const & q = systemDataIt->state.q;
+                    vectorN_t const & v = systemDataIt->state.v;
+                    vectorN_t & a = systemDataIt->state.a;
+                    vectorN_t & u = systemDataIt->state.u;
+                    vectorN_t & command = systemDataIt->state.command;
+                    vectorN_t & uMotor = systemDataIt->state.uMotor;
+                    vectorN_t & uInternal = systemDataIt->state.uInternal;
+                    vectorN_t & uCustom = systemDataIt->state.uCustom;
+                    forceVector_t & fext = systemDataIt->state.fExternal;
+
+                    // Reset the external forces and internal efforts
+                    fext = *fextNoConstIt;
+                    uInternal = *uInternalConstIt;
+
+                    // Compute dynamics
+                    a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext, i == 0);
+
+                    // Make sure there is no nan at this point
+                    if ((a.array() != a.array()).any())
+                    {
+                        PRINT_ERROR("Impossible to compute the acceleration. Probably a "
+                                    "subtree has zero inertia along an articulated axis.");
+                        return hresult_t::ERROR_GENERIC;
+                    }
+
+                    // Compute the sensor data with the updated effort and acceleration
+                    systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
+
+                    // Compute the actual motor effort
+                    computeCommand(*systemIt, t, q, v, command);
+
+                    // Compute the actual motor effort
+                    systemIt->robot->computeMotorsEfforts(t, q, v, a, command);
+                    uMotor = systemIt->robot->getMotorsEfforts();
+
+                    // Compute the internal dynamics
+                    uCustom.setZero();
+                    systemIt->controller->internalDynamics(t, q, v, uCustom);
+
+                    // Compute the total effort vector
+                    u = uInternal + uCustom;
+                    for (auto const & motor : systemIt->robot->getMotors())
+                    {
+                        std::size_t const & motorIdx = motor->getIdx();
+                        int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
+                        u[motorVelocityIdx] += uMotor[motorIdx];
+                    }
                 }
+            }
 
-                // Compute dynamics
-                a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext);
-
-                // Make sure there is no nan at this point
-                if ((a.array() != a.array()).any())
-                {
-                    PRINT_ERROR("Impossible to compute the acceleration. Probably a "
-                                "subtree has zero inertia along an articulated axis.");
-                    return hresult_t::ERROR_GENERIC;
-                }
-
-                // Compute joints accelerations and forces
-                computeExtraTerms(*systemIt, *systemDataIt);
-                syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
-
-                // Update the sensor data once again, with the updated effort and acceleration
+            // Update sensor data one last time to take into account the actual acceleration
+            systemIt = systems_.begin();
+            systemDataIt = systemsDataHolder_.begin();
+            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+            {
+                vectorN_t const & q = systemDataIt->state.q;
+                vectorN_t const & v = systemDataIt->state.v;
+                vectorN_t const & a = systemDataIt->state.a;
+                vectorN_t const & uMotor = systemDataIt->state.uMotor;
+                forceVector_t const & fext = systemDataIt->state.fExternal;
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
             }
+
+            // Compute joints accelerations and forces
+            computeAllExtraTerms(systems_, systemsDataHolder_);
+            syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
 
             // Synchronize the global stepper state with the individual system states
             syncStepperStateWithSystems();
@@ -2035,7 +2083,7 @@ namespace jiminy
             {
                 computeSystemsDynamics(t, qSplit, vSplit, aSplit);
                 computeAllExtraTerms(systems_, systemsDataHolder_);
-                syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
+                syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
                 syncSystemsStateWithStepper(true);
                 hasDynamicsChanged = false;
             }
@@ -2086,7 +2134,7 @@ namespace jiminy
                     {
                         computeSystemsDynamics(t, qSplit, vSplit, aSplit);
                         computeAllExtraTerms(systems_, systemsDataHolder_);
-                        syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
+                        syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper(true);
                         hasDynamicsChanged = false;
                     }
@@ -2177,7 +2225,7 @@ namespace jiminy
                         computeAllExtraTerms(systems_, systemsDataHolder_);
 
                         // Synchronize the individual system states
-                        syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
+                        syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper();
 
                         // Increment the iteration counter only for successful steps
@@ -2275,7 +2323,7 @@ namespace jiminy
                         computeAllExtraTerms(systems_, systemsDataHolder_);
 
                         // Synchronize the individual system states
-                        syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
+                        syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper();
 
                         // Increment the iteration counter
@@ -3802,11 +3850,12 @@ namespace jiminy
         systemDataIt = systemsDataHolder_.begin();
         qIt = qSplit.begin();
         vIt = vSplit.begin();
+        auto contactForcesPrevIt = contactForcesPrev_.begin();
         auto fPrevIt = fPrev_.begin();
         auto aPrevIt = aPrev_.begin();
         auto aIt = aSplit.begin();
         for ( ; systemIt != systems_.end();
-             ++systemIt, ++systemDataIt, ++qIt, ++vIt, ++aIt, ++fPrevIt, ++aPrevIt)
+             ++systemIt, ++systemDataIt, ++qIt, ++vIt, ++aIt, ++contactForcesPrevIt, ++fPrevIt, ++aPrevIt)
         {
             // Define some proxies
             vectorN_t & u = systemDataIt->state.u;
@@ -3825,6 +3874,7 @@ namespace jiminy
             if (engineOptions_->stepper.sensorsUpdatePeriod < EPS)
             {
                 // Roll back to forces and accelerations computed at previous iteration
+                contactForcesPrevIt->swap(systemIt->robot->contactForces_);
                 fPrevIt->swap(systemIt->robot->pncData_.f);
                 aPrevIt->swap(systemIt->robot->pncData_.a);
 
@@ -3832,6 +3882,7 @@ namespace jiminy
                 systemIt->robot->setSensorsData(t, *qIt, *vIt, aPrev, uMotorPrev, fextPrev);
 
                 // Restore current forces and accelerations
+                contactForcesPrevIt->swap(systemIt->robot->contactForces_);
                 fPrevIt->swap(systemIt->robot->pncData_.f);
                 aPrevIt->swap(systemIt->robot->pncData_.a);
             }
@@ -3875,7 +3926,8 @@ namespace jiminy
                                                             vectorN_t const & q,
                                                             vectorN_t const & v,
                                                             vectorN_t const & u,
-                                                            forceVector_t & fext)
+                                                            forceVector_t & fext,
+                                                            bool_t const & ignoreBounds)
     {
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
@@ -3906,7 +3958,7 @@ namespace jiminy
 
             // Call forward dynamics
             systemData.constraintSolver->SolveBoxedForwardDynamics(
-                engineOptions_->constraints.regularization);
+                engineOptions_->constraints.regularization, ignoreBounds);
 
             // Restore contact frame forces and bounds internal efforts
             systemData.constraintsHolder.foreach(

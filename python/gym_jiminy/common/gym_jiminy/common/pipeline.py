@@ -9,11 +9,12 @@ making it easier to maintain and avoiding code duplications between usecases.
 import json
 import pathlib
 from pydoc import locate
-from typing import Optional, Union, Dict, Any, Type, Sequence, List
+from typing import Optional, Union, Dict, Any, Type, Sequence, List, TypedDict
+
+from typing_extensions import TypeAlias
 
 import gym
 import toml
-from typing_extensions import TypedDict
 
 from .bases import (BlockInterface,
                     BaseControllerBlock,
@@ -182,8 +183,7 @@ def build_pipeline(env_config: EnvConfig,
         # Implementation of __init__ method must be done after declaration of
         # the class, because the required closure for calling `super()` is not
         # available when creating a class dynamically.
-        def __init__(self: wrapped_env_class,  # type: ignore[valid-type]
-                     **kwargs: Any) -> None:
+        def __init__(self: TypeAlias, **kwargs: Any) -> None:
             """
             :param kwargs: Keyword arguments to forward to both the wrapped
                            environment and the controller. It will overwrite
@@ -254,7 +254,7 @@ def build_pipeline(env_config: EnvConfig,
         assert (isinstance(obj, type) and
                 issubclass(obj, (gym.Wrapper, BaseJiminyEnv)))
         pipeline_class = obj
-    env_kwargs = env_config.get('env_kwargs', None)
+    env_kwargs = env_config.get('env_kwargs')
     for config in blocks_config:
         pipeline_class = _build_wrapper(
             pipeline_class, env_kwargs, **config)

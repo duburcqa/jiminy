@@ -4,9 +4,11 @@ method of jiminy on simple mass.
 import unittest
 import numpy as np
 from enum import Enum
+from itertools import product
 from scipy.signal import savgol_filter
 
 import jiminy_py.core as jiminy
+from jiminy_py.core import ForceSensor, ContactSensor
 
 from pinocchio import Force, SE3, log3
 
@@ -51,24 +53,23 @@ class SimulateSimpleMass(unittest.TestCase):
         # Create the jiminy robot and controller
         robot = load_urdf_default(urdf_name, has_freeflyer=True)
 
-        # Add contact point or collision body, along with related sensor,
-        # depending on shape type.
+        # Add contact point or collision body depending on shape type
         if shape != ShapeType.POINT:
             # Add collision body
             robot.add_collision_bodies([self.body_name])
-
-            # Add a force sensor
-            force_sensor = jiminy.ForceSensor(self.body_name)
-            robot.attach_sensor(force_sensor)
-            force_sensor.initialize(self.body_name)
         else:
             # Add contact point
             robot.add_contact_points([self.body_name])
 
             # Add a contact sensor
-            contact_sensor = jiminy.ContactSensor(self.body_name)
+            contact_sensor = ContactSensor(self.body_name)
             robot.attach_sensor(contact_sensor)
             contact_sensor.initialize(self.body_name)
+
+        # Add a force sensor
+        force_sensor = ForceSensor(self.body_name)
+        robot.attach_sensor(force_sensor)
+        force_sensor.initialize(self.body_name)
 
         # Extract some information about the engine and the robot
         m = robot.pinocchio_model.inertias[-1].mass
@@ -106,13 +107,14 @@ class SimulateSimpleMass(unittest.TestCase):
         return engine
 
     def _test_collision_and_contact_dynamics(self, shape):
-        """
-        @brief    Validate the collision body and contact point dynamics.
+        """Validate the collision body and contact point dynamics.
 
-        @details  The energy is expected to decrease slowly when penetrating
-                  into the ground, but should stay constant otherwise. Then,
-                  the equilibrium point must also match the physics. Note that
-                  the friction model is not assessed here.
+        The energy is expected to decrease slowly when penetrating into the
+        ground, but should stay constant otherwise. Then, the equilibrium point
+        must also match the physics.
+
+        .. warning::
+            The friction model is not assessed here.
         """
         # Create the robot
         robot, weight, height, joint_idx, _ = self._setup(shape)
@@ -176,13 +178,14 @@ class SimulateSimpleMass(unittest.TestCase):
             self._test_collision_and_contact_dynamics(shape)
 
     def test_contact_sensor(self):
-        """
-        @brief    Validate output of contact sensor.
+        """Validate output of contact sensor.
 
-        @details  The energy is expected to decrease slowly when penetrating
-                  into the ground, but should stay constant otherwise. Then,
-                  the equilibrium point must also match the physics. Note that
-                  the friction model is not assessed here.
+        The energy is expected to decrease slowly when penetrating into the
+        ground, but should stay constant otherwise. Then, the equilibrium
+        point must also match the physics.
+
+        .. warning::
+            The friction model is not assessed here.
         """
         # Create the robot
         robot, *_, joint_idx, frame_pose = self._setup(ShapeType.POINT)
@@ -192,17 +195,18 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # No control law, only check sensors data
         def check_sensors_data(t, q, v, sensors_data, command):
-            nonlocal engine, frame_pose
-
             # Verify sensor data, if the engine has been initialized
+            nonlocal engine, frame_pose
             if engine.is_initialized:
-                contact_data = sensors_data[
-                    jiminy.ContactSensor.type, self.body_name]
-                f = Force(contact_data, np.zeros(3))
-                f_joint_sensor = frame_pose * f
-                f_jiminy = engine.system_state.f_external[joint_idx]
+                f_linear = sensors_data[ContactSensor.type, self.body_name]
+                f_wrench = sensors_data[ForceSensor.type, self.body_name]
+                f_contact_sensor = frame_pose * Force(f_linear, np.zeros(3))
+                f_force_sensor = frame_pose * Force(*np.split(f_wrench, 2))
+                f_true = engine.system_state.f_external[joint_idx]
                 self.assertTrue(np.allclose(
-                    f_joint_sensor.vector, f_jiminy.vector, atol=TOLERANCE))
+                    f_contact_sensor.linear, f_true.linear, atol=TOLERANCE))
+                self.assertTrue(np.allclose(
+                    f_force_sensor.vector, f_true.vector, atol=TOLERANCE))
 
         # Internal dynamics: make the mass spin to generate nontrivial
         # rotations.
@@ -216,18 +220,27 @@ class SimulateSimpleMass(unittest.TestCase):
             compute_command=check_sensors_data,
             internal_dynamics=spinning_force)
 
-        # Run simulation
-        q0, v0 = neutral_state(robot, split=True)
-        tf = 1.5
-        engine.simulate(tf, q0, v0)
+        # Increase the intergation timestep
+        engine_options = engine.get_options()
+        engine_options["stepper"]["controllerUpdatePeriod"] = 1e-3
+
+        # Run the test for different combinations of options
+        for contact_model, sensor_period in product(
+                ("constraint", "spring_damper"), (0.0, 1e-3)):
+            # Set options
+            engine_options['contacts']['model'] = contact_model
+            engine_options["stepper"]["sensorsUpdatePeriod"] = sensor_period
+            engine.set_options(engine_options)
+
+            # Run simulation
+            engine.simulate(1.0, *neutral_state(robot, split=True))
 
     def _test_friction_model(self, shape):
-        """
-        @brief    Validate the friction model.
+        """Validate the friction model.
 
-        @details  The transition between dry, dry-viscous, and viscous friction
-                  is assessed. The energy variation and the steady state are
-                  also compared to the theoretical model.
+        The transition between dry, dry-viscous, and viscous friction is
+        assessed. The energy variation and the steady state are also compared
+        to the theoretical model.
         """
         # Create the robot and engine
         robot, weight, height, *_ = self._setup(shape)
@@ -316,11 +329,9 @@ class SimulateSimpleMass(unittest.TestCase):
             self._test_friction_model(shape)
 
     def test_fixed_frame_constraint(self):
-        """
-        @brief    Validate the fixed frame constraint.
+        """Validate the fixed frame constraint.
 
-        @details  Check that the error is strictly decreasing, with the
-                  expected rate.
+        Check that the error is strictly decreasing, with the expected rate.
         """
         # Create the robot and engine
         robot = load_urdf_default("sphere_primitive.urdf", has_freeflyer=True)
@@ -362,10 +373,9 @@ class SimulateSimpleMass(unittest.TestCase):
         engine.stop()
 
     def test_quaternion_continuity(self):
-        """
-        @brief    Validate the continuity of the quaternion.
+        """Validate the continuity of the quaternion.
 
-        @details  Check both the value of the freeflyer state and IMU sensors.
+        Check both the value of the freeflyer state and IMU sensors.
         """
         # Create the robot and engine
         robot = load_urdf_default("sphere_primitive.urdf", has_freeflyer=True)

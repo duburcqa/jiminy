@@ -3,7 +3,8 @@ include(ExternalProject)
 
 # Set the compilation flags.
 # Use the same flags than jiminy itself, but disable all warnings.
-set(CMAKE_COMPILE_FLAGS_EXTERNAL "${CMAKE_CXX_FLAGS} -w")
+set(CMAKE_CXX_FLAGS_EXTERNAL "${CMAKE_CXX_FLAGS} -w")
+string(REGEX REPLACE "-fsanitize=[a-z\-]+" "" CMAKE_CXX_FLAGS_DEBUG_EXTERNAL "${CMAKE_CXX_FLAGS_DEBUG}")
 
 # Set fake credential
 set(GIT_CREDENTIAL_EXTERNAL user.name=cmake;user.email=external.project@cmake.com)

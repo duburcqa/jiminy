@@ -1,180 +1,323 @@
 """Solve the official Open AI Gym Acrobot problem simulated in Jiminy using PPO
 algorithm of Ray RLlib reinforcement learning framework.
 
-It solves it consistently in less than 100000 timesteps in average, and in
-about 60000 at best.
+It solves it consistently in less than 100000 timesteps in average.
 
 .. warning::
-    This script requires pytorch>=1.4 and ray[rllib]==1.2.
+    This script has been tested for pytorch~=1.13 and ray[rllib]~=2.2.
 """
-# flake8: noqa
 
-# ======================== User parameters =========================
+# ====================== Configure Python workspace =======================
 
-GYM_ENV_NAME = "gym_jiminy.envs:acrobot-v0"
-GYM_ENV_KWARGS = {
-    'continuous': True
-}
-DEBUG = False
-SEED = 0
-N_THREADS = 8
-N_GPU = 1
-
-# =================== Configure Python workspace ===================
-
-# GPU device selection must be done at system level to be taken into account
-__import__("os").environ["CUDA_VISIBLE_DEVICES"] = \
-    ",".join(map(str, range(N_GPU)))
-
+import os
 import logging
+from functools import partial
+
 import gym
 import ray
 from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS
-from ray.rllib.agents.trainer import COMMON_CONFIG
-from ray.rllib.agents.ppo import (PPOTrainer as Trainer,
-                                  DEFAULT_CONFIG as AGENT_DEFAULT_CONFIG)
 
-from gym_jiminy.toolbox.rllib.utilities import initialize, train, test
+from gym_jiminy.common.wrappers import FrameRateLimiter
+from gym_jiminy.rllib.ppo import PPOConfig
+from gym_jiminy.rllib.utilities import (initialize,
+                                        train,
+                                        build_eval_policy_from_checkpoint,
+                                        build_policy_wrapper,
+                                        build_eval_worker_from_checkpoint,
+                                        evaluate_local_worker,
+                                        evaluate_algo)
 
-# Register learning environment
-register_env("env", lambda env_config: gym.make(GYM_ENV_NAME, **env_config))
 
-# ============= Initialize Ray and Tensorboard daemons =============
+if __name__ == "__main__":
+    # ============================ User parameters ============================
 
-logger_creator = initialize(
-    num_cpus=N_THREADS, num_gpus=N_GPU, debug=DEBUG)
+    GYM_ENV_NAME = "gym_jiminy.envs:acrobot-v0"
+    GYM_ENV_KWARGS = {
+        'continuous': True
+    }
+    SPEED_RATIO = 1.0
+    DEBUG = False
+    SEED = 0
+    N_THREADS = 9
+    N_GPU = 0
 
-# ======================== Configure model =========================
+    # ==================== Initialize Ray and Tensorboard =====================
 
-# Copy the default model configuration
-mdl_cfg = MODEL_DEFAULTS.copy()
+    # Start Ray and Tensorboard background processes
+    logger_creator = initialize(
+        num_cpus=N_THREADS, num_gpus=N_GPU, debug=DEBUG, verbose=True)
 
-# Fully-connected network settings
-mdl_cfg["fcnet_activation"] = "tanh"  # Nonlinearity for built-in fully connected net ["tanh", "relu", "linear"]
-mdl_cfg["fcnet_hiddens"] = [64, 64]   # Number of hidden layers for fully connected net
-mdl_cfg["no_final_linear"] = False    # Whether to skip the final linear layer used to resize the outputs to `num_outputs`
-mdl_cfg["free_log_std"] = True        # The last half of the output layer does not dependent on the input
-mdl_cfg["vf_share_layers"] = False    # Whether layers should be shared for the value function.
+    # Register the environment
+    register_env(
+        "train", lambda env_config: gym.make(GYM_ENV_NAME, **env_config))
+    register_env(
+        "test", lambda env_config: FrameRateLimiter(
+            gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
 
-# ========================= Configure RLlib ========================
+    # ====================== Configure policy's network =======================
 
-# Copy the default rllib configuration
-rllib_cfg = COMMON_CONFIG.copy()
+    # Default model configuration
+    model_config = MODEL_DEFAULTS.copy()
 
-# Ressources settings
-rllib_cfg["framework"] = "torch"                    # Use PyTorch ("torch") instead of Tensorflow ("tf" or "tfe" (eager mode))
-rllib_cfg["log_level"] = logging.DEBUG if DEBUG else logging.ERROR
-rllib_cfg["num_gpus"] = N_GPU                       # Number of GPUs to reserve for the trainer process
-rllib_cfg["num_workers"] = int(N_THREADS//2)        # Number of rollout worker processes for parallel sampling
-rllib_cfg["num_envs_per_worker"] = 1                # Number of environments per worker processes
-rllib_cfg["remote_worker_envs"] = False             # Whether to create the envs per worker in individual remote processes. Note it adds overheads
-rllib_cfg["num_cpus_per_worker"] = 1                # Number of CPUs to reserve per worker processes
-rllib_cfg["num_cpus_for_driver"] = 0                # Number of CPUs to allocate for trainer process
-rllib_cfg["remote_env_batch_wait_ms"] = 0           # Duration worker processes are waiting when polling environments. (0 to disable: as soon as one env is ready)
-rllib_cfg["extra_python_environs_for_driver"] = {}  # Extra python env vars to set for trainer process
-rllib_cfg["extra_python_environs_for_worker"] = {   # Extra python env vars to set for worker processes
-    "OMP_NUM_THREADS": "1"                          # Disable multi-threaded linear algebra (numpy, torch...etc), ensuring one thread per worker
-}
+    # Fully-connected network settings
+    model_config.update(dict(
+        # Nonlinearity for built-in fully connected net
+        fcnet_activation="tanh",
+        # Number of hidden layers for fully connected net
+        fcnet_hiddens=[64, 64],
+        # The last half of the output layer does not dependent on the input
+        free_log_std=True,
+        # Whether to share layers between the policy and value function
+        vf_share_layers=False
+    ))
 
-# Environment settings
-rllib_cfg["horizon"] = None               # Number of steps after which the episode is forced to terminate
-rllib_cfg["soft_horizon"] = False         # Calculate rewards but don't reset the environment when the horizon is hit
-rllib_cfg["no_done_at_end"] = False       # Don't set 'done' at the end of the episode
-rllib_cfg["normalize_actions"] = False    # Normalize actions to the upper and lower bounds of the action space
-rllib_cfg["clip_actions"] = True          # Whether to clip actions to the upper and lower bounds of the action space
-rllib_cfg["clip_rewards"] = False         # Whether to clip rewards prior to experience postprocessing
-rllib_cfg["env_config"] = GYM_ENV_KWARGS  # Arguments to pass to the env creator
+    # ===================== Configure learning algorithm ======================
 
-# Model settings
-# rllib_cfg["replay_sequence_length"] = 1  # The number of contiguous environment steps to replay at once
-rllib_cfg["model"] = mdl_cfg             # Policy model configuration
+    # Default PPO configuration
+    algo_config = PPOConfig()
 
-# Rollout settings
-rllib_cfg["rollout_fragment_length"] = 128     # Sample batches of this size (mult. by `num_envs_per_worker`) are collected from each worker process
-rllib_cfg["train_batch_size"] = 512            # Sample batches are concatenated together into batches of this size if sample_async disable, per worker process otherwise
-rllib_cfg["batch_mode"] = "truncate_episodes"  # Whether to rollout "complete_episodes" or "truncate_episodes" to `rollout_fragment_length`
-rllib_cfg["sample_async"] = False              # Use a background thread for sampling (slightly off-policy)
-rllib_cfg["observation_filter"] = "NoFilter"   # Element-wise observation filter ["NoFilter", "MeanStdFilter"]
-rllib_cfg["compress_observations"] = False     # Whether to LZ4 compress individual observations
-rllib_cfg["seed"] = SEED                       # sets the random seed of each worker processes (in conjunction with worker_index)
+    # Resources settings
+    algo_config.resources(
+        # Number of GPUs to reserve for the trainer process
+        num_gpus=N_GPU,
+        # Number of CPUs to reserve per worker processes
+        num_cpus_per_worker=1,
+        # Number of CPUs to allocate for trainer process
+        num_gpus_per_worker=0,
+    )
+    algo_config.rollouts(
+        # Number of rollout worker processes for parallel sampling
+        num_rollout_workers=N_THREADS-1,
+        # Number of environments per worker processes
+        num_envs_per_worker=1,
+        # Whether to create the envs per worker in individual remote processes
+        remote_worker_envs=False,
+        # Duration worker processes are waiting when polling environments
+        remote_env_batch_wait_ms=0,
+    )
+    algo_config.python_environment(
+        # Extra python env vars to set for trainer process
+        extra_python_environs_for_driver = {},
+        # Extra python env vars to set for worker processes
+        extra_python_environs_for_worker = {
+            # Disable multi-threaded linear algebra at worker-level
+            "OMP_NUM_THREADS": "1"
+        }
+    )
 
-# Learning settings
-rllib_cfg["lr"] = 1.0e-3              # Default learning rate (Not use for actor-critic algorithms such as TD3)
-rllib_cfg["gamma"] = 0.99             # Discount factor of the MDP (0.992: <4% after one walk stride)
-rllib_cfg["explore"] = True           # Disable exploration completely
-rllib_cfg["exploration_config"] = {
-    "type": "StochasticSampling",     # The Exploration class to use ["EpsilonGreedy", "Random", ...]
-}
-rllib_cfg["shuffle_buffer_size"] = 0  # Shuffle input batches via a sliding window buffer of this size (0 = disable)
+    # Debugging and monitoring settings
+    algo_config.rollouts(
+        # Whether to attempt to continue training if a worker crashes
+        ignore_worker_failures=False
+    )
+    algo_config.debugging(
+        # Set the log level for the whole learning process
+        log_level=logging.DEBUG if DEBUG else logging.ERROR,
+        # Monitor system resource metrics (requires `psutil` and `gputil`)
+        log_sys_usage=True,
 
-# Evaluation settings
-rllib_cfg["evaluation_interval"] = None    # Evaluate every `evaluation_interval` training iterations (None to disable)
-rllib_cfg["evaluation_num_episodes"] = 50  # Number of episodes to run per evaluation
-rllib_cfg["evaluation_num_workers"] = 0    # Number of dedicated parallel workers to use for evaluation (0 to disable)
+        logger_creator=logger_creator
+    )
+    algo_config.reporting(
+        # Smooth metrics over this many episodes
+        metrics_num_episodes_for_smoothing=100,
+        # Wait for metric batches for this duration
+        metrics_episode_collection_timeout_s=180,
+        # Minimum training timesteps to accumulate between each reporting
+        min_train_timesteps_per_iteration=0,
+        # Whether to store custom metrics without calculating max, min, mean
+        keep_per_episode_custom_metrics=True
+    )
 
-# Debugging and monitoring settings
-rllib_cfg["monitor"] = False                   # Whether to save episode stats and videos
-rllib_cfg["ignore_worker_failures"] = False    # Whether to save episode stats and videos
-rllib_cfg["log_level"] = "INFO"                # Set the ray.rllib.* log level for the agent process and its workers [DEBUG, INFO, WARN, or ERROR]
-rllib_cfg["log_sys_usage"] = True              # Monitor system resource metrics (requires `psutil` and `gputil`)
-rllib_cfg["metrics_smoothing_episodes"] = 100  # Smooth metrics over this many episodes
-rllib_cfg["collect_metrics_timeout"] = 180     # Wait for metric batches for this duration. If not in time, collect in the next train iteration.
-rllib_cfg["timesteps_per_iteration"] = 0       # Minimum env steps to optimize for per train call. It does not affect learning, only monitoring.
+    # Environment settings
+    algo_config.rollouts(
+        # Number of steps after which the episode is forced to terminate
+        horizon=None,
+        # End the episode but do not reset environment when hitting the horizon
+        soft_horizon=False,
+        # Don't set 'done' at the end of the episode
+        no_done_at_end=False
+    )
+    algo_config.environment(
+        # The environment specifier
+        env="train",
+        # Normalize actions to the bounds of the action space
+        normalize_actions=False,
+        # Whether to clip actions to the bounds of the action space
+        clip_actions=False,
+        # Whether to clip rewards during postprocessing by the policy
+        clip_rewards=False,
+        # Arguments to pass to the env creator
+        env_config=GYM_ENV_KWARGS
+    )
 
-# ================== Configure learning algorithm ==================
+    # Rollout settings
+    algo_config.rollouts(
+        # Number of collected samples per environments
+        rollout_fragment_length="auto",
+        # Whether to rollout "complete_episodes" or "truncate_episodes"
+        batch_mode="truncate_episodes",
+        # Use a background thread for sampling (slightly off-policy)
+        sample_async=False,
+        # Element-wise observation filter ["NoFilter", "MeanStdFilter"]
+        observation_filter="NoFilter",
+        # Whether to LZ4 compress individual observations
+        compress_observations=False,
+    )
+    algo_config.debugging(
+        # Set the random seed of each worker processes based on worker_index
+        seed=SEED
+    )
 
-# Copy the default learning algorithm configuration, including PPO-specific parameters,
-# then overwrite the common parameters that has been updated ONLY.
-agent_cfg = AGENT_DEFAULT_CONFIG.copy()
-for key, value in rllib_cfg.items():
-    if COMMON_CONFIG[key] != value:
-        agent_cfg[key] = value
+    # Model settings
+    algo_config.training(
+        # Policy model configuration
+        model=model_config
+    )
 
-# Estimators settings
-agent_cfg["use_gae"] = True     # Use the Generalized Advantage Estimator (GAE) with a value function (https://arxiv.org/pdf/1506.02438.pdf)
-agent_cfg["use_critic"] = True  # Use a critic as a value baseline (otherwise don't use any; required for using GAE).
-agent_cfg["lambda"] = 0.95      # The GAE(lambda) parameter.
+    # Learning settings
+    algo_config.training(
+        # Sample batches are concatenated together into batches of this size
+        train_batch_size=2000,
+        # Learning rate
+        lr=5.0e-4,
+        # Discount factor of the MDP (0.991: ~1% after 500 step)
+        gamma=0.991,
+    )
+    algo_config.exploration(
+        # Whether to disable exploration completely
+        explore=True,
+        exploration_config=dict(
+            # The Exploration class to use ["EpsilonGreedy", "Random", ...]
+            type="StochasticSampling",
+        )
+    )
 
-# Learning settings
-agent_cfg["kl_coeff"] = 0.0                 # Initial coefficient for KL divergence. (0.0 for L^CLIP)
-agent_cfg["kl_target"] = 0.01               # Target value for KL divergence
-agent_cfg["vf_share_layers"] = False        # Share layers for value function. If you set this to True, it's important to tune vf_loss_coeff
-agent_cfg["vf_loss_coeff"] = 0.5            # Coefficient of the value function loss
-agent_cfg["entropy_coeff"] = 0.01           # Coefficient of the entropy regularizer
-agent_cfg["entropy_coeff_schedule"] = None  # Decay schedule for the entropy regularizer
-agent_cfg["clip_param"] = 0.2               # PPO clip parameter
-agent_cfg["vf_clip_param"] = float("inf")   # Clip param for the value function. Note that this is sensitive to the scale of the rewards (-1 to disable)
+    # ====================== Configure agent evaluation =======================
 
-# Optimization settings
-agent_cfg["lr_schedule"] = None        # Learning rate schedule
-agent_cfg["sgd_minibatch_size"] = 128  # Total SGD batch size across all devices for SGD. This defines the minibatch size of each SGD epoch
-agent_cfg["num_sgd_iter"] = 8          # Number of SGD epochs to execute per train batch
-agent_cfg["shuffle_sequences"] = True  # Whether to shuffle sequences in the batch when training
-agent_cfg["grad_clip"] = None          # Clamp the norm of the gradient during optimization (None to disable)
+    algo_config.evaluation(
+        # Evaluate every `evaluation_interval` training iterations
+        evaluation_interval=20,
+        # Number of evaluation steps based on specified unit
+        evaluation_duration=10,
+        # The unit with which to count the evaluation duration
+        evaluation_duration_unit="episodes",
+        # Number of parallel workers to use for evaluation
+        evaluation_num_workers=1,
+        # Whether to run evaluation in parallel to a Algorithm.train()
+        evaluation_parallel_to_training=True,
+        # Custom evaluation method
+        custom_evaluation_function=partial(
+            evaluate_algo,
+            print_stats=True,
+            enable_replay=(
+                os.getenv('JIMINY_VIEWER_DEFAULT_BACKEND') != "panda3d-sync"),
+            record_video=True
+        ),
+        # Partially override configuration for evaluation
+        evaluation_config=dict(
+            env="test",
+            env_config=dict(
+                **GYM_ENV_KWARGS,
+                viewer_kwargs=dict(
+                    display_com=False,
+                    display_dcm=False,
+                    display_f_external=False
+                )
+            ),
+            # Real-time rendering during evaluation (no post-processing)
+            render_env=False,
+            explore=False,
+            horizon=None
+        )
+    )
 
-# ====================== Run the optimization ======================
+    # ===================== Configure learning algorithm ======================
 
-agent_cfg["lr"] = 1.0e-4
-agent_cfg["lr_schedule"] = None
+    algo_config.framework(
+        # PyTorch is the only ML framework supported by `gym_jiminy.rllib`
+        framework="torch"
+    )
 
-train_agent = Trainer(agent_cfg, "env", logger_creator)
-checkpoint_path = train(train_agent, max_timesteps=100000)
+    # Estimators settings
+    algo_config.training(
+        # Use the Generalized Advantage Estimator (GAE)
+        use_gae=True,
+        # Whether to user critic as a value baseline (required if using GAE)
+        use_critic=True,
+        # GAE(lambda) parameter
+        lambda_=0.95,
+    )
 
-# ===================== Enjoy the trained agent ======================
+    # Learning settings
+    algo_config.training(
+        # Initial coefficient for KL divergence. (0.0 for L^CLIP)
+        kl_coeff=0.0,
+        # Target value for KL divergence
+        kl_target=0.1,
+        # Coefficient of the value function loss
+        vf_loss_coeff=0.5,
+        # Coefficient of the entropy regularizer
+        entropy_coeff=0.01,
+        # Decay schedule for the entropy regularizer
+        entropy_coeff_schedule=None,
+        # PPO clip parameter
+        clip_param=0.2,
+        # Clip param for the value function (sensitive to the reward scale)
+        vf_clip_param=float("inf"),
+    )
 
-test_agent = Trainer(agent_cfg, "env", logger_creator)
-test_agent.restore(checkpoint_path)
-test(test_agent, explore=False)
+    # Regularization settings
+    algo_config.training(
+        enable_adversarial_noise=True,
+        temporal_barrier_threshold=0.5,
+        temporal_barrier_reg=1e-1,
+        caps_temporal_reg=5e-3,
+        caps_spatial_reg=1e-2,
+        caps_global_reg=1e-4,
+        l2_reg=1e-6,
+    )
 
-# =================== Terminate Ray backend ====================
+    # Optimization settings
+    algo_config.training(
+        # Learning rate schedule
+        lr_schedule=None,
+        # Minibatch size of each SGD epoch
+        sgd_minibatch_size=250,
+        # Number of SGD epochs to execute per training iteration
+        num_sgd_iter=8,
+        # Whether to shuffle sequences in the batch when training
+        shuffle_sequences=True,
+        # Clamp the norm of the gradient during optimization (None to disable)
+        grad_clip=None,
+    )
 
-train_agent.stop()
-test_agent.stop()
-ray.shutdown()
+    # ========================= Run the optimization ==========================
 
-# =================== Terminate the Ray backend ====================
+    # Initialize the learning algorithm
+    algo = algo_config.build()
 
-train_agent.stop()
-test_agent.stop()
-ray.shutdown()
+    # Train the agent
+    checkpoint_path = train(algo, max_timesteps=150000)
+
+    # ========================= Terminate Ray backend =========================
+
+    algo.stop()
+    ray.shutdown()
+
+    # ===================== Enjoy a trained agent locally =====================
+
+    # Build a standalone local evaluation worker (not requiring ray backend)
+    register_env("test", lambda env_config: FrameRateLimiter(
+        gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
+    worker = build_eval_worker_from_checkpoint(checkpoint_path)
+    evaluate_local_worker(worker, evaluation_num=1, close_backend=True)
+
+    # Build a standalone single-agent evaluation policy
+    env = gym.make(GYM_ENV_NAME, **algo_config.env_config)
+    policy_map = build_eval_policy_from_checkpoint(checkpoint_path)
+    policy_fn = build_policy_wrapper(
+        policy_map, clip_actions=False, explore=False)
+    for seed in (1, 1, 2):
+        env.evaluate(env, policy_fn, seed=seed)

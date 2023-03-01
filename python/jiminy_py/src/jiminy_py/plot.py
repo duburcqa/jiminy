@@ -1,27 +1,31 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-name-in-module
 import os
+import sys
 import fnmatch
 import pathlib
 import argparse
+import logging
 from math import ceil, sqrt, floor
 from textwrap import dedent
 from itertools import cycle
 from functools import partial
 from collections import OrderedDict
 from weakref import WeakKeyDictionary
-from typing import Dict, Optional, Any, Tuple, List, Union, Callable
-
-from typing_extensions import TypedDict
+from typing import Dict, Optional, Any, Tuple, List, Union, Callable, TypedDict
 
 import numpy as np
 try:
+    import matplotlib
     import matplotlib.pyplot as plt
-except ImportError:
+except ImportError as e:
     raise ImportError(
-        "Submodule not available. Please install 'jiminy_py[plot]'.")
+        "Submodule not available. Please install 'jiminy_py[plot]'.") from e
 except RuntimeError as e:
     # You can get a runtime error if Matplotlib is installed but cannot be
     # imported because of some conflicts with jupyter event loop for instance.
-    raise ImportError(e)
+    raise ImportError("Matplotlib cannot be imported.") from e
 from matplotlib import colors
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -94,7 +98,7 @@ class TabbedFigure:
         It only supports plotting time-dependent data, the later corresponding
         to the horizontal axis of every subplots.
     """
-    def __init__(self,
+    def __init__(self,  # pylint: disable=unused-argument
                  sync_tabs: bool = False,
                  window_title: str = "jiminy",
                  offscreen: bool = False,
@@ -115,6 +119,17 @@ class TabbedFigure:
         # Backup user arguments
         self.sync_tabs = sync_tabs
         self.offscreen = offscreen
+
+        # Warn the user if Matplotlib backend is not fully compatible
+        if interactive_mode() >= 2 and matplotlib.get_backend() != 'nbAgg':
+            msg = (
+                "Matplotlib's 'widget' and 'inline' backends are not properly "
+                "supported.")
+            if interactive_mode() == 2:
+                msg += (
+                    " Please add '%matplotlib notebook' at the top and "
+                    "restart the kernel.")
+            logging.warning(msg)
 
         # Internal state buffers
         self.figure = plt.figure()
@@ -143,7 +158,8 @@ class TabbedFigure:
         self.close()
 
     def adjust_layout(self,
-                      event: Optional[Event] = None, *,
+                      event: Optional[  # pylint: disable=unused-argument
+                          Event] = None, *,
                       refresh_canvas: bool = False) -> None:
         """Optimize subplot grid and buttons width for best fit, then adjust
         layout based on window size.
@@ -264,11 +280,8 @@ class TabbedFigure:
         """
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
-        # button = self.tab_active["button"]
-        # button.ax.draw_artist(button.ax)
-        # button.ax.figure.canvas.blit(button.ax.bbox)
 
-    def add_tab(self,
+    def add_tab(self,  # pylint: disable=unused-argument
                 tab_name: str,
                 time: np.ndarray,
                 data: Union[np.ndarray, Dict[str, Union[
@@ -374,12 +387,14 @@ class TabbedFigure:
             button.color = 'green'
             button.hovercolor = 'green'
 
-        # Update figure and show it without blocking
+        # Update figure and show it without blocking if not done automatically
         self.adjust_layout(refresh_canvas=refresh_canvas)
-        if not self.offscreen:
+        if not self.offscreen and interactive_mode() < 2:
             self.figure.show()
 
     def set_active_tab(self, tab_name: str) -> None:
+        """ TODO: Write documentation.
+        """
         event = LocationEvent("click", self.figure.canvas, 0, 0)
         event.inaxes = self.tabs_data[tab_name]["button"].ax
         self.__click(event, force_update=True)
@@ -409,7 +424,7 @@ class TabbedFigure:
         if not self.tabs_data:
             if self.figure._suptitle is not None:
                 self.figure._suptitle.remove()
-                self._suptitle = None
+                self.figure._suptitle = None
             for ax in tab["axes"]:
                 ax.remove()
             if self.legend is not None:
@@ -437,7 +452,7 @@ class TabbedFigure:
             pdf_path, format='pdf', bbox_inches=self.bbox_inches)
 
     def save_all_tabs(self, pdf_path: str) -> List[str]:
-        """Export every tabs in a signle pdf, limiting systematically the
+        """Export every tabs in a single pdf, limiting systematically the
         bounding box to the subplots and legend.
 
         :param pdf_path: Desired location for generated pdf file.
@@ -495,13 +510,13 @@ def plot_log(log_data: Dict[str, Any],
         velocity and acceleration subplots.
         Optional: False by default.
     :param block: Whether to wait for the figure to be closed before
-                  returning.
+                  returning. Non-op for offscreen rendering and notebooks.
                   Optional: False in interactive mode, True otherwise.
     :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
     """
     # Blocking by default if not interactive
     if block is None:
-        block = interactive_mode() < 1
+        block = interactive_mode() == 0
 
     # Extract log data
     if not log_data:
@@ -579,13 +594,15 @@ def plot_log(log_data: Dict[str, Any],
         time, tabs_data, **{"plot_method": "plot", **kwargs})
 
     # Show the figure if appropriate, blocking if necessary
-    if not figure.offscreen:
+    if block and not figure.offscreen:
         plt.show(block=block)
 
     return figure
 
 
 def plot_log_interactive():
+    """ TODO: Write documentation.
+    """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
         description=dedent("""\
@@ -631,7 +648,7 @@ def plot_log_interactive():
     if len(plotting_commands) == 0:
         print("Available data:", *map(
             lambda s: f"- {s}", log_vars.keys()), sep="\n")
-        exit(0)
+        sys.exit(0)
 
     # Load comparision logs, if any.
     compare_data = OrderedDict()
@@ -647,17 +664,17 @@ def plot_log_interactive():
     for cmd in plotting_commands:
         # Check that the command is valid, i.e. that all elements exits.
         # If it is the case, add it to the list.
-        same_subplot = (cmd[0] == ':')
+        same_subplot = cmd[0] == ':'
         headers = cmd.strip(':').split(':')
 
         # Expand each element according to wildcard expression
         matching_fieldnames = []
-        for h in headers:
-            match = sorted(fnmatch.filter(log_vars.keys(), h))
+        for header in headers:
+            match = sorted(fnmatch.filter(log_vars.keys(), header))
             if len(match) > 0:
                 matching_fieldnames.append(match)
             else:
-                print(f"No matching headers for expression {h}")
+                print(f"No matching headers for expression {header}")
         if len(matching_fieldnames) == 0:
             continue
 
@@ -666,7 +683,7 @@ def plot_log_interactive():
             plotted_elements.append([
                 e for l_sub in matching_fieldnames for e in l_sub])
         else:
-            n_subplots = min([len(header) for header in matching_fieldnames])
+            n_subplots = min(len(header) for header in matching_fieldnames)
             for i in range(n_subplots):
                 plotted_elements.append(
                     [header[i] for header in matching_fieldnames])

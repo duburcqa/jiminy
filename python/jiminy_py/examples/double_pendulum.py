@@ -60,7 +60,6 @@ engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"  # ["runge_kutta_d
 engine_options["stepper"]["tolRel"] = 1.0e-5
 engine_options["stepper"]["tolAbs"] = 1.0e-4
 engine_options["stepper"]["dtMax"] = 2.0e-3  # 2.0e-4 for "euler_explicit", 3.0e-3 for "runge_kutta_dopri5"
-engine_options["stepper"]["iterMax"] = 100000
 engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
 engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
 engine_options["stepper"]["logInternalStepperSteps"] = False
@@ -111,5 +110,5 @@ plt.show()
 # Display the simulation trajectory and the reference
 play_logs_data(robot, log_data,
                speed_ratio=0.5,
-               camera_xyzrpy=[(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)],
+               camera_xyzrpy=((0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)),
                delete_robot_on_close=False)

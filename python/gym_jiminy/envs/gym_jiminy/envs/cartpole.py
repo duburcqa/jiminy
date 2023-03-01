@@ -76,12 +76,20 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
     Considered solved when the average reward is greater than or equal to 195.0
     over 100 consecutive trials.
     """
-    def __init__(self, continuous: bool = False, debug: bool = False) -> None:
+    def __init__(self,
+                 continuous: bool = False,
+                 debug: bool = False,
+                 viewer_kwargs: Optional[Dict[str, Any]] = None) -> None:
         """
         :param continuous: Whether the action space is continuous. If not
                            continuous, the action space has only 3 states, i.e.
                            low, zero, and high.
                            Optional: True by default.
+        :param debug: Whether the debug mode must be enabled.
+                      See `BaseJiminyEnv` constructor for details.
+        :param viewer_kwargs: Keyword arguments to override by default whenever
+                              a viewer must be instantiated
+                              See `Simulator` constructor for details.
         """
         # Backup some input arguments
         self.continuous = continuous
@@ -231,11 +239,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         if not self._num_steps_beyond_done:  # True for both None and 0
             reward += 1.0
         return reward
-
-    def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
-        if not self.simulator.is_viewer_available:
-            kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
-        return super().render(mode, **kwargs)
 
     def _key_to_action(self, key: Optional[str], **kwargs: Any) -> np.ndarray:
         """ TODO: Write documentation.

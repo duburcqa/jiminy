@@ -23,10 +23,10 @@ class InstallPlatlib(install):
 # Enforce the right numpy version. It assumes the version currently available
 # was used to compile all the C++ extension modules shipping with Jiminy.
 # - Numpy API is not backward compatible but is forward compatible
-# - A few version must be blacklisted because of Boost::Python incompatibility
 # - For some reason, forward compatibility from 1.19 to 1.20+ seems broken
-# - Numba crashes with numpy 1.24
-np_ver = tuple(map(int, (get_distribution('numpy').version.split(".", 3)[:2])))
+# - A few version must be blacklisted because of Boost::Python incompatibility
+# - Numba does not support numpy 1.24 for now
+np_ver = tuple(map(int, get_distribution('numpy').version.split(".", 3)[:2]))
 np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
 if np_ver < (1, 20):
     np_req += ",<1.20.0"
@@ -53,18 +53,17 @@ setup(
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.6,<3.11",
+    python_requires=">=3.8,<3.12",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10"
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11"
     ],
     keywords="robotics physics simulator",
     distclass=BinaryDistribution,
@@ -83,20 +82,17 @@ setup(
     entry_points={"console_scripts": [
         "jiminy_plot=jiminy_py.plot:plot_log_interactive",
         ("jiminy_meshcat_server="
-         "jiminy_py.meshcat.server:start_meshcat_server_standalone"),
+         "jiminy_py.viewer.meshcat.server:start_meshcat_server_standalone"),
         "jiminy_replay=jiminy_py.viewer.replay:_play_logs_files_entrypoint"
     ]},
     install_requires=[
-        # Add support of TypedDict to any Python 3 version.
-        # 3.10.0 adds 'ParamSpec' that is required for pylint>=2.11.1.
-        "typing-extensions>=3.10.0",
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
-        # 1.20 breaks ABI
-        # >=1.21,<1.21.5 is causing segfault with boost::python.
-        #     See issue: https://github.com/boostorg/python/issues/376
-        # 1.22 breaks API for compiled libs.
+        # - 1.20 breaks ABI
+        # - >=1.21,<1.21.5 is causing segfault with boost::python.
+        #   See issue: https://github.com/boostorg/python/issues/376
+        # - 1.22 breaks API for compiled libs.
         np_req,
         # Parser for Jiminy's hardware description file.
         "toml",
@@ -104,70 +100,58 @@ setup(
         # volume bounding box.
         "trimesh",
         # Use to operate conveniently on nested log data.
-        # 0.1.7 breaking API and internal changes
         "dm-tree>=0.1.7",
-        # Used internally by Viewer to perform 1D polynomial interpolations.
-        "scipy",
-        # Used internally by Viewer to detect running Meshcat servers and
-        # avoid orphan child processes.
-        "psutil",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
-        # 1.10.9 adds support of Nvidia EGL rendering without X11 server.
-        # Panda3d is NOT supported by PyPy and cannot be built from source.
-        # 1.10.10-1.10.12 fix numerous bugs.
-        # 1.10.12 fix additional bugs but not crashes on macos.
+        # Panda3d is NOT supported by PyPy even if built from source.
+        # - 1.10.12 fixes numerous bugs
+        # - 1.10.13 crashes when generating wheels on MacOS
         "panda3d==1.10.12",
-        # Provide helper methods and class to make it easier to use panda3d for
-        # robotic applications.
+        # Provide helpers to make life easier with panda3d for roboticists
         "panda3d-viewer",
         # Photo-realistic shader for Panda3d to improve rendering of meshes.
         "panda3d-simplepbr",
         # Used internally by Viewer to record video programmatically when
         # Panda3d is used as rendering backend.
-        # >= 8.0.0 provides cross-platform precompiled binary wheels.
+        # - >= 8.0.0 provides cross-platform precompiled binary wheels
         "av>=8.0.0"
     ],
     extras_require={
         "plot": [
             # Standard library to generate figures.
-            "matplotlib"
+            "matplotlib>=3.5.0"
         ],
         "meshcat": [
             # Web-based mesh visualizer used as Viewer's backend.
-            # 0.0.18 introduces many new features, including loading generic
-            # geometries and jiminy_py viewer relies on it to render collision
-            # bodies.
-            # 0.3.1 updates threejs from 122 to 132, breaking compatibility
-            # with the old, now deprecated, geometry class used to internally
-            # to display tile floor.
-            # 0.3.2 fixes the rendering of DAE meshes.
+            # - 0.3.2 fixes the rendering of DAE meshes
             "meshcat>=0.3.2",
-            # Used internally by Viewer to read/write Meshcat snapshots.
+            # Used to detect running Meshcat servers and avoid orphan child
+            # processes.
+            "psutil",
+            # Low-level backend for Ipython powering Jupyter notebooks
+            "ipykernel>=5.0,<7.0"
+            # Used internally by Viewer to read/write Meshcat snapshots
             "pillow",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
-            # 0.2.6 changes the API for `get_ws_entrypoint`
-            "pyppeteer>=0.2.6",
-            # Used internally by Viewer to send/receive Javascript requests for
-            # recording video using Meshcat backend.
-            # `HTMLSession` is available since 0.3.4.
-            "requests-html>=0.3.4"
+            "playwright"
         ],
         "dev": [
-            # Use indirectly to convert images to base64 after test failure
+            # Generate Python type hints files (aka. stubs) for C extensions.
+            # Natively, it only supports PyBind11, but it has been patched to
+            # partially support of Boost::Python (`build_tools/stub_gen.py`).
+            "pybind11_stubgen",
+            # Used in unit tests for checking if viewer screen captures match
             "pillow",
+            # Used in unit tests for numerical integration and interpolation
+            "scipy",
             # Stub for static type checking
             "types-toml",
             # Check PEP8 conformance of Python native code
             "flake8",
-            # Python linter dependency (Pinned to avoid segfault)
-            "astroid==2.11.2",
-            # Python linter (Pinned to avoid segfault)
-            "pylint==2.13.4",
+            # Python linter
+            "pylint>=2.16.0",
             # Python static type checker
-            "mypy>=0.971",
-            # Fix dependency issue with 'sphinx'
-            "jinja2>=3.0,<3.1",
+            "mypy>=1.0.0",
             # Dependency for documentation generation
             "pygments",
             # Dependency for documentation generation
@@ -186,10 +170,6 @@ setup(
             # Bridge between doxygen and sphinx. Used to generate C++ API docs
             "breathe",
             # Repair wheels to embed shared libraries.
-            # - 3.2.0: enable defining custom patcher
-            # - 3.3.0: Support Python 3.9 and manylinux_2_24 images
-            # - 4.0.0: Many bug fixes, including RPATH of dependencies
-            # - 5.1.0: Add manylinux_2_28 policy
             # - 5.2.1: Speed up and binary size reduction
             "auditwheel>=5.2.1"
         ]

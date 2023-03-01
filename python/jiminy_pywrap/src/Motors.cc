@@ -1,6 +1,6 @@
 #include "jiminy/core/robot/BasicMotors.h"
 
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Motors.h"

@@ -141,7 +141,7 @@ class ControllerInterface:
 
         :returns: Total reward.
         """
-        # pylint: disable=no-self-use,unused-argument
+        # pylint: disable=unused-argument
 
         return 0.0
 

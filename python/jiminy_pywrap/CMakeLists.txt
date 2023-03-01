@@ -1,11 +1,11 @@
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Project name
 project(${LIBRARY_NAME}_pywrap VERSION ${BUILD_VERSION})
 
-# Find libraries and headers
-find_package(eigenpy 2.6.2 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)
+# Find libraries and headers.
+find_package(eigenpy 2.9.0 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # >=2.9.0 fully support vectorization
 
 # Enable all warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")
@@ -22,10 +22,8 @@ set(SRC
     "${CMAKE_CURRENT_BINARY_DIR}/src/Controllers.cc"
     "${CMAKE_CURRENT_BINARY_DIR}/src/Constraints.cc"
     "${CMAKE_CURRENT_BINARY_DIR}/src/Engine.cc"
-    "${CMAKE_CURRENT_BINARY_DIR}/src/Module.cc")
-
-# Make sure there is no undefined symbols, otherwise import will fail
-# set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Module.cc"
+)
 
 # Make library
 add_library(${PROJECT_NAME} SHARED ${SRC})
@@ -36,7 +34,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME ${PYTHON_LIBRARY_NAME}
 )
 target_compile_definitions(${PROJECT_NAME} PUBLIC
-    "-DPYTHON_LIBRARY_NAME=${PYTHON_LIBRARY_NAME}"
+    PYTHON_LIBRARY_NAME=${PYTHON_LIBRARY_NAME}
 )
 
 # Substitute Docstring @copydoc flags with C++ Doxygen documentations
@@ -50,7 +48,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 # Link with other libraries
 target_include_directories(${PROJECT_NAME}
-        SYSTEM PRIVATE ${Python_NumPy_INCLUDE_DIRS} ${Python_INCLUDE_DIRS}
+    SYSTEM PRIVATE ${Python_NumPy_INCLUDE_DIRS} ${Python_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core eigenpy::eigenpy "${BOOST_PYTHON_LIB}")
 

@@ -1,11 +1,8 @@
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Project name
 project(${LIBRARY_NAME}_double_pendulum VERSION ${BUILD_VERSION})
-
-# Find libraries and headers
-find_package(Boost REQUIRED COMPONENTS filesystem)
 
 # Make executables
 add_executable(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/double_pendulum.cc")
@@ -17,7 +14,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries
-target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core Boost::filesystem)
+target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core)
 
 # Install
 install(TARGETS ${PROJECT_NAME}

@@ -1,5 +1,5 @@
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Project and library name
 project(jsoncpp_external)
@@ -16,7 +16,7 @@ endif()
 # Download, build and install jsoncpp.
 externalproject_add(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/open-source-parsers/jsoncpp.git
-     GIT_TAG           1.9.4
+     GIT_TAG           1.9.5
      GIT_SHALLOW       TRUE
      GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
 
@@ -26,10 +26,11 @@ externalproject_add(${PROJECT_NAME}
           -DJSONCPP_WITH_PKGCONFIG_SUPPORT=OFF
           -DJSONCPP_WITH_CMAKE_PACKAGE=ON
           -DBUILD_SHARED_LIBS=OFF
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON
           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
-          -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
-          -DCMAKE_CXX_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG}
+          -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
+          -DCMAKE_CXX_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG_EXTERNAL}
           -DCMAKE_CXX_FLAGS_RELEASE:STRING=${CMAKE_CXX_FLAGS_RELEASE}
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING=${CMAKE_CXX_FLAGS_RELWITHDEBINFO}
           ${EXTERNALPROJECT_OSX_CONFIG}

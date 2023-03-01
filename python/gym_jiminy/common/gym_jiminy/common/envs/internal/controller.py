@@ -1,4 +1,4 @@
-# pylint: disable=no-member,missing-module-docstring
+# pylint: disable=missing-module-docstring
 
 from typing import Callable, Optional
 

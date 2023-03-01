@@ -3,7 +3,7 @@
 #include "jiminy/core/constraints/AbstractConstraint.h"
 #include "jiminy/core/robot/Robot.h"
 
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Robot.h"

@@ -14,26 +14,22 @@ if(DEFINED PYTHON_EXECUTABLE)
     get_filename_component(_PYTHON_NAME "${PYTHON_EXECUTABLE}" NAME)
     find_program(Python_EXECUTABLE "${_PYTHON_NAME}" PATHS "${_PYTHON_PATH}" NO_DEFAULT_PATH)
 else()
-    if(CMAKE_VERSION VERSION_LESS "3.12.4")
-        find_program(Python_EXECUTABLE "python${PYTHON_REQUIRED_VERSION}")
+    if(WIN32)
+        # Development must be specified on Windows, otherwise the executable
+        # is not required to have the same address size as the compilation
+        # environment, and the jiminy library will fail to load.
+        set(Python_COMPONENTS_FIND Interpreter Development)
     else()
-        if(WIN32)
-            # Development must be specified on Windows, otherwise the executable
-            # is not required to have the same address size as the compilation
-            # environment, and the jiminy library will fail to load.
-            set(Python_COMPONENTS_FIND Interpreter Development)
-        else()
-            set(Python_COMPONENTS_FIND Interpreter)
-        endif()
-        unset(Python_EXECUTABLE)
-        unset(Python_EXECUTABLE CACHE)
-        unset(_Python_EXECUTABLE)
-        unset(_Python_EXECUTABLE CACHE)
-        if(PYTHON_REQUIRED_VERSION)
-            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS ${Python_COMPONENTS_FIND})
-        else()
-            find_package(Python COMPONENTS ${Python_COMPONENTS_FIND})
-        endif()
+        set(Python_COMPONENTS_FIND Interpreter)
+    endif()
+    unset(Python_EXECUTABLE)
+    unset(Python_EXECUTABLE CACHE)
+    unset(_Python_EXECUTABLE)
+    unset(_Python_EXECUTABLE CACHE)
+    if(PYTHON_REQUIRED_VERSION)
+        find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT COMPONENTS ${Python_COMPONENTS_FIND})
+    else()
+        find_package(Python COMPONENTS ${Python_COMPONENTS_FIND})
     endif()
 endif()
 if(NOT Python_EXECUTABLE)
@@ -67,7 +63,7 @@ endif()
 if(NOT TARGET pinocchio::pinocchio)
     unset(pinocchio_FOUND CACHE)
 endif()
-find_package(pinocchio 2.6.15 REQUIRED NO_MODULE)
+find_package(pinocchio @pinocchio_VERSION@ EXACT REQUIRED NO_MODULE)
 if(NOT TARGET hpp-fcl::hpp-fcl)
     unset(hpp-fcl_FOUND CACHE)
 endif()
@@ -93,7 +89,7 @@ endif()
 # Note that jiminy is compiled under C++17 using either old or new CXX11 ABI.
 # Make sure very project dependencies are compiled for the same CXX11 ABI
 # otherwise segfaults may occur. It should be fine for the standard library,
-# but not for precompiled boost libraries such as boost::filesystem.
+# but not for precompiled boost libraries.
 # https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
                 "import jiminy_py; print(jiminy_py.get_include(), end='')"

@@ -12,11 +12,11 @@ jobs:
     name: >-
       (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
       Build the dependencies. Build the project and run the unit tests.
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['3.6', '3.7', '3.8', '3.9', '3.10']
+        PYTHON_VERSION: ['3.8', '3.9', '3.10', '3.11']
         BUILD_TYPE: ['Release']
         include:
           - PYTHON_VERSION: '3.8'
@@ -27,8 +27,8 @@ jobs:
         shell: bash
 
     env:
-      # Pinocchio bindings do not support memory alignment for now.
-      CMAKE_CXX_FLAGS: ""  #"-march=haswell"
+      TORCH_VERSION: "1.13.1"
+      CMAKE_CXX_FLAGS: "-march=x86-64-v3 -mtune=generic"
 
     #####################################################################################
 
@@ -68,19 +68,9 @@ jobs:
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
-        if [ "${{ matrix.PYTHON_VERSION }}" = "3.6" ] ; then
-          TORCH_VERSION="1.10.2"  # New versions do not support python 3.6
-        else
-          TORCH_VERSION="1.11.0"
-        fi
         BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}+cpu" -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
-
-        PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
-        mkdir -p "${PYTHON_USER_SITELIB}"
-        echo "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages" \
-        > "${PYTHON_USER_SITELIB}/user_site.pth"
+        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
+        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
 
     #####################################################################################
 
@@ -95,9 +85,8 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.10' && 'OFF') || 'ON' }} \
-              -DCMAKE_CXX_FLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS ${CMAKE_CXX_FLAGS}" \
-              -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.11' && 'OFF') || 'ON' }} \
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j2
 
         echo "LD_LIBRARY_PATH=$InstallDir/lib:$InstallDir/lib64:/usr/local/lib" >> $GITHUB_ENV
@@ -129,7 +118,10 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
-      if: matrix.PYTHON_VERSION != '3.10' && matrix.BUILD_TYPE == 'Release'
+      if: matrix.PYTHON_VERSION != '3.11' && matrix.BUILD_TYPE == 'Release'
       run: |
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+        cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
+        "${PYTHON_EXECUTABLE}" acrobot_ppo.py

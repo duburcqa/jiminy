@@ -1,54 +1,34 @@
-""" TODO: Write documentation.
+"""Implement several regularization losses on top of the original PPO algorithm
+to encourage smoothness of the action and clustering of the behavior of the
+policy without having to rework the reward function itself. It takes advantage
+of the analytical gradient of the policy.
 """
-# pylint: disable=not-callable
-
 import math
 import operator
-from functools import reduce
-from typing import Dict, List, Type, Union, Optional, Any, Tuple
+from functools import reduce, partial
+from typing import Optional, Union, Type, List, Dict, Any, Tuple, cast
 
 import gym
 import torch
 
-from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
-from ray.rllib.models.torch.torch_action_dist import (
-    TorchDistributionWrapper, TorchDiagGaussian)
-from ray.rllib.policy.policy import Policy
+from ray.rllib.models.action_dist import ActionDistribution
+from ray.rllib.models.torch.torch_action_dist import TorchDiagGaussian
+from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.policy import Policy
 from ray.rllib.policy.view_requirement import ViewRequirement
-from ray.rllib.policy.torch_policy import EntropyCoeffSchedule, \
-    LearningRateSchedule, TorchPolicy
+from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
+from ray.rllib.algorithms.ppo import PPOConfig as _PPOConfig, PPO as _PPO
+from ray.rllib.algorithms.ppo.ppo_torch_policy import (
+    PPOTorchPolicy as _PPOTorchPolicy)
 from ray.rllib.utils.numpy import convert_to_numpy
 from ray.rllib.utils.torch_utils import l2_loss
-from ray.rllib.utils.typing import TensorType, TrainerConfigDict
-
-from ray.rllib.agents.ppo import (
-    DEFAULT_CONFIG as _DEFAULT_CONFIG, PPOTrainer as _PPOTrainer)
-from ray.rllib.agents.ppo.ppo_torch_policy import (
-    PPOTorchPolicy as _PPOTorchPolicy)
+from ray.rllib.utils.annotations import override
+from ray.rllib.utils.typing import TensorType
 
 
-DEFAULT_CONFIG = _PPOTrainer.merge_trainer_configs(
-    _DEFAULT_CONFIG,
-    {
-        "enable_adversarial_noise": False,
-        "spatial_noise_scale": 1.0,
-        "sgld_beta_inv": 1.0e-8,
-        "sgld_n_steps": 10,
-        "temporal_barrier_scale": 1.0,
-        "temporal_barrier_threshold": math.inf,
-        "temporal_barrier_reg": 0.0,
-        "symmetric_policy_reg": 0.0,
-        "caps_temporal_reg": 0.0,
-        "caps_spatial_reg": 0.0,
-        "caps_global_reg": 0.0,
-        "l2_reg": 0.0
-    },
-    _allow_unknown_configs=True)
-
-
-def get_action_mean(model: TorchModelV2,
-                    dist_class: Type[TorchDistributionWrapper],
+def get_action_mean(model: ModelV2,
+                    dist_class: Union[partial, Type[ActionDistribution]],
                     action_logits: torch.Tensor) -> torch.Tensor:
     """Compute the mean value of the actions based on action distribution
     logits and type of distribution.
@@ -58,17 +38,28 @@ def get_action_mean(model: TorchModelV2,
         multivariate independent normal distribution, for which the mean can be
         very efficiently extracted as a view of the logits.
     """
-    if issubclass(dist_class, TorchDiagGaussian):
-        action_mean, _ = torch.chunk(action_logits, 2, dim=1)
+    # Extract wrapped distribution class
+    dist_class_unwrapped: Type[ActionDistribution]
+    if isinstance(dist_class, partial):
+        dist_class_func = cast(Type[ActionDistribution], dist_class.func)
+        assert issubclass(dist_class_func, ActionDistribution)
+        dist_class_unwrapped = dist_class_func
     else:
-        action_dist = dist_class(action_logits, model)
-        action_mean = action_dist.deterministic_sample()
-    return action_mean
+        dist_class_unwrapped = dist_class
+
+    # Efficient specialization for `TorchDiagGaussian` distribution
+    if issubclass(dist_class_unwrapped, TorchDiagGaussian):
+        action_mean, _ = torch.chunk(action_logits, 2, dim=1)
+        return action_mean
+
+    # Slow but generic fallback
+    action_dist = dist_class(action_logits, model)
+    return action_dist.deterministic_sample()
 
 
 def get_adversarial_observation_sgld(
-        model: TorchModelV2,
-        dist_class: Type[TorchDistributionWrapper],
+        model: ModelV2,
+        dist_class: Type[ActionDistribution],
         train_batch: SampleBatch,
         noise_scale: float,
         beta_inv: float,
@@ -110,19 +101,20 @@ def get_adversarial_observation_sgld(
     observation_noisy = observation_true + step_eps * 2.0 * (
         torch.empty_like(observation_true).bernoulli_(p=0.5) - 0.5)
     for i in range(n_steps):
-        # Make sure gradient computation is required
-        observation_noisy.requires_grad_(True)
+        with torch.torch.enable_grad():
+            # Make sure gradient computation is required
+            observation_noisy.requires_grad_(True)
 
-        # Compute mean field action for noisy observation
-        train_batch_copy["obs"] = observation_noisy
-        action_noisy_logits, _ = model(train_batch_copy)
-        action_noisy_mean = get_action_mean(
-            model, dist_class, action_noisy_logits)
+            # Compute mean field action for noisy observation
+            train_batch_copy["obs"] = observation_noisy
+            action_noisy_logits, _ = model(train_batch_copy)
+            action_noisy_mean = get_action_mean(
+                model, dist_class, action_noisy_logits)
 
-        # Compute action different and associated gradient
-        loss = torch.mean(torch.sum(
-            (action_noisy_mean - action_true_mean) ** 2, dim=-1))
-        loss.backward()
+            # Compute action different and associated gradient
+            loss = torch.mean(torch.sum(
+                (action_noisy_mean - action_true_mean) ** 2, dim=-1))
+            loss.backward()
 
         # compute the noisy gradient for observation update
         noise_factor = math.sqrt(2.0 * step_eps * beta_inv) / (i + 2)
@@ -186,79 +178,142 @@ def _compute_mirrored_value(value: torch.Tensor,
     return _update_flattened_slice(value, space.shape, mirror_mat)
 
 
+class PPOConfig(_PPOConfig):
+    """Provide additional parameters on top of the original PPO algorithm to
+    configure several regularization losses. See `PPOTorchPolicy` for details.
+    """
+    def __init__(self, algo_class: Optional[Type["PPO"]] = None):
+        super().__init__(algo_class=algo_class or PPO)
+
+        self.spatial_noise_scale = 1.0
+        self.enable_adversarial_noise = False
+        self.sgld_beta_inv = 1e-8
+        self.sgld_n_steps = 10
+        self.temporal_barrier_scale = 10.0
+        self.temporal_barrier_threshold = float('inf')
+        self.temporal_barrier_reg = 0.0
+        self.symmetric_policy_reg = 0.0
+        self.caps_temporal_reg = 0.0
+        self.caps_spatial_reg = 0.0
+        self.caps_global_reg = 0.0
+        self.l2_reg = 0.0
+
+    @override(_PPOConfig)
+    def training(
+        self,
+        *,
+        enable_adversarial_noise: Optional[bool] = None,
+        spatial_noise_scale: Optional[float] = None,
+        sgld_beta_inv: Optional[float] = None,
+        sgld_n_steps: Optional[int] = None,
+        temporal_barrier_scale: Optional[float] = None,
+        temporal_barrier_threshold: Optional[float] = None,
+        temporal_barrier_reg: Optional[float] = None,
+        symmetric_policy_reg: Optional[float] = None,
+        caps_temporal_reg: Optional[float] = None,
+        caps_spatial_reg: Optional[float] = None,
+        caps_global_reg: Optional[float] = None,
+        l2_reg: Optional[float] = None,
+        **kwargs: Any,
+    ) -> "PPOConfig":
+        # Pass kwargs onto super's `training()` method.
+        super().training(**kwargs)
+
+        if enable_adversarial_noise is not None:
+            self.enable_adversarial_noise = enable_adversarial_noise
+        if spatial_noise_scale is not None:
+            self.spatial_noise_scale = spatial_noise_scale
+        if sgld_beta_inv is not None:
+            self.sgld_beta_inv = sgld_beta_inv
+        if sgld_n_steps is not None:
+            self.sgld_n_steps = sgld_n_steps
+        if temporal_barrier_scale is not None:
+            self.temporal_barrier_scale = temporal_barrier_scale
+        if temporal_barrier_threshold is not None:
+            self.temporal_barrier_threshold = temporal_barrier_threshold
+        if temporal_barrier_reg is not None:
+            self.temporal_barrier_reg = temporal_barrier_reg
+        if symmetric_policy_reg is not None:
+            self.symmetric_policy_reg = symmetric_policy_reg
+        if caps_temporal_reg is not None:
+            self.caps_temporal_reg = caps_temporal_reg
+        if caps_spatial_reg is not None:
+            self.caps_spatial_reg = caps_spatial_reg
+        if caps_global_reg is not None:
+            self.caps_global_reg = caps_global_reg
+        if l2_reg is not None:
+            self.l2_reg = l2_reg
+
+        return self
+
+
+class PPO(_PPO):
+    """Custom PPO algorithm with additional regularization losses on top of the
+    original surrogate loss. See `PPOTorchPolicy` for details.
+    """
+    @classmethod
+    @override(_PPO)
+    def get_default_config(cls) -> AlgorithmConfig:
+        """Returns a default configuration for the algorithm.
+        """
+        return PPOConfig()
+
+    @classmethod
+    @override(_PPO)
+    def get_default_policy_class(cls, config: AlgorithmConfig
+                                 ) -> Optional[Type[Policy]]:
+        """Returns a default Policy class to use, given a config.
+        """
+        framework = config.framework_str
+        if framework == "torch":
+            return PPOTorchPolicy
+        raise ValueError(f"The framework {framework} is not supported.")
+
+
 class PPOTorchPolicy(_PPOTorchPolicy):
     """Add regularization losses on top of the original loss of PPO.
+
     More specifically, it adds:
         - CAPS regularization, which combines the spatial and temporal
-          difference betwen previous and current state
+        difference between previous and current state
         - Global regularization, which is the average norm of the action
         - temporal barrier, which is exponential barrier loss when the
-          normalized action is above a threshold (much like interior point
-          methods).
+        normalized action is above a threshold (much like interior point
+        methods).
         - symmetry regularization, which is the error between actions and
         symmetric actions associated with symmetric observations.
         - L2 regularization of policy network weights
     """
     def __init__(self,
-                 obs_space: gym.spaces.Space,
+                 observation_space: gym.spaces.Space,
                  action_space: gym.spaces.Space,
-                 config: TrainerConfigDict) -> None:
+                 config: Union[PPOConfig, Dict[str, Any]]) -> None:
         """Initialize PPO Torch policy.
 
         It extracts observation mirroring transforms for symmetry computations.
         """
-        # pylint: disable=non-parent-init-called,super-init-not-called
-
-        # Update default config wich provided partial config
-        config = dict(DEFAULT_CONFIG, **config)
-
-        # Call base implementation. Note that `PPOTorchPolicy.__init__` is
-        # bypassed because it calls `_initialize_loss_from_dummy_batch`
-        # automatically, and mirroring matrices are not extracted at this
-        # point. It is not possible to extract them since `self.device` is set
-        # by `TorchPolicy.__init__`.
-        TorchPolicy.__init__(
-            self,
-            obs_space,
-            action_space,
-            config,
-            max_seq_len=config["model"]["max_seq_len"])
-
-        # TODO: Remove update of `policy.model.view_requirements` after ray fix
-        # https://github.com/ray-project/ray/pull/21043
-        self.model.view_requirements["prev_obs"] = \
-            self.view_requirements["prev_obs"]
-
-        # Initialize mixins
-        EntropyCoeffSchedule.__init__(self, config["entropy_coeff"],
-                                      config["entropy_coeff_schedule"])
-        LearningRateSchedule.__init__(self, config["lr"],
-                                      config["lr_schedule"])
-
-        # Current KL value
-        self.kl_coeff = self.config["kl_coeff"]
-        # Constant target value
-        self.kl_target = self.config["kl_target"]
+        # Convert any type of input dict input classical dictionary for compat
+        config_dict: Dict[str, Any] = dict(PPOConfig().to_dict(), **config)
 
         # Extract and convert observation and acrtion mirroring transform
         self.obs_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
         self.action_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
-        if config["symmetric_policy_reg"] > 0.0:
-            is_obs_dict = hasattr(obs_space, "original_space")
+        if config_dict["symmetric_policy_reg"] > 0.0:
+            is_obs_dict = hasattr(observation_space, "original_space")
             if is_obs_dict:
-                obs_space = obs_space.original_space
+                observation_space = observation_space.original_space
             # Observation space
             if is_obs_dict:
                 self.obs_mirror_mat = {}
-                for field, mirror_mat in obs_space.mirror_mat.items():
+                for field, mirror_mat in observation_space.mirror_mat.items():
                     obs_mirror_mat = torch.tensor(mirror_mat,
                                                   dtype=torch.float32,
                                                   device=self.device)
                     self.obs_mirror_mat[field] = obs_mirror_mat.T.contiguous()
             else:
-                obs_mirror_mat = torch.tensor(obs_space.mirror_mat,
+                obs_mirror_mat = torch.tensor(observation_space.mirror_mat,
                                               dtype=torch.float32,
                                               device=self.device)
                 self.obs_mirror_mat = obs_mirror_mat.T.contiguous()
@@ -269,8 +324,8 @@ class PPOTorchPolicy(_PPOTorchPolicy):
                                              device=self.device)
             self.action_mirror_mat = action_mirror_mat.T.contiguous()
 
-        # TODO: Don't require users to call this manually.
-        self._initialize_loss_from_dummy_batch()
+        super().__init__(observation_space, action_space, config_dict)
+        self.config: Dict[str, Any]
 
     def _get_default_view_requirements(self) -> None:
         """Add previous observation to view requirements for CAPS
@@ -285,17 +340,18 @@ class PPOTorchPolicy(_PPOTorchPolicy):
             used_for_training=True)
         return view_requirements
 
+    @override(_PPOTorchPolicy)
     def loss(self,
-             model: TorchModelV2,
-             dist_class: Type[TorchDistributionWrapper],
+             model: ModelV2,
+             dist_class: Type[ActionDistribution],
              train_batch: SampleBatch) -> Union[TensorType, List[TensorType]]:
-        """Compute PPO loss with additional regulizations.
+        """Compute PPO loss with additional regularizations.
         """
         with torch.no_grad():
             # Extract some proxies from convenience
             observation_true = train_batch["obs"]
 
-            # Initialize the set of training batches to forward to the model
+            # Initialize the various training batches to forward to the model
             train_batches = {"true": train_batch}
 
             if self.config["caps_temporal_reg"] > 0.0 or \
@@ -309,7 +365,6 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
                 # Append the training batches to the set
                 train_batches["prev"] = train_batch_copy
-
             if self.config["caps_spatial_reg"] > 0.0 and \
                     self.config["enable_adversarial_noise"]:
                 # Shallow copy the original training batch
@@ -327,7 +382,6 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
                 # Append the training batches to the set
                 train_batches["worst"] = train_batch_copy
-
             if self.config["caps_global_reg"] > 0.0 or \
                     not self.config["enable_adversarial_noise"]:
                 # Shallow copy the original training batch
@@ -342,7 +396,6 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
                 # Append the training batches to the set
                 train_batches["noisy"] = train_batch_copy
-
             if self.config["symmetric_policy_reg"] > 0.0:
                 # Shallow copy the original training batch
                 train_batch_copy = train_batch.copy(shallow=True)
@@ -360,7 +413,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
                 # Append the training batches to the set
                 train_batches["mirrored"] = train_batch_copy
 
-        # Compute the action_logits for all training batches at onces
+        # Compute the action_logits for all the training batches at onces
         train_batch_all = {
             "obs": torch.cat([
                 s["obs"] for s in train_batches.values()], dim=0)}
@@ -372,12 +425,12 @@ class PPOTorchPolicy(_PPOTorchPolicy):
             values_all, len(train_batches), dim=0)))
 
         # Compute original ppo loss.
-        # pylint: disable=unused-argument,missing-function-docstring
         class FakeModel:
             """Fake model enabling doing all forward passes at once.
             """
+            # pylint: disable=unused-argument,missing-function-docstring
             def __init__(self,
-                         model: TorchModelV2,
+                         model: ModelV2,
                          action_logits: torch.Tensor,
                          value: torch.Tensor) -> None:
                 self._action_logits = action_logits
@@ -401,7 +454,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
         # Extract mean of predicted action from action_logits.
         # No need to compute the perform model forward pass since the original
-        # PPO loss is already doing it, so just getting back the last ouput.
+        # PPO loss is already doing it, so just getting back the last output.
         action_true_logits = action_logits["true"]
         action_true_mean = get_action_mean(
             model, dist_class, action_true_logits)
@@ -439,7 +492,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
                 self.action_mirror_mat)
 
         # Update total loss
-        stats = model.tower_stats
+        stats = model.tower_stats  # type: ignore[attr-defined]
         if self.config["caps_temporal_reg"] > 0.0 or \
                 self.config["temporal_barrier_reg"] > 0.0:
             # Compute action temporal delta
@@ -515,11 +568,11 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
         return total_loss
 
-    def extra_grad_info(self,
-                        train_batch: SampleBatch) -> Dict[str, TensorType]:
-        """Add regularization values to statistics.
+    @override(_PPOTorchPolicy)
+    def stats_fn(self, train_batch: SampleBatch) -> Dict[str, TensorType]:
+        """Add regularization statistics.
         """
-        stats_dict = super().extra_grad_info(train_batch)
+        stats_dict = super().stats_fn(train_batch)
 
         if self.config["symmetric_policy_reg"] > 0.0:
             stats_dict["symmetry"] = torch.mean(
@@ -543,25 +596,8 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         return convert_to_numpy(stats_dict)
 
 
-class PPOTrainer(_PPOTrainer):
-    """Custom PPO Trainer with additional regularization losses on top of the
-    original surrogate loss. See `PPOTorchPolicy` for details.
-    """
-    @classmethod
-    def get_default_config(cls) -> TrainerConfigDict:
-        """Returns a default configuration for the Trainer.
-        """
-        return DEFAULT_CONFIG
-
-    def get_default_policy_class(self,
-                                 config: TrainerConfigDict) -> Type[Policy]:
-        if config["framework"] == "torch":
-            return PPOTorchPolicy
-        raise RuntimeError("The only framework supported is 'torch'.")
-
-
 __all__ = [
-    "DEFAULT_CONFIG",
+    "PPOConfig",
     "PPOTorchPolicy",
-    "PPOTrainer"
+    "PPO"
 ]

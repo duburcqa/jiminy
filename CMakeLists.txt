@@ -1,15 +1,11 @@
 # Minimum version required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
 
 # Set the build version
 set(BUILD_VERSION 1.7.14)
 
 # Set compatibility
-if(CMAKE_VERSION VERSION_GREATER "3.11.0")
-    set(COMPATIBILITY_VERSION SameMinorVersion)
-else()
-    set(COMPATIBILITY_VERSION ExactVersion)
-endif()
+set(COMPATIBILITY_VERSION SameMinorVersion)
 
 # Extract major, minor and patch version
 string(REPLACE "." ";" _VERSION "${BUILD_VERSION}")
@@ -36,8 +32,7 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/exportCmakeConfigFiles.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 
 # Set the compilation flags.
-# Note that is is not possible `add_compile_options`
-# because it does not propagate to external projects.
+# Not using `add_compile_options` because it does not propagate to external projects.
 set(CMAKE_CXX_FLAGS "$ENV{CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS}")
 if(WIN32)
     string(REGEX MATCH "/arch:[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
@@ -58,8 +53,8 @@ if(WIN32)
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} /DEBUG:FULL /Zi")
 else()
     string(REGEX MATCH "-march=[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -ftemplate-backtrace-limit=0")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fno-omit-frame-pointer")
+    set(CMAKE_LINKER_FLAGS_DEBUG "-fno-omit-frame-pointer")
     set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -Wfatal-errors -Werror")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g -fno-omit-frame-pointer -fno-sanitize-recover")
 endif()
@@ -74,7 +69,7 @@ if(BUILD_PYTHON_INTERFACE)
     add_subdirectory(python)
 endif()
 
-# Create 'docs' optional cmake component to generate documentation.
+# Create 'docs' optional cmake component to generate documentation
 create_component_docs()
 
 # Install the source cmake files

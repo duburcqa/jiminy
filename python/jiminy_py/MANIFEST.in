@@ -1,4 +1,4 @@
-recursive-include src/jiminy_py *.so *.dylib *.dll *.pyd *.html *.js
+recursive-include src/jiminy_py *.so *.dylib *.dll *.pyd *.pyi *.html *.js
 recursive-include src/jiminy_py/core/include *.h *.tpp
 recursive-include src/jiminy_py/core/lib *.a *.so[0-9\.]* *.dylib *.dll *.lib
 recursive-include src/jiminy_py/core/cmake *.cmake

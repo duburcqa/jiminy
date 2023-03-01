@@ -15,7 +15,7 @@ namespace jiminy
 
     public:
         Engine(void) = default;
-        ~Engine(void) = default;
+        virtual ~Engine(void) = default;
 
         hresult_t initialize(std::shared_ptr<Robot>              robot,
                              std::shared_ptr<AbstractController> controller,

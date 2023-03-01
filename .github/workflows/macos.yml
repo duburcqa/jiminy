@@ -15,15 +15,16 @@ jobs:
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['3.8', '3.9', '3.10']
+        PYTHON_VERSION: ['3.8', '3.9', '3.10', '3.11']
 
     defaults:
       run:
         shell: bash -ieo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
 
     env:
+      TORCH_VERSION: "1.13.1"
       BUILD_TYPE: "Release"
-      MACOSX_DEPLOYMENT_TARGET: "10.14"
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
       OSX_ARCHITECTURES: "x86_64;arm64"
       WHEEL_ARCH: "universal2"
 
@@ -57,7 +58,10 @@ jobs:
       run: |
         MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
           ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
+        if [ "${{ matrix.PYTHON_VERSION }}" != '3.11' ] ; then
+          "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
+          "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
+        fi
 
     #####################################################################################
 
@@ -76,7 +80,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.10' && 'OFF') || 'ON' }} \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.11' && 'OFF') || 'ON' }} \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make -j2
 
@@ -124,8 +128,8 @@ jobs:
         mkdir -p "$RootDir/core/examples/external_project/build"
         cd "$RootDir/core/examples/external_project/build"
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-               -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"
@@ -137,14 +141,22 @@ jobs:
         cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
+        # Do NOT set LD_LIBRARY_PATH to check the import of bundled dependencies as fallback
         cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym jiminy
-      if: matrix.PYTHON_VERSION != '3.10'
+      if: matrix.PYTHON_VERSION != '3.11'
       run: |
+        # FIXME: 'No registered converter [...] of type unsigned int from [...] of type numpy.uint32
+        #export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+        # FIXME: 'Segmentation fault: 11'
+        #cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
+        #JIMINY_VIEWER_DEFAULT_BACKEND="meshcat" "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
 #########################################################################################
 

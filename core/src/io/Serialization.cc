@@ -44,7 +44,7 @@ namespace boost
             case hpp::fcl::NODE_TYPE::TYPENAME: \
                 if (Archive::is_loading::value) \
                 { \
-                    geom.geometry = std::shared_ptr<CLASS>(static_cast<CLASS *>(malloc(sizeof(CLASS)))); \
+                    geom.geometry = std::shared_ptr<CLASS>(static_cast<CLASS *>(new CLASS)); \
                     load_construct_data(ar, static_cast<CLASS *>(geom.geometry.get()), version); \
                 } \
                 ar & make_nvp("geometry", static_cast<CLASS &>(*geom.geometry.get())); \

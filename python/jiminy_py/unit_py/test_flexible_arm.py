@@ -82,9 +82,7 @@ def generate_flexible_arm(mass_segments: float,
 
 
 class SimulateFlexibleArm(unittest.TestCase):
-    """
-    @brief Simulate the motion of a pendulum, comparing against python
-           integration.
+    """Simulate the motion of a pendulum, comparing against python integration.
     """
     def setUp(self):
         # Create temporary urdf file
@@ -104,15 +102,17 @@ class SimulateFlexibleArm(unittest.TestCase):
         # Remove temporary file
         os.remove(urdf_path)
 
-        # Camera pose
-        self.camera_xyzrpy = ([0.0, -2.0, 0.0], [np.pi/2, 0.0, 0])
-
         # Instantiate and initialize the controller
         controller = jiminy.ControllerFunctor()
         controller.initialize(robot)
 
         # Create a simulator using this robot and controller
-        self.simulator = Simulator(robot, controller)
+        self.simulator = Simulator(
+            robot,
+            controller,
+            viewer_kwargs=dict(
+                camera_xyzrpy=((0.0, -2.0, 0.0), (np.pi/2, 0.0, 0.0))
+            ))
 
     def tearDown(self):
         Viewer.close()
@@ -139,11 +139,12 @@ class SimulateFlexibleArm(unittest.TestCase):
         os.close(fd)
 
         # Record the result
-        viewer, *_ = play_logs_files(log_path,
-                                     delete_robot_on_close=True,
-                                     camera_xyzrpy=self.camera_xyzrpy,
-                                     record_video_path=video_path,
-                                     verbose=False)
+        viewer, *_ = play_logs_files(
+            log_path,
+            delete_robot_on_close=True,
+            **self.simulator.viewer_kwargs,
+            record_video_path=video_path,
+            verbose=False)
         viewer.close()
 
         # Remove temporary log and video file
@@ -153,8 +154,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         return True
 
     def test_write_replay_standalone_log(self):
-        """
-        @brief Check if reading/writing standalone log file is working.
+        """Check if reading/writing standalone log file is working.
         """
         # Configure log file to be standalone
         engine_options = self.simulator.engine.get_options()
@@ -180,9 +180,8 @@ class SimulateFlexibleArm(unittest.TestCase):
         self.assertEqual(len(Viewer._backend_robot_names), 0)
 
     def test_rigid_vs_flex_at_frame(self):
-        """
-        @brief Test if the result is the same with and without flexibility
-        if the inertia is extremely large.
+        """Test if the result is the same with and without flexibility if the
+        inertia is extremely large.
         """
         # Set initial condition and simulation duration
         q0, v0 = np.array([0.]), np.array([0.])
@@ -196,9 +195,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         q_rigid = self.simulator.system_state.q.copy()
 
         # Render the scene
-        img_rigid = self.simulator.render(
-            return_rgb_array=True,
-            camera_xyzrpy=self.camera_xyzrpy)
+        img_rigid = self.simulator.render(return_rgb_array=True)
 
         # Check different flexibility ordering
         q_flex, img_flex, pnc_model_flex, visual_model_flex = [], [], [], []
@@ -231,8 +228,7 @@ class SimulateFlexibleArm(unittest.TestCase):
                     self.simulator.system_state.q))
 
             # Render the scene
-            img_flex.append(self.simulator.render(
-                return_rgb_array=True, camera_xyzrpy=self.camera_xyzrpy))
+            img_flex.append(self.simulator.render(return_rgb_array=True))
 
         # Compare the final results
         for q in q_flex:

@@ -404,7 +404,7 @@ namespace jiminy
         // Transform the force from joint frame to sensor frame
         pinocchio::SE3 const & framePlacement = robot->pncModel_.frames[frameIdx_].placement;
         f_ = framePlacement.actInv(fJoint);
-        data() = - f_.toVector();
+        data() = f_.toVector();
 
         return hresult_t::SUCCESS;
     }

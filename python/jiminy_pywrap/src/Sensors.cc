@@ -2,8 +2,7 @@
 #include "jiminy/core/robot/BasicSensors.h"
 #include "jiminy/core/Types.h"
 
-#include <eigenpy/eigenpy.hpp>
-#include <boost/python.hpp>
+#include "pinocchio/bindings/python/fwd.hpp"
 
 #include "jiminy/python/Utilities.h"
 #include "jiminy/python/Sensors.h"
@@ -34,7 +33,7 @@ namespace python
                 .def("__len__", &PySensorsDataMapVisitor::len,
                                 (bp::arg("self")))
                 .def("__getitem__", &PySensorsDataMapVisitor::getItem,
-                                    (bp::arg("self"), "(sensor_type, sensor_name)"))
+                                    (bp::arg("self"), "sensor_info"))
                 .def("__getitem__", &PySensorsDataMapVisitor::getItemSplit,
                                     (bp::arg("self"), "sensor_type", "sensor_name"))
                 .def("__getitem__", &PySensorsDataMapVisitor::getSub,
@@ -75,13 +74,18 @@ namespace python
             {
                 auto & sensorsDataTypeByName = self.at(sensorType).get<IndexByName>();
                 auto sensorDataIt = sensorsDataTypeByName.find(sensorName);
+                if (sensorDataIt == sensorsDataTypeByName.end())
+                {
+                    throw std::runtime_error("");
+                }
                 Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorDataIt->value;
                 return convertToPython(sensorDataValue, false);
             }
             catch (...)
             {
                 PyErr_SetString(PyExc_KeyError, "This combination of keys does not exist.");
-                return bp::object();  // Return None
+                bp::throw_error_already_set();
+                return bp::object();
             }
         }
 

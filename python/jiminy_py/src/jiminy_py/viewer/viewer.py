@@ -1,3 +1,6 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=no-name-in-module,no-member,import-error
 import os
 import re
 import io
@@ -19,11 +22,10 @@ from urllib.request import urlopen
 from functools import wraps, partial
 from bisect import bisect_right
 from threading import RLock
-from typing import Optional, Union, Sequence, Tuple, Dict, Callable, Any
+from typing import (
+    Optional, Union, Sequence, Tuple, Dict, Callable, Any, TypedDict)
 
 import numpy as np
-from scipy.interpolate import interp1d
-from typing_extensions import TypedDict
 
 from panda3d_viewer.viewer_errors import ViewerClosedError
 try:
@@ -37,6 +39,7 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
 from .. import core as jiminy
 from ..core import ContactSensor as contact, discretize_heightmap
+from ..robot import _DuplicateFilter
 from ..dynamics import State
 from .meshcat.utilities import interactive_mode
 from .panda3d.panda3d_visualizer import (
@@ -56,42 +59,66 @@ DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 CONTACT_FORCE_SCALE = 10000.0  # [N]
 EXTERNAL_FORCE_SCALE = 800.0  # [N]
 
-COLORS = {'red': (0.9, 0.15, 0.15, 1.0),
-          'blue': (0.3, 0.3, 1.0, 1.0),
+COLORS = {'red': (0.85, 0.2, 0.2, 1.0),
+          'blue': (0.35, 0.5, 1.0, 1.0),
           'green': (0.4, 0.7, 0.3, 1.0),
-          'yellow': (1.0, 0.7, 0.0, 1.0),
-          'purple': (0.6, 0.2, 0.9, 1.0),
-          'orange': (1.0, 0.45, 0.0, 1.0),
-          'grey': (0.55, 0.55, 0.55, 1.0),
-          'cyan': (0.2, 0.7, 1.0, 1.0),
-          'white': (1.0, 1.0, 1.0, 1.0),
-          'black': (0.2, 0.2, 0.25, 1.0)}
-
-
-# Create logger
-class _DuplicateFilter:
-    def __init__(self):
-        self.msgs = set()
-
-    def filter(self, record):
-        rv = record.msg not in self.msgs
-        self.msgs.add(record.msg)
-        return rv
+          'yellow': (0.9, 0.8, 0.0, 1.0),
+          'purple': (0.65, 0.4, 1.0, 1.0),
+          'orange': (0.95, 0.6, 0.0, 1.0),
+          'pink': (0.9, 0.4, 0.7, 1.0),
+          'grey': (0.7, 0.7, 0.7, 1.0),
+          'cyan': (0.1, 0.8, 1.0, 1.0),
+          'white': (0.95, 0.95, 0.95, 1.0),
+          'black': (0.45, 0.45, 0.5, 1.0)}
 
 
 logger = logging.getLogger(__name__)
 logger.addFilter(_DuplicateFilter())
 
 
-def check_display_available() -> bool:
+def interp1d(t_in: np.ndarray,
+             y_in: np.ndarray,
+             t_out: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    """One-dimensional linear interpolation for monotonically increasing sample
+    points.
+
+    :param t_in: The time of the input data points, must be increasing.
+    :param y_in: The value of the data points, same length as `t_in`.
+    :param t_out: The time at which to evaluate the interpolated values.
+
+    see::
+        This method generalizes `numpy.interp`. It is similar to
+        `scipy.interpolate.interp1d`.
+    """
+    i = -1
+    is_scalar = isinstance(t_out, float)
+    if is_scalar:
+        t_out = np.array([t_out])
+    y_out = np.empty((t_out.size, y_in.shape[-1]))
+    for t, y in zip(t_out, y_out):
+        while i < t_in.size - 1 and t_in[i + 1] < t:
+            i += 1
+        if 0 <= i < t_in.size - 1:
+            ratio = (t - t_in[i]) / (t_in[i + 1] - t_in[i])
+            y[:] = ratio * y_in[i + 1] + (1.0 - ratio) * y_in[i]
+        elif i < 0:
+            y[:] = y_in[0]
+        else:
+            y[:] = y_in[t_in.size - 1]
+    return y_out if not is_scalar else y_out[0]
+
+
+def is_display_available() -> bool:
     """Check if graphical server is available locally for onscreen rendering
     or if the viewer can be opened in an interactive cell.
     """
-    if interactive_mode() >= 3:
+    if interactive_mode() >= 2:
         return True
     if multiprocessing.current_process().daemon:
         return False
-    if not (sys.platform.startswith("win") or os.environ.get("DISPLAY")):
+    if sys.platform.startswith("win"):
+        return True
+    if not os.environ.get("DISPLAY"):
         return False
     return True
 
@@ -100,8 +127,9 @@ def get_default_backend() -> str:
     """Determine the default backend viewer, depending eventually on the
     running environment, hardware, and set of available backends.
 
-    Panda3d is preferred over meshcat in non-interactive mode, and on google
-    colab because of known latency issue making it unusable.
+    Panda3d is preferred over Meshcat in non-interactive mode, and on Google
+    Colaboratory because of known latency issue making it unusable.
+    See https://github.com/googlecolab/colabtools/issues/2870
 
     .. note::
         Both Meshcat and Panda3d supports Nvidia EGL rendering without
@@ -110,15 +138,15 @@ def get_default_backend() -> str:
     """
     mode = interactive_mode()
     if mode >= 2:
-        if mode == 3:
+        if mode == 2:
             try:
                 get_backend_type('meshcat')
                 return 'meshcat'
             except ImportError:
                 pass
         return 'panda3d-sync'
-    if check_display_available():
-        return 'panda3d'
+    if is_display_available():
+        return os.getenv('JIMINY_VIEWER_DEFAULT_BACKEND', 'panda3d')
     return 'panda3d-sync'
 
 
@@ -129,6 +157,7 @@ def get_backend_type(backend_name: str) -> type:
         It is a function because otherwise it would only be run once at
         import by the main thread only.
     """
+    # pylint: disable=import-outside-toplevel,unused-import
     if backend_name == "panda3d-sync":
         return Panda3dVisualizer
     if multiprocessing.current_process().daemon:
@@ -154,10 +183,10 @@ def get_backend_type(backend_name: str) -> type:
             from .meshcat.wrapper import MeshcatWrapper  # noqa: F401
             from .meshcat.meshcat_visualizer import MeshcatVisualizer
             return MeshcatVisualizer
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "'meshcat' backend is not available. Please install "
-                "'jiminy[meshcat]'.")
+                "'jiminy[meshcat]'.") from e
     raise ValueError(f"Unknown backend '{backend_name}'.")
 
 
@@ -191,6 +220,8 @@ def sleep(dt: float) -> None:
 
 
 def get_color_code(color: Optional[Union[str, Tuple4FType]]) -> Tuple4FType:
+    """ TODO: Write documentation.
+    """
     if isinstance(color, str):
         try:
             return COLORS[color]
@@ -220,35 +251,42 @@ class _ProcessWrapper:
             atexit.register(self.kill)
 
     def is_parent(self) -> bool:
+        """ TODO: Write documentation.
+        """
         return not isinstance(self._proc, Process)
 
     def is_alive(self) -> bool:
+        """ TODO: Write documentation.
+        """
         if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.is_alive()
-        elif isinstance(self._proc, subprocess.Popen):
+        if isinstance(self._proc, subprocess.Popen):
             return self._proc.poll() is None
-        elif isinstance(self._proc, Process):
-            import psutil
+        if isinstance(self._proc, Process):
+            import psutil  # pylint: disable=import-outside-toplevel
             try:
                 return self._proc.status() in [
                     psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
             except psutil.NoSuchProcess:
                 return False
-        elif isinstance(self._proc, Panda3dApp):
-            return hasattr(self._proc, 'win')
-        return False  # Assuming it is not running by default
+        # if isinstance(self._proc, Panda3dApp):
+        return hasattr(self._proc, 'win')
 
     def wait(self, timeout: Optional[float] = None) -> bool:
+        """ TODO: Write documentation.
+        """
         if isinstance(self._proc, multiprocessing.process.BaseProcess):
             return self._proc.join(timeout)
-        elif isinstance(self._proc, (
+        if isinstance(self._proc, (
                 subprocess.Popen, Process)):
             return self._proc.wait(timeout)
-        elif isinstance(self._proc, Panda3dApp):
-            self._proc.step()
-            return True
+        # if isinstance(self._proc, Panda3dApp):
+        self._proc.step()
+        return True
 
     def kill(self) -> None:
+        """ TODO: Write documentation.
+        """
         if self.is_parent() and self.is_alive():
             if isinstance(self._proc, Panda3dApp):
                 self._proc.destroy()
@@ -262,7 +300,7 @@ class _ProcessWrapper:
                     pass
 
                 # Force kill if necessary and reap the zombies
-                import psutil
+                import psutil  # pylint: disable=import-outside-toplevel
                 try:
                     Process(self._proc.pid).kill()
                     os.waitpid(self._proc.pid, 0)
@@ -309,6 +347,10 @@ class Viewer:
     .. note::
         The environment variable 'JIMINY_INTERACTIVE_DISABLE' can be
         used to force disabling interactive display.
+
+    .. note::
+        The environment variable 'JIMINY_VIEWER_DEFAULT_BACKEND' can be
+        used to overwrite the default backend.
     """
     backend = None
     window_name = 'jiminy'
@@ -318,11 +360,11 @@ class Viewer:
     _backend_robot_names = set()
     _backend_robot_colors = {}
     _camera_motion = None
-    _camera_travelling = None
+    _camera_travelling: Optional[Dict[str, Any]] = None
     _camera_xyzrpy = list(deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
     _lock = RLock()  # Unique lock for every viewer in same thread by default
 
-    def __init__(self,
+    def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Model,
                  use_theoretical_model: bool = False,
                  robot_color: Optional[Union[str, Tuple4FType]] = None,
@@ -352,10 +394,8 @@ class Viewer:
                             RGBA codes as a list of 4 floating-point values
                             ranging from 0.0 and 1.0, and a few named colors.
                             Optional: Disabled by default.
-        :param lock: Custom threading.RLock. Required for parallel rendering.
-                     It is required since some backends does not support
-                     multiple simultaneous connections (e.g. corbasever).
-                     `None` to use the unique lock of the current thread.
+        :param lock: Custom threading.RLock for parallel rendering. `None` to
+                     use the unique lock associated with the current thread.
                      Optional: `None` by default.
         :param backend: Name of the rendering backend to use. It can be either
                         'panda3d', 'panda3d-qt', 'meshcat'. None to keep using
@@ -409,6 +449,7 @@ class Viewer:
             uniq_id = next(tempfile._get_candidate_names())
             robot_name = "_".join(("robot", uniq_id))
 
+        # Pick the default backend if unspecified and none is already selected
         if backend is None:
             if Viewer.backend is not None:
                 backend = Viewer.backend
@@ -424,12 +465,12 @@ class Viewer:
 
             # Decide whether to open gui
             if open_gui_if_parent is None:
-                if not check_display_available():
+                if not is_display_available():
                     open_gui_if_parent = False
                 elif backend == 'meshcat':
                     # Opening a new display cell automatically if there is
                     # no other display cell already opened.
-                    open_gui_if_parent = interactive_mode() >= 3 and (
+                    open_gui_if_parent = interactive_mode() >= 2 and (
                         Viewer._backend_obj is None or
                         not Viewer._backend_obj.comm_manager.n_comm)
                 elif backend == 'panda3d':
@@ -451,7 +492,7 @@ class Viewer:
             except RuntimeError as e:
                 # Convert exception into warning if it fails. It is probably
                 # because no display is available.
-                logger.warning(str(e))
+                logger.warning("%s", e)
         except Exception as e:
             self.close()
             raise RuntimeError(
@@ -461,6 +502,10 @@ class Viewer:
         if scene_name == Viewer.window_name:
             raise ValueError(
                 "The name of the scene and window must be different.")
+        if not re.match(r'^[A-Za-z0-9_]+$', scene_name + robot_name):
+            raise RuntimeError(
+                "Scene and robot names restricted to case-insensitive ASCII "
+                "alphanumeric characters plus underscore.")
 
         # Robot names must be unique, then backup the desired one
         if robot_name in Viewer._backend_robot_names:
@@ -532,9 +577,10 @@ class Viewer:
         """
         self.close()
 
-    def __must_be_open(fct: Callable) -> Callable:
-        @wraps(fct)
-        def fct_safe(*args: Any, **kwargs: Any) -> Any:
+    def __must_be_open(  # pylint: disable=no-self-argument
+            fun: Callable) -> Callable:
+        @wraps(fun)
+        def fun_safe(*args: Any, **kwargs: Any) -> Any:
             self = Viewer
             if args and isinstance(args[0], Viewer):
                 self = args[0]
@@ -542,20 +588,21 @@ class Viewer:
             if not self.is_open():
                 raise RuntimeError(
                     "No backend available. Please start one before calling "
-                    f"'{fct.__name__}'.")
-            return fct(*args, **kwargs)
-        return fct_safe
+                    f"'{fun.__name__}'.")
+            return fun(*args, **kwargs)  # pylint: disable=not-callable
+        return fun_safe
 
-    def __with_lock(fct: Callable) -> Callable:
-        @wraps(fct)
-        def fct_safe(*args: Any, **kwargs: Any) -> Any:
+    def __with_lock(  # pylint: disable=no-self-argument
+            fun: Callable) -> Callable:
+        @wraps(fun)
+        def fun_safe(*args: Any, **kwargs: Any) -> Any:
             self = Viewer
             if args and isinstance(args[0], Viewer):
                 self = args[0]
             self = kwargs.get('self', self)
             with self._lock:
-                return fct(*args, **kwargs)
-        return fct_safe
+                return fun(*args, **kwargs)  # pylint: disable=not-callable
+        return fun_safe
 
     @__must_be_open
     @__with_lock
@@ -622,7 +669,7 @@ class Viewer:
 
         # Create the scene and load robot
         self._client.loadViewerModel(
-            rootNodeName=robot_node_path, color=self.robot_color)
+            root_node_name=robot_node_path, color=self.robot_color)
 
         if Viewer.backend.startswith('panda3d'):
             # Add markers' display groups
@@ -693,7 +740,7 @@ class Viewer:
                                 pose=[frame_pose.translation, None],
                                 remove_if_exists=True,
                                 auto_refresh=False,
-                                radius=0.02)
+                                radius=0.01)
 
             self.display_contact_frames(self._display_contact_frames)
 
@@ -780,7 +827,7 @@ class Viewer:
             return
 
         # Check if a display is available
-        if not check_display_available():
+        if not is_display_available():
             raise RuntimeError(
                 "No display available. Impossible to open a gui.")
 
@@ -788,22 +835,25 @@ class Viewer:
             # No instance is considered manager of the unique window
             raise RuntimeError(
                 f"Impossible to open gui with '{Viewer.backend}' backend.")
-        elif Viewer.backend == 'panda3d':
+        if Viewer.backend == 'panda3d':
             Viewer._backend_obj.gui.open_window()
         elif Viewer.backend == 'meshcat':
             viewer_url = Viewer._backend_obj.gui.url()
 
-            if interactive_mode() >= 3:
+            if interactive_mode() >= 2:
+                # pylint: disable=import-outside-toplevel
                 from IPython.core.display import HTML, display
 
                 # Scrap the viewer html content, including javascript
                 # dependencies
-                html_content = urlopen(viewer_url).read().decode()
+                with urlopen(viewer_url) as response:
+                    html_content = response.read().decode()
                 pattern = '<script type="text/javascript" src="%s"></script>'
                 scripts_js = re.findall(pattern % '(.*)', html_content)
                 for file in scripts_js:
                     file_path = os.path.join(viewer_url, file)
-                    js_content = urlopen(file_path).read().decode()
+                    with urlopen(file_path) as response:
+                        js_content = response.read().decode()
                     html_content = html_content.replace(pattern % file, f"""
                     <script type="text/javascript">
                     {js_content}
@@ -813,12 +863,17 @@ class Viewer:
                 # the case if the environment is not jupyter-notebook nor
                 # colab but rather jupyterlab or vscode for instance.
                 from IPython import get_ipython
-                from notebook import notebookapp
                 kernel = get_ipython().kernel
                 conn_file = kernel.config['IPKernelApp']['connection_file']
                 kernel_id = conn_file.split('-', 1)[1].split('.')[0]
                 server_pid = Process(os.getpid()).parent().pid
-                server_list = list(notebookapp.list_running_servers())
+                server_list = []
+                try:
+                    from notebook import notebookapp
+                    server_list += list(notebookapp.list_running_servers())
+                except ImportError:
+                    # `notebook>=7.0` has removed this submodule entirely
+                    pass
                 try:
                     from jupyter_server import serverapp
                     server_list += list(serverapp.list_running_servers())
@@ -834,8 +889,8 @@ class Viewer:
                             f'var ws_path = "{ws_path}";')
                         break
 
-                if interactive_mode() == 3:
-                    # Isolate HTML in iframe on Jupyter
+                if interactive_mode() == 2:
+                    # Isolate HTML in iframe
                     html_content = html_content.replace(
                         "\"", "&quot;").replace("'", "&apos;")
                     display(HTML(f"""
@@ -865,7 +920,7 @@ class Viewer:
 
                     # Display the content directly inside the main window
                     display(HTML(html_content))
-            else:
+            elif not Viewer.has_gui():
                 try:
                     webbrowser.get()
                     webbrowser.open(viewer_url, new=2, autoraise=True)
@@ -883,13 +938,13 @@ class Viewer:
 
     @staticmethod
     def has_gui() -> bool:
+        """ TODO: Write documentation.
+        """
         if Viewer.is_alive():
             # Make sure the viewer still has gui if necessary
             if Viewer.backend == 'meshcat':
-                comm_manager = Viewer._backend_obj.comm_manager
-                if comm_manager is not None:
-                    ack = Viewer._backend_obj.wait(require_client=False)
-                    Viewer._has_gui = any(msg for msg in ack.split(","))
+                ack = Viewer._backend_obj.wait(require_client=False)
+                Viewer._has_gui = any(msg for msg in ack.split(","))
             return Viewer._has_gui
         return False
 
@@ -936,8 +991,9 @@ class Viewer:
             in closing every viewer somehow. It results in the same outcome
             than calling this method without specifying any viewer instance.
         """
+        # pylint: disable=unsubscriptable-object
         if self is None:
-            self = Viewer
+            self = Viewer  # pylint: disable=self-cls-assignment
 
         if self is Viewer:
             # NEVER closing backend automatically if closing instances,
@@ -945,8 +1001,7 @@ class Viewer:
             # automatically. One must call `Viewer.close` to do otherwise.
             Viewer._backend_robot_names.clear()
             Viewer._backend_robot_colors.clear()
-            Viewer._camera_xyzrpy = list(
-                deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
+            Viewer._camera_xyzrpy = list(deepcopy(DEFAULT_CAMERA_XYZRPY_ABS))
             Viewer.detach_camera()
             Viewer.remove_camera_motion()
             if Viewer.is_alive():
@@ -957,6 +1012,7 @@ class Viewer:
                         Viewer._backend_obj.stop()
                     except ViewerClosedError:
                         pass
+                Viewer._backend_proc.wait(0.2)
                 Viewer._backend_proc.kill()
             atexit.unregister(Viewer.close)
             Viewer.backend = None
@@ -1021,6 +1077,7 @@ class Viewer:
 
         :returns: Pointer to the running backend Client and its PID.
         """
+        # pylint: disable=import-outside-toplevel
         # Handle default arguments
         if backend is None:
             backend = get_default_backend()
@@ -1238,17 +1295,17 @@ class Viewer:
     @staticmethod
     @__must_be_open
     @__with_lock
-    def set_clock(time: Optional[float] = None) -> None:
+    def set_clock(t: Optional[float] = None) -> None:
         """Insert clock on bottom right corner of the window.
 
         .. note::
             Only Panda3d rendering backend is supported by this method.
 
-        :param time: Current time is seconds. None to disable.
-                     Optional: None by default.
+        :param t: Current simulation time is seconds. None to disable.
+                  Optional: None by default.
         """
         if Viewer.backend.startswith('panda3d'):
-            Viewer._backend_obj.gui.set_clock(time)
+            Viewer._backend_obj.gui.set_clock(t)
         else:
             logger.warning("Adding clock is only available for Panda3d.")
 
@@ -1309,6 +1366,7 @@ class Viewer:
               name and index in model.
         :param wait: Whether to wait for rendering to finish.
         """
+        # pylint: disable=invalid-name
         assert self is None or isinstance(self, Viewer)
 
         if self is None and relative is not None and relative != 'camera':
@@ -1337,8 +1395,9 @@ class Viewer:
                 relative = self._client.model.getFrameId(relative)
             try:
                 body_transform = self._client.data.oMf[relative]
-            except IndexError:
-                raise ValueError("'relative' set to non-existing frame.")
+            except IndexError as e:
+                raise ValueError(
+                    "'relative' set to non-existing frame.") from e
             H_orig = SE3(np.eye(3), body_transform.translation)
 
         # Compute the absolute transformation
@@ -1346,7 +1405,8 @@ class Viewer:
             H_abs = SE3(rotation_mat, position)
             H_abs = H_orig * H_abs
             position = H_abs.translation
-            return Viewer.set_camera_transform(None, position, rotation)
+            Viewer.set_camera_transform(None, position, rotation)
+            return
 
         # Perform the desired transformation
         if Viewer.backend.startswith('panda3d'):
@@ -1355,6 +1415,7 @@ class Viewer:
             Viewer._backend_obj.gui.set_camera_transform(
                 position, rotation_panda3d)
         elif Viewer.backend == 'meshcat':
+            # pylint: disable=import-outside-toplevel
             # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
             # usual convention in robotics.
             import meshcat.transformations as mtf
@@ -1418,32 +1479,21 @@ class Viewer:
             Camera breakpoint poses over time, as a list of
             `CameraMotionBreakpointType` dict. Here is an example::
 
-                [{'t': 0.00,
+                [{'t': 0.0,
                   'pose': ([3.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2])},
-                 {'t': 0.33,
+                 {'t': 0.3,
                   'pose': ([4.5, 0.0, 1.4], [1.4, np.pi / 6, np.pi / 2])},
-                 {'t': 0.66,
+                 {'t': 0.6,
                   'pose': ([8.5, 0.0, 1.4], [1.4, np.pi / 3, np.pi / 2])},
-                 {'t': 1.00,
+                 {'t': 1.0,
                   'pose': ([9.5, 0.0, 1.4], [1.4, np.pi / 2, np.pi / 2])}]
         """
         t_camera = np.asarray([
             camera_break['t'] for camera_break in camera_motion])
-        interp_kind = 'linear' if len(t_camera) < 4 else 'cubic'
-        camera_xyz = np.stack([camera_break['pose'][0]
-                               for camera_break in camera_motion], axis=0)
-        camera_motion_xyz = interp1d(
-            t_camera, camera_xyz,
-            kind=interp_kind, bounds_error=False,
-            fill_value=(camera_xyz[0], camera_xyz[-1]), axis=0)
-        camera_rpy = np.stack([camera_break['pose'][1]
-                               for camera_break in camera_motion], axis=0)
-        camera_motion_rpy = interp1d(
-            t_camera, camera_rpy,
-            kind=interp_kind, bounds_error=False,
-            fill_value=(camera_rpy[0], camera_rpy[-1]), axis=0)
-        Viewer._camera_motion = lambda t: [
-            camera_motion_xyz(t), camera_motion_rpy(t)]
+        camera_xyzrpy = np.stack([np.concatenate(camera_break['pose'])
+                                  for camera_break in camera_motion], axis=0)
+        Viewer._camera_motion = lambda t: np.split(
+            interp1d(t_camera, camera_xyzrpy, t), 2)
 
     @staticmethod
     def remove_camera_motion() -> None:
@@ -1502,9 +1552,9 @@ class Viewer:
         if camera_xyzrpy is not None:
             camera_xyzrpy = list(camera_xyzrpy)
             if camera_xyzrpy[0] is None:
-                camera_xyzrpy[0] = deepcopy(DEFAULT_CAMERA_XYZRPY_REL[0])
+                camera_xyzrpy[0] = DEFAULT_CAMERA_XYZRPY_REL[0].copy()
             if camera_xyzrpy[1] is None:
-                camera_xyzrpy[1] = deepcopy(DEFAULT_CAMERA_XYZRPY_REL[1])
+                camera_xyzrpy[1] = DEFAULT_CAMERA_XYZRPY_REL[1].copy()
 
         # Set camera pose if relative pose is not locked but provided
         if not lock_relative_pose and camera_xyzrpy is not None:
@@ -1540,24 +1590,27 @@ class Viewer:
                       values ranging from 0.0 and 1.0, and a few named colors.
                       Optional: Disabled by default.
         """
+        # Return early if this method is not supported by the current backend
+        if not Viewer.backend.startswith('panda3d'):
+            logger.warning("This method is only supported by Panda3d.")
+            return
+
         # Sanitize user-specified color code
         color_ = get_color_code(color)
 
-        if Viewer.backend.startswith('panda3d'):
-            for model, geom_type in zip(
-                    [self._client.visual_model, self._client.collision_model],
-                    pin.GeometryType.names.values()):
-                for geom in model.geometryObjects:
-                    node_name = self._client.getViewerNodeName(geom, geom_type)
-                    color = color_
-                    if color is None and geom.overrideMaterial:
-                        color = geom.meshColor
-                    self._gui.set_material(
-                        *node_name, color, disable_material=color_ is not None)
-            self.robot_color = color
-            Viewer._backend_robot_colors[self.robot_name] = color
-        else:
-            logger.warning("This method is only supported by Panda3d.")
+        for model, geom_type in zip(
+                (self._client.visual_model, self._client.collision_model),
+                pin.GeometryType.names.values()):
+            for geom in model.geometryObjects:
+                node_name = self._client.getViewerNodeName(geom, geom_type)
+                color = color_
+                if color is None and geom.overrideMaterial:
+                    color = geom.meshColor
+                self._gui.set_material(
+                    *node_name, color, disable_material=color_ is not None)
+        self.robot_color = color
+        Viewer._backend_robot_colors[self.robot_name] = color
+        Viewer._backend_obj.gui.set_legend()
 
     @staticmethod
     @__must_be_open
@@ -1583,24 +1636,26 @@ class Viewer:
         :param show_meshes: Whether to highlight the meshes.
                             Optional: disabled by default.
         """
-        if Viewer.backend.startswith('panda3d'):
-            # Restore tile ground if heightmap is not specified
-            if ground_profile is None:
-                Viewer._backend_obj.gui.update_floor()
-                return
-
-            # Discretize heightmap
-            grid = discretize_heightmap(ground_profile, grid_size, grid_unit)
-
-            # Make sure it is not flat ground
-            if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
-                    np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
-                Viewer._backend_obj.gui.update_floor()
-                return
-
-            Viewer._backend_obj.gui.update_floor(grid, show_meshes)
-        else:
+        # Return early if this method is not supported by the current backend
+        if not Viewer.backend.startswith('panda3d'):
             logger.warning("This method is only supported by Panda3d.")
+            return
+
+        # Restore tile ground if heightmap is not specified
+        if ground_profile is None:
+            Viewer._backend_obj.gui.update_floor()
+            return
+
+        # Discretize heightmap
+        grid = discretize_heightmap(ground_profile, grid_size, grid_unit)
+
+        # Make sure it is not flat ground
+        if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
+                np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
+            Viewer._backend_obj.gui.update_floor()
+            return
+
+        Viewer._backend_obj.gui.update_floor(grid, show_meshes)
 
     @staticmethod
     @__must_be_open
@@ -1638,31 +1693,31 @@ class Viewer:
 
             # Extract and return numpy array RGB
             return np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
-        else:
-            # Send capture frame request to the background recorder process
-            img_html = Viewer._backend_obj.capture_frame(width, height)
+        # if Viewer.backend == 'meshcat':
+        # Send capture frame request to the background recorder process
+        img_html = Viewer._backend_obj.capture_frame(width, height)
 
-            # Parse the output to remove the html header, and convert it into
-            # the desired output format.
-            img_data = str.encode(img_html.split(",", 1)[-1])
-            buffer = base64.decodebytes(img_data)
+        # Parse the output to remove the html header, and convert it into
+        # the desired output format.
+        img_data = str.encode(img_html.split(",", 1)[-1])
+        buffer = base64.decodebytes(img_data)
 
-            # Return raw data if requested
-            if raw_data:
-                return buffer
+        # Return raw data if requested
+        if raw_data:
+            return buffer
 
-            # Extract numpy array RGBA
-            from PIL import Image
-            with Image.open(io.BytesIO(buffer)) as img_obj:
-                rgba_array = np.array(img_obj)
+        # Extract numpy array RGBA
+        from PIL import Image  # pylint: disable=import-outside-toplevel
+        with Image.open(io.BytesIO(buffer)) as img_obj:
+            rgba_array = np.array(img_obj)
 
-            # Return numpy array RGB
-            return rgba_array[:, :, :-1]
+        # Return numpy array RGB
+        return rgba_array[:, :, :-1]
 
+    @staticmethod
     @__must_be_open
     @__with_lock
-    def save_frame(self,
-                   image_path: str,
+    def save_frame(image_path: str,
                    width: int = None,
                    height: int = None) -> None:
         """Save a snapshot in png format.
@@ -1675,16 +1730,16 @@ class Viewer:
         """
         image_path = str(pathlib.Path(image_path).with_suffix('.png'))
         if Viewer.backend.startswith('panda3d'):
-            _width, _height = self._gui.getSize()
+            _width, _height = Viewer._backend_obj.gui.getSize()
             if width is None:
                 width = _width
             if height is None:
                 height = _height
             if _width != width or _height != height:
-                self._gui.set_window_size(width, height)
-            self._gui.save_screenshot(image_path)
+                Viewer._backend_obj.gui.set_window_size(width, height)
+            Viewer._backend_obj.gui.save_screenshot(image_path)
         else:
-            img_data = self.capture_frame(width, height, raw_data=True)
+            img_data = Viewer.capture_frame(width, height, raw_data=True)
             with open(image_path, "wb") as f:
                 f.write(img_data)
 
@@ -1726,7 +1781,6 @@ class Viewer:
                    always_foreground: bool = True,
                    remove_if_exists: bool = False,
                    auto_refresh: bool = True,
-                   *shape_args: Any,
                    **shape_kwargs: Any) -> MarkerDataType:
         """Add marker on the scene.
 
@@ -1757,11 +1811,9 @@ class Viewer:
                              marker. Useful for adding a bunch of markers and
                              only refresh once. Note that the marker will not
                              display properly until then.
-        :param shape_args: Any additional positional arguments to forward to
-                           `jiminy_py.viewer.panda3d.panda3d_visualizer.`
-                           `Panda3dApp.append_{shape}`.
         :param shape_kwargs: Any additional keyword arguments to forward to
-                             shape instantiation method.
+                           `jiminy_py.viewer.panda3d.panda3d_visualizer.`
+                           `Panda3dApp.append_{shape}` for shape instantiation.
 
         :returns: Dict of type `MarkerDataType`, storing references to the
                   current pose, scale, and color of the marker, and itself a
@@ -1801,7 +1853,7 @@ class Viewer:
 
         # Add new marker
         create_shape = getattr(self._gui, f"append_{shape}")
-        create_shape(self._markers_group, name, *shape_args, **shape_kwargs)
+        create_shape(self._markers_group, name, **shape_kwargs)
         marker_data = {"pose": pose, "scale": scale, "color": color}
         self.markers[name] = marker_data
         self._markers_visibility[name] = True
@@ -1830,9 +1882,13 @@ class Viewer:
         :param visibility: Whether to enable or disable display of the center
                            of mass.
         """
+        # Make sure the current backend is supported by this method.
         if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
+            if visibility:
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         for name in self.markers:
             if name.startswith("COM_0"):
@@ -1853,10 +1909,13 @@ class Viewer:
         :param visibility: Whether to enable or disable display of the capture
                            point.
         """
-        # Make sure the current backend is supported by this method
+        # Make sure the current backend is supported by this method.
         if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
+            if visibility:
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         # Update visibility
         for name in self.markers:
@@ -1885,10 +1944,13 @@ class Viewer:
 
         :param visibility: Whether to display the contact frames.
         """
-        # Make sure the current backend is supported by this method
+        # Make sure the current backend is supported by this method.
         if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
+            if visibility:
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         # Update visibility
         for name in self.markers:
@@ -1920,10 +1982,13 @@ class Viewer:
 
         :param visibility: Whether to display the contact forces.
         """
-        # Make sure the current backend is supported by this method
+        # Make sure the current backend is supported by this method.
         if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
+            if visibility:
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         # Update visibility
         for name in self.markers:
@@ -1963,14 +2028,17 @@ class Viewer:
                            ordering is consistent with pinocchio model (i.e.
                            `pinocchio_model.names`).
         """
-        # Make sure the current backend is supported by this method
-        if not Viewer.backend.startswith('panda3d'):
-            raise NotImplementedError(
-                "This method is only supported by Panda3d.")
-
         # Convert boolean visiblity to mask if necessary
         if isinstance(visibility, bool):
-            visibility = [visibility] * (self._client.model.njoints - 1)
+            visibility = (self._client.model.njoints - 1) * (visibility,)
+
+        # Make sure the current backend is supported by this method.
+        if not Viewer.backend.startswith('panda3d'):
+            if any(visibility):
+                raise NotImplementedError(
+                    "This method is only supported by Panda3d.")
+            # Return early if not supported but not requested either.
+            return
 
         # Check that the length of the mask is consistent with the model
         assert len(visibility) == self._client.model.njoints - 1, (
@@ -2020,6 +2088,7 @@ class Viewer:
         :param force_update_collision: Force update of collision geometries.
         :param wait: Whether to wait for rendering to finish.
         """
+        # pylint: disable=invalid-name
         # Extract pinocchio model and data pairs to update
         model_list, data_list, model_type_list = [], [], []
         if self._client.display_collisions or force_update_collision:
@@ -2044,13 +2113,13 @@ class Viewer:
                 for i, geom in enumerate(geom_model.geometryObjects):
                     oMg = geom_data.oMg[i]
                     x, y, z, qx, qy, qz, qw = SE3ToXYZQUAT(oMg)
-                    group, nodeName = self._client.getViewerNodeName(
+                    group, node_name = self._client.getViewerNodeName(
                         geom, model_type)
-                    pose_dict[nodeName] = ((x, y, z), (qw, qx, qy, qz))
+                    pose_dict[node_name] = ((x, y, z), (qw, qx, qy, qz))
                 if pose_dict:
                     self._gui.move_nodes(group, pose_dict)
         else:
-            import umsgpack
+            import umsgpack  # pylint: disable=import-outside-toplevel
             cmd_data = [b"list"]
             for geom_model, geom_data, model_type in zip(
                     model_list, data_list, model_type_list):
@@ -2058,9 +2127,9 @@ class Viewer:
                     oMg = geom_data.oMg[i]
                     S = np.diag((*geom.meshScale, 1.0))
                     H = oMg.homogeneous.dot(S)
-                    nodeName = self._client.getViewerNodeName(
+                    node_name = self._client.getViewerNodeName(
                         geom, model_type)
-                    path = self._gui[nodeName].path.lower()
+                    path = self._gui[node_name].path.lower()
                     cmd_data += [
                         b"set_transform",
                         path.encode("utf-8"),
@@ -2280,23 +2349,28 @@ class Viewer:
                 if t_simu > time_interval[1]:
                     break
             except Exception as e:
-                # Get backend before closing
-                backend = Viewer.backend
+                # Get backend info to analyze the root cause of the exception
+                backend, is_open = Viewer.backend, self.is_open()
 
-                # If no backend, just return without error because the backend
-                # was probably killed on purpose during multi-threaded replay.
+                # If no backend, probably it has been closed in the meantime
+                # during multi-threaded replay. So just return without error.
                 if backend is None:
                     return
 
                 # Make sure the viewer is always properly closed
                 Viewer.close()
 
+                # Once again, the backend was most likely killed on purpose
+                # during multi-threaded replay. Returning without error.
+                if not is_open:
+                    return
+
                 # Re-raise the original exception if unexpected
                 if backend.startswith('panda3d'):
                     if isinstance(e, ViewerClosedError):
                         return
                 elif backend == 'meshcat':
-                    import zmq
+                    import zmq  # pylint: disable=import-outside-toplevel
                     if isinstance(e, (zmq.error.Again, zmq.error.ZMQError)):
                         return
                 raise e

@@ -9,19 +9,14 @@ on:
 
 jobs:
   build-manylinux:
-    name: (${{ matrix.container }}) (${{ matrix.PYTHON_VERSION }}) Build wheels.
+    name: (${{ matrix.PYTHON_VERSION }}) Build wheels.
 
     strategy:
       matrix:
-        container: [
-          # 'manylinux_2_28_x86_64' image generates wheels not compatible with Ubuntu 18.04.
-          # Pin to latest version before update from gcc 11 to 12, which is not supported yet.
-          'quay.io/pypa/manylinux_2_28_x86_64:2022-11-19-1b19e81'
-        ]
-        PYTHON_VERSION: ['cp36', 'cp37', 'cp38', 'cp39', 'cp310']
+        PYTHON_VERSION: ['cp38', 'cp39', 'cp310', 'cp311']
 
     runs-on: ubuntu-20.04
-    container: ${{ matrix.container }}
+    container: 'quay.io/pypa/manylinux_2_28_x86_64:latest'
 
     defaults:
       run:
@@ -35,8 +30,7 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      # Cannot use v2 in manylinux containers because it relies on node+javascript
-      uses: actions/checkout@v1
+      uses: actions/checkout@v3
 
     #####################################################################################
 
@@ -61,8 +55,6 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary \
-          "gym>=0.18.3" "stable_baselines3>=0.10,<1.6.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -80,7 +72,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp310' && 'OFF') || 'ON' }} \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp311' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
@@ -104,21 +96,27 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
+        # Generate stubs
         cd "$RootDir/build"
+        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stub_gen.py" --ignore-invalid=all jiminy_py
+        cp "stubs/jiminy_py-stubs/core/__init__.pyi" "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core/"
+
+        # Generate wheels
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
+        # Bundle non-standard dependencies with the wheels for optimal portability.
         # Note that `--strip` option is not used but rather done manually because the
         # built-in option corrupts the shared library for some reason...
         "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_repair_linux.py" repair \
             -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
     - name: Upload the wheel of Jiminy for Linux
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
         path: build/wheelhouse
     - name: Upload the wheels of Gym Jiminy
-      if: success() && matrix.container == 'quay.io/pypa/manylinux2014_x86_64:latest' && matrix.PYTHON_VERSION == 'cp38'
-      uses: actions/upload-artifact@v1
+      if: success() && matrix.PYTHON_VERSION == 'cp38'
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
         path: build/pypi/dist/gym_jiminy
@@ -157,7 +155,7 @@ jobs:
     - name: Installing requirements
       run: |
         sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary pillow
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary pillow scipy
 
     #####################################################################################
 
@@ -184,7 +182,7 @@ jobs:
         cd "$RootDir/core/examples/external_project/build"
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
                -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"
@@ -196,7 +194,7 @@ jobs:
     #####################################################################################
 
   publish-pypi-manylinux:
-    name: (Manylinux) Publish on PyPi the wheel for Linux of jiminy_py and gym_jiminy
+    name: Publish on PyPi the wheel for Linux of jiminy_py and gym_jiminy
 
     needs: test-user-linux
     runs-on: ubuntu-20.04

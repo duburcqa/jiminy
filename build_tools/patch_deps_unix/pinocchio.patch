@@ -1,7 +1,19 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -148,7 +148,6 @@
+@@ -120,11 +120,6 @@
+   ADD_DEFINITIONS(-DPINOCCHIO_WITH_URDFDOM)
+   LIST(APPEND CFLAGS_DEPENDENCIES "-DPINOCCHIO_WITH_URDFDOM")
+ 
+-  IF(${urdfdom_VERSION} VERSION_GREATER "0.4.2")
+-    SET(CMAKE_CXX_STANDARD 11)
+-    SET(CMAKE_CXX_STANDARD_REQUIRED ON)
+-    MESSAGE(STATUS "Since urdfdom >= 1.0.0, the default C++ standard is C++11. The project is then compiled with C++11 standard.")
+-  ENDIF(${urdfdom_VERSION} VERSION_GREATER "0.4.2")
+ ENDIF(BUILD_WITH_URDF_SUPPORT)
+ 
+ IF(BUILD_WITH_AUTODIFF_SUPPORT)
+@@ -148,7 +143,6 @@
  
  SET_BOOST_DEFAULT_OPTIONS()
  EXPORT_BOOST_DEFAULT_OPTIONS()
@@ -9,7 +21,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
  
  IF(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "The Python bindings of Pinocchio will be compiled along the main library. If you want to disable this feature, please set the option BUILD_PYTHON_INTERFACE to OFF.")
-@@ -176,19 +175,19 @@
+@@ -176,19 +170,19 @@
  ELSE(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "Pinocchio won't be compiled with its Python bindings. If you want to enable this feature, please set the option BUILD_PYTHON_INTERFACE to ON.")
  ENDIF(BUILD_PYTHON_INTERFACE)
@@ -78,6 +90,82 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
    else()
  
      if(APPLE)
+diff --git a/bindings/python/CMakeLists.txt b/bindings/python/CMakeLists.txt
+--- a/bindings/python/CMakeLists.txt
++++ b/bindings/python/CMakeLists.txt
+@@ -184,6 +184,17 @@
+     SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES INSTALL_RPATH "\$ORIGIN/../../..")
+   ENDIF()
+ 
++  if(GENERATE_PYTHON_STUBS)
++      include("${CMAKE_SOURCE_DIR}/cmake/stubs.cmake")
++      load_stubgen()
++      if(IS_ABSOLUTE ${PYTHON_SITELIB})
++          set(ABSOLUTE_PYTHON_SITELIB ${PYTHON_SITELIB})
++      else()
++          set(ABSOLUTE_PYTHON_SITELIB ${CMAKE_INSTALL_PREFIX}/${PYTHON_SITELIB})
++      endif()
++      generate_stubs(${CMAKE_CURRENT_BINARY_DIR} ${PROJECT_NAME} ${ABSOLUTE_PYTHON_SITELIB})
++  endif(GENERATE_PYTHON_STUBS)
++
+   INSTALL(
+     TARGETS ${PYWRAP}
+     EXPORT ${TARGETS_EXPORT_NAME}
+diff --git a/bindings/python/algorithm/expose-com.cpp b/bindings/python/algorithm/expose-com.cpp
+index 50c5ab03..bd2c3ae5 100644
+--- a/bindings/python/algorithm/expose-com.cpp
++++ b/bindings/python/algorithm/expose-com.cpp
+@@ -229,10 +229,10 @@ namespace pinocchio
+                        "subtree_root_joint_id"),
+               "Computes the Jacobian of the CoM of the given subtree (subtree_root_joint_id) expressed in the WORLD frame, according to the given joint configuration.");
+       bp::def("jacobianSubtreeCoMJacobian",jacobian_subtree_com_kinematics_proxy,
+-              bp::args("Model, the model of the kinematic tree",
+-                       "Data, the data associated to the model where the results are stored",
+-                       "Joint configuration q (size Model::nq)",
+-                       "Subtree root ID, the index of the subtree root joint."),
++              bp::args("model",
++                       "data",
++                       "q",
++                       "subtree_root_joint_id"),
+               "Computes the Jacobian of the CoM of the given subtree expressed in the world frame, according to the given joint configuration.",
+               deprecated_function<>("This function is now deprecated. It has been renamed jacobianSubtreeCenterOfMass."));
+       
+@@ -243,9 +243,9 @@ namespace pinocchio
+               "Computes the Jacobian of the CoM of the given subtree (subtree_root_joint_id) expressed in the WORLD frame, according to the given entries in data.");
+ 
+       bp::def("jacobianSubtreeCoMJacobian",jacobian_subtree_com_proxy,
+-              bp::args("Model, the model of the kinematic tree",
+-                       "Data, the data associated to the model where the results are stored",
+-                       "Subtree root ID, the index of the subtree root joint."),
++              bp::args("model",
++                       "data",
++                       "subtree_root_joint_id"),
+               "Computes the Jacobian of the CoM of the given subtree expressed in the world frame, according to the given entries in data.",
+               deprecated_function<>("This function is now deprecated. It has been renamed jacobianSubtreeCenterOfMass."));
+       
+diff --git a/bindings/python/spatial/expose-explog.cpp b/bindings/python/spatial/expose-explog.cpp
+index f5e03568..0edd0a1c 100644
+--- a/bindings/python/spatial/expose-explog.cpp
++++ b/bindings/python/spatial/expose-explog.cpp
+@@ -3,8 +3,8 @@
+ // Copyright (c) 2015 Wandercraft, 86 rue de Paris 91400 Orsay, France.
+ //
+ 
++#include "pinocchio/bindings/python/fwd.hpp"
+ #include "pinocchio/bindings/python/spatial/explog.hpp"
+-#include <boost/python.hpp>
+ 
+ namespace pinocchio
+ {
+@@ -26,7 +26,7 @@ namespace pinocchio
+               " the tangent of SO(3) at Identity.");
+       
+       bp::def("log3",&log3_proxy<Eigen::Matrix3d>,
+-              bp::arg("Rotation matrix (matrix of size 3x3))"),
++              bp::arg("R"),
+               "Log: SO3 -> so3. Pseudo-inverse of log from SO3"
+               " -> { v in so3, ||v|| < 2pi }.Exp: so3 -> SO3.");
+       
 diff --git a/cmake/python.cmake b/cmake/python.cmake
 --- a/cmake/python.cmake
 +++ b/cmake/python.cmake
