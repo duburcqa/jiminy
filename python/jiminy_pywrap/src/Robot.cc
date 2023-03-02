@@ -60,8 +60,8 @@ namespace python
                                       (bp::arg("self"), "constraint_name"))
                 .def("exist_constraint", &Model::existConstraint,
                                          (bp::arg("self"), "constraint_name"))
-                .add_property("has_constraints", &Model::hasConstraints)
-                .add_property("constraints", PyModelVisitor::getConstraints)
+                .ADD_PROPERTY_GET("has_constraints", &Model::hasConstraints)
+                .ADD_PROPERTY_GET("constraints", &Model::getConstraints)
                 .def("get_constraints_jacobian_and_drift", &PyModelVisitor::getConstraintsJacobianAndDrift)
                 .def("compute_constraints", &Model::computeConstraints,
                                             (bp::arg("self"), "q", "v"))
@@ -75,83 +75,99 @@ namespace python
                 .def("get_rigid_velocity_from_flexible", &PyModelVisitor::getRigidVelocityFromFlexible,
                                                          (bp::arg("self"), "flexible_velocity"))
 
-                .add_property("pinocchio_model_th", bp::make_getter(&Model::pncModelOrig_,
-                                                    bp::return_internal_reference<>()))
-                .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
-                                                 bp::return_internal_reference<>()))
-                .add_property("collision_model_th", bp::make_getter(&Model::collisionModelOrig_,
-                                                    bp::return_internal_reference<>()))
-                .add_property("collision_model", bp::make_getter(&Model::collisionModel_,
-                                                 bp::return_internal_reference<>()))
-                .add_property("visual_model_th", bp::make_getter(&Model::visualModelOrig_,
-                                                 bp::return_internal_reference<>()))
-                .add_property("visual_model", bp::make_getter(&Model::visualModel_,
-                                              bp::return_internal_reference<>()))
-                .add_property("visual_data", bp::make_getter(&Model::visualData_,
-                                             bp::return_internal_reference<>()))
-                .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataOrig_,
-                                                   bp::return_internal_reference<>()))
-                .add_property("pinocchio_data", bp::make_getter(&Model::pncData_,
-                                                bp::return_internal_reference<>()))
-                .add_property("collision_data", bp::make_getter(&Model::collisionData_,
-                                                bp::return_internal_reference<>()))
+                .DEF_READONLY("pinocchio_model_th", &Model::pncModelOrig_)
+                .DEF_READONLY("pinocchio_model", &Model::pncModel_)
+                .DEF_READONLY("collision_model_th", &Model::collisionModelOrig_)
+                .DEF_READONLY("collision_model", &Model::collisionModel_)
+                .DEF_READONLY("visual_model_th", &Model::visualModelOrig_)
+                .DEF_READONLY("visual_model", &Model::visualModel_)
+                .DEF_READONLY("visual_data", &Model::visualData_)
+                .DEF_READONLY("pinocchio_data_th", &Model::pncDataOrig_)
+                .DEF_READONLY("pinocchio_data", &Model::pncData_)
+                .DEF_READONLY("collision_data", &Model::collisionData_)
 
-                .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("mesh_package_dirs", bp::make_function(&Model::getMeshPackageDirs,
-                                                   bp::return_value_policy<result_converter<true> >()))
-                .add_property("name", bp::make_function(&Model::getName,
-                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
-                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("is_flexible", &PyModelVisitor::isFlexibleModelEnable)
-                .add_property("nq", bp::make_function(&Model::nq,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("nv", bp::make_function(&Model::nv,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("nx", bp::make_function(&Model::nx,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
+                                              &Model::getIsInitialized,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("mesh_package_dirs",
+                                              &Model::getMeshPackageDirs,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("name",
+                                              &Model::getName,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("urdf_path",
+                                              &Model::getUrdfPath,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("has_freeflyer",
+                                              &Model::getHasFreeflyer,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET("is_flexible", &PyModelVisitor::isFlexibleModelEnable)
+                .ADD_PROPERTY_GET_WITH_POLICY("nq",
+                                              &Model::nq,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("nv",
+                                              &Model::nv,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("nx",
+                                              &Model::nx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
 
-                .add_property("collision_bodies_names", bp::make_function(&Model::getCollisionBodiesNames,
-                                                        bp::return_value_policy<result_converter<true> >()))
-                .add_property("collision_bodies_idx", bp::make_function(&Model::getCollisionBodiesIdx,
-                                                      bp::return_value_policy<result_converter<true> >()))
-                .add_property("collision_pairs_idx_by_body", bp::make_function(&Model::getCollisionPairsIdx,
-                                                             bp::return_value_policy<result_converter<true> >()))
-                .add_property("contact_frames_names", bp::make_function(&Model::getContactFramesNames,
-                                                      bp::return_value_policy<result_converter<true> >()))
-                .add_property("contact_frames_idx", bp::make_function(&Model::getContactFramesIdx,
-                                                    bp::return_value_policy<result_converter<true> >()))
-                .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
-                                                    bp::return_value_policy<result_converter<true> >()))
-                .add_property("rigid_joints_idx", bp::make_function(&Model::getRigidJointsModelIdx,
-                                                  bp::return_value_policy<result_converter<true> >()))
-                .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
-                                                           bp::return_value_policy<result_converter<true> >()))
-                .add_property("rigid_joints_velocity_idx", bp::make_function(&Model::getRigidJointsVelocityIdx,
-                                                           bp::return_value_policy<result_converter<true> >()))
-                .add_property("flexible_joints_names", bp::make_function(&Model::getFlexibleJointsNames,
-                                                       bp::return_value_policy<result_converter<true> >()))
-                .add_property("flexible_joints_idx", bp::make_function(&Model::getFlexibleJointsModelIdx,
-                                                     bp::return_value_policy<result_converter<true> >()))
+                .ADD_PROPERTY_GET_WITH_POLICY("collision_bodies_names",
+                                              &Model::getCollisionBodiesNames,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("collision_bodies_idx",
+                                              &Model::getCollisionBodiesIdx,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("collision_pairs_idx_by_body",
+                                              &Model::getCollisionPairsIdx,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("contact_frames_names",
+                                              &Model::getContactFramesNames,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("contact_frames_idx",
+                                              &Model::getContactFramesIdx,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("rigid_joints_names",
+                                              &Model::getRigidJointsNames,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("rigid_joints_idx",
+                                              &Model::getRigidJointsModelIdx,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("rigid_joints_position_idx",
+                                              &Model::getRigidJointsPositionIdx,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("rigid_joints_velocity_idx",
+                                              &Model::getRigidJointsVelocityIdx,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("flexible_joints_names",
+                                              &Model::getFlexibleJointsNames,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("flexible_joints_idx",
+                                              &Model::getFlexibleJointsModelIdx,
+                                              bp::return_value_policy<result_converter<true> >())
 
-                .add_property("position_limit_lower", bp::make_function(&Model::getPositionLimitMin,
-                                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("position_limit_upper", bp::make_function(&Model::getPositionLimitMax,
-                                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("velocity_limit", bp::make_function(&Model::getVelocityLimit,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("position_limit_lower",
+                                              &Model::getPositionLimitMin,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("position_limit_upper",
+                                              &Model::getPositionLimitMax,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("velocity_limit",
+                                              &Model::getVelocityLimit,
+                                              bp::return_value_policy<bp::copy_const_reference>())
 
-                .add_property("log_fieldnames_position", bp::make_function(&Model::getLogFieldnamesPosition,
-                                                          bp::return_value_policy<result_converter<true> >()))
-                .add_property("log_fieldnames_velocity", bp::make_function(&Model::getLogFieldnamesVelocity,
-                                                          bp::return_value_policy<result_converter<true> >()))
-                .add_property("log_fieldnames_acceleration", bp::make_function(&Model::getLogFieldnamesAcceleration,
-                                                              bp::return_value_policy<result_converter<true> >()))
-                .add_property("log_fieldnames_f_external", bp::make_function(&Model::getLogFieldnamesForceExternal,
-                                                            bp::return_value_policy<result_converter<true> >()))
+                .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_position",
+                                              &Model::getLogFieldnamesPosition,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_velocity",
+                                              &Model::getLogFieldnamesVelocity,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_acceleration",
+                                              &Model::getLogFieldnamesAcceleration,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_f_external",
+                                              &Model::getLogFieldnamesForceExternal,
+                                              bp::return_value_policy<result_converter<true> >())
                 ;
         }
 
@@ -190,11 +206,6 @@ namespace python
             std::shared_ptr<AbstractConstraintBase> constraint;
             self.getConstraint(constraintName, constraint);
             return constraint;
-        }
-
-        static std::shared_ptr<constraintsHolder_t> getConstraints(Model & self)
-        {
-            return std::make_shared<constraintsHolder_t>(self.getConstraints());
         }
 
         static bp::tuple getConstraintsJacobianAndDrift(Model & self)
@@ -310,8 +321,9 @@ namespace python
                     >(&Robot::initialize),
                     (bp::arg("self"), "pinocchio_model", "collision_model", "visual_model"))
 
-                .add_property("is_locked", bp::make_function(&Robot::getIsLocked,
-                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("is_locked",
+                                              &Robot::getIsLocked,
+                                              bp::return_value_policy<bp::copy_const_reference>())
 
                 .def("dump_options", &Robot::dumpOptions,
                                      (bp::arg("self"), "json_filename"))
@@ -337,7 +349,7 @@ namespace python
                 .def("get_sensor", &PyRobotVisitor::getSensor,
                                    (bp::arg("self"), "sensor_type", "sensor_name"))
 
-                .add_property("sensors_data", &PyRobotVisitor::getSensorsData)
+                .ADD_PROPERTY_GET("sensors_data", &PyRobotVisitor::getSensorsData)
 
                 .def("set_options", &PyRobotVisitor::setOptions,
                                     (bp::arg("self"), "robot_options"))
@@ -358,23 +370,29 @@ namespace python
                                               (bp::arg("self"), "telemetry_options"))
                 .def("get_telemetry_options", &Robot::getTelemetryOptions)
 
-                .add_property("nmotors", bp::make_function(&Robot::nmotors,
-                                         bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("motors_names", bp::make_function(&Robot::getMotorsNames,
-                                              bp::return_value_policy<result_converter<true> >()))
-                .add_property("motors_position_idx", &Robot::getMotorsPositionIdx)
-                .add_property("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
-                .add_property("sensors_names", &PyRobotVisitor::getSensorsNames)
+                .ADD_PROPERTY_GET_WITH_POLICY("nmotors",
+                                              &Robot::nmotors,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("motors_names",
+                                              &Robot::getMotorsNames,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET("motors_position_idx", &Robot::getMotorsPositionIdx)
+                .ADD_PROPERTY_GET("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
+                .ADD_PROPERTY_GET("sensors_names", &PyRobotVisitor::getSensorsNames)
 
-                .add_property("command_limit", bp::make_function(&Robot::getCommandLimit,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("armatures", bp::make_function(&Robot::getArmatures,
-                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("command_limit",
+                                              &Robot::getCommandLimit,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("armatures",
+                                              &Robot::getArmatures,
+                                              bp::return_value_policy<bp::copy_const_reference>())
 
-                .add_property("log_fieldnames_command", bp::make_function(&Robot::getCommandFieldnames,
-                                                        bp::return_value_policy<result_converter<true> >()))
-                .add_property("log_fieldnames_motor_effort", bp::make_function(&Robot::getMotorEffortFieldnames,
-                                                             bp::return_value_policy<result_converter<true> >()))
+                .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_command",
+                                              &Robot::getCommandFieldnames,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_motor_effort",
+                                              &Robot::getMotorEffortFieldnames,
+                                              bp::return_value_policy<result_converter<true> >())
                 ;
         }
 

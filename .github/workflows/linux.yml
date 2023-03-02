@@ -125,3 +125,29 @@ jobs:
 
         cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
+
+    - name: Python static type checker
+      if: matrix.PYTHON_VERSION == '3.8' && matrix.BUILD_TYPE == 'Release'
+      run: |
+        # Generate stubs
+        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
+        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stub_gen.py" \
+          -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
+        cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \
+           $RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+
+        # Re-install jiminy with stubs
+        cd "$RootDir/build"
+        make install
+
+        # mypy is not able to follow `.pth` when checking directories or files.
+        # This bug may be fixed in the future. The only workaround is to set `MYPYPATH` manually.
+        # Anyway, the stubs generated for eigenpy, hppfcl and pinocchio they are incomplete and
+        # even partially wrong, so it is better to ignore them for now.
+        # See: https://github.com/python/mypy/issues/14848.
+        cd "$RootDir/python/jiminy_py/"
+        mypy --config-file="$RootDir/.mypy.ini" -p src
+        for name in "common" "toolbox" "rllib"; do
+          cd "$RootDir/python/gym_jiminy/$name"
+          mypy --config-file="$RootDir/.mypy.ini" -p gym_jiminy
+        done

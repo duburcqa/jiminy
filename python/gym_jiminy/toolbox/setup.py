@@ -28,6 +28,7 @@ setup(
     ],
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
+    package_data={"gym_jiminy.toolbox": ["py.typed"]},
     install_requires=[
         f"gym-jiminy=={version}",
         # Used to compute convex hull.

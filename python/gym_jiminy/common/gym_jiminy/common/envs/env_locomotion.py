@@ -1,7 +1,7 @@
 """Generic environment to learn locomotion skills for legged robots using
 Jiminy simulator as physics engine.
 """
-from typing import Optional, Dict, Union, Callable, Any
+from typing import Optional, Dict, Union, Callable, Any, Type, Sequence
 
 import numpy as np
 import gym
@@ -244,7 +244,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Add sensor noise, bias and delay
         if 'sensors' in self.std_ratio.keys():
-            for sensor in (encoder, effort, contact, force, imu):
+            sensor_classes: Sequence[Union[
+                Type[encoder], Type[effort], Type[contact], Type[force],
+                Type[imu]]] = (encoder, effort, contact, force, imu)
+            for sensor in sensor_classes:
                 sensors_options = robot_options["sensors"][sensor.type]
                 for sensor_options in sensors_options.values():
                     sensor_options['delay'] = sample(

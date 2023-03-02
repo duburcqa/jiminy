@@ -57,7 +57,7 @@ namespace python
 
     pinocchio::GeometryModel buildGeomFromUrdf(pinocchio::Model const & model,
                                                std::string const & filename,
-                                               bp::object const & typePy,
+                                               int const & typePy,
                                                bp::list const & packageDirsPy,
                                                bool_t const & loadMeshes,
                                                bool_t const & makeMeshesConvex)
@@ -65,7 +65,7 @@ namespace python
         /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType`
            is not properly converted from Python to C++ automatically in some cases. */
         pinocchio::GeometryModel geometryModel;
-        auto const type = static_cast<pinocchio::GeometryType>(bp::extract<int>(typePy)());
+        auto const type = static_cast<pinocchio::GeometryType>(typePy);
         auto packageDirs = convertFromPython<std::vector<std::string> >(packageDirsPy);
         ::jiminy::buildGeomFromUrdf(model,
                                     filename,
@@ -108,9 +108,9 @@ namespace python
         return bp::make_tuple(model, collisionModel);
     }
 
-    bp::object solveJMinvJtv(pinocchio::Data & data,
-                             np::ndarray const & vPy,
-                             bool_t const & updateDecomposition)
+    np::ndarray solveJMinvJtv(pinocchio::Data & data,
+                              np::ndarray const & vPy,
+                              bool_t const & updateDecomposition)
     {
         int32_t const nDims = vPy.get_nd();
         assert(nDims < 3 && "The number of dimensions of 'v' cannot exceed 2.");
@@ -118,13 +118,13 @@ namespace python
         {
             vectorN_t const v = convertFromPython<vectorN_t>(vPy);
             vectorN_t const x = pinocchio_overload::solveJMinvJtv<vectorN_t>(data, v, updateDecomposition);
-            return convertToPython(x, true);
+            return bp::extract<np::ndarray>(convertToPython(x, true));
         }
         else
         {
             matrixN_t const v = convertFromPython<matrixN_t>(vPy);
             matrixN_t const x = pinocchio_overload::solveJMinvJtv<matrixN_t>(data, v, updateDecomposition);
-            return convertToPython(x, true);
+            return bp::extract<np::ndarray>(convertToPython(x, true));
         }
     }
 

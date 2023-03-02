@@ -28,6 +28,7 @@ setup(
     ],
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
+    package_data={"gym_jiminy.rllib": ["py.typed"]},
     install_requires=[
         f"gym-jiminy[toolbox]=={version}",
         # Highly efficient distributed computation library used for RL

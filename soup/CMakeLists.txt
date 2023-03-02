@@ -3,7 +3,8 @@ include(ExternalProject)
 
 # Set the compilation flags.
 # Use the same flags than jiminy itself, but disable all warnings.
-set(CMAKE_CXX_FLAGS_EXTERNAL "${CMAKE_CXX_FLAGS} -w")
+# Force disabling the MSVC preprocessor as it is not supported by HDF5 for now.
+string(REGEX REPLACE "/Zc:preprocessor" "" CMAKE_CXX_FLAGS_EXTERNAL "${CMAKE_CXX_FLAGS} -w")
 string(REGEX REPLACE "-fsanitize=[a-z\-]+" "" CMAKE_CXX_FLAGS_DEBUG_EXTERNAL "${CMAKE_CXX_FLAGS_DEBUG}")
 
 # Set fake credential

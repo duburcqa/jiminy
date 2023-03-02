@@ -145,7 +145,10 @@ setup(
             # Used in unit tests for numerical integration and interpolation
             "scipy",
             # Stub for static type checking
+            "types-psutil",
+            "types-Pillow",
             "types-toml",
+            "types-tqdm",
             # Check PEP8 conformance of Python native code
             "flake8",
             # Python linter

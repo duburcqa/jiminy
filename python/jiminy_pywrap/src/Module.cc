@@ -47,13 +47,13 @@ namespace python
                          bp::return_value_policy<bp::return_by_value>(), \
                          (bp::arg("self"), bp::arg("t"), bp::arg("q"), bp::arg("v")));
 
-    #define REGISTER_CONVERTER_SAFE(Type, Copy) \
+    #define REGISTER_CONVERTER(Type, Copy) \
     { \
         bp::type_info info = bp::type_id<Type>(); \
         const bp::converter::registration * reg = bp::converter::registry::query(info); \
-        if (reg == NULL || *reg->m_to_python == NULL) \
+        if (reg == nullptr || *reg->m_to_python == nullptr) \
         { \
-            bp::to_python_converter<Type, converterToPython<Type>, Copy>(); \
+            bp::to_python_converter<Type, converterToPython<Type, Copy>, true>(); \
         } \
     }
 
@@ -101,13 +101,15 @@ namespace python
         bp::docstring_options doc_options;
         doc_options.disable_cpp_signatures();
 
-        // Enable some automatic C++ to Python converters
-        REGISTER_CONVERTER_SAFE(std::vector<std::vector<int32_t> >, true);
-        REGISTER_CONVERTER_SAFE(std::vector<uint32_t>, true);
-        REGISTER_CONVERTER_SAFE(std::vector<int32_t>, true);
-        REGISTER_CONVERTER_SAFE(std::vector<vectorN_t>, true);
-        REGISTER_CONVERTER_SAFE(std::vector<matrixN_t>, true);
-        REGISTER_CONVERTER_SAFE(configHolder_t, true);
+        /* Enable some automatic C++ to Python converters.
+           By default, the conversion is done by-value,
+           unless specified explicitly via a call policy. */
+        REGISTER_CONVERTER(std::vector<std::vector<int32_t> >, true);
+        REGISTER_CONVERTER(std::vector<uint32_t>, true);
+        REGISTER_CONVERTER(std::vector<int32_t>, true);
+        REGISTER_CONVERTER(std::vector<vectorN_t>, true);
+        REGISTER_CONVERTER(std::vector<matrixN_t>, true);
+        REGISTER_CONVERTER(configHolder_t, true);
 
         // Expose functors
         TIME_STATE_FCT_EXPOSE(Bool, bool_t)
@@ -125,10 +127,10 @@ namespace python
 
         // Expose structs and classes
         exposeSensorsDataMap();
-        exposeModel();
-        exposeRobot();
         exposeConstraint();
         exposeConstraintsHolder();
+        exposeModel();
+        exposeRobot();
         exposeAbstractMotor();
         exposeSimpleMotor();
         exposeAbstractSensor();

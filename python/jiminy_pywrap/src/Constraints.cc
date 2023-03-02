@@ -64,19 +64,23 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .add_property("type", bp::make_function(&AbstractConstraintBase::getType,
-                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("is_enabled", bp::make_function(&AbstractConstraintBase::getIsEnabled,
-                                            bp::return_value_policy<bp::copy_const_reference>()),
-                                            &PyConstraintVisitor::setIsEnable)
-                .add_property("baumgarte_freq", &AbstractConstraintBase::getBaumgarteFreq,
-                                                &AbstractConstraintBase::setBaumgarteFreq)
-                .add_property("jacobian", bp::make_function(&AbstractConstraintBase::getJacobian,
-                                          bp::return_value_policy<result_converter<false> >()))
-                .add_property("drift", bp::make_function(&AbstractConstraintBase::getDrift,
-                                       bp::return_value_policy<result_converter<false> >()))
-                .add_property("lambda_c", bp::make_getter(&AbstractConstraintBase::lambda_,
-                                          bp::return_value_policy<result_converter<false> >()))
+                .ADD_PROPERTY_GET_WITH_POLICY("type",
+                                              &AbstractConstraintBase::getType,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("is_enabled",
+                                                  &AbstractConstraintBase::getIsEnabled,
+                                                  bp::return_value_policy<bp::copy_const_reference>(),
+                                                  &PyConstraintVisitor::setIsEnable)
+                .ADD_PROPERTY_GET_SET("baumgarte_freq",
+                                      &AbstractConstraintBase::getBaumgarteFreq,
+                                      &AbstractConstraintBase::setBaumgarteFreq)
+                .ADD_PROPERTY_GET_WITH_POLICY("jacobian",
+                                              &AbstractConstraintBase::getJacobian,
+                                              bp::return_value_policy<result_converter<false> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("drift",
+                                              &AbstractConstraintBase::getDrift,
+                                              bp::return_value_policy<result_converter<false> >())
+                .DEF_READONLY("lambda_c", &AbstractConstraintBase::lambda_)
                 ;
         }
 
@@ -144,16 +148,20 @@ namespace python
                        boost::noncopyable>("JointConstraint",
                        bp::init<std::string const &>(bp::args("self", "joint_name")))
                 .def_readonly("type", &JointConstraint::type_)
-                .add_property("joint_name", bp::make_function(&JointConstraint::getJointName,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_idx", bp::make_function(&JointConstraint::getJointIdx,
-                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("reference_configuration", bp::make_function(&JointConstraint::getReferenceConfiguration,
-                                                         bp::return_value_policy<result_converter<false> >()),
-                                                         &JointConstraint::setReferenceConfiguration)
-                .add_property("is_enabled", bp::make_function(&JointConstraint::getRotationDir,
-                                            bp::return_value_policy<bp::copy_const_reference>()),
-                                            &JointConstraint::setRotationDir);
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
+                                              &JointConstraint::getJointName,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
+                                              &JointConstraint::getJointIdx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_configuration",
+                                                  &JointConstraint::getReferenceConfiguration,
+                                                  bp::return_value_policy<result_converter<false> >(),
+                                                  &JointConstraint::setReferenceConfiguration)
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("is_enabled",
+                                                  &JointConstraint::getRotationDir,
+                                                  bp::return_value_policy<bp::copy_const_reference>(),
+                                                  &JointConstraint::setRotationDir);
 
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<FixedFrameConstraint>,
@@ -162,17 +170,22 @@ namespace python
                                  bp::default_call_policies(), (bp::arg("frame_name"),
                                                                bp::arg("mask_fixed")=bp::object())))
                 .def_readonly("type", &FixedFrameConstraint::type_)
-                .add_property("frame_name", bp::make_function(&FixedFrameConstraint::getFrameName,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("frame_idx", bp::make_function(&FixedFrameConstraint::getFrameIdx,
-                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("dofs_fixed", bp::make_function(&FixedFrameConstraint::getDofsFixed,
-                                            bp::return_value_policy<bp::return_by_value>()))
-                .add_property("reference_transform", bp::make_function(&FixedFrameConstraint::getReferenceTransform,
-                                                     bp::return_internal_reference<>()),
-                                                     &FixedFrameConstraint::setReferenceTransform)
-                .add_property("local_rotation", bp::make_function(&FixedFrameConstraint::getLocalFrame,
-                                                bp::return_value_policy<result_converter<false> >()))
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
+                                              &FixedFrameConstraint::getFrameName,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
+                                              &FixedFrameConstraint::getFrameIdx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("dofs_fixed",
+                                              &FixedFrameConstraint::getDofsFixed,
+                                              bp::return_value_policy<bp::return_by_value>())
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
+                                                  &FixedFrameConstraint::getReferenceTransform,
+                                                  bp::return_value_policy<result_converter<false> >(),
+                                                  &FixedFrameConstraint::setReferenceTransform)
+                .ADD_PROPERTY_GET_WITH_POLICY("local_rotation",
+                                              &FixedFrameConstraint::getLocalFrame,
+                                              bp::return_value_policy<result_converter<false> >())
                 .def("set_normal", &FixedFrameConstraint::setNormal);
 
             bp::class_<DistanceConstraint, bp::bases<AbstractConstraintBase>,
@@ -181,13 +194,16 @@ namespace python
                        bp::init<std::string const &, std::string const &>(
                        bp::args("self", "first_frame_name", "second_frame_name")))
                 .def_readonly("type", &DistanceConstraint::type_)
-                .add_property("frames_names", bp::make_function(&DistanceConstraint::getFramesNames,
-                                              bp::return_value_policy<result_converter<true> >()))
-                .add_property("frames_idx", bp::make_function(&DistanceConstraint::getFramesIdx,
-                                            bp::return_value_policy<result_converter<true> >()))
-                .add_property("reference_distance", bp::make_function(&DistanceConstraint::getReferenceDistance,
-                                                    bp::return_value_policy<bp::copy_const_reference>()),
-                                                    &DistanceConstraint::setReferenceDistance);
+                .ADD_PROPERTY_GET_WITH_POLICY("frames_names",
+                                              &DistanceConstraint::getFramesNames,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("frames_idx",
+                                              &DistanceConstraint::getFramesIdx,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_distance",
+                                                  &DistanceConstraint::getReferenceDistance,
+                                                  bp::return_value_policy<bp::copy_const_reference>(),
+                                                  &DistanceConstraint::setReferenceDistance);
 
             bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<SphereConstraint>,
@@ -195,13 +211,16 @@ namespace python
                        bp::init<std::string const &, float64_t const &>(
                        bp::args("self", "frame_name", "radius")))
                 .def_readonly("type", &SphereConstraint::type_)
-                .add_property("frame_name", bp::make_function(&SphereConstraint::getFrameName,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("frame_idx", bp::make_function(&SphereConstraint::getFrameIdx,
-                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("reference_transform", bp::make_function(&SphereConstraint::getReferenceTransform,
-                                                     bp::return_internal_reference<>()),
-                                                     &SphereConstraint::setReferenceTransform);
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
+                                              &SphereConstraint::getFrameName,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
+                                              &SphereConstraint::getFrameIdx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
+                                                  &SphereConstraint::getReferenceTransform,
+                                                  bp::return_value_policy<result_converter<false> >(),
+                                                  &SphereConstraint::setReferenceTransform);
 
             bp::class_<WheelConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<WheelConstraint>,
@@ -209,13 +228,16 @@ namespace python
                        bp::init<std::string const &, float64_t const &, vector3_t const &, vector3_t const &>(
                        bp::args("self", "frame_name", "radius", "ground_normal", "wheel_axis")))
                 .def_readonly("type", &WheelConstraint::type_)
-                .add_property("frame_name", bp::make_function(&WheelConstraint::getFrameName,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("frame_idx", bp::make_function(&WheelConstraint::getFrameIdx,
-                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("reference_transform", bp::make_function(&WheelConstraint::getReferenceTransform,
-                                                     bp::return_internal_reference<>()),
-                                                     &WheelConstraint::setReferenceTransform);
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
+                                              &WheelConstraint::getFrameName,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
+                                              &WheelConstraint::getFrameIdx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
+                                                  &WheelConstraint::getReferenceTransform,
+                                                  bp::return_value_policy<result_converter<false> >(),
+                                                  &WheelConstraint::setReferenceTransform);
         }
     };
 
@@ -235,10 +257,10 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .add_property("bounds_joints", &PyConstraintsHolderVisitor::getBoundJoints)
-                .add_property("contact_frames", &PyConstraintsHolderVisitor::getContactFrames)
-                .add_property("collision_bodies", &PyConstraintsHolderVisitor::getCollisionBodies)
-                .add_property("registered", &PyConstraintsHolderVisitor::getRegistered)
+                .ADD_PROPERTY_GET("bounds_joints", &PyConstraintsHolderVisitor::getBoundJoints)
+                .ADD_PROPERTY_GET("contact_frames", &PyConstraintsHolderVisitor::getContactFrames)
+                .ADD_PROPERTY_GET("collision_bodies", &PyConstraintsHolderVisitor::getCollisionBodies)
+                .ADD_PROPERTY_GET("registered", &PyConstraintsHolderVisitor::getRegistered)
                 ;
         }
 

@@ -32,7 +32,7 @@ from panda3d_viewer.viewer_errors import ViewerClosedError
 try:
     from psutil import Process
 except ImportError:
-    Process = type(None)
+    Process = type(None)  # type: ignore[assignment,misc]
 
 import pinocchio as pin
 from pinocchio import SE3, SE3ToXYZQUAT
@@ -326,7 +326,7 @@ class _ProcessWrapper:
         if isinstance(self._proc, multiprocessing.process.BaseProcess):
             self._proc.join(timeout)
         if isinstance(self._proc, (subprocess.Popen, Process)):
-            self._proc.wait(timeout)
+            self._proc.wait(timeout)  # type: ignore[arg-type]
         if isinstance(self._proc, Panda3dApp):
             self._proc.step()
 
@@ -1185,12 +1185,12 @@ class Viewer:
             meshcat_candidate_conn = {}
             for pid in psutil.pids():
                 try:
-                    proc = Process(pid)
-                    for conn in proc.connections("tcp4"):
+                    proc_info = Process(pid)
+                    for conn in proc_info.connections("tcp4"):
                         if conn.status != 'LISTEN' or \
                                 conn.laddr.ip != '127.0.0.1':
                             continue
-                        cmdline = proc.cmdline()
+                        cmdline = proc_info.cmdline()
                         if cmdline and ('python' in cmdline[0].lower() or
                                         'meshcat' in cmdline[-1]):
                             meshcat_candidate_conn[pid] = conn
@@ -1240,6 +1240,7 @@ class Viewer:
             # Create a meshcat server if needed and connect to it
             from .meshcat.wrapper import MeshcatWrapper
             client = MeshcatWrapper(zmq_url)
+            server_proc: Union[Process, multiprocessing.Process]
             if client.server_proc is None:
                 server_proc = Process(pid)
             else:

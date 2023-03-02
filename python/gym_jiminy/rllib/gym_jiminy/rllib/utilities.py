@@ -564,9 +564,10 @@ def build_policy_wrapper(policy_map: PolicyMap,
             agent_connectors.reset(env_id)
 
         # Store available input data in a dictionary
-        input_dict = {SampleBatch.NEXT_OBS: obs,
-                      SampleBatch.DONES: done,
-                      SampleBatch.INFOS: info}
+        input_dict: Dict[str, Any] = {
+            SampleBatch.NEXT_OBS: obs,
+            SampleBatch.DONES: done,
+            SampleBatch.INFOS: info}
         input_dict[SampleBatch.REWARDS] = reward
 
         # Pre-process the input

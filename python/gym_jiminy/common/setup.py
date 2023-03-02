@@ -45,6 +45,7 @@ setup(
     ],
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
+    package_data={"gym_jiminy.common": ["py.typed"]},
     install_requires=[
         f"jiminy-py=={version}",
         # Use to perform linear algebra computation

@@ -51,15 +51,11 @@ namespace python
         bp::class_<forceProfile_t,
                    std::shared_ptr<forceProfile_t>,
                    boost::noncopyable>("ForceProfile", bp::no_init)
-            .add_property("frame_name", bp::make_getter(&forceProfile_t::frameName,
-                                        bp::return_value_policy<bp::return_by_value>()))
-            .add_property("frame_idx", bp::make_getter(&forceProfile_t::frameIdx,
-                                       bp::return_value_policy<bp::return_by_value>()))
-            .add_property("update_period", bp::make_getter(&forceProfile_t::updatePeriod,
-                                           bp::return_value_policy<bp::return_by_value>()))
-            .add_property("force_prev", bp::make_getter(&forceProfile_t::forcePrev,
-                                        bp::return_internal_reference<>()))
-            .add_property("force_func", forceProfileWrapper);
+            .DEF_READONLY("frame_name", &forceProfile_t::frameName)
+            .DEF_READONLY("frame_idx", &forceProfile_t::frameIdx)
+            .DEF_READONLY("update_period", &forceProfile_t::updatePeriod)
+            .DEF_READONLY("force_prev", &forceProfile_t::forcePrev)
+            .ADD_PROPERTY_GET("force_func", forceProfileWrapper);
 
         /* Note that it will be impossible to slice the vector if `boost::noncopyable` is set
            for the stl container, or if the value type contained itself. In such a case, it
@@ -70,16 +66,11 @@ namespace python
         bp::class_<forceImpulse_t,
                    std::shared_ptr<forceImpulse_t>,
                    boost::noncopyable>("ForceImpulse", bp::no_init)
-            .add_property("frame_name", bp::make_getter(&forceImpulse_t::frameName,
-                                        bp::return_value_policy<bp::return_by_value>()))
-            .add_property("frame_idx", bp::make_getter(&forceImpulse_t::frameIdx,
-                                       bp::return_value_policy<bp::return_by_value>()))
-            .add_property("t", bp::make_getter(&forceImpulse_t::t,
-                               bp::return_value_policy<bp::return_by_value>()))
-            .add_property("dt", bp::make_getter(&forceImpulse_t::dt,
-                                bp::return_value_policy<bp::return_by_value>()))
-            .add_property("F", bp::make_getter(&forceImpulse_t::F,
-                               bp::return_internal_reference<>()));
+            .DEF_READONLY("frame_name", &forceImpulse_t::frameName)
+            .DEF_READONLY("frame_idx", &forceImpulse_t::frameIdx)
+            .DEF_READONLY("t", &forceImpulse_t::t)
+            .DEF_READONLY("dt", &forceImpulse_t::dt)
+            .DEF_READONLY("F", &forceImpulse_t::F);
 
         bp::class_<forceImpulseRegister_t,
                    boost::noncopyable>("ForceImpulseVector", bp::no_init)
@@ -87,16 +78,12 @@ namespace python
 
         bp::class_<forceCoupling_t,
                    std::shared_ptr<forceCoupling_t>,
-                   boost::noncopyable>("ForceProfile", bp::no_init)
-            .add_property("system_name_1", bp::make_getter(&forceCoupling_t::systemName1,
-                                           bp::return_value_policy<bp::return_by_value>()))
-            .add_property("system_idx_1", bp::make_getter(&forceCoupling_t::systemIdx1,
-                                          bp::return_value_policy<bp::return_by_value>()))
-            .add_property("system_name_2", bp::make_getter(&forceCoupling_t::systemName2,
-                                           bp::return_value_policy<bp::return_by_value>()))
-            .add_property("system_idx_2", bp::make_getter(&forceCoupling_t::systemIdx2,
-                                          bp::return_value_policy<bp::return_by_value>()))
-            .add_property("force_func", forceCouplingWrapper);
+                   boost::noncopyable>("ForceCoupling", bp::no_init)
+            .DEF_READONLY("system_name_1", &forceCoupling_t::systemName1)
+            .DEF_READONLY("system_idx_1", &forceCoupling_t::systemIdx1)
+            .DEF_READONLY("system_name_2", &forceCoupling_t::systemName2)
+            .DEF_READONLY("system_idx_2", &forceCoupling_t::systemIdx2)
+            .ADD_PROPERTY_GET("force_func", forceCouplingWrapper);
 
         bp::class_<forceCouplingRegister_t,
                    boost::noncopyable>("ForceCouplingVector", bp::no_init)
@@ -116,18 +103,30 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .def_readonly("iter", &stepperState_t::iter)
-                .def_readonly("iter_failed", &stepperState_t::iterFailed)
-                .def_readonly("t", &stepperState_t::t)
-                .def_readonly("dt", &stepperState_t::dt)
-                .add_property("q", bp::make_getter(&stepperState_t::qSplit,
-                                   bp::return_value_policy<result_converter<false> >()))
-                .add_property("v", bp::make_getter(&stepperState_t::vSplit,
-                                   bp::return_value_policy<result_converter<false> >()))
-                .add_property("a", bp::make_getter(&stepperState_t::aSplit,
-                                   bp::return_value_policy<result_converter<false> >()))
+                .DEF_READONLY("iter", &stepperState_t::iter)
+                .DEF_READONLY("iter_failed", &stepperState_t::iterFailed)
+                .DEF_READONLY("t", &stepperState_t::t)
+                .DEF_READONLY("dt", &stepperState_t::dt)
+                .ADD_PROPERTY_GET("q", &PyStepperStateVisitor::getQ)
+                .ADD_PROPERTY_GET("v", &PyStepperStateVisitor::getV)
+                .ADD_PROPERTY_GET("a", &PyStepperStateVisitor::getA)
                 .def("__repr__", &PyStepperStateVisitor::repr)
                 ;
+        }
+
+        static bp::list getQ(stepperState_t const & self)
+        {
+            return bp::extract<bp::list>(convertToPython(self.qSplit, false));
+        }
+
+        static bp::list getV(stepperState_t const & self)
+        {
+            return bp::extract<bp::list>(convertToPython(self.vSplit, false));
+        }
+
+        static bp::list getA(stepperState_t const & self)
+        {
+            return bp::extract<bp::list>(convertToPython(self.aSplit, false));
         }
 
         static std::string repr(stepperState_t const & self)
@@ -183,24 +182,15 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .add_property("q", bp::make_getter(&systemState_t::q,
-                                   bp::return_value_policy<result_converter<false> >()))
-                .add_property("v", bp::make_getter(&systemState_t::v,
-                                   bp::return_value_policy<result_converter<false> >()))
-                .add_property("a", bp::make_getter(&systemState_t::a,
-                                   bp::return_value_policy<result_converter<false> >()))
-                .add_property("command", bp::make_getter(&systemState_t::command,
-                                         bp::return_value_policy<result_converter<false> >()))
-                .add_property("u", bp::make_getter(&systemState_t::u,
-                                   bp::return_value_policy<result_converter<false> >()))
-                .add_property("u_motor", bp::make_getter(&systemState_t::uMotor,
-                                         bp::return_value_policy<result_converter<false> >()))
-                .add_property("u_internal", bp::make_getter(&systemState_t::uInternal,
-                                            bp::return_value_policy<result_converter<false> >()))
-                .add_property("u_custom", bp::make_getter(&systemState_t::uCustom,
-                                          bp::return_value_policy<result_converter<false> >()))
-                .add_property("f_external", bp::make_getter(&systemState_t::fExternal,
-                                            bp::return_internal_reference<>()))
+                .DEF_READONLY("q", &systemState_t::q)
+                .DEF_READONLY("v", &systemState_t::v)
+                .DEF_READONLY("a", &systemState_t::a)
+                .DEF_READONLY("command", &systemState_t::command)
+                .DEF_READONLY("u", &systemState_t::u)
+                .DEF_READONLY("u_motor", &systemState_t::uMotor)
+                .DEF_READONLY("u_internal", &systemState_t::uInternal)
+                .DEF_READONLY("u_custom", &systemState_t::uCustom)
+                .DEF_READONLY("f_external", &systemState_t::fExternal)
                 .def("__repr__", &PySystemStateVisitor::repr)
                 ;
         }
@@ -253,12 +243,10 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .add_property("name", bp::make_getter(&systemHolder_t::name,
-                                      bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("robot", &systemHolder_t::robot)
-                .add_property("controller", &systemHolder_t::controller)
-                .add_property("callbackFct", bp::make_getter(&systemHolder_t::callbackFct,
-                                             bp::return_internal_reference<>()))
+                .DEF_READONLY("name", &systemHolder_t::name)
+                .DEF_READONLY("robot", &systemHolder_t::robot)
+                .DEF_READONLY("controller", &systemHolder_t::controller)
+                .DEF_READONLY("callbackFct", &systemHolder_t::callbackFct)
                 ;
         }
 
@@ -319,9 +307,10 @@ namespace python
                                                    (bp::arg("system"), "q", "v", "a"))
                 .staticmethod("compute_forward_kinematics")
                 .def("compute_systems_dynamics", &PyEngineMultiRobotVisitor::computeSystemsDynamics,
+                                                 bp::return_value_policy<result_converter<true> >(),
                                                  (bp::arg("self"), "t_end", "q_list", "v_list"))
 
-                .add_property("log_data", &PyEngineMultiRobotVisitor::getLog)
+                .ADD_PROPERTY_GET("log_data", &PyEngineMultiRobotVisitor::getLog)
                 .def("read_log", &PyEngineMultiRobotVisitor::readLog,
                                  (bp::arg("fullpath"), bp::arg("format") = bp::object()),
                                  "Read a logfile from jiminy.\n\n"
@@ -345,7 +334,7 @@ namespace python
                         hresult_t (EngineMultiRobot::*)(void)
                     >(&EngineMultiRobot::removeForcesImpulse),
                     (bp::arg("self")))
-                .add_property("forces_impulse", &PyEngineMultiRobotVisitor::getForcesImpulse)
+                .ADD_PROPERTY_GET("forces_impulse", &PyEngineMultiRobotVisitor::getForcesImpulse)
 
                 .def("register_force_profile", &PyEngineMultiRobotVisitor::registerForceProfile,
                                                (bp::arg("self"), "system_name",
@@ -361,7 +350,7 @@ namespace python
                         hresult_t (EngineMultiRobot::*)(void)
                     >(&EngineMultiRobot::removeForcesProfile),
                     (bp::arg("self")))
-                .add_property("forces_profile", &PyEngineMultiRobotVisitor::getForcesProfile)
+                .ADD_PROPERTY_GET("forces_profile", &PyEngineMultiRobotVisitor::getForcesProfile)
 
                 .def("register_force_coupling", &PyEngineMultiRobotVisitor::registerForceCoupling,
                                                 (bp::arg("self"),
@@ -433,25 +422,28 @@ namespace python
                         hresult_t (EngineMultiRobot::*)(void)
                     >(&EngineMultiRobot::removeForcesCoupling),
                     (bp::arg("self")))
-                .add_property("forces_coupling", bp::make_function(&EngineMultiRobot::getForcesCoupling,
-                                                 bp::return_internal_reference<>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("forces_coupling",
+                                              &EngineMultiRobot::getForcesCoupling,
+                                              bp::return_value_policy<result_converter<false> >())
 
                 .def("remove_all_forces", &EngineMultiRobot::removeAllForces)
 
                 .def("set_options", &PyEngineMultiRobotVisitor::setOptions)
                 .def("get_options", &EngineMultiRobot::getOptions)
 
-                .add_property("systems", bp::make_getter(&EngineMultiRobot::systems_,
-                                         bp::return_internal_reference<>()))
-                .add_property("systems_names", bp::make_function(&EngineMultiRobot::getSystemsNames,
-                                               bp::return_value_policy<result_converter<true> >()))
-                .add_property("systems_states", &PyEngineMultiRobotVisitor::getSystemState)
-                .add_property("stepper_state", bp::make_function(&EngineMultiRobot::getStepperState,
-                                               bp::return_internal_reference<>()))
-                .add_property("is_simulation_running", bp::make_function(&EngineMultiRobot::getIsSimulationRunning,
-                                                       bp::return_value_policy<result_converter<false> >()))
-                .add_property("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
-                .add_property("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
+                .DEF_READONLY("systems", &EngineMultiRobot::systems_)
+                .ADD_PROPERTY_GET_WITH_POLICY("systems_names",
+                                              &EngineMultiRobot::getSystemsNames,
+                                              bp::return_value_policy<result_converter<true> >())
+                .ADD_PROPERTY_GET("systems_states", &PyEngineMultiRobotVisitor::getSystemState)
+                .ADD_PROPERTY_GET_WITH_POLICY("stepper_state",
+                                              &EngineMultiRobot::getStepperState,
+                                              bp::return_value_policy<result_converter<false> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("is_simulation_running",
+                                              &EngineMultiRobot::getIsSimulationRunning,
+                                              bp::return_value_policy<result_converter<false> >())
+                .ADD_PROPERTY_GET("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
+                .ADD_PROPERTY_GET("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
                 ;
         }
 
@@ -491,7 +483,7 @@ namespace python
             return *system;
         }
 
-        static bp::dict getForcesImpulse(EngineMultiRobot  & self)
+        static bp::dict getForcesImpulse(EngineMultiRobot & self)
         {
             bp::dict forceImpulsesPy;
             for (auto const & systemName : self.getSystemsNames())
@@ -580,19 +572,19 @@ namespace python
                                  aInit);
         }
 
-        static bp::object computeSystemsDynamics(EngineMultiRobot       & self,
-                                                 float64_t        const & endTime,
-                                                 bp::list         const & qSplitPy,
-                                                 bp::list         const & vSplitPy)
+        static std::vector<vectorN_t> computeSystemsDynamics(EngineMultiRobot       & self,
+                                                             float64_t        const & endTime,
+                                                             bp::list         const & qSplitPy,
+                                                             bp::list         const & vSplitPy)
         {
-            static std::vector<vectorN_t> aSplit;
+            std::vector<vectorN_t> aSplit;
             self.computeSystemsDynamics(
                 endTime,
                 convertFromPython<std::vector<vectorN_t> >(qSplitPy),
                 convertFromPython<std::vector<vectorN_t> >(vSplitPy),
                 aSplit
             );
-            return convertToPython<std::vector<vectorN_t> >(aSplit, true);
+            return aSplit;
         }
 
         static hresult_t registerForceImpulse(EngineMultiRobot       & self,
@@ -901,20 +893,20 @@ namespace python
 
                 .def("register_force_impulse", &PyEngineVisitor::registerForceImpulse,
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
-                .add_property("forces_impulse", bp::make_function(
-                                                static_cast<
-                                                    forceImpulseRegister_t const & (Engine::*)(void) const
-                                                >(&Engine::getForcesImpulse),
-                                                bp::return_internal_reference<>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("forces_impulse",
+                                              static_cast<
+                                                  forceImpulseRegister_t const & (Engine::*)(void) const
+                                              >(&Engine::getForcesImpulse),
+                                              bp::return_value_policy<result_converter<false> >())
 
                 .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
                                                (bp::arg("self"), "frame_name", "force_function",
                                                 bp::arg("update_period") = 0.0))
-                .add_property("forces_profile", bp::make_function(
-                                                static_cast<
-                                                    forceProfileRegister_t const & (Engine::*)(void) const
-                                                >(&Engine::getForcesProfile),
-                                                bp::return_internal_reference<>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("forces_profile",
+                                              static_cast<
+                                                  forceProfileRegister_t const & (Engine::*)(void) const
+                                              >(&Engine::getForcesProfile),
+                                              bp::return_value_policy<result_converter<false> >())
 
                 .def("register_force_coupling", &PyEngineVisitor::registerForceCoupling,
                                                 (bp::arg("self"), "frame_name_1", "frame_name_2", "force_function"))
@@ -940,16 +932,20 @@ namespace python
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping",
 		             bp::arg("rest_length") = 0.0))
 
-                .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("system", bp::make_function(&PyEngineVisitor::getSystem,
-                                        bp::return_internal_reference<>()))
-                .add_property("robot", &PyEngineVisitor::getRobot)
-                .add_property("controller", &PyEngineVisitor::getController)
-                .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
-                                               bp::return_internal_reference<>()))
-                .add_property("system_state", bp::make_function(&PyEngineVisitor::getSystemState,
-                                                                bp::return_internal_reference<>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
+                                              &Engine::getIsInitialized,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("system",
+                                              &PyEngineVisitor::getSystem,
+                                              bp::return_value_policy<result_converter<false> >())
+                .ADD_PROPERTY_GET("robot", &PyEngineVisitor::getRobot)
+                .ADD_PROPERTY_GET("controller", &PyEngineVisitor::getController)
+                .ADD_PROPERTY_GET_WITH_POLICY("stepper_state",
+                                              &Engine::getStepperState,
+                                              bp::return_value_policy<result_converter<false> >())
+                .ADD_PROPERTY_GET_WITH_POLICY("system_state",
+                                              &PyEngineVisitor::getSystemState,
+                                              bp::return_value_policy<result_converter<false> >())
                 ;
         }
 

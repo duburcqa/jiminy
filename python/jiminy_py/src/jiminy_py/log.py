@@ -12,8 +12,6 @@ from typing import (
 import tree
 import numpy as np
 
-import pinocchio as pin
-
 from . import core as jiminy
 from .core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder,
@@ -196,16 +194,17 @@ def build_robot_from_log(
             ".".join((ENGINE_NAMESPACE, "options"))]
         robot.set_options(all_options["system"]["robot"])
 
-        # pylint: disable=no-member
-        # Update model and data.
-        # Dirty hack based on serialization/deserialization to update in-place.
-        # Note that string archive cannot be used because it is not reliable
-        # and fails on windows for some reason.
-        buff = pin.serialization.StreamBuffer()
-        pin.serialization.saveToBinary(pinocchio_model, buff)
-        pin.serialization.loadFromBinary(robot.pinocchio_model, buff)
-        pin.serialization.saveToBinary(pinocchio_model.createData(), buff)
-        pin.serialization.loadFromBinary(robot.pinocchio_data, buff)
+        # Update model in-place.
+        # Note that `__setstate__` re-allocates memory instead of just calling
+        # the copy assignment operator. Although this is undesirable, there is
+        # no better way on Python side. Anyway, this is not an issue in this
+        # particular case since the robot has just been created, so nobody got
+        # references to pre-allocated data at this point.
+        robot.pinocchio_model.__setstate__(pinocchio_model.__getstate__())
+
+        # Allocate corresponding pinocchio data manually
+        pinocchio_data = pinocchio_model.createData()
+        robot.pinocchio_data.__setstate__(pinocchio_data.__getstate__())
 
     return robot
 

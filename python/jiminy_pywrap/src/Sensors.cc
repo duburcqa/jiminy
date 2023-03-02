@@ -33,10 +33,13 @@ namespace python
                 .def("__len__", &PySensorsDataMapVisitor::len,
                                 (bp::arg("self")))
                 .def("__getitem__", &PySensorsDataMapVisitor::getItem,
+                                    bp::return_value_policy<result_converter<false> >(),
                                     (bp::arg("self"), "sensor_info"))
                 .def("__getitem__", &PySensorsDataMapVisitor::getItemSplit,
+                                    bp::return_value_policy<result_converter<false> >(),
                                     (bp::arg("self"), "sensor_type", "sensor_name"))
                 .def("__getitem__", &PySensorsDataMapVisitor::getSub,
+                                    bp::return_value_policy<result_converter<false> >(),
                                     (bp::arg("self"), "sensor_type"))
                 .def("__iter__", bp::iterator<sensorsDataMap_t>())
                 .def("__contains__", &PySensorsDataMapVisitor::contains,
@@ -58,17 +61,17 @@ namespace python
             return self.size();
         }
 
-        static bp::object getItem(sensorsDataMap_t        & self,
-                                  bp::tuple         const & sensorInfo)
+        static Eigen::Ref<vectorN_t const> const & getItem(sensorsDataMap_t        & self,
+                                                           bp::tuple         const & sensorInfo)
         {
             std::string const sensorType = bp::extract<std::string>(sensorInfo[0]);
             std::string const sensorName = bp::extract<std::string>(sensorInfo[1]);
             return PySensorsDataMapVisitor::getItemSplit(self, sensorType, sensorName);
         }
 
-        static bp::object getItemSplit(sensorsDataMap_t       & self,
-                                       std::string      const & sensorType,
-                                       std::string      const & sensorName)
+        static Eigen::Ref<vectorN_t const> const & getItemSplit(sensorsDataMap_t       & self,
+                                                                std::string      const & sensorType,
+                                                                std::string      const & sensorName)
         {
             try
             {
@@ -78,29 +81,30 @@ namespace python
                 {
                     throw std::runtime_error("");
                 }
-                Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorDataIt->value;
-                return convertToPython(sensorDataValue, false);
+                return sensorDataIt->value;
             }
             catch (...)
             {
-                PyErr_SetString(PyExc_KeyError, "This combination of keys does not exist.");
-                bp::throw_error_already_set();
-                return bp::object();
+                std::ostringstream errorMsg;
+                errorMsg << "The key pair ('" << sensorType << "', '" << sensorName << "') does not exist.";
+                PyErr_SetString(PyExc_KeyError, errorMsg.str().c_str());
+                throw bp::error_already_set();
             }
         }
 
-        static bp::object getSub(sensorsDataMap_t       & self,
-                                 std::string      const & sensorType)
+        static matrixN_t const & getSub(sensorsDataMap_t       & self,
+                                        std::string      const & sensorType)
         {
             try
             {
-                auto & sensorsDataType = self.at(sensorType);
-                return convertToPython(sensorsDataType.getAll(), false);
+                return self.at(sensorType).getAll();
             }
             catch (...)
             {
-                PyErr_SetString(PyExc_KeyError, "This key does not exist.");
-                return bp::object();  // Return None
+                std::ostringstream errorMsg;
+                errorMsg << "The key '" << sensorType << "' does not exist.";
+                PyErr_SetString(PyExc_KeyError, errorMsg.str().c_str());
+                throw bp::error_already_set();
             }
         }
 
@@ -186,13 +190,13 @@ namespace python
             return s.str();
         }
 
-        static std::shared_ptr<sensorsDataMap_t> factory(bp::object & sensorDataPy)
+        static std::shared_ptr<sensorsDataMap_t> factory(bp::dict & sensorDataPy)
         {
             auto sensorData = convertFromPython<sensorsDataMap_t>(sensorDataPy);
             return std::make_shared<sensorsDataMap_t>(std::move(sensorData));
         }
 
-        static void factoryWrapper(bp::object & self, bp::object & sensorDataPy)
+        static void factoryWrapper(bp::object & self, bp::dict & sensorDataPy)
         {
             auto constructor = bp::make_constructor(&PySensorsDataMapVisitor::factory);
             constructor(self, sensorDataPy);
@@ -226,26 +230,31 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .add_property("is_initialized", bp::make_function(&AbstractSensorBase::getIsInitialized,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
+                                              &AbstractSensorBase::getIsInitialized,
+                                              bp::return_value_policy<bp::copy_const_reference>())
 
-                .add_property("type", bp::make_function(&AbstractSensorBase::getType,
-                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldnames,
-                                            bp::return_value_policy<bp::return_by_value>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("type",
+                                              &AbstractSensorBase::getType,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("fieldnames",
+                                              &AbstractSensorBase::getFieldnames,
+                                              bp::return_value_policy<result_converter<true> >())
 
-                .add_property("name", bp::make_function(&AbstractSensorBase::getName,
-                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("idx", bp::make_function(&AbstractSensorBase::getIdx,
-                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("data", bp::make_function(
-                    static_cast<
-                        Eigen::Ref<vectorN_t const> (AbstractSensorBase::*)(void) const
-                    >(&AbstractSensorBase::get),
-                    bp::return_value_policy<result_converter<false> >()),
-                    static_cast<
-                        hresult_t (AbstractSensorBase::*)(Eigen::MatrixBase<vectorN_t> const &)
-                    >(&AbstractSensorBase::set))
+                .ADD_PROPERTY_GET_WITH_POLICY("name",
+                                              &AbstractSensorBase::getName,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("idx",
+                                              &AbstractSensorBase::getIdx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("data",
+                                                  static_cast<
+                                                      Eigen::Ref<vectorN_t const> (AbstractSensorBase::*)(void) const
+                                                  >(&AbstractSensorBase::get),
+                                                  bp::return_value_policy<result_converter<false> >(),
+                                                  static_cast<
+                                                      hresult_t (AbstractSensorBase::*)(Eigen::MatrixBase<vectorN_t> const &)
+                                                  >(&AbstractSensorBase::set))
 
                 .def("set_options", &PyAbstractSensorVisitor::setOptions)
                 .def("get_options", &AbstractSensorBase::getOptions)
@@ -323,7 +332,7 @@ namespace python
                     .def_readonly("type", &TSensor::type_)
                     .def_readonly("has_prefix", &TSensor::areFieldnamesGrouped_)
                     .add_static_property("fieldnames", bp::make_getter(&TSensor::fieldnames_,
-                                                       bp::return_value_policy<bp::return_by_value>()))
+                                                       bp::return_value_policy<result_converter<true> >()))
                     ;
             }
 
@@ -335,10 +344,12 @@ namespace python
                 visitBasicSensors(cl);
 
                 cl
-                    .add_property("frame_name", bp::make_function(&TSensor::getFrameName,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("frame_idx", bp::make_function(&TSensor::getFrameIdx,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
+                                                  &TSensor::getFrameName,
+                                                  bp::return_value_policy<bp::copy_const_reference>())
+                    .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
+                                                  &TSensor::getFrameIdx,
+                                                  bp::return_value_policy<bp::copy_const_reference>())
                     ;
             }
 
@@ -349,12 +360,15 @@ namespace python
                 visitBasicSensors(cl);
 
                 cl
-                    .add_property("frame_name", bp::make_function(&ForceSensor::getFrameName,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("frame_idx", bp::make_function(&ForceSensor::getFrameIdx,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("joint_idx", bp::make_function(&ForceSensor::getJointIdx,
-                                               bp::return_value_policy<bp::return_by_value>()))
+                    .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
+                                                  &ForceSensor::getFrameName,
+                                                  bp::return_value_policy<bp::copy_const_reference>())
+                    .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
+                                                  &ForceSensor::getFrameIdx,
+                                                  bp::return_value_policy<bp::copy_const_reference>())
+                    .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
+                                                  &ForceSensor::getJointIdx,
+                                                  bp::return_value_policy<bp::return_by_value>())
                     ;
             }
 
@@ -365,12 +379,15 @@ namespace python
                 visitBasicSensors(cl);
 
                 cl
-                    .add_property("joint_name", bp::make_function(&EncoderSensor::getJointName,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("joint_idx", bp::make_function(&EncoderSensor::getJointIdx,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("joint_type", bp::make_function(&EncoderSensor::getJointType,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
+                    .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
+                                                  &EncoderSensor::getJointName,
+                                                  bp::return_value_policy<bp::copy_const_reference>())
+                    .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
+                                                  &EncoderSensor::getJointIdx,
+                                                  bp::return_value_policy<bp::copy_const_reference>())
+                    .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
+                                                  &EncoderSensor::getJointType,
+                                                  bp::return_value_policy<bp::copy_const_reference>())
                     ;
             }
 
@@ -381,10 +398,12 @@ namespace python
                 visitBasicSensors(cl);
 
                 cl
-                    .add_property("motor_name", bp::make_function(&EffortSensor::getMotorName,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("motor_idx", bp::make_function(&EffortSensor::getMotorIdx,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .ADD_PROPERTY_GET_WITH_POLICY("motor_name",
+                                                  &EffortSensor::getMotorName,
+                                                  bp::return_value_policy<bp::copy_const_reference>())
+                    .ADD_PROPERTY_GET_WITH_POLICY("motor_idx",
+                                                  &EffortSensor::getMotorIdx,
+                                                  bp::return_value_policy<bp::copy_const_reference>())
                     ;
             }
         };
