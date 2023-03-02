@@ -219,7 +219,7 @@ class Spline(nn.Module):
         Maximum speed is achieved enabling Torch JIT via `torch.jit.script` and
         disabling gradient computation using context `with torch.no_grad():`.
 
-    see::
+    .. seealso::
         https://en.wikipedia.org/wiki/Spline_interpolation
         https://github.com/scipy/scipy/blob/v1.5.1/scipy/interpolate/_cubic.py
     """
@@ -298,7 +298,7 @@ class Spline(nn.Module):
                 # efficiently using Sherman-Morrison formula and Thomas
                 # algorithm. The resulting computational complexity is O(n),
                 # instead of O(n**3) for the usual LU factorization.
-                # https://www.cfd-online.com/Wiki/Tridiagonal_matrix_algorithm_-_TDMA_(Thomas_algorithm)
+                # https://www.cfd-online.com/Wiki/Tridiagonal_matrix_algorithm_-_TDMA_(Thomas_algorithm)  # noqa: E501  # pylint: disable=line-too-long
                 # https://en.wikipedia.org/wiki/Sherman-Morrison_formula
                 u = torch.zeros((*t.shape[:-1], t.shape[-1] - 1, 1),
                                 dtype=y.dtype, device=y.device)

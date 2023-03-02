@@ -9,9 +9,9 @@ making it easier to maintain and avoiding code duplications between usecases.
 import json
 import pathlib
 from pydoc import locate
-from typing import Optional, Union, Dict, Any, Type, Sequence, List, TypedDict
-
-from typing_extensions import TypeAlias
+from itertools import chain
+from typing import (
+    Optional, Union, Dict, Any, Type, Sequence, Iterable, TypedDict, TypeVar)
 
 import gym
 import toml
@@ -23,6 +23,9 @@ from .bases import (BlockInterface,
                     ObservedJiminyEnv,
                     ControlledJiminyEnv)
 from .envs import BaseJiminyEnv
+
+
+PipelineWrapperT = TypeVar('PipelineWrapperT', bound=BasePipelineWrapper)
 
 
 class EnvConfig(TypedDict, total=False):
@@ -108,7 +111,7 @@ def build_pipeline(env_config: EnvConfig,
                        wrapper_class: Optional[Union[
                            Type[BasePipelineWrapper], str]] = None,
                        wrapper_kwargs: Optional[Dict[str, Any]] = None
-                       ) -> Type[ControlledJiminyEnv]:
+                       ) -> Type[BasePipelineWrapper]:
         """Generate a class inheriting from 'wrapper_class' wrapping a given
         type of environment, optionally gathered with a block.
 
@@ -134,8 +137,6 @@ def build_pipeline(env_config: EnvConfig,
         :param wrapper_kwargs: Keyword arguments to forward to the constructor
                                of the wrapper. See 'env_kwargs'.
         """
-        # pylint: disable-all
-
         # Make sure block and wrappers are class type and parse them if string
         block_class_obj: Optional[Type[BlockInterface]] = None
         if isinstance(block_class, str):
@@ -174,16 +175,7 @@ def build_pipeline(env_config: EnvConfig,
                     "Either 'block_class' or 'wrapper_class' must be "
                     "specified.")
 
-        # Dynamically generate wrapping class
-        wrapper_name = f"{wrapper_class_obj.__name__}Wrapper"
-        if block_class_obj is not None:
-            wrapper_name += f"{block_class_obj.__name__}Block"
-        wrapped_env_class = type(wrapper_name, (wrapper_class_obj,), {})
-
-        # Implementation of __init__ method must be done after declaration of
-        # the class, because the required closure for calling `super()` is not
-        # available when creating a class dynamically.
-        def __init__(self: TypeAlias, **kwargs: Any) -> None:
+        def _init_impl(self: PipelineWrapperT, **kwargs: Any) -> None:
             """
             :param kwargs: Keyword arguments to forward to both the wrapped
                            environment and the controller. It will overwrite
@@ -220,46 +212,45 @@ def build_pipeline(env_config: EnvConfig,
             else:
                 wrapper_kwargs_default = kwargs
 
-            super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
-               *args, **wrapper_kwargs_default)
+            super(self.__class__, self).__init__(
+                *args, **wrapper_kwargs_default)
 
-        wrapped_env_class.__init__ = __init__  # type: ignore[misc]
+        def _dir_impl(self: PipelineWrapperT) -> Iterable[str]:
+            """Attribute lookup.
 
-        if issubclass(wrapper_class_obj, gym.Wrapper):
-            # Override __dir__ method if the wrapper inherits from
-            # `gym.Wrapper`, to be consistent with the custom attribute lookup.
-            def __dir__(self: wrapped_env_class  # type: ignore[valid-type]
-                        ) -> List[str]:
-                """Attribute lookup.
+            It is mainly used by autocomplete feature of Ipython. It is
+            overloaded to get consistent autocompletion wrt `getattr`.
+            """
+            return chain(
+                super(self.__class__, self).__dir__(),
+                (name for name in dir(self.env) if not name.startswith('_')))
 
-                It is mainly used by autocomplete feature of Ipython. It is
-                overloaded to get consistent autocompletion wrt `getattr`.
-                """
-                wrapper_names = super(  # type: ignore[arg-type]
-                    wrapped_env_class, self).__dir__()
-                env_names = [name for name in
-                             self.env.__dir__()  # type: ignore[attr-defined]
-                             if not name.startswith('_')]
-                return wrapper_names + env_names
+        # Dynamically generate wrapping class
+        wrapper_name = f"{wrapper_class_obj.__name__}Wrapper"
+        if block_class_obj is not None:
+            wrapper_name += f"{block_class_obj.__name__}Block"
+        wrapper_class = type(wrapper_name, (wrapper_class_obj,), {
+            "__init__": _init_impl, "__dir__": _dir_impl})
 
-            wrapped_env_class.__dir__ = __dir__  # type: ignore[assignment]
-
-        return wrapped_env_class
+        return wrapper_class
 
     # Generate pipeline sequentially
     pipeline_class: Union[
         Type[BaseJiminyEnv], Type[gym.Wrapper], str] = env_config['env_class']
     if isinstance(pipeline_class, str):
         obj = locate(pipeline_class)
-        assert (isinstance(obj, type) and
-                issubclass(obj, (gym.Wrapper, BaseJiminyEnv)))
+        assert isinstance(obj, type)
+        assert issubclass(obj, (gym.Wrapper, BaseJiminyEnv))
         pipeline_class = obj
     env_kwargs = env_config.get('env_kwargs')
     for config in blocks_config:
         pipeline_class = _build_wrapper(
             pipeline_class, env_kwargs, **config)
         env_kwargs = None
+
+    # Assert(s) for type checker
     assert issubclass(pipeline_class, BasePipelineWrapper)
+
     return pipeline_class
 
 

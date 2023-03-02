@@ -59,8 +59,12 @@ def load_urdf_default(urdf_name: str,
 def setup_controller_and_engine(
         engine: jiminy.EngineMultiRobot,
         robot: jiminy.Robot,
-        compute_command: Optional[Callable] = None,
-        internal_dynamics: Optional[Callable] = None) -> None:
+        compute_command: Optional[Callable[
+            [float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray],
+            None]] = None,
+        internal_dynamics: Optional[Callable[
+            [float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray],
+            None]] = None) -> None:
     """Setup an engine to integrate the dynamics of a given robot, for a
     specific user-defined control law and internal dynamics.
 
@@ -127,7 +131,8 @@ def neutral_state(robot: jiminy.Model,
 
 def integrate_dynamics(time: np.ndarray,
                        x0: np.ndarray,
-                       dynamics: Callable) -> np.ndarray:
+                       dynamics: Callable[[float, np.ndarray], np.ndarray]
+                       ) -> np.ndarray:
     """Integrate the dynamics function f(t, x) over timesteps time.
 
     This function solves an initial value problem, similar to

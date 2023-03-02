@@ -1,6 +1,6 @@
+# mypy: disable-error-code="attr-defined, name-defined"
 """ TODO: Write documentation.
 """
-# pylint: disable=no-name-in-module,import-error,no-member,wrong-import-order
 import os
 import re
 import logging
@@ -9,22 +9,23 @@ import tempfile
 import xml.etree.ElementTree as ET
 from collections import OrderedDict, defaultdict
 from types import ModuleType
-from typing import Optional, Dict, Any, Sequence
+from typing import Optional, Dict, Any, Sequence, Literal, Set, List, get_args
 
 import toml
 import numpy as np
 import trimesh
 
-from . import core as jiminy
-from .core import (EncoderSensor as encoder,
-                   EffortSensor as effort,
-                   ContactSensor as contact,
-                   ForceSensor as force,
-                   ImuSensor as imu)
-
 import hppfcl
 import pinocchio as pin
-from pinocchio.rpy import rpyToMatrix
+from pinocchio.rpy import rpyToMatrix  # pylint: disable=import-error
+
+from . import core as jiminy
+from .core import (  # pylint: disable=no-name-in-module
+    EncoderSensor as encoder,
+    EffortSensor as effort,
+    ContactSensor as contact,
+    ForceSensor as force,
+    ImuSensor as imu)
 
 
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
@@ -32,14 +33,18 @@ DEFAULT_FRICTION_DRY_SLOPE = 0.0
 
 EXTENSION_MODULES: Sequence[ModuleType] = ()
 
+GeometryModelType = Literal['collision', 'visual']
+GeometryObjectType = Literal['primitive', 'mesh']
 
-class _DuplicateFilter:
+
+class _DuplicateFilter(logging.Filter):
     """ TODO: Write documentation.
     """
-    def __init__(self):
-        self.msgs = set()
+    def __init__(self) -> None:
+        super().__init__()
+        self.msgs: Set[str] = set()
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         """Filter all messages that have already been logged once.
 
         All new messages are stored in a singleton buffer.
@@ -68,7 +73,7 @@ def _gcd(a: float,
 
 def _fix_urdf_mesh_path(urdf_path: str,
                         mesh_path: str,
-                        output_root_path: Optional[str] = None):
+                        output_root_path: Optional[str] = None) -> str:
     """Generate an URDF with updated mesh paths.
 
     :param urdf_path: Full path of the URDF file.
@@ -94,7 +99,7 @@ def _fix_urdf_mesh_path(urdf_path: str,
         if all(path.startswith('.') for path in pathlists):
             mesh_path_orig = '.'
         else:
-            mesh_path_orig = os.path.commonpath(pathlists)
+            mesh_path_orig = os.path.commonpath(list(pathlists))
     else:
         mesh_path_orig = os.path.dirname(next(iter(pathlists)))
     if mesh_path == mesh_path_orig:
@@ -105,7 +110,7 @@ def _fix_urdf_mesh_path(urdf_path: str,
         output_root_path = tempfile.mkdtemp()
     fixed_urdf_dir = os.path.join(
         output_root_path, "fixed_urdf" + mesh_path.translate(
-            str.maketrans({k: '_' for k in '/:'})))
+            str.maketrans({k: '_' for k in '/:'})))  # type: ignore[arg-type]
     os.makedirs(fixed_urdf_dir, exist_ok=True)
     fixed_urdf_path = os.path.join(
         fixed_urdf_dir, os.path.basename(urdf_path))
@@ -123,8 +128,8 @@ def _fix_urdf_mesh_path(urdf_path: str,
 def generate_default_hardware_description_file(
         urdf_path: str,
         hardware_path: Optional[str] = None,
-        default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE,
-        verbose: bool = True):
+        default_update_rate: float = DEFAULT_UPDATE_RATE,
+        verbose: bool = True) -> None:
     r"""Generate a default hardware description file, based on the information
     grabbed from the URDF when available, using educated guess otherwise.
 
@@ -186,7 +191,7 @@ def generate_default_hardware_description_file(
     root = tree.getroot()
 
     # Initialize the hardware information
-    hardware_info = OrderedDict(
+    hardware_info: Dict[str, Dict[str, Any]] = OrderedDict(
         Global=OrderedDict(
             sensorsUpdatePeriod=1.0/default_update_rate,
             controllerUpdatePeriod=1.0/default_update_rate,
@@ -202,18 +207,24 @@ def generate_default_hardware_description_file(
     for link_descr in root.findall('./link'):
         links.add(link_descr.attrib["name"])
     for joint_descr in root.findall('./joint'):
-        links.remove(joint_descr.find('./child').get('link'))
+        child_obj = joint_descr.find('./child')
+        assert child_obj is not None
+        links.remove(child_obj.get('link'))
     link_root = next(iter(links))
 
     # Extract the list of parent and child links, excluding the one related
     # to fixed link not having collision geometry, because they are likely not
     # "real" joint.
-    links_parent = set()
-    links_child = set()
+    links_parent: Set[str] = set()
+    links_child: Set[str] = set()
     for joint_descr in root.findall('./joint'):
-        parent_link = joint_descr.find('./parent').get('link')
-        child_link = joint_descr.find('./child').get('link')
-        if joint_descr.get('type').casefold() != 'fixed' or root.find(
+        parent_link_obj = joint_descr.find('./parent')
+        child_link_obj = joint_descr.find('./child')
+        assert parent_link_obj is not None
+        assert child_link_obj is not None
+        parent_link = parent_link_obj.attrib['link']
+        child_link = child_link_obj.attrib['link']
+        if joint_descr.attrib['type'].casefold() != 'fixed' or root.find(
                 f"./link[@name='{child_link}']/collision") is not None:
             links_parent.add(parent_link)
             links_child.add(child_link)
@@ -227,23 +238,23 @@ def generate_default_hardware_description_file(
     # Parse the gazebo plugins, if any.
     # Note that it is only useful to extract "advanced" hardware, not basic
     # motors, encoders and effort sensors.
-    gazebo_ground_stiffness = None
-    gazebo_ground_damping = None
-    gazebo_update_rate = None
-    collision_bodies_names = set()
+    gazebo_ground_stiffness: Optional[float] = None
+    gazebo_ground_damping: Optional[float] = None
+    gazebo_update_rate: Optional[float] = None
+    collision_bodies_names: Set[str] = set()
     gazebo_plugins_found = root.find('gazebo') is not None
     for gazebo_plugin_descr in root.iterfind('gazebo'):
-        body_name = gazebo_plugin_descr.get('reference')
+        body_name = gazebo_plugin_descr.attrib['reference']
 
         # Extract sensors
         for gazebo_sensor_descr in gazebo_plugin_descr.iterfind('sensor'):
             sensor_info = OrderedDict(body_name=body_name)
 
             # Extract the sensor name
-            sensor_name = gazebo_sensor_descr.get('name')
+            sensor_name = gazebo_sensor_descr.attrib['name']
 
             # Extract the sensor type
-            sensor_type = gazebo_sensor_descr.get('type').casefold()
+            sensor_type = gazebo_sensor_descr.attrib['type'].casefold()
             if 'imu' in sensor_type:
                 sensor_type = imu.type
             elif 'contact' in sensor_type:
@@ -256,25 +267,28 @@ def generate_default_hardware_description_file(
                 continue
 
             # Extract the sensor update period
-            update_rate = float(gazebo_sensor_descr.find('./update_rate').text)
+            update_rate_obj = gazebo_sensor_descr.find('./update_rate')
+            assert update_rate_obj is not None
+            assert update_rate_obj.text is not None
+            update_rate = float(update_rate_obj.text)
             if gazebo_update_rate is None:
                 gazebo_update_rate = update_rate
-            else:
-                if gazebo_update_rate != update_rate:
-                    logger.warning(
-                        "Jiminy does not support sensors with different "
-                        "update rate. Using greatest common divisor instead.")
-                    gazebo_update_rate = _gcd(gazebo_update_rate, update_rate)
+            elif gazebo_update_rate != update_rate:
+                logger.warning(
+                    "Jiminy does not support sensors with different "
+                    "update rate. Using greatest common divisor instead.")
+                gazebo_update_rate = _gcd(gazebo_update_rate, update_rate)
 
             # Extract the pose of the frame associate with the sensor.
             # Note that it is optional but usually defined since sensors
             # can only be attached to link in Gazebo, not to frame.
-            frame_pose = gazebo_sensor_descr.find('./pose')
-            if frame_pose is None:
+            frame_pose_obj = gazebo_sensor_descr.find('./pose')
+            if frame_pose_obj is None:
                 sensor_info['frame_pose'] = 6 * [0.0]
             else:
+                assert frame_pose_obj.text is not None
                 sensor_info['frame_pose'] = list(
-                    map(float, frame_pose.text.split()))
+                    map(float, frame_pose_obj.text.split()))
 
             # Add the sensor to the robot's hardware
             hardware_info['Sensor'].setdefault(sensor_type, {}).update(
@@ -296,8 +310,12 @@ def generate_default_hardware_description_file(
             collision_bodies_names.add(body_name)
 
             # Update the ground model
-            ground_stiffness = float(gazebo_plugin_descr.find('kp').text)
-            ground_damping = float(gazebo_plugin_descr.find('kd').text)
+            kp_obj = gazebo_plugin_descr.find('kp')
+            kd_obj = gazebo_plugin_descr.find('kd')
+            assert kp_obj is not None and kp_obj.text is not None
+            assert kd_obj is not None and kd_obj.text is not None
+            ground_stiffness = float(kp_obj.text)
+            ground_damping = float(kd_obj.text)
             if gazebo_ground_stiffness is None:
                 gazebo_ground_stiffness = ground_stiffness
             if gazebo_ground_damping is None:
@@ -310,9 +328,11 @@ def generate_default_hardware_description_file(
 
         # Extract plugins not wrapped into a sensor
         for gazebo_plugin_descr in gazebo_plugin_descr.iterfind('plugin'):
-            plugin = gazebo_plugin_descr.get('filename')
+            plugin = gazebo_plugin_descr.attrib['filename']
             if plugin == "libgazebo_ros_force.so":
-                body_name = gazebo_plugin_descr.find('bodyName').text
+                body_name_obj = gazebo_plugin_descr.find('bodyName')
+                assert body_name_obj is not None
+                body_name = body_name_obj.text
                 hardware_info['Sensor'].setdefault(force.type, {}).update({
                     f"{body_name}Wrench": OrderedDict(
                         body_name=body_name,
@@ -352,15 +372,15 @@ def generate_default_hardware_description_file(
         hardware_info['Global']['groundDamping'] = gazebo_ground_damping
 
     # Extract joint dynamics properties, namely 'friction' and 'damping'
-    joints_options = {}
+    joints_options: Dict[str, Dict[str, Any]] = {}
     for joint_descr in root.findall("./joint"):
-        if joint_descr.get('type').casefold() == 'fixed':
+        if joint_descr.attrib['type'].casefold() == 'fixed':
             continue
-        joint_name = joint_descr.get('name')
+        joint_name = joint_descr.attrib['name']
         dyn_descr = joint_descr.find('./dynamics')
         if dyn_descr is not None:
-            damping = float(dyn_descr.get('damping') or 0.0)
-            friction = float(dyn_descr.get('friction') or 0.0)
+            damping = float(dyn_descr.get('damping',  0.0))
+            friction = float(dyn_descr.get('friction', 0.0))
         else:
             damping, friction = 0.0, 0.0
         joints_options[joint_name] = OrderedDict(
@@ -375,16 +395,21 @@ def generate_default_hardware_description_file(
     # URDF standard, so it should be available on any URDF file.
     transmission_found = root.find('transmission') is not None
     for transmission_descr in root.iterfind('transmission'):
+        # Assert(s) for type checker
+        assert isinstance(transmission_descr, ET.Element)
+
         # Initialize motor and sensor info
-        motor_info, sensor_info = OrderedDict(), OrderedDict()
+        motor_info: Dict[str, Any] = OrderedDict()
+        sensor_info = OrderedDict()
 
         # Check that the transmission type is supported
-        transmission_name = transmission_descr.get('name')
-        transmission_type_descr = transmission_descr.find('./type')
-        if transmission_type_descr is not None:
-            transmission_type = transmission_type_descr.text
+        transmission_name = transmission_descr.attrib['name']
+        transmission_type_obj = transmission_descr.find('./type')
+        if transmission_type_obj is not None:
+            transmission_type = transmission_type_obj.text
         else:
-            transmission_type = transmission_descr.get('type')
+            transmission_type = transmission_descr.attrib['type']
+        assert transmission_type is not None
         transmission_type = os.path.basename(transmission_type).casefold()
         if transmission_type != 'simpletransmission':
             logger.warning(
@@ -394,36 +419,45 @@ def generate_default_hardware_description_file(
             continue
 
         # Extract the motor name
-        motor_name = transmission_descr.find('./actuator').get('name')
+        motor_descr = transmission_descr.find('./actuator')
+        assert isinstance(motor_descr, ET.Element)
+        motor_name = motor_descr.attrib['name']
         sensor_info['motor_name'] = motor_name
 
-        # Extract the associated joint name.
-        joint_name = transmission_descr.find('./joint').get('name')
+        # Extract the associated joint name
+        joint_descr = transmission_descr.find('./joint')
+        assert isinstance(joint_descr, ET.Element)
+        joint_name = joint_descr.attrib['name']
         motor_info['joint_name'] = joint_name
 
         # Make sure that the joint is revolute
-        joint_type = root.find(
-            f"./joint[@name='{joint_name}']").get("type").casefold()
-        if joint_type not in ["revolute", "continuous", "prismatic"]:
+        joint = root.find(f"./joint[@name='{joint_name}']")
+        assert joint is not None
+        joint_type = joint.attrib['type'].casefold()
+        if joint_type not in ("revolute", "continuous", "prismatic"):
             logger.warning(
                 "Jiminy only support 1-dof joint actuators and effort "
                 "sensors. Attached joint cannot of type '%s'.", joint_type)
             continue
 
         # Extract the transmission ratio (motor / joint)
-        ratio = transmission_descr.find('./mechanicalReduction')
-        if ratio is None:
-            motor_info['mechanicalReduction'] = 1
+        ratio_obj = transmission_descr.find('./mechanicalReduction')
+        if ratio_obj is None:
+            motor_info['mechanicalReduction'] = 1.0
         else:
-            motor_info['mechanicalReduction'] = float(ratio.text)
+            assert ratio_obj.text is not None
+            ratio_txt = ratio_obj.text
+            motor_info['mechanicalReduction'] = float(ratio_txt)
 
         # Extract the armature (rotor) inertia
         armature = transmission_descr.find('./motorInertia')
         if armature is None:
             motor_info['armature'] = 0.0
         else:
-            motor_info['armature'] = \
-                float(armature.text) * motor_info['mechanicalReduction'] ** 2
+            armature_txt = armature.text
+            assert armature_txt is not None
+            motor_info['armature'] = float(armature_txt) * (
+                motor_info['mechanicalReduction'] ** 2)
 
         # Add dynamics property to motor info, if any
         motor_info.update(joints_options.pop(joint_name))
@@ -440,12 +474,12 @@ def generate_default_hardware_description_file(
         encoder_info = OrderedDict()
 
         # Skip fixed joints
-        joint_type = joint_descr.get('type').casefold()
+        joint_type = joint_descr.attrib['type'].casefold()
         if joint_type == 'fixed':
             continue
 
         # Extract the joint name
-        joint_name = joint_descr.get('name')
+        joint_name = joint_descr.attrib['name']
         encoder_info['joint_name'] = joint_name
 
         # Add the sensor to the robot's hardware
@@ -522,14 +556,16 @@ def load_hardware_description_file(
 
     # Extract the list of bodies having visual and collision meshes or
     # primitives.
-    geometry_types = {
+    geometry_types: Dict[
+            GeometryModelType, Dict[GeometryObjectType, Set[str]]] = {
         geom_type: {'primitive': set(), 'mesh': set()}
-        for geom_type in ('collision', 'visual')}
-    geometry_specs = {
+        for geom_type in get_args(GeometryModelType)}
+    geometry_specs: Dict[GeometryModelType, Dict[GeometryObjectType, Dict[
+            GeometryObjectType, List[pin.GeometryObject]]]] = {
         geom_type: {
             'primitive': defaultdict(lambda: []),
             'mesh': defaultdict(lambda: [])}
-        for geom_type in ('collision', 'visual')}
+        for geom_type in get_args(GeometryModelType)}
     for geom_model, geometry_types_i, geometry_specs_i in zip(
             (robot.collision_model, robot.visual_model),
             geometry_types.values(),
@@ -539,7 +575,7 @@ def load_hardware_description_file(
             frame_name = robot.pinocchio_model.frames[frame_idx].name
             mesh_path = geometry_object.meshPath
             is_mesh = any(char in mesh_path for char in ('\\', '/', '.'))
-            geom_type = 'mesh' if is_mesh else 'primitive'
+            geom_type: GeometryObjectType = 'mesh' if is_mesh else 'primitive'
             geometry_types_i[geom_type].add(frame_name)
             geometry_specs_i[geom_type][frame_name].append(geometry_object)
 
@@ -828,14 +864,11 @@ class BaseJiminyRobot(jiminy.Robot):
         name than the URDF file will be detected automatically without
         requiring to manually specify its path.
     """
-    def __new__(cls,  # pylint: disable=unused-argument
-                *args: Any,
-                **kwargs: Any) -> "BaseJiminyRobot":
-        self = super().__new__(cls)  # pylint: disable=no-value-for-parameter
-        self.extra_info = {}
-        self.hardware_path = None
-        self._urdf_path_orig = None
-        return self
+    def __init__(self) -> None:
+        self.extra_info: Dict[str, Any] = {}
+        self.hardware_path: Optional[str] = None
+        self._urdf_path_orig: Optional[str] = None
+        super().__init__()
 
     def initialize(self,
                    urdf_path: str,

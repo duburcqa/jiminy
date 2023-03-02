@@ -91,8 +91,8 @@ class ControllerInterface:
         """
         # Define some attribute(s)
         self.enable_reward_terminal = (
-            self.compute_reward_terminal.  # type: ignore[attr-defined]
-            __func__ is not ControllerInterface.compute_reward_terminal)
+            self.compute_reward_terminal.__func__  # type: ignore[attr-defined]
+            is not ControllerInterface.compute_reward_terminal)
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)

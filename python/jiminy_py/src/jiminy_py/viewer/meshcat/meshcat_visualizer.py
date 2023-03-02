@@ -11,6 +11,7 @@ from typing import Optional, Any, Dict, Union, Type, Set
 import numpy as np
 
 import meshcat
+import meshcat.path
 from meshcat.geometry import (
     ReferenceSceneElement, Geometry, TriangularMeshGeometry)
 
@@ -105,8 +106,8 @@ class DaeMeshGeometryWithTexture(ReferenceSceneElement):
         super().__init__()
 
         # Attributes to be specified by the user
-        self.path = None
-        self.material = None
+        self.path: Optional[meshcat.path.Path] = None
+        self.material: Optional[meshcat.geometry.Material] = None
 
         # Raw file content
         dae_dir = os.path.dirname(dae_path)
@@ -120,10 +121,10 @@ class DaeMeshGeometryWithTexture(ReferenceSceneElement):
         if img_lib_element:
             img_resource_paths = [
                 e.text for e in img_lib_element.iter()
-                if e.tag.count('init_from')]
+                if e.tag.count('init_from') and e.text is not None]
 
         # Convert textures to data URL for Three.js ColladaLoader to load them
-        self.img_resources = {}
+        self.img_resources: Dict[str, str] = {}
         for img_path in img_resource_paths:
             # Return empty string if already in cache
             if cache is not None:
@@ -186,10 +187,10 @@ class MeshcatVisualizer(BaseVisualizer):
         "meshcat-server" command in a terminal: this enables the server to
         remain active after the current script ends.
         """
-        self.cache = set()
-        self.root_name = None
-        self.visual_group = None
-        self.collision_group = None
+        self.cache: Set[str] = set()
+        self.root_name: Optional[str] = None
+        self.visual_group: Optional[str] = None
+        self.collision_group: Optional[str] = None
         self.display_visuals = False
         self.display_collisions = False
         self.viewer = viewer
@@ -209,12 +210,14 @@ class MeshcatVisualizer(BaseVisualizer):
         """Return the name of the geometry object inside the viewer.
         """
         if geometry_type is pin.GeometryType.VISUAL:
+            assert self.visual_group is not None
             return '/'.join((self.visual_group, geometry_object.name))
         # if geometry_type is pin.GeometryType.COLLISION:
+        assert self.collision_group is not None
         return '/'.join((self.collision_group, geometry_object.name))
 
     def loadPrimitive(self,  # pylint: disable=invalid-name
-                      geometry_object: pin.GeometryObject) -> None:
+                      geometry_object: pin.GeometryObject) -> hppfcl.ShapeBase:
         """ TODO: Write documentation.
         """
         geom = geometry_object.geometry
@@ -263,7 +266,7 @@ class MeshcatVisualizer(BaseVisualizer):
         return obj
 
     def loadMesh(self,  # pylint: disable=invalid-name
-                 geometry_object: pin.GeometryObject):
+                 geometry_object: pin.GeometryObject) -> ReferenceSceneElement:
         """ TODO: Write documentation.
         """
         # Mesh path is empty if Pinocchio is built without HPP-FCL bindings
@@ -294,7 +297,7 @@ class MeshcatVisualizer(BaseVisualizer):
             geometry_object: pin.GeometryObject,
             geometry_type: pin.GeometryType,
             color: Optional[np.ndarray] = None,
-            material_cls: Type[
+            material_class: Type[
                 meshcat.geometry.Material] = meshcat.geometry.MeshPhongMaterial
             ) -> None:
         """Load a single geometry object"""
@@ -319,7 +322,7 @@ class MeshcatVisualizer(BaseVisualizer):
             return
 
         # Set material color from URDF
-        material = material_cls()
+        material = material_class()
         if color is None:
             mesh_color = geometry_object.meshColor
         else:
@@ -345,7 +348,7 @@ class MeshcatVisualizer(BaseVisualizer):
 
     def loadViewerModel(self,  # pylint: disable=arguments-differ
                         root_node_name: str,
-                        color: Optional[np.ndarray] = None):
+                        color: Optional[np.ndarray] = None) -> None:
         """Load the robot in a MeshCat viewer.
 
         :param root_node_name: name to give to the robot in the viewer
@@ -372,7 +375,8 @@ class MeshcatVisualizer(BaseVisualizer):
         # The cache is cleared after loading every loading to avoid edge-cases
         self.cache.clear()
 
-    def display(self, q: np.ndarray):  # pylint: disable=signature-differs
+    def display(self,  # pylint: disable=signature-differs
+                q: np.ndarray) -> None:
         """Display the robot at configuration q in the viewer by placing all
         the bodies."""
         # pylint: disable=invalid-name
@@ -410,7 +414,7 @@ class MeshcatVisualizer(BaseVisualizer):
                     collision, pin.GeometryType.collision)
                 self.viewer[node_name].set_transform(T)
 
-    def displayCollisions(self, visibility: bool):
+    def displayCollisions(self, visibility: bool) -> None:
         """Set whether to display collision objects or not.
         """
         self.display_collisions = visibility
@@ -421,7 +425,7 @@ class MeshcatVisualizer(BaseVisualizer):
         self.viewer[self.collision_group].set_property(
             "visible", visibility)
 
-    def displayVisuals(self, visibility: bool):
+    def displayVisuals(self, visibility: bool) -> None:
         """Set whether to display visual objects or not.
         """
         self.display_visuals = visibility

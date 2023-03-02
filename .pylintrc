@@ -1,0 +1,92 @@
+[tool.pylint.main]
+# Use multiple processes to speed up Pylint
+jobs = 0  # 0: the number of processors available
+
+# Whilelist of packages from where C extensions may be loaded
+extension-pkg-allow-list =
+    numpy,
+    scipy.spatial._qhull,
+    ray._raylet,
+    torch,
+    eigenpy,
+    pinocchio,
+    hppfcl,
+    jiminy_py.core
+    panda3d.core
+    matplotlib.backends
+
+[tool.pylint.typecheck]
+# List of members which are set dynamically and missed by pylint inference system
+generated-members = torch, jiminy
+
+[tool.pylint.basic]
+# Good variable names which should always be accepted, separated by a comma
+good-names =
+    i, j, k, l, N,                    # Python: for-loop indices
+    tb, np, nb, mp, tp,               # Python: classical modules
+    fd, _,                            # Python: contexte
+    t, q, v, x, u, s, qx, qy, qz, qw, # Physics: state, action
+    I, R, H, T, M, dt,                # Physics: dynamics
+    a, b, c, y, z, n, e,              # Maths / Algebra : variables
+    f, rg, lo, hi,                    # Maths / Algebra : operators
+    ax                                # Matplotlib
+
+[tool.pylint.format]
+# Regexp for a line that is allowed to be longer than the limit
+ignore-long-lines = "^\\s*(# )?<?https?://\\S+>?$"
+
+# Maximum number of characters on a single line
+max-line-length = 80
+
+# Maximum number of lines in a module
+max-module-lines = 5000
+
+[tool.pylint.design]
+# Maximum number of boolean terms in a single expression
+max-bool-expr = 6
+
+# Maximum number of public methods for a class
+max-public-methods=40
+
+[tool.pylint.logging]
+# The type of string formatting that logging methods do ("old": %, "new": `{}`)
+logging-format-style = old
+
+[tool.pylint."messages control"]
+# Disable the message, report, category or checker with the given id(s)
+disable =
+    too-many-instance-attributes,
+    too-many-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    too-few-public-methods,
+    fixme,
+    consider-iterating-dictionary,
+    abstract-method,
+    protected-access,
+    useless-parent-delegation,
+    use-dict-literal,
+    unspecified-encoding,
+    cyclic-import
+
+# Enable the message, report, category or checker with the given id(s)
+enable = c-extension-no-member
+
+[tool.pylint.miscellaneous]
+# List of note tags to take in consideration, separated by a comma.
+notes = ["FIXME", "TODO"]
+
+[tool.pylint.refactoring]
+# Maximum number of nested blocks for function / method body
+max-nested-blocks = 7
+
+[tool.pylint.similarities]
+# Docstrings are removed from the similarity computation
+ignore-docstrings = true
+
+# Imports are removed from the similarity computation
+ignore-imports = true
+
+# Minimum lines number of a similarity.
+min-similarity-lines = 20

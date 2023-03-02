@@ -1,6 +1,6 @@
+# mypy: disable-error-code="attr-defined"
 """ TODO: Write documentation.
 """
-# pylint: disable=no-name-in-module
 import os
 import sys
 import fnmatch
@@ -13,7 +13,8 @@ from itertools import cycle
 from functools import partial
 from collections import OrderedDict
 from weakref import WeakKeyDictionary
-from typing import Dict, Optional, Any, Tuple, List, Union, Callable, TypedDict
+from typing import (
+    Dict, Optional, Any, Tuple, List, Union, Callable, TypedDict)
 
 import numpy as np
 try:
@@ -36,7 +37,7 @@ from matplotlib.transforms import Bbox
 from matplotlib.backend_bases import Event, LocationEvent
 from matplotlib.backends.backend_pdf import PdfPages
 
-from .core import Model
+from .core import Model  # pylint: disable=no-name-in-module
 from .log import (SENSORS_FIELDS,
                   read_log,
                   extract_variables_from_log,
@@ -45,7 +46,7 @@ from .viewer import interactive_mode
 
 
 class _ButtonBlit(Button):
-    def _motion(self, event):
+    def _motion(self, event: Event) -> None:
         if self.ignore(event):
             return
         c = self.hovercolor if event.inaxes == self.ax else self.color
@@ -135,7 +136,7 @@ class TabbedFigure:
         self.figure = plt.figure()
         self.legend: Optional[Legend] = None
         self.ref_ax: Optional[Axes] = None
-        self.tabs_data = {}
+        self.tabs_data: Dict[str, TabData] = {}
         self.tab_active: Optional[TabData] = None
         self.bbox_inches: Bbox = Bbox([[0.0, 0.0], [1.0, 1.0]])
 
@@ -219,6 +220,9 @@ class TabbedFigure:
         """Event handler used internally to switch tab when a button is
         pressed.
         """
+        # Assert(s) for type checker
+        assert self.tab_active is not None
+
         # Get tab name to activate
         for tab in self.tabs_data.values():
             button = tab["button"]
@@ -286,8 +290,8 @@ class TabbedFigure:
                 time: np.ndarray,
                 data: Union[np.ndarray, Dict[str, Union[
                     Dict[str, np.ndarray], np.ndarray]]],
-                plot_method: Optional[Union[Callable[[
-                    Axes, np.ndarray, np.ndarray], Any], str]] = None, *,
+                plot_method: Optional[
+                    Union[Callable[..., Any], str]] = None, *,
                 refresh_canvas: bool = True,
                 **kwargs: Any) -> None:
         """ TODO: Write documentation.
@@ -300,8 +304,9 @@ class TabbedFigure:
         # Handle default arguments and converters
         if plot_method is None:
             plot_method = partial(Axes.step, where='post')
-        elif isinstance(plot_method, str):
+        if isinstance(plot_method, str):
             plot_method = getattr(Axes, plot_method)
+            assert callable(plot_method)
 
         if isinstance(data, dict):
             # Compute plot grid arrangement
@@ -312,7 +317,7 @@ class TabbedFigure:
                 n_cols = int(np.ceil(len(data) / n_rows))
 
             # Initialize axes, and early return if none
-            axes = []
+            axes: List[plt.Axes] = []
             ref_ax = self.ref_ax if self.sync_tabs else None
             for i, plot_name in enumerate(data.keys()):
                 uniq_label = '_'.join((tab_name, plot_name))
@@ -327,7 +332,7 @@ class TabbedFigure:
                 axes.append(ax)
             if self.sync_tabs:
                 self.ref_ax = ref_ax
-            if axes is None:
+            if not axes:
                 return
 
             # Update their content
@@ -404,6 +409,9 @@ class TabbedFigure:
                    refresh_canvas: bool = True) -> None:
         """ TODO: Write documentation.
         """
+        # Assert(s) for type checker
+        assert self.tab_active is not None
+
         # Reset current tab if it is the removed one
         tab = self.tabs_data.pop(tab_name)
         if tab is self.tab_active and self.tabs_data:
@@ -451,7 +459,7 @@ class TabbedFigure:
         self.figure.savefig(
             pdf_path, format='pdf', bbox_inches=self.bbox_inches)
 
-    def save_all_tabs(self, pdf_path: str) -> List[str]:
+    def save_all_tabs(self, pdf_path: str) -> None:
         """Export every tabs in a single pdf, limiting systematically the
         bounding box to the subplots and legend.
 
@@ -469,14 +477,15 @@ class TabbedFigure:
              tabs_data: Dict[str, Union[np.ndarray, Dict[str, Union[
                     Dict[str, np.ndarray], np.ndarray]]]],
              pdf_path: Optional[str] = None,
-             **kwargs) -> "TabbedFigure":
+             **kwargs: Any) -> "TabbedFigure":
         """ TODO: Write documentation.
 
         :param pdf_path: It specified, the figure will be exported to pdf
                          without rendering on screen.
         :param kwargs: Extra keyword arguments to forward to `add_tab` method.
         """
-        tabbed_figure = cls(**{"offscreen": pdf_path is not None, **kwargs})
+        tabbed_figure = cls(**{  # type: ignore[arg-type]
+            "offscreen": pdf_path is not None, **kwargs})
         for name, data in tabs_data.items():
             tabbed_figure.add_tab(
                 name, time, data, **kwargs, refresh_canvas=False)
@@ -520,7 +529,7 @@ def plot_log(log_data: Dict[str, Any],
 
     # Extract log data
     if not log_data:
-        return RuntimeError("No data to plot.")
+        raise RuntimeError("No data to plot.")
     log_vars = log_data["variables"]
 
     # Build robot from log if necessary
@@ -528,7 +537,9 @@ def plot_log(log_data: Dict[str, Any],
         robot = build_robot_from_log(log_data)
 
     # Figures data structure as a dictionary
-    tabs_data = OrderedDict()
+    tabs_data: Dict[
+        str, Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]]
+        ] = OrderedDict()
 
     # Get time and robot positions, velocities, and acceleration
     time = log_vars["Global.Time"]
@@ -538,30 +549,38 @@ def plot_log(log_data: Dict[str, Any],
         if not enable_flexiblity_data:
             # Filter out flexibility data
             fieldnames = list(filter(
-                lambda field: not any(
+                lambda field: not any(  # type: ignore[arg-type]
                     name in field
                     for name in robot.flexible_joints_names),
                 fieldnames))
-        values = extract_variables_from_log(
-            log_vars, fieldnames, as_dict=True)
-        if values is not None:
+        try:
+            values = extract_variables_from_log(
+                log_vars, fieldnames, as_dict=True)
             tabs_data[' '.join(("State", fields_type))] = OrderedDict(
                 (field[len("current"):].replace(fields_type, ""), elem)
                 for field, elem in values.items())
+        except ValueError:
+            # Variable has not been recorded and is missing in log file
+            pass
 
     # Get motors efforts information
-    motor_effort = extract_variables_from_log(
-        log_vars, robot.log_fieldnames_motor_effort)
-    if motor_effort is not None:
-        tabs_data['MotorEffort'] = OrderedDict(
-            zip(robot.motors_names, motor_effort))
+    try:
+        motors_efforts = extract_variables_from_log(
+            log_vars, robot.log_fieldnames_motor_effort)
+        tabs_data['MotorEffort'] = OrderedDict(zip(
+            robot.motors_names, motors_efforts))
+    except ValueError:
+        # Variable has not been recorded and is missing in log file
+        pass
 
     # Get command information
-    command = extract_variables_from_log(
-        log_vars, robot.log_fieldnames_command)
-    if command is not None:
-        tabs_data['Command'] = OrderedDict(
-            zip(robot.motors_names, command))
+    try:
+        command = extract_variables_from_log(
+            log_vars, robot.log_fieldnames_command)
+        tabs_data['Command'] = OrderedDict(zip(robot.motors_names, command))
+    except ValueError:
+        # Variable has not been recorded and is missing in log file
+        pass
 
     # Get sensors information
     for sensors_class, sensors_fields in SENSORS_FIELDS.items():
@@ -570,28 +589,36 @@ def plot_log(log_data: Dict[str, Any],
         namespace = sensors_type if sensors_class.has_prefix else None
         if isinstance(sensors_fields, dict):
             for fields_prefix, fieldnames in sensors_fields.items():
-                sensors_data = [
-                    extract_variables_from_log(log_vars, [
-                        '.'.join((name, fields_prefix + field))
-                        for name in sensors_names], namespace)
-                    for field in fieldnames]
-                if sensors_data[0] is not None:
+                try:
                     type_name = ' '.join((sensors_type, fields_prefix))
+                    data_nested = [
+                        extract_variables_from_log(log_vars, [
+                            '.'.join((name, fields_prefix + field))
+                            for name in sensors_names], namespace)
+                        for field in fieldnames]
                     tabs_data[type_name] = OrderedDict(
-                        (field, OrderedDict(zip(sensors_names, values)))
-                        for field, values in zip(fieldnames, sensors_data))
+                        (field, OrderedDict(zip(sensors_names, data)))
+                        for field, data in zip(fieldnames, data_nested))
+                except ValueError:
+                    # Variable has not been recorded and is missing in log file
+                    pass
         else:
             for field in sensors_fields:
-                sensors_data = extract_variables_from_log(log_vars, [
-                    '.'.join((name, field)) for name in sensors_names
-                    ], namespace)
-                if sensors_data is not None:
-                    tabs_data[' '.join((sensors_type, field))] = \
-                        OrderedDict(zip(sensors_names, sensors_data))
+                try:
+                    type_name = ' '.join((sensors_type, field))
+                    data = extract_variables_from_log(log_vars, [
+                        '.'.join((name, field)) for name in sensors_names
+                        ], namespace)
+                    tabs_data[type_name] = OrderedDict(zip(
+                        sensors_names, data))
+                except ValueError:
+                    # Variable has not been recorded and is missing in log file
+                    pass
 
     # Create figure, without closing the existing one
     figure = TabbedFigure.plot(
-        time, tabs_data, **{"plot_method": "plot", **kwargs})
+        time, tabs_data, **{  # type: ignore[arg-type]
+            "plot_method": "plot", **kwargs})
 
     # Show the figure if appropriate, blocking if necessary
     if block and not figure.offscreen:
@@ -600,7 +627,7 @@ def plot_log(log_data: Dict[str, Any],
     return figure
 
 
-def plot_log_interactive():
+def plot_log_interactive() -> None:
     """ TODO: Write documentation.
     """
     parser = argparse.ArgumentParser(
@@ -705,7 +732,7 @@ def plot_log_interactive():
         n_rows = n_rows + 1
         n_cols = np.ceil(n_plot / (1.0 * n_rows))
 
-    axes = []
+    axes: List[plt.Axes] = []
     for i in range(n_plot):
         ax = fig.add_subplot(int(n_rows), int(n_cols), i+1)
         if i > 0:
@@ -715,7 +742,7 @@ def plot_log_interactive():
     # Store lines in dictionnary {file_name: plotted lines}, to enable to
     # toggle individually the visibility the data related to each of them.
     main_name = os.path.basename(main_arguments.input)
-    plotted_lines = {main_name: []}
+    plotted_lines: Dict[str, List[Line2D]] = {main_name: []}
     for c in compare_data:
         plotted_lines[os.path.basename(c)] = []
 
@@ -779,11 +806,12 @@ def plot_log_interactive():
         plt.subplots_adjust(top=0.98-legend_height)
 
         # Make legend interactive
-        def legend_clicked(event):
+        def legend_clicked(event: Event) -> None:
             file_name = picker_to_name[event.artist]
             for line in plotted_lines[file_name]:
                 line.set_visible(not line.get_visible())
             fig.canvas.draw()
+
         fig.canvas.mpl_connect('pick_event', legend_clicked)
 
     plt.show(block=True)

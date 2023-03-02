@@ -1,6 +1,6 @@
+# mypy: disable-error-code="attr-defined, name-defined"
 """ TODO: Write documentation.
 """
-# pylint: disable=no-name-in-module,no-member
 import os
 import atexit
 import logging
@@ -8,8 +8,11 @@ import pathlib
 import tempfile
 from copy import deepcopy
 from itertools import chain
+from functools import partial
 from collections import OrderedDict
-from typing import Optional, Union, Type, Dict, Tuple, Sequence, Iterable, Any
+from typing import (
+    Optional, Union, Type, Dict, Tuple, Sequence, Iterable, Any, List,
+    Callable)
 
 import toml
 import numpy as np
@@ -31,6 +34,12 @@ if interactive_mode() >= 2:
 else:
     from tqdm import tqdm
 
+try:
+    from .plot import TabbedFigure
+except ImportError:
+    TabbedFigure = type(None)  # type: ignore[misc,assignment]
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,24 +54,6 @@ class Simulator:
     user only as to create a robot and associated controller if any, and
     give high-level instructions to the simulator.
     """
-    def __new__(cls,  # pylint: disable=unused-argument
-                *args: Any,
-                **kwargs: Any) -> "Simulator":
-        # Instantiate base class
-        self = super().__new__(cls)  # pylint: disable=no-value-for-parameter
-
-        # Viewer management
-        self.viewer = None
-        self._viewers = []
-
-        # Internal buffer for progress bar management
-        self.__pbar: Optional[tqdm] = None
-
-        # Figure holder
-        self.figure = None
-
-        return self
-
     def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Robot,
                  controller: Optional[jiminy.AbstractController] = None,
@@ -116,6 +107,16 @@ class Simulator:
         self.system_state = self.engine.system_state
         self.sensors_data = self.robot.sensors_data
 
+        # Viewer management
+        self.viewer: Optional[Viewer] = None
+        self._viewers: Sequence[Viewer] = []
+
+        # Internal buffer for progress bar management
+        self.__pbar: Optional[tqdm] = None
+
+        # Figure holder
+        self.figure: Optional[TabbedFigure] = None
+
         # Reset the low-level jiminy engine
         self.reset()
 
@@ -128,7 +129,7 @@ class Simulator:
               config_path: Optional[str] = None,
               avoid_instable_collisions: bool = True,
               debug: bool = False,
-              **kwargs) -> 'Simulator':
+              **kwargs: Any) -> 'Simulator':
         r"""Create a new simulator instance from scratch, based on
         configuration files only.
 
@@ -170,13 +171,14 @@ class Simulator:
                 os.close(fd)
 
                 if not debug:
-                    def remove_file_at_exit(file_path=hardware_path):
+                    def remove_file_at_exit(file_path: str) -> None:
                         try:
                             os.remove(file_path)
                         except (PermissionError, FileNotFoundError):
                             pass
 
-                    atexit.register(remove_file_at_exit)
+                    atexit.register(partial(
+                        remove_file_at_exit, hardware_path))
 
                 # Generate default Hardware Description File
                 generate_default_hardware_description_file(
@@ -245,7 +247,7 @@ class Simulator:
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), self.engine.__dir__())
+        return chain(super().__dir__(), dir(self.engine))
 
     @property
     def pinocchio_model(self) -> pin.Model:
@@ -285,7 +287,8 @@ class Simulator:
         """Returns whether a viewer instance associated with the robot
         is available.
         """
-        return self.viewer is not None and self.viewer.is_open()
+        return (self.viewer is not None and
+                self.viewer.is_open())  # type: ignore[misc]
 
     def _callback(self,
                   t: float,  # pylint: disable=unused-argument
@@ -323,7 +326,7 @@ class Simulator:
         # It is expected by OpenAI Gym API to reset env after setting the seed
         self.reset()
 
-    def reset(self, remove_all_forces: bool = False):
+    def reset(self, remove_all_forces: bool = False) -> None:
         """Reset the simulator.
 
         It resets the simulation time to zero, and generate a new random model
@@ -425,6 +428,7 @@ class Simulator:
             return_code = jiminy.hresult_t.ERROR_GENERIC
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
+                assert self.__pbar is not None
                 self.__pbar.close()
                 self.__pbar = None
 
@@ -488,13 +492,16 @@ class Simulator:
         # A new dedicated scene and window will be created.
         if not self.is_viewer_available:
             # Create new viewer instance
-            self.viewer = Viewer(self.robot,
-                                 use_theoretical_model=False,
-                                 open_gui_if_parent=False,
-                                 **{'backend': (self.viewer or Viewer).backend,
-                                    'delete_robot_on_close': True,
-                                    **self.viewer_kwargs,
-                                    **kwargs})
+            self.viewer = Viewer(
+                self.robot,
+                use_theoretical_model=False,
+                open_gui_if_parent=False,
+                **{**dict(  # type: ignore[arg-type]
+                    backend=(self.viewer or Viewer).backend,
+                    delete_robot_on_close=True),
+                    **self.viewer_kwargs,
+                    **kwargs})
+            assert self.viewer is not None and self.viewer.backend is not None
 
             # Share the external force buffer of the viewer with the engine
             if self.is_simulation_running:
@@ -521,6 +528,7 @@ class Simulator:
                         self.robot.pinocchio_model.frames[f_i.frame_idx].parent
                         for f_i in self.engine.forces_impulse)
                     visibility = self.viewer._display_f_external
+                    assert isinstance(visibility, list)
                     for i in force_frames:
                         visibility[i - 1] = True
                     self.viewer.display_external_forces(visibility)
@@ -530,6 +538,7 @@ class Simulator:
                 camera_xyzrpy = ((9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2))
 
         # Enable the ground profile is requested and available
+        assert self.viewer is not None and self.viewer.backend is not None
         if self.viewer.backend.startswith('panda3d') and update_ground_profile:
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
@@ -576,7 +585,10 @@ class Simulator:
             logs_data.append(log_data)
 
         # Extract trajectory data from pairs (robot, log)
-        trajectories, update_hooks, extra_kwargs = [], [], {}
+        trajectories: List[TrajectoryDataType] = []
+        update_hooks: List[
+            Optional[Callable[[float, np.ndarray, np.ndarray], None]]] = []
+        extra_kwargs: Dict[str, Any] = {}
         for robot, log_data in zip(robots, logs_data):
             if log_data:
                 traj, update_hook, _kwargs = \
@@ -599,7 +611,7 @@ class Simulator:
         must_not_open_gui = (
             backend.startswith("panda3d") or
             kwargs.get('record_video_path') is not None)
-        self.render(**{
+        self.render(**{  # type: ignore[arg-type]
             'return_rgb_array': must_not_open_gui,
             'update_floor': True,
             **kwargs})
@@ -612,7 +624,7 @@ class Simulator:
             trajectories,
             update_hooks,
             viewers=viewers,
-            **{'verbose': True,
+            **{'verbose': True,  # type: ignore[arg-type]
                **self.viewer_kwargs,
                **extra_kwargs,
                'display_f_external': None,
@@ -621,10 +633,10 @@ class Simulator:
     def close(self) -> None:
         """Close the connection with the renderer.
         """
-        if self.viewer is not None:
+        if hasattr(self, "viewer") and self.viewer is not None:
             self.viewer.close()
             self.viewer = None
-        if self.figure is not None:
+        if hasattr(self, "figure") and self.figure is not None:
             self.figure.close()
             self.figure = None
 
@@ -677,7 +689,7 @@ class Simulator:
     def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """Get the options of robot (including controller), and engine.
         """
-        options = OrderedDict(
+        options: Dict[str, Dict[str, Dict[str, Any]]] = OrderedDict(
             system=OrderedDict(robot=OrderedDict(), controller=OrderedDict()),
             engine=OrderedDict())
         robot_options = options['system']['robot']
@@ -728,7 +740,8 @@ class Simulator:
             config_path = str(pathlib.Path(
                 urdf_path).with_suffix('')) + '_options.toml'
         with open(config_path, 'w') as f:
-            toml.dump(self.get_options(), f, encoder=toml.TomlNumpyEncoder())
+            toml.dump(  # type: ignore[misc]
+                self.get_options(), f, encoder=toml.TomlNumpyEncoder())
 
     def import_options(self,
                        config_path: Optional[Union[str, os.PathLike]] = None
@@ -778,5 +791,6 @@ class Simulator:
                 urdf_path).with_suffix('')) + '_options.toml'
             if not os.path.exists(config_path):
                 return
-        options = deep_update(self.get_options(), toml.load(config_path))
+
+        options = deep_update(self.get_options(), toml.load(str(config_path)))
         self.set_options(options)

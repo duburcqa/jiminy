@@ -7,7 +7,7 @@ import atexit
 import asyncio
 import logging
 import pathlib
-import threading
+from threading import Thread
 from contextlib import redirect_stdout, redirect_stderr
 from typing import Optional, Sequence, Dict, Any
 
@@ -25,10 +25,12 @@ from .recorder import MeshcatRecorder
 
 if interactive_mode() >= 2:
     import ipykernel
+    from ipykernel.ipkernel import IPythonKernel
     IPYKERNEL_VERSION_MAJOR = int(ipykernel.__version__[0])
     if IPYKERNEL_VERSION_MAJOR < 6:
         # pylint: disable=no-name-in-module
-        from ipykernel.kernelbase import SHELL_PRIORITY
+        from ipykernel.kernelbase import (  # type: ignore[attr-defined]
+            SHELL_PRIORITY)
     elif IPYKERNEL_VERSION_MAJOR > 6:
         logging.warning(
             "ipykernel version 7 detected. The viewer works optimally with "
@@ -44,7 +46,7 @@ if interactive_mode() >= 2:
         kernel state. This method only processes comm messages to avoid such
         side effects.
         """
-        def __init__(self):
+        def __init__(self) -> None:
             # pylint: disable=import-outside-toplevel
             from IPython import get_ipython
             self.__kernel = get_ipython().kernel
@@ -183,21 +185,15 @@ if interactive_mode() >= 2:
 class CommManager:
     """ TODO: Write documentation.
     """
-    def __new__(cls,  # pylint: disable=unused-argument
-                *args: Any, **kwargs: Any) -> "CommManager":
-        self = super().__new__(cls)
-        self.__ioloop = None
-        self.__comm_socket = None
-        self.__comm_stream = None
-        self.__thread = None
-        self.__kernel = None
-        return self
-
-    def __init__(self, comm_url: str):
+    def __init__(self, comm_url: str) -> None:
         # pylint: disable=import-outside-toplevel
         from IPython import get_ipython
 
-        def forward_comm_thread():
+        self.__ioloop: Optional[tornado.ioloop.IOLoop] = None
+        self.__comm_stream: ZMQStream
+        self.__comm_socket: zmq.sugar.Socket
+
+        def forward_comm_thread() -> None:
             # Create new event loop
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -226,18 +222,16 @@ class CommManager:
             self.__ioloop.start()
 
             # Stop running socket
-            self.__ioloop.close()
-            self.__ioloop = None
+            if self.__ioloop is not None:
+                self.__ioloop.close()
             self.__comm_stream.close(linger=5)
-            self.__comm_stream = None
             self.__comm_socket.close(linger=5)
-            self.__comm_socket = None
 
-        self.__thread = threading.Thread(
+        self.__thread = Thread(
             target=forward_comm_thread, daemon=True)
         self.__thread.start()
 
-        self.__kernel = get_ipython().kernel
+        self.__kernel: IPythonKernel = get_ipython().kernel
         self.__kernel.comm_manager.register_target(
             'meshcat', self.__comm_register)
 
@@ -247,14 +241,15 @@ class CommManager:
     def close(self) -> None:
         """ TODO: Write documentation.
         """
-        if 'meshcat' in self.__kernel.comm_manager.targets:
-            self.__kernel.comm_manager.unregister_target(
-                'meshcat', self.__comm_register)
-        if self.__ioloop is not None:
+        if hasattr(self, '__kernel'):
+            if 'meshcat' in self.__kernel.comm_manager.targets:
+                self.__kernel.comm_manager.unregister_target(
+                    'meshcat', self.__comm_register)
+        if hasattr(self, '__ioloop') and self.__ioloop is not None:
             self.__ioloop.stop()
-        if self.__thread is not None:
+            self.__ioloop = None
+        if hasattr(self, '__thread'):
             self.__thread.join()
-            self.__thread = None
 
     def __forward_to_ipykernel(self, frames: Sequence[bytes]) -> None:
         comm_id, *cmd = frames
@@ -297,15 +292,6 @@ class CommManager:
 class MeshcatWrapper:
     """ TODO: Write documentation.
     """
-    def __new__(cls,  # pylint: disable=unused-argument
-                *args: Any, **kwargs: Any) -> "MeshcatWrapper":
-        self = super().__new__(cls)
-        self.server_proc = None
-        self.recorder = None
-        self.comm_manager = None
-        self.__zmq_socket = None
-        return self
-
     def __init__(self,
                  zmq_url: Optional[str] = None,
                  comm_url: Optional[str] = None):
@@ -340,7 +326,11 @@ class MeshcatWrapper:
         # been chosen to add extra ROUTER/ROUTER sockets instead of replacing
         # the original ones to avoid altering too much the original
         # implementation of Meshcat.
+        self.comm_manager: Optional[CommManager] = None
         if must_launch_server and interactive_mode() >= 2:
+            # Assert for type checker
+            assert comm_url is not None
+
             self.comm_manager = CommManager(comm_url)
 
         # Make sure the server is properly closed
@@ -352,16 +342,14 @@ class MeshcatWrapper:
     def close(self) -> None:
         """ TODO: Write documentation.
         """
-        if self.__zmq_socket is not None:
-            self.__zmq_socket.send(b"stop")
-            self.__zmq_socket.close()
-            self.__zmq_socket = None
-        if self.comm_manager is not None:
+        if hasattr(self, "__zmq_socket"):
+            if not self.__zmq_socket.closed:
+                self.__zmq_socket.send(b"stop")
+                self.__zmq_socket.close()
+        if hasattr(self, "comm_manager") and self.comm_manager is not None:
             self.comm_manager.close()
-            self.comm_manager = None
-        if self.recorder is not None:
+        if hasattr(self, "recorder") is not None:
             self.recorder.release()
-            self.recorder = None
 
     def wait(self, require_client: bool = False) -> str:
         """ TODO: Write documentation.
@@ -425,7 +413,7 @@ class MeshcatWrapper:
                 "type": "legend",
                 "id": uniq_id,   # Unique identifier of updated legend item
                 "text": text,    # Any text message support by HTML5
-                "color": color   # "rgba(0, 0, 0, 0.0)" and "black" supported
+                "color": color   # "rgba(0, 0, 0, 0)" and "black" supported
             })
         ])
         self.__zmq_socket.recv()  # Receive acknowledgement

@@ -8,7 +8,7 @@ import asyncio
 import argparse
 import multiprocessing
 import multiprocessing.managers
-from typing import Optional, Tuple, Sequence, Dict
+from typing import Optional, Tuple, Sequence, Dict, List, Set
 
 import zmq
 import psutil
@@ -60,7 +60,7 @@ class MyFileHandler(StaticFileHandlerNoCache):
 
     def validate_absolute_path(self,
                                root: str,
-                               absolute_path: str) -> str:
+                               absolute_path: str) -> Optional[str]:
         """ TODO: Write documentation.
         """
         if os.path.isdir(absolute_path):
@@ -72,7 +72,8 @@ class MyFileHandler(StaticFileHandlerNoCache):
         if os.path.exists(absolute_path) and \
                 os.path.basename(absolute_path) != self.default_filename:
             return super().validate_absolute_path(root, absolute_path)
-        return os.path.join(self.fallback_path, absolute_path[(len(root)+1):])
+        return os.path.join(
+            self.fallback_path, absolute_path[(len(root) + 1):])
 
 
 # Implement bidirectional communication because zmq and the websockets by
@@ -83,7 +84,7 @@ class MyFileHandler(StaticFileHandlerNoCache):
 #
 # It also fixes flushing issue when 'handle_zmq' is not directly responsible
 # for sending a message through the zmq socket.
-def handle_web(self, message: str) -> None:
+def handle_web(self: WebSocketHandler, message: str) -> None:
     """ TODO: Write documentation.
     """
     # Ignore watchdog for websockets since it would be closed if non-responding
@@ -114,12 +115,12 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                  zmq_url: Optional[str] = None,
                  comm_url: Optional[str] = None,
                  host: str = "127.0.0.1",
-                 port: int = None):
+                 port: Optional[int] = None):
         super().__init__(zmq_url, host, port)
 
         # Create a new zmq socket specifically for kernel communications
         if comm_url is None:
-            def f(port):
+            def f(port: int) -> Tuple[zmq.Socket, ZMQStream, str]:
                 return self.setup_comm(
                     f"{DEFAULT_ZMQ_METHOD}://{self.host}:{port}")
             (self.comm_zmq, self.comm_stream, self.comm_url), _ = \
@@ -129,10 +130,10 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                  self.setup_comm(comm_url)
 
         # Extra buffers for: comm ids and messages
-        self.comm_pool = set()
-        self.watch_pool = set()
-        self.comm_msg = {}
-        self.websocket_msg = []
+        self.comm_pool: Set[bytes] = set()
+        self.watch_pool: Set[bytes] = set()
+        self.comm_msg: Dict[bytes, str] = {}
+        self.websocket_msg: List[str] = []
         self.is_waiting_ready_msg = False
 
         # Start the comm watchdog
@@ -210,7 +211,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         elif cmd == "list":
             # Only set_transform command is supported for now
             for i in range(1, len(frames), 3):
-                cmd, path, data = frames[i:(i+3)]
+                _cmd, path, data = frames[i:(i+3)]
                 path = list(filter(None, path.decode("utf-8").split("/")))
                 find_node(self.tree, path).transform = data
                 super().forward_to_websockets(frames[i:(i+3)])
@@ -271,7 +272,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         for comm_id in self.comm_pool:
             self.forward_to_comm(comm_id, data)
 
-    def forward_to_comm(self, comm_id: str, message: str) -> None:
+    def forward_to_comm(self, comm_id: bytes, message: bytes) -> None:
         """ TODO: Write documentation.
         """
         self.comm_zmq.send_multipart([comm_id, message])
@@ -279,7 +280,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
 
     def send_scene(self,
                    websocket: Optional[WebSocketHandler] = None,
-                   comm_id: Optional[str] = None) -> None:
+                   comm_id: Optional[bytes] = None) -> None:
         """ TODO: Write documentation.
         """
         if websocket is not None:

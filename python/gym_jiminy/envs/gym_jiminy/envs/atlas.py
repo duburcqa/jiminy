@@ -117,7 +117,7 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
             mesh_path=data_root_dir,
             avoid_instable_collisions=True,
             debug=debug,
-            **{**dict(
+            **{**dict(  # type: ignore[arg-type]
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
@@ -203,7 +203,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             mesh_path=data_root_dir,
             avoid_instable_collisions=True,
             debug=debug,
-            **{**dict(
+            **{**dict(  # type: ignore[arg-type]
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,

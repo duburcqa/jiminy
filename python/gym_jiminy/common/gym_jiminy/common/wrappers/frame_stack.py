@@ -112,7 +112,10 @@ class PartialFrameStack(gym.Wrapper):
         # Replace nested fields of original observation by the stacked ones
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             root_obs = reduce(lambda d, key: d[key], fields[:-1], observation)
-            assert isinstance(root_obs, dict)  # Assert for type checker
+
+            # Assert(s) for type checker
+            assert isinstance(root_obs, dict)
+
             root_obs[fields[-1]] = np.stack(frames)
 
         # Return the stacked observation
@@ -124,8 +127,12 @@ class PartialFrameStack(gym.Wrapper):
         # Backup the nested observation fields to stack
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             leaf_obs = reduce(lambda d, key: d[key], fields, measure)
-            assert isinstance(leaf_obs, np.ndarray)  # Assert for type checker
-            frames.append(leaf_obs.copy())  # Copy to make sure not altered
+
+            # Assert(s) for type checker
+            assert isinstance(leaf_obs, np.ndarray)
+
+            # Copy to make sure not altered
+            frames.append(leaf_obs.copy())
 
         # Return the stacked observation
         return self.observation(measure)

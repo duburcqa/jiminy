@@ -52,10 +52,11 @@ if not _is_boost_shared and _is_dependency_available:
 # The env variable PATH and the current working directory are ignored by
 # default for DLL resolution on Windows OS.
 if _sys.platform.startswith('win'):
-    _os.add_dll_directory(_os.path.join(_os.path.dirname(__file__), "lib"))
+    _os.add_dll_directory(  # type: ignore[attr-defined]
+        _os.path.join(_os.path.dirname(__file__), "lib"))
     for path in _os.environ['PATH'].split(_os.pathsep):
         if _os.path.exists(path):
-            _os.add_dll_directory(path)
+            _os.add_dll_directory(path)  # type: ignore[attr-defined]
 
 # Import all dependencies in the right order
 for _module_name in ("eigenpy", "hppfcl", "pinocchio"):
@@ -82,27 +83,27 @@ from .core import __version__, __raw_version__
 
 # Update core submodule to appear as member of current module
 __all__ = []
-for name in dir(core):
-    attrib = getattr(core, name)
+for name in dir(core):  # type: ignore[name-defined]
+    attrib = getattr(core, name)  # type: ignore[name-defined]
     if not name.startswith("_") and isinstance(attrib, type):
         __all__.append(name)
         attrib.__module__ = __name__
 
 
 # Define helpers to build extension modules
-def get_cmake_module_path():
+def get_cmake_module_path() -> str:
     """ TODO: Write documentation.
     """
     return _os.path.join(_os.path.dirname(__file__), "cmake")
 
 
-def get_include():
+def get_include() -> str:
     """ TODO: Write documentation.
     """
     return _os.path.join(_os.path.dirname(__file__), "include")
 
 
-def get_libraries():
+def get_libraries() -> str:
     """ TODO: Write documentation.
     """
     ver_short = '.'.join(__version__.split('.')[:2])

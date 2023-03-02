@@ -61,6 +61,9 @@ class Panda3dQWidget(Panda3dApp, QtWidgets.QWidget):
                    event: Any) -> None:  # pylint: disable=unused-argument
         """Pull the contents of the panda texture to the widget.
         """
+        # Assert(s) for type checker
+        assert self.buff is not None
+
         # Updating the pose of the camera
         self.move_orbital_camera_task()
 

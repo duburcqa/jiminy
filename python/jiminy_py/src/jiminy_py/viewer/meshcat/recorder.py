@@ -11,11 +11,11 @@ import time
 from contextlib import redirect_stderr
 from ctypes import c_char_p
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
 import psutil
 
-from playwright.sync_api import sync_playwright, Page, Error
+from playwright.sync_api import sync_playwright, Page, Error, ViewportSize
 from playwright._impl._driver import compute_driver_executable, get_driver_env
 
 
@@ -41,7 +41,11 @@ def _capture_frame(client: Page, width: int, height: int) -> Any:
     """Send a javascript command to the hidden browser to capture frame, then
     wait for it (since it is async).
     """
-    _width, _height = (client.viewport_size[e] for e in ('width', 'height'))
+    # Assert(s) for type checker
+    assert client.viewport_size is not None
+
+    _width = client.viewport_size['width']
+    _height = client.viewport_size['height']
     if not width > 0:
         width = _width
     if not height > 0:
@@ -105,8 +109,8 @@ def _stop_and_save_video(client: Page, path: Path) -> None:
 # ============ Meshcat recorder multiprocessing worker ============
 
 def meshcat_recorder(meshcat_url: str,
-                     request_shm: multiprocessing.Value,
-                     message_shm: multiprocessing.Value) -> None:
+                     request_shm: multiprocessing.managers.ValueProxy,
+                     message_shm: multiprocessing.managers.ValueProxy) -> None:
     """ TODO: Write documentation.
     """
     # Do not catch signal interrupt automatically, to avoid killing meshcat
@@ -148,7 +152,9 @@ def meshcat_recorder(meshcat_url: str,
                 ],
                 timeout=PLAYWRIGHT_START_TIMEOUT)
         client = browser.new_page(
-            viewport=dict(zip(("width", "height"), WINDOW_SIZE_DEFAULT)),
+            viewport=ViewportSize(
+                width=WINDOW_SIZE_DEFAULT[0],
+                height=WINDOW_SIZE_DEFAULT[1]),
             java_script_enabled=True,
             accept_downloads=True)
         client.goto(
@@ -203,7 +209,7 @@ def meshcat_recorder(meshcat_url: str,
 
 # ============ Meshcat recorder client ============
 
-def _manager_process_startup():
+def _manager_process_startup() -> None:
     """Required for Windows and OS X support, which use spawning instead of
     forking to create subprocesses, requiring passing pickle-compliant
     objects, and therefore prohibiting the use of native lambda functions.
@@ -216,19 +222,15 @@ class MeshcatRecorder:
     parallel asyncio loop execution, which is necessary to support recording in
     Jupyter notebook.
     """
-    def __new__(cls,  # pylint: disable=unused-argument
-                *args: Any, **kwargs: Any) -> "MeshcatRecorder":
-        self = super().__new__(cls)
-        self.is_open = False
-        self.is_recording = False
-        self.__manager = None
-        self.__shm = None
-        self.proc = None
-        self.__browser_pid = None
-        return self
-
     def __init__(self, url: str):
         self.url = url
+        self.is_open = False
+        self.is_recording = False
+        self.proc: Optional[multiprocessing.Process] = None
+        self.__manager: Optional[multiprocessing.managers.BaseManager] = None
+        self.__shm: Optional[
+            Dict[str, multiprocessing.managers.ValueProxy]] = None
+        self.__browser_pid: Optional[int] = None
 
     def open(self) -> None:
         """ TODO: Write documentation.
@@ -270,19 +272,20 @@ class MeshcatRecorder:
     def release(self) -> None:
         """ TODO: Write documentation.
         """
-        if self.__shm is not None:
-            if self.proc.is_alive():
-                # pylint: disable=broad-exception-caught
-                try:
-                    self._send_request(request="quit", timeout=2.0)
-                except Exception:
-                    # This method must not fail under any circumstances
-                    pass
+        if hasattr(self, "__shm"):
+            if hasattr(self, "proc") and self.proc is not None:
+                if self.proc.is_alive():
+                    # pylint: disable=broad-exception-caught
+                    try:
+                        self._send_request(request="quit", timeout=2.0)
+                    except Exception:
+                        # This method must not fail under any circumstances
+                        pass
             self.__shm = None
-        if self.proc is not None:
+        if hasattr(self, "proc") and self.proc is not None:
             self.proc.terminate()
             self.proc = None
-        if self.__browser_pid is not None:
+        if hasattr(self, "__browser_pid") and self.__browser_pid is not None:
             try:
                 psutil.Process(self.__browser_pid).kill()
                 os.waitpid(self.__browser_pid, 0)
@@ -290,8 +293,11 @@ class MeshcatRecorder:
             except (psutil.NoSuchProcess, ChildProcessError):
                 pass
             self.__browser_pid = None
-        if self.__manager is not None:
+        if hasattr(self, "__manager"):
             if hasattr(self.__manager, "shutdown"):
+                # Assert(s) for type checker
+                assert self.__manager is not None
+
                 # `SyncManager.shutdown` method is only available once started
                 self.__manager.shutdown()
             self.__manager = None
@@ -300,7 +306,7 @@ class MeshcatRecorder:
     def _send_request(self,
                       request: str,
                       message: Optional[str] = None,
-                      timeout: Optional[str] = None) -> None:
+                      timeout: Optional[float] = None) -> None:
         """ TODO: Write documentation.
         """
         if timeout is None:
@@ -308,6 +314,10 @@ class MeshcatRecorder:
         if not self.is_open:
             raise RuntimeError(
                 "Meshcat recorder is not open. Impossible to send requests.")
+
+        # Assert(s) for type checker
+        assert self.__shm is not None and self.proc is not None
+
         if message is not None:
             self.__shm['message'].value = message
         else:
@@ -330,6 +340,9 @@ class MeshcatRecorder:
                       height: Optional[int] = None) -> str:
         """ TODO: Write documentation.
         """
+        # Assert(s) for type checker
+        assert self.__shm is not None
+
         self._send_request(
             "take_snapshot", message=f"{width or -1}|{height or -1}")
         return self.__shm['message'].value
