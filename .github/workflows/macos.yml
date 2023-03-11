@@ -183,8 +183,9 @@ jobs:
         name: wheelhouse
         path: wheelhouse
     - name: Publish the wheel
-      uses: pypa/gh-action-pypi-publish@v1.6
+      uses: pypa/gh-action-pypi-publish@v1.7.1
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
-        packages_dir: wheelhouse
+        packages-dir: wheelhouse
+        verify-metadata: false
