@@ -920,14 +920,15 @@ class Viewer:
                 except ImportError:
                     pass
                 for server_info in server_list:
-                    if server_info['pid'] == server_pid:
-                        ws_path = (
-                            f"{server_info['base_url']}api/kernels/{kernel_id}"
-                            f"/channels?token={server_info['token']}")
-                        html_content = html_content.replace(
-                            "var ws_path = undefined;",
-                            f'var ws_path = "{ws_path}";')
-                        break
+                    if server_info['pid'] != server_pid:
+                        continue
+                    ws_url = (
+                        f"ws{server_info['url'][4:]}api/kernels/{kernel_id}"
+                        f"/channels?token={server_info['token']}")
+                    html_content = html_content.replace(
+                        "var ws_url = undefined;",
+                        f'var ws_url = "{ws_url}";')
+                    break
 
                 if interactive_mode() == 2:
                     # Isolate HTML in iframe

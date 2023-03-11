@@ -76,7 +76,7 @@
             };
 
             // May be overwritten externally by python in interactive mode
-            var ws_path = undefined;
+            var ws_url = undefined;
 
             // Connect the viewer to the existing server, though direct ZMP
             // websocket in standalone browser or though kernel communication
@@ -114,11 +114,10 @@
                         viewer.connection = null;  // The connection is no longer available
                     });
                 }
-                else if (ws_path !== undefined) {
+                else if (ws_url !== undefined) {
                     console.info("Unknown platform (jupyter-lab / vscode...)");
                     // Connect to kernel socket manually if necessary, namely for
                     // VSCode notebooks and jupyterlab.
-                    const ws_url = "ws" + window.parent.location.origin.substring(4) + ws_path;
                     viewer.connection = new window.WebSocket(ws_url);
 
                     // Define UUID generation utility to identify the comm and messages

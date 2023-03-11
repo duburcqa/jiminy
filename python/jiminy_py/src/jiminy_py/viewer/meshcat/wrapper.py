@@ -199,6 +199,14 @@ class CommManager:
             asyncio.set_event_loop(loop)
             self.__ioloop = tornado.ioloop.IOLoop()
 
+            # pylint: disable=abstract-class-instantiated
+            # Start comm socket
+            context = zmq.Context()
+            self.__comm_socket = context.socket(zmq.XREQ)
+            self.__comm_socket.connect(comm_url)
+            self.__comm_stream = ZMQStream(self.__comm_socket, self.__ioloop)
+            self.__comm_stream.on_recv(self.__forward_to_ipykernel)
+
             # Make sure the communication are processed at least once every
             # seconds for the redirection of comm msg related to watchdogs.
             def background_watchdog() -> None:
@@ -210,15 +218,10 @@ class CommManager:
                 # Re-schedule the method
                 if self.__ioloop is not None:
                     self.__ioloop.call_later(1.0, background_watchdog)
+
             background_watchdog()
 
-            # pylint: disable=abstract-class-instantiated
-            # Start comm socket
-            context = zmq.Context()
-            self.__comm_socket = context.socket(zmq.XREQ)
-            self.__comm_socket.connect(comm_url)
-            self.__comm_stream = ZMQStream(self.__comm_socket, self.__ioloop)
-            self.__comm_stream.on_recv(self.__forward_to_ipykernel)
+            # Start event loop
             self.__ioloop.start()
 
             # Stop running socket
