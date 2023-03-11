@@ -105,12 +105,20 @@ jobs:
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
         $InstallDir = "$RootDir/install"
-
         ${env:Path} += ";$InstallDir/lib"
 
+        # Generate stubs
+        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
+        python "$RootDir/build_tools/stub_gen.py" `
+          -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
+        Copy-Item -Force -Path "$RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi"
+
+        # Generate wheels
         Set-Location -Path "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
+        # Bundle non-standard dependencies with the wheels
         Remove-Item -Recurse -Path "$RootDir/build/pypi" -Include *.tar.gz
         Get-ChildItem -Recurse -Path "$RootDir/build/pypi/dist/jiminy_py" -Filter *.whl |
         Foreach-Object {

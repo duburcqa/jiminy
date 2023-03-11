@@ -36,35 +36,36 @@ namespace python
     {
         bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed") = bp::object()));
 
-        bp::class_<RandomPerlinProcess,
+        bp::class_<AbstractPerlinProcess,
+                   std::shared_ptr<AbstractPerlinProcess>,
+                   boost::noncopyable>("AbstractPerlinProcess", bp::no_init)
+            .def("__call__", &AbstractPerlinProcess::operator(),
+                             (bp::arg("self"), bp::arg("time")))
+            .def("reset", &AbstractPerlinProcess::reset)
+            .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
+                                          &AbstractPerlinProcess::getWavelength,
+                                          bp::return_value_policy<bp::copy_const_reference>())
+            .ADD_PROPERTY_GET_WITH_POLICY("num_octaves",
+                                          &AbstractPerlinProcess::getNumOctaves,
+                                          bp::return_value_policy<bp::copy_const_reference>())
+            .ADD_PROPERTY_GET_WITH_POLICY("scale",
+                                          &AbstractPerlinProcess::getScale,
+                                          bp::return_value_policy<bp::copy_const_reference>());
+
+        bp::class_<RandomPerlinProcess, bp::bases<AbstractPerlinProcess>,
                    std::shared_ptr<RandomPerlinProcess>,
                    boost::noncopyable>("RandomPerlinProcess",
                    bp::init<float64_t const &, float64_t const &, uint32_t const &>(
-                   (bp::arg("self"), "wavelength", bp::arg("scale") = 1.0, bp::arg("num_octaves") = 6U)))
-            .def("__call__", &RandomPerlinProcess::operator(),
-                             (bp::arg("self"), bp::arg("time")))
-            .def("reset", &RandomPerlinProcess::reset)
-            .add_property("wavelength", bp::make_function(&RandomPerlinProcess::getWavelength,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("num_octaves", bp::make_function(&RandomPerlinProcess::getNumOctaves,
-                                         bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("scale", bp::make_function(&RandomPerlinProcess::getScale,
-                                   bp::return_value_policy<bp::copy_const_reference>()));
+                   (bp::arg("self"), "wavelength", bp::arg("scale") = 1.0, bp::arg("num_octaves") = 6U)));
 
-        bp::class_<PeriodicPerlinProcess,
+        bp::class_<PeriodicPerlinProcess, bp::bases<AbstractPerlinProcess>,
                    std::shared_ptr<PeriodicPerlinProcess>,
                    boost::noncopyable>("PeriodicPerlinProcess",
                    bp::init<float64_t const &, float64_t const &, float64_t const &, uint32_t const &>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0, bp::arg("num_octaves") = 6U)))
-            .def("__call__", &PeriodicPerlinProcess::operator(),
-                             (bp::arg("self"), bp::arg("time")))
-            .def("reset", &PeriodicPerlinProcess::reset)
-            .add_property("wavelength", bp::make_function(&PeriodicPerlinProcess::getWavelength,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("period", bp::make_function(&PeriodicPerlinProcess::getPeriod,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("num_octaves", bp::make_function(&PeriodicPerlinProcess::getNumOctaves,
-                                         bp::return_value_policy<bp::copy_const_reference>()));
+            .ADD_PROPERTY_GET_WITH_POLICY("period",
+                                          &PeriodicPerlinProcess::getPeriod,
+                                          bp::return_value_policy<bp::copy_const_reference>());
 
         bp::class_<PeriodicGaussianProcess,
                    std::shared_ptr<PeriodicGaussianProcess>,
@@ -74,12 +75,15 @@ namespace python
             .def("__call__", &PeriodicGaussianProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &PeriodicGaussianProcess::reset)
-            .add_property("wavelength", bp::make_function(&PeriodicGaussianProcess::getWavelength,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("period", bp::make_function(&PeriodicGaussianProcess::getPeriod,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("dt", bp::make_function(&PeriodicGaussianProcess::getDt,
-                                bp::return_value_policy<bp::copy_const_reference>()));
+            .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
+                                          &PeriodicGaussianProcess::getWavelength,
+                                          bp::return_value_policy<bp::copy_const_reference>())
+            .ADD_PROPERTY_GET_WITH_POLICY("period",
+                                          &PeriodicGaussianProcess::getPeriod,
+                                          bp::return_value_policy<bp::copy_const_reference>())
+            .ADD_PROPERTY_GET_WITH_POLICY("dt",
+                                          &PeriodicGaussianProcess::getDt,
+                                          bp::return_value_policy<bp::copy_const_reference>());
 
         bp::class_<PeriodicFourierProcess,
                    std::shared_ptr<PeriodicFourierProcess>,
@@ -89,14 +93,18 @@ namespace python
             .def("__call__", &PeriodicFourierProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", &PeriodicFourierProcess::reset)
-            .add_property("wavelength", bp::make_function(&PeriodicFourierProcess::getWavelength,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("period", bp::make_function(&PeriodicFourierProcess::getPeriod,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("dt", bp::make_function(&PeriodicFourierProcess::getDt,
-                                bp::return_value_policy<bp::copy_const_reference>()))
-            .add_property("num_harmonics", bp::make_function(&PeriodicFourierProcess::getNumHarmonics,
-                                           bp::return_value_policy<bp::copy_const_reference>()));
+            .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
+                                          &PeriodicFourierProcess::getWavelength,
+                                          bp::return_value_policy<bp::copy_const_reference>())
+            .ADD_PROPERTY_GET_WITH_POLICY("period",
+                                          &PeriodicFourierProcess::getPeriod,
+                                          bp::return_value_policy<bp::copy_const_reference>())
+            .ADD_PROPERTY_GET_WITH_POLICY("dt",
+                                          &PeriodicFourierProcess::getDt,
+                                          bp::return_value_policy<bp::copy_const_reference>())
+            .ADD_PROPERTY_GET_WITH_POLICY("num_harmonics",
+                                          &PeriodicFourierProcess::getNumHarmonics,
+                                          bp::return_value_policy<bp::copy_const_reference>());
 
         bp::def("random_tile_ground", &randomTileGround,
                                       bp::args("size", "height_max", "interp_delta", "sparsity", "orientation", "seed"));

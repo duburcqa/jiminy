@@ -1,1 +1,2 @@
+include gym_jiminy/envs/py.typed
 recursive-include gym_jiminy/envs/data *

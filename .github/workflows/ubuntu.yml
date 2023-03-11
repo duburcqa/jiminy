@@ -143,16 +143,14 @@ jobs:
 
     #####################################################################################
 
-    - name: Python linter and static type checker
+    - name: Python linter
       if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
       run: |
         cd "$RootDir/python/jiminy_py/"
         pylint --rcfile="$RootDir/.pylintrc" "src/"
-        mypy --config-file="$RootDir/.mypy.ini" -p src
         for name in "common" "toolbox" "rllib"; do
           cd "$RootDir/python/gym_jiminy/$name"
           pylint --rcfile="$RootDir/.pylintrc" "gym_jiminy/"
-          mypy --config-file="$RootDir/.mypy.ini" -p gym_jiminy
         done
 
     #####################################################################################

@@ -154,10 +154,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             self.metadata['render.modes'].append('human')
 
         # Define some proxies for fast access
-        self.engine: jiminy.EngineMultiRobot = self.simulator.engine
+        self.engine: jiminy.Engine = self.simulator.engine
         self.stepper_state: jiminy.StepperState = self.engine.stepper_state
         self.system_state: jiminy.SystemState = self.engine.system_state
-        self.sensors_data: jiminy.sensorsData = dict(self.robot.sensors_data)
+        self.sensors_data: Dict[str, np.ndarray] = dict(
+            self.robot.sensors_data)
+        self.controller = BaseJiminyObserverController()
 
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
@@ -248,7 +250,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                            t: float,
                            q: np.ndarray,
                            v: np.ndarray,
-                           sensors_data: jiminy.sensorsData,
+                           sensors_data: Dict[str, np.ndarray],
                            command: np.ndarray) -> None:
         """Thin wrapper around user-specified `compute_command` method.
 
@@ -577,7 +579,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The memory address of the low-level has changed.")
 
         # Re-initialize some shared memories.
-        # It must be done because the robot may have changed.
+        # It is necessary because the robot may have changed.
         self.sensors_data = dict(self.robot.sensors_data)
 
         # Enforce the low-level controller.
@@ -591,9 +593,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # separately, while dealing with all the logics internally. This extra
         # layer of indirection makes it computationally less efficient than
         # `jiminy.ControllerFunctor` but it is a small price to pay.
-        controller = BaseJiminyObserverController()
-        controller.initialize(self.robot)
-        self.simulator.set_controller(controller)
+        self.controller.initialize(self.robot)
+        self.simulator.set_controller(self.controller)
 
         # Reset the simulator.
         # Do NOT remove all forces since it has already been done before, and
@@ -630,11 +631,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 observer_handle, controller_handle = handles
         if observer_handle is None:
             observer_handle = self._observer_handle
-        self.simulator.controller.set_observer_handle(
+        self.controller.set_observer_handle(
             observer_handle, unsafe=True)
         if controller_handle is None:
             controller_handle = self._controller_handle
-        self.simulator.controller.set_controller_handle(
+        self.controller.set_controller_handle(
             controller_handle, unsafe=True)
 
         # Configure the maximum number of steps
@@ -643,7 +644,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Register user-specified variables to the telemetry
         for header, value in self._registered_variables.values():
-            register_variables(self.simulator.controller, header, value)
+            register_variables(self.controller, header, value)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -667,7 +668,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Initialize the observer.
         # Note that it is responsible of refreshing the environment's
         # observation before anything else, so no need to do it twice.
-        self.engine.controller.refresh_observation(
+        self.controller.refresh_observation(
             self.stepper_state.t,
             self.system_state.q,
             self.system_state.v,
@@ -772,7 +773,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Update the observer at the end of the step. Indeed, internally,
         # it is called at the beginning of the every integration steps,
         # during the controller update.
-        self.engine.controller.refresh_observation(
+        self.controller.refresh_observation(
             self.stepper_state.t,
             self.system_state.q,
             self.system_state.v,
@@ -911,7 +912,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # In such a case, keys corresponds to subplots, and values are
         # individual scalar data over time to be displayed to the same subplot.
         t = log_vars["Global.Time"]
-        tab_data = {}
+        tab_data: Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]] = {}
         action_fieldnames = self.log_fieldnames.get("action")
         if action_fieldnames is None:
             # It was impossible to register the action to the telemetry, likely
@@ -968,7 +969,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             kwargs['travelling_frame'] = \
                 self.robot.pinocchio_model.frames[2].name
 
-        self.simulator.replay(**{'verbose': False, **kwargs})
+        self.simulator.replay(
+            **{'verbose': False, **kwargs})  # type: ignore[arg-type]
 
     @staticmethod
     def play_interactive(env: Union["BaseJiminyEnv", gym.Wrapper],
@@ -1399,7 +1401,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if not self.simulator.is_simulation_running:
             state['Q'], state['V'] = self.simulator.state
             if self.sensors_data:
-                self._observation['sensors'] = self.sensors_data
+                self._observation[
+                    'sensors'] = self.sensors_data  # type: ignore[assignment]
         else:
             q, v = state['Q'], state['V']
             assert isinstance(q, np.ndarray) and isinstance(v, np.ndarray)
@@ -1519,7 +1522,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv):
     usual.
     """
     def __init__(self,
-                 simulator: Optional[Simulator],
+                 simulator: Simulator,
                  step_dt: float,
                  debug: bool = False) -> None:
         # Initialize base class

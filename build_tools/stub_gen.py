@@ -1,6 +1,7 @@
-# Monkey-patch pybind11-stubgen to handle Boost Python
+# Monkey-patch pybind11-stubgen to handle Boost Python.
 #
-# Based on https://github.com/jcarpent/pybind11-stubgen/blob/master/pybind11_stubgen/__init__.py
+# `extract_boost_python_signature` and `init_function_signature` methods are based on
+# https://github.com/jcarpent/pybind11-stubgen/blob/master/pybind11_stubgen/__init__.py.
 # Copyright (c) 2014-2020, CNRS
 # Copyright (c) 2018-2020, INRIA
 import re
@@ -9,7 +10,9 @@ import logging
 from functools import partialmethod
 
 import pybind11_stubgen
-from pybind11_stubgen import logger, main, replace_default_pybind11_repr, FunctionSignature
+from pybind11_stubgen import (
+    logger, main, replace_default_pybind11_repr, FunctionSignature,
+    PropertySignature, StubsGenerator)
 
 
 issubclass_orig = issubclass
@@ -21,7 +24,7 @@ def _issubclass(cls, class_or_tuple, /):
     except TypeError as e:
         if not isinstance(class_or_tuple, tuple):
             class_or_tuple = (class_or_tuple,)
-        if all(issubclass(cls_, dict) for cls_ in class_or_tuple):
+        if all(issubclass_orig(cls_, dict) for cls_ in class_or_tuple):
             return issubclass_orig(cls, dict)
         raise e
 
@@ -51,9 +54,12 @@ def extract_boost_python_signature(args: str) -> str:
     if nominal_args:
         for k, arg in enumerate(nominal_args):
             type_name = re.search('\((.*?)\)', arg).group(1)
+            # `bp::object` can be basically anything, so switching to 'Any'.
+            if type_name == "object":
+                type_name = "typing.Any"
+
             _, arg_name = map(str.strip, arg.split(")", 1))
             arg_name = arg_name.replace(' ','_')
-
             new_args += arg_name + ": " + type_name
             if k < num_nominal_args - 1:
                 new_args += ", "
@@ -65,12 +71,14 @@ def extract_boost_python_signature(args: str) -> str:
         for k, arg in enumerate(optional_args):
             main_arg, *optional_args = map(str.strip, arg.split('=', 1))
             type_name = re.search('\((.*?)\)', main_arg).group(1)
+            if type_name == "object":
+                type_name = "typing.Any"
 
             _, arg_name = map(str.strip, main_arg.split(")", 1))
             arg_name = arg_name.replace(' ','_')
             new_args += arg_name + ": " + type_name
             optional_value = None
-            if len(optional_args) > 1:
+            if optional_args:
                 optional_value, *_ = optional_args
                 new_args += " = " + optional_value
 
@@ -97,7 +105,14 @@ def init_function_signature(self, name, args='*args, **kwargs', rtype='None', va
         try:
             if args:
                 self.args = extract_boost_python_signature(args)
-            self.rtype = rtype.split(" :")[0]
+            if self.name == "__init__":
+                # Boost::python produces incorrect return type `bp::object` when a factory
+                # is passed to `bp::make_constructor` to customize `__init__`.
+                self.rtype = 'None'
+            else:
+                self.rtype = rtype.split(" :")[0]
+                if self.rtype == "object":
+                    self.rtype = "typing.Any"
         except IndexError:
             lvl = logging.WARNING if FunctionSignature.ignore_invalid_signature else logging.ERROR
             logger.log(lvl, "[%s] Bad signature formatting: '%s'", name, args)
@@ -132,21 +147,19 @@ def to_lines_classmember_replace_self(self):
     for sig in self.signatures:
         args = sig.args
         sargs = args.strip()
-        # =============================================================
         # Boost::Python does not name "self" as such automatically.
         # Thus, the condition should be based on type rather than name.
-        # =============================================================
         args_splitted = sig.split_arguments()
-        if args_splitted[0].split(':', 1)[-1].strip() not in (self.member.__module__, "object"):
-            if sargs.startswith("cls"):
-                result.append("@classmethod")
-                # remove type of cls
-                args = ",".join(["cls"] + args_splitted[1:])
+        if args_splitted:
+            if args_splitted[0].split(':', 1)[-1].strip() not in (
+                    self.member.__module__, "typing.Any"):
+                if sargs.startswith("cls"):
+                    result.append("@classmethod")
+                    args = ",".join(["cls"] + args_splitted[1:])
+                else:
+                    result.append("@staticmethod")
             else:
-                result.append("@staticmethod")
-        else:
-            # remove type of self
-            args = ",".join(["self"] + args_splitted[1:])
+                args = ",".join(["self"] + args_splitted[1:])
         if len(self.signatures) > 1:
             result.append("@typing.overload")
 
@@ -160,16 +173,62 @@ def to_lines_classmember_replace_self(self):
         )
         if docstring:
             result.append(self.format_docstring(docstring))
-            docstring = None  # don't print docstring for other overloads
+            docstring = None
     return result
 
 
+def get_property_signature(prop, module_name):
+    getter_rtype = "None"
+    setter_args = "None"
+    access_type = PropertySignature.NONE
+
+    # Boost::Python docstring is added to the property itself, not its getter/setter
+    if prop.__doc__ is not None:
+        for line in prop.__doc__.split("\n"):
+            m = re.match(r"^\s*fget\(.*\)\s*->\s*(?P<rtype>[^()\s:]+)\s*:?\s*$", line)
+            if m:
+                getter_rtype = m.group("rtype")
+                if getter_rtype == "object":
+                    getter_rtype = "typing.Any"
+                break
+        for line in prop.__doc__.split("\n"):
+            m = re.match(r"^\s*fset\(\s*(?P<args>.*)\s*\)\s*->\s*[^()\s:]+\s*:?\s*$", line)
+            if m:
+                setter_args = extract_boost_python_signature(m.group("args"))
+                break
+
+    if hasattr(prop, "fget") and prop.fget is not None:
+        access_type |= PropertySignature.READ_ONLY
+    if hasattr(prop, "fset") and prop.fset is not None:
+        access_type |= PropertySignature.WRITE_ONLY
+
+    getter_rtype = StubsGenerator.apply_classname_replacements(getter_rtype)
+    setter_args = StubsGenerator.apply_classname_replacements(setter_args)
+    return PropertySignature(getter_rtype, setter_args, access_type)
+
+
+def remove_signatures(docstring):
+    if docstring is None:
+        return ""
+
+    for hook in pybind11_stubgen.function_docstring_preprocessing_hooks:
+        docstring = hook(docstring)
+
+    lines = docstring.split("\n")
+    signature_regex = r"(\s*\d+.\s*)?\w+\s*\(.*\)\s*(->\s*[^\(\)]+)\s*?"
+    return "\n".join(
+        filter(lambda line: not re.match(signature_regex, line), lines))
+
+pybind11_stubgen.logger.setLevel(logging.INFO)
 pybind11_stubgen.__builtins__['issubclass'] = _issubclass
 pybind11_stubgen.ClassMemberStubsGenerator.to_lines = to_lines_classmember_replace_self
 pybind11_stubgen.FunctionSignature.__init__ = init_function_signature
+pybind11_stubgen.StubsGenerator.property_signature_from_docstring = staticmethod(get_property_signature)
+pybind11_stubgen.StubsGenerator.remove_signatures = remove_signatures
 pybind11_stubgen.ClassStubsGenerator.__init__ = partialmethod(
     pybind11_stubgen.ClassStubsGenerator.__init__,
     base_class_blacklist=("object", "instance"))
+
 
 if __name__ == "__main__":
     main()

@@ -26,26 +26,36 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("name", bp::make_function(&AbstractMotorBase::getName,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("idx", bp::make_function(&AbstractMotorBase::getIdx,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_name", bp::make_function(&AbstractMotorBase::getJointName,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_idx", bp::make_function(&AbstractMotorBase::getJointModelIdx,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_type", bp::make_function(&AbstractMotorBase::getJointType,
-                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_position_idx", bp::make_function(&AbstractMotorBase::getJointPositionIdx,
-                                                    bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joint_velocity_idx", bp::make_function(&AbstractMotorBase::getJointVelocityIdx,
-                                                    bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("command_limit", bp::make_function(&AbstractMotorBase::getCommandLimit,
-                                              bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("armature", bp::make_function(&AbstractMotorBase::getArmature,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
+                                              &AbstractMotorBase::getIsInitialized,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("name",
+                                              &AbstractMotorBase::getName,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("idx",
+                                              &AbstractMotorBase::getIdx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
+                                              &AbstractMotorBase::getJointName,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
+                                              &AbstractMotorBase::getJointModelIdx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
+                                              &AbstractMotorBase::getJointType,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_position_idx",
+                                              &AbstractMotorBase::getJointPositionIdx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_velocity_idx",
+                                              &AbstractMotorBase::getJointVelocityIdx,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("command_limit",
+                                              &AbstractMotorBase::getCommandLimit,
+                                              bp::return_value_policy<bp::copy_const_reference>())
+                .ADD_PROPERTY_GET_WITH_POLICY("armature",
+                                              &AbstractMotorBase::getArmature,
+                                              bp::return_value_policy<bp::copy_const_reference>())
 
                 .def("set_options", &PyAbstractMotorVisitor::setOptions)
                 .def("get_options", &AbstractMotorBase::getOptions)

@@ -90,10 +90,10 @@ if __name__ == "__main__":
         input_str = input_file.read()
 
     # Extract boost python method definitions
-    pat_head = r'(\.def\("(?!__)[a-zA-Z0-9_\r\n", <>\*\(\):&]*?&)'
+    pat_head = r'(\.? *[a-zA-Z0-9_]+\("(?!__)[a-zA-Z0-9_\r\n", <>\*\(\):&]*?&)'
     pat_class_method = r'([^ ,\(\)*]+)::([^ ,\(\)*]+)'
     pat_tail = r'([a-zA-Z0-9_\r\n", <>\(\):=\-@]*?)\)'
-    pat_delim = r'(?=(?: *\n? *?(?:;|\.|\n\n)| *//))'
+    pat_delim = r'(?=(?: *\n? *(?:;|\.|\n\n)| *//))'
     bp_def_list = re.findall(
         fr'{pat_head}{pat_class_method}{pat_tail}{pat_delim}', input_str)
 

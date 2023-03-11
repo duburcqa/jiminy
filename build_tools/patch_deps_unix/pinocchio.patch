@@ -90,6 +90,20 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
    else()
  
      if(APPLE)
+diff --git a/cmake/python.cmake b/cmake/python.cmake
+--- a/cmake/python.cmake
++++ b/cmake/python.cmake
+@@ -168,7 +168,9 @@
+       set(Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIR ${PYTHON_INCLUDE_DIR})
+ 
+       find_package("Python${_PYTHON_VERSION_MAJOR}" REQUIRED
+-                   COMPONENTS ${PYTHON_COMPONENTS})
++                   COMPONENTS Interpreter)
++      execute_process(COMMAND "${Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE}" -c "import sysconfig as sysconfig; print(sysconfig.get_path('include'))"
++                      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIRS)
+     else()
+       # No hint was provided. We can then check for first Python 2, then Python
+       # 3
 diff --git a/bindings/python/CMakeLists.txt b/bindings/python/CMakeLists.txt
 --- a/bindings/python/CMakeLists.txt
 +++ b/bindings/python/CMakeLists.txt
@@ -111,11 +125,59 @@ diff --git a/bindings/python/CMakeLists.txt b/bindings/python/CMakeLists.txt
    INSTALL(
      TARGETS ${PYWRAP}
      EXPORT ${TARGETS_EXPORT_NAME}
+diff --git a/bindings/python/algorithm/expose-aba.cpp b/bindings/python/algorithm/expose-aba.cpp
+--- a/bindings/python/algorithm/expose-aba.cpp
++++ b/bindings/python/algorithm/expose-aba.cpp
+@@ -25,27 +25,19 @@
+ 
+       bp::def("aba",
+               &aba<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd,VectorXd>,
+-              bp::args("Model","Data",
+-                       "Joint configuration q (size Model::nq)",
+-                       "Joint velocity v (size Model::nv)",
+-                       "Joint torque tau (size Model::nv)"),
++              bp::args("Model","Data","q","v","tau"),
+               "Compute ABA, store the result in Data::ddq and return it.",
+               bp::return_value_policy<bp::return_by_value>());
+ 
+       bp::def("aba",
+               &aba<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd,VectorXd,Force>,
+-              bp::args("Model","Data",
+-                       "Joint configuration q (size Model::nq)",
+-                       "Joint velocity v (size Model::nv)",
+-                       "Joint torque tau (size Model::nv)",
+-                       "Vector of external forces expressed in the local frame of each joint (size Model::njoints)"),
++              bp::args("Model","Data","q","v","tau","f_ext"),
+               "Compute ABA with external forces, store the result in Data::ddq and return it.",
+               bp::return_value_policy<bp::return_by_value>());
+ 
+       bp::def("computeMinverse",
+               &computeMinverse_proxy,
+-              bp::args("Model","Data",
+-                       "Joint configuration q (size Model::nq)"),
++              bp::args("Model","Data","q"),
+               "Computes the inverse of the joint space inertia matrix using a variant of the Articulated Body algorithm.\n"
+               "The result is stored in data.Minv.",
+               bp::return_value_policy<bp::return_by_value>());
+diff --git a/bindings/python/algorithm/expose-centroidal-derivatives.cpp b/bindings/python/algorithm/expose-centroidal-derivatives.cpp
+--- a/bindings/python/algorithm/expose-centroidal-derivatives.cpp
++++ b/bindings/python/algorithm/expose-centroidal-derivatives.cpp
+@@ -50,10 +50,7 @@
+ 
+       bp::def("computeCentroidalDynamicsDerivatives",
+               computeCentroidalDynamicsDerivatives_proxy,
+-              bp::args("Model","Data",
+-                       "q: configuration vector (size model.nq)",
+-                       "v: velocity vector (size model.nv)",
+-                       "a: acceleration vector (size model.nv)"),
++              bp::args("Model","Data","q","v","a"),
+               "Computes the analytical derivatives of the centroidal dynamics\n"
+               "with respect to the joint configuration vector, velocity and acceleration.");
+ 
 diff --git a/bindings/python/algorithm/expose-com.cpp b/bindings/python/algorithm/expose-com.cpp
-index 50c5ab03..bd2c3ae5 100644
 --- a/bindings/python/algorithm/expose-com.cpp
 +++ b/bindings/python/algorithm/expose-com.cpp
-@@ -229,10 +229,10 @@ namespace pinocchio
+@@ -229,10 +229,10 @@
                         "subtree_root_joint_id"),
                "Computes the Jacobian of the CoM of the given subtree (subtree_root_joint_id) expressed in the WORLD frame, according to the given joint configuration.");
        bp::def("jacobianSubtreeCoMJacobian",jacobian_subtree_com_kinematics_proxy,
@@ -129,8 +191,8 @@ index 50c5ab03..bd2c3ae5 100644
 +                       "subtree_root_joint_id"),
                "Computes the Jacobian of the CoM of the given subtree expressed in the world frame, according to the given joint configuration.",
                deprecated_function<>("This function is now deprecated. It has been renamed jacobianSubtreeCenterOfMass."));
-       
-@@ -243,9 +243,9 @@ namespace pinocchio
+ 
+@@ -243,9 +243,9 @@
                "Computes the Jacobian of the CoM of the given subtree (subtree_root_joint_id) expressed in the WORLD frame, according to the given entries in data.");
  
        bp::def("jacobianSubtreeCoMJacobian",jacobian_subtree_com_proxy,
@@ -142,9 +204,160 @@ index 50c5ab03..bd2c3ae5 100644
 +                       "subtree_root_joint_id"),
                "Computes the Jacobian of the CoM of the given subtree expressed in the world frame, according to the given entries in data.",
                deprecated_function<>("This function is now deprecated. It has been renamed jacobianSubtreeCenterOfMass."));
-       
+ 
+diff --git a/bindings/python/algorithm/expose-contact-dynamics.cpp b/bindings/python/algorithm/expose-contact-dynamics.cpp
+--- a/bindings/python/algorithm/expose-contact-dynamics.cpp
++++ b/bindings/python/algorithm/expose-contact-dynamics.cpp
+@@ -91,13 +91,7 @@
+       bp::def("forwardDynamics",
+               &forwardDynamics_proxy,
+               forwardDynamics_overloads(
+-              bp::args("Model","Data",
+-                       "Joint configuration q (size Model::nq)",
+-                       "Joint velocity v (size Model::nv)",
+-                       "Joint torque tau (size Model::nv)",
+-                       "Contact Jacobian J (size nb_constraint * Model::nv)",
+-                       "Contact drift gamma (size nb_constraint)",
+-                       "(double) Damping factor for cholesky decomposition of JMinvJt. Set to zero if constraints are full rank."),
++              bp::args("Model","Data","q","v","tau","J","gamma","damping"),
+               "Solves the forward dynamics problem with contacts, puts the result in Data::ddq and return it. The contact forces are stored in data.lambda_c."
+               " Internally, pinocchio.computeAllTerms is called."
+               ));
+@@ -105,11 +99,7 @@
+       bp::def("forwardDynamics",
+               &forwardDynamics_proxy_no_q,
+               forwardDynamics_overloads_no_q(
+-              bp::args("Model","Data",
+-                       "Joint torque tau (size Model::nv)",
+-                       "Contact Jacobian J (size nb_constraint * Model::nv)",
+-                       "Contact drift gamma (size nb_constraint)",
+-                       "(double) Damping factor for cholesky decomposition of JMinvJt. Set to zero if constraints are full rank."),
++              bp::args("Model","Data","tau","J","gamma","damping"),
+               "Solves the forward dynamics problem with contacts, puts the result in Data::ddq and return it. The contact forces are stored in data.lambda_c."
+               " Assumes pinocchio.computeAllTerms has been called."
+               ));
+@@ -117,13 +107,7 @@
+       bp::def("impulseDynamics",
+               &impulseDynamics_proxy,
+               impulseDynamics_overloads(
+-              bp::args("Model","Data",
+-                       "Joint configuration q (size Model::nq)",
+-                       "Joint velocity before impact v_before (size Model::nv)",
+-                       "Contact Jacobian J (size nb_constraint * Model::nv)",
+-                       "Coefficient of restitution r_coeff (0 = rigid impact; 1 = fully elastic impact)",
+-                       "Damping factor when J is rank deficient."
+-                       ),
++              bp::args("Model","Data","q","v_before","J","r_coeff","damping"),
+               "Solves the impact dynamics problem with contacts, store the result in Data::dq_after and return it. The contact impulses are stored in data.impulse_c."
+               " Internally, pinocchio.crba is called."
+               ));
+@@ -131,11 +115,7 @@
+       bp::def("impulseDynamics",
+               &impulseDynamics_proxy_no_q,
+               impulseDynamics_overloads_no_q(
+-              bp::args("Model","Data",
+-                       "Joint velocity before impact v_before (size Model::nv)",
+-                       "Contact Jacobian J (size nb_constraint * Model::nv)",
+-                       "Coefficient of restitution r_coeff (0 = rigid impact; 1 = fully elastic impact)",
+-                       "Damping factor when J is rank deficient."),
++              bp::args("Model","Data","v_before","J","r_coeff","damping"),
+               "Solves the impact dynamics problem with contacts, store the result in Data::dq_after and return it. The contact impulses are stored in data.impulse_c."
+               " Assumes pinocchio.crba has been called."
+               ));
+@@ -147,8 +127,7 @@
+ 
+       bp::def("getKKTContactDynamicMatrixInverse",
+               getKKTContactDynamicMatrixInverse_proxy,
+-              bp::args("Model","Data",
+-                       "Contact Jacobian J(size nb_constraint * Model::nv)"),
++              bp::args("Model","Data","J"),
+               "Computes the inverse of the constraint matrix [[M JT], [J 0]]. forward/impulseDynamics must be called first. The jacobian should be the same that was provided to forward/impulseDynamics.");
+     }
+ 
+diff --git a/bindings/python/multibody/joint/joints-variant.hpp b/bindings/python/multibody/joint/joints-variant.hpp
+index c011adbf2..6212a8fa3 100644
+--- a/bindings/python/multibody/joint/joints-variant.hpp
++++ b/bindings/python/multibody/joint/joints-variant.hpp
+@@ -5,6 +5,8 @@
+ #ifndef __pinocchio_python_joints_variant_hpp__
+ #define __pinocchio_python_joints_variant_hpp__
+ 
++#include <boost/algorithm/string/replace.hpp>
++
+ #include <boost/python.hpp>
+ 
+ #include "pinocchio/multibody/joint/joint-collection.hpp"
+@@ -18,6 +20,14 @@
+   {
+     namespace bp = boost::python;
+ 
++    template<typename T>
++    std::string sanitizedClassname()
++    {
++        std::string className = boost::replace_all_copy(T::classname(), "<", "_");
++        boost::replace_all(className, ">", "");
++        return className;
++    }
++
+     template<typename VariantType>
+     struct JointVariantVisitor : boost::static_visitor<PyObject *>
+     {
+@@ -39,8 +49,8 @@
+       void operator()(T)
+       {
+         expose_joint_data<T>(
+-            bp::class_<T>(T::classname().c_str(),
+-                          T::classname().c_str(),
++            bp::class_<T>(sanitizedClassname<T>().c_str(),
++                          sanitizedClassname<T>().c_str(),
+                           bp::init<>())
+             .def(JointDataDerivedPythonVisitor<T>())
+             .def(PrintableVisitor<T>())
+@@ -55,8 +65,8 @@
+       void operator()(T)
+       {
+         expose_joint_model<T>(
+-            bp::class_<T>(T::classname().c_str(),
+-                          T::classname().c_str(),
++            bp::class_<T>(sanitizedClassname<T>().c_str(),
++                          sanitizedClassname<T>().c_str(),
+                           bp::no_init)
+             .def(JointModelDerivedPythonVisitor<T>())
+             .def(PrintableVisitor<T>())
+diff --git a/bindings/python/multibody/model.hpp b/bindings/python/multibody/model.hpp
+--- a/bindings/python/multibody/model.hpp
++++ b/bindings/python/multibody/model.hpp
+@@ -184,7 +184,7 @@
+              bp::args("self","joint_id","body_inertia","body_placement"),
+              "Appends a body to the joint given by its index. The body is defined by its inertia, its relative placement regarding to the joint and its name.")
+ 
+-        .def("addBodyFrame", &Model::addBodyFrame, bp::args("self","body_name", "parentJoint", "body_placement", "previous_frame(parent frame)"), "add a body to the frame tree")
++        .def("addBodyFrame", &Model::addBodyFrame, bp::args("self","body_name", "parentJoint", "body_placement", "previous_frame"), "add a body to the frame tree")
+         .def("getBodyId",&Model::getBodyId, bp::args("self","name"), "Return the index of a frame of type BODY given by its name")
+         .def("existBodyName", &Model::existBodyName, bp::args("self","name"), "Check if a frame of type BODY exists, given its name")
+         .def("getJointId",&Model::getJointId, bp::args("self","name"), "Return the index of a joint given by its name")
+diff --git a/bindings/python/pinocchio/deprecated.py b/bindings/python/pinocchio/deprecated.py
+--- a/bindings/python/pinocchio/deprecated.py
++++ b/bindings/python/pinocchio/deprecated.py
+@@ -33,7 +33,7 @@
+ 
+ impulseDynamics.__doc__ =  (
+   pin.impulseDynamics.__doc__
+-  + '\n\nimpulseDynamics( (Model)Model, (Data)Data, (object)Joint configuration q (size Model::nq), (object)Joint velocity before impact v_before (size Model::nv), (object)Contact Jacobian J (size nb_constraint * Model::nv), (float)Coefficient of restitution r_coeff (0 = rigid impact; 1 = fully elastic impact), (bool)updateKinematics) -> object :'
++  + '\n\nimpulseDynamics( (Model)Model, (Data)Data, (object)q, (object)v_before, (object)J, (float)r_coeff, (bool)updateKinematics) -> object :'
+   + '\n    This function signature has been deprecated and will be removed in future releases of Pinocchio.'
+ )
+ 
+@@ -60,7 +60,7 @@
+ 
+ forwardDynamics.__doc__ = (
+   pin.forwardDynamics.__doc__
+-  + '\n\nforwardDynamics( (Model)Model, (Data)Data, (object)Joint configuration q (size Model::nq), (object)Joint velocity v (size Model::nv), (object)Joint torque tau (size Model::nv), (object)Contact Jacobian J (size nb_constraint * Model::nv), (object)Contact drift gamma (size nb_constraint), (float)(double) Damping factor for cholesky decomposition of JMinvJt. Set to zero if constraints are full rank, (bool)Update kinematics) -> object :'
++  + '\n\nforwardDynamics( (Model)Model, (Data)Data, (object)q, (object)v, (object)tau, (object)J, (object)gamma, (float)damping, (bool)update_kinematics) -> object :'
+ + '\n    This function signature has been deprecated and will be removed in future releases of Pinocchio.'
+ )
+ 
 diff --git a/bindings/python/spatial/expose-explog.cpp b/bindings/python/spatial/expose-explog.cpp
-index f5e03568..0edd0a1c 100644
 --- a/bindings/python/spatial/expose-explog.cpp
 +++ b/bindings/python/spatial/expose-explog.cpp
 @@ -3,8 +3,8 @@
@@ -157,26 +370,75 @@ index f5e03568..0edd0a1c 100644
  
  namespace pinocchio
  {
-@@ -26,7 +26,7 @@ namespace pinocchio
+@@ -16,22 +16,22 @@
+     {
+ 
+       bp::def("exp3",&exp3_proxy<Eigen::Vector3d>,
+-              bp::arg("Angular velocity (vector of size 3)"),
++              bp::arg("v"),
+               "Exp: so3 -> SO3. Return the integral of the input"
+               " angular velocity during time 1.");
+ 
+       bp::def("Jexp3",&Jexp3_proxy<Eigen::Vector3d>,
+-              bp::arg("v: Angular velocity (vector of size 3)"),
++              bp::arg("v"),
+               "Jacobian of exp(R) which maps from the tangent of SO(3) at exp(v) to"
                " the tangent of SO(3) at Identity.");
-       
+ 
        bp::def("log3",&log3_proxy<Eigen::Matrix3d>,
 -              bp::arg("Rotation matrix (matrix of size 3x3))"),
 +              bp::arg("R"),
                "Log: SO3 -> so3. Pseudo-inverse of log from SO3"
                " -> { v in so3, ||v|| < 2pi }.Exp: so3 -> SO3.");
-       
-diff --git a/cmake/python.cmake b/cmake/python.cmake
---- a/cmake/python.cmake
-+++ b/cmake/python.cmake
-@@ -168,7 +168,9 @@
-       set(Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIR ${PYTHON_INCLUDE_DIR})
  
-       find_package("Python${_PYTHON_VERSION_MAJOR}" REQUIRED
--                   COMPONENTS ${PYTHON_COMPONENTS})
-+                   COMPONENTS Interpreter)
-+      execute_process(COMMAND "${Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE}" -c "import sysconfig as sysconfig; print(sysconfig.get_path('include'))"
-+                      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIRS)
-     else()
-       # No hint was provided. We can then check for first Python 2, then Python
-       # 3
+       bp::def("Jlog3",&Jlog3_proxy<Eigen::Matrix3d>,
+-              bp::arg("Rotation matrix R (matrix of size 3x3)"),
++              bp::arg("R"),
+               "Jacobian of log(R) which maps from the tangent of SO(3) at R to"
+               " the tangent of SO(3) at Identity.");
+ 
+@@ -41,37 +41,37 @@
+               "v^T * H where H is the Hessian of log(R)");
+ 
+       bp::def("exp6",&exp6_proxy<double,0>,
+-              bp::arg("Spatial velocity (Motion)"),
++              bp::arg("v"),
+               "Exp: se3 -> SE3. Return the integral of the input"
+               " spatial velocity during time 1.");
+ 
+       bp::def("exp6",&exp6_proxy<Motion::Vector6>,
+-              bp::arg("Spatial velocity (vector 6x1)"),
++              bp::arg("v"),
+               "Exp: se3 -> SE3. Return the integral of the input"
+               " spatial velocity during time 1.");
+ 
+       bp::def("Jexp6",&Jexp6_proxy<double,0>,
+-              bp::arg("v: Spatial velocity (Motion)"),
++              bp::arg("v"),
+               "Jacobian of exp(v) which maps from the tangent of SE(3) at exp(v) to"
+               " the tangent of SE(3) at Identity.");
+ 
+       bp::def("Jexp6",&Jexp6_proxy<Motion::Vector6>,
+-              bp::arg("v: Spatial velocity (vector 6x1)"),
++              bp::arg("v"),
+               "Jacobian of exp(v) which maps from the tangent of SE(3) at exp(v) to"
+               " the tangent of SE(3) at Identity.");
+ 
+       bp::def("log6",(Motion (*)(const SE3 &))&log6<double,0>,
+-              bp::arg("Spatial transform (SE3)"),
++              bp::arg("M"),
+               "Log: SE3 -> se3. Pseudo-inverse of exp from SE3"
+               " -> { v,w in se3, ||w|| < 2pi }.");
+ 
+       bp::def("log6",&log6_proxy<Eigen::Matrix4d>,
+-              bp::arg("Homegenious matrix (matrix 4x4)"),
++              bp::arg("H"),
+               "Log: SE3 -> se3. Pseudo-inverse of exp from SE3"
+               " -> { v,w in se3, ||w|| < 2pi }.");
+ 
+       bp::def("Jlog6",&Jlog6_proxy<double,0>,
+-              bp::arg("Spatial transform M (SE3)"),
++              bp::arg("M"),
+               "Jacobian of log(M) which maps from the tangent of SE(3) at M to"
+               " the tangent of SE(3) at Identity.");
+ 

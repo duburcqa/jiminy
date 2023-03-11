@@ -231,7 +231,6 @@ mkdir -p "$RootDir/boost/build"
      linkflags="${CMAKE_CXX_FLAGS_B2}" \
      variant="$BuildTypeB2" install -q -d0 -j2
 
-# Boost::Python is never compiled in debug mode because already registered converter triggers an assert
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-python \
      --build-type=minimal --layout=system --lto=off \
@@ -239,7 +238,7 @@ mkdir -p "$RootDir/boost/build"
      threading=single link=shared runtime-link=shared debug-symbols=off \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
      linkflags="${CMAKE_CXX_FLAGS_B2}" \
-     variant="release" install -q -d0 -j2
+     variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 
@@ -262,7 +261,7 @@ cmake "$RootDir/eigenpy" \
       -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DPYTHON_STANDARD_LAYOUT=ON \
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
-      -DGENERATE_PYTHON_STUBS=ON -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
+      -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} $(
       ) -Wno-strict-aliasing" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
@@ -354,7 +353,7 @@ cmake "$RootDir/hpp-fcl" \
       -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DPYTHON_STANDARD_LAYOUT=ON \
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
-      -DHPP_FCL_HAS_QHULL=ON -DBUILD_PYTHON_INTERFACE=ON -DGENERATE_PYTHON_STUBS=ON \
+      -DHPP_FCL_HAS_QHULL=ON -DBUILD_PYTHON_INTERFACE=ON -DGENERATE_PYTHON_STUBS=OFF \
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} $(
       ) -Wno-unused-parameter -Wno-class-memaccess -Wno-sign-compare-Wno-conversion -Wno-ignored-qualifiers $(
@@ -378,7 +377,7 @@ cmake "$RootDir/pinocchio" \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
       -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF \
-      -DGENERATE_PYTHON_STUBS=ON -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
+      -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
       ) -Wno-uninitialized -Wno-type-limits -Wno-deprecated-declarations -Wno-unused-local-typedefs $(
       ) -Wno-extra -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"

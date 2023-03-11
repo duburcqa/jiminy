@@ -2,17 +2,17 @@
 control design.
 
 It implements:
-
 - the concept of block that can be connected to a `BaseJiminyEnv` environment
   through any level of indirection
-- a base controller block, along with a concret PD controller
+- a base controller block, along with a concrete PD controller
 - a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
   eventually already wrapped, so that it appears as a black-box environment.
 """
 from copy import deepcopy
 from collections import OrderedDict
 from itertools import chain
-from typing import Optional, Union, Tuple, Dict, Any, Iterable, Callable
+from typing import (
+    Optional, Union, Tuple, Dict, Any, Iterable, Callable)
 
 import numpy as np
 import gym
@@ -62,7 +62,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         self.simulator: Simulator = self.env.simulator
         self.stepper_state: jiminy.StepperState = self.env.stepper_state
         self.system_state: jiminy.SystemState = self.env.system_state
-        self.sensors_data: jiminy.sensorsData = self.env.sensors_data
+        self.sensors_data: Dict[str, np.ndarray] = self.env.sensors_data
 
         # Define some internal buffers
         assert isinstance(self.env.unwrapped, BaseJiminyEnv)
@@ -81,7 +81,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                            t: float,
                            q: np.ndarray,
                            v: np.ndarray,
-                           sensors_data: jiminy.sensorsData,
+                           sensors_data: Dict[str, np.ndarray],
                            command: np.ndarray) -> None:
         """Thin wrapper around user-specified `compute_command` method.
 

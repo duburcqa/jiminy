@@ -32,7 +32,7 @@ from .viewer import (interactive_mode,
 if interactive_mode() >= 2:
     from tqdm.notebook import tqdm
 else:
-    from tqdm import tqdm
+    from tqdm import tqdm  # type: ignore[assignment]
 
 try:
     from .plot import TabbedFigure

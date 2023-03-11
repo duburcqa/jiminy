@@ -80,8 +80,8 @@ jobs:
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c \
           "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
-        cp -r -H "$InstallDir/lib/python${PYTHON_VERSION}/site-packages/." \
-                 "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        \cp -r -H "$InstallDir/lib/python${PYTHON_VERSION}/site-packages/." \
+                  "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
 
         # Install jiminy along with its dependencies
         make install
@@ -97,11 +97,14 @@ jobs:
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
         # Generate stubs
-        cd "$RootDir/build"
-        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stub_gen.py" --ignore-invalid=all jiminy_py
-        cp "stubs/jiminy_py-stubs/core/__init__.pyi" "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core/"
+        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
+        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stub_gen.py" \
+          -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
+        \cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \
+            $RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
 
         # Generate wheels
+        cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
         # Bundle non-standard dependencies with the wheels for optimal portability.

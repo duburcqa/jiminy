@@ -197,7 +197,7 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
                          t: float,
                          q: np.ndarray,
                          v: np.ndarray,
-                         sensors_data: jiminy.sensorsData) -> None:
+                         sensors_data: Dict[str, np.ndarray]) -> None:
         """TODO Write documentation.
         """
         # pylint: disable=unused-argument
@@ -208,7 +208,7 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
                            t: float,
                            q: np.ndarray,
                            v: np.ndarray,
-                           sensors_data: jiminy.sensorsData,
+                           sensors_data: Dict[str, np.ndarray],
                            command: np.ndarray) -> None:
         """This method is the main entry-point to interact with the simulator.
 
@@ -227,9 +227,7 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
                   'use_theoretical_model' is enabled for the backend Python
                   `Simulator`.
         :param v: Current actual velocity vector.
-        :param sensors_data: Current sensor data. Note that it is the raw data,
-                             which means that it is not an actual dictionary
-                             but it behaves similarly.
+        :param sensors_data: Current sensor data.
         :param command: Output argument to update by reference using `[:]` or
                         `np.copyto` in order to apply motors torques on the
                         robot.

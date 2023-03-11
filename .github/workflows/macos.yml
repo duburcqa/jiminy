@@ -102,9 +102,19 @@ jobs:
       run: |
         export DYLD_LIBRARY_PATH="$InstallDir/lib"
 
+        # Generate stubs.
+        # It does not work on MacOS because of panda3d import errors in frozen mode. Disabling for now.
+        # stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
+        # "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stub_gen.py" \
+        #   -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
+        # cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \
+        #    $RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+
+        # Generate wheels
         cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
+        # Bundle non-standard dependencies with the wheels
         delocate-wheel -vvv --require-archs "${WHEEL_ARCH}" \
                        -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
         "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_addplat_macos.py" -vvv --rm-orig --clobber \

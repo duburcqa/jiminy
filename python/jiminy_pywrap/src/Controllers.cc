@@ -86,8 +86,9 @@ namespace python
                                    (bp::arg("self"), "robot"))
                 .def("reset", &AbstractController::reset,
                               (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
-                .add_property("is_initialized", bp::make_function(&AbstractController::getIsInitialized,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
+                .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
+                                              &AbstractController::getIsInitialized,
+                                              bp::return_value_policy<bp::copy_const_reference>())
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
                                           "@copydoc AbstractController::registerVariable")
@@ -98,9 +99,8 @@ namespace python
                 .def("remove_entries", &AbstractController::removeEntries)
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
                 .def("get_options", &AbstractController::getOptions)
-                .add_property("robot", &PyAbstractControllerVisitor::getRobot)
-                .add_property("sensors_data", bp::make_getter(&AbstractController::sensorsData_,
-                                              bp::return_internal_reference<>()))
+                .ADD_PROPERTY_GET("robot", &PyAbstractControllerVisitor::getRobot)
+                .DEF_READONLY("sensors_data", &AbstractController::sensorsData_)
                 ;
         }
 

@@ -10,8 +10,29 @@
 
 #include "pinocchio/bindings/python/fwd.hpp"
 #include <boost/python/numpy.hpp>
+#include <boost/python/signature.hpp>
 #include <boost/python/object/function_doc_signature.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+
+
+namespace boost::python
+{
+namespace converter
+{
+    #define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type) \
+        template <> \
+        struct expected_pytype_for_arg<type> { \
+            static PyTypeObject const *get_pytype() { \
+                return &PyArray_Type; \
+            } \
+        };
+
+    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
+    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray const)
+    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray &)
+    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray const &)
+}  // namespace converter
+}  // namespace boost::python
 
 
 namespace jiminy
@@ -51,7 +72,7 @@ namespace python
            The intended way to do so is to call `add_to_namespace` function. However,
            the previous registration must be deleted first to avoid being detected as
            an overload and accumulating docstrings. To avoid such hassle, a hack is
-           used instead by overwritting the internal attribute of the function directly.
+           used instead by overwriting the internal attribute of the function directly.
            Beware it relies on `const_cast` to getter returning by reference, which may
            break in the future. Moreover, a hack is used to get the docstring, which
            consists in adding the expected tags as function doc. It works for now but
@@ -75,6 +96,168 @@ namespace python
         // bp::object ns(bp::handle<>(bp::borrowed(nsPtr)));
         // bp::objects::add_to_namespace(ns, "force_func", func);
     }
+
+    inline const char * py_type_str(bp::detail::signature_element const & s)
+    {
+        if (strncmp(s.basename, "void", 4) == 0)
+        {
+            static const char * none = "None";
+            return none;
+        }
+        PyTypeObject const * py_type = s.pytype_f ? s.pytype_f() : nullptr;
+        if (py_type)
+        {
+            return py_type->tp_name;
+        }
+        else
+        {
+            static const char * object = "object";
+            return object;
+        }
+    }
+
+    template<typename returnT, typename ... Args>
+    std::string getPythonSignature()
+    {
+        std::ostringstream stringStream;
+        constexpr std::size_t NArgs = sizeof...(Args);
+        bp::detail::signature_element const * const signature = bp::detail::signature<boost::mpl::vector<
+            std::add_lvalue_reference_t<returnT>, std::add_lvalue_reference_t<Args>...> >::elements();
+        stringStream << "( (" << py_type_str(signature[0]) << ")self";
+        for (std::size_t i = 2; i < NArgs; ++i)
+        {
+            stringStream << ", (" << py_type_str(signature[i]) << ")arg" << i;
+        }
+        stringStream << ") -> ";
+        /* Special handling of the return type to rely primarily on `to_python_target_type`
+           for type inference instead of `expected_pytype_for_arg` as `signature_element`. */
+        PyTypeObject const * py_type = bp::converter::to_python_target_type<returnT>::get_pytype();
+        if (py_type)
+        {
+            stringStream << py_type->tp_name;
+        }
+        else
+        {
+            stringStream << py_type_str(signature[0]);
+        }
+        return stringStream.str();
+    }
+
+    template<typename C, typename D, typename ... Args>
+    std::string getPythonSignature(D (* /* pm */)(C, Args...))
+    {
+        return getPythonSignature<D, C, Args...>();
+    }
+
+    template<typename C, typename D, typename ... Args>
+    std::enable_if_t<std::is_member_function_pointer_v<D (C::*)(Args...)>, std::string>
+    getPythonSignature(D (C::* /* pm */)(Args...))
+    {
+        return getPythonSignature<D, C, Args...>();
+    }
+
+    template<typename C, typename D, typename ... Args>
+    std::enable_if_t<std::is_member_function_pointer_v<D (C::*)(Args...) const>, std::string>
+    getPythonSignature(D (C::* /* pm */)(Args...) const)
+    {
+        return getPythonSignature<D, C, Args...>();
+    }
+
+    template<typename C, typename D>
+    std::enable_if_t<std::is_member_object_pointer_v<D C::*>, std::string>
+    getPythonSignature(D C::* /* pm */)
+    {
+        return getPythonSignature<D, C>();
+    }
+
+    template<typename ... Args>
+    std::string getPythonSignaturesWithDoc(const char * const doc,
+                                           std::pair<const char *, Args>... sig)
+    {
+        std::ostringstream stringStream;
+        ((stringStream << "\n" << sig.first << getPythonSignature(sig.second)), ...);
+        if (doc)
+        {
+            stringStream << ":\n\n" << doc;
+        }
+        return stringStream.str().substr(std::min(static_cast<size_t>(stringStream.tellp()), size_t(1)));
+    }
+
+    template<typename Get>
+    std::string getPropertySignaturesWithDoc(const char * const doc,
+                                             Get getMemberFuncPtr)
+    {
+        return getPythonSignaturesWithDoc(doc, std::pair{"fget", getMemberFuncPtr});
+    }
+
+    template<typename Get, typename Set>
+    std::string getPropertySignaturesWithDoc(const char * const doc,
+                                             Get getMemberFuncPtr,
+                                             Set setMemberFuncPtr)
+    {
+        return getPythonSignaturesWithDoc(
+            doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
+    }
+
+    #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
+        def_readonly(namePy, \
+                     memberFuncPtr, \
+                     getPropertySignaturesWithDoc(doc, memberFuncPtr).c_str())
+
+    #define DEF_READONLY2(namePy, memberFuncPtr) \
+        DEF_READONLY3(namePy, memberFuncPtr, nullptr)
+
+    #define ADD_PROPERTY_GET3(namePy, memberFuncPtr, doc) \
+        add_property(namePy, \
+                     memberFuncPtr, \
+                     getPropertySignaturesWithDoc(doc, memberFuncPtr).c_str())
+
+    #define ADD_PROPERTY_GET2(namePy, memberFuncPtr) \
+        ADD_PROPERTY_GET3(namePy, memberFuncPtr, nullptr)
+
+    #define ADD_PROPERTY_GET_WITH_POLICY4(namePy, memberFuncPtr, policy, doc) \
+        add_property(namePy, \
+                     bp::make_function(memberFuncPtr, policy), \
+                     getPropertySignaturesWithDoc(doc, memberFuncPtr).c_str())
+
+    #define ADD_PROPERTY_GET_WITH_POLICY3(namePy, memberFuncPtr, policy) \
+        ADD_PROPERTY_GET_WITH_POLICY4(namePy, memberFuncPtr, policy, nullptr)
+
+    #define ADD_PROPERTY_GET_SET4(namePy, getMemberFuncPtr, setMemberFuncPtr, doc) \
+        add_property(namePy, \
+                     getMemberFuncPtr, \
+                     setMemberFuncPtr, \
+                     getPropertySignaturesWithDoc(doc, getMemberFuncPtr, setMemberFuncPtr).c_str())
+
+    #define ADD_PROPERTY_GET_SET3(namePy, getMemberFuncPtr, setMemberFuncPtr) \
+        ADD_PROPERTY_GET_SET4(namePy, getMemberFuncPtr, setMemberFuncPtr, nullptr)
+
+    #define ADD_PROPERTY_GET_SET_WITH_POLICY5(namePy, getMemberFuncPtr, getPolicy, setMemberFuncPtr, doc) \
+        add_property(namePy, \
+                     bp::make_function(getMemberFuncPtr, getPolicy), \
+                     setMemberFuncPtr, \
+                     getPropertySignaturesWithDoc(doc, getMemberFuncPtr, setMemberFuncPtr).c_str())
+
+    #define ADD_PROPERTY_GET_SET_WITH_POLICY4(namePy, getMemberFuncPtr, getPolicy, setMemberFuncPtr) \
+        ADD_PROPERTY_GET_SET_WITH_POLICY5(namePy, getMemberFuncPtr, getPolicy, setMemberFuncPtr, nullptr)
+
+    // Get number of arguments with __NARG__
+    #define __ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, N, ...) N
+    #define __NARG_I_(...) __ARG_N(__VA_ARGS__)
+    #define __RSEQ_N() 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+    #define __NARG__(...)  __NARG_I_(__VA_ARGS__, __RSEQ_N())
+
+    // General definition for any function name
+    #define _VFUNC_(name, n) name ## n
+    #define _VFUNC(name, n) _VFUNC_(name, n)
+    #define VFUNC(func, ...) _VFUNC(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
+
+    // Handle overloading
+    #define DEF_READONLY(...) VFUNC(DEF_READONLY, __VA_ARGS__)
+    #define ADD_PROPERTY_GET(...) VFUNC(ADD_PROPERTY_GET, __VA_ARGS__)
+    #define ADD_PROPERTY_GET_WITH_POLICY(...) VFUNC(ADD_PROPERTY_GET_WITH_POLICY, __VA_ARGS__)
+    #define ADD_PROPERTY_GET_SET(...) VFUNC(ADD_PROPERTY_GET_SET, __VA_ARGS__)
+    #define ADD_PROPERTY_GET_SET_WITH_POLICY(...) VFUNC(ADD_PROPERTY_GET_SET_WITH_POLICY, __VA_ARGS__)
 
     // Forward declaration
     template<class Container, bool NoProxy, class DerivedPolicies>
@@ -450,9 +633,7 @@ namespace python
             {
                 return &PyDict_Type;
             }
-            std::type_info const * typeId(&typeid(bp::object));
-            bp::converter::registration const * r = bp::converter::registry::query(*typeId);
-            return r ? r->to_python_target_type(): 0;
+            return  bp::converter::to_python_target_type<T>::get_pytype();
         }
     };
 

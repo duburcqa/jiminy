@@ -131,10 +131,10 @@ def build_task_scheduling_callback(
             while task_branches:
                 task_branch_mean = task_branches_mean.pop(0)
                 task_branch = task_branches.pop(0)
-                for task_node, (task_scores, task_branch_next) in \
-                        task_branch.items():
+                for task_node, (
+                        task_scores, task_branch_next) in task_branch.items():
                     if len(task_scores) > 0:
-                        task_scores_mean = np.mean(task_scores)
+                        task_scores_mean = np.mean(task_scores, dtype=float)
                     else:
                         task_scores_mean = np.nan
                     task_branch_next_mean: DataTreeT = {}

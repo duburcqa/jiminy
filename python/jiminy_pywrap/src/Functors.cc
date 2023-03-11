@@ -45,8 +45,9 @@ namespace python
                                  bp::arg("heightmap_type")=heightmapType_t::GENERIC)))
                 .def("__call__", &PyHeightmapFunctorVisitor::eval,
                                  (bp::args("self", "position")))
-                .add_property("py_function", bp::make_function(&PyHeightmapFunctorVisitor::getPyFun,
-                                             bp::return_value_policy<bp::return_by_value>()));
+                .ADD_PROPERTY_GET_WITH_POLICY("py_function",
+                                              &PyHeightmapFunctorVisitor::getPyFun,
+                                              bp::return_value_policy<bp::return_by_value>());
                 ;
         }
 

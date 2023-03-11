@@ -11,43 +11,44 @@ from importlib.util import find_spec as _find_spec
 from sysconfig import get_config_var as _get_config_var
 
 
-# Special dlopen flags are used when loading Boost Python shared library
-# available in search path on the system if any. This is necessary to make sure
-# the same boost python runtime is shared between every modules, even if linked
-# versions are different. It is necessary to share the same boost python
-# registers, required for inter-operability between modules.
-# This mechanism is causing segfault at import when compiled with Boost>=1.78.
-_pyver_suffix = "".join(map(str, _sys.version_info[:2]))
-if _sys.platform.startswith('win'):
-    _lib_prefix = ""
-    _lib_suffix = ".dll"
-elif _sys.platform == 'darwin':
-    _lib_prefix = "lib"
-    _lib_suffix = ".dylib"
-else:
-    _lib_prefix = "lib"
-    _lib_suffix = _get_config_var('SHLIB_SUFFIX')
 _is_boost_shared = False
-for _boost_python_lib in (
-        f"{_lib_prefix}boost_python{_pyver_suffix}{_lib_suffix}",
-        f"{_lib_prefix}boost_python3-py{_pyver_suffix}{_lib_suffix}"):
-    try:
-        _ctypes.CDLL(_boost_python_lib, _ctypes.RTLD_GLOBAL)
-        _is_boost_shared = True
-        break
-    except OSError:
-        pass
+if "JIMINY_FORCE_STANDALONE" not in _os.environ:
+    # Special dlopen flags are used when loading Boost Python shared library
+    # available in search path on the system if any. This is necessary to make
+    # sure the same boost python runtime is shared between every modules, even
+    # if linked versions are different. It is necessary to share the same boost
+    # python registers, required for inter-operability between modules.
+    # This mechanism causes segfault at import when compiled with Boost>=1.78.
+    _pyver_suffix = "".join(map(str, _sys.version_info[:2]))
+    if _sys.platform.startswith('win'):
+        _lib_prefix = ""
+        _lib_suffix = ".dll"
+    elif _sys.platform == 'darwin':
+        _lib_prefix = "lib"
+        _lib_suffix = ".dylib"
+    else:
+        _lib_prefix = "lib"
+        _lib_suffix = _get_config_var('SHLIB_SUFFIX')
+        for _boost_python_lib in (
+                f"{_lib_prefix}boost_python{_pyver_suffix}{_lib_suffix}",
+                f"{_lib_prefix}boost_python3-py{_pyver_suffix}{_lib_suffix}"):
+            try:
+                _ctypes.CDLL(_boost_python_lib, _ctypes.RTLD_GLOBAL)
+                _is_boost_shared = True
+                break
+            except OSError:
+                pass
 
-# Check if all the boost python dependencies are already available on the
-# system. The system dependencies will be used instead of the one embedded with
-# jiminy if and only if all of them are available.
-_is_dependency_available = any(
-    _find_spec(_module_name) is not None
-    for _module_name in ("eigenpy", "hppfcl", "pinocchio"))
-if not _is_boost_shared and _is_dependency_available:
-    _logging.warning(
-        "Boost::Python not found on the system. Importing bundled jiminy "
-        "dependencies instead of system-wide install as a fallback.")
+    # Check if all the boost python dependencies are already available on the
+    # system. The system dependencies will be used instead of the one embedded
+    # with jiminy if and only if all of them are available.
+    _is_dependency_available = any(
+        _find_spec(_module_name) is not None
+        for _module_name in ("eigenpy", "hppfcl", "pinocchio"))
+    if not _is_boost_shared and _is_dependency_available:
+        _logging.warning(
+            "Boost::Python not found on the system. Importing bundled jiminy "
+            "dependencies instead of system-wide install as a fallback.")
 
 # The env variable PATH and the current working directory are ignored by
 # default for DLL resolution on Windows OS.
@@ -85,9 +86,12 @@ from .core import __version__, __raw_version__
 __all__ = []
 for name in dir(core):  # type: ignore[name-defined]
     attrib = getattr(core, name)  # type: ignore[name-defined]
-    if not name.startswith("_") and isinstance(attrib, type):
+    if not name.startswith("_"):
         __all__.append(name)
+    try:
         attrib.__module__ = __name__
+    except AttributeError:
+        pass
 
 
 # Define helpers to build extension modules

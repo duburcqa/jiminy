@@ -22,7 +22,7 @@ if (-not (Test-Path env:GENERATOR)) {
 }
 
 ### Set common CMAKE_C/CXX_FLAGS
-${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /MP2 /EHsc /bigobj /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX"
+${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /MP2 /EHsc /bigobj /Zc:preprocessor /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX"
 if (${BUILD_TYPE} -eq "Debug") {
   ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Zi /Od"
 } else {
@@ -212,13 +212,12 @@ if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
          cxxflags="-std=c++11 ${CMAKE_CXX_FLAGS}" `
          variant="$BuildTypeB2" install -q -d0 -j2
 
-# Boost::Python is never compiled in debug mode because already registered converter triggers an assert
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
          --with-python `
          --build-type=minimal architecture=x86 address-model=64 threading=single `
          --layout=system --lto=off link=shared runtime-link=shared debug-symbols=off `
          cxxflags="-std=c++11 ${CMAKE_CXX_FLAGS}" `
-         variant="release" install -q -d0 -j2
+         variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 
