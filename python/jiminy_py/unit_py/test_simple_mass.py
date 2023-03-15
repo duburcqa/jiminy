@@ -4,6 +4,7 @@ method of jiminy on simple mass.
 import unittest
 import numpy as np
 from enum import Enum
+from weakref import ref
 from itertools import product
 from scipy.signal import savgol_filter
 
@@ -194,9 +195,12 @@ class SimulateSimpleMass(unittest.TestCase):
         engine = jiminy.Engine()
 
         # No control law, only check sensors data
+        engine_ref = ref(engine)
         def check_sensors_data(t, q, v, sensors_data, command):
             # Verify sensor data, if the engine has been initialized
-            nonlocal engine, frame_pose
+            nonlocal engine_ref, frame_pose
+            engine = engine_ref()
+            assert engine is not None
             if engine.is_initialized:
                 f_linear = sensors_data[ContactSensor.type, self.body_name]
                 f_wrench = sensors_data[ForceSensor.type, self.body_name]
@@ -220,7 +224,7 @@ class SimulateSimpleMass(unittest.TestCase):
             compute_command=check_sensors_data,
             internal_dynamics=spinning_force)
 
-        # Increase the intergation timestep
+        # Increase the integration timestep
         engine_options = engine.get_options()
         engine_options["stepper"]["controllerUpdatePeriod"] = 1e-3
 

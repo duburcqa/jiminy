@@ -52,8 +52,8 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade twine wheel delocate
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.24.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "wheel<0.40" delocate twine
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.16,<1.24.0"
     - name: Build project dependencies
       run: |
         MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \

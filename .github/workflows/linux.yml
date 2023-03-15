@@ -62,8 +62,8 @@ jobs:
         sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "setuptools<66.0" wheel
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.24.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "setuptools<66.0" "wheel<0.40"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.16,<1.24.0"
 
         git config --global advice.detachedHead false
     - name: Build project dependencies

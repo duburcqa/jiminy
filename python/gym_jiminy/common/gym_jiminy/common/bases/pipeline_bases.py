@@ -8,6 +8,7 @@ It implements:
 - a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
   eventually already wrapped, so that it appears as a black-box environment.
 """
+from weakref import ref
 from copy import deepcopy
 from collections import OrderedDict
 from itertools import chain
@@ -133,7 +134,11 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         """
         # pylint: disable=unused-argument,arguments-differ
 
-        # Define chained controller hook
+        # Define chained controller hook.
+        # Note that a weak reference must be used to avoid circular reference
+        # resulting in uncollectable object and hence memory leak.
+        pipeline_wrapper_ref = ref(self)
+
         def register() -> Tuple[ObserverHandleType, ControllerHandleType]:
             """Register the block to the higher-level block.
 
@@ -142,10 +147,12 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             lowest-level block to the highest-level one, right after reset of
             the low-level simulator and just before performing the first step.
             """
-            nonlocal self, controller_hook
+            nonlocal pipeline_wrapper_ref, controller_hook
 
-            # Initialize the pipeline wrapper
-            self._setup()
+            # Extract and initialize the pipeline wrapper
+            pipeline_wrapper = pipeline_wrapper_ref()
+            assert pipeline_wrapper is not None
+            pipeline_wrapper._setup()
 
             # Forward the observer and controller handles provided by the
             # controller hook of higher-level block, if any, or use the
@@ -156,9 +163,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                 if handles is not None:
                     observer_handle, controller_handle = handles
             if observer_handle is None:
-                observer_handle = self._observer_handle
+                observer_handle = pipeline_wrapper._observer_handle
             if controller_handle is None:
-                controller_handle = self._controller_handle
+                controller_handle = pipeline_wrapper._controller_handle
             return observer_handle, controller_handle
 
         # Reset base pipeline
