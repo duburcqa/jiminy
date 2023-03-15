@@ -47,8 +47,8 @@ jobs:
       run: |
         git config --global advice.detachedHead false
         python -m pip install --upgrade pip
-        python -m pip install --upgrade wheel pefile machomachomangler
-        python -m pip install --upgrade "numpy<1.24.0"
+        python -m pip install --upgrade "wheel<0.40" pefile machomachomangler
+        python -m pip install --upgrade "numpy>=1.16,<1.24.0"
         python -m pip uninstall -y pipx  # Uninstall unecessary packages causing conflicts with the new resolver
     - name: Build project dependencies
       run: |

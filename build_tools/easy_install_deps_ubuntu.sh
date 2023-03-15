@@ -59,8 +59,8 @@ echo "-- Python writable site-packages: ${PYTHON_SITELIB}"
 apt update && \
 apt install -y python3-pip && \
 ${SUDO_CMD} python3 -m pip install --upgrade pip && \
-${SUDO_CMD} python3 -m pip install --upgrade "setuptools<66.0" wheel && \
-${SUDO_CMD} python3 -m pip install --upgrade "numpy>=1.18,<1.24"
+${SUDO_CMD} python3 -m pip install --upgrade "setuptools<66.0" "wheel<0.40" && \
+${SUDO_CMD} python3 -m pip install --upgrade "numpy>=1.16,<1.24"
 
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc
