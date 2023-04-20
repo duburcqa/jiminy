@@ -45,7 +45,7 @@ namespace jiminy
         std::string const & getFrameName(void) const;
         frameIndex_t const & getFrameIdx(void) const;
 
-        std::vector<uint32_t> const & getDofsFixed(void) const;
+        Eigen::Matrix<bool_t, 6, 1> const & getMaskFixed(void) const;
 
         void setReferenceTransform(pinocchio::SE3 const & transformRef);
         pinocchio::SE3 const & getReferenceTransform(void) const;
@@ -62,11 +62,10 @@ namespace jiminy
     private:
         std::string const frameName_;                       ///< Name of the frame on which the constraint operates.
         frameIndex_t frameIdx_;                             ///< Corresponding frame index.
-        std::vector<uint32_t> dofsFixed_;                   ///< Degrees of freedom to fix.
+        Eigen::Matrix<bool_t, 6, 1> maskFixed_;             ///< Degrees of freedom to fix.
         pinocchio::SE3 transformRef_;                       ///< Reference pose of the frame to enforce.
         vector3_t normal_;                                  ///< Normal direction locally at the interface.
         matrix3_t rotationLocal_;                           ///< Rotation matrix of the local frame in which to apply masking
-        matrix6N_t frameJacobian_;                          ///< Stores full frame jacobian in reference frame.
         pinocchio::Motion frameDrift_;                      ///< Stores full frame drift in reference frame.
     };
 }

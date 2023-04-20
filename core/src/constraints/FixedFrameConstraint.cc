@@ -16,21 +16,12 @@ namespace jiminy
     AbstractConstraintTpl(),
     frameName_(frameName),
     frameIdx_(0),
-    dofsFixed_(),
+    maskFixed_(maskFixed),
     transformRef_(),
     normal_(),
     rotationLocal_(matrix3_t::Identity()),
-    frameJacobian_(),
     frameDrift_()
     {
-        dofsFixed_.clear();
-        for (uint32_t i = 0; i < 6; ++i)
-        {
-            if (maskFixed[i])
-            {
-                dofsFixed_.push_back(i);
-            }
-        }
     }
 
     std::string const & FixedFrameConstraint::getFrameName(void) const
@@ -43,9 +34,9 @@ namespace jiminy
         return frameIdx_;
     }
 
-    std::vector<uint32_t> const & FixedFrameConstraint::getDofsFixed(void) const
+    Eigen::Matrix<bool_t, 6, 1> const & FixedFrameConstraint::getMaskFixed(void) const
     {
-        return dofsFixed_;
+        return maskFixed_;
     }
 
     void FixedFrameConstraint::setReferenceTransform(pinocchio::SE3 const & transformRef)
@@ -92,11 +83,8 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Initialize frames jacobians buffers
-            frameJacobian_.setZero(6, model->pncModel_.nv);
-
             // Initialize constraint jacobian, drift and multipliers
-            Eigen::Index const dim = static_cast<Eigen::Index>(dofsFixed_.size());
+            Eigen::Index const dim = maskFixed_.cast<Eigen::Index>().sum();
             jacobian_.setZero(dim, model->pncModel_.nv);
             drift_.setZero(dim);
             lambda_.setZero(dim);
@@ -123,8 +111,27 @@ namespace jiminy
         // Assuming the model still exists.
         auto model = model_.lock();
 
-        // Get jacobian in local frame
+        // Get frame velocity in local frame
+        pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
+                                                            model->pncData_,
+                                                            frameIdx_,
+                                                            pinocchio::LOCAL_WORLD_ALIGNED);
+
+        // Get frame classical acceleration in local frame
+        pinocchio::Motion accel = getFrameAcceleration(model->pncModel_,
+                                                       model->pncData_,
+                                                       frameIdx_,
+                                                       pinocchio::LOCAL_WORLD_ALIGNED);
+        accel.linear() += velocity.angular().cross(velocity.linear());
+
+        // Compute pose error
         pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
+        auto deltaPosition = framePose.translation() - transformRef_.translation();
+        matrix3_t const deltaRotation = framePose.rotation() * transformRef_.rotation().transpose();
+        float64_t deltaAngle; vector3_t const deltaLog3 = pinocchio::log3(deltaRotation, deltaAngle);
+
+        // Compute jacobian in local frame
+        matrix3_t deltaJlog3; Jlog3(deltaAngle, deltaLog3, deltaJlog3);
         pinocchio::SE3 const transformLocal(rotationLocal_, framePose.translation());
         pinocchio::Frame const & frame = model->pncModel_.frames[frameIdx_];
         pinocchio::JointModel const & joint = model->pncModel_.joints[frame.parent];
@@ -132,44 +139,42 @@ namespace jiminy
         for (Eigen::DenseIndex j=colRef; j>=0; j=model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
         {
             pinocchio::MotionRef<matrix6N_t::ColXpr> const vIn(model->pncData_.J.col(j));
-            pinocchio::MotionRef<matrix6N_t::ColXpr> vOut(frameJacobian_.col(j));
-            vOut = transformLocal.actInv(vIn);
+            Eigen::Index k = 0;
+            for (Eigen::Index i = 0; i < 3; ++i)
+            {
+                if (maskFixed_[i])
+                {
+                    jacobian_(k++, j) = transformLocal.actInv(vIn).linear()[i];
+                }
+            }
+            for (Eigen::Index i = 0; i < 3; ++i)
+            {
+                if (maskFixed_[i + 3])
+                {
+                    jacobian_(k++, j) = deltaJlog3.row(i).dot(transformLocal.actInv(vIn).angular());
+                }
+            }
         }
 
-        // Compute pose error
-        auto deltaPosition = framePose.translation() - transformRef_.translation();
-        vector3_t const deltaRotation = pinocchio::log3(
-            framePose.rotation() * transformRef_.rotation().transpose());
-
-        // Compute frame velocity in local frame
-        pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
-                                                            model->pncData_,
-                                                            frameIdx_,
-                                                            pinocchio::LOCAL_WORLD_ALIGNED);
-
-        /* Get drift in world frame.
-           We are actually looking for the classical acceleration here ! */
-        frameDrift_ = getFrameAcceleration(model->pncModel_,
-                                           model->pncData_,
-                                           frameIdx_,
-                                           pinocchio::LOCAL_WORLD_ALIGNED);
-        frameDrift_.linear() += velocity.angular().cross(velocity.linear());
+        // Compute frame drift in world frame
+        frameDrift_.linear() = accel.linear();
+        matrix3_t dDeltaJlog3; dJlog3(deltaAngle, deltaLog3, deltaJlog3, velocity.angular(), dDeltaJlog3);
+        frameDrift_.angular().noalias() = dDeltaJlog3 * velocity.angular();
+        frameDrift_.angular().noalias() += deltaJlog3 * accel.angular();
 
         // Add Baumgarte stabilization to drift in world frame
-        frameDrift_.linear() += kp_ * deltaPosition;
-        frameDrift_.angular() += kp_ * deltaRotation;
-        frameDrift_ += kd_ * velocity;
+        frameDrift_.linear() += kp_ * deltaPosition + kd_ * velocity.linear();
+        frameDrift_.angular() += kp_ * deltaLog3;
+        frameDrift_.angular().noalias() += kd_ * deltaJlog3 * velocity.angular();
 
-        // Compute drift in local frame
-        frameDrift_.linear() = rotationLocal_.transpose() * frameDrift_.linear();
-        frameDrift_.angular() = rotationLocal_.transpose() * frameDrift_.angular();
-
-        // Extract masked jacobian and drift, only containing fixed dofs
-        for (uint32_t i = 0; i < dofsFixed_.size(); ++i)
+        // Rotate drift in local frame
+        Eigen::Index k = 0;
+        for (Eigen::Index i = 0; i < 6; ++i)
         {
-            uint32_t const & dofIndex = dofsFixed_[i];
-            jacobian_.row(i) = frameJacobian_.row(dofIndex);
-            drift_[i] = frameDrift_.toVector()[dofIndex];
+            if (maskFixed_[i])
+            {
+                drift_[k++] = rotationLocal_.col(i % 3).dot(i < 3 ? frameDrift_.linear() : frameDrift_.angular());
+            }
         }
 
         return hresult_t::SUCCESS;

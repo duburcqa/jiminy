@@ -464,7 +464,7 @@ namespace jiminy
                 rotLog12 = pinocchio::log3(rot12, angle);
                 assert((angle < 0.95 * M_PI) &&
                        "Relative angle between reference frames of viscoelastic coupling must be smaller than 0.95 * pi.");
-                pinocchio::Jlog3(angle, rotLog12, rotJLog12);
+                Jlog3(angle, rotLog12, rotJLog12);
                 fAng = stiffness.tail<3>().array() * rotLog12.array();
                 rotLog12 *= alpha;
                 pinocchio::Jexp3(rotLog12, rotJExp12);
@@ -3633,7 +3633,7 @@ namespace jiminy
             Eigen::Map<const quaternion_t> const quat(q.segment<4>(positionIdx).data());
             vector3_t const angleAxis = pinocchio::quaternion::log3(quat, angle);
             assert((angle < 0.95 * M_PI) && "Flexible joint angle must be smaller than 0.95 * pi.");
-            pinocchio::Jlog3(angle, angleAxis, rotJlog3);
+            Jlog3(angle, angleAxis, rotJlog3);
             uInternal.segment<3>(velocityIdx) -=
                 rotJlog3 * (stiffness.array() * angleAxis.array()).matrix();
             uInternal.segment<3>(velocityIdx).array() -=

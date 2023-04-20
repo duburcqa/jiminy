@@ -82,6 +82,85 @@ namespace jiminy
                           vectorN_t        const & timesOut,
                           matrixN_t              & positionsOut);
 
+    template<typename Scalar, typename Vector3Like, typename Matrix3Like>
+    void Jlog3(const Scalar & theta,
+               const Eigen::MatrixBase<Vector3Like> & log,
+               const Eigen::MatrixBase<Matrix3Like> & Jlog)
+    {
+        PINOCCHIO_ASSERT_MATRIX_SPECIFIC_SIZE(Vector3Like,  log, 3, 1);
+        PINOCCHIO_ASSERT_MATRIX_SPECIFIC_SIZE(Matrix3Like, Jlog, 3, 3);
+
+        Matrix3Like & Jlog_ = PINOCCHIO_EIGEN_CONST_CAST(Matrix3Like, Jlog);
+
+        const Scalar theta2 = theta * theta;
+
+        Scalar alpha;
+        if(theta < pinocchio::TaylorSeriesExpansion<Scalar>::template precision<3>())
+        {
+            alpha = Scalar(1) / Scalar(12) + theta2 / Scalar(720);
+        }
+        else
+        {
+            Scalar ct,st; pinocchio::SINCOS(theta, &st, &ct);
+            const Scalar st_1mct = st / (Scalar(1) - ct);
+            alpha = Scalar(1) / theta2 - st_1mct / (Scalar(2) * theta);
+        }
+        const Scalar diag_value = Scalar(1) - alpha * theta2;
+
+        Jlog_.template triangularView<Eigen::Lower>().setZero();
+        Jlog_.template selfadjointView<Eigen::Lower>().rankUpdate(log, alpha);
+        Jlog_.template triangularView<Eigen::StrictlyUpper>() = Jlog_.transpose();
+        Jlog_.diagonal().array() += diag_value;
+        pinocchio::addSkew(log / Scalar(2), Jlog_);
+    }
+
+    template<typename Scalar, typename Vector3Like1, typename Matrix3Like1, typename Vector3Like2, typename Matrix3Like2>
+    void dJlog3(const Scalar & theta,
+                const Eigen::MatrixBase<Vector3Like1> & log,
+                const Eigen::MatrixBase<Matrix3Like1> & Jlog,
+                const Eigen::MatrixBase<Vector3Like2> & v,
+                const Eigen::MatrixBase<Matrix3Like2> & dJlog)
+    {
+        PINOCCHIO_ASSERT_MATRIX_SPECIFIC_SIZE(Vector3Like1,   log, 3, 1);
+        PINOCCHIO_ASSERT_MATRIX_SPECIFIC_SIZE(Matrix3Like1,  Jlog, 3, 3);
+        PINOCCHIO_ASSERT_MATRIX_SPECIFIC_SIZE(Vector3Like2,     v, 3, 1);
+        PINOCCHIO_ASSERT_MATRIX_SPECIFIC_SIZE(Matrix3Like2, dJlog, 3, 3);
+
+        Matrix3Like2 & dJlog_ = PINOCCHIO_EIGEN_CONST_CAST(Matrix3Like2, dJlog);
+
+        const Vector3Like1 dlog = Jlog * v;
+        const Scalar theta2 = theta * theta;
+        const Scalar dtheta2 = Scalar(2) * log.dot(v);
+
+        Scalar alpha, dalpha;
+        if(theta < pinocchio::TaylorSeriesExpansion<Scalar>::template precision<5>())
+        {
+            dalpha = dtheta2 * (Scalar(1) - (Scalar(3) / Scalar(42)) * theta2) / (Scalar(720) - Scalar(60) * theta2);
+        }
+        if(theta < pinocchio::TaylorSeriesExpansion<Scalar>::template precision<3>())
+        {
+            alpha = Scalar(1) / Scalar(12) + theta2 / Scalar(720);
+        }
+        else
+        {
+            Scalar ct,st; pinocchio::SINCOS(theta, &st, &ct);
+            const Scalar st_1mct = st / (Scalar(1) - ct);
+            alpha = Scalar(1) / theta2 - st_1mct / (Scalar(2) * theta);
+            if(theta >= pinocchio::TaylorSeriesExpansion<Scalar>::template precision<5>())
+            {
+                dalpha = (dtheta2 / theta) * ((st + theta) / (Scalar(4) * (Scalar(1) - ct)) - Scalar(1) / theta) / theta2;
+            }
+        }
+        const Scalar diag_value = - dalpha * theta2 - alpha * dtheta2;
+
+        dJlog_.template triangularView<Eigen::Lower>().setZero();
+        dJlog_.template selfadjointView<Eigen::Lower>().rankUpdate(log, dalpha);
+        dJlog_.template selfadjointView<Eigen::Lower>().rankUpdate(log, dlog, alpha);
+        dJlog_.template triangularView<Eigen::StrictlyUpper>() = dJlog_.transpose();
+        dJlog_.diagonal().array() += diag_value;
+        pinocchio::addSkew(dlog / Scalar(2), dJlog_);
+    }
+
     /// \brief Convert a force expressed in the global frame of a specific frame to its parent joint frame.
     ///
     /// \param[in] model        Pinocchio model.

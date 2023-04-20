@@ -176,8 +176,8 @@ namespace python
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
                                               &FixedFrameConstraint::getFrameIdx,
                                               bp::return_value_policy<bp::copy_const_reference>())
-                .ADD_PROPERTY_GET_WITH_POLICY("dofs_fixed",
-                                              &FixedFrameConstraint::getDofsFixed,
+                .ADD_PROPERTY_GET_WITH_POLICY("mask_fixed",
+                                              &FixedFrameConstraint::getMaskFixed,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
                                                   &FixedFrameConstraint::getReferenceTransform,
