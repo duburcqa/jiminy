@@ -58,7 +58,7 @@ echo "-- Python writable site-packages: ${PYTHON_SITELIB}"
 # Install Python 3 standard utilities
 apt update && \
 apt install -y python3-pip && \
-${SUDO_CMD} python3 -m pip install --upgrade pip && \
+${SUDO_CMD} python3 -m pip install --upgrade "pip<23.1" && \
 ${SUDO_CMD} python3 -m pip install --upgrade "setuptools<66.0" "wheel<0.40" && \
 ${SUDO_CMD} python3 -m pip install --upgrade "numpy>=1.16,<1.24"
 

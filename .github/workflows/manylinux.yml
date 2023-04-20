@@ -49,7 +49,7 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "pip<23.1"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "setuptools<66.0" "wheel<0.40" twine cmake
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.16,<1.24.0"
     - name: Build project dependencies
