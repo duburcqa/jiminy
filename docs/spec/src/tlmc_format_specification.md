@@ -1,7 +1,7 @@
 HDF5 telemetry log format (TLMC)
 ================================
 
-This file describes the content of the so-called `tlmc` format. `tlmc` stands for compressed telemetry: it is simply a standard [HDF5](https://portal.hdfgroup.org/display/HDF5/Introduction+to+HDF5) file with compression enabled, that can be opened with any HDF5 reader. This document specifies the organization of data in this file.
+This file describes the content of the so-called `tlmc` format. `tlmc` stands for compressed telemetry: it is simply a standard [HDF5](https://portal.hdfgroup.org/display/HDF5/Introduction+to+HDF5) file with compression enabled, that can be opened with any HDF5 reader. This document specifies the organization of data in this file. The examples in this document are made using the Python `h5py` library ;
 
 The telemetry of the robot outputs two different types of object: constants and variables. They must have a unique name and can have various basic types. Constants are (key, value) pairs and variables consists of two time series: one for time, one for values. Unlike constants, variables can have metadata associated to them.
 
@@ -27,30 +27,6 @@ f.create_dataset(name,
                  compression='gzip',
                  shuffle=True,
                  chunks=(len(data_array),))
-```
-
-
-The examples in this document are made using the `h5py` library ; `file` is an `h5py.File` object.
-
-Here is a python snippet for parsing a `tlmc` file:
-
-```python
-import h5py
-
-file = h5py.File('my_file.tlmc', 'r')
-
-print(file.attrs['VERSION']) # Prints 1
-print("The log contains the following constants:")
-for k, v in file['constants'].attrs.items():
-    print(k, v)
-for k, dataset in tlmc['constants'].items():
-   v = bytes(dataset[()])
-   v += b'\0' * (dataset.nbytes - len(v))  # Append missing null char '\0' at end
-   print(k, v)
-print(f"Log start time: {file.attrs['START_TIME']}")
-print("The log contains the following variables:")
-for variable_name in file['variables']:
-    print(variable_name)
 ```
 
 ## Examples
@@ -126,4 +102,25 @@ GROUP "/" {
    }
 }
 }
+```
+
+Here is a python snippet for parsing a generic `tlmc` file:
+
+```python
+import h5py
+
+file = h5py.File('my_file.tlmc', 'r')
+
+print(file.attrs['VERSION']) # Prints 1
+print("The log contains the following constants:")
+for k, v in file['constants'].attrs.items():
+    print(k, v)
+for k, dataset in tlmc['constants'].items():
+   v = bytes(dataset[()])
+   v += b'\0' * (dataset.nbytes - len(v))  # Append missing null char '\0' at end
+   print(k, v)
+print(f"Log start time: {file.attrs['START_TIME']}")
+print("The log contains the following variables:")
+for variable_name in file['variables']:
+    print(variable_name)
 ```
