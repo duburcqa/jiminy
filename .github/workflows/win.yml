@@ -19,7 +19,6 @@ jobs:
         shell: pwsh
 
     env:
-      TORCH_VERSION: "1.13.1"
       BUILD_TYPE: "Release"
       GENERATOR: "Visual Studio 17 2022"
       CMAKE_CXX_FLAGS: "/d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"
@@ -48,14 +47,12 @@ jobs:
         git config --global advice.detachedHead false
         python -m pip install --upgrade "pip<23.1"
         python -m pip install --upgrade "setuptools<66.0" "wheel<0.40" pefile machomachomangler
-        python -m pip install --upgrade "numpy>=1.16,<1.24.0"
+        python -m pip install --upgrade "numpy>=1.16" numba
         python -m pip uninstall -y pipx  # Uninstall unecessary packages causing conflicts with the new resolver
     - name: Build project dependencies
       run: |
-        if ("${{ matrix.PYTHON_VERSION }}" -ne '3.11') {
-          python -m pip install "torch==${env:TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
-          python -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
-        }
+        python -m pip install "torch==2.0.0" -f https://download.pytorch.org/whl/cpu
+        python -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
         & "./build_tools/build_install_deps_windows.ps1"
 
     #####################################################################################
@@ -84,8 +81,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.11' && 'OFF') || 'ON' }} `
-              -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
+              -DINSTALL_GYM_JIMINY=ON -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
               ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
               ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
         cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
@@ -173,7 +169,6 @@ jobs:
         python -m unittest discover -v
 
     - name: Running unit tests for gym_jiminy
-      if: matrix.PYTHON_VERSION != '3.11'
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
 

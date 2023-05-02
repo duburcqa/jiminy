@@ -36,9 +36,6 @@ jobs:
       run:
         shell: bash -ieo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
 
-    env:
-      TORCH_VERSION: "1.13.1"
-
     #####################################################################################
 
     steps:
@@ -71,7 +68,7 @@ jobs:
           sudo apt install ninja-build
         fi
 
-        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
+        "${PYTHON_EXECUTABLE}" -m pip install "torch==2.0.0" -f https://download.pytorch.org/whl/cpu
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
 
     #####################################################################################
