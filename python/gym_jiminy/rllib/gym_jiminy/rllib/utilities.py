@@ -132,7 +132,8 @@ def initialize(num_cpus: int,
         "Logger class must derive from `ray.tune.logger.Logger`")
 
     # handling of default log directory
-    log_root_path = mkdtemp()
+    if log_root_path is None:
+        log_root_path = mkdtemp()
 
     # Check if cluster servers are already running, and if requested resources
     # are available.
