@@ -281,7 +281,7 @@ def train(algo: Algorithm,
     # Get environment's reward threshold, if any
     assert isinstance(algo.workers, WorkerSet)
     env_spec, *_ = chain(*algo.workers.foreach_env(attrgetter('spec')))
-    if env_spec is None or env_spec is None:
+    if env_spec is None or env_spec.reward_threshold is None:
         reward_threshold = float('inf')
     else:
         reward_threshold = env_spec.reward_threshold
