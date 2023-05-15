@@ -30,7 +30,7 @@ setup(
     packages=find_namespace_packages(),
     package_data={"gym_jiminy.toolbox": ["py.typed"]},
     install_requires=[
-        f"gym-jiminy=={version}",
+        f"gym-jiminy~={version}",
         # Used to compute convex hull.
         # No wheel is distributed on pypi for PyPy, and pip requires to install
         # `libatlas-base-dev` system dependency to build it from source.

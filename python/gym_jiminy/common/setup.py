@@ -7,13 +7,13 @@ version = get_distribution('jiminy-py').version
 
 extras = {
     "zoo": [
-        f"gym-jiminy-zoo=={version}",
+        f"gym-jiminy-zoo~={version}",
     ],
     "toolbox": [
-        f"gym-jiminy-toolbox=={version}"
+        f"gym-jiminy-toolbox~={version}"
     ],
     "rllib": [
-        f"gym-jiminy-rllib=={version}"
+        f"gym-jiminy-rllib~={version}"
     ]
 }
 extras["all"] = list(set(chain.from_iterable(extras.values())))
@@ -47,7 +47,7 @@ setup(
     packages=find_namespace_packages(),
     package_data={"gym_jiminy.common": ["py.typed"]},
     install_requires=[
-        f"jiminy-py=={version}",
+        f"jiminy-py~={version}",
         # Use to perform linear algebra computation
         "numpy",
         # Use internally to speedup computation of math methods
