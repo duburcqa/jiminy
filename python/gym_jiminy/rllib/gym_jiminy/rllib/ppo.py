@@ -15,12 +15,20 @@ from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.torch.torch_action_dist import TorchDiagGaussian
 from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.torch_mixins import (
+    EntropyCoeffSchedule,
+    KLCoeffMixin,
+    LearningRateSchedule,
+    ValueNetworkMixin,
+)
 from ray.rllib.policy.policy import Policy
+from ray.rllib.policy.torch_policy_v2 import TorchPolicyV2
 from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.ppo import PPOConfig as _PPOConfig, PPO as _PPO
 from ray.rllib.algorithms.ppo.ppo_torch_policy import (
     PPOTorchPolicy as _PPOTorchPolicy)
+from ray.rllib.algorithms.ppo.ppo_tf_policy import validate_config
 from ray.rllib.utils.numpy import convert_to_numpy
 from ray.rllib.utils.torch_utils import l2_loss
 from ray.rllib.utils.annotations import override
@@ -294,18 +302,39 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         """
         # Convert any type of input dict input classical dictionary for compat
         config_dict: Dict[str, Any] = dict(PPOConfig().to_dict(), **config)
+        validate_config(config_dict)
 
-        # Extract and convert observation and acrtion mirroring transform
+        # Call base implementation. Note that `PPOTorchPolicy.__init__` is
+        # bypassed because it calls `_initialize_loss_from_dummy_batch`
+        # automatically, and mirroring matrices are not extracted at this
+        # point. It is not possible to extract them since `self.device` is set
+        # by `TorchPolicyV2.__init__`.
+        TorchPolicyV2.__init__(
+            self,
+            observation_space,
+            action_space,
+            config_dict,
+            max_seq_len=config_dict["model"]["max_seq_len"],
+        )
+
+        # Initialize mixins
+        ValueNetworkMixin.__init__(self, config_dict)
+        LearningRateSchedule.__init__(self, config_dict["lr"], config_dict["lr_schedule"])
+        EntropyCoeffSchedule.__init__(
+            self, config_dict["entropy_coeff"], config_dict["entropy_coeff_schedule"]
+        )
+        KLCoeffMixin.__init__(self, config_dict)
+
+        # Extract and convert observation and action mirroring transform
         self.obs_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
         self.action_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
         if config_dict["symmetric_policy_reg"] > 0.0:
+            # Observation space
             is_obs_dict = hasattr(observation_space, "original_space")
             if is_obs_dict:
                 observation_space = observation_space.original_space
-            # Observation space
-            if is_obs_dict:
                 self.obs_mirror_mat = {}
                 for field, mirror_mat in observation_space.mirror_mat.items():
                     obs_mirror_mat = torch.tensor(mirror_mat,
@@ -324,7 +353,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
                                              device=self.device)
             self.action_mirror_mat = action_mirror_mat.T.contiguous()
 
-        super().__init__(observation_space, action_space, config_dict)
+        self._initialize_loss_from_dummy_batch()
         self.config: Dict[str, Any]
 
     def _get_default_view_requirements(self) -> None:
