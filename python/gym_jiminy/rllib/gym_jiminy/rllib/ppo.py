@@ -321,9 +321,9 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         ValueNetworkMixin.__init__(self, config_dict)
         LearningRateSchedule.__init__(
             self, config_dict["lr"], config_dict["lr_schedule"])
-        EntropyCoeffSchedule.__init__(
-            self, config_dict["entropy_coeff"], config_dict["entropy_coeff_schedule"]
-        )
+        EntropyCoeffSchedule.__init__(self,
+                                      config_dict["entropy_coeff"],
+                                      config_dict["entropy_coeff_schedule"])
         KLCoeffMixin.__init__(self, config_dict)
 
         # Extract and convert observation and action mirroring transform
