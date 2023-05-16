@@ -419,6 +419,7 @@ def _extract_eval_worker_info_from_checkpoint(
     # Extract original evaluation config and tweak it to be local only
     config.output = None
     config.evaluation_num_workers = 0
+    config.num_envs_per_worker = 1
     config.evaluation_parallel_to_training = False
     evaluation_config = config.get_evaluation_config_object()
     if (evaluation_config.off_policy_estimation_methods or
