@@ -30,7 +30,7 @@ setup(
     packages=find_namespace_packages(),
     package_data={"gym_jiminy.rllib": ["py.typed"]},
     install_requires=[
-        f"gym-jiminy[toolbox]~={version}",
+        f"gym-jiminy~={version}",
         # Highly efficient distributed computation library used for RL
         # - <1.6.0: GPU detection must be patched to work
         # - 1.11.0: Breaking changes

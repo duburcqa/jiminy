@@ -676,7 +676,7 @@ class Simulator:
             from .plot import plot_log
         except ImportError as e:
             raise ImportError(
-                "This method not supported. Please install 'jiminy_py[plot]'."
+                "Method not available. Please install 'jiminy_py[plot]'."
                 ) from e
 
         # Create figure, without closing the existing one
