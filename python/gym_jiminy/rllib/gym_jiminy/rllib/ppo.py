@@ -319,7 +319,8 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
         # Initialize mixins
         ValueNetworkMixin.__init__(self, config_dict)
-        LearningRateSchedule.__init__(self, config_dict["lr"], config_dict["lr_schedule"])
+        LearningRateSchedule.__init__(
+            self, config_dict["lr"], config_dict["lr_schedule"])
         EntropyCoeffSchedule.__init__(
             self, config_dict["entropy_coeff"], config_dict["entropy_coeff_schedule"]
         )
