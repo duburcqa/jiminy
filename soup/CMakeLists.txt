@@ -13,8 +13,8 @@ set(GIT_CREDENTIAL_EXTERNAL user.name=cmake;user.email=external.project@cmake.co
 # Propagate the global build type.
 # Note that it is already done automatically for multi-config generators,
 # so it is only necessary for the single-config ones.
-get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(NOT isMultiConfig)
+get_property(IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(NOT IS_MULTI_CONFIG)
      set(EXTERNALPROJECT_BUILD_TYPE_CMD -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
 endif()
 

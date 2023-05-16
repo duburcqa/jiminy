@@ -6,11 +6,11 @@ project(jsoncpp_external)
 
 # Get the path of the generated libraries
 include(GNUInstallDirs)
-if(NOT WIN32)
+if(WIN32)
+     set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/jsoncpp.lib")
+else()
      set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libjsoncpp.a")
      set(jsoncpp_NINJA BUILD_BYPRODUCTS "${jsoncpp_PATH}")
-else()
-     set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/jsoncpp.lib")
 endif()
 
 # Download, build and install jsoncpp.

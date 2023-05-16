@@ -106,9 +106,9 @@ set(jiminy_DEFINITIONS
     BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON
     BOOST_MPL_LIMIT_VECTOR_SIZE=30
 )
-if(WIN32)
+if(MSVC)
     list(APPEND jiminy_DEFINITIONS
-        WIN32 _USE_MATH_DEFINES NOMINMAX
+        _USE_MATH_DEFINES NOMINMAX
         EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC
     )
     set(jiminy_OPTIONS /EHsc /bigobj /Zc:preprocessor /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
@@ -124,7 +124,7 @@ endif()
 # Set architecture flags
 list(APPEND jiminy_OPTIONS ${jiminy_OPTIONS} @CMAKE_CXX_ARCH@)
 if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
-    list(APPEND jiminy_OPTIONS /wd9002 /fp:contract)
+    list(APPEND jiminy_OPTIONS /fp:contract)
     list(APPEND jiminy_DEFINITIONS __FMA__)
 endif()
 

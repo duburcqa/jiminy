@@ -40,8 +40,9 @@ install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
 get_target_property(CORE_SOURCE_DIR ${LIBRARY_NAME} SOURCE_DIR)
 get_target_property(PYWRAP_SOURCE_DIR ${LIBRARY_NAME}_pywrap SOURCE_DIR)
 get_property(CORE_BINARY_DIR TARGET ${LIBRARY_NAME} PROPERTY BINARY_DIR)
-if(WIN32)
-     # Using delayed variable extension on Windows to resolve build type at install time, otherwise it would be undefined
+get_property(IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(IS_MULTI_CONFIG)
+     # Using delayed variable extension to resolve build type at install time, otherwise it would be undefined
      set(CORE_BINARY_DIR "${CORE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}")
 endif()
 if(WIN32)
