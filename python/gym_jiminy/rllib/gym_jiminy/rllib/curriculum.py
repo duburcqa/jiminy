@@ -24,6 +24,7 @@ except ImportError as e:
         "Submodule not available. Please install 'gym_jiminy[toolbox]'."
         ) from e
 
+
 def build_task_scheduling_callback(
         history_length: int,
         softmin_beta: float,

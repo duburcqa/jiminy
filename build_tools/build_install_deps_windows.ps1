@@ -26,7 +26,7 @@ ${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /MP2 /EHsc /bigobj /Zc:preprocessor
 if (${BUILD_TYPE} -eq "Debug") {
   ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Zi /Od"
 } else {
-  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /O2 /Ob3 /wd9025 -DNDEBUG"
+  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /O2 /Ob3 -DNDEBUG"
 }
 Write-Output "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 

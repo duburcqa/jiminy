@@ -579,6 +579,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         win = self.graphicsEngine.make_output(
             self.pipe, "offscreen_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
+        if win is None:
+            raise RuntimeError("Faulty graphics pipeline of this machine.")
         self.buff = win
 
         # Append buffer to the list of windows managed by the ShowBase

@@ -1166,17 +1166,22 @@ class Viewer:
         if backend.startswith('panda3d'):
             # Instantiate client with onscreen rendering capability enabled.
             # Note that it fallbacks to software rendering if necessary.
-            if backend == 'panda3d-qt':
-                from .panda3d.panda3d_widget import Panda3dQWidget
-                client = Panda3dQWidget()
-                proc = _ProcessWrapper(client, close_at_exit)
-            elif backend == 'panda3d-sync':
-                client = Panda3dApp()
-                proc = _ProcessWrapper(client, close_at_exit)
-            else:
-                client = Panda3dViewer(window_type='onscreen',
-                                       window_title=Viewer.window_name)
-                proc = _ProcessWrapper(client._app, close_at_exit)
+            try:
+                if backend == 'panda3d-qt':
+                    from .panda3d.panda3d_widget import Panda3dQWidget
+                    client = Panda3dQWidget()
+                    proc = _ProcessWrapper(client, close_at_exit)
+                elif backend == 'panda3d-sync':
+                    client = Panda3dApp()
+                    proc = _ProcessWrapper(client, close_at_exit)
+                else:
+                    client = Panda3dViewer(window_type='onscreen',
+                                        window_title=Viewer.window_name)
+                    proc = _ProcessWrapper(client._app, close_at_exit)
+            except RuntimeError as e:
+                raise RuntimeError(
+                    "Something went wrong. Impossible to instantiate viewer "
+                    "backend.") from e
 
             # The gui is the client itself
             client.gui = client
@@ -2538,7 +2543,7 @@ class Viewer:
                     import zmq  # pylint: disable=import-outside-toplevel
                     if isinstance(e, (zmq.error.Again, zmq.error.ZMQError)):
                         return
-                raise e
+                raise
 
         # Restore Viewer's state if it has been altered
         if Viewer.is_alive():

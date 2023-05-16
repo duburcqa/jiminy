@@ -2,6 +2,7 @@
 """ TODO: Write documentation.
 """
 import os
+import re
 import atexit
 import logging
 import pathlib
@@ -81,9 +82,13 @@ class Simulator:
         """
         # Backup the user arguments
         self.use_theoretical_model = use_theoretical_model
-        self.viewer_kwargs = dict(
-            robot_name=f"{robot.name}_{next(tempfile._get_candidate_names())}",
-            **deepcopy(viewer_kwargs or {}))
+        self.viewer_kwargs = deepcopy(viewer_kwargs or {})
+
+        # Handling of default argument(s)
+        if "robot_name" not in self.viewer_kwargs:
+            base_name = re.sub('[^A-Za-z0-9_]', '_', robot.name)
+            robot_name = f"{base_name}_{next(tempfile._get_candidate_names())}"
+            self.viewer_kwargs["robot_name"] = robot_name
 
         # Wrap callback in nested function to hide update of progress bar
         # Note that a weak reference must be used to avoid circular reference
