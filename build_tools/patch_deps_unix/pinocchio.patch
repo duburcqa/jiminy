@@ -360,16 +360,6 @@ diff --git a/bindings/python/pinocchio/deprecated.py b/bindings/python/pinocchio
 diff --git a/bindings/python/spatial/expose-explog.cpp b/bindings/python/spatial/expose-explog.cpp
 --- a/bindings/python/spatial/expose-explog.cpp
 +++ b/bindings/python/spatial/expose-explog.cpp
-@@ -3,8 +3,8 @@
- // Copyright (c) 2015 Wandercraft, 86 rue de Paris 91400 Orsay, France.
- //
- 
-+#include "pinocchio/bindings/python/fwd.hpp"
- #include "pinocchio/bindings/python/spatial/explog.hpp"
--#include <boost/python.hpp>
- 
- namespace pinocchio
- {
 @@ -16,22 +16,22 @@
      {
  

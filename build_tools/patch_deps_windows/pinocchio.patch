@@ -128,16 +128,3 @@ diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
  # else
  #  if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
  #   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)
-diff --git a/bindings/python/spatial/expose-explog.cpp b/bindings/python/spatial/expose-explog.cpp
---- a/bindings/python/spatial/expose-explog.cpp
-+++ b/bindings/python/spatial/expose-explog.cpp
-@@ -3,8 +3,8 @@
- // Copyright (c) 2015 Wandercraft, 86 rue de Paris 91400 Orsay, France.
- //
- 
-+#include "pinocchio/bindings/python/fwd.hpp"
- #include "pinocchio/bindings/python/spatial/explog.hpp"
--#include <boost/python.hpp>
- 
- namespace pinocchio
- {

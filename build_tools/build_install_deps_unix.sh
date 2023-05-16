@@ -157,7 +157,7 @@ fi
 cd "$RootDir/hpp-fcl"
 git reset --hard
 git fetch --all
-git checkout --force "v2.2.0"
+git checkout --force "v2.3.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/hppfcl.patch"
@@ -172,7 +172,7 @@ fi
 cd "$RootDir/pinocchio"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.15"
+git checkout --force "v2.6.17"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"
