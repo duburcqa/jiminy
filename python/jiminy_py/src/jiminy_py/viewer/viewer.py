@@ -359,7 +359,8 @@ class _ProcessWrapper:
                 multiprocessing.active_children()
 
 
-CameraPoseType = Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]
+CameraPoseType = Tuple[
+    Optional[Tuple3FType], Optional[Tuple3FType], Union[int, str]]
 
 
 class CameraMotionBreakpointType(TypedDict, total=True):
@@ -1176,7 +1177,7 @@ class Viewer:
                     proc = _ProcessWrapper(client, close_at_exit)
                 else:
                     client = Panda3dViewer(window_type='onscreen',
-                                        window_title=Viewer.window_name)
+                                           window_title=Viewer.window_name)
                     proc = _ProcessWrapper(client._app, close_at_exit)
             except RuntimeError as e:
                 raise RuntimeError(
@@ -1507,7 +1508,7 @@ class Viewer:
             H_abs = SE3(rotation_mat, position)
             H_abs = H_orig * H_abs
             position = H_abs.translation
-            Viewer.set_camera_transform(None, position, rotation)
+            Viewer.set_camera_transform(None, None, position, rotation)
             return
 
         # Perform the desired transformation
@@ -1610,7 +1611,8 @@ class Viewer:
     @_must_be_open
     def attach_camera(self,
                       frame: Union[str, int],
-                      camera_xyzrpy: Optional[CameraPoseType] = (None, None),
+                      position: Optional[Tuple3FType] = None,
+                      rotation: Optional[Tuple3FType] = None,
                       lock_relative_pose: Optional[bool] = None) -> None:
         """Attach the camera to a given robot frame.
 
@@ -1621,12 +1623,16 @@ class Viewer:
 
         :param frame: Name or index of the frame of the robot to follow with
                       the camera.
-        :param camera_xyzrpy: Tuple position [X, Y, Z], rotation
-                              [Roll, Pitch, Yaw] corresponding to the relative
-                              pose of the camera wrt the tracked frame. It will
-                              be used to initialize the camera pose if relative
-                              pose is not locked. `None` to disable.
-                              Optional: Disable by default.
+        :param position: Relative position [X, Y, Z] of the camera wrt the
+                         tracked frame. It is used to initialize the camera
+                         pose if relative pose is not locked. `None` to
+                         disable.
+                         Optional: Disable by default.
+        :param rotation: Relative orientation [Roll, Pitch, Yaw] of the camera
+                         wrt the tracked frame. It is used to initialize the
+                         camera pose if relative pose is not locked. `None` to
+                         disable.
+                         Optional: Disable by default.
         :param lock_relative_pose: Whether to lock the relative pose of the
                                    camera wrt tracked frame.
                                    Optional: False by default iif Panda3d
@@ -1655,21 +1661,21 @@ class Viewer:
                 "Not locking camera pose is only supported by Panda3d.")
 
         # Handling of default camera pose
-        if lock_relative_pose and camera_xyzrpy is None:
+        if lock_relative_pose:
             camera_xyzrpy = (None, None)
 
         # Set default relative camera pose if position/orientation undefined
-        if camera_xyzrpy is not None:
-            camera_xyz, camera_rpy = camera_xyzrpy
-            if camera_xyz is None:
-                camera_xyz = DEFAULT_CAMERA_XYZRPY_REL[0]
-            if camera_rpy is None:
-                camera_rpy = DEFAULT_CAMERA_XYZRPY_REL[1]
-            camera_xyzrpy = (camera_xyz, camera_rpy)
+        camera_xyzrpy = None
+        if lock_relative_pose or position is not None or rotation is not None:
+            if position is None:
+                position = DEFAULT_CAMERA_XYZRPY_REL[0]
+            if rotation is None:
+                rotation = DEFAULT_CAMERA_XYZRPY_REL[1]
+            camera_xyzrpy = (position, rotation)
 
         # Set camera pose if relative pose is not locked but provided
         if not lock_relative_pose and camera_xyzrpy is not None:
-            self.set_camera_transform(*camera_xyzrpy, frame)
+            self.set_camera_transform(frame, *camera_xyzrpy)
             camera_xyzrpy = None
 
         Viewer._camera_travelling = {
@@ -2303,14 +2309,14 @@ class Viewer:
             if Viewer._camera_travelling['viewer'] is self:
                 if Viewer._camera_travelling['pose'] is not None:
                     self.set_camera_transform(
-                        *Viewer._camera_travelling['pose'],
-                        relative=Viewer._camera_travelling['frame'])
+                        Viewer._camera_travelling['frame'],
+                        *Viewer._camera_travelling['pose'])
                 else:
                     frame = Viewer._camera_travelling['frame']
                     self.set_camera_lookat(np.zeros(3), frame)
 
         if Viewer._camera_motion is not None:
-            self.set_camera_transform(*Viewer._camera_xyzrpy)
+            self.set_camera_transform(None, *Viewer._camera_xyzrpy)
 
         # Update pose, color and scale of the markers, if any
         if Viewer.backend.startswith('panda3d'):

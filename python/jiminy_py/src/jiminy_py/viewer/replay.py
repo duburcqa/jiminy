@@ -66,8 +66,8 @@ def play_trajectories(
             Union[Tuple3FType, Sequence[Optional[Tuple3FType]]]] = None,
         robots_colors: Optional[
             Union[ColorType, Sequence[Optional[ColorType]]]] = None,
-        travelling_frame: Optional[Union[str, int]] = None,
-        camera_xyzrpy: Optional[CameraPoseType] = (None, None),
+        camera_pose: Optional[CameraPoseType] = None,
+        enable_travelling: bool = False,
         camera_motion: Optional[CameraMotionType] = None,
         watermark_fullpath: Optional[str] = None,
         legend: Optional[Union[str, Sequence[str]]] = None,
@@ -122,17 +122,16 @@ def play_trajectories(
                           None to disable.
                           Optional: Original color if single robot, default
                           color cycle otherwise.
-    :param travelling_frame: Name or index of the frame to track. The camera
-                             will automatically follow the frame of the robot
-                             associated with the first `trajs_data`.`None` to
-                             disable.
-                             Optional: Disabled by default.
-    :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
-                          corresponding to the absolute pose of the camera
-                          during replay, if travelling is disable, or the
-                          relative pose wrt the tracked frame otherwise. None
-                          to disable.
-                          Optional: None by default.
+    :param camera_pose: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw],
+                        frame name/index specifying the initial pose of the
+                        camera or the relative pose wrt the tracked frame
+                        depending on whether travelling is enabled. `None` to
+                        disable.
+                        Optional: None by default.
+    :param enable_travelling: Whether the camera tracks the robot associated
+                              with the first trajectory specified in
+                              `trajs_data`. `None` to disable.
+                              Optional: Disabled by default.
     :param camera_motion: Camera breakpoint poses over time, as a list of
                           `CameraMotionBreakpointType` dict. None to disable.
                           Optional: None by default.
@@ -427,10 +426,21 @@ def play_trajectories(
                 viewer_i.display_external_forces(display_f_external)
 
     # Set camera pose or activate camera travelling if requested
-    if travelling_frame is not None:
-        viewer.attach_camera(travelling_frame, camera_xyzrpy)
-    elif camera_xyzrpy is not None and any(camera_xyzrpy):
-        viewer.set_camera_transform(*camera_xyzrpy)
+    if enable_travelling:
+        frame, position, rotation = None, None, None
+        if camera_pose is not None:
+            position, rotation, frame = camera_pose
+        if frame is None:
+            # Track the first actual frame by default (0: world, 1: root_joint)
+            if not trajs_data[0]['robot'].has_freeflyer:
+                raise ValueError(
+                    "Enabling travelling requires `camera_pose` to specify at "
+                    "least the relative frame to track if the first robot has "
+                    "no freeflyer.")
+            frame = 2
+        viewer.attach_camera(frame, position, rotation)
+    elif camera_pose is not None:
+        viewer.set_camera_transform(*camera_pose)
 
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:
@@ -623,7 +633,7 @@ def play_trajectories(
 
     if Viewer.is_alive():
         # Disable camera travelling and camera motion if it was enabled
-        if travelling_frame is not None:
+        if enable_travelling:
             Viewer.detach_camera()
         if camera_motion is not None:
             Viewer.remove_camera_motion()
@@ -901,9 +911,8 @@ def _play_logs_files_entrypoint() -> None:
     if kwargs['mesh_package_dir'] is not None:
         kwargs['mesh_package_dirs'] = [kwargs.pop('mesh_package_dir')]
 
-    # Convert travelling mode into frame index
-    if kwargs.pop('travelling'):
-        kwargs['travelling_frame'] = 2
+    # Map argument name(s)
+    kwargs['enable_travelling'] = kwargs.pop('travelling')
 
     # Replay trajectories
     repeat = True
@@ -915,7 +924,7 @@ def _play_logs_files_entrypoint() -> None:
                 remove_widgets_overlay=False),
                 **kwargs})
         kwargs["start_paused"] = False
-        kwargs.setdefault("camera_xyzrpy", None)
+        kwargs.setdefault("camera_pose", None)
         if kwargs["record_video_path"] is None:
             while True:
                 reply = input("Do you want to replay again (y/[n])?").lower()

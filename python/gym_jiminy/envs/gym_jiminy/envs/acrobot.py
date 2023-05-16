@@ -105,9 +105,9 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
 
-        # Overwrite default camera pose
-        simulator.viewer_kwargs.setdefault("camera_xyzrpy", (
-            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi)))
+        # Overwrite default absolute camera pose
+        simulator.viewer_kwargs.setdefault("camera_pose", (
+            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi), None))
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
