@@ -27,7 +27,7 @@ jobs:
         shell: bash
 
     env:
-      TORCH_VERSION: "1.13.1"
+      TORCH_VERSION: "1.13.1+cpu"
       CMAKE_CXX_FLAGS: "-march=x86-64-v3 -mtune=generic"
 
     #####################################################################################
@@ -69,7 +69,7 @@ jobs:
     - name: Build project dependencies
       run: |
         BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
+        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
         "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
 
     #####################################################################################
