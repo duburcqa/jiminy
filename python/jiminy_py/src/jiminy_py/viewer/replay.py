@@ -427,18 +427,20 @@ def play_trajectories(
 
     # Set camera pose or activate camera travelling if requested
     if enable_travelling:
-        frame, position, rotation = None, None, None
+        relative, position, rotation = None, None, None
         if camera_pose is not None:
-            position, rotation, frame = camera_pose
-        if frame is None:
+            position, rotation, relative = camera_pose
+        if relative is None:
             # Track the first actual frame by default (0: world, 1: root_joint)
-            if not trajs_data[0]['robot'].has_freeflyer:
+            robot = trajs_data[0]['robot']
+            assert robot is not None
+            if not robot.has_freeflyer:
                 raise ValueError(
                     "Enabling travelling requires `camera_pose` to specify at "
                     "least the relative frame to track if the first robot has "
                     "no freeflyer.")
-            frame = 2
-        viewer.attach_camera(frame, position, rotation)
+            relative = 2
+        viewer.attach_camera(relative, position, rotation)
     elif camera_pose is not None:
         viewer.set_camera_transform(*camera_pose)
 

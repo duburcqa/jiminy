@@ -111,7 +111,7 @@ if(MSVC)
         _USE_MATH_DEFINES NOMINMAX
         EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC
     )
-    set(jiminy_OPTIONS /EHsc /bigobj /Zc:preprocessor /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005 /wd1017)
+    set(jiminy_OPTIONS /EHsc /bigobj /Zc:preprocessor /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
 else()
     execute_process(COMMAND readelf --version-info "${jiminy_CORE_LIBRARY}"
                     COMMAND grep -c "Name: CXXABI_1.3.9\\\|Name: GLIBCXX_3.4.21"

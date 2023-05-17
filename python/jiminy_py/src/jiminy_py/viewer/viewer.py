@@ -360,7 +360,7 @@ class _ProcessWrapper:
 
 
 CameraPoseType = Tuple[
-    Optional[Tuple3FType], Optional[Tuple3FType], Union[int, str]]
+    Optional[Tuple3FType], Optional[Tuple3FType], Optional[Union[int, str]]]
 
 
 class CameraMotionBreakpointType(TypedDict, total=True):
@@ -1508,7 +1508,7 @@ class Viewer:
             H_abs = SE3(rotation_mat, position)
             H_abs = H_orig * H_abs
             position = H_abs.translation
-            Viewer.set_camera_transform(None, None, position, rotation)
+            Viewer.set_camera_transform(None, position, rotation)
             return
 
         # Perform the desired transformation
@@ -1610,7 +1610,7 @@ class Viewer:
 
     @_must_be_open
     def attach_camera(self,
-                      frame: Union[str, int],
+                      relative: Union[str, int],
                       position: Optional[Tuple3FType] = None,
                       rotation: Optional[Tuple3FType] = None,
                       lock_relative_pose: Optional[bool] = None) -> None:
@@ -1621,8 +1621,8 @@ class Viewer:
         then the relative camera pose wrt the frame is locked, otherwise the
         camera is only constrained to look at the frame.
 
-        :param frame: Name or index of the frame of the robot to follow with
-                      the camera.
+        :param relative: Name or index of the frame of the robot to follow with
+                         the camera.
         :param position: Relative position [X, Y, Z] of the camera wrt the
                          tracked frame. It is used to initialize the camera
                          pose if relative pose is not locked. `None` to
@@ -1639,17 +1639,17 @@ class Viewer:
                                    backend is used.
         """
         # Make sure one is not trying to track the camera itself
-        assert frame != 'camera', "Impossible to track the camera itself !"
+        assert relative != 'camera', "Impossible to track the camera itself !"
 
         # Assert(s) for type checker
         assert Viewer.backend is not None
 
         # Make sure the frame exists and it is not the universe itself
-        if isinstance(frame, str):
-            frame = self._client.model.getFrameId(frame)
-        if frame == self._client.model.nframes:
+        if isinstance(relative, str):
+            relative = self._client.model.getFrameId(relative)
+        if relative == self._client.model.nframes:
             raise ValueError("Trying to attach camera to non-existing frame.")
-        assert frame != 0, "Impossible to track the universe !"
+        assert relative != 0, "Impossible to track the universe !"
 
         # Handle of default camera lock mode
         if lock_relative_pose is None:
@@ -1661,11 +1661,12 @@ class Viewer:
                 "Not locking camera pose is only supported by Panda3d.")
 
         # Handling of default camera pose
+        camera_xyzrpy: Optional[
+            Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]] = None
         if lock_relative_pose:
             camera_xyzrpy = (None, None)
 
         # Set default relative camera pose if position/orientation undefined
-        camera_xyzrpy = None
         if lock_relative_pose or position is not None or rotation is not None:
             if position is None:
                 position = DEFAULT_CAMERA_XYZRPY_REL[0]
@@ -1675,11 +1676,11 @@ class Viewer:
 
         # Set camera pose if relative pose is not locked but provided
         if not lock_relative_pose and camera_xyzrpy is not None:
-            self.set_camera_transform(frame, *camera_xyzrpy)
+            self.set_camera_transform(*camera_xyzrpy, relative)
             camera_xyzrpy = None
 
         Viewer._camera_travelling = {
-            'viewer': self, 'frame': frame, 'pose': camera_xyzrpy}
+            'viewer': self, 'frame': relative, 'pose': camera_xyzrpy}
 
     @staticmethod
     def detach_camera() -> None:
@@ -2316,7 +2317,7 @@ class Viewer:
                     self.set_camera_lookat(np.zeros(3), frame)
 
         if Viewer._camera_motion is not None:
-            self.set_camera_transform(None, *Viewer._camera_xyzrpy)
+            self.set_camera_transform(*Viewer._camera_xyzrpy)
 
         # Update pose, color and scale of the markers, if any
         if Viewer.backend.startswith('panda3d'):
