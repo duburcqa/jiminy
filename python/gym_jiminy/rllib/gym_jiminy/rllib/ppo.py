@@ -301,7 +301,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         It extracts observation mirroring transforms for symmetry computations.
         """
         # pylint: disable=non-parent-init-called,super-init-not-called
-        
+
         # Convert any type of input dict input classical dictionary for compat
         config_dict: Dict[str, Any] = dict(PPOConfig().to_dict(), **config)
         validate_config(config_dict)
