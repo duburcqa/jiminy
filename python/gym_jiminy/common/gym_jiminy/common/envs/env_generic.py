@@ -964,7 +964,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             'verbose': False,
             'enable_travelling': self.robot.has_freeflyer,
             **kwargs
-        })  # type: ignore[arg-type]
+        })
 
     @staticmethod
     def play_interactive(env: Union["BaseJiminyEnv", gym.Wrapper],
