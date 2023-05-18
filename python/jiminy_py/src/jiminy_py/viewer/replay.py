@@ -427,7 +427,7 @@ def play_trajectories(
 
     # Set camera pose or activate camera travelling if requested
     if enable_travelling:
-        relative, position, rotation = None, None, None
+        position, rotation, relative = None, None, None
         if camera_pose is not None:
             position, rotation, relative = camera_pose
         if relative is None:

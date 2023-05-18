@@ -54,7 +54,7 @@ jobs:
       run: |
         if ("${{ matrix.PYTHON_VERSION }}" -ne '3.11') {
           python -m pip install "torch==${env:TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
-          python -m pip install "gymnasium==0.26.3" "importlib-metadata>=3.3.0" stable_baselines3
+          python -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
         }
         & "./build_tools/build_install_deps_windows.ps1"
 

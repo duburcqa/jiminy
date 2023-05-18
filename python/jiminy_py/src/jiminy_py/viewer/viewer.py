@@ -2310,8 +2310,8 @@ class Viewer:
             if Viewer._camera_travelling['viewer'] is self:
                 if Viewer._camera_travelling['pose'] is not None:
                     self.set_camera_transform(
-                        Viewer._camera_travelling['frame'],
-                        *Viewer._camera_travelling['pose'])
+                        *Viewer._camera_travelling['pose'],
+                        relative=Viewer._camera_travelling['frame'])
                 else:
                     frame = Viewer._camera_travelling['frame']
                     self.set_camera_lookat(np.zeros(3), frame)
