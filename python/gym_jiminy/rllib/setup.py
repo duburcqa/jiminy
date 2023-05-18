@@ -1,12 +1,12 @@
-from pkg_resources import get_distribution
+from importlib.metadata import version
 from setuptools import setup, find_namespace_packages
 
 
-version = get_distribution('gym-jiminy').version
+gym_jiminy_version = version('gym-jiminy')
 
 setup(
     name="gym-jiminy-rllib",
-    version=version,
+    version=gym_jiminy_version,
     description=(
         "Specialized Reinforcement learning toolbox based on Ray RLlib for "
         "Gym Jiminy."),
@@ -30,7 +30,7 @@ setup(
     packages=find_namespace_packages(),
     package_data={"gym_jiminy.rllib": ["py.typed"]},
     install_requires=[
-        f"gym-jiminy~={version}",
+        f"gym-jiminy~={gym_jiminy_version}",
         # Highly efficient distributed computation library used for RL
         # - <1.6.0: GPU detection must be patched to work
         # - 1.11.0: Breaking changes

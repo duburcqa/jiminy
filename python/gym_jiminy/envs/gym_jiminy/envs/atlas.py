@@ -1,19 +1,21 @@
 import os
 import numpy as np
 from pathlib import Path
-from pkg_resources import resource_filename
 from typing import Any
 
 from jiminy_py.core import build_models_from_urdf, Robot
 from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
-from pinocchio import buildReducedModel
+from pinocchio import neutral, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.controllers import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 
-from pinocchio import neutral
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])
@@ -107,14 +109,13 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
                        `BaseJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
-        data_root_dir = resource_filename(
-            "gym_jiminy.envs", "data/bipedal_robots/atlas")
-        urdf_path = os.path.join(data_root_dir, "atlas_v4.urdf")
+        data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
+        urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
 
         # Initialize the walker environment
         super().__init__(
             urdf_path=urdf_path,
-            mesh_path=data_root_dir,
+            mesh_path=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(  # type: ignore[arg-type]
@@ -149,16 +150,15 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
 class AtlasReducedJiminyEnv(WalkerJiminyEnv):
     def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         # Get the urdf and mesh paths
-        data_root_dir = resource_filename(
-            "gym_jiminy.envs", "data/bipedal_robots/atlas")
-        urdf_path = os.path.join(data_root_dir, "atlas_v4.urdf")
+        data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
+        urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
 
         # Load the full models
         pinocchio_model, collision_model, visual_model = \
             build_models_from_urdf(urdf_path,
                                    has_freeflyer=True,
                                    build_visual_model=True,
-                                   mesh_package_dirs=[data_root_dir])
+                                   mesh_package_dirs=[data_dir])
 
         # Generate the reference configuration
         def joint_position_idx(joint_name):
@@ -200,7 +200,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
         super().__init__(
             robot=robot,
             urdf_path=urdf_path,
-            mesh_path=data_root_dir,
+            mesh_path=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(  # type: ignore[arg-type]

@@ -2,7 +2,6 @@ import os
 import math
 import numpy as np
 from pathlib import Path
-from pkg_resources import resource_filename
 
 from jiminy_py.core import (joint_t,
                             get_joint_type,
@@ -10,13 +9,16 @@ from jiminy_py.core import (joint_t,
                             DistanceConstraint,
                             Robot)
 from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
-from pinocchio import buildReducedModel
+from pinocchio import neutral, SE3, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.controllers import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 
-from pinocchio import neutral, SE3
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
 
 
 # Parameters of neutral configuration
@@ -68,16 +70,15 @@ class CassieJiminyEnv(WalkerJiminyEnv):
                        `BaseJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
-        data_root_dir = resource_filename(
-            "gym_jiminy.envs", "data/bipedal_robots/cassie")
-        urdf_path = os.path.join(data_root_dir, "cassie.urdf")
+        data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/cassie")
+        urdf_path = os.path.join(data_dir, "cassie.urdf")
 
         # Load the full models
         pinocchio_model, collision_model, visual_model = \
             build_models_from_urdf(urdf_path,
                                    has_freeflyer=True,
                                    build_visual_model=True,
-                                   mesh_package_dirs=[data_root_dir])
+                                   mesh_package_dirs=[data_dir])
 
         # Fix passive rotary joints with spring.
         # Alternatively, it would be more realistic to model them using the
@@ -106,7 +107,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         super().__init__(
             robot=robot,
             urdf_path=urdf_path,
-            mesh_path=data_root_dir,
+            mesh_path=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(  # type: ignore[arg-type]

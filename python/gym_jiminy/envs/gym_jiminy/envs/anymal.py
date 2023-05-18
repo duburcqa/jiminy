@@ -2,11 +2,15 @@
 """
 import os
 import numpy as np
-from pkg_resources import resource_filename
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.controllers import PDController
 from gym_jiminy.common.pipeline import build_pipeline
+
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
 
 
 # Default simulation duration (:float [s])
@@ -50,14 +54,14 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
                        `BaseJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
-        data_root_dir = resource_filename(
-            "gym_jiminy.envs", "data/quadrupedal_robots/anymal")
-        urdf_path = os.path.join(data_root_dir, "anymal.urdf")
+        data_dir = str(
+            files("gym_jiminy.envs") / "data/quadrupedal_robots/anymal")
+        urdf_path = os.path.join(data_dir, "anymal.urdf")
 
         # Initialize the walker environment
         super().__init__(
             urdf_path=urdf_path,
-            mesh_path=data_root_dir,
+            mesh_path=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(  # type: ignore[arg-type]
