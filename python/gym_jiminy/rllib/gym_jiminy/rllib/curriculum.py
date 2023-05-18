@@ -17,7 +17,12 @@ from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.utils.typing import PolicyID
 
-from gym_jiminy.toolbox.wrappers.meta_envs import DataTreeT
+try:
+    from gym_jiminy.toolbox.wrappers.meta_envs import DataTreeT
+except ImportError as e:
+    raise ImportError(
+        "Submodule not available. Please install 'gym_jiminy[toolbox]'."
+        ) from e
 
 
 def build_task_scheduling_callback(

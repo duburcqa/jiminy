@@ -359,7 +359,8 @@ class _ProcessWrapper:
                 multiprocessing.active_children()
 
 
-CameraPoseType = Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]
+CameraPoseType = Tuple[
+    Optional[Tuple3FType], Optional[Tuple3FType], Optional[Union[int, str]]]
 
 
 class CameraMotionBreakpointType(TypedDict, total=True):
@@ -513,51 +514,6 @@ class Viewer:
             else:
                 backend = get_default_backend()
 
-        # Access the current backend or create one if none is available
-        self.__is_open = False
-        self.is_backend_parent = not Viewer.is_alive()
-        try:
-            # Start viewer backend
-            Viewer.connect_backend(backend)
-
-            # Assert(s) for type checker
-            assert Viewer._backend_obj is not None
-
-            # Decide whether to open gui
-            if open_gui_if_parent is None:
-                if not is_display_available():
-                    open_gui_if_parent = False
-                elif backend == 'meshcat':
-                    # Opening a new display cell automatically if there is
-                    # no other display cell already opened.
-                    open_gui_if_parent = interactive_mode() >= 2 and (
-                        Viewer._backend_obj is None or
-                        not Viewer._backend_obj.comm_manager.n_comm)
-                elif backend == 'panda3d':
-                    open_gui_if_parent = interactive_mode() < 2
-                else:
-                    open_gui_if_parent = False
-
-            # Keep track of the backend process associated to the viewer.
-            # The destructor of this instance must adapt its behavior to the
-            # case where the backend process has changed in the meantime.
-            self._gui = Viewer._backend_obj.gui
-            self._backend_proc = Viewer._backend_proc
-            self.__is_open = True
-
-            # Open gui if requested
-            try:
-                if open_gui_if_parent:
-                    Viewer.open_gui()
-            except RuntimeError as e:
-                # Convert exception into warning if it fails. It is probably
-                # because no display is available.
-                logger.warning("%s", e)
-        except Exception as e:
-            self.close()
-            raise RuntimeError(
-                "Impossible to create backend or connect to it.") from e
-
         # Make sure that the windows, scene and robot names are valid
         if scene_name == Viewer.window_name:
             raise ValueError(
@@ -616,6 +572,51 @@ class Viewer:
         # Create a unique temporary directory, specific to this viewer instance
         self._tempdir = tempfile.mkdtemp(
             prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
+
+        # Access the current backend or create one if none is available
+        self.__is_open = False
+        self.is_backend_parent = not Viewer.is_alive()
+        try:
+            # Start viewer backend
+            Viewer.connect_backend(backend)
+
+            # Assert(s) for type checker
+            assert Viewer._backend_obj is not None
+
+            # Decide whether to open gui
+            if open_gui_if_parent is None:
+                if not is_display_available():
+                    open_gui_if_parent = False
+                elif backend == 'meshcat':
+                    # Opening a new display cell automatically if there is
+                    # no other display cell already opened.
+                    open_gui_if_parent = interactive_mode() >= 2 and (
+                        Viewer._backend_obj is None or
+                        not Viewer._backend_obj.comm_manager.n_comm)
+                elif backend == 'panda3d':
+                    open_gui_if_parent = interactive_mode() < 2
+                else:
+                    open_gui_if_parent = False
+
+            # Keep track of the backend process associated to the viewer.
+            # The destructor of this instance must adapt its behavior to the
+            # case where the backend process has changed in the meantime.
+            self._gui = Viewer._backend_obj.gui
+            self._backend_proc = Viewer._backend_proc
+            self.__is_open = True
+
+            # Open gui if requested
+            try:
+                if open_gui_if_parent:
+                    Viewer.open_gui()
+            except RuntimeError as e:
+                # Convert exception into warning if it fails. It is probably
+                # because no display is available.
+                logger.warning("%s", e)
+        except Exception as e:
+            self.close()
+            raise RuntimeError(
+                "Impossible to create backend or connect to it.") from e
 
         # Load the robot
         self._setup(robot, self.robot_color)
@@ -1100,7 +1101,7 @@ class Viewer:
             # Consider that the robot name is now available, no matter
             # whether the robot has actually been deleted or not.
             Viewer._backend_robot_names.discard(self.robot_name)
-            Viewer._backend_robot_colors.pop(self.robot_name)
+            Viewer._backend_robot_colors.pop(self.robot_name, None)
             if self.delete_robot_on_close:
                 Viewer._delete_nodes_viewer([
                     self._client.visual_group,
@@ -1166,24 +1167,29 @@ class Viewer:
         if backend.startswith('panda3d'):
             # Instantiate client with onscreen rendering capability enabled.
             # Note that it fallbacks to software rendering if necessary.
-            if backend == 'panda3d-qt':
-                from .panda3d.panda3d_widget import Panda3dQWidget
-                client = Panda3dQWidget()
-                proc = _ProcessWrapper(client, close_at_exit)
-            elif backend == 'panda3d-sync':
-                client = Panda3dApp()
-                proc = _ProcessWrapper(client, close_at_exit)
-            else:
-                client = Panda3dViewer(window_type='onscreen',
-                                       window_title=Viewer.window_name)
-                proc = _ProcessWrapper(client._app, close_at_exit)
+            try:
+                if backend == 'panda3d-qt':
+                    from .panda3d.panda3d_widget import Panda3dQWidget
+                    client = Panda3dQWidget()
+                    proc = _ProcessWrapper(client, close_at_exit)
+                elif backend == 'panda3d-sync':
+                    client = Panda3dApp()
+                    proc = _ProcessWrapper(client, close_at_exit)
+                else:
+                    client = Panda3dViewer(window_type='onscreen',
+                                           window_title=Viewer.window_name)
+                    proc = _ProcessWrapper(client._app, close_at_exit)
+            except RuntimeError as e:
+                raise RuntimeError(
+                    "Something went wrong. Impossible to instantiate viewer "
+                    "backend.") from e
 
             # The gui is the client itself
             client.gui = client
         else:
             # List of connections likely to correspond to Meshcat servers
             import psutil
-            meshcat_candidate_conn = {}
+            meshcat_candidate_conn = []
             for pid in psutil.pids():
                 try:
                     proc_info = Process(pid)
@@ -1194,7 +1200,7 @@ class Viewer:
                         cmdline = proc_info.cmdline()
                         if cmdline and ('python' in cmdline[0].lower() or
                                         'meshcat' in cmdline[-1]):
-                            meshcat_candidate_conn[pid] = conn
+                            meshcat_candidate_conn.append(conn)
                 except (psutil.AccessDenied,
                         psutil.ZombieProcess,
                         psutil.NoSuchProcess):
@@ -1212,11 +1218,13 @@ class Viewer:
                 except (NameError, AttributeError):
                     pass  # No Ipython kernel running
 
-            # Use the first port responding to zmq request, if any
+            # Use the first port responding to zmq request, if any.
+            # Sorting connections to scan most likely ports first.
             import zmq
             zmq_url = None
             context = zmq.Context.instance()
-            for pid, conn in meshcat_candidate_conn.items():
+            for conn in sorted(
+                    meshcat_candidate_conn, key=lambda conn: conn.laddr.port):
                 try:
                     # Note that the timeout must be long enough to give enough
                     # time to the server to respond, but not to long to avoid
@@ -1243,7 +1251,7 @@ class Viewer:
             client = MeshcatWrapper(zmq_url)
             server_proc: Union[Process, multiprocessing.Process]
             if client.server_proc is None:
-                server_proc = Process(pid)
+                server_proc = Process(conn.pid)
             else:
                 server_proc = client.server_proc
             proc = _ProcessWrapper(server_proc, close_at_exit)
@@ -1602,8 +1610,9 @@ class Viewer:
 
     @_must_be_open
     def attach_camera(self,
-                      frame: Union[str, int],
-                      camera_xyzrpy: Optional[CameraPoseType] = (None, None),
+                      relative: Union[str, int],
+                      position: Optional[Tuple3FType] = None,
+                      rotation: Optional[Tuple3FType] = None,
                       lock_relative_pose: Optional[bool] = None) -> None:
         """Attach the camera to a given robot frame.
 
@@ -1612,31 +1621,35 @@ class Viewer:
         then the relative camera pose wrt the frame is locked, otherwise the
         camera is only constrained to look at the frame.
 
-        :param frame: Name or index of the frame of the robot to follow with
-                      the camera.
-        :param camera_xyzrpy: Tuple position [X, Y, Z], rotation
-                              [Roll, Pitch, Yaw] corresponding to the relative
-                              pose of the camera wrt the tracked frame. It will
-                              be used to initialize the camera pose if relative
-                              pose is not locked. `None` to disable.
-                              Optional: Disable by default.
+        :param relative: Name or index of the frame of the robot to follow with
+                         the camera.
+        :param position: Relative position [X, Y, Z] of the camera wrt the
+                         tracked frame. It is used to initialize the camera
+                         pose if relative pose is not locked. `None` to
+                         disable.
+                         Optional: Disable by default.
+        :param rotation: Relative orientation [Roll, Pitch, Yaw] of the camera
+                         wrt the tracked frame. It is used to initialize the
+                         camera pose if relative pose is not locked. `None` to
+                         disable.
+                         Optional: Disable by default.
         :param lock_relative_pose: Whether to lock the relative pose of the
                                    camera wrt tracked frame.
                                    Optional: False by default iif Panda3d
                                    backend is used.
         """
         # Make sure one is not trying to track the camera itself
-        assert frame != 'camera', "Impossible to track the camera itself !"
+        assert relative != 'camera', "Impossible to track the camera itself !"
 
         # Assert(s) for type checker
         assert Viewer.backend is not None
 
         # Make sure the frame exists and it is not the universe itself
-        if isinstance(frame, str):
-            frame = self._client.model.getFrameId(frame)
-        if frame == self._client.model.nframes:
+        if isinstance(relative, str):
+            relative = self._client.model.getFrameId(relative)
+        if relative == self._client.model.nframes:
             raise ValueError("Trying to attach camera to non-existing frame.")
-        assert frame != 0, "Impossible to track the universe !"
+        assert relative != 0, "Impossible to track the universe !"
 
         # Handle of default camera lock mode
         if lock_relative_pose is None:
@@ -1648,25 +1661,26 @@ class Viewer:
                 "Not locking camera pose is only supported by Panda3d.")
 
         # Handling of default camera pose
-        if lock_relative_pose and camera_xyzrpy is None:
+        camera_xyzrpy: Optional[
+            Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]] = None
+        if lock_relative_pose:
             camera_xyzrpy = (None, None)
 
         # Set default relative camera pose if position/orientation undefined
-        if camera_xyzrpy is not None:
-            camera_xyz, camera_rpy = camera_xyzrpy
-            if camera_xyz is None:
-                camera_xyz = DEFAULT_CAMERA_XYZRPY_REL[0]
-            if camera_rpy is None:
-                camera_rpy = DEFAULT_CAMERA_XYZRPY_REL[1]
-            camera_xyzrpy = (camera_xyz, camera_rpy)
+        if lock_relative_pose or position is not None or rotation is not None:
+            if position is None:
+                position = DEFAULT_CAMERA_XYZRPY_REL[0]
+            if rotation is None:
+                rotation = DEFAULT_CAMERA_XYZRPY_REL[1]
+            camera_xyzrpy = (position, rotation)
 
         # Set camera pose if relative pose is not locked but provided
         if not lock_relative_pose and camera_xyzrpy is not None:
-            self.set_camera_transform(*camera_xyzrpy, frame)
+            self.set_camera_transform(*camera_xyzrpy, relative)
             camera_xyzrpy = None
 
         Viewer._camera_travelling = {
-            'viewer': self, 'frame': frame, 'pose': camera_xyzrpy}
+            'viewer': self, 'frame': relative, 'pose': camera_xyzrpy}
 
     @staticmethod
     def detach_camera() -> None:
@@ -2536,7 +2550,7 @@ class Viewer:
                     import zmq  # pylint: disable=import-outside-toplevel
                     if isinstance(e, (zmq.error.Again, zmq.error.ZMQError)):
                         return
-                raise e
+                raise
 
         # Restore Viewer's state if it has been altered
         if Viewer.is_alive():

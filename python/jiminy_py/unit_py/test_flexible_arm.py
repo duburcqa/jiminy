@@ -111,7 +111,7 @@ class SimulateFlexibleArm(unittest.TestCase):
             robot,
             controller,
             viewer_kwargs=dict(
-                camera_xyzrpy=((0.0, -2.0, 0.0), (np.pi/2, 0.0, 0.0))
+                camera_pose=((0.0, -2.0, 0.0), (np.pi/2, 0.0, 0.0), None)
             ))
 
     def tearDown(self):

@@ -579,6 +579,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         win = self.graphicsEngine.make_output(
             self.pipe, "offscreen_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
+        if win is None:
+            raise RuntimeError("Faulty graphics pipeline of this machine.")
         self.buff = win
 
         # Append buffer to the list of windows managed by the ShowBase
@@ -1251,7 +1253,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             from matplotlib import font_manager
         except ImportError as e:
             raise ImportError(
-                "Method not supported. Please install 'jiminy_py[plot]'."
+                "Method not available. Please install 'jiminy_py[plot]'."
                 ) from e
 
         # Remove existing watermark, if any

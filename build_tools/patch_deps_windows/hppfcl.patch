@@ -40,7 +40,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
    if(Qhull_FOUND)
      set(HPP_FCL_USE_SYSTEM_QHULL TRUE)
    else()
-@@ -262,12 +253,10 @@
+@@ -262,7 +253,6 @@
    include/hpp/fcl/timings.h
    )
 
@@ -48,11 +48,6 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
  add_subdirectory(src)
  if (BUILD_PYTHON_INTERFACE)
    add_subdirectory(python)
- endif ()
--add_subdirectory(test)
-
- pkg_config_append_libs("hpp-fcl")
- IF(HPP_FCL_HAS_OCTOMAP)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt

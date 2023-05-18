@@ -106,25 +106,28 @@ set(jiminy_DEFINITIONS
     BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON
     BOOST_MPL_LIMIT_VECTOR_SIZE=30
 )
+set(jiminy_OPTIONS)
 if(WIN32)
     list(APPEND jiminy_DEFINITIONS
         WIN32 _USE_MATH_DEFINES NOMINMAX
         EIGENPY_STATIC URDFDOM_STATIC HPP_FCL_STATIC PINOCCHIO_STATIC
     )
-    set(jiminy_OPTIONS /EHsc /bigobj /Zc:preprocessor /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
 else()
     execute_process(COMMAND readelf --version-info "${jiminy_CORE_LIBRARY}"
                     COMMAND grep -c "Name: CXXABI_1.3.9\\\|Name: GLIBCXX_3.4.21"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE CHECK_NEW_CXX11_ABI)
     list(APPEND jiminy_DEFINITIONS _GLIBCXX_USE_CXX11_ABI=$<BOOL:${CHECK_NEW_CXX11_ABI}>)
-    set(jiminy_OPTIONS -fPIC)
+    list(APPEND jiminy_OPTIONS -fPIC)
+endif()
+if(MSVC)
+    list(APPEND jiminy_OPTIONS /EHsc /bigobj /Zc:preprocessor /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
 endif()
 
 # Set architecture flags
-list(APPEND jiminy_OPTIONS ${jiminy_OPTIONS} @CMAKE_CXX_ARCH@)
+list(APPEND jiminy_OPTIONS @CMAKE_CXX_ARCH@)
 if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
-    list(APPEND jiminy_OPTIONS /wd9002 /fp:contract)
+    list(APPEND jiminy_OPTIONS /fp:contract)
     list(APPEND jiminy_DEFINITIONS __FMA__)
 endif()
 

@@ -2,6 +2,7 @@
 """ TODO: Write documentation.
 """
 import os
+import re
 import atexit
 import logging
 import pathlib
@@ -24,7 +25,8 @@ from .robot import (generate_default_hardware_description_file,
                     BaseJiminyRobot)
 from .dynamics import TrajectoryDataType
 from .log import read_log, build_robot_from_log
-from .viewer import (interactive_mode,
+from .viewer import (CameraPoseType,
+                     interactive_mode,
                      get_default_backend,
                      extract_replay_data_from_log,
                      play_trajectories,
@@ -81,9 +83,13 @@ class Simulator:
         """
         # Backup the user arguments
         self.use_theoretical_model = use_theoretical_model
-        self.viewer_kwargs = dict(
-            robot_name=f"{robot.name}_{next(tempfile._get_candidate_names())}",
-            **deepcopy(viewer_kwargs or {}))
+        self.viewer_kwargs = deepcopy(viewer_kwargs or {})
+
+        # Handling of default argument(s)
+        if "robot_name" not in self.viewer_kwargs:
+            base_name = re.sub('[^A-Za-z0-9_]', '_', robot.name)
+            robot_name = f"{base_name}_{next(tempfile._get_candidate_names())}"
+            self.viewer_kwargs["robot_name"] = robot_name
 
         # Wrap callback in nested function to hide update of progress bar
         # Note that a weak reference must be used to avoid circular reference
@@ -460,9 +466,7 @@ class Simulator:
                return_rgb_array: bool = False,
                width: Optional[int] = None,
                height: Optional[int] = None,
-               camera_xyzrpy: Optional[Tuple[
-                   Union[Tuple[float, float, float], np.ndarray],
-                   Union[Tuple[float, float, float], np.ndarray]]] = None,
+               camera_pose: Optional[CameraPoseType] = None,
                update_ground_profile: Optional[bool] = None,
                **kwargs: Any) -> Optional[np.ndarray]:
         """Render the current state of the simulation. One can display it
@@ -472,10 +476,10 @@ class Simulator:
                                  array or render it directly.
         :param width: Width of the returned RGB frame, if enabled.
         :param height: Height of the returned RGB frame, if enabled.
-        :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch,
-                              Yaw] corresponding to the absolute pose of the
-                              camera. None to disable.
-                              Optional: None by default.
+        :param camera_pose: Tuple position [X, Y, Z], rotation [Roll, Pitch,
+                            Yaw], frame name/index specifying the absolute or
+                            relative pose of the camera. `None` to disable.
+                            Optional: `None` by default.
         :param update_ground_profile: Whether to update the ground profile. It
                                       must be called manually only if necessary
                                       because it is costly.
@@ -541,8 +545,8 @@ class Simulator:
                     self.viewer.display_external_forces(visibility)
 
             # Initialize camera pose
-            if self.viewer.is_backend_parent and camera_xyzrpy is None:
-                camera_xyzrpy = ((9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2))
+            if self.viewer.is_backend_parent and camera_pose is None:
+                camera_pose = ((9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None)
 
         # Enable the ground profile is requested and available
         assert self.viewer is not None and self.viewer.backend is not None
@@ -552,8 +556,8 @@ class Simulator:
             Viewer.update_floor(ground_profile, show_meshes=False)
 
         # Set the camera pose if requested
-        if camera_xyzrpy is not None:
-            self.viewer.set_camera_transform(*camera_xyzrpy)
+        if camera_pose is not None:
+            self.viewer.set_camera_transform(*camera_pose)
 
         # Make sure the graphical window is open if required
         if not return_rgb_array:
@@ -676,7 +680,7 @@ class Simulator:
             from .plot import plot_log
         except ImportError as e:
             raise ImportError(
-                "This method not supported. Please install 'jiminy_py[plot]'."
+                "Method not available. Please install 'jiminy_py[plot]'."
                 ) from e
 
         # Create figure, without closing the existing one

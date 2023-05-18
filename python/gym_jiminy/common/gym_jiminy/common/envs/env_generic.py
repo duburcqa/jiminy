@@ -133,7 +133,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.debug = debug
 
         # Configure default camera pose if not already the case
-        if "camera_xyzrpy" not in self.simulator.viewer_kwargs:
+        if "camera_pose" not in self.simulator.viewer_kwargs:
             if self.robot.has_freeflyer:
                 # Get root frame name.
                 # The first and second frames are respectively "universe" no
@@ -141,12 +141,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 # one is the freeflyer joint "root_joint" if any.
                 root_name = self.robot.pinocchio_model.frames[2].name
 
-                # Note that the actual signature is hacked to set relative pose
-                self.simulator.viewer_kwargs["camera_xyzrpy"] = (
+                # Relative camera pose wrt the root frame by default
+                self.simulator.viewer_kwargs["camera_pose"] = (
                     *DEFAULT_CAMERA_XYZRPY_REL, root_name)
             else:
-                self.simulator.viewer_kwargs["camera_xyzrpy"] = (
-                    (0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi))
+                # Absolute camera pose by default
+                self.simulator.viewer_kwargs["camera_pose"] = (
+                    (0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi), None)
 
         # Set the available rendering modes
         self.metadata['render.modes'] = ['rgb_array']
@@ -936,14 +937,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Add action tab
         self.simulator.figure.add_tab("Action", t, tab_data)
 
-    def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
+    def replay(self, **kwargs: Any) -> None:
         """Replay the current episode until now.
 
-        :param enable_travelling: Whether enable travelling, following the
-                                  motion of the root frame of the model. This
-                                  parameter is ignored if the model has no
-                                  freeflyer.
-                                  Optional: True by default.
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
@@ -964,13 +960,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # and to update the ground profile.
         self.render(update_ground_profile=True, **kwargs)
 
-        # Set default travelling options
-        if enable_travelling and self.robot.has_freeflyer:
-            kwargs['travelling_frame'] = \
-                self.robot.pinocchio_model.frames[2].name
-
-        self.simulator.replay(
-            **{'verbose': False, **kwargs})  # type: ignore[arg-type]
+        self.simulator.replay(**{
+            'verbose': False,
+            'enable_travelling': self.robot.has_freeflyer,
+            **kwargs
+        })
 
     @staticmethod
     def play_interactive(env: Union["BaseJiminyEnv", gym.Wrapper],

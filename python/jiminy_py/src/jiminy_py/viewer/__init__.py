@@ -1,5 +1,6 @@
 # pylint: disable=missing-module-docstring
-from .viewer import (ViewerClosedError,
+from .viewer import (CameraPoseType,
+                     ViewerClosedError,
                      Viewer,
                      sleep,
                      is_display_available,
@@ -13,6 +14,7 @@ from .meshcat.utilities import interactive_mode
 
 
 __all__ = [
+    'CameraPoseType',
     'ViewerClosedError',
     'sleep',
     'Viewer',

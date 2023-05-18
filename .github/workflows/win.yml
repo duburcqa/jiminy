@@ -19,7 +19,7 @@ jobs:
         shell: pwsh
 
     env:
-      TORCH_VERSION: "1.13.1"
+      TORCH_VERSION: "1.13.1+cpu"
       BUILD_TYPE: "Release"
       GENERATOR: "Visual Studio 17 2022"
       CMAKE_CXX_FLAGS: "/d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"
@@ -53,7 +53,7 @@ jobs:
     - name: Build project dependencies
       run: |
         if ("${{ matrix.PYTHON_VERSION }}" -ne '3.11') {
-          python -m pip install "torch==${env:TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
+          python -m pip install "torch==${env:TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
           python -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
         }
         & "./build_tools/build_install_deps_windows.ps1"

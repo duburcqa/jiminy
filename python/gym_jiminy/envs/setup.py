@@ -29,7 +29,7 @@ setup(
     packages=find_namespace_packages(),
     include_package_data=True,
     install_requires=[
-        f"gym-jiminy[toolbox]=={version}"
+        f"gym-jiminy[toolbox]~={version}"
     ],
     zip_safe=False
 )
