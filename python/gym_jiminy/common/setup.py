@@ -1,26 +1,26 @@
 from itertools import chain
-from pkg_resources import get_distribution
+from importlib.metadata import version
 from setuptools import setup, find_namespace_packages
 
 
-version = get_distribution('jiminy-py').version
+jiminy_version = version('jiminy-py')
 
 extras = {
     "zoo": [
-        f"gym-jiminy-zoo~={version}",
+        f"gym-jiminy-zoo~={jiminy_version}",
     ],
     "toolbox": [
-        f"gym-jiminy-toolbox~={version}"
+        f"gym-jiminy-toolbox~={jiminy_version}"
     ],
     "rllib": [
-        f"gym-jiminy-rllib~={version}"
+        f"gym-jiminy-rllib~={jiminy_version}"
     ]
 }
 extras["all"] = list(set(chain.from_iterable(extras.values())))
 
 setup(
     name="gym-jiminy",
-    version=version,
+    version=jiminy_version,
     description=(
         "Python-native OpenAI Gym interface between Jiminy open-source "
         "simulator and Reinforcement Learning frameworks."),
@@ -47,7 +47,7 @@ setup(
     packages=find_namespace_packages(),
     package_data={"gym_jiminy.common": ["py.typed"]},
     install_requires=[
-        f"jiminy-py~={version}",
+        f"jiminy-py~={jiminy_version}",
         # Use to perform linear algebra computation
         "numpy",
         # Use internally to speedup computation of math methods

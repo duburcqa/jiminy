@@ -2,7 +2,6 @@
 """
 import os
 import numpy as np
-from pkg_resources import resource_filename
 from typing import Optional, Tuple, Dict, Any
 
 from gym import spaces
@@ -12,6 +11,11 @@ from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.utils import sample, DataNested
 from gym_jiminy.common.envs import BaseJiminyEnv
+
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
 
 
 # Stepper update period
@@ -95,8 +99,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         self.continuous = continuous
 
         # Get URDF path
-        data_dir = resource_filename(
-            "gym_jiminy.envs", "data/toys_models/cartpole")
+        data_dir = str(files("gym_jiminy.envs") / "data/toys_models/cartpole")
         urdf_path = os.path.join(data_dir, "cartpole.urdf")
 
         # Instantiate robot

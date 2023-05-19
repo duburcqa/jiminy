@@ -3,7 +3,6 @@
 """
 
 import os
-from pkg_resources import resource_filename
 from typing import Tuple, Dict, Any
 
 import gym
@@ -17,6 +16,11 @@ from pinocchio import (Quaternion,
 from jiminy_py.simulator import Simulator
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample
+
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
 
 
 # Stepper update period
@@ -35,15 +39,14 @@ class AntEnv(BaseJiminyEnv):
                        `BaseJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
-        data_root_dir = resource_filename(
-            "gym_jiminy.envs", "data/toys_models/ant")
-        urdf_path = os.path.join(data_root_dir, "ant.urdf")
-        hardware_path = os.path.join(data_root_dir, "ant_hardware.toml")
-        config_path = os.path.join(data_root_dir, "ant_options.toml")
+        data_dir = str(files("gym_jiminy.envs") / "data/toys_models/ant")
+        urdf_path = os.path.join(data_dir, "ant.urdf")
+        hardware_path = os.path.join(data_dir, "ant_hardware.toml")
+        config_path = os.path.join(data_dir, "ant_options.toml")
 
         # Configure the backend simulator
         simulator = Simulator.build(
-            urdf_path, hardware_path, data_root_dir,
+            urdf_path, hardware_path, data_dir,
             has_freeflyer=True, use_theoretical_model=False,
             config_path=config_path, debug=debug, **kwargs)
 

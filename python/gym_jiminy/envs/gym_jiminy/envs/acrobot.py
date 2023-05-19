@@ -1,6 +1,5 @@
 import os
 import numpy as np
-from pkg_resources import resource_filename
 from typing import Optional, Tuple, Dict, Any
 
 import gym
@@ -11,6 +10,11 @@ from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.utils import sample, DataNested
 from gym_jiminy.common.envs import BaseJiminyEnv, BaseJiminyGoalEnv
+
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
 
 
 # Stepper update period
@@ -81,10 +85,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         self.continuous = continuous
 
         # Get URDF path
-        data_dir = resource_filename(
-            "gym_jiminy.envs", "data/toys_models/acrobot")
-        urdf_path = os.path.join(
-            data_dir, "acrobot.urdf")
+        data_dir = str(files("gym_jiminy.envs") / "data/toys_models/acrobot")
+        urdf_path = os.path.join(data_dir, "acrobot.urdf")
 
         # Instantiate robot
         robot = jiminy.Robot()
