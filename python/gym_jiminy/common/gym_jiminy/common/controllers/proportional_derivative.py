@@ -2,18 +2,20 @@
 with gym_jiminy reinforcement learning pipeline environment design.
 """
 from collections import OrderedDict
-from typing import Union, Any, List
+from typing import Any, List, Union, TypedDict, Generic
 
 import numpy as np
 import numba as nb
-import gym
+import gymnasium as gym
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder)
 
-from ..bases import BaseControllerBlock
-from ..envs import BaseJiminyEnv
-from ..utils import DataNested, FieldNested
+from ..bases import ObsType, BaseControllerBlock
+from ..utils import FieldNested
+
+
+PidActionType = TypedDict("PidActionType", {"Q": np.ndarray, "V": np.ndarray})
 
 
 @nb.jit(nopython=True, nogil=True)
@@ -42,7 +44,8 @@ def _compute_command_impl(q_target: np.ndarray,
     return - pid_kp * (q_error + pid_kd * v_error)
 
 
-class PDController(BaseControllerBlock):
+class PDController(BaseControllerBlock[ObsType, PidActionType, np.ndarray],
+                   Generic[ObsType]):
     """Low-level Proportional-Derivative controller.
 
     .. warning::
@@ -50,7 +53,7 @@ class PDController(BaseControllerBlock):
         any intermediary controllers.
     """
     def __init__(self,
-                 env: BaseJiminyEnv,
+                 env: gym.Env[ObsType, PidActionType],
                  update_ratio: int = 1,
                  pid_kp: Union[float, List[float], np.ndarray] = 0.0,
                  pid_kd: Union[float, List[float], np.ndarray] = 0.0,
@@ -112,9 +115,9 @@ class PDController(BaseControllerBlock):
 
         # Set the action space. Note that it is flattened.
         self.action_space = gym.spaces.Dict(OrderedDict(
-            Q=gym.spaces.Box(
+            q=gym.spaces.Box(
                 low=pos_low, high=pos_high, dtype=np.float64),
-            V=gym.spaces.Box(
+            v=gym.spaces.Box(
                 low=vel_low, high=vel_high, dtype=np.float64)))
 
     def get_fieldnames(self) -> FieldNested:
@@ -122,22 +125,22 @@ class PDController(BaseControllerBlock):
                           for name in self.robot.motors_names]
         vel_fieldnames = [f"targetVelocity{name}"
                           for name in self.robot.motors_names]
-        return OrderedDict(Q=pos_fieldnames, V=vel_fieldnames)
+        return OrderedDict(q=pos_fieldnames, v=vel_fieldnames)
 
     def compute_command(self,
-                        measure: DataNested,
-                        action: gym.spaces.Dict
+                        observation: ObsType,
+                        action: PidActionType
                         ) -> np.ndarray:
         """Compute the motor torques using a PD controller.
 
-        It is proportional to the error between the measured motors positions/
+        It is proportional to the error between the observed motors positions/
         velocities and the target ones.
 
-        :param measure: Observation of the environment.
+        :param observation: Observation of the environment.
         :param action: Desired motors positions and velocities as a dictionary.
         """
         return _compute_command_impl(
-            q_target=action['Q'], v_target=action['V'],
+            q_target=action['q'], v_target=action['v'],
             encoders_data=self.env.sensors_data[encoder.type],
             motor_to_encoder=self.motor_to_encoder,
             pid_kp=self.pid_kp, pid_kd=self.pid_kd)

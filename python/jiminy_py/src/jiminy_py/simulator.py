@@ -43,7 +43,7 @@ except ImportError:
     TabbedFigure = type(None)  # type: ignore[misc,assignment]
 
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 DEFAULT_UPDATE_PERIOD = 1.0e-3  # 0.0 for time continuous update
@@ -436,7 +436,7 @@ class Simulator:
             return_code = self.engine.simulate(
                 t_end, q_init, v_init, a_init, is_state_theoretical)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
+            LOGGER.warning(
                 "The simulation failed due to Python exception:\n %s", e)
             return_code = jiminy.hresult_t.ERROR_GENERIC
         finally:  # Make sure that the progress bar is properly closed

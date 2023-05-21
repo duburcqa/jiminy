@@ -3,9 +3,9 @@
 """
 
 import os
-from typing import Tuple, Dict, Any
+from typing import Tuple
 
-import gym
+import gymnasium as gym
 import numpy as np
 from pinocchio import (Quaternion,
                        FrameType,
@@ -14,7 +14,8 @@ from pinocchio import (Quaternion,
                        framesForwardKinematics)
 
 from jiminy_py.simulator import Simulator
-from gym_jiminy.common.envs import BaseJiminyEnv
+from gym_jiminy.common.envs import EngineObsType, BaseJiminyEnv
+from gym_jiminy.common.bases import InfoType
 from gym_jiminy.common.utils import sample
 
 try:
@@ -27,7 +28,7 @@ except ImportError:
 STEP_DT = 0.05
 
 
-class AntEnv(BaseJiminyEnv):
+class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     """ TODO: Write documentation.
     """
 
@@ -96,7 +97,7 @@ class AntEnv(BaseJiminyEnv):
         """
         # Add noise on top of neutral configuration
         qpos = self._neutral()
-        qpos += sample(scale=0.1, shape=(self.robot.nq,), rg=self.rg)
+        qpos += sample(scale=0.1, shape=(self.robot.nq,), rg=self.np_random)
         qpos = normalize(self.robot.pinocchio_model, qpos)
 
         # Make sure it does not go through the ground
@@ -107,7 +108,8 @@ class AntEnv(BaseJiminyEnv):
 
         # Zero mean normally distributed initial velocity
         qvel = sample(
-            dist='normal', scale=0.1, shape=(self.robot.nv,), rg=self.rg)
+            dist='normal', scale=0.1, shape=(self.robot.nv,),
+            rg=self.np_random)
 
         return qpos, qvel
 
@@ -115,6 +117,7 @@ class AntEnv(BaseJiminyEnv):
         """ TODO: Write documentation.
 
         The observation space comprises:
+
             - robot configuration vector (absolute position (x, y) excluded),
             - robot velocity vector,
             - flatten external forces applied on each bodies in world frame
@@ -125,20 +128,20 @@ class AntEnv(BaseJiminyEnv):
         state_space = self._get_state_space()
 
         low = np.concatenate([
-            np.full_like(state_space['Q'].low[2:], -np.inf),
-            np.full_like(state_space['V'].low, -np.inf),
+            np.full_like(state_space['q'].low[2:], -np.inf),
+            np.full_like(state_space['v'].low, -np.inf),
             np.full(len(self.bodies_idx) * 6, -1.0)
         ])
         high = np.concatenate([
-            np.full_like(state_space['Q'].high[2:], np.inf),
-            np.full_like(state_space['V'].high, np.inf),
+            np.full_like(state_space['q'].high[2:], np.inf),
+            np.full_like(state_space['v'].high, np.inf),
             np.full(len(self.bodies_idx) * 6, 1.0)
         ])
 
         self.observation_space = gym.spaces.Box(
             low=low, high=high, dtype=np.float64)
 
-    def refresh_observation(self) -> None:
+    def refresh_observation(self, measurement: EngineObsType) -> None:
         if not self.simulator.is_simulation_running:
             # Initialize observation chunks
             self.obs_chunks = [
@@ -169,19 +172,18 @@ class AntEnv(BaseJiminyEnv):
         self._observation[slice(*self.obs_chunks_sizes[1])][:3] = \
             Quaternion(self.system_state.q[3:7]) * self.obs_chunks[1][:3]
 
-    def is_done(self) -> bool:
+    def has_terminated(self) -> Tuple[bool, bool]:
         """ TODO: Write documentation.
         """
         zpos = self.system_state.q[2]
-        not_done = zpos >= 0.2 and zpos <= 1.0
-        return not not_done
+        return 1.0 < zpos or zpos < 0.2, False
 
-    def compute_reward(self,  # type: ignore[override]
-                       *, info: Dict[str, Any]) -> float:
+    def compute_reward(self,
+                       done: bool,
+                       truncated: bool,
+                       info: InfoType) -> float:
         """ TODO: Write documentation.
         """
-        # pylint: disable=arguments-differ
-
         # Initialize total reward
         reward = 0.0
 
@@ -196,7 +198,7 @@ class AntEnv(BaseJiminyEnv):
         f_ext = self._observation[f_ext_idx]
         contact_cost = 0.5 * 1e-3 * np.square(f_ext).sum()
 
-        survive_reward = 1.0
+        survive_reward = 1.0 if not done else 0.0
 
         reward = forward_reward - ctrl_cost - contact_cost + survive_reward
 

@@ -1,7 +1,7 @@
 """ TODO: Write documentation.
 """
 import numpy as np
-import gym
+import gymnasium as gym
 
 
 class NormalizeAction(gym.ActionWrapper):

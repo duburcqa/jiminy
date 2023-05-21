@@ -1,7 +1,7 @@
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 
 from .cartpole import CartPoleJiminyEnv
-from .acrobot import AcrobotJiminyEnv, AcrobotJiminyGoalEnv
+from .acrobot import AcrobotJiminyEnv
 from .ant import AntEnv
 from .cassie import CassieJiminyEnv, CassiePDControlJiminyEnv
 from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
@@ -14,7 +14,6 @@ from .atlas import (AtlasJiminyEnv,
 __all__ = [
     'CartPoleJiminyEnv',
     'AcrobotJiminyEnv',
-    'AcrobotJiminyGoalEnv',
     'AntEnv',
     'CassieJiminyEnv',
     'CassiePDControlJiminyEnv',

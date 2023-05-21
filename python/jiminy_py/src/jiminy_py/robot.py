@@ -55,8 +55,8 @@ class _DuplicateFilter(logging.Filter):
         return True
 
 
-logger = logging.getLogger(__name__)
-logger.addFilter(_DuplicateFilter())
+LOGGER = logging.getLogger(__name__)
+LOGGER.addFilter(_DuplicateFilter())
 
 
 def _gcd(a: float,
@@ -182,9 +182,9 @@ def generate_default_hardware_description_file(
     """
     # Handle verbosity level
     if verbose:
-        logger.setLevel(logging.DEBUG)
+        LOGGER.setLevel(logging.DEBUG)
     else:
-        logger.setLevel(logging.ERROR)
+        LOGGER.setLevel(logging.ERROR)
 
     # Read the XML
     tree = ET.parse(urdf_path)
@@ -261,7 +261,7 @@ def generate_default_hardware_description_file(
                 collision_bodies_names.add(body_name)
                 sensor_type = force.type
             else:
-                logger.warning(
+                LOGGER.warning(
                     "Unsupported Gazebo sensor plugin of type '%s'.",
                     sensor_type)
                 continue
@@ -274,7 +274,7 @@ def generate_default_hardware_description_file(
             if gazebo_update_rate is None:
                 gazebo_update_rate = update_rate
             elif gazebo_update_rate != update_rate:
-                logger.warning(
+                LOGGER.warning(
                     "Jiminy does not support sensors with different "
                     "update rate. Using greatest common divisor instead.")
                 gazebo_update_rate = _gcd(gazebo_update_rate, update_rate)
@@ -339,7 +339,7 @@ def generate_default_hardware_description_file(
                         frame_pose=6*[0.0])
                 })
             else:
-                logger.warning("Unsupported Gazebo plugin '%s'", plugin)
+                LOGGER.warning("Unsupported Gazebo plugin '%s'", plugin)
 
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
     if link_root and imu.type not in hardware_info['Sensor'].keys():
@@ -412,7 +412,7 @@ def generate_default_hardware_description_file(
         assert transmission_type is not None
         transmission_type = os.path.basename(transmission_type).casefold()
         if transmission_type != 'simpletransmission':
-            logger.warning(
+            LOGGER.warning(
                 "Jiminy only support SimpleTransmission for now. Skipping"
                 "transmission '%s' of type '%s'.", transmission_name,
                 transmission_type)
@@ -435,7 +435,7 @@ def generate_default_hardware_description_file(
         assert joint is not None
         joint_type = joint.attrib['type'].casefold()
         if joint_type not in ("revolute", "continuous", "prismatic"):
-            logger.warning(
+            LOGGER.warning(
                 "Jiminy only support 1-dof joint actuators and effort "
                 "sensors. Attached joint cannot of type '%s'.", joint_type)
             continue
@@ -501,7 +501,7 @@ def generate_default_hardware_description_file(
 
     # Warn if friction model has been defined for non-actuated joints
     if joints_options:
-        logger.warning(
+        LOGGER.warning(
             "Jiminy only support friction model for actuated joint.")
 
     # Specify custom update rate for the controller and the sensors, if any
@@ -545,9 +545,9 @@ def load_hardware_description_file(
     """
     # Handle verbosity level
     if verbose:
-        logger.setLevel(logging.DEBUG)
+        LOGGER.setLevel(logging.DEBUG)
     else:
-        logger.setLevel(logging.ERROR)
+        LOGGER.setLevel(logging.ERROR)
 
     hardware_info = toml.load(hardware_path)
     extra_info = hardware_info.pop('Global', {})
@@ -594,7 +594,7 @@ def load_hardware_description_file(
                 body_name in geometry_types['collision']['primitive']:
             if not avoid_instable_collisions:
                 continue
-            logger.warning(
+            LOGGER.warning(
                 "Collision body having both primitive and mesh geometries "
                 "is not supported. Enabling only primitive collision for "
                 "this body.")
@@ -604,19 +604,19 @@ def load_hardware_description_file(
         elif body_name in geometry_types['collision']['mesh']:
             if not avoid_instable_collisions:
                 continue
-            logger.warning(
+            LOGGER.warning(
                 "Collision body associated with mesh geometry is not "
                 "supported for now. Replacing it by contact points at the "
                 "vertices of the minimal volume bounding box.")
         elif body_name not in geometry_types['visual']['mesh']:
-            logger.warning(
+            LOGGER.warning(
                 "No visual mesh nor collision geometry associated with "
                 "collision body '%s'. Fallback to adding a single contact "
                 "point at body frame.", body_name)
             contact_frames_names.append(body_name)
             continue
         else:
-            logger.warning(
+            LOGGER.warning(
                 "No collision geometry associated with the collision body "
                 "'%s'. Fallback to replacing it by contact points at the "
                 "vertices of the minimal volume bounding box of the available "
@@ -635,7 +635,7 @@ def load_hardware_description_file(
         if collision_boxes_size:
             if not avoid_instable_collisions:
                 continue
-            logger.warning(
+            LOGGER.warning(
                 "Collision body associated with box geometry is not "
                 "numerically stable for now. Replacing it by contact points "
                 "at the vertices.")
@@ -720,7 +720,7 @@ def load_hardware_description_file(
             # Make sure the motor can be instantiated
             joint_name = motor_descr.pop('joint_name')
             if not robot.pinocchio_model.existJointName(joint_name):
-                logger.warning("'%s' is not a valid joint name.", joint_name)
+                LOGGER.warning("'%s' is not a valid joint name.", joint_name)
                 continue
 
             # Create the motor and attach it
@@ -744,7 +744,7 @@ def load_hardware_description_file(
             option_fields = options.keys()
             for name, value in motor_descr.items():
                 if name not in option_fields:
-                    logger.warning(
+                    LOGGER.warning(
                         "'%s' is not a valid option for the motor '%s' of "
                         "type '%s'.", name, motor_name, motor_type)
                 options[name] = value
@@ -758,13 +758,13 @@ def load_hardware_description_file(
             if sensor_type == encoder.type:
                 joint_name = sensor_descr.pop('joint_name')
                 if not robot.pinocchio_model.existJointName(joint_name):
-                    logger.warning(
+                    LOGGER.warning(
                         "'%s' is not a valid joint name.", joint_name)
                     continue
             elif sensor_type == effort.type:
                 motor_name = sensor_descr.pop('motor_name')
                 if motor_name not in robot.motors_names:
-                    logger.warning(
+                    LOGGER.warning(
                         "'%s' is not a valid motor name.", motor_name)
                     continue
 
@@ -836,7 +836,7 @@ def load_hardware_description_file(
             option_fields = options.keys()
             for name, value in sensor_descr.items():
                 if name not in option_fields:
-                    logger.warning(
+                    LOGGER.warning(
                         "'%s' is not a valid option for the sensor '%s' of "
                         "type '%s'.", name, sensor_name, sensor_type)
                 options[name] = value
@@ -940,7 +940,7 @@ class BaseJiminyRobot(jiminy.Robot):
         self.hardware_path = hardware_path
         if not os.path.exists(hardware_path):
             if hardware_path:
-                logger.warning(
+                LOGGER.warning(
                     "Hardware configuration file not found. Not adding any "
                     "hardware to the robot.\n Default file can be generated "
                     "using 'generate_default_hardware_description_file' "

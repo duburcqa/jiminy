@@ -110,29 +110,28 @@ class PipelineDesign(unittest.TestCase):
         self.assertEqual(obs['sensors']['ImuSensor'].ndim, 3)
         self.assertEqual(len(obs['sensors']['ImuSensor']), self.num_stack)
         controller_target_obs = obs['targets']['controller_0']
-        self.assertEqual(len(controller_target_obs['Q']), self.num_stack)
-        self.assertEqual(len(controller_target_obs['V']), self.num_stack)
+        self.assertEqual(len(controller_target_obs['q']), self.num_stack)
+        self.assertEqual(len(controller_target_obs['v']), self.num_stack)
         self.assertEqual(obs['sensors']['EffortSensor'].ndim, 2)
 
         # Stacked obs are zeroed
         self.assertTrue(np.all(obs['t'][:-1] == 0.0))
         self.assertTrue(np.all(obs['sensors']['ImuSensor'][:-1] == 0.0))
-        self.assertTrue(np.all(controller_target_obs['Q'][:-1] == 0.0))
-        self.assertTrue(np.all(controller_target_obs['V'][:-1] == 0.0))
+        self.assertTrue(np.all(controller_target_obs['q'][:-1] == 0.0))
+        self.assertTrue(np.all(controller_target_obs['v'][:-1] == 0.0))
 
         # Action must be zero
-        self.assertTrue(np.all(controller_target_obs['Q'][-1] == 0.0))
-        self.assertTrue(np.all(controller_target_obs['V'][-1] == 0.0))
+        self.assertTrue(np.all(controller_target_obs['q'][-1] == 0.0))
+        self.assertTrue(np.all(controller_target_obs['v'][-1] == 0.0))
 
         # Observation is consistent with internal simulator state
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['sensors']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
-        state_ref = {'Q': env.simulator.engine.system_state.q,
-                     'V': env.simulator.engine.system_state.v}
+        state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
         state_obs = obs['state']
-        self.assertTrue(np.all(state_ref['Q'] == state_obs['Q']))
-        self.assertTrue(np.all(state_ref['V'] == state_obs['V']))
+        self.assertTrue(np.all(state_ref['q'] == state_obs['q']))
+        self.assertTrue(np.all(state_ref['v'] == state_obs['v']))
 
     def test_step_state(self):
         """ TODO: Write documentation
@@ -141,7 +140,7 @@ class PipelineDesign(unittest.TestCase):
         env = self.ANYmalPipelineEnv()
         env.reset()
         action = env.env.get_observation()['targets']['controller_0']
-        action['Q'] += 1.0e-3
+        action['q'] += 1.0e-3
         obs, *_ = env.step(action)
 
         # Observation stacking is skipping the required number of frames
@@ -150,15 +149,14 @@ class PipelineDesign(unittest.TestCase):
 
         # Initial observation is consistent with internal simulator state
         controller_target_obs = obs['targets']['controller_0']
-        self.assertTrue(np.all(controller_target_obs['Q'][-1] == action['Q']))
+        self.assertTrue(np.all(controller_target_obs['q'][-1] == action['v']))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['sensors']['ImuSensor'][-1]
         self.assertFalse(np.all(imu_data_ref == imu_data_obs))
-        state_ref = {'Q': env.simulator.engine.system_state.q,
-                     'V': env.simulator.engine.system_state.v}
+        state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
         state_obs = obs['state']
-        self.assertTrue(np.all(state_ref['Q'] == state_obs['Q']))
-        self.assertTrue(np.all(state_ref['V'] == state_obs['V']))
+        self.assertTrue(np.all(state_ref['q'] == state_obs['q']))
+        self.assertTrue(np.all(state_ref['v'] == state_obs['v']))
 
         # Step until to reach the next stacking breakpoint
         n_steps_breakpoint = int(stack_dt // _gcd(env.step_dt, stack_dt))

@@ -3,18 +3,29 @@
 from copy import deepcopy
 from functools import reduce
 from collections import deque
-from typing import Optional, Tuple, Dict, Sequence, List, Any, Iterator, Union
+from typing import (
+    List, Any, Dict, Optional, Tuple, Sequence, Iterator, Union, Generic)
 
 import numpy as np
 
-import gym
+import gymnasium as gym
 
-from ..utils import DataNested, is_breakpoint, zeros
-from ..bases import BasePipelineWrapper
-from ..envs import BaseJiminyEnv
+from ..utils import is_breakpoint, zeros
+from ..bases import (ObsType,
+                     ActType,
+                     BaseObsType,
+                     BaseActType,
+                     InfoType,
+                     EnvOrWrapperType,
+                     BasePipelineWrapper)
 
 
-class PartialFrameStack(gym.Wrapper):
+StackedObsType = ObsType
+
+
+class PartialFrameStack(
+        gym.Wrapper[StackedObsType, ActType, ObsType, ActType],
+        Generic[ObsType, ActType]):
     """Observation wrapper that partially stacks observations in a rolling
     manner.
 
@@ -25,8 +36,8 @@ class PartialFrameStack(gym.Wrapper):
         The observation space must be `gym.spaces.Dict`, while, ultimately,
         stacked leaf fields must be `gym.spaces.Box`.
     """
-    def __init__(self,  # pylint: disable=unused-argument
-                 env: gym.Env,
+    def __init__(self,
+                 env: gym.Env[ObsType, ActType],
                  num_stack: int,
                  nested_filter_keys: Optional[
                      Sequence[Union[Sequence[str], str]]] = None,
@@ -41,6 +52,8 @@ class PartialFrameStack(gym.Wrapper):
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
         """
+        # pylint: disable=unused-argument
+
         # Sanitize user arguments if necessary
         assert isinstance(env.observation_space, gym.spaces.Dict)
         if nested_filter_keys is None:
@@ -106,7 +119,7 @@ class PartialFrameStack(gym.Wrapper):
             for _ in range(self.num_stack):
                 frames.append(zeros(leaf_space))
 
-    def observation(self, observation: DataNested) -> DataNested:
+    def observation(self, observation: ObsType) -> ObsType:
         """ TODO: Write documentation.
         """
         # Replace nested fields of original observation by the stacked ones
@@ -121,12 +134,12 @@ class PartialFrameStack(gym.Wrapper):
         # Return the stacked observation
         return observation
 
-    def compute_observation(self, measure: DataNested) -> DataNested:
+    def compute_observation(self, measurement: ObsType) -> ObsType:
         """ TODO: Write documentation.
         """
         # Backup the nested observation fields to stack
         for fields, frames in zip(self.leaf_fields_list, self._frames):
-            leaf_obs = reduce(lambda d, key: d[key], fields, measure)
+            leaf_obs = reduce(lambda d, key: d[key], fields, measurement)
 
             # Assert(s) for type checker
             assert isinstance(leaf_obs, np.ndarray)
@@ -135,25 +148,33 @@ class PartialFrameStack(gym.Wrapper):
             frames.append(leaf_obs.copy())
 
         # Return the stacked observation
-        return self.observation(measure)
+        return self.observation(measurement)
 
     def step(self,
-             action: Optional[DataNested] = None
-             ) -> Tuple[DataNested, float, bool, Dict[str, Any]]:
-        observation, reward, done, info = self.env.step(action)
-        return self.compute_observation(observation), reward, done, info
+             action: Optional[ActType] = None
+             ) -> Tuple[StackedObsType, float, bool, bool, InfoType]:
+        observation, reward, done, truncated, info = self.env.step(action)
+        return (self.compute_observation(observation), reward, done, truncated, info)
 
-    def reset(self, **kwargs: Any) -> DataNested:
-        observation = self.env.reset(**kwargs)
+    def reset(
+            self,
+            *,
+            seed: Optional[int] = None,
+            options: Optional[Dict[str, Any]] = None,
+        ) -> tuple[StackedObsType, InfoType]:
+        observation, info = self.env.reset(seed=seed, options=options)
         self._setup()
-        return self.compute_observation(observation)
+        return self.compute_observation(observation), info
 
 
-class StackedJiminyEnv(BasePipelineWrapper):
+class StackedJiminyEnv(
+        BasePipelineWrapper[StackedObsType, ActType, ObsType, ActType],
+        Generic[ObsType, ActType]):
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: Union[BasePipelineWrapper, BaseJiminyEnv],
+                 env: EnvOrWrapperType[
+                     ObsType, ActType, BaseObsType, BaseActType],
                  skip_frames_ratio: int = 0,
                  **kwargs: Any) -> None:
         """ TODO: Write documentation.
@@ -161,20 +182,24 @@ class StackedJiminyEnv(BasePipelineWrapper):
         # Backup some user argument(s)
         self.skip_frames_ratio = skip_frames_ratio
 
-        # Initialize base classes
-        super().__init__(env, **kwargs)
+        # Initialize some internal buffers
+        self.__n_last_stack = 0
 
         # Instantiate wrapper
         self.wrapper = PartialFrameStack(env, **kwargs)
 
-        # Define the observation and action spaces
-        self.action_space = self.env.action_space
-        self.observation_space = self.wrapper.observation_space
+        # Initialize base classes
+        super().__init__(env, **kwargs)
 
-        # Initialize some internal buffers
-        self.__n_last_stack = 0
-        self._action = zeros(self.action_space, dtype=np.float64)
-        self._observation = zeros(self.observation_space)
+    def _initialize_action_space(self) -> None:
+        """Configure the action space.
+        """
+        self.action_space = self.env.action_space
+
+    def _initialize_observation_space(self) -> None:
+        """Configure the observation space.
+        """
+        self.observation_space = self.wrapper.observation_space
 
     def _setup(self) -> None:
         # Call base implementation
@@ -196,9 +221,9 @@ class StackedJiminyEnv(BasePipelineWrapper):
             raise ValueError(
                 "`StackedJiminyEnv` does not support time-continuous update.")
 
-    def refresh_observation(self) -> None:
+    def refresh_observation(self, measurement: ObsType) -> None:
         # Get environment observation
-        self.env.refresh_observation()
+        self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
         t = self.stepper_state.t

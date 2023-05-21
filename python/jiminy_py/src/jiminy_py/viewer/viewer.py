@@ -77,8 +77,8 @@ COLORS = {'red': (0.85, 0.2, 0.2, 1.0),
           'black': (0.45, 0.45, 0.5, 1.0)}
 
 
-logger = logging.getLogger(__name__)
-logger.addFilter(_DuplicateFilter())
+LOGGER = logging.getLogger(__name__)
+LOGGER.addFilter(_DuplicateFilter())
 
 
 @overload
@@ -534,7 +534,7 @@ class Viewer:
         if not backend.startswith('panda3d'):
             if display_com or display_dcm or display_contact_frames or \
                     display_contact_forces:
-                logger.warning(
+                LOGGER.warning(
                     "Panda3d backend is required to display markers, e.g. "
                     "CoM, DCM or Contact.")
             display_com = False
@@ -612,7 +612,7 @@ class Viewer:
             except RuntimeError as e:
                 # Convert exception into warning if it fails. It is probably
                 # because no display is available.
-                logger.warning("%s", e)
+                LOGGER.warning("%s", e)
         except Exception as e:
             self.close()
             raise RuntimeError(
@@ -967,7 +967,7 @@ class Viewer:
                     webbrowser.get()
                     webbrowser.open(viewer_url, new=2, autoraise=True)
                 except webbrowser.Error:  # Fail if not browser is available
-                    logger.warning(
+                    LOGGER.warning(
                         "No browser available for display. Please install one "
                         "manually.")
                     return  # Skip waiting since there is nothing to wait for
@@ -1400,7 +1400,7 @@ class Viewer:
         if Viewer.backend.startswith('panda3d'):
             Viewer._backend_obj.gui.set_clock(t)
         else:
-            logger.warning("Adding clock is only available for Panda3d.")
+            LOGGER.warning("Adding clock is only available for Panda3d.")
 
     @staticmethod
     @_must_be_open
@@ -1714,7 +1714,7 @@ class Viewer:
 
         # Return early if this method is not supported by the current backend
         if not Viewer.backend.startswith('panda3d'):
-            logger.warning("This method is only supported by Panda3d.")
+            LOGGER.warning("This method is only supported by Panda3d.")
             return
 
         # Sanitize user-specified color code
@@ -1764,7 +1764,7 @@ class Viewer:
 
         # Return early if this method is not supported by the current backend
         if not Viewer.backend.startswith('panda3d'):
-            logger.warning("This method is only supported by Panda3d.")
+            LOGGER.warning("This method is only supported by Panda3d.")
             return
 
         # Restore tile ground if heightmap is not specified

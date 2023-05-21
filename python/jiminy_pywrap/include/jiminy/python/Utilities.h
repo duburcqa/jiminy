@@ -241,6 +241,14 @@ namespace python
     #define ADD_PROPERTY_GET_SET_WITH_POLICY4(namePy, getMemberFuncPtr, getPolicy, setMemberFuncPtr) \
         ADD_PROPERTY_GET_SET_WITH_POLICY5(namePy, getMemberFuncPtr, getPolicy, setMemberFuncPtr, nullptr)
 
+    #define ADD_STATIC_PROPERTY_GET3(namePy, funcPtr, doc) \
+        add_static_property(namePy, \
+                            funcPtr, \
+                            getPropertySignaturesWithDoc(doc, funcPtr).c_str())
+
+    #define ADD_STATIC_PROPERTY_GET2(namePy, memberFuncPtr) \
+        ADD_STATIC_PROPERTY_GET3(namePy, memberFuncPtr, nullptr)
+
     // Get number of arguments with __NARG__
     #define __ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, N, ...) N
     #define __NARG_I_(...) __ARG_N(__VA_ARGS__)
@@ -258,6 +266,7 @@ namespace python
     #define ADD_PROPERTY_GET_WITH_POLICY(...) VFUNC(ADD_PROPERTY_GET_WITH_POLICY, __VA_ARGS__)
     #define ADD_PROPERTY_GET_SET(...) VFUNC(ADD_PROPERTY_GET_SET, __VA_ARGS__)
     #define ADD_PROPERTY_GET_SET_WITH_POLICY(...) VFUNC(ADD_PROPERTY_GET_SET_WITH_POLICY, __VA_ARGS__)
+    #define ADD_STATIC_PROPERTY_GET(...) VFUNC(ADD_STATIC_PROPERTY_GET, __VA_ARGS__)
 
     // Forward declaration
     template<class Container, bool NoProxy, class DerivedPolicies>

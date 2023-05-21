@@ -1,10 +1,10 @@
 """Generic environment to learn locomotion skills for legged robots using
 Jiminy simulator as physics engine.
 """
-from typing import Optional, Dict, Union, Callable, Any, Type, Sequence
+from typing import Optional, Dict, Union, Callable, Any, Type, Sequence, Tuple
 
 import numpy as np
-import gym
+import gymnasium as gym
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder,
@@ -19,6 +19,7 @@ from jiminy_py.simulator import Simulator
 import pinocchio as pin
 
 from ..utils import sample
+from ..bases import InfoType
 from .env_generic import BaseJiminyEnv
 
 
@@ -61,18 +62,12 @@ ForceProfileType = Dict[str, Union[str, ForceProfileFunc]]
 
 
 class WalkerJiminyEnv(BaseJiminyEnv):
-    """Gym environment for learning locomotion skills for legged robots using
-    torque control directly.
+    """Gym environment for learning locomotion skills for legged robots.
 
-    Jiminy Engine is used to perform physics evaluation, and Meshcat is used
-    for rendering.
+    Jiminy is used for both physics computations and rendering.
 
     The observation and action spaces are unchanged wrt `BaseJiminyEnv`.
     """
-    metadata = {
-        'render.modes': ['human'],
-    }
-
     def __init__(self,
                  urdf_path: Optional[str],
                  hardware_path: Optional[str] = None,
@@ -129,9 +124,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Handling of default arguments
         if reward_mixture is None:
             reward_mixture = {
+                'survival': 1.0,
                 'direction': 0.0,
                 'energy': 0.0,
-                'done': 1.0
+                'failure': 0.0
             }
         reward_mixture = {k: v for k, v in reward_mixture.items() if v > 0.0}
         if std_ratio is None:
@@ -240,7 +236,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             *GROUND_FRICTION_RANGE,
             scale=self.std_ratio.get('ground', 0.0),
             enable_log_scale=True,
-            rg=self.rg)
+            rg=self.np_random)
 
         # Add sensor noise, bias and delay
         if 'sensors' in self.std_ratio.keys():
@@ -251,20 +247,24 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 sensors_options = robot_options["sensors"][sensor.type]
                 for sensor_options in sensors_options.values():
                     sensor_options['delay'] = sample(
-                        0.0, (self.std_ratio['sensors'] *
-                              SENSOR_DELAY_SCALE[sensor.type]), rg=self.rg)
+                        0.0,
+                        (self.std_ratio['sensors'] *
+                              SENSOR_DELAY_SCALE[sensor.type]),
+                        rg=self.np_random)
                     sensor_options['delay'] = sample(
-                        0.0, (self.std_ratio['sensors'] *
-                              SENSOR_NOISE_SCALE[sensor.type]), rg=self.rg)
+                        0.0,
+                        (self.std_ratio['sensors'] *
+                              SENSOR_NOISE_SCALE[sensor.type]),
+                        rg=self.np_random)
 
         # Randomize the flexibility parameters
         if 'model' in self.std_ratio.keys():
             dynamics_options = robot_options["model"]["dynamics"]
             for flexibility in dynamics_options["flexibilityConfig"]:
                 flexibility['stiffness'] += FLEX_STIFFNESS_SCALE * sample(
-                    scale=self.std_ratio['model'], rg=self.rg)
+                    scale=self.std_ratio['model'], rg=self.np_random)
                 flexibility['damping'] += FLEX_DAMPING_SCALE * sample(
-                    scale=self.std_ratio['model'], rg=self.rg)
+                    scale=self.std_ratio['model'], rg=self.np_random)
 
         # Apply the disturbance to the first actual body
         if 'disturbance' in self.std_ratio.keys():
@@ -288,12 +288,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             # Schedule some external impulse forces applied on PelvisLink
             for t_ref in np.arange(
                     0.0, self.simu_duration_max, F_IMPULSE_PERIOD)[1:]:
-                t = t_ref + sample(scale=F_IMPULSE_DELTA, rg=self.rg)
-                f_xy = sample(dist='normal', shape=(2,), rg=self.rg)
+                t = t_ref + sample(scale=F_IMPULSE_DELTA, rg=self.np_random)
+                f_xy = sample(dist='normal', shape=(2,), rg=self.np_random)
                 f_xy /= np.linalg.norm(f_xy, ord=2)  # type: ignore[assignment]
                 f_xy *= sample(
                     0.0, self.std_ratio['disturbance']*F_IMPULSE_SCALE,
-                    rg=self.rg)
+                    rg=self.np_random)
                 self.simulator.register_force_impulse(
                     frame_name, t, F_IMPULSE_DT, np.pad(f_xy, (0, 4)))
 
@@ -343,30 +343,35 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         wrench[1] = F_PROFILE_SCALE * self._f_xy_profile[1](t)
         wrench[:2] *= self.std_ratio['disturbance']
 
-    def is_done(self) -> bool:
+    def has_terminated(self) -> Tuple[bool, bool]:
         """Determine whether the episode is over.
 
-        The termination conditions are the following:
+        It terminates (`done=True`) if one of the following conditions is met:
 
-            - fall detection (enabled if the robot has a freeflyer):
-              the freeflyer goes lower than 75% of its height in
-              neutral configuration.
+            - fall detection: the freeflyer goes lower than 75% of its height
+              in neutral configuration.
+
+        It is truncated if one of the following conditions is met:
+
             - maximum simulation duration exceeded
-        """
-        # pylint: disable=arguments-differ
 
+        :returns: done and truncated flags.
+        """
+        done, truncated = False, False
         if not self.simulator.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please start one before calling this "
                 "method.")
         if self.system_state.q[2] < self._height_neutral * 0.5:
-            return True
+            done = True
         if self.simulator.stepper_state.t >= self.simu_duration_max:
-            return True
-        return False
+            truncated = True
+        return done, truncated
 
-    def compute_reward(self,  # type: ignore[override]
-                       info: Dict[str, Any]) -> float:
+    def compute_reward(self,
+                       done: bool,
+                       truncated: bool,
+                       info: InfoType) -> float:
         """Compute reward at current episode state.
 
         It computes the reward associated with each individual contribution
@@ -376,14 +381,15 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             This method can be overwritten to implement new contributions to
             the reward, or to monitor more information.
 
-        :returns: Total reward.
+        :returns: Aggregated reward.
         """
-        # pylint: disable=arguments-differ
-
         reward_dict = info.setdefault('reward', {})
 
         # Define some proxies
         reward_mixture_keys = self.reward_mixture.keys()
+
+        if 'survival' in reward_mixture_keys:
+            reward_dict['survival'] = 1.0
 
         if 'energy' in reward_mixture_keys:
             v_mot = self.robot.sensors_data[encoder.type][1]
@@ -393,32 +399,17 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 power_consumption / self._power_consumption_max
             reward_dict['energy'] = - power_consumption_rel
 
-        if 'done' in reward_mixture_keys:
-            reward_dict['done'] = 1.0
+        if done:
+            if 'failure' in reward_mixture_keys:
+                reward_dict['failure'] = - 1.0
 
-        # Compute the total reward
-        reward_total = sum(self.reward_mixture[name] * value
-                           for name, value in reward_dict.items())
-
-        return reward_total
-
-    def compute_reward_terminal(self, *, info: Dict[str, Any]) -> float:
-        """Compute the reward at the end of the episode.
-
-        It computes the terminal reward associated with each individual
-        contribution according to 'reward_mixture'.
-        """
-        reward_dict = info.setdefault('reward', {})
-
-        reward_mixture_keys = self.reward_mixture.keys()
-
-        # Add a negative reward proportional to the average deviation on
-        # Y-axis. It is equal to 0.0 if the frontal displacement is perfectly
-        # symmetric wrt Y-axis over the whole trajectory.
-        if 'direction' in reward_mixture_keys:
-            frontal_displacement = abs(np.mean(self.log_data[
-                'HighLevelController.currentFreeflyerPositionTransY']))
-            reward_dict['direction'] = - frontal_displacement
+            # Add a negative reward proportional to the average deviation on
+            # Y-axis. It is equal to 0.0 if the frontal displacement is
+            # perfectly symmetric wrt Y-axis over the whole trajectory.
+            if 'direction' in reward_mixture_keys:
+                frontal_displacement = abs(np.mean(self.log_data[
+                    'HighLevelController.currentFreeflyerPositionTransY']))
+                reward_dict['direction'] = - frontal_displacement
 
         # Compute the total reward
         reward_total = sum(self.reward_mixture[name] * value

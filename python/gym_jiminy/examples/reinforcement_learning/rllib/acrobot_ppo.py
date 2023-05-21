@@ -13,7 +13,7 @@ import os
 import logging
 from functools import partial
 
-import gym
+import gymnasium as gym
 import ray
 from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS

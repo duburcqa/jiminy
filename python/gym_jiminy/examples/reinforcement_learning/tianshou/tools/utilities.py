@@ -7,7 +7,7 @@ import tempfile
 from datetime import datetime
 from typing import Optional, Sequence, Union, Callable, Dict, Any
 
-import gym
+import gymnasium as gym
 import torch
 from tensorboardX import SummaryWriter
 from tensorboard.program import TensorBoard

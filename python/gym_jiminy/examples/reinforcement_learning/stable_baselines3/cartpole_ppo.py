@@ -25,7 +25,7 @@ N_GPU = 1
 __import__("os").environ["CUDA_VISIBLE_DEVICES"] = \
     ",".join(map(str, range(N_GPU)))
 
-import gym
+import gymnasium as gym
 
 from stable_baselines3.ppo import MlpPolicy, PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv

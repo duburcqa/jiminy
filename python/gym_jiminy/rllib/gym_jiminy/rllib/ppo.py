@@ -8,7 +8,7 @@ import operator
 from functools import reduce, partial
 from typing import Optional, Union, Type, List, Dict, Any, Tuple, cast
 
-import gym
+import gymnasium as gym
 import torch
 
 from ray.rllib.models.action_dist import ActionDistribution

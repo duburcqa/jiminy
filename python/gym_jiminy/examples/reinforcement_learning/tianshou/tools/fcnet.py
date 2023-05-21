@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Optional, Tuple, Sequence, Callable, Union, Dict, Any
 
-import gym
+import gymnasium as gym
 import torch
 from torch import nn
 from torch.distributions import Categorical, Independent, Normal

@@ -39,7 +39,7 @@ class PipelineControl(unittest.TestCase):
         # In practice, it corresponds to the initial joints state.
         encoder_data = obs_init['sensors'][encoder.type]
         action_init = {}
-        action_init['Q'], action_init['V'] = encoder_data[
+        action_init['q'], action_init['v'] = encoder_data[
             :, self.env.controller.motor_to_encoder]
 
         # Run the simulation
@@ -53,8 +53,7 @@ class PipelineControl(unittest.TestCase):
 
         # Get the final posture of the robot as an RGB array
         rgb_array = self.env.render(
-            mode='rgb_array', width=500, height=500, display_com=False,
-            display_contacts=False)
+            width=500, height=500, display_com=False, display_contacts=False)
 
         # Check that the final posture matches the expected one
         data_dir = os.path.join(os.path.dirname(__file__), "data")
@@ -91,7 +90,7 @@ class PipelineControl(unittest.TestCase):
         velocity_target = np.stack([
             log_vars['.'.join((
                 'HighLevelController', self.env.controller_name, name))]
-            for name in self.env.controller.get_fieldnames()['V']], axis=-1)
+            for name in self.env.controller.get_fieldnames()['v']], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_target[time > time[-1] - 1.0]) < 1.0e-9))
 
@@ -105,6 +104,8 @@ class PipelineControl(unittest.TestCase):
     def test_pid_standing(self):
         for backend in ('panda3d', 'meshcat'):
             for Env in (AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv):
-                self.env = Env(debug=True, viewer_kwargs={"backend": backend})
+                self.env = Env(debug=True,
+                               render_mode='rgb_array',
+                               viewer_kwargs={"backend": backend})
                 self._test_pid_standing()
                 Viewer.close()

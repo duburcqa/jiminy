@@ -6,10 +6,10 @@ from typing import Any, List, Optional, Dict, Tuple
 
 import numpy as np
 
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 
-from gym_jiminy.common.utils.helpers import DataNested
+from gym_jiminy.common.utils import DataNested
 
 
 DataTreeT = Dict[Any, Tuple[Any, "DataTreeT"]]
@@ -109,7 +109,7 @@ class TaskSchedulingWrapper(gym.Wrapper):
                 task_branch_proba = [
                     task_proba for task_proba, _ in task_branches_next]
                 task_branch_idx = int(np.where(
-                    self.rg.multinomial(1, task_branch_proba))[0])
+                    self.np_random.multinomial(1, task_branch_proba))[0])
                 task_path.append(task_nodes[task_branch_idx])
                 _, task_branch = task_branches_next[task_branch_idx]
             tasks.append(tuple(task_path))

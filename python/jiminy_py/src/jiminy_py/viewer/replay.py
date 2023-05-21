@@ -46,7 +46,7 @@ VIDEO_FRAMERATE = 30
 VIDEO_QUALITY = 0.3  # [Mbytes/s]
 
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 viewer_lock = RLock()  # Unique lock for threads
 
@@ -291,7 +291,7 @@ def play_trajectories(
             robot = traj['robot']
             assert robot is not None
             if robot.is_locked:
-                logger.debug(
+                LOGGER.debug(
                     "`display_contacts` is not available if robot is locked. "
                     "Please stop any running simulation before replay.")
                 display_contacts = False
@@ -376,13 +376,13 @@ def play_trajectories(
 
     # Make sure clock is only enabled for panda3d backend
     if enable_clock and not backend.startswith('panda3d'):
-        logger.warning(
+        LOGGER.warning(
             "`enable_clock` is only available with 'panda3d' backend.")
         enable_clock = False
 
     # Early return if nothing to replay
     if all(not traj['evolution_robot'] for traj in trajs_data):
-        logger.debug("Nothing to replay.")
+        LOGGER.debug("Nothing to replay.")
         return viewers
 
     # Enable camera motion if requested
@@ -394,7 +394,7 @@ def play_trajectories(
         try:
             Viewer.set_legend(legend)
         except ImportError:
-            logger.warning(
+            LOGGER.warning(
                 "Impossible to add legend. Please install 'jiminy_py[plot]'.")
             legend = None
 
@@ -602,7 +602,7 @@ def play_trajectories(
                 if not Viewer.is_alive():
                     return viewers
             else:
-                logger.warning("Start paused is disabled in interactive mode.")
+                LOGGER.warning("Start paused is disabled in interactive mode.")
 
         # Play trajectories with multithreading
         def replay_thread(viewer: Viewer, *args: Any) -> None:
@@ -708,7 +708,7 @@ def extract_replay_data_from_log(
         update_hook = update_sensors_data_from_log(log_data, robot)
     else:
         if robot.sensors_names:
-            logger.warning(
+            LOGGER.warning(
                 "At least one of the robot is locked, which means that a "
                 "simulation using the robot is still running. It will be "
                 "impossible to display sensor data. Call `simulator.stop` to "
@@ -832,7 +832,7 @@ def async_play_and_record_logs_files(
 
     # Disable replay if not available and video recording is requested
     if enable_replay and not is_display_available():
-        logger.warning("No display available. Disabling replay.")
+        LOGGER.warning("No display available. Disabling replay.")
         enable_replay = False
 
     # Nothing to do. Silently returning early.
@@ -863,7 +863,7 @@ def async_play_and_record_logs_files(
                         viewer.close()
                 except RuntimeError as e:
                     # Replay may fail if current backend does not support it
-                    logger.warning(
+                    LOGGER.warning(
                         f"The current viewer backend '{Viewer.backend}' does "
                         "not support replaying simulation: %s", e)
             if record_video_path is not None:

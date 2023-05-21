@@ -3,7 +3,7 @@
 from collections import OrderedDict
 from typing import Optional, Union, Dict, Sequence, TypeVar
 
-import gym
+import gymnasium as gym
 import tree
 import numpy as np
 
@@ -14,28 +14,9 @@ StructNested = Union[Dict[str, 'StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
-SpaceNested = StructNested[gym.Space]
 
 
 global_rng = np.random.default_rng()
-
-
-if tuple(map(int, (gym.__version__.split(".", 4)[:3]))) < (0, 23, 0):
-    def _space_nested_raw(space_nested: SpaceNested) -> SpaceNested:
-        """Replace any `gym.spaces.Dict|Tuple` by a native collection type for
-        inter-operability with gym<0.23.0.
-
-        .. note::
-            It is necessary because non primitive objects must inherit from
-            `collection.abc.Mapping|Sequence` for `dm-tree` to operate on them.
-        """
-        return tree.traverse(
-            lambda space: _space_nested_raw(space.spaces) if isinstance(
-                space, (gym.spaces.Dict, gym.spaces.Tuple)) else None,
-            space_nested)
-else:
-    def _space_nested_raw(space_nested: SpaceNested) -> SpaceNested:
-        return space_nested
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,
@@ -119,14 +100,14 @@ def is_bounded(space_nested: gym.Space) -> bool:
 
     :param space: `gym.Space` on which to operate.
     """
-    for space in tree.flatten(_space_nested_raw(space_nested)):
+    for space in tree.flatten(space_nested):
         is_bounded_fn = getattr(space, "is_bounded", None)
         if is_bounded_fn is not None and not is_bounded_fn():
             return False
     return True
 
 
-def zeros(space: gym.Space, dtype: Optional[type] = None) -> DataNested:
+def zeros(space: gym.Space[ValueT], dtype: Optional[type] = None) -> ValueT:
     """Allocate data structure from `gym.Space` and initialize it to zero.
 
     :param space: `gym.Space` on which to operate.
@@ -135,8 +116,6 @@ def zeros(space: gym.Space, dtype: Optional[type] = None) -> DataNested:
     # Note that it is not possible to take advantage of dm-tree because the
     # output type for collections (OrderedDict or Tuple) is not the same as
     # the input one (gym.Space). This feature request would be too specific.
-    if isinstance(space, gym.spaces.Box):
-        return np.zeros(space.shape, dtype=dtype or space.dtype)
     if isinstance(space, gym.spaces.Dict):
         value = OrderedDict()
         for field, subspace in dict.items(space.spaces):
@@ -144,6 +123,8 @@ def zeros(space: gym.Space, dtype: Optional[type] = None) -> DataNested:
         return value
     if isinstance(space, gym.spaces.Tuple):
         return tuple(zeros(subspace, dtype=dtype) for subspace in space.spaces)
+    if isinstance(space, gym.spaces.Box):
+        return np.zeros(space.shape, dtype=dtype or space.dtype)
     if isinstance(space, gym.spaces.Discrete):
         # Note that np.array of 0 dim is returned in order to be mutable
         return np.array(0, dtype=dtype or np.int64)
@@ -202,8 +183,7 @@ def copy(data: DataNested) -> DataNested:
     return tree.unflatten_as(data, tree.flatten(data))
 
 
-def clip(space_nested: gym.Space,
-         data: DataNested) -> DataNested:
+def clip(space_nested: gym.Space[ValueT], data: ValueT) -> ValueT:
     """Clamp value from `gym.Space` to make sure it is within bounds.
 
     :param space: `gym.Space` on which to operate.
@@ -213,4 +193,4 @@ def clip(space_nested: gym.Space,
         lambda value, space:
             np.minimum(np.maximum(value, space.low), space.high)
         if isinstance(space, gym.spaces.Box) else value,
-        data, _space_nested_raw(space_nested))
+        data, space_nested)

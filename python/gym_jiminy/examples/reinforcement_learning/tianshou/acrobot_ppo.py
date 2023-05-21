@@ -26,7 +26,7 @@ __import__("os").environ["CUDA_VISIBLE_DEVICES"] = \
     ",".join(map(str, range(N_GPU)))
 
 import numpy as np
-import gym
+import gymnasium as gym
 import torch
 
 from tianshou.env import SubprocVectorEnv

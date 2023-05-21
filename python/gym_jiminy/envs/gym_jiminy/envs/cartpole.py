@@ -2,15 +2,16 @@
 """
 import os
 import numpy as np
-from typing import Optional, Tuple, Dict, Any
+from typing import Dict, Any, Optional, Tuple
 
-from gym import spaces
+from gymnasium import spaces
 
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.utils import sample, DataNested
-from gym_jiminy.common.envs import BaseJiminyEnv
+from gym_jiminy.common.bases import InfoType
+from gym_jiminy.common.envs import EngineObsType, BaseJiminyEnv
 
 try:
     from importlib.resources import files
@@ -36,7 +37,7 @@ DX_RANDOM_MAX = 0.05
 DTHETA_RANDOM_MAX = 0.05
 
 
-class CartPoleJiminyEnv(BaseJiminyEnv):
+class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     """Implementation of a Gym environment for the Cartpole which is using
     Jiminy Engine to perform physics computations and Meshcat for rendering.
 
@@ -191,37 +192,35 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         Bounds of hypercube associated with initial state of robot.
         """
         qpos = sample(scale=np.array([
-            X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.rg)
+            X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.np_random)
         qvel = sample(scale=np.array([
-            DX_RANDOM_MAX, DTHETA_RANDOM_MAX]), rg=self.rg)
+            DX_RANDOM_MAX, DTHETA_RANDOM_MAX]), rg=self.np_random)
         return qpos, qvel
 
-    def refresh_observation(self) -> None:
-        # @copydoc BaseJiminyEnv::refresh_observation
-        if not self.simulator.is_simulation_running:
-            self.__state = (self.system_state.q, self.system_state.v)
-        self.__state_view[0][:] = self.__state[0]
-        self.__state_view[1][:] = self.__state[1]
+    def refresh_observation(self, measurement: EngineObsType) -> None:
+        self.__state_view[0][:] = measurement['agent_state']['q']
+        self.__state_view[1][:] = measurement['agent_state']['v']
 
-    def is_done(self) -> bool:
+    def has_terminated(self) -> Tuple[bool, bool]:
         """ TODO: Write documentation.
         """
         x, theta, *_ = self._observation
-        return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
+        done = (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
+        return done, False
 
     def compute_command(self,
-                        measure: DataNested,
+                        observation: DataNested,
                         action: np.ndarray
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
         Convert a discrete action into its actual value if necessary.
 
-        :param measure: Observation of the environment.
+        :param observation: Observation of the environment.
         :param action: Desired motors efforts.
         """
         # Call base implementation
-        action = super().compute_command(measure, action)
+        action = super().compute_command(observation, action)
 
         # Compute the actual torque to apply
         if not self.continuous:
@@ -229,19 +228,16 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         return action
 
-    def compute_reward(self,  # type: ignore[override]
-                       *, info: Dict[str, Any]) -> float:
+    def compute_reward(self,
+                       done: bool,
+                       truncated: bool,
+                       info: InfoType) -> float:
         """ TODO: Write documentation.
 
-        Add a small positive reward as long as the termination condition has
-        never been reached during the same episode.
+        Add a small positive reward as long as a terminal condition has
+        never been reached during the current episode.
         """
-        # pylint: disable=arguments-differ
-
-        reward = 0.0
-        if not self._num_steps_beyond_done:  # True for both None and 0
-            reward += 1.0
-        return reward
+        return 1.0 if not done else 0.0
 
     def _key_to_action(self, key: Optional[str], **kwargs: Any) -> np.ndarray:
         """ TODO: Write documentation.

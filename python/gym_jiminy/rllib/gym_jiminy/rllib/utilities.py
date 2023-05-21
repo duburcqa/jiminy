@@ -22,7 +22,7 @@ from operator import attrgetter, itemgetter
 from typing import (
     Optional, Callable, Dict, Any, Union, List, Sequence, Tuple, Type, cast)
 
-import gym
+import gymnasium as gym
 import numpy as np
 import plotext as plt
 import tree
@@ -77,7 +77,7 @@ PRINT_RESULT_FIELDS_FILTER = [
 ]
 
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 def initialize(num_cpus: int,
@@ -209,7 +209,7 @@ def initialize(num_cpus: int,
                 print(f"Started Tensorboard {url}.",
                       f"Root directory: {log_root_path}")
         except ImportError:
-            logger.warning("Tensorboard not available. Cannot start server.")
+            LOGGER.warning("Tensorboard not available. Cannot start server.")
 
     # Monitor memory usage in debug
     if debug:
@@ -369,7 +369,7 @@ def train(algo: Algorithm,
         if verbose:
             print("Interrupting training...")
     except RayTaskError as e:
-        logger.warning("%s", e)
+        LOGGER.warning("%s", e)
 
     # Backup trained agent and return file location
     return algo.save()
@@ -691,7 +691,7 @@ def _pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
             ax.title(title)
         plt.show()
     except (IndexError, UnicodeEncodeError) as e:
-        logger.warning("'plotext' figure rendering failure: %s", e)
+        LOGGER.warning("'plotext' figure rendering failure: %s", e)
         for i, (title, values) in enumerate(data):
             print(
                 f"* {title}: {np.mean(values):.2f} +/- {np.std(values):.2f} "
@@ -771,7 +771,7 @@ def evaluate_local_worker(worker: RolloutWorker,
                 ("Episode duration", env_dt * np.array(all_num_steps)),
                 ("Total reward", np.array(all_total_rewards))))
         else:
-            logger.warning(
+            LOGGER.warning(
                 "'evaluation_duration' must be at least 10 to print "
                 "meaningful statistics.")
 
@@ -882,7 +882,7 @@ def evaluate_algo(algo: Algorithm,
                 remote_worker_ids=selected_eval_worker_ids,
                 timeout_seconds=algo_cfg["evaluation_sample_timeout_s"])
             if len(batches) != len(selected_eval_worker_ids):
-                logger.warning(
+                LOGGER.warning(
                     "Calling `sample()` on your remote evaluation worker(s) "
                     "resulted in a timeout. Please configure the parameter "
                     "`evaluation_sample_timeout_s` accordingly.")
@@ -923,7 +923,7 @@ def evaluate_algo(algo: Algorithm,
                 ("Episode duration", env_dt * np.array(all_num_steps)),
                 ("Total reward", np.array(all_total_rewards))))
         else:
-            logger.warning(
+            LOGGER.warning(
                 "'evaluation_num' must be at least 10 to print meaningful "
                 "statistics.")
 
