@@ -137,7 +137,7 @@ class Simulator:
     def build(cls,
               urdf_path: str,
               hardware_path: Optional[str] = None,
-              mesh_path: Optional[str] = None,
+              mesh_path_dir: Optional[str] = None,
               has_freeflyer: bool = True,
               config_path: Optional[str] = None,
               avoid_instable_collisions: bool = True,
@@ -150,9 +150,9 @@ class Simulator:
         :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '\*_hardware.toml' file in
                               the same folder and with the same name.
-        :param mesh_path: Path to the folder containing the model meshes.
-                          Optional: Env variable 'JIMINY_DATA_PATH' will be
-                          used if available.
+        :param mesh_path_dir: Path to the folder containing all the meshes.
+                              Optional: Env variable 'JIMINY_DATA_PATH' will be
+                              used if available.
         :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
                               Optional: True by default.
@@ -200,7 +200,7 @@ class Simulator:
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
         robot.initialize(
-            urdf_path, hardware_path, mesh_path, has_freeflyer,
+            urdf_path, hardware_path, mesh_path_dir, (), has_freeflyer,
             avoid_instable_collisions, load_visual_meshes=debug, verbose=debug)
 
         # Instantiate and initialize the engine

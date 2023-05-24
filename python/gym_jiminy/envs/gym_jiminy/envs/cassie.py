@@ -107,7 +107,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         super().__init__(
             robot=robot,
             urdf_path=urdf_path,
-            mesh_path=data_dir,
+            mesh_path_dir=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(  # type: ignore[arg-type]
