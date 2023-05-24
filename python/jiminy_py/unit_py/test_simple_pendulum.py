@@ -196,9 +196,9 @@ class SimulateSimplePendulum(unittest.TestCase):
                 engine, tf, x0, split=True)
 
         # Pendulum dynamics
-        def dynamics(t, x):
-            return np.stack([x[..., 1],
-                             self.g / self.l * np.sin(x[..., 0])], axis=-1)
+        def dynamics(t: float, x: np.ndarray) -> np.ndarray:
+            return np.stack(
+                (x[..., 1], self.g / self.l * np.sin(x[..., 0])), axis=-1)
 
         # Integrate this non-linear dynamics
         x_rk_python = integrate_dynamics(time, x0, dynamics)

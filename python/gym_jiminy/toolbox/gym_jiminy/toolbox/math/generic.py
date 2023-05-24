@@ -1,7 +1,7 @@
 """ TODO: Write documentation.
 """
 import math
-from typing import Tuple
+from typing import Union
 
 import numpy as np
 import numba as nb
@@ -24,7 +24,7 @@ def matrix_to_yaw(rotation_matrix: np.ndarray) -> float:
 
 
 @nb.jit(nopython=True, nogil=True)
-def quat_to_yaw_cos_sin(quat: np.ndarray) -> Tuple[float, float]:
+def quat_to_yaw_cos_sin(quat: np.ndarray) -> np.ndarray:
     """Compute cosine and sine of the yaw from Yaw-Pitch-Roll Euler angles
     representation of a single or a batch of quaternions.
 
@@ -35,13 +35,14 @@ def quat_to_yaw_cos_sin(quat: np.ndarray) -> Tuple[float, float]:
     qx, qy, qz, qw = np.atleast_2d(quat)[:, -4:].T
     cos_yaw = 2 * (qw * qw + qx * qx) - 1.0
     sin_yaw = 2 * (qw * qz + qx * qy)
+    yaw_cos_sin = np.stack((cos_yaw, sin_yaw), axis=-1)
     if quat.ndim == 1:
-        return cos_yaw[0], sin_yaw[0]
-    return cos_yaw, sin_yaw
+        return yaw_cos_sin[0]
+    return yaw_cos_sin
 
 
 @nb.jit(nopython=True, nogil=True)
-def quat_to_yaw(quat: np.ndarray) -> float:
+def quat_to_yaw(quat: np.ndarray) -> Union[float, np.ndarray]:
     """Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a
     single or a batch of quaternions.
 
@@ -49,12 +50,12 @@ def quat_to_yaw(quat: np.ndarray) -> float:
                  the number of individual quaternions, and the second to the 4
                  coordinates [qx, qy, qz, qw].
     """
-    cos_yaw, sin_yaw = quat_to_yaw_cos_sin(quat)
+    cos_yaw, sin_yaw = quat_to_yaw_cos_sin(quat).T
     return np.arctan2(sin_yaw, cos_yaw)
 
 
 @nb.jit(nopython=True, nogil=True)
-def quat_to_rpy(quat: np.ndarray) -> Tuple[float, float, float]:
+def quat_to_rpy(quat: np.ndarray) -> np.ndarray:
     """Compute the Yaw-Pitch-Roll Euler angles representation of a single or a
     batch of quaternions.
 
@@ -69,6 +70,7 @@ def quat_to_rpy(quat: np.ndarray) -> Tuple[float, float, float]:
         np.sqrt(1 - 2 * (qw * qy - qx * qz)),
     )
     yaw = np.arctan2(2 * (qw * qz + qx * qy), 1.0 - 2 * (qy * qy + qz * qz))
+    rpy = np.stack((roll, pitch, yaw), axis=-1)
     if quat.ndim == 1:
-        return roll[0], pitch[0], yaw[0]
-    return roll, pitch, yaw
+        return rpy[0]
+    return rpy
