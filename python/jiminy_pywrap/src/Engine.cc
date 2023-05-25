@@ -644,16 +644,29 @@ namespace python
                 }
                 else if (endsWith(key, ".pinocchio_model"))
                 {
-                    pinocchio::Model model;
-                    ::jiminy::loadFromBinary<pinocchio::Model>(model, value);
-                    constants[key] = model;
+                    try
+                    {
+                        pinocchio::Model model;
+                        ::jiminy::loadFromBinary<pinocchio::Model>(model, value);
+                        constants[key] = model;
+                    }
+                    catch(const std::exception& e)
+                    {
+                        PRINT_ERROR("Failed to load pinocchio model from log.");
+                    }
                 }
                 else if (endsWith(key, ".visual_model") || endsWith(key, ".collision_model"))
                 {
-                    pinocchio::GeometryModel geometryModel;
-                    ::jiminy::loadFromBinary<pinocchio::GeometryModel>(geometryModel, value);
-                    constants[key] = geometryModel;
-
+                    try
+                    {
+                        pinocchio::GeometryModel geometryModel;
+                        ::jiminy::loadFromBinary<pinocchio::GeometryModel>(geometryModel, value);
+                        constants[key] = geometryModel;
+                    }
+                    catch(const std::exception& e)
+                    {
+                        PRINT_ERROR("Failed to load collision and/or visual model from log.");
+                    }
                 }
                 else if (endsWith(key, ".mesh_package_dirs"))
                 {
