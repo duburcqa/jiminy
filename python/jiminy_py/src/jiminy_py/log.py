@@ -113,8 +113,8 @@ def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
 
 def build_robot_from_log(
         log_data: Dict[str, Any],
-        mesh_package_dirs: Union[str, Sequence[str]] = (),
-        mesh_path_dir: Optional[str] = None
+        mesh_path_dir: Optional[str] = None,
+        mesh_package_dirs: Sequence[str] = (),
         ) -> jiminy.Robot:
     """Build robot from log.
 
@@ -134,20 +134,17 @@ def build_robot_from_log(
         archive for now.
 
     :param log_file: Logged data (constants and variables) as a dictionary.
+    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
+                          It which may be necessary to read log generated on a
+                          different environment.
     :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
                               generated on a different environment.
-    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
-                          It which may be necessary to read log generated on a
-                          different environment.
 
     :returns: Reconstructed robot, and parsed log data as returned by
               `jiminy_py.log.read_log` method.
     """
-    # Make sure provided 'mesh_package_dirs' is a list
-    mesh_package_dirs = list(mesh_package_dirs)
-
     # Instantiate empty robot
     robot = jiminy.Robot()
 
@@ -173,8 +170,8 @@ def build_robot_from_log(
             ".".join((ENGINE_NAMESPACE, "urdf_file"))]
         has_freeflyer = int(log_constants[
             ".".join((ENGINE_NAMESPACE, "has_freeflyer"))])
-        mesh_package_dirs += log_constants.get(
-            ".".join((ENGINE_NAMESPACE, "mesh_package_dirs")), [])
+        mesh_package_dirs = [*mesh_package_dirs, *log_constants.get(
+            ".".join((ENGINE_NAMESPACE, "mesh_package_dirs")), ())]
 
         # Make sure urdf data is available
         if len(urdf_data) <= 1:
