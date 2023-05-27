@@ -28,17 +28,20 @@ class FrameRateLimiter(gym.Wrapper):
     def __init__(self,  # pylint: disable=unused-argument
                  env: Union[BasePipelineWrapper, BaseJiminyEnv],
                  speed_ratio: float = 1.0,
+                 human_only: bool = True,
                  **kwargs: Any):
         """
         :param env: Environment to wrap.
         :param speed_ratio: Real-time factor.
                             Optional: No time dilation by default (1.0).
+        :param human_only: Only limit the framerate for 'human' render mode.
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
         """
         # Backup user argument(s)
         assert speed_ratio > 0
         self.speed_ratio = speed_ratio
+        self.human_only = human_only
 
         # Extract proxies for convenience
         self._step_dt_rel = env.unwrapped.step_dt / speed_ratio
@@ -81,5 +84,6 @@ class FrameRateLimiter(gym.Wrapper):
         :returns: RGB array if 'mode' is 'rgb_array', None otherwise.
         """
         out = self.env.render(mode, **kwargs)
-        sleep(self._step_dt_rel - (time.time() - self._time_prev))
+        if not self.human_only or out is None:
+            sleep(self._step_dt_rel - (time.time() - self._time_prev))
         return out
