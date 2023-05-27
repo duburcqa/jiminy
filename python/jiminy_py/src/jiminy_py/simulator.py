@@ -591,7 +591,7 @@ class Simulator:
         for log_file in extra_logs_files:
             log_data = read_log(log_file)
             robot = build_robot_from_log(
-                log_data, self.robot.mesh_package_dirs)
+                log_data, mesh_package_dirs=self.robot.mesh_package_dirs)
             robots.append(robot)
             logs_data.append(log_data)
 

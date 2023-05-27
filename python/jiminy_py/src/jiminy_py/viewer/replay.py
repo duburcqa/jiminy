@@ -756,7 +756,8 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
 
 
 def play_logs_files(logs_files: Union[str, Sequence[str]],
-                    mesh_package_dirs: Union[str, Sequence[str]] = (),
+                    mesh_path_dir: Optional[str] = None,
+                    mesh_package_dirs: Sequence[str] = (),
                     **kwargs: Any) -> Sequence[Viewer]:
     """Play the content of a logfile in a viewer.
 
@@ -765,8 +766,11 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 
     :param logs_files: Either a single simulation log files in any format, or
                        a list.
-    :param mesh_package_dirs: Prepend custom mesh package search path
-                              directories to the ones provided by log file. It
+    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
+                          It which may be necessary to read log generated on a
+                          different environment.
+    :param mesh_package_dirs: Additional search paths for all relative mesh
+                              paths beginning with 'packages://' directive. It
                               may be necessary to specify it to read log
                               generated on a different environment.
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
@@ -779,7 +783,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
     robots, logs_data = [], []
     for log_file in logs_files:
         log_data = read_log(log_file)
-        robot = build_robot_from_log(log_data, mesh_package_dirs)
+        robot = build_robot_from_log(
+            log_data, mesh_path_dir, mesh_package_dirs)
         logs_data.append(log_data)
         robots.append(robot)
 
@@ -795,7 +800,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 def async_play_and_record_logs_files(
         logs_files: Union[str, Sequence[str]],
         enable_replay: Optional[bool] = None,
-        mesh_package_dirs: Union[str, Sequence[str]] = (),
+        mesh_path_dir: Optional[str] = None,
+        mesh_package_dirs: Sequence[str] = (),
         **kwargs: Any) -> Optional[Thread]:
     """Play and/or replay the content of a logfile in a viewer asynchronously.
 
@@ -810,6 +816,9 @@ def async_play_and_record_logs_files(
                           Optional: True by default if `record_video_path` is
                           not specified and the current backend supports
                           onscreen rendering, False otherwise.
+    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
+                          It which may be necessary to read log generated on a
+                          different environment.
     :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file.
     :param kwargs: Keyword arguments to forward to `play_logs_files` method.
@@ -833,7 +842,8 @@ def async_play_and_record_logs_files(
     # Define method to pass to threading
     def _locked_play_and_record(lock: RLock,
                                 logs_files: Sequence[str],
-                                mesh_package_dirs: Union[str, Sequence[str]],
+                                mesh_path_dir: Optional[str],
+                                mesh_package_dirs: Sequence[str],
                                 enable_replay: bool,
                                 **kwargs: Any) -> None:
         """A lock is used to force waiting for the current evaluation to finish
@@ -848,7 +858,7 @@ def async_play_and_record_logs_files(
             if enable_replay:
                 try:
                     viewers = play_logs_files(
-                        logs_files, mesh_package_dirs, **kwargs)
+                        logs_files, mesh_path_dir, mesh_package_dirs, **kwargs)
                     for viewer in viewers:
                         viewer.close()
                 except RuntimeError as e:
@@ -858,7 +868,7 @@ def async_play_and_record_logs_files(
                         "not support replaying simulation: %s", e)
             if record_video_path is not None:
                 viewers = play_logs_files(
-                    logs_files, mesh_package_dirs,
+                    logs_files, mesh_path_dir, mesh_package_dirs,
                     record_video_path=record_video_path, **kwargs)
                 for viewer in viewers:
                     viewer.close()
@@ -866,7 +876,9 @@ def async_play_and_record_logs_files(
     # Start replay and record thread
     thread = Thread(
         target=_locked_play_and_record,
-        args=(viewer_lock, logs_files, mesh_package_dirs, enable_replay),
+        args=(
+            viewer_lock, logs_files, mesh_path_dir, mesh_package_dirs,
+            enable_replay),
         kwargs={
             **dict(
                 close_backend=(enable_replay and enable_recording),
@@ -900,18 +912,14 @@ def _play_logs_files_entrypoint() -> None:
         '-b', '--backend', default='panda3d',
         help="Display backend ('panda3d' or 'meshcat').")
     parser.add_argument(
-        '-m', '--mesh_package_dir', default=None,
-        help="Fullpath location of mesh package directory.")
+        '-m', '--mesh_path_dir', default=None,
+        help="Fullpath location of mesh directory.")
     parser.add_argument(
         '-v', '--record_video_path', default=None,
         help="Fullpath location where to save generated video.")
     options, files = parser.parse_known_args()
     kwargs = vars(options)
     kwargs['logs_files'] = files
-
-    # Convert mesh package dir into a list
-    if kwargs['mesh_package_dir'] is not None:
-        kwargs['mesh_package_dirs'] = [kwargs.pop('mesh_package_dir')]
 
     # Map argument name(s)
     kwargs['enable_travelling'] = kwargs.pop('travelling')

@@ -918,12 +918,12 @@ class BaseJiminyRobot(jiminy.Robot):
         # Initialize the robot without motors nor sensors
         mesh_package_dirs = list(mesh_package_dirs)
         if mesh_path_dir is not None:
-            mesh_package_dirs += [mesh_path_dir]
+            mesh_package_dirs.append(mesh_path_dir)
         else:
-            mesh_package_dirs += [os.path.dirname(urdf_path)]
+            mesh_package_dirs.append(os.path.dirname(urdf_path))
         mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)
         if mesh_env_path is not None:
-            mesh_package_dirs += [mesh_env_path]
+            mesh_package_dirs.append(mesh_env_path)
         return_code = super().initialize(
             urdf_path, has_freeflyer, mesh_package_dirs, load_visual_meshes)
 
