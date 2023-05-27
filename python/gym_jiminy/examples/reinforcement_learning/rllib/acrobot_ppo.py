@@ -49,11 +49,8 @@ if __name__ == "__main__":
         num_cpus=N_THREADS, num_gpus=N_GPU, debug=DEBUG, verbose=True)
 
     # Register the environment
-    register_env(
-        "train", lambda env_config: gym.make(GYM_ENV_NAME, **env_config))
-    register_env(
-        "test", lambda env_config: FrameRateLimiter(
-            gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
+    register_env("env", lambda env_config: FrameRateLimiter(
+        gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
 
     # ====================== Configure policy's network =======================
 
@@ -141,7 +138,7 @@ if __name__ == "__main__":
     )
     algo_config.environment(
         # The environment specifier
-        env="train",
+        env="env",
         # Normalize actions to the bounds of the action space
         normalize_actions=False,
         # Whether to clip actions to the bounds of the action space
@@ -217,7 +214,7 @@ if __name__ == "__main__":
         ),
         # Partially override configuration for evaluation
         evaluation_config=dict(
-            env="test",
+            env="env",
             env_config=dict(
                 **GYM_ENV_KWARGS,
                 viewer_kwargs=dict(
@@ -309,7 +306,7 @@ if __name__ == "__main__":
     # ===================== Enjoy a trained agent locally =====================
 
     # Build a standalone local evaluation worker (not requiring ray backend)
-    register_env("test", lambda env_config: FrameRateLimiter(
+    register_env("env", lambda env_config: FrameRateLimiter(
         gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
     worker = build_eval_worker_from_checkpoint(checkpoint_path)
     evaluate_local_worker(worker, evaluation_num=1, close_backend=True)
