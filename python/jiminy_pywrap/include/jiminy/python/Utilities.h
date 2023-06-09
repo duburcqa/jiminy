@@ -116,22 +116,26 @@ namespace python
         }
     }
 
-    template<typename returnT, typename ... Args>
+    template<typename ReturnT, typename ... Args>
     std::string getPythonSignature()
     {
         std::ostringstream stringStream;
+        stringStream << "(";
         constexpr std::size_t NArgs = sizeof...(Args);
         bp::detail::signature_element const * const signature = bp::detail::signature<boost::mpl::vector<
-            std::add_lvalue_reference_t<returnT>, std::add_lvalue_reference_t<Args>...> >::elements();
-        stringStream << "( (" << py_type_str(signature[0]) << ")self";
-        for (std::size_t i = 2; i < NArgs; ++i)
+            std::add_lvalue_reference_t<ReturnT>, std::add_lvalue_reference_t<Args>...> >::elements();
+        if constexpr (NArgs > 0)
         {
-            stringStream << ", (" << py_type_str(signature[i]) << ")arg" << i;
+            stringStream << " (" << py_type_str(signature[1]) << ")self";
+            for (std::size_t i = 2; i < NArgs; ++i)
+            {
+                stringStream << ", (" << py_type_str(signature[i]) << ")arg" << i;
+            }
         }
         stringStream << ") -> ";
         /* Special handling of the return type to rely primarily on `to_python_target_type`
            for type inference instead of `expected_pytype_for_arg` as `signature_element`. */
-        PyTypeObject const * py_type = bp::converter::to_python_target_type<returnT>::get_pytype();
+        PyTypeObject const * py_type = bp::converter::to_python_target_type<ReturnT>::get_pytype();
         if (py_type)
         {
             stringStream << py_type->tp_name;
@@ -143,10 +147,10 @@ namespace python
         return stringStream.str();
     }
 
-    template<typename C, typename D, typename ... Args>
-    std::string getPythonSignature(D (* /* pm */)(C, Args...))
+    template<typename D, typename ... Args>
+    std::string getPythonSignature(D (* /* pm */)(Args...))
     {
-        return getPythonSignature<D, C, Args...>();
+        return getPythonSignature<D, Args...>();
     }
 
     template<typename C, typename D, typename ... Args>
@@ -241,14 +245,6 @@ namespace python
     #define ADD_PROPERTY_GET_SET_WITH_POLICY4(namePy, getMemberFuncPtr, getPolicy, setMemberFuncPtr) \
         ADD_PROPERTY_GET_SET_WITH_POLICY5(namePy, getMemberFuncPtr, getPolicy, setMemberFuncPtr, nullptr)
 
-    #define ADD_STATIC_PROPERTY_GET3(namePy, funcPtr, doc) \
-        add_static_property(namePy, \
-                            funcPtr, \
-                            getPropertySignaturesWithDoc(doc, funcPtr).c_str())
-
-    #define ADD_STATIC_PROPERTY_GET2(namePy, memberFuncPtr) \
-        ADD_STATIC_PROPERTY_GET3(namePy, memberFuncPtr, nullptr)
-
     // Get number of arguments with __NARG__
     #define __ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, N, ...) N
     #define __NARG_I_(...) __ARG_N(__VA_ARGS__)
@@ -266,7 +262,6 @@ namespace python
     #define ADD_PROPERTY_GET_WITH_POLICY(...) VFUNC(ADD_PROPERTY_GET_WITH_POLICY, __VA_ARGS__)
     #define ADD_PROPERTY_GET_SET(...) VFUNC(ADD_PROPERTY_GET_SET, __VA_ARGS__)
     #define ADD_PROPERTY_GET_SET_WITH_POLICY(...) VFUNC(ADD_PROPERTY_GET_SET_WITH_POLICY, __VA_ARGS__)
-    #define ADD_STATIC_PROPERTY_GET(...) VFUNC(ADD_STATIC_PROPERTY_GET, __VA_ARGS__)
 
     // Forward declaration
     template<class Container, bool NoProxy, class DerivedPolicies>

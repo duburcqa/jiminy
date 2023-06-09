@@ -442,8 +442,8 @@ namespace python
                 .ADD_PROPERTY_GET_WITH_POLICY("is_simulation_running",
                                               &EngineMultiRobot::getIsSimulationRunning,
                                               bp::return_value_policy<result_converter<false> >())
-                .ADD_STATIC_PROPERTY_GET("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
-                .ADD_STATIC_PROPERTY_GET("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
+                .add_static_property("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
+                .add_static_property("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
                 ;
         }
 
