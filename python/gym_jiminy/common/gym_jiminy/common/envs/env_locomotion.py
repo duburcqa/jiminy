@@ -254,16 +254,18 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             for sensor in sensor_classes:
                 sensors_options = robot_options["sensors"][sensor.type]
                 for sensor_options in sensors_options.values():
-                    sensor_options['delay'] = sample(
-                        0.0,
-                        (self.std_ratio['sensors'] *
-                             SENSOR_DELAY_SCALE[sensor.type]),
-                        rg=self.np_random)
-                    sensor_options['delay'] = sample(
-                        0.0,
-                        (self.std_ratio['sensors'] *
-                             SENSOR_NOISE_SCALE[sensor.type]),
-                        rg=self.np_random)
+                    for name in ("delay", "jitter"):
+                        sensor_options[name] = sample(
+                            low=0.0,
+                            high=(self.std_ratio['sensors'] *
+                            SENSOR_DELAY_SCALE[sensor.type]),
+                            rg=self.np_random)
+                    for name in ("bias", "noiseStd"):
+                        sensor_options[name] = sample(
+                            scale=(self.std_ratio['sensors'] *
+                            SENSOR_NOISE_SCALE[sensor.type]),
+                            shape=len(sensor.fieldnames),
+                            rg=self.np_random)
 
         # Randomize the flexibility parameters
         if 'model' in self.std_ratio.keys():

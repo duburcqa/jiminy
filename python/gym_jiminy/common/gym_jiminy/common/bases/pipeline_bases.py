@@ -73,9 +73,6 @@ class BasePipelineWrapper(
         self.system_state = self.env.system_state
         self.sensors_data = self.env.sensors_data
 
-        # Define some internal buffers
-        self._command = zeros(self.env.action_space)
-
     def __dir__(self) -> Iterable[str]:
         """Attribute lookup.
 
@@ -83,28 +80,6 @@ class BasePipelineWrapper(
         to get consistent autocompletion wrt `getattr`.
         """
         return chain(super().__dir__(), dir(self.env))
-
-    @property
-    def index(self) -> int:
-        """Index of the block.
-
-        It corresponds the "deepness" of the block, namely how many blocks
-        deriving from the same wrapper type than the current one (ie either
-        observer or controller) are already wrapping the base environment.
-        """
-        i = 0
-        block: gym.Env = self.env
-        while isinstance(block, gym.Wrapper):
-            i += isinstance(block, self.__class__)
-            block = block.env
-        return i
-
-    @property
-    @abstractmethod
-    def block_name(self) -> str:
-        """Name of the block.
-        """
-        ...
 
     def get_observation(self) -> ObsType:
         """Get post-processed observation.
@@ -171,9 +146,9 @@ class BasePipelineWrapper(
             return observer_handle, controller_handle
 
         # Reset base pipeline
-        self.env.reset(seed=seed, options={"reset_hook": reset_hook})
+        _, info = self.env.reset(seed=seed, options={"reset_hook": reset_hook})
 
-        return self.get_observation()
+        return self.get_observation(), info
 
     def step(self,
              action: Optional[ActType] = None
@@ -196,7 +171,7 @@ class BasePipelineWrapper(
         reward += self.compute_reward(
             done and self.env._num_steps_beyond_done == 0,
             truncated and self.env._num_steps_beyond_done == 0,
-            self.env._info)
+            info)
 
         return self.get_observation(), reward, done, truncated, info
 
@@ -215,12 +190,21 @@ class BasePipelineWrapper(
         # Call base implementation
         super()._setup()
 
-        # Reset some internal buffers
-        fill(self._command, 0.0)
-
         # Refresh some proxies for fast lookup
         self.robot = self.env.robot
         self.sensors_data = self.env.sensors_data
+
+    def compute_command(self, action: ActType) -> ActType:
+        """Compute the motors efforts to apply on the robot.
+
+        By default, it simply forwards the command computed by the wrapped
+        environment without any processing.
+
+        :param action: Target to achieve by means of the output action.
+        """
+        set_value(self._action, action)
+        set_value(self.env._action, action)
+        return self.env.compute_command(action)
 
 
 class ObservedJiminyEnv(
@@ -278,18 +262,20 @@ class ObservedJiminyEnv(
         # Make sure that the unwrapped environment matches the observed one
         assert env.unwrapped is observer.env.unwrapped
 
+        # Make sure that the environment pipeline does not already have one
+        # block with the same base type and name.
+        env_wrapper: gym.Env = env
+        while isinstance(env_wrapper, gym.Wrapper):
+            if isinstance(env_wrapper, ObservedJiminyEnv):
+                assert observer.name != env_wrapper.observer.name
+            env_wrapper = env_wrapper.env
+
         # Backup user arguments
         self.observer = observer
         self.augment_observation = augment_observation
 
         # Initialize base wrapper
         super().__init__(env, **kwargs)
-
-    @cached_property
-    def block_name(self) -> str:
-        """Name of the block.
-        """
-        return f"observer_{self.index}"
 
     def _initialize_action_space(self) -> None:
         """Configure the action space.
@@ -306,7 +292,7 @@ class ObservedJiminyEnv(
                     measures=self.observation_space))
             self.observation_space.spaces.setdefault(
                 'features', gym.spaces.Dict()).spaces[
-                    self.block_name] = self.observer.observation_space
+                    self.observer.name] = self.observer.observation_space
         else:
             self.observation_space = self.observer.observation_space
 
@@ -341,7 +327,7 @@ class ObservedJiminyEnv(
         :returns: Updated part of the observation only for efficiency.
         """
         # Get environment observation
-        super().refresh_observation(measurement)
+        self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
         t = self.stepper_state.t
@@ -359,29 +345,15 @@ class ObservedJiminyEnv(
                     else:
                         self._observation['measurement'] = base_observation
                     self._observation.setdefault(  # type: ignore[index]
-                        'features', OrderedDict())[self.block_name] = observation
+                        'features', OrderedDict())[
+                            self.observer.name] = observation
                 else:
                     self._observation = observation
 
-    def compute_command(self,
-                        observation: ObsType,
-                        action: ActType) -> ActType:
-        """Compute the motors efforts to apply on the robot.
-
-        In practice, it simply forwards the command computed by the wrapped
-        environment without any processing.
-
-        :param observation: Observation of the environment.
-        :param action: Target to achieve.
-        """
-        set_value(self._action, action)
-        set_value(self.env._action, action)
-        return self.env.compute_command(observation, action)
-
 
 class ControlledJiminyEnv(
-        BasePipelineWrapper[ObsType, ActType, ObsType, BaseActType],
-        Generic[ObsType, ActType, BaseActType]):
+        BasePipelineWrapper[ObsType, ActType, BaseObsType, BaseActType],
+        Generic[ObsType, ActType, BaseObsType, BaseActType]):
     """Wrap a `BaseJiminyEnv` Gym environment and a single controller.
 
     .. aafig::
@@ -427,9 +399,8 @@ class ControlledJiminyEnv(
     observation_space: gym.Space
 
     def __init__(self,
-                 env: BaseJiminyEnv[ObsType, BaseActType],
-                 controller: BaseControllerBlock[
-                     ObsType, ActType, BaseActType],
+                 env: BaseJiminyEnv[BaseObsType, BaseActType],
+                 controller: BaseControllerBlock[ActType, BaseActType],
                  augment_observation: bool = False,
                  **kwargs: Any):
         """
@@ -463,6 +434,14 @@ class ControlledJiminyEnv(
         # Make sure that the unwrapped environment matches the observed one
         assert env.unwrapped is controller.env.unwrapped
 
+        # Make sure that the environment pipeline does not already have one
+        # block with the same base type and name.
+        env_wrapper: gym.Env = env
+        while isinstance(env_wrapper, gym.Wrapper):
+            if isinstance(env_wrapper, ControlledJiminyEnv):
+                assert controller.name != env_wrapper.controller.name
+            env_wrapper = env_wrapper.env
+
         # Check that 'augment_observation' can be enabled
         assert not augment_observation or isinstance(
             env.observation_space, gym.spaces.Dict), (
@@ -477,19 +456,14 @@ class ControlledJiminyEnv(
         super().__init__(env, **kwargs)
 
         # Initialize some internal buffers
+        self._command = zeros(self.env.action_space)
         self._target = zeros(self.env.action_space, dtype=np.float64)
 
         # Register the controller target to the telemetry
         self.env.register_variable("action",
                                    self._action,
                                    self.controller.get_fieldnames(),
-                                   self.block_name)
-
-    @cached_property
-    def block_name(self) -> str:
-        """Name of the controller.
-        """
-        return f"controller_{self.index}"
+                                   self.controller.name)
 
     def _initialize_action_space(self) -> None:
         """Configure the action space.
@@ -507,7 +481,7 @@ class ControlledJiminyEnv(
                     measures=self.observation_space))
             self.observation_space.spaces.setdefault(
                 'targets', gym.spaces.Dict()).spaces[
-                    self.block_name] = self.controller.action_space
+                    self.controller.name] = self.controller.action_space
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -522,16 +496,14 @@ class ControlledJiminyEnv(
         super()._setup()
 
         # Reset some additional internal buffers
+        fill(self._command, 0.0)
         fill(self._target, 0.0)
 
         # Compute the observe and control update periods
         self.observe_dt = self.env.observe_dt
         self.control_dt = self.controller.control_dt
 
-    def compute_command(self,
-                        observation: ObsType,
-                        action: ActType
-                        ) -> DataNested:
+    def compute_command(self, action: ActType) -> BaseActType:
         """Compute the motors efforts to apply on the robot.
 
         In practice, it updates whenever necessary:
@@ -540,8 +512,7 @@ class ControlledJiminyEnv(
             - the command send to the robot by the environment through the
               subsequent block
 
-        :param observation: Observation of the environment.
-        :param action: High-level target to achieve.
+        :param action: High-level target to achieve by means of the action.
         """
         # Update the target to send to the subsequent block if necessary.
         # Note that `_observation` buffer has already been updated right before
@@ -549,7 +520,7 @@ class ControlledJiminyEnv(
         # measure argument without issue.
         t = self.stepper_state.t
         if is_breakpoint(t, self.control_dt, DT_EPS):
-            target = self.controller.compute_command(observation, action)
+            target = self.controller.compute_command(action)
             set_value(self._target, target)
 
         # Update the command to send to the actuators of the robot.
@@ -561,12 +532,12 @@ class ControlledJiminyEnv(
             # Do not update command during the first iteration because the
             # action is undefined at this point
             set_value(self.env._action, self._target)
-            command = self.env.compute_command(observation, self._target)
+            command = self.env.compute_command(self._target)
             set_value(self._command, command)
 
         return self._command
 
-    def refresh_observation(self, measurement: ObsType) -> None:
+    def refresh_observation(self, measurement: BaseObsType) -> None:
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 
@@ -583,7 +554,7 @@ class ControlledJiminyEnv(
                   controllers targets if requested.
         """
         # Get environment observation
-        super().refresh_observation(measurement)
+        self.env.refresh_observation(measurement)
 
         # Add target to observation if requested
         if not self.simulator.is_simulation_running:
@@ -596,7 +567,8 @@ class ControlledJiminyEnv(
                 else:
                     self._observation['measures'] = obs
                 self._observation.setdefault(
-                    'targets', OrderedDict())[self.block_name] = self._action
+                    'targets', OrderedDict())[
+                        self.controller.name] = self._action
             else:
                 self._observation = obs
 

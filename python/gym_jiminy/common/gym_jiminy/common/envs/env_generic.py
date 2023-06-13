@@ -70,9 +70,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 StateType = TypedDict(
-    "StateType", {"q": np.ndarray, "v": np.ndarray})
-EngineObsType = TypedDict("EngineObsType", {
-    "t": float, "agent_state": StateType, "sensors_data": SensorsDataType})
+    'StateType', {'q': np.ndarray, 'v': np.ndarray})
+EngineObsType = TypedDict('EngineObsType', {
+    't': float, 'agent_state': StateType, 'sensors_data': SensorsDataType})
 
 
 class _LazyDictItemFilter(Mapping[str, Any]):
@@ -768,7 +768,7 @@ class BaseJiminyEnv(ObserverControllerInterface[
             if self.simulator.viewer.has_gui():
                 self.simulator.viewer.refresh()
 
-        return obs
+        return obs, deepcopy(self._info)
 
     def close(self) -> None:
         """Clean up the environment after the user has finished using it.
@@ -969,6 +969,7 @@ class BaseJiminyEnv(ObserverControllerInterface[
         self.simulator.replay(**{
             'verbose': False,
             'enable_travelling': self.robot.has_freeflyer,
+            'camera_pose': None,
             **kwargs
         })
 
@@ -1239,9 +1240,9 @@ class BaseJiminyEnv(ObserverControllerInterface[
         """
         observation_spaces: Dict[str, spaces.Space] = OrderedDict()
         observation_spaces['t'] = self._get_time_space()
-        observation_spaces['system_state'] = self._get_state_space()
+        observation_spaces['agent_state'] = self._get_state_space()
         if self.sensors_data:
-            observation_spaces['sensors'] = self._get_sensors_space()
+            observation_spaces['sensors_data'] = self._get_sensors_space()
         self.observation_space = spaces.Dict(observation_spaces)
 
     def _neutral(self) -> np.ndarray:
@@ -1293,14 +1294,12 @@ class BaseJiminyEnv(ObserverControllerInterface[
         qpos = self._neutral()
 
         # Make sure the configuration is not out-of-bound
-        pinocchio_model = self.robot.pinocchio_model
-        position_limit_lower = pinocchio_model.lowerPositionLimit
-        position_limit_upper = pinocchio_model.upperPositionLimit
-        qpos = np.minimum(np.maximum(
-            qpos, position_limit_lower), position_limit_upper)
+        qpos = np.minimum(
+            np.maximum(qpos, self.robot.position_limit_lower),
+            self.robot.position_limit_upper)
 
         # Make sure the configuration is normalized
-        qpos = normalize(pinocchio_model, qpos)
+        qpos = normalize(self.robot.pinocchio_model, qpos)
 
         # Make sure the robot impacts the ground
         if self.robot.has_freeflyer:
@@ -1310,7 +1309,7 @@ class BaseJiminyEnv(ObserverControllerInterface[
                 self.robot, qpos, ground_profile=ground_fun)
 
         # Zero velocity
-        qvel = np.zeros(self.simulator.pinocchio_model.nv)
+        qvel = np.zeros(self.robot.pinocchio_model.nv)
 
         return qpos, qvel
 
@@ -1380,7 +1379,6 @@ class BaseJiminyEnv(ObserverControllerInterface[
         set_value(self._observation, measurement)
 
     def compute_command(self,
-                        observation: ObsType,
                         action: ActType
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.

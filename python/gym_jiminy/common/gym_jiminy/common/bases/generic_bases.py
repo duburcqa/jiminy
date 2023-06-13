@@ -90,7 +90,7 @@ class ObserverInterface(ABC, Generic[ObsType, BaseObsType]):
         return self._observation
 
 
-class ControllerInterface(ABC, Generic[ObsType, ActType, BaseActType]):
+class ControllerInterface(ABC, Generic[ActType, BaseActType]):
     """Controller interface for both controllers and environments.
     """
     control_dt: float = -1
@@ -121,14 +121,11 @@ class ControllerInterface(ABC, Generic[ObsType, ActType, BaseActType]):
         ...
 
     @abstractmethod
-    def compute_command(self,
-                        observation: ObsType,
-                        target: BaseActType) -> ActType:
+    def compute_command(self, target: BaseActType) -> ActType:
         """Compute the command to send to the subsequent block, based on the
         current target and observation of the environment.
 
-        :param observation: Observation of the environment.
-        :param action: High-level target to achieve.
+        :param action: High-level target to achieve by means of the action.
 
         :returns: Command to send to the subsequent block. It corresponds to
                   the target features of another lower-level controller if any,
@@ -177,7 +174,7 @@ class ControllerInterface(ABC, Generic[ObsType, ActType, BaseActType]):
 # observation space since the action itself may be part of the observation.
 class ObserverControllerInterface(
         ObserverInterface[ObsType, BaseObsType],
-        ControllerInterface[ObsType, ActType, BaseActType],
+        ControllerInterface[ActType, BaseActType],
         Generic[ObsType, ActType, BaseObsType, BaseActType]):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
@@ -224,9 +221,9 @@ class ObserverControllerInterface(
         """
         if is_breakpoint(t, self.observe_dt, DT_EPS):
             self.refresh_observation({
-                "t": t,
-                "agent_state": {"q": q, "v": v},
-                "sensors_data": sensors_data
+                't': t,
+                'agent_state': {'q': q, 'v': v},
+                'sensors_data': sensors_data
             })
 
     def _controller_handle(self,
@@ -256,4 +253,4 @@ class ObserverControllerInterface(
         # pylint: disable=unused-argument
 
         assert self._action is not None
-        command[:] = self.compute_command(self.get_observation(), self._action)
+        command[:] = self.compute_command(self._action)

@@ -165,13 +165,21 @@ def set_value(data: DataNested, value: DataNested) -> None:
     :param data: Data structure to partially update.
     :param value: Unset of data only containing fields to update.
     """
-    for data_i, value_i in zip(tree.flatten(data), tree.flatten(value)):
+    if isinstance(data, np.ndarray):
         try:
-            data_i.flat[:] = value_i
-        except AttributeError as e:
-            raise ValueError(
-                "Leaves of 'data' structure must have type `np.ndarray`."
-                ) from e
+            data.flat[:] = value
+        except TypeError as e:
+            raise TypeError(f"Cannot broadcast '{value}' to '{data}'.") from e
+    elif isinstance(data, dict):
+        for field, subval in dict.items(value):
+            set_value(data[field], subval)
+    elif isinstance(data, (tuple, list)):
+        for subdata, subval in zip(data, value):
+            fill(subdata, subval)
+    else:
+        raise ValueError(
+            "Leaves of 'data' structure must have type `np.ndarray`."
+            )
 
 
 def copy(data: DataNested) -> DataNested:

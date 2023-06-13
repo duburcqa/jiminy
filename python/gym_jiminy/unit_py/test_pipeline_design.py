@@ -101,7 +101,7 @@ class PipelineDesign(unittest.TestCase):
         """
         # Get initial observation
         env = self.ANYmalPipelineEnv()
-        obs = env.reset()
+        obs, _ = env.reset()
 
         # Controller target is observed, and has right name
         self.assertTrue('targets' in obs and 'controller_0' in obs['targets'])
@@ -109,29 +109,26 @@ class PipelineDesign(unittest.TestCase):
         # Target, time, and Imu data are stacked
         self.assertEqual(obs['t'].ndim, 2)
         self.assertEqual(len(obs['t']), self.num_stack)
-        self.assertEqual(obs['sensors']['ImuSensor'].ndim, 3)
-        self.assertEqual(len(obs['sensors']['ImuSensor']), self.num_stack)
+        self.assertEqual(obs['sensors_data']['ImuSensor'].ndim, 3)
+        self.assertEqual(len(obs['sensors_data']['ImuSensor']), self.num_stack)
         controller_target_obs = obs['targets']['controller_0']
-        self.assertEqual(len(controller_target_obs['q']), self.num_stack)
-        self.assertEqual(len(controller_target_obs['v']), self.num_stack)
-        self.assertEqual(obs['sensors']['EffortSensor'].ndim, 2)
+        self.assertEqual(len(controller_target_obs), self.num_stack)
+        self.assertEqual(obs['sensors_data']['EffortSensor'].ndim, 2)
 
         # Stacked obs are zeroed
         self.assertTrue(np.all(obs['t'][:-1] == 0.0))
-        self.assertTrue(np.all(obs['sensors']['ImuSensor'][:-1] == 0.0))
-        self.assertTrue(np.all(controller_target_obs['q'][:-1] == 0.0))
-        self.assertTrue(np.all(controller_target_obs['v'][:-1] == 0.0))
+        self.assertTrue(np.all(obs['sensors_data']['ImuSensor'][:-1] == 0.0))
+        self.assertTrue(np.all(controller_target_obs[:-1] == 0.0))
 
         # Action must be zero
-        self.assertTrue(np.all(controller_target_obs['q'][-1] == 0.0))
-        self.assertTrue(np.all(controller_target_obs['v'][-1] == 0.0))
+        self.assertTrue(np.all(controller_target_obs[-1] == 0.0))
 
         # Observation is consistent with internal simulator state
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
-        imu_data_obs = obs['sensors']['ImuSensor'][-1]
+        imu_data_obs = obs['sensors_data']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
         state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
-        state_obs = obs['state']
+        state_obs = obs['agent_state']
         self.assertTrue(np.all(state_ref['q'] == state_obs['q']))
         self.assertTrue(np.all(state_ref['v'] == state_obs['v']))
 
@@ -142,7 +139,7 @@ class PipelineDesign(unittest.TestCase):
         env = self.ANYmalPipelineEnv()
         env.reset()
         action = env.env.get_observation()['targets']['controller_0']
-        action['q'] += 1.0e-3
+        action += 1.0e-3
         obs, *_ = env.step(action)
 
         # Observation stacking is skipping the required number of frames
@@ -151,12 +148,12 @@ class PipelineDesign(unittest.TestCase):
 
         # Initial observation is consistent with internal simulator state
         controller_target_obs = obs['targets']['controller_0']
-        self.assertTrue(np.all(controller_target_obs['q'][-1] == action['v']))
+        self.assertTrue(np.all(controller_target_obs[-1] == action))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
-        imu_data_obs = obs['sensors']['ImuSensor'][-1]
+        imu_data_obs = obs['sensors_data']['ImuSensor'][-1]
         self.assertFalse(np.all(imu_data_ref == imu_data_obs))
         state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
-        state_obs = obs['state']
+        state_obs = obs['agent_state']
         self.assertTrue(np.all(state_ref['q'] == state_obs['q']))
         self.assertTrue(np.all(state_ref['v'] == state_obs['v']))
 
@@ -168,7 +165,7 @@ class PipelineDesign(unittest.TestCase):
             self.assertTrue(np.isclose(
                 t, n_steps_breakpoint * env.step_dt - i * stack_dt, 1.0e-6))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
-        imu_data_obs = obs['sensors']['ImuSensor'][-1]
+        imu_data_obs = obs['sensors_data']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
 
     def test_update_periods(self):
@@ -180,7 +177,7 @@ class PipelineDesign(unittest.TestCase):
             engine_options['telemetry']['enableCommand'] = True
             env.simulator.engine.set_options(engine_options)
 
-        env.reset(controller_hook=configure_telemetry)
+        env.reset(options=dict(reset_hook=configure_telemetry))
         env.step()
 
         # Check that the command is updated 1/2 low-level controller update

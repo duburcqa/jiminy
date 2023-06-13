@@ -142,8 +142,7 @@ def _compute_command_impl(encoders_data: np.ndarray,
         u_command, -motor_effort_limit), motor_effort_limit)
 
 
-class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
-                   Generic[ObsType]):
+class PDController(BaseControllerBlock[np.ndarray, np.ndarray]):
     """Low-level Proportional-Derivative controller.
 
     The action corresponds to a given derivative of the target motors
@@ -163,6 +162,7 @@ class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
         any intermediary controllers.
     """
     def __init__(self,
+                 name: str,
                  env: gym.Env[ObsType, np.ndarray],
                  order: int = 1,
                  update_ratio: int = 1,
@@ -171,6 +171,8 @@ class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
                  soft_bounds_margin: float = 0.0,
                  **kwargs: Any) -> None:
         """
+        :param name: Name of the block.
+        :param env: Environment to connect with.
         :param order: Derivative order of the action.
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller.
@@ -190,10 +192,10 @@ class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
         # Define the mapping from motors to encoders
         self.encoder_to_motor = np.full(
             (env.robot.nmotors,), fill_value=-1, dtype=np.int64)
-        encoders = [env.robot.get_sensor(encoder.type, name)
-                    for name in env.robot.sensors_names[encoder.type]]
-        for i, name in enumerate(env.robot.motors_names):
-            motor = env.robot.get_motor(name)
+        encoders = [env.robot.get_sensor(encoder.type, sensor_name)
+                    for sensor_name in env.robot.sensors_names[encoder.type]]
+        for i, motor_name in enumerate(env.robot.motors_names):
+            motor = env.robot.get_motor(motor_name)
             for j, sensor in enumerate(encoders):
                 if motor.joint_idx == sensor.joint_idx:
                     self.encoder_to_motor[sensor.idx] = i
@@ -201,8 +203,8 @@ class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
                     break
             else:
                 raise RuntimeError(
-                    f"No encoder sensor associated with motor '{name}'. Every "
-                    "actuated joint must have an encoder sensor attached.")
+                    f"No encoder sensor associated with motor '{motor_name}'. "
+                    "Every actuated joint must have encoder sensors attached.")
 
         # Define buffers storing information about the motors for efficiency.
         # Note that even if the robot instance may change from one simulation
@@ -221,12 +223,12 @@ class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
         motors_position_idx = sum(env.robot.motors_position_idx, [])
         motors_velocity_idx = env.robot.motors_velocity_idx
         command_state_lower = [
-            env.robot.pinocchio_model.lowerPositionLimit[
+            env.robot.position_limit_lower[
                 motors_position_idx] + soft_bounds_margin,
             -env.robot.velocity_limit[motors_velocity_idx],
         ]
         command_state_upper = [
-            env.robot.pinocchio_model.upperPositionLimit[
+            env.robot.position_limit_upper[
                 motors_position_idx] - soft_bounds_margin,
             env.robot.velocity_limit[motors_velocity_idx],
         ]
@@ -243,7 +245,7 @@ class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
 
         # Initialize the controller
-        super().__init__(env, update_ratio)
+        super().__init__(name, env, update_ratio)
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
@@ -268,7 +270,6 @@ class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
                 for name in self.robot.motors_names]
 
     def compute_command(self,
-                        observation: ObsType,
                         action: np.ndarray
                         ) -> np.ndarray:
         """Compute the motor torques using a PD controller.
@@ -276,7 +277,6 @@ class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
         It is proportional to the error between the observed motors positions/
         velocities and the target ones.
 
-        :param observation: Observation of the environment.
         :param action: Desired motors positions and velocities as a dictionary.
         """
         # Re-initialize the command state to the current motor state if the
@@ -290,6 +290,11 @@ class PDController(BaseControllerBlock[ObsType, np.ndarray, np.ndarray],
                     self._command_state_upper,
                     out=self._command_state)
 
+        # Update the highest order derivative of the target motor positions to
+        # match the provided action.
+        self._command_state[-1] = action
+
+        # Compute the motor efforts using PD control
         return _compute_command_impl(
             self.sensors_data[encoder.type],
             self._command_state,

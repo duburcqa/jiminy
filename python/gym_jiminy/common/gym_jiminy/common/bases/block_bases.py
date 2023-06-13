@@ -28,9 +28,15 @@ class BlockInterface(ABC):
     """Base class for blocks used for pipeline control design. Blocks can be
     either observers and controllers.
     """
-    env: BaseJiminyEnv[ObsType, ActType]
+    env: gym.Env[ObsType, ActType]
+    name: str
+    update_ratio: int
+
+    # Type of the block, ie 'observer' or 'controller'.
+    type: str = ""
 
     def __init__(self,
+                 name: str,
                  env: gym.Env[ObsType, ActType],
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
@@ -38,6 +44,14 @@ class BlockInterface(ABC):
 
         It only allocates some attributes.
 
+        ..warning::
+            All blocks of a given type (observer or controller) must be an
+            unique name within a given pipeline. In practice, it will be
+            impossible to plug a given block to an existing pipeline if the
+            later already has one block of the same type and name. The user
+            is responsible to take care it never happens.
+
+        :param name: Name of the block.
         :param env: Environment to connect with.
         :param update_ratio: Ratio between the update period of the high-level
                              controller and the one of the subsequent
@@ -48,8 +62,9 @@ class BlockInterface(ABC):
         # Make sure that the base environment inherits from `BaseJiminyEnv`
         assert isinstance(env.unwrapped, BaseJiminyEnv)
 
-        # Backup some user arguments
+        # Backup some user argument(s)
         self.env = env.unwrapped
+        self.name = name
         self.update_ratio = update_ratio
 
         # Call super to allow mixing interfaces through multiple inheritance
@@ -116,6 +131,8 @@ class BaseObserverBlock(ObserverInterface[ObsType, BaseObsType],
     The update period of the observer is the same than the simulation timestep
     of the environment for now.
     """
+    type = "observer"
+
     def _setup(self) -> None:
         # Compute the update period
         self.observe_dt = self.env.observe_dt * self.update_ratio
@@ -130,9 +147,9 @@ class BaseObserverBlock(ObserverInterface[ObsType, BaseObsType],
 
 
 class BaseControllerBlock(
-        ControllerInterface[ObsType, ActType, BaseActType],
+        ControllerInterface[ActType, BaseActType],
         BlockInterface,
-        Generic[ObsType, ActType, BaseActType]):
+        Generic[ActType, BaseActType]):
     """Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of
     lower-level controllers.
@@ -155,6 +172,8 @@ class BaseControllerBlock(
     The update period of the controller must be higher than the control update
     period of the environment, but both can be infinite, ie time-continuous.
     """
+    type = "controller"
+
     def _setup(self) -> None:
         # Compute the update period
         self.control_dt = self.env.control_dt * self.update_ratio
@@ -185,9 +204,7 @@ class BaseControllerBlock(
         return get_fieldnames(self.action_space)
 
     @abstractmethod
-    def compute_command(self,
-                        observation: ObsType,
-                        target: BaseActType) -> ActType:
+    def compute_command(self, target: BaseActType) -> ActType:
         """Compute the action to perform by the subsequent block, namely a
         lower-level controller, if any, or the environment to ultimately
         control, based on a given high-level action.
@@ -198,8 +215,7 @@ class BaseControllerBlock(
             after `reset`. This method has to deal with the initialization of
             the internal state, but `_setup` method does so.
 
-        :param observation: Observation of the environment.
-        :param action: Target to achieve.
+        :param target: Target to achieve by means of the output action.
 
         :returns: Action to perform.
         """

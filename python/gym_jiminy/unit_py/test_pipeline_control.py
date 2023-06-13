@@ -33,18 +33,14 @@ class PipelineControl(unittest.TestCase):
         """ TODO: Write documentation
         """
         # Reset the environment
-        obs_init = self.env.reset()
+        self.env.reset()
 
-        # Compute the initial target, so that the robot stand-still.
-        # In practice, it corresponds to the initial joints state.
-        encoder_data = obs_init['sensors'][encoder.type]
-        action_init = {}
-        action_init['q'], action_init['v'] = encoder_data[
-            :, self.env.controller.encoder_to_motor]
+        # Zero target motors velocities, so that the robot stands still
+        action = np.zeros(self.env.robot.nmotors)
 
         # Run the simulation
         while self.env.stepper_state.t < 19.0:
-            self.env.step(action_init)
+            self.env.step(action)
 
         # Export figure
         fd, pdf_path = mkstemp(prefix="plot_", suffix=".pdf")
@@ -88,7 +84,7 @@ class PipelineControl(unittest.TestCase):
         time = log_vars["Global.Time"]
         velocity_target = np.stack([
             log_vars['.'.join((
-                'HighLevelController', self.env.block_name, name))]
+                'HighLevelController', self.env.controller.name, name))]
             for name in self.env.controller.get_fieldnames()], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_target[time > time[-1] - 1.0]) < 1.0e-9))
@@ -111,7 +107,7 @@ class PipelineControl(unittest.TestCase):
                         width=500,
                         height=500,
                         display_com=False,
-                        display_dcm=False,
+                        display_dcm=True,
                         display_contacts=False,
                     )
                 )

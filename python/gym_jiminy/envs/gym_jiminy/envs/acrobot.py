@@ -111,12 +111,12 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
             robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
-        # Override the default camera pose to be absolute if not done by user
-        viewer_kwargs.setdefault("camera_pose", (
-            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi), None))
-
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
+
+        # Override the default camera pose to be absolute if none is specified
+        simulator.viewer_kwargs.setdefault("camera_pose", (
+            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi), None))
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
@@ -210,7 +210,6 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
         return done, False
 
     def compute_command(self,
-                        observation: DataNested,
                         action: np.ndarray
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -218,11 +217,10 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
         Convert a discrete action into its actual value if necessary, then add
         noise to the action is enable.
 
-        :param observation: Observation of the environment.
         :param action: Desired motors efforts.
         """
         # Call base implementation
-        action = super().compute_command(observation, action)
+        action = super().compute_command(action)
 
         # Compute the actual torque to apply
         if not self.continuous:

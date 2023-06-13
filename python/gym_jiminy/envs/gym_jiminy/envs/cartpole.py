@@ -212,18 +212,16 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return done, False
 
     def compute_command(self,
-                        observation: DataNested,
                         action: np.ndarray
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
         Convert a discrete action into its actual value if necessary.
 
-        :param observation: Observation of the environment.
         :param action: Desired motors efforts.
         """
         # Call base implementation
-        action = super().compute_command(observation, action)
+        action = super().compute_command(action)
 
         # Compute the actual torque to apply
         if not self.continuous:
