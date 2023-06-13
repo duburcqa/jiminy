@@ -499,6 +499,13 @@ class Simulator:
         if kwargs.get("backend", Viewer.backend) != Viewer.backend:
             Viewer.close()
 
+        # Update viewer_kwargs with provided kwargs
+        viewer_kwargs = {**dict(
+            backend=(self.viewer or Viewer).backend,
+            delete_robot_on_close=True),
+            **self.viewer_kwargs,
+            **kwargs}
+
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not self.is_viewer_available:
@@ -507,11 +514,7 @@ class Simulator:
                 self.robot,
                 use_theoretical_model=False,
                 open_gui_if_parent=False,
-                **{**dict(  # type: ignore[arg-type]
-                    backend=(self.viewer or Viewer).backend,
-                    delete_robot_on_close=True),
-                    **self.viewer_kwargs,
-                    **kwargs})
+                **viewer_kwargs)
             assert self.viewer is not None and self.viewer.backend is not None
 
             # Share the external force buffer of the viewer with the engine
@@ -522,16 +525,16 @@ class Simulator:
                 # Enable display of COM, DCM and contact markers by default if
                 # the robot has freeflyer.
                 if self.robot.has_freeflyer:
-                    if "display_com" not in kwargs:
+                    if "display_com" not in viewer_kwargs:
                         self.viewer.display_center_of_mass(True)
-                    if "display_dcm" not in kwargs:
+                    if "display_dcm" not in viewer_kwargs:
                         self.viewer.display_capture_point(True)
-                    if "display_contacts" not in kwargs:
+                    if "display_contacts" not in viewer_kwargs:
                         self.viewer.display_contact_forces(True)
 
                 # Enable display of external forces by default only for
                 # the joints having an external force registered to it.
-                if "display_f_external" not in kwargs:
+                if "display_f_external" not in viewer_kwargs:
                     force_frames = set(
                         self.robot.pinocchio_model.frames[f_i.frame_idx].parent
                         for f_i in self.engine.forces_profile)
