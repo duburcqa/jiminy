@@ -81,6 +81,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  avoid_instable_collisions: bool = True,
                  debug: bool = False, *,
                  robot: Optional[Robot] = None,
+                 viewer_kwargs: Optional[Dict[str, Any]] = None,
                  **kwargs: Any) -> None:
         r"""
         :param urdf_path: Path of the urdf model to be used for the simulation.
@@ -118,6 +119,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                       initialized. Build default robot using 'urdf_path',
                       'hardware_path' and 'mesh_path_dir' if omitted.
                       Optional: None by default.
+        :param viewer_kwargs: Keyword arguments used to override the original
+                              default values whenever a viewer is instantiated.
+                              This is the only way to pass custom arguments to
+                              the viewer when calling `render` method, unlike
+                              `replay` which forwards extra keyword arguments.
+                              Optional: None by default.
         :param kwargs: Keyword arguments to forward to `Simulator` and
                        `BaseJiminyEnv` constructors.
         """
@@ -166,13 +173,14 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 config_path=self.config_path,
                 avoid_instable_collisions=self.avoid_instable_collisions,
                 debug=debug,
+                viewer_kwargs=viewer_kwargs,
                 **{**dict(
                     has_freeflyer=True,
                     use_theoretical_model=False),
                     **kwargs})
         else:
             # Instantiate a simulator and load the options
-            simulator = Simulator(robot, **kwargs)
+            simulator = Simulator(robot, viewer_kwargs=viewer_kwargs, **kwargs)
             simulator.import_options(config_path)
 
         # Initialize base class
@@ -272,14 +280,11 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             assert self.robot.pinocchio_model.nframes
 
             # Determine the actual root body of the kinematic tree
-            is_root_found = False
             frame = self.robot.pinocchio_model.frames[0]
             for frame in self.robot.pinocchio_model.frames:
                 if frame.type == pin.FrameType.BODY and frame.parent == 1:
-                    is_root_found = True
+                    frame_name = frame.name
                     break
-            if is_root_found:
-                frame_name = frame.name
             else:
                 raise RuntimeError(
                     "There is an issue with the robot model. Impossible to "

@@ -1,6 +1,7 @@
 # pylint: disable=missing-module-docstring
 
-from .generic_bases import (ObsType,
+from .generic_bases import (DT_EPS,
+                            ObsType,
                             ActType,
                             BaseObsType,
                             BaseActType,
@@ -19,6 +20,7 @@ from .pipeline_bases import (EnvOrWrapperType,
 
 
 __all__ = [
+    'DT_EPS',
     'ObsType',
     'ActType',
     'BaseObsType',

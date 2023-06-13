@@ -40,7 +40,7 @@ class PipelineControl(unittest.TestCase):
         encoder_data = obs_init['sensors'][encoder.type]
         action_init = {}
         action_init['q'], action_init['v'] = encoder_data[
-            :, self.env.controller.motor_to_encoder]
+            :, self.env.controller.encoder_to_motor]
 
         # Run the simulation
         while self.env.stepper_state.t < 19.0:
@@ -52,8 +52,7 @@ class PipelineControl(unittest.TestCase):
         self.env.plot(pdf_path=pdf_path)
 
         # Get the final posture of the robot as an RGB array
-        rgb_array = self.env.render(
-            width=500, height=500, display_com=False, display_contacts=False)
+        rgb_array = self.env.render()
 
         # Check that the final posture matches the expected one
         data_dir = os.path.join(os.path.dirname(__file__), "data")
@@ -104,8 +103,17 @@ class PipelineControl(unittest.TestCase):
     def test_pid_standing(self):
         for backend in ('panda3d', 'meshcat'):
             for Env in (AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv):
-                self.env = Env(debug=True,
-                               render_mode='rgb_array',
-                               viewer_kwargs={"backend": backend})
+                self.env = Env(
+                    debug=True,
+                    render_mode='rgb_array',
+                    viewer_kwargs=dict(
+                        backend=backend,
+                        width=500,
+                        height=500,
+                        display_com=False,
+                        display_dcm=False,
+                        display_contacts=False,
+                    )
+                )
                 self._test_pid_standing()
                 Viewer.close()

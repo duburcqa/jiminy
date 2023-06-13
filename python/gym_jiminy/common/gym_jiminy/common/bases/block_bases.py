@@ -13,7 +13,7 @@ from typing import Any, Iterable, Generic
 
 import gymnasium as gym
 
-from ..utils import FieldNested, get_fieldnames
+from ..utils import FieldNested, get_fieldnames, fill
 from ..envs import BaseJiminyEnv
 
 from .generic_bases import (ObsType,
@@ -120,6 +120,9 @@ class BaseObserverBlock(ObserverInterface[ObsType, BaseObsType],
         # Compute the update period
         self.observe_dt = self.env.observe_dt * self.update_ratio
 
+        # Set default observation
+        fill(self._observation, 0.0)
+
         # Make sure the controller period is lower than environment timestep
         assert self.observe_dt <= self.env.step_dt, (
             "The observer update period must be lower than or equal to the "
@@ -155,6 +158,9 @@ class BaseControllerBlock(
     def _setup(self) -> None:
         # Compute the update period
         self.control_dt = self.env.control_dt * self.update_ratio
+
+        # Set default action
+        fill(self._action, 0.0)
 
         # Make sure the controller period is lower than environment timestep
         assert self.control_dt <= self.env.step_dt, (

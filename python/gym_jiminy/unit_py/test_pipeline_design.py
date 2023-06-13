@@ -32,8 +32,10 @@ class PipelineDesign(unittest.TestCase):
                 'block_class': 'gym_jiminy.common.controllers.PDController',
                 'block_kwargs': {
                     'update_ratio': 2,
+                    'order': 1,
                     'pid_kp': self.pid_kp,
-                    'pid_kd': self.pid_kd
+                    'pid_kd': self.pid_kd,
+                    'soft_bounds_margin': 0.0
                 },
                 'wrapper_kwargs': {
                     'augment_observation': True

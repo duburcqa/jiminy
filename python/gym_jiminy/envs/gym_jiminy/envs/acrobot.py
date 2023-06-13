@@ -81,9 +81,12 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
                            Optional: True by default.
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
-        :param viewer_kwargs: Keyword arguments to override by default whenever
-                              a viewer must be instantiated
-                              See `Simulator` constructor for details.
+        :param viewer_kwargs: Keyword arguments used to override the original
+                              default values whenever a viewer is instantiated.
+                              This is the only way to pass custom arguments to
+                              the viewer when calling `render` method, unlike
+                              `replay` which forwards extra keyword arguments.
+                              Optional: None by default.
         """
         # Backup some input arguments
         self.continuous = continuous
@@ -108,12 +111,12 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
             robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
+        # Override the default camera pose to be absolute if not done by user
+        viewer_kwargs.setdefault("camera_pose", (
+            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi), None))
+
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
-
-        # Overwrite default absolute camera pose
-        simulator.viewer_kwargs.setdefault("camera_pose", (
-            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi), None))
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
@@ -125,7 +128,9 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
             robot.pinocchio_data.oMf[self._tipIdx].translation[2])
 
         # Configure the learning environment
-        super().__init__(simulator, step_dt=STEP_DT, debug=debug)
+        super().__init__(simulator,
+                         step_dt=STEP_DT,
+                         debug=debug)
 
         # Create some proxies for fast access
         self.__state_view = (self._observation[:self.robot.nq],

@@ -10,6 +10,7 @@ It implements:
 """
 from weakref import ref
 from copy import deepcopy
+from abc import abstractmethod
 from functools import cached_property
 from collections import OrderedDict
 from itertools import chain
@@ -24,7 +25,8 @@ from ..utils import (
 from ..envs import ObserverHandleType, ControllerHandleType, BaseJiminyEnv
 
 from .block_bases import BaseControllerBlock, BaseObserverBlock
-from .generic_bases import (ObsType,
+from .generic_bases import (DT_EPS,
+                            ObsType,
                             ActType,
                             BaseObsType,
                             BaseActType,
@@ -98,10 +100,11 @@ class BasePipelineWrapper(
         return i
 
     @property
+    @abstractmethod
     def name(self) -> str:
         """Name of the block.
         """
-        return NotImplementedError
+        ...
 
     def get_observation(self) -> ObsType:
         """Get post-processed observation.
@@ -192,7 +195,9 @@ class BasePipelineWrapper(
 
         # Compute block's reward and add it to base one
         reward += self.compute_reward(
-            done and self._num_steps_beyond_done == 0, info=self._info)
+            done and self.env._num_steps_beyond_done == 0,
+            truncated and self.env._num_steps_beyond_done == 0,
+            self.env._info)
 
         return self.get_observation(), reward, done, truncated, info
 
@@ -341,7 +346,7 @@ class ObservedJiminyEnv(
 
         # Update observed features if necessary
         t = self.stepper_state.t
-        if is_breakpoint(t, self.observe_dt, self._dt_eps):
+        if is_breakpoint(t, self.observe_dt, DT_EPS):
             base_observation = self.env.get_observation()
             self.observer.refresh_observation(base_observation)
             if not self.simulator.is_simulation_running:
@@ -544,7 +549,7 @@ class ControlledJiminyEnv(
         # calling this method by `_controller_handle`, so it can be used as
         # measure argument without issue.
         t = self.stepper_state.t
-        if is_breakpoint(t, self.control_dt, self._dt_eps):
+        if is_breakpoint(t, self.control_dt, DT_EPS):
             target = self.controller.compute_command(observation, action)
             set_value(self._target, target)
 
@@ -562,7 +567,7 @@ class ControlledJiminyEnv(
 
         return self._command
 
-    def refresh_observation(self) -> None:
+    def refresh_observation(self, measurement: ObsType) -> None:
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 
@@ -579,7 +584,7 @@ class ControlledJiminyEnv(
                   controllers targets if requested.
         """
         # Get environment observation
-        super().refresh_observation()
+        super().refresh_observation(measurement)
 
         # Add target to observation if requested
         if not self.simulator.is_simulation_running:

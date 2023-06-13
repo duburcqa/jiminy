@@ -11,7 +11,8 @@ import numpy as np
 import gymnasium as gym
 
 from ..utils import is_breakpoint, zeros
-from ..bases import (ObsType,
+from ..bases import (DT_EPS,
+                     ObsType,
                      ActType,
                      BaseObsType,
                      BaseActType,
@@ -228,7 +229,7 @@ class StackedJiminyEnv(
         # Update observed features if necessary
         t = self.stepper_state.t
         if self.simulator.is_simulation_running and \
-                is_breakpoint(t, self.observe_dt, self._dt_eps):
+                is_breakpoint(t, self.observe_dt, DT_EPS):
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1

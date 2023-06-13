@@ -92,9 +92,12 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                            Optional: True by default.
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
-        :param viewer_kwargs: Keyword arguments to override by default whenever
-                              a viewer must be instantiated
-                              See `Simulator` constructor for details.
+        :param viewer_kwargs: Keyword arguments used to override the original
+                              default values whenever a viewer is instantiated.
+                              This is the only way to pass custom arguments to
+                              the viewer when calling `render` method, unlike
+                              `replay` which forwards extra keyword arguments.
+                              Optional: None by default.
         """
         # Backup some input arguments
         self.continuous = continuous
@@ -123,7 +126,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             encoder.initialize(joint_name)
 
         # Instantiate simulator
-        simulator = Simulator(robot)
+        simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
 
         # OpenAI Gym implementation of Cartpole has no velocity limit
         model_options = simulator.robot.get_model_options()

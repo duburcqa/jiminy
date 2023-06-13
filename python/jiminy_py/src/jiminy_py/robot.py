@@ -769,14 +769,13 @@ def load_hardware_description_file(
                     continue
 
             # Create the sensor and attach it
-            sensor = None
             for module in (jiminy, *EXTENSION_MODULES):
                 try:
                     sensor = getattr(module, sensor_type)(sensor_name)
                     break
                 except AttributeError:
                     pass
-            if sensor is None:
+            else:
                 raise RuntimeError(
                     f"Cannot instantiate sensor of type '{sensor_type}'.")
             robot.attach_sensor(sensor)

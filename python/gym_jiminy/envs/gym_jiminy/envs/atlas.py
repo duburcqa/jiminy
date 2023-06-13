@@ -106,7 +106,7 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
         :param kwargs: Keyword arguments to forward to `Simulator` and
-                       `BaseJiminyEnv` constructors.
+                       `WalkerJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
         data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
@@ -222,8 +222,10 @@ AtlasPDControlJiminyEnv = build_pipeline(**{
         'block_class': PDController,
         'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
+            'order': 1,
             'pid_kp': PID_FULL_KP,
-            'pid_kd': PID_FULL_KD
+            'pid_kd': PID_FULL_KD,
+            'soft_bounds_margin': 0.0
         },
         'wrapper_kwargs': {
             'augment_observation': False
@@ -240,8 +242,10 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(**{
         'block_class': PDController,
         'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
+            'order': 1,
             'pid_kp': PID_REDUCED_KP,
-            'pid_kd': PID_REDUCED_KD
+            'pid_kd': PID_REDUCED_KD,
+            'soft_bounds_margin': 0.0
         },
         'wrapper_kwargs': {
             'augment_observation': False

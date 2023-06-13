@@ -73,10 +73,10 @@ class Simulator:
         :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
                                       fetching the robot's state.
-        :param viewer_kwargs: Keyword arguments to override by default whenever
-                              a viewer must be instantiated, e.g. when `render`
-                              method is first called. Specifically, `backend`
-                              is ignored if one is already available.
+        :param viewer_kwargs: Keyword arguments to override default arguments
+                              whenever a viewer must be instantiated, eg when
+                              `render` method is first called. Specifically,
+                              `backend` is ignored if one is already available.
                               Optional: Empty by default.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.

@@ -141,6 +141,12 @@ class BaseJiminyEnv(ObserverControllerInterface[
             for the vast majority of systems.
         :param debug: Whether the debug mode must be enabled. Doing it enables
                       telemetry recording.
+        :param viewer_kwargs: Keyword arguments used to override the original
+                              default values whenever a viewer is instantiated.
+                              This is the only way to pass custom arguments to
+                              the viewer when calling `render` method, unlike
+                              `replay` which forwards extra keyword arguments.
+                              Optional: None by default.
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
@@ -824,7 +830,7 @@ class BaseJiminyEnv(ObserverControllerInterface[
                 "wrong with jiminy engine.")
 
         # Reset the extra information buffer
-        self._info = {}
+        self._info.clear()
 
         # Check if the simulation is over.
         # Note that 'truncated' is forced to True if the integration failed or
@@ -850,7 +856,7 @@ class BaseJiminyEnv(ObserverControllerInterface[
         reward = self.compute_reward(
             done and self._num_steps_beyond_done == 0,
             truncated and self._num_steps_beyond_done == 0,
-            info=self._info)
+            self._info)
 
         # Write log file if simulation has just terminated in debug mode
         if self._num_steps_beyond_done == 0 and self.debug:
@@ -870,13 +876,15 @@ class BaseJiminyEnv(ObserverControllerInterface[
 
         return obs, reward, done, truncated, deepcopy(self._info)
 
-    def render(self,
-               **kwargs: Any
-               ) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
-        """Render the world.
+    def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
+        """Render the agent in its environment.
 
-        :param kwargs: Extra keyword arguments to forward to
-                       `jiminy_py.simulator.Simulator.render` method.
+        .. versionchanged::
+            This method does not take input arguments anymore due to changes of
+            the official `gym.Wrapper` API. A workaround is to set
+            `simulator.viewer_kwargs` beforehand. Alternatively, it is possible
+            to call the low-level implementation `simulator.render` directly to
+            avoid API restrictions.
 
         :returns: RGB array if 'env.render_mode' is 'rgb_array', None otherwise.
         """
@@ -887,7 +895,7 @@ class BaseJiminyEnv(ObserverControllerInterface[
 
         # Call base implementation
         return self.simulator.render(
-            return_rgb_array=(self.render_mode == 'rgb_array'), **kwargs)
+            return_rgb_array=(self.render_mode == 'rgb_array'))
 
     def plot(self, **kwargs: Any) -> None:
         """Display common simulation data and action over time.
@@ -948,17 +956,16 @@ class BaseJiminyEnv(ObserverControllerInterface[
         # backend available at this point, to reduce memory pressure, but it
         # will take time to restart it systematically for every recordings.
         if kwargs.get('record_video_path') is not None:
-            kwargs['mode'] = 'rgb_array'
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
-        # Stop any running simulation before replay if `is_done` is True
-        if self.simulator.is_simulation_running and self.is_done():
+        # Stop any running simulation before replay if `has_terminated` is True
+        if self.simulator.is_simulation_running and any(self.has_terminated()):
             self.simulator.stop()
 
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose,
         # and to update the ground profile.
-        self.render(update_ground_profile=True, **kwargs)
+        self.simulator.render(update_ground_profile=True, **kwargs)
 
         self.simulator.replay(**{
             'verbose': False,
@@ -1007,14 +1014,14 @@ class BaseJiminyEnv(ObserverControllerInterface[
         # forces with the robot automatically.
         if not (env.simulator.is_viewer_available and
                 env.simulator.viewer.has_gui()):
-            env.render(update_ground_profile=False)
+            env.simulator.render(update_ground_profile=False)
 
         # Reset the environnement
         obs, _ = env.reset()
         reward = None
 
         # Refresh the ground profile
-        env.render(update_ground_profile=True)
+        env.simulator.render(update_ground_profile=True)
 
         # Enable travelling
         if enable_travelling is None:
