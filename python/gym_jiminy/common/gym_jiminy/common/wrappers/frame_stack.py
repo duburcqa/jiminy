@@ -155,14 +155,15 @@ class PartialFrameStack(
              action: Optional[ActType] = None
              ) -> Tuple[StackedObsType, float, bool, bool, InfoType]:
         observation, reward, done, truncated, info = self.env.step(action)
-        return (self.compute_observation(observation), reward, done, truncated, info)
+        return (
+            self.compute_observation(observation), reward, done, truncated,
+            info)
 
-    def reset(
-            self,
-            *,
-            seed: Optional[int] = None,
-            options: Optional[Dict[str, Any]] = None,
-        ) -> tuple[StackedObsType, InfoType]:
+    def reset(self,
+              *,
+              seed: Optional[int] = None,
+              options: Optional[Dict[str, Any]] = None,
+              ) -> Tuple[StackedObsType, InfoType]:
         observation, info = self.env.reset(seed=seed, options=options)
         self._setup()
         return self.compute_observation(observation), info

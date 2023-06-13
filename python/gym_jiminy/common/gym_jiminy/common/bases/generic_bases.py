@@ -171,6 +171,7 @@ class ControllerInterface(ABC, Generic[ObsType, ActType, BaseActType]):
 
         return 0.0
 
+
 # Note that `ObserverControllerInterface` must inherit from `ObserverInterface`
 # before `ControllerInterface` to initialize the action space before the
 # observation space since the action itself may be part of the observation.

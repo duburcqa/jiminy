@@ -257,12 +257,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     sensor_options['delay'] = sample(
                         0.0,
                         (self.std_ratio['sensors'] *
-                              SENSOR_DELAY_SCALE[sensor.type]),
+                             SENSOR_DELAY_SCALE[sensor.type]),
                         rg=self.np_random)
                     sensor_options['delay'] = sample(
                         0.0,
                         (self.std_ratio['sensors'] *
-                              SENSOR_NOISE_SCALE[sensor.type]),
+                             SENSOR_NOISE_SCALE[sensor.type]),
                         rg=self.np_random)
 
         # Randomize the flexibility parameters

@@ -3,8 +3,6 @@
 import time
 from typing import Any, List, Optional, Tuple, Generic, Union
 
-import numpy as np
-
 import gymnasium as gym
 from gymnasium.core import RenderFrame
 
@@ -12,8 +10,6 @@ from jiminy_py.viewer import sleep
 
 from ..bases import (
     ObsType, ActType, BaseObsType, BaseActType, InfoType, EnvOrWrapperType)
-
-
 
 
 class FrameRateLimiter(gym.Wrapper[ObsType, ActType, ObsType, ActType],

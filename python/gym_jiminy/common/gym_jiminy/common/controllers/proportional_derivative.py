@@ -2,7 +2,7 @@
 with gym_jiminy reinforcement learning pipeline environment design.
 """
 import math
-from typing import Any, List, Union, Optional, Sequence, Generic
+from typing import Any, List, Union, Generic
 
 import numpy as np
 import numba as nb

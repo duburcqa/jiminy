@@ -586,12 +586,11 @@ class BaseJiminyEnv(ObserverControllerInterface[
 
         return self._seed
 
-    def reset(
-            self,
-            *,
-            seed: Optional[int] = None,
-            options: Optional[Dict[str, Any]] = None,
-        ) -> tuple[ObsType, InfoType]:
+    def reset(self,
+              *,
+              seed: Optional[int] = None,
+              options: Optional[Dict[str, Any]] = None,
+              ) -> Tuple[ObsType, InfoType]:
         """Reset the environment.
 
         In practice, it resets the backend simulator and set the initial state
@@ -886,7 +885,7 @@ class BaseJiminyEnv(ObserverControllerInterface[
             to call the low-level implementation `simulator.render` directly to
             avoid API restrictions.
 
-        :returns: RGB array if 'env.render_mode' is 'rgb_array', None otherwise.
+        :returns: RGB array if 'render_mode' is 'rgb_array', None otherwise.
         """
         # Set the available rendering modes
         viewer_backend = (self.simulator.viewer or Viewer).backend

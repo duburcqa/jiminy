@@ -39,7 +39,8 @@ OtherActType = TypeVar("OtherActType", bound=DataNested)
 
 
 class BasePipelineWrapper(
-        ObserverControllerInterface[ObsType, ActType, BaseObsType, BaseActType],
+        ObserverControllerInterface[
+            ObsType, ActType, BaseObsType, BaseActType],
         gym.Wrapper[ObsType, ActType, BaseObsType, BaseActType],
         Generic[ObsType, ActType, BaseObsType, BaseActType]):
     """Base class for wrapping a `BaseJiminyEnv` Gym environment so that it
@@ -57,7 +58,6 @@ class BasePipelineWrapper(
         policy itself if they have to be trainable.
     """
     env: "EnvOrWrapperType"
-    name: str
 
     def __init__(self, env: "EnvOrWrapperType", **kwargs: Any) -> None:
         """
@@ -101,7 +101,7 @@ class BasePipelineWrapper(
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def block_name(self) -> str:
         """Name of the block.
         """
         ...
@@ -116,12 +116,11 @@ class BasePipelineWrapper(
         """
         return copy(self._observation)
 
-    def reset(
-            self,
-            *,
-            seed: Optional[int] = None,
-            options: Optional[Dict[str, Any]] = None,
-        ) -> tuple[ObsType, InfoType]:
+    def reset(self,
+              *,
+              seed: Optional[int] = None,
+              options: Optional[Dict[str, Any]] = None
+              ) -> Tuple[ObsType, InfoType]:
         """Reset the unified environment.
 
         In practice, it resets the environment and initializes the generic
@@ -287,7 +286,7 @@ class ObservedJiminyEnv(
         super().__init__(env, **kwargs)
 
     @cached_property
-    def name(self) -> str:
+    def block_name(self) -> str:
         """Name of the block.
         """
         return f"observer_{self.index}"
@@ -307,7 +306,7 @@ class ObservedJiminyEnv(
                     measures=self.observation_space))
             self.observation_space.spaces.setdefault(
                 'features', gym.spaces.Dict()).spaces[
-                    self.name] = self.observer.observation_space
+                    self.block_name] = self.observer.observation_space
         else:
             self.observation_space = self.observer.observation_space
 
@@ -360,7 +359,7 @@ class ObservedJiminyEnv(
                     else:
                         self._observation['measurement'] = base_observation
                     self._observation.setdefault(  # type: ignore[index]
-                        'features', OrderedDict())[self.name] = observation
+                        'features', OrderedDict())[self.block_name] = observation
                 else:
                     self._observation = observation
 
@@ -484,10 +483,10 @@ class ControlledJiminyEnv(
         self.env.register_variable("action",
                                    self._action,
                                    self.controller.get_fieldnames(),
-                                   self.name)
+                                   self.block_name)
 
     @cached_property
-    def name(self) -> str:
+    def block_name(self) -> str:
         """Name of the controller.
         """
         return f"controller_{self.index}"
@@ -508,7 +507,7 @@ class ControlledJiminyEnv(
                     measures=self.observation_space))
             self.observation_space.spaces.setdefault(
                 'targets', gym.spaces.Dict()).spaces[
-                    self.name] = self.controller.action_space
+                    self.block_name] = self.controller.action_space
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -597,7 +596,7 @@ class ControlledJiminyEnv(
                 else:
                     self._observation['measures'] = obs
                 self._observation.setdefault(
-                    'targets', OrderedDict())[self.name] = self._action
+                    'targets', OrderedDict())[self.block_name] = self._action
             else:
                 self._observation = obs
 
