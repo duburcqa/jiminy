@@ -54,7 +54,7 @@ jobs:
       run: |
         if ("${{ matrix.PYTHON_VERSION }}" -ne '3.11') {
           python -m pip install "torch==${env:TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
-          python -m pip install "gymnasium>=0.28,<0.29" "importlib-metadata>=3.3.0" "stable_baselines3==2.0.0a13"
+          python -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
         }
         & "./build_tools/build_install_deps_windows.ps1"
 
@@ -177,12 +177,14 @@ jobs:
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
 
-        Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
-        python -m unittest discover -v
-
         Set-Location -Path "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         $JIMINY_VIEWER_DEFAULT_BACKEND = "panda3d-sync"
         python acrobot_ppo.py
+
+        python -m pip install "stable_baselines3==2.0.0a13"
+
+        Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
+        python -m unittest discover -v
 
 #########################################################################################
 

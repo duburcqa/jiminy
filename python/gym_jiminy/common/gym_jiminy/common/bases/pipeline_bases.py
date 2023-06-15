@@ -40,7 +40,7 @@ OtherActType = TypeVar("OtherActType", bound=DataNested)
 # `JiminyEnvInterface` as they both inherit from `gym.Env` but `gym.Wrapper`
 # implementation is expected to take precedence.
 class BasePipelineWrapper(
-        gym.Wrapper[ObsType, ActType, BaseObsType, BaseActType],
+        gym.Wrapper,#[ObsType, ActType, BaseObsType, BaseActType],
         JiminyEnvInterface[
             ObsType, ActType, BaseObsType, BaseActType],
         Generic[ObsType, ActType, BaseObsType, BaseActType]):

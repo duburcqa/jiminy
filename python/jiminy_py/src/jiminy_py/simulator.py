@@ -571,7 +571,9 @@ class Simulator:
 
         # Compute and return rgb array if needed
         if return_rgb_array:
-            return Viewer.capture_frame(width, height)
+            return Viewer.capture_frame(
+                width or self.viewer_kwargs.get("width"),
+                height or self.viewer_kwargs.get("height"))
         return None
 
     def replay(self,
