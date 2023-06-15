@@ -142,6 +142,9 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             low=low, high=high, dtype=np.float64)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
+        # TODO: Do not rely on anything else than `measurement` to compute the
+        # observation, as anything else is not reliable.
+
         if not self.simulator.is_simulation_running:
             # Initialize observation chunks
             self.obs_chunks = [

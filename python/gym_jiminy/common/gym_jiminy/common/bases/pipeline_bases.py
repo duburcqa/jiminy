@@ -2,8 +2,8 @@
 control design.
 
 It implements:
-- the concept of block that can be connected to a `BaseJiminyEnv` environment
-  through any level of indirection
+- the concept of block thats can be connected to a `BaseJiminyEnv` environment
+  through multiple `JiminyEnvInterface` indirections
 - a base controller block, along with a concrete PD controller
 - a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
   eventually already wrapped, so that it appears as a black-box environment.

@@ -16,7 +16,6 @@ from typing import (
 
 import tree
 import numpy as np
-import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.core import RenderFrame
 

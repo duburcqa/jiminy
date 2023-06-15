@@ -2,27 +2,27 @@
 """
 from operator import mul
 from functools import reduce
-from typing import Any, List, Optional, Dict, Tuple
+from typing import Any, List, Dict, Optional, Tuple, Generic
 
 import numpy as np
 
 import gymnasium as gym
 from gymnasium import spaces
 
-from gym_jiminy.common.utils import DataNested
-
+from gym_jiminy.common.bases import ObsType, ActType, InfoType
 
 DataTreeT = Dict[Any, Tuple[Any, "DataTreeT"]]
 
 
-class HierarchicalTaskSettableEnv(gym.Env):
+class HierarchicalTaskSettableEnv(gym.Env[ObsType, ActType],
+                                  Generic[ObsType, ActType]):
     """Extension of gym.Env to define a task-settable Env.
 
     .. note::
-        This class extends the API of Ray RLlib `TaskSettableEnv`. See:
+        This class extends the API of Ray RLlib `HierarchicalTaskSettableEnv`:
         https://github.com/ray-project/ray/blob/master/rllib/env/apis/task_settable_env.py
     """  # noqa: E501  # pylint: disable=line-too-long
-    task_space: Optional[spaces.Tuple] = None
+    task_space: spaces.Tuple
 
     def get_task(self) -> Tuple[Any, ...]:
         """Gets the task that the agent is performing in the current
@@ -50,11 +50,12 @@ class HierarchicalTaskSettableEnv(gym.Env):
         raise NotImplementedError
 
 
-class TaskSchedulingWrapper(gym.Wrapper):
+class TaskSchedulingWrapper(gym.Wrapper[ObsType, ActType, ObsType, ActType],
+                            Generic[ObsType, ActType]):
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: HierarchicalTaskSettableEnv,
+                 env: HierarchicalTaskSettableEnv[ObsType, ActType],
                  initial_task_tree: Optional[DataTreeT] = None
                  ) -> None:
         """ TODO: Write documentation.
@@ -64,8 +65,7 @@ class TaskSchedulingWrapper(gym.Wrapper):
 
         # Make sure the task space of the environment is supported
         task_space = env.task_space
-        if (task_space is None or
-            not isinstance(task_space, spaces.Tuple) or
+        if (not isinstance(task_space, spaces.Tuple) or
             any(not isinstance(space, (
                 spaces.Discrete, spaces.MultiDiscrete, spaces.MultiBinary))
                 for space in task_space)):
@@ -115,14 +115,18 @@ class TaskSchedulingWrapper(gym.Wrapper):
             tasks.append(tuple(task_path))
         return tasks
 
-    def reset(self, **kwargs: Any) -> DataNested:
+    def reset(self,
+              *,
+              seed: Optional[int] = None,
+              options: Optional[Dict[str, Any]] = None
+              ) -> Tuple[ObsType, InfoType]:
         """ TODO: Write documentation.
         """
-        # Sample task
-        task = self.sample_tasks(1)[0]
+        # Sample new task
+        task, = self.sample_tasks(1)
 
-        # Set task
+        # Set current task
         self.env.set_task(task)
 
-        # Reset environment
-        return self.env.reset(**kwargs)
+        # Reset the environment as usual
+        return self.env.reset(seed=seed, options=options)

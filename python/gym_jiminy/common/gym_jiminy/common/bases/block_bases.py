@@ -3,7 +3,7 @@ control design.
 
 It implements:
 
-    - the concept of block that can be connected to a gym environment
+    - the concept of blocks that can be connected to a gym environment
     - the base controller block
     - the base observer block
 """
