@@ -29,17 +29,20 @@ from .generic_bases import (DT_EPS,
                             BaseObsType,
                             BaseActType,
                             InfoType,
-                            ObserverControllerInterface)
+                            JiminyEnvInterface)
 
 
 OtherObsType = TypeVar("OtherObsType", bound=DataNested)
 OtherActType = TypeVar("OtherActType", bound=DataNested)
 
 
+# Note that `BasePipelineWrapper` must inherit from `gym.Wrapper` before
+# `JiminyEnvInterface` as they both inherit from `gym.Env` but `gym.Wrapper`
+# implementation is expected to take precedence.
 class BasePipelineWrapper(
-        ObserverControllerInterface[
-            ObsType, ActType, BaseObsType, BaseActType],
         gym.Wrapper[ObsType, ActType, BaseObsType, BaseActType],
+        JiminyEnvInterface[
+            ObsType, ActType, BaseObsType, BaseActType],
         Generic[ObsType, ActType, BaseObsType, BaseActType]):
     """Base class for wrapping a `BaseJiminyEnv` Gym environment so that it
     appears as a single, unified, environment. The environment may have been
@@ -55,11 +58,11 @@ class BasePipelineWrapper(
         It is recommended to add the controllers and observers into the
         policy itself if they have to be trainable.
     """
-    env: ObserverControllerInterface[
+    env: JiminyEnvInterface[
         ObsType, ActType, BaseObsType, BaseActType]
 
     def __init__(self,
-                 env: ObserverControllerInterface[
+                 env: JiminyEnvInterface[
                      ObsType, ActType, BaseObsType, BaseActType],
                  **kwargs: Any) -> None:
         """
@@ -72,8 +75,11 @@ class BasePipelineWrapper(
         self.system_state = env.system_state
         self.sensors_data = env.sensors_data
 
-        # Initialize base wrapper and interfaces through multiple inheritance
-        super().__init__(env)  # Do not forward extra arguments, if any
+        # Manually initialize the base interfaces.
+        # This is necessary because `gym.Wrapper` was not designed for multiple
+        # inheritance, hence breaking `__init__` chaining.
+        gym.Wrapper.__init__(self, env)
+        JiminyEnvInterface.__init__(self)  # Do not forward any argument
 
     def __dir__(self) -> Iterable[str]:
         """Attribute lookup.

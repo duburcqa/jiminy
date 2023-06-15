@@ -9,7 +9,7 @@ from gymnasium import spaces
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from gym_jiminy.common.utils import sample
+from gym_jiminy.common.utils import sample, set_value
 from gym_jiminy.common.bases import InfoType
 from gym_jiminy.common.envs import EngineObsType, BaseJiminyEnv
 
@@ -201,8 +201,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return qpos, qvel
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
-        self.__state_view[0][:] = measurement['agent_state']['q']
-        self.__state_view[1][:] = measurement['agent_state']['v']
+        set_value(self.__state_view, measurement['agent_state'].values())
 
     def has_terminated(self) -> Tuple[bool, bool]:
         """ TODO: Write documentation.

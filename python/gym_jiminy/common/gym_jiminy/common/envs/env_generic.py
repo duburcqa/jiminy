@@ -45,7 +45,7 @@ from ..utils import (FieldNested,
                      get_fieldnames,
                      register_variables)
 from ..bases import (
-    ObsType, ActType, InfoType, SensorsDataType, ObserverControllerInterface)
+    ObsType, ActType, InfoType, SensorsDataType, JiminyEnvInterface)
 
 from .internal import (ObserverHandleType,
                        ControllerHandleType,
@@ -93,9 +93,8 @@ class _LazyDictItemFilter(Mapping):
         return len(self.dict_packed)
 
 
-class BaseJiminyEnv(ObserverControllerInterface[
+class BaseJiminyEnv(JiminyEnvInterface[
                         ObsType, ActType, EngineObsType, np.ndarray],
-                    gym.Env[ObsType, ActType],
                     Generic[ObsType, ActType]):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.

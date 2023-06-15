@@ -8,7 +8,7 @@ from gymnasium.spaces import flatten_space
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from gym_jiminy.common.utils import sample
+from gym_jiminy.common.utils import sample, set_value
 from gym_jiminy.common.bases import InfoType
 from gym_jiminy.common.envs import EngineObsType, BaseJiminyEnv
 
@@ -166,8 +166,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
             For goal env, in addition of the current robot state, both the
             desired and achieved goals are observable.
         """
-        self.__state_view[0][:] = measurement['agent_state']['q']
-        self.__state_view[1][:] = measurement['agent_state']['v']
+        set_value(self.__state_view, measurement['agent_state'].values())
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.

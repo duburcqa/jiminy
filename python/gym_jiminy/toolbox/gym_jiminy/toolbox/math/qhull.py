@@ -159,9 +159,9 @@ class ConvexHull:
         .. note::
             Degenerated convex hulls corresponding to len(points) == 1 or 2 are
             handled separately. The distance from a point and a segment is used
-            respectevely.
+            respectively.
 
-        ..warning::
+        .. warning::
             This method only supports 2D space for the non-degenerated case.
 
         :param queries: N-D query points for which to compute distance from the
@@ -195,7 +195,7 @@ class ConvexHull:
             It is assumed that the query origins are lying inside the convex
             hull.
 
-        ..warning::
+        .. warning::
             This method only supports 2D space.
 
         .. warning::

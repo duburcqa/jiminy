@@ -3,6 +3,7 @@ specifically design for Jiminy engine, and defined as mixin classes. Any
 observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
+from collections import OrderedDict
 from typing import Dict, Any, TypeVar, Generic
 
 import numpy as np
@@ -125,6 +126,10 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
         """Compute the command to send to the subsequent block, based on the
         current target and observation of the environment.
 
+        .. note::
+            By design, the observation of the environment has been refreshed
+            automatically prior to calling this method.
+
         :param action: High-level target to achieve by means of the action.
 
         :returns: Command to send to the subsequent block. It corresponds to
@@ -169,12 +174,15 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
         return 0.0
 
 
-# Note that `ObserverControllerInterface` must inherit from `ObserverInterface`
+# Note that `JiminyEnvInterface` must inherit from `ObserverInterface`
 # before `ControllerInterface` to initialize the action space before the
 # observation space since the action itself may be part of the observation.
-class ObserverControllerInterface(
+# Similarly, `gym.Env` must be last to make sure all the other initialization
+# methods are called first.
+class JiminyEnvInterface(
         ObserverInterface[ObsType, BaseObsType],
         ControllerInterface[ActType, BaseActType],
+        gym.Env[ObsType, ActType],
         Generic[ObsType, ActType, BaseObsType, BaseActType]):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
@@ -220,11 +228,11 @@ class ObserverControllerInterface(
         :param sensors_data: Current sensor data.
         """
         if is_breakpoint(t, self.observe_dt, DT_EPS):
-            self.refresh_observation({
-                't': t,
-                'agent_state': {'q': q, 'v': v},
-                'sensors_data': sensors_data
-            })
+            self.refresh_observation(OrderedDict(
+                t=t,
+                agent_state=OrderedDict(q=q, v=v),
+                sensors_data=sensors_data
+            ))
 
     def _controller_handle(self,
                            t: float,

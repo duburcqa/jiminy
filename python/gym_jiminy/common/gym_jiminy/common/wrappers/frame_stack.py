@@ -17,7 +17,7 @@ from ..bases import (DT_EPS,
                      BaseObsType,
                      BaseActType,
                      InfoType,
-                     ObserverControllerInterface,
+                     JiminyEnvInterface,
                      BasePipelineWrapper)
 
 
@@ -175,7 +175,7 @@ class StackedJiminyEnv(
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: ObserverControllerInterface[
+                 env: JiminyEnvInterface[
                      ObsType, ActType, BaseObsType, BaseActType],
                  skip_frames_ratio: int = 0,
                  **kwargs: Any) -> None:

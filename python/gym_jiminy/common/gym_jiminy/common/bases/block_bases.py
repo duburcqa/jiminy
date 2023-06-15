@@ -9,26 +9,31 @@ It implements:
 """
 from itertools import chain
 from abc import abstractmethod, ABC
-from typing import Any, Iterable, Generic
+from typing import Any, Union, Iterable, Generic
 
 import gymnasium as gym
 
 from ..utils import FieldNested, get_fieldnames, fill
-from ..envs import BaseJiminyEnv
 
 from .generic_bases import (ObsType,
                             ActType,
                             BaseObsType,
                             BaseActType,
                             ControllerInterface,
-                            ObserverInterface)
+                            ObserverInterface,
+                            JiminyEnvInterface)
+
+
+EnvOrWrapperType = Union[
+    gym.Wrapper[ObsType, ActType, BaseObsType, BaseActType],
+    JiminyEnvInterface[ObsType, ActType, BaseObsType, BaseActType]]
 
 
 class BlockInterface(ABC):
     """Base class for blocks used for pipeline control design. Blocks can be
     either observers and controllers.
     """
-    env: gym.Env[ObsType, ActType]
+    env: EnvOrWrapperType
     name: str
     update_ratio: int
 
@@ -37,7 +42,7 @@ class BlockInterface(ABC):
 
     def __init__(self,
                  name: str,
-                 env: gym.Env[ObsType, ActType],
+                 env: EnvOrWrapperType,
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
@@ -59,11 +64,12 @@ class BlockInterface(ABC):
         :param kwargs: Extra keyword arguments that may be useful for mixing
                        multiple inheritance through multiple inheritance.
         """
-        # Make sure that the base environment inherits from `BaseJiminyEnv`
-        assert isinstance(env.unwrapped, BaseJiminyEnv)
+        # Make sure that the provided environment is valid
+        assert isinstance(env, (gym.Wrapper, JiminyEnvInterface))
+        assert isinstance(env.unwrapped, JiminyEnvInterface)
 
         # Backup some user argument(s)
-        self.env = env.unwrapped
+        self.env = env
         self.name = name
         self.update_ratio = update_ratio
 
@@ -214,6 +220,12 @@ class BaseControllerBlock(
             this method might be called. Thus it can only be called manually
             after `reset`. This method has to deal with the initialization of
             the internal state, but `_setup` method does so.
+
+        .. note::
+            The user is expected to fetch by itself the observation of the
+            environment if necessary to carry out its computations by calling
+            `self.env.get_observation()`. Beware it will NOT contain any
+            information provided by higher-level blocks in the pipeline.
 
         :param target: Target to achieve by means of the output action.
 

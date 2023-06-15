@@ -9,7 +9,7 @@ from .generic_bases import (DT_EPS,
                             SensorsDataType,
                             ObserverInterface,
                             ControllerInterface,
-                            ObserverControllerInterface)
+                            JiminyEnvInterface)
 from .block_bases import (BlockInterface,
                           BaseObserverBlock,
                           BaseControllerBlock)
@@ -30,7 +30,7 @@ __all__ = [
     'EnvOrWrapperType',
     'ObserverInterface',
     'ControllerInterface',
-    'ObserverControllerInterface',
+    'JiminyEnvInterface',
     'BlockInterface',
     'BaseObserverBlock',
     'BaseControllerBlock',

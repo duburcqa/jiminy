@@ -1,6 +1,8 @@
 """ TODO: Write documentation.
 """
 from collections import OrderedDict
+from collections.abc import Iterable
+from itertools import zip_longest
 from typing import Optional, Union, Dict, Sequence, TypeVar
 
 import gymnasium as gym
@@ -173,9 +175,9 @@ def set_value(data: DataNested, value: DataNested) -> None:
     elif isinstance(data, dict):
         for field, subval in dict.items(value):
             set_value(data[field], subval)
-    elif isinstance(data, (tuple, list)):
-        for subdata, subval in zip(data, value):
-            fill(subdata, subval)
+    elif isinstance(data, Iterable):
+        for subdata, subval in zip_longest(data, value):
+            set_value(subdata, subval)
     else:
         raise ValueError(
             "Leaves of 'data' structure must have type `np.ndarray`."
