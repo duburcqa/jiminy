@@ -84,8 +84,7 @@ jobs:
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
-              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.11' && 'OFF') || 'ON' }} \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_GYM_JIMINY=ON \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j2
 
@@ -118,7 +117,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
-      if: matrix.PYTHON_VERSION != '3.11' && matrix.BUILD_TYPE == 'Release'
+      if: matrix.BUILD_TYPE == 'Release'
       run: |
         cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
