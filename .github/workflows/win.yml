@@ -19,7 +19,7 @@ jobs:
         shell: pwsh
 
     env:
-      TORCH_VERSION: "1.13.1+cpu"
+      TORCH_VERSION: "2.0.1+cpu"
       BUILD_TYPE: "Release"
       GENERATOR: "Visual Studio 17 2022"
       CMAKE_CXX_FLAGS: "/d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"

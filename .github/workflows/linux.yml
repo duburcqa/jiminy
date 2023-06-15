@@ -27,7 +27,7 @@ jobs:
         shell: bash
 
     env:
-      TORCH_VERSION: "1.13.1+cpu"
+      TORCH_VERSION: "2.0.1+cpu"
       CMAKE_CXX_FLAGS: "-march=x86-64-v3 -mtune=generic"
 
     #####################################################################################
