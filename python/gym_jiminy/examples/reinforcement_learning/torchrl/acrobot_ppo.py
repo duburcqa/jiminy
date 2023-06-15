@@ -278,7 +278,7 @@ if __name__ == '__main__':
         eval_env.rollout(
             policy=actor,
             max_steps=500,
-            # callback=lambda env, data: env.render(viewer_backend="panda3d"),
+            # callback=lambda env, data: env.render(),
             break_when_any_done=True
         )
         actor.train()

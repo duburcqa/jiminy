@@ -45,7 +45,7 @@ class PipelineDesign(unittest.TestCase):
                 'wrapper_kwargs': {
                     'nested_filter_keys': [
                         ('t',),
-                        ('sensors', 'ImuSensor'),
+                        ('sensors_data', 'ImuSensor'),
                         ('targets',)
                     ],
                     'num_stack': self.num_stack,

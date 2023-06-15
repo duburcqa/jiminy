@@ -43,18 +43,18 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         """
         # Agent algorithm config
         config = {}
-        config['n_steps'] = 2500
+        config['n_steps'] = 4000
         config['batch_size'] = 250
         config['learning_rate'] = 5.0e-4
-        config['n_epochs'] = 10
-        config['gamma'] = 0.99
-        config['gae_lambda'] = 0.95
-        config['target_kl'] = 0.1
+        config['n_epochs'] = 20
+        config['gamma'] = 0.97
+        config['gae_lambda'] = 0.92
+        config['target_kl'] = None
         config['ent_coef'] = 0.0
-        config['vf_coef'] = 0.5
-        config['clip_range'] = 0.2
+        config['vf_coef'] = 0.02
+        config['clip_range'] = 0.3
         config['clip_range_vf'] = None
-        config['max_grad_norm'] = 0.5
+        config['max_grad_norm'] = 1.0
         config['seed'] = SEED
 
         # Policy model config
@@ -94,20 +94,20 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         train_agent.eval_env = test_env
 
         # Run the learning process
-        return train(train_agent, max_timesteps=150000)
+        return train(train_agent, max_timesteps=200000)
 
     def test_acrobot_stable_baselines(self):
         """Solve acrobot for both continuous and discrete action spaces.
         """
         self.assertTrue(self._ppo_training(
-            "gym_jiminy.envs:acrobot-v0", {'continuous': True}))
+            "gym_jiminy.envs:acrobot", {'continuous': True}))
         self.assertTrue(self._ppo_training(
-            "gym_jiminy.envs:acrobot-v0", {'continuous': False}))
+            "gym_jiminy.envs:acrobot", {'continuous': False}))
 
     def test_cartpole_stable_baselines(self):
         """Solve cartpole for both continuous and discrete action spaces.
         """
         self.assertTrue(self._ppo_training(
-            "gym_jiminy.envs:cartpole-v0", {'continuous': True}))
+            "gym_jiminy.envs:cartpole", {'continuous': True}))
         self.assertTrue(self._ppo_training(
-            "gym_jiminy.envs:cartpole-v0", {'continuous': False}))
+            "gym_jiminy.envs:cartpole", {'continuous': False}))

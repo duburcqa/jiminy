@@ -72,7 +72,7 @@ jobs:
         fi
 
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium==0.26.3" "importlib-metadata>=3.3.0" stable_baselines3
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<0.29" "importlib-metadata>=3.3.0" "stable_baselines3==2.0.0a13"
 
     #####################################################################################
 

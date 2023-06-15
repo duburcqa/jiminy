@@ -57,8 +57,9 @@ setup(
         "dm-tree>=0.1.7",
         # Standard interface library for reinforcement learning.
         # - `gym` has been replaced by `gymnasium` for 0.26.0+
+        # - 0.28.0: fully typed
         # - bound version for resilience to recurrent API breakage
-        "gymnasium>=0.26,<0.29"
+        "gymnasium>=0.28,<0.29"
     ],
     extras_require=extras,
     zip_safe=False

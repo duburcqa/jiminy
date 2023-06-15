@@ -258,12 +258,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                         sensor_options[name] = sample(
                             low=0.0,
                             high=(self.std_ratio['sensors'] *
-                            SENSOR_DELAY_SCALE[sensor.type]),
+                                  SENSOR_DELAY_SCALE[sensor.type]),
                             rg=self.np_random)
                     for name in ("bias", "noiseStd"):
                         sensor_options[name] = sample(
                             scale=(self.std_ratio['sensors'] *
-                            SENSOR_NOISE_SCALE[sensor.type]),
+                                   SENSOR_NOISE_SCALE[sensor.type]),
                             shape=len(sensor.fieldnames),
                             rg=self.np_random)
 

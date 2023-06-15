@@ -26,52 +26,52 @@ __all__ = [
 ]
 
 register(
-    id='cartpole-v0',
+    id='cartpole',
     entry_point='gym_jiminy.envs:CartPoleJiminyEnv',
     reward_threshold=475.0,
     max_episode_steps=500
 )
 register(
-    id='acrobot-v0',
+    id='acrobot',
     entry_point='gym_jiminy.envs:AcrobotJiminyEnv',
     reward_threshold=-100.0,
     max_episode_steps=500
 )
 register(
-    id='ant-v0',
+    id='ant',
     entry_point='gym_jiminy.envs:AntEnv',
     max_episode_steps=1000,
     reward_threshold=6000.0
 )
 register(
-    id='cassie-v0',
+    id='cassie',
     entry_point='gym_jiminy.envs:CassieJiminyEnv'
 )
 register(
-    id='cassie-pid-v0',
+    id='cassie-pid',
     entry_point='gym_jiminy.envs:CassiePDControlJiminyEnv'
 )
 register(
-    id='anymal-v0',
+    id='anymal',
     entry_point='gym_jiminy.envs:ANYmalJiminyEnv'
 )
 register(
-    id='anymal-pid-v0',
+    id='anymal-pid',
     entry_point='gym_jiminy.envs:ANYmalPDControlJiminyEnv'
 )
 register(
-    id='atlas-v0',
+    id='atlas',
     entry_point='gym_jiminy.envs:AtlasJiminyEnv'
 )
 register(
-    id='atlas-reduced-v0',
+    id='atlas-reduced',
     entry_point='gym_jiminy.envs:AtlasReducedJiminyEnv'
 )
 register(
-    id='atlas-pid-v0',
+    id='atlas-pid',
     entry_point='gym_jiminy.envs:AtlasPDControlJiminyEnv'
 )
 register(
-    id='atlas-reduced-pid-v0',
+    id='atlas-reduced-pid',
     entry_point='gym_jiminy.envs:AtlasReducedPDControlJiminyEnv'
 )

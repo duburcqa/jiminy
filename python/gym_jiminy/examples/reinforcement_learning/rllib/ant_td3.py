@@ -9,7 +9,7 @@ about 300000 at best.
 """
 # ======================== User parameters =========================
 
-GYM_ENV_NAME = "gym_jiminy.envs:ant-v0"
+GYM_ENV_NAME = "gym_jiminy.envs:ant"
 DEBUG = False
 SEED = 0
 N_THREADS = 12

@@ -9,7 +9,7 @@ from gymnasium import spaces
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from gym_jiminy.common.utils import sample, DataNested
+from gym_jiminy.common.utils import sample
 from gym_jiminy.common.bases import InfoType
 from gym_jiminy.common.envs import EngineObsType, BaseJiminyEnv
 

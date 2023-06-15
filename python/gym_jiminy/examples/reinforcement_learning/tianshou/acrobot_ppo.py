@@ -11,7 +11,7 @@ about 50000 at best.
 
 # ======================== User parameters =========================
 
-GYM_ENV_NAME = "gym_jiminy.envs:acrobot-v0"
+GYM_ENV_NAME = "gym_jiminy.envs:acrobot"
 GYM_ENV_KWARGS = {
     "continuous": True
 }

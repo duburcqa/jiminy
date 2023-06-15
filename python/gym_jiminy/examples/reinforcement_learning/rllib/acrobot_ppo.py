@@ -32,7 +32,7 @@ from gym_jiminy.rllib.utilities import (initialize,
 if __name__ == "__main__":
     # ============================ User parameters ============================
 
-    GYM_ENV_NAME = "gym_jiminy.envs:acrobot-v0"
+    GYM_ENV_NAME = "gym_jiminy.envs:acrobot"
     GYM_ENV_KWARGS = {
         'continuous': True
     }

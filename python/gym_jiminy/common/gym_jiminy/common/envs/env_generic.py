@@ -7,11 +7,12 @@ import logging
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Mapping
 from itertools import chain
 from typing import (
     Dict, Any, List, Optional, Tuple, Callable, Iterable, Union, Iterator,
-    Generic, Sequence, TypedDict)
+    Generic, Sequence, TypedDict, Mapping as MappingT,
+    MutableMapping as MutableMappingT)
 
 import tree
 import numpy as np
@@ -75,9 +76,9 @@ EngineObsType = TypedDict('EngineObsType', {
     't': float, 'agent_state': StateType, 'sensors_data': SensorsDataType})
 
 
-class _LazyDictItemFilter(Mapping[str, Any]):
+class _LazyDictItemFilter(Mapping):
     def __init__(self,
-                 dict_packed: Mapping[str, Sequence[Any]],
+                 dict_packed: MappingT[str, Sequence[Any]],
                  item_index: int) -> None:
         self.dict_packed = dict_packed
         self.item_index = item_index
@@ -110,7 +111,7 @@ class BaseJiminyEnv(ObserverControllerInterface[
     to implement one. It has been designed to be highly flexible and easy to
     customize by overloading it to fit the vast majority of users' needs.
     """
-    metadata: dict[str, Any] = {
+    metadata: Dict[str, Any] = {
         "render_modes": (
             ['rgb_array'] + (['human'] if is_display_available() else []))
     }
@@ -191,9 +192,9 @@ class BaseJiminyEnv(ObserverControllerInterface[
         self.controller = BaseJiminyObserverController()
 
         # Store references to the variables to register to the telemetry
-        self._registered_variables: MutableMapping[
+        self._registered_variables: MutableMappingT[
             str, Tuple[FieldNested, DataNested]] = {}
-        self.log_fieldnames: Mapping[str, FieldNested] = _LazyDictItemFilter(
+        self.log_fieldnames: MappingT[str, FieldNested] = _LazyDictItemFilter(
             self._registered_variables, 0)
 
         # Internal buffers for physics computations

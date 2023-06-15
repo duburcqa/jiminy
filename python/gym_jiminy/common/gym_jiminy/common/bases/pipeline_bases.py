@@ -10,8 +10,6 @@ It implements:
 """
 from weakref import ref
 from copy import deepcopy
-from abc import abstractmethod
-from functools import cached_property
 from collections import OrderedDict
 from itertools import chain
 from typing import (
@@ -57,21 +55,25 @@ class BasePipelineWrapper(
         It is recommended to add the controllers and observers into the
         policy itself if they have to be trainable.
     """
-    env: "EnvOrWrapperType"
+    env: ObserverControllerInterface[
+        ObsType, ActType, BaseObsType, BaseActType]
 
-    def __init__(self, env: "EnvOrWrapperType", **kwargs: Any) -> None:
+    def __init__(self,
+                 env: ObserverControllerInterface[
+                     ObsType, ActType, BaseObsType, BaseActType],
+                 **kwargs: Any) -> None:
         """
         :param kwargs: Extra keyword arguments for multiple inheritance.
         """
+        # Initialize some proxies for fast lookup
+        self.simulator = env.simulator
+        self.robot = env.robot
+        self.stepper_state = env.stepper_state
+        self.system_state = env.system_state
+        self.sensors_data = env.sensors_data
+
         # Initialize base wrapper and interfaces through multiple inheritance
         super().__init__(env)  # Do not forward extra arguments, if any
-
-        # Refresh some proxies for fast lookup
-        self.simulator = self.env.simulator
-        self.robot = self.env.robot
-        self.stepper_state = self.env.stepper_state
-        self.system_state = self.env.system_state
-        self.sensors_data = self.env.sensors_data
 
     def __dir__(self) -> Iterable[str]:
         """Attribute lookup.
