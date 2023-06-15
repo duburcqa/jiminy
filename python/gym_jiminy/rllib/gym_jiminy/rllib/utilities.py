@@ -37,8 +37,8 @@ from ray._raylet import GcsClientOptions  # type: ignore[attr-defined]
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
 from ray.tune.utils.util import SafeFallbackEncoder
-from ray.rllib.connectors.connector import (
-    register_connector, Connector, ConnectorContext)
+from ray.rllib.connectors.connector import Connector, ConnectorContext
+from ray.rllib.connectors.registry import register_connector
 from ray.rllib.connectors.util import (
     get_agent_connectors_from_config, get_action_connectors_from_config)
 from ray.rllib.algorithms.algorithm import Algorithm
@@ -455,19 +455,15 @@ def build_eval_policy_from_checkpoint(checkpoint_path: str) -> PolicyMap:
         config.preprocessor_pref is not None)
 
     # Create empty policy map
-    seed = (config.seed or 0) + config.in_evaluation * 10000
     policy_map = PolicyMap(
-        worker_index=0,
-        num_workers=0,
         capacity=config.policy_map_capacity,
-        path=config.policy_map_cache,
-        seed=seed)
+        policy_states_are_swappable=config.policy_states_are_swappable)
 
     # Restore all saved policies
     policy_states = worker_state["policy_states"]
     for pid, policy_state in policy_states.items():
         # Extract policy spec
-        spec = policy_state.get("policy_spec", None)
+        spec = policy_state["policy_spec"]
         policy_spec = PolicySpec.deserialize(spec) if (
             config.enable_connectors or
             isinstance(spec, dict)) else spec
@@ -486,18 +482,14 @@ def build_eval_policy_from_checkpoint(checkpoint_path: str) -> PolicyMap:
             if preprocessor is not None:
                 obs_space = preprocessor.observation_space
 
-        # Create the actual policy object
-        policy_map.create_policy(
-            pid,
-            policy_spec.policy_class,
+        # Instantiate the policy
+        policy_map[pid] = policy_spec.policy_class(
             obs_space,
             policy_spec.action_space,
-            config_override=None,
-            merged_config=merged_conf)
+            merged_conf)
 
-        # Restore the state of the policy
-        if policy_state:
-            policy_map[pid].set_state(policy_state)
+        # Restore its state
+        policy_map[pid].set_state(policy_state)
 
     return policy_map
 
@@ -615,7 +607,7 @@ def build_eval_worker_from_checkpoint(
     .. warning::
         This method is *NOT* standalone in the event where a custom connector
         or environment has been registered by calling
-        `ray.rllib.connectors.connector.register_connector` or
+        `ray.rllib.connectors.registry.register_connector` or
         `ray.tune.registry.register_env` and then used during training. In such
         a case, it is necessary to ensure this registration has been done prior
         to calling this method otherwise it will raise an exception.
@@ -850,8 +842,8 @@ def evaluate_algo(algo: Algorithm,
 
     # Collect samples.
     # `sample` either produces 1 episode or exactly `evaluation_duration` based
-    # on `unit` being set to "episodes" or "timesteps" respectively.
-    # See https://github.com/ray-project/ray/blob/ray-2.2.0/rllib/algorithms/algorithm.py#L937  # noqa: E501  # pylint: disable=line-too-long
+    # on `unit` being set to "episodes" or "timesteps" respectively. See:
+    # https://github.com/ray-project/ray/blob/ray-2.2.0/rllib/algorithms/algorithm.py#L937  # noqa: E501  # pylint: disable=line-too-long
     eval_workers.foreach_worker(_toggle_write_log_hook)
     if eval_workers.num_remote_workers() == 0:
         # Collect the data
@@ -894,7 +886,7 @@ def evaluate_algo(algo: Algorithm,
                 all_num_steps.append(batch.env_steps())
                 all_total_rewards.append(np.sum(batch[batch.REWARDS]))
             all_log_paths += chain(*eval_workers.foreach_worker(
-                lambda w: w.callbacks.log_paths))
+                lambda w: w.callbacks.log_paths, local_worker=False))
 
             # Store all batches for later use
             if algo.reward_estimators:

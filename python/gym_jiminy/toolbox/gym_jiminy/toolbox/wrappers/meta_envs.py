@@ -50,8 +50,9 @@ class HierarchicalTaskSettableEnv(gym.Env[ObsType, ActType],
         raise NotImplementedError
 
 
-class TaskSchedulingWrapper(gym.Wrapper,#[ObsType, ActType, ObsType, ActType],
-                            Generic[ObsType, ActType]):
+class TaskSchedulingWrapper(
+        gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
+        Generic[ObsType, ActType]):
     """ TODO: Write documentation.
     """
     def __init__(self,

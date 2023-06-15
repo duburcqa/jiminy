@@ -25,7 +25,7 @@ StackedObsType = ObsType
 
 
 class PartialFrameStack(
-        gym.Wrapper,#[StackedObsType, ActType, ObsType, ActType],
+        gym.Wrapper,  # [StackedObsType, ActType, ObsType, ActType],
         Generic[ObsType, ActType]):
     """Observation wrapper that partially stacks observations in a rolling
     manner.

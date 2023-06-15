@@ -25,7 +25,7 @@ from .generic_bases import (ObsType,
 
 
 EnvOrWrapperType = Union[
-    gym.Wrapper,#[ObsType, ActType, BaseObsType, BaseActType],
+    gym.Wrapper,  # [ObsType, ActType, BaseObsType, BaseActType],
     JiminyEnvInterface[ObsType, ActType, BaseObsType, BaseActType]]
 
 

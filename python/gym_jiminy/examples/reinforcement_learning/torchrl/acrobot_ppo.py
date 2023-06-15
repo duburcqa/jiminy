@@ -153,7 +153,7 @@ if __name__ == '__main__':
         ),),
         actor,
         frames_per_batch=4000,
-        total_frames=160000,
+        total_frames=200000,
         exploration_type=ExplorationType.RANDOM,
         reset_at_each_iter=True,
         update_at_each_batch=True,

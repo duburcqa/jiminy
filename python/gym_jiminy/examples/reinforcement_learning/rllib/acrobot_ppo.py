@@ -4,7 +4,7 @@ algorithm of Ray RLlib reinforcement learning framework.
 It solves it consistently in less than 100000 timesteps in average.
 
 .. warning::
-    This script has been tested for pytorch~=1.13 and ray[rllib]~=2.2.
+    This script has been tested for pytorch~=2.0 and ray[rllib]~=2.4.0
 """
 
 # ====================== Configure Python workspace =======================
@@ -128,14 +128,6 @@ if __name__ == "__main__":
     )
 
     # Environment settings
-    algo_config.rollouts(
-        # Number of steps after which the episode is forced to terminate
-        horizon=None,
-        # End the episode but do not reset environment when hitting the horizon
-        soft_horizon=False,
-        # Don't set 'done' at the end of the episode
-        no_done_at_end=False
-    )
     algo_config.environment(
         # The environment specifier
         env="env",
@@ -296,7 +288,7 @@ if __name__ == "__main__":
     algo = algo_config.build()
 
     # Train the agent
-    checkpoint_path = train(algo, max_timesteps=150000)
+    checkpoint_path = train(algo, max_timesteps=200000)
 
     # ========================= Terminate Ray backend =========================
 

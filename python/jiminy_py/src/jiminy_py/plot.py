@@ -141,7 +141,7 @@ class TabbedFigure:
         self.bbox_inches: Bbox = Bbox([[0.0, 0.0], [1.0, 1.0]])
 
         # Set window title
-        self.figure.canvas.manager.set_window_title(window_title)
+        self.figure.canvas.manager.setWindowTitle(window_title)
 
         # Set window size for offscreen rendering
         if self.offscreen:
@@ -746,7 +746,7 @@ def plot_log_interactive() -> None:
     for c in compare_data:
         plotted_lines[os.path.basename(c)] = []
 
-    plt.gcf().canvas.set_window_title(main_arguments.input)
+    plt.gcf().canvas.setWindowTitle(main_arguments.input)
     t = log_vars['Global.Time']
 
     # Plot each element.

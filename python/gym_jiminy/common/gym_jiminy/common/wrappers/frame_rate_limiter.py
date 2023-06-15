@@ -12,7 +12,7 @@ from ..bases import (
     ObsType, ActType, BaseObsType, BaseActType, InfoType, EnvOrWrapperType)
 
 
-class FrameRateLimiter(gym.Wrapper,#[ObsType, ActType, ObsType, ActType],
+class FrameRateLimiter(gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
                        Generic[ObsType, ActType]):
     """Limit the rendering framerate of an environment to a given threshold,
     which is typically useful if human rendering is enabled.

@@ -549,7 +549,8 @@ class Simulator:
 
             # Initialize camera pose
             if self.viewer.is_backend_parent and camera_pose is None:
-                camera_pose = ((9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None)
+                camera_pose = viewer_kwargs.get("camera_pose", (
+                    (9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None))
 
         # Enable the ground profile is requested and available
         assert self.viewer is not None and self.viewer.backend is not None
@@ -572,8 +573,8 @@ class Simulator:
         # Compute and return rgb array if needed
         if return_rgb_array:
             return Viewer.capture_frame(
-                width or self.viewer_kwargs.get("width"),
-                height or self.viewer_kwargs.get("height"))
+                width or viewer_kwargs.get("width"),
+                height or viewer_kwargs.get("height"))
         return None
 
     def replay(self,

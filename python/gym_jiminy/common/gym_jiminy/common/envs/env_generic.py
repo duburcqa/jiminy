@@ -1118,7 +1118,7 @@ class BaseJiminyEnv(JiminyEnvInterface[
             env.eval()
 
         # Set the seed without forcing full reset of the environment
-        env.seed(seed)
+        env.unwrapped._initialize_seed(seed)
 
         # Initialize the simulation
         obs, info = env.reset()
