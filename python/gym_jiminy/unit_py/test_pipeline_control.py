@@ -107,7 +107,7 @@ class PipelineControl(unittest.TestCase):
                         width=500,
                         height=500,
                         display_com=False,
-                        display_dcm=True,
+                        display_dcm=False,
                         display_contacts=False,
                     )
                 )
