@@ -5,6 +5,7 @@ from typing import Any
 
 from jiminy_py.core import build_models_from_urdf, Robot
 from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
+from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from pinocchio import neutral, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
@@ -112,6 +113,10 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
         urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
 
+        # Override default camera pose to change the reference frame
+        viewer_kwargs = dict(
+            camera_pose=(*DEFAULT_CAMERA_XYZRPY_REL, 'utorso'))
+
         # Initialize the walker environment
         super().__init__(
             urdf_path=urdf_path,
@@ -122,7 +127,8 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
-                std_ratio=STD_RATIO),
+                std_ratio=STD_RATIO,
+                viewer_kwargs=viewer_kwargs),
                 **kwargs})
 
         # Remove irrelevant contact points

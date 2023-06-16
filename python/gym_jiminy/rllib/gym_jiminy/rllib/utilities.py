@@ -35,7 +35,7 @@ from ray._private.gcs_utils import AvailableResources
 from ray._private.test_utils import monitor_memory_usage
 from ray._raylet import GcsClientOptions  # type: ignore[attr-defined]
 from ray.exceptions import RayTaskError
-from ray.tune.logger import Logger, TBXLogger
+from ray.tune.logger import Logger
 from ray.tune.result import TRAINING_ITERATION, TIME_TOTAL_S, TIMESTEPS_TOTAL
 from ray.tune.utils import flatten_dict
 from ray.tune.utils.util import SafeFallbackEncoder
@@ -103,10 +103,11 @@ class TBXLogger(Logger):
     def on_result(self, result: Dict):
         step = result.get(TIMESTEPS_TOTAL) or result[TRAINING_ITERATION]
 
+        # Remove keys that are not supposed to be logged
         tmp = result.copy()
-        for k in ["config", "pid", "timestamp", TIME_TOTAL_S, TRAINING_ITERATION]:
-            if k in tmp:
-                del tmp[k]  # not useful to log these
+        for k in ("config", "pid", "timestamp", TIME_TOTAL_S,
+                  TRAINING_ITERATION):
+            tmp.pop(k, None)
 
         flat_result = flatten_dict(tmp, delimiter="/")
         path = ["ray", "tune"]
@@ -136,9 +137,8 @@ class TBXLogger(Logger):
                 # (e.g. `[[]]`), warn and move on.
                 except (ValueError, TypeError):
                     LOGGER.warning(
-                        "You are trying to log an invalid value ({}={}) "
-                        "via {}!".format(full_attr, value, type(self).__name__)
-                    )
+                        "You are trying to log an invalid value (%s=%s) "
+                        "via %s!", full_attr, value, type(self).__name__)
 
         self.last_result = valid_result
         self._file_writer.flush()

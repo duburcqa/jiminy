@@ -56,7 +56,7 @@ REPLAY_FRAMERATE = 30
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 DEFAULT_CAMERA_XYZRPY_ABS = ((7.5, 0.0, 1.4), (1.4, 0.0, np.pi/2))
-DEFAULT_CAMERA_XYZRPY_REL = ((4.5, -4.5, 0.8), (1.3, 0.0, 0.8))
+DEFAULT_CAMERA_XYZRPY_REL = ((4.5, -4.5, 0.85), (1.35, 0.0, 0.8))
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
@@ -1478,9 +1478,15 @@ class Viewer:
         if position is None or rotation is None or relative == 'camera':
             position_camera, rotation_camera = Viewer.get_camera_transform()
         if position is None:
-            position = position_camera
+            if relative is not None:
+                position = (0.0, 0.0, 0.0)
+            else:
+                position = position_camera
         if rotation is None:
-            rotation = rotation_camera
+            if relative == 'camera':
+                rotation = (0.0, 0.0, 0.0)
+            else:
+                rotation = rotation_camera
         position, rotation = np.asarray(position), np.asarray(rotation)
 
         # Compute associated rotation matrix
@@ -1507,6 +1513,7 @@ class Viewer:
         if relative is not None:
             H_abs = H_orig * SE3(rotation_mat, position)
             position = H_abs.translation
+            rotation = matrixToRpy(H_abs.rotation)
             Viewer.set_camera_transform(None, position, rotation)
             return
 
