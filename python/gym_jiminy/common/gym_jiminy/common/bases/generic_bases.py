@@ -2,9 +2,9 @@
 specifically design for Jiminy engine, and defined as mixin classes. Any
 observer/controller block must inherit and implement those interfaces.
 """
-from abc import abstractmethod, ABC
+from abc import abstractmethod, abstractproperty, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, Generic
+from typing import Dict, Any, TypeVar, TypedDict, Generic, Callable
 
 import numpy as np
 import gymnasium as gym
@@ -12,7 +12,7 @@ import gymnasium as gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..utils import DataNested, is_breakpoint, zeros, fill
+from ..utils import DataNested, is_breakpoint, zeros, fill, copy
 
 
 # Temporal resolution of simulator steps
@@ -26,6 +26,17 @@ BaseActType = TypeVar("BaseActType", bound=DataNested)
 
 SensorsDataType = Dict[str, np.ndarray]
 InfoType = Dict[str, Any]
+
+StateType = TypedDict(
+    'StateType', {'q': np.ndarray, 'v': np.ndarray})
+EngineObsType = TypedDict('EngineObsType', {
+    't': np.ndarray, 'agent_state': StateType, 'sensors_data': SensorsDataType
+    })
+
+ObserverHandleType = Callable[[
+    float, np.ndarray, np.ndarray, Dict[str, np.ndarray]], None]
+ControllerHandleType = Callable[[
+    float, np.ndarray, np.ndarray, Dict[str, np.ndarray], np.ndarray], None]
 
 
 class ObserverInterface(ABC, Generic[ObsType, BaseObsType]):
@@ -96,7 +107,6 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
     """
     control_dt: float = -1
     action_space: gym.Space[ActType]
-    _action: ActType
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the control interface.
@@ -111,10 +121,6 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
         # Refresh the action space
         self._initialize_action_space()
 
-        # Initialize the action buffer.
-        # Having `dtype=float64` is required for registration to the telemetry.
-        self._action: ActType = zeros(self.action_space, dtype=np.float64)
-
     @abstractmethod
     def _initialize_action_space(self) -> None:
         """Configure the action space.
@@ -122,15 +128,15 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
         ...
 
     @abstractmethod
-    def compute_command(self, target: BaseActType) -> ActType:
+    def compute_command(self, action: ActType) -> BaseActType:
         """Compute the command to send to the subsequent block, based on the
-        current target and observation of the environment.
+        action and current observation of the environment.
 
         .. note::
             By design, the observation of the environment has been refreshed
             automatically prior to calling this method.
 
-        :param action: High-level target to achieve by means of the action.
+        :param action: High-level target to achieve.
 
         :returns: Command to send to the subsequent block. It corresponds to
                   the target features of another lower-level controller if any,
@@ -180,10 +186,10 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
 # Similarly, `gym.Env` must be last to make sure all the other initialization
 # methods are called first.
 class JiminyEnvInterface(
-        ObserverInterface[ObsType, BaseObsType],
-        ControllerInterface[ActType, BaseActType],
+        ObserverInterface[ObsType, EngineObsType],
+        ControllerInterface[ActType, np.ndarray],
         gym.Env[ObsType, ActType],
-        Generic[ObsType, ActType, BaseObsType, BaseActType]):
+        Generic[ObsType, ActType]):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
@@ -192,6 +198,8 @@ class JiminyEnvInterface(
     stepper_state: jiminy.StepperState
     system_state: jiminy.SystemState
     sensors_data: SensorsDataType
+
+    action: ActType
 
     def _setup(self) -> None:
         """Configure the observer-controller.
@@ -207,7 +215,7 @@ class JiminyEnvInterface(
 
         # Set default action.
         # It will be used for the initial step.
-        fill(self._action, 0.0)
+        fill(self.action, 0.0)
 
     def _observer_handle(self,
                          t: float,
@@ -260,5 +268,43 @@ class JiminyEnvInterface(
         """
         # pylint: disable=unused-argument
 
-        assert self._action is not None
-        command[:] = self.compute_command(self._action)
+        command[:] = self.compute_command(self.action)
+
+    def get_observation(self) -> ObsType:
+        """Get post-processed observation.
+
+        It performs a shallow copy of the observation.
+
+        .. warning::
+            This method is not supposed to be overloaded.
+        """
+        return copy(self._observation)
+
+    @abstractproperty
+    def step_dt(self) -> float:
+        """Get timestep of a single 'step'.
+        """
+        ...
+
+    @abstractproperty
+    def is_training(self) -> bool:
+        """Check whether the environment is in 'train' or 'eval' mode.
+        """
+        ...
+
+    @abstractmethod
+    def train(self) -> None:
+        """Sets the environment in training mode.
+        """
+        ...
+
+    @abstractmethod
+    def eval(self) -> None:
+        """Sets the environment in evaluation mode.
+
+        This only has an effect on certain environments. It can be used for
+        instance to enable clipping or filtering of the action at evaluation
+        time specifically. See documentations of a given environment for
+        details about their behaviors in training and evaluation modes.
+        """
+        ...

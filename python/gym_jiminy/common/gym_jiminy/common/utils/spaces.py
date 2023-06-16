@@ -17,6 +17,8 @@ StructNested = Union[Dict[str, 'StructNested[ValueT]'],
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
 
+DataNestedType = TypeVar("DataNestedType", bound=DataNested)
+
 
 global_rng = np.random.default_rng()
 
@@ -184,7 +186,7 @@ def set_value(data: DataNested, value: DataNested) -> None:
             )
 
 
-def copy(data: DataNested) -> DataNested:
+def copy(data: DataNestedType) -> DataNestedType:
     """Shallow copy recursively 'data' from `gym.Space`, so that only leaves
     are still references.
 

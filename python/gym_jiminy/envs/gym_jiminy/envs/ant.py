@@ -14,8 +14,8 @@ from pinocchio import (Quaternion,
                        framesForwardKinematics)
 
 from jiminy_py.simulator import Simulator
-from gym_jiminy.common.envs import EngineObsType, BaseJiminyEnv
-from gym_jiminy.common.bases import InfoType
+from gym_jiminy.common.bases import InfoType, EngineObsType
+from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample
 
 try:
@@ -194,7 +194,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         xpos = self.system_state.q[0]
         forward_reward = (xpos - self.xpos_prev) / self.step_dt
 
-        ctrl_cost = 0.5 * np.square(self._action).sum()
+        ctrl_cost = 0.5 * np.square(self.action).sum()
 
         f_ext_idx = slice(self.obs_chunks_sizes[2][0],
                           self.obs_chunks_sizes[-1][1])

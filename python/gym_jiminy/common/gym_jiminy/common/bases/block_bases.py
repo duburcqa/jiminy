@@ -25,15 +25,15 @@ from .generic_bases import (ObsType,
 
 
 EnvOrWrapperType = Union[
-    gym.Wrapper,  # [ObsType, ActType, BaseObsType, BaseActType],
-    JiminyEnvInterface[ObsType, ActType, BaseObsType, BaseActType]]
+    gym.Wrapper,  # [ObsType, ActType, OtherObsType, OtherActType],
+    JiminyEnvInterface[ObsType, ActType]]
 
 
-class BlockInterface(ABC):
+class BlockInterface(ABC, Generic[ObsType, ActType]):
     """Base class for blocks used for pipeline control design. Blocks can be
     either observers and controllers.
     """
-    env: EnvOrWrapperType
+    env: EnvOrWrapperType[ObsType, ActType]
     name: str
     update_ratio: int
 
@@ -42,7 +42,7 @@ class BlockInterface(ABC):
 
     def __init__(self,
                  name: str,
-                 env: EnvOrWrapperType,
+                 env: EnvOrWrapperType[ObsType, ActType],
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
@@ -92,7 +92,7 @@ class BlockInterface(ABC):
         return chain(super().__dir__(), dir(self.env))
 
     @abstractmethod
-    def _setup(self):
+    def _setup(self) -> None:
         """Configure the internal state of the block.
 
         .. note::
@@ -112,8 +112,8 @@ class BlockInterface(ABC):
 
 
 class BaseObserverBlock(ObserverInterface[ObsType, BaseObsType],
-                        BlockInterface,
-                        Generic[ObsType, BaseObsType]):
+                        BlockInterface[ObsType, ActType],
+                        Generic[ObsType, ActType, BaseObsType]):
     """Base class to implement observe that can be used compute observation
     features of a `BaseJiminyEnv` environment, through any number of
     lower-level observer.
@@ -153,8 +153,8 @@ class BaseObserverBlock(ObserverInterface[ObsType, BaseObsType],
 
 class BaseControllerBlock(
         ControllerInterface[ActType, BaseActType],
-        BlockInterface,
-        Generic[ActType, BaseActType]):
+        BlockInterface[ObsType, ActType],
+        Generic[ObsType, ActType, BaseActType]):
     """Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of
     lower-level controllers.
@@ -184,7 +184,7 @@ class BaseControllerBlock(
         self.control_dt = self.env.control_dt * self.update_ratio
 
         # Set default action
-        fill(self._action, 0.0)
+        fill(self.action, 0.0)
 
         # Make sure the controller period is lower than environment timestep
         assert self.control_dt <= self.env.step_dt, (
@@ -208,26 +208,25 @@ class BaseControllerBlock(
         """
         return get_fieldnames(self.action_space)
 
-    @abstractmethod
-    def compute_command(self, target: BaseActType) -> ActType:
-        """Compute the action to perform by the subsequent block, namely a
-        lower-level controller, if any, or the environment to ultimately
-        control, based on a given high-level action.
 
-        .. note::
-            The controller is supposed to be already fully configured whenever
-            this method might be called. Thus it can only be called manually
-            after `reset`. This method has to deal with the initialization of
-            the internal state, but `_setup` method does so.
+BaseControllerBlock.compute_command.__doc__ = \
+    """Compute the action to perform by the subsequent block, namely a
+    lower-level controller, if any, or the environment to ultimately
+    control, based on a given high-level action.
 
-        .. note::
-            The user is expected to fetch by itself the observation of the
-            environment if necessary to carry out its computations by calling
-            `self.env.get_observation()`. Beware it will NOT contain any
-            information provided by higher-level blocks in the pipeline.
+    .. note::
+        The controller is supposed to be already fully configured whenever
+        this method might be called. Thus it can only be called manually
+        after `reset`. This method has to deal with the initialization of
+        the internal state, but `_setup` method does so.
 
-        :param target: Target to achieve by means of the output action.
+    .. note::
+        The user is expected to fetch by itself the observation of the
+        environment if necessary to carry out its computations by calling
+        `self.env.get_observation()`. Beware it will NOT contain any
+        information provided by higher-level blocks in the pipeline.
 
-        :returns: Action to perform.
-        """
-        ...
+    :param target: Target to achieve by means of the output action.
+
+    :returns: Action to perform.
+    """

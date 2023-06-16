@@ -46,7 +46,7 @@ class PipelineDesign(unittest.TestCase):
                     'nested_filter_keys': [
                         ('t',),
                         ('sensors_data', 'ImuSensor'),
-                        ('targets',)
+                        ('actions',)
                     ],
                     'num_stack': self.num_stack,
                     'skip_frames_ratio': self.skip_frames_ratio
@@ -104,14 +104,14 @@ class PipelineDesign(unittest.TestCase):
         obs, _ = env.reset()
 
         # Controller target is observed, and has right name
-        self.assertTrue('targets' in obs and 'controller_0' in obs['targets'])
+        self.assertTrue('actions' in obs and 'controller_0' in obs['actions'])
 
         # Target, time, and Imu data are stacked
         self.assertEqual(obs['t'].ndim, 2)
         self.assertEqual(len(obs['t']), self.num_stack)
         self.assertEqual(obs['sensors_data']['ImuSensor'].ndim, 3)
         self.assertEqual(len(obs['sensors_data']['ImuSensor']), self.num_stack)
-        controller_target_obs = obs['targets']['controller_0']
+        controller_target_obs = obs['actions']['controller_0']
         self.assertEqual(len(controller_target_obs), self.num_stack)
         self.assertEqual(obs['sensors_data']['EffortSensor'].ndim, 2)
 
@@ -138,7 +138,7 @@ class PipelineDesign(unittest.TestCase):
         # Perform a single step
         env = self.ANYmalPipelineEnv()
         env.reset()
-        action = env.env.get_observation()['targets']['controller_0']
+        action = env.env.get_observation()['actions']['controller_0']
         action += 1.0e-3
         obs, *_ = env.step(action)
 
@@ -147,7 +147,7 @@ class PipelineDesign(unittest.TestCase):
         self.assertEqual(obs['t'][-1], stack_dt)
 
         # Initial observation is consistent with internal simulator state
-        controller_target_obs = obs['targets']['controller_0']
+        controller_target_obs = obs['actions']['controller_0']
         self.assertTrue(np.all(controller_target_obs[-1] == action))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['sensors_data']['ImuSensor'][-1]

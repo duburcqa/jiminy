@@ -25,7 +25,7 @@
         "nested_filter_keys": [
           ["t"],
           ["sensors_data", "ImuSensor"],
-          ["targets"]
+          ["actions"]
         ],
         "num_stack": 3,
         "skip_frames_ratio": 2

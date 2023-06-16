@@ -8,9 +8,9 @@ from gymnasium.spaces import flatten_space
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
+from gym_jiminy.common.bases import InfoType, EngineObsType
+from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample, set_value
-from gym_jiminy.common.bases import InfoType
-from gym_jiminy.common.envs import EngineObsType, BaseJiminyEnv
 
 try:
     from importlib.resources import files

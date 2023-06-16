@@ -10,8 +10,8 @@ from collections import OrderedDict
 from collections.abc import Mapping
 from itertools import chain
 from typing import (
-    Dict, Any, List, Optional, Tuple, Callable, Iterable, Union, Iterator,
-    Generic, Sequence, TypedDict, Mapping as MappingT,
+    Dict, Any, List, cast, Optional, Tuple, Callable, Iterable, Union,
+    SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
     MutableMapping as MutableMappingT)
 
 import tree
@@ -39,17 +39,22 @@ from pinocchio import neutral, normalize, framesForwardKinematics
 
 from ..utils import (FieldNested,
                      DataNested,
+                     zeros,
                      set_value,
                      clip,
                      get_fieldnames,
                      register_variables)
-from ..bases import (
-    ObsType, ActType, InfoType, SensorsDataType, JiminyEnvInterface)
+from ..bases import (ObsType,
+                     ActType,
+                     InfoType,
+                     SensorsDataType,
+                     EngineObsType,
+                     ObserverHandleType,
+                     ControllerHandleType,
+                     EnvOrWrapperType,
+                     JiminyEnvInterface)
 
-from .internal import (ObserverHandleType,
-                       ControllerHandleType,
-                       loop_interactive,
-                       BaseJiminyObserverController)
+from .internal import loop_interactive, BaseJiminyObserverController
 
 
 # Define universal bounds for the observation space
@@ -69,12 +74,6 @@ SENSOR_ACCEL_MAX = 10000.0
 LOGGER = logging.getLogger(__name__)
 
 
-StateType = TypedDict(
-    'StateType', {'q': np.ndarray, 'v': np.ndarray})
-EngineObsType = TypedDict('EngineObsType', {
-    't': float, 'agent_state': StateType, 'sensors_data': SensorsDataType})
-
-
 class _LazyDictItemFilter(Mapping):
     def __init__(self,
                  dict_packed: MappingT[str, Sequence[Any]],
@@ -92,8 +91,7 @@ class _LazyDictItemFilter(Mapping):
         return len(self.dict_packed)
 
 
-class BaseJiminyEnv(JiminyEnvInterface[
-                        ObsType, ActType, EngineObsType, np.ndarray],
+class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
                     Generic[ObsType, ActType]):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.
@@ -176,7 +174,7 @@ class BaseJiminyEnv(JiminyEnvInterface[
 
         # Backup some user arguments
         self.simulator: Simulator = simulator
-        self.step_dt = step_dt
+        self._step_dt = step_dt
         self.render_mode = render_mode
         self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
@@ -202,7 +200,7 @@ class BaseJiminyEnv(JiminyEnvInterface[
         self.log_path: Optional[str] = None
 
         # Whether evaluation mode is active
-        self.is_training = True
+        self._is_training = True
 
         # Whether play interactive mode is active
         self._is_interactive = False
@@ -223,6 +221,10 @@ class BaseJiminyEnv(JiminyEnvInterface[
 
         # Initialize the seed of the environment
         self._initialize_seed()
+
+        # Initialize the action buffer.
+        # Having `dtype=float64` is required for registration to the telemetry.
+        self.action: ActType = zeros(self.action_space, dtype=np.float64)
 
         # Set robot in neutral configuration
         qpos = self._neutral()
@@ -248,13 +250,14 @@ class BaseJiminyEnv(JiminyEnvInterface[
 
         # Register the action to the telemetry automatically iif there is
         # exactly one scalar action per motor.
-        if isinstance(self._action, np.ndarray):
-            action_size = self._action.size
+        if isinstance(self.action, np.ndarray):
+            action_size = self.action.size
             if action_size > 0 and action_size == self.robot.nmotors:
                 action_fieldnames = [
                     ".".join(("action", e)) for e in self.robot.motors_names]
-                self.register_variable(
-                    "action", self._action, action_fieldnames)
+                self.register_variable("action",
+                                       self.action,
+                                       action_fieldnames)
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -437,6 +440,7 @@ class BaseJiminyEnv(JiminyEnvInterface[
             sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
                 sensor = self.robot.get_sensor(effort.type, sensor_name)
+                assert isinstance(sensor, effort)
                 sensor_idx = sensor.idx
                 motor_idx = self.robot.motors_velocity_idx[sensor.motor_idx]
                 sensor_space_lower[effort.type][0, sensor_idx] = \
@@ -513,6 +517,33 @@ class BaseJiminyEnv(JiminyEnvInterface[
         self.action_space = spaces.Box(
             low=-action_scale, high=action_scale, dtype=np.float64)
 
+    def _initialize_seed(self, seed: Optional[int] = None) -> List[np.uint32]:
+        """Specify the seed of the environment.
+
+        .. note::
+            This method is not meant to be called manually.
+
+        .. warning::
+            It also resets the low-level jiminy Engine. Therefore one must call
+            the `reset` method afterward.
+
+        :param seed: Random seed, as a positive integer.
+                     Optional: A strongly random seed will be generated by gym
+                     if omitted.
+
+        :returns: Updated seed of the environment
+        """
+        # Generate a sequence of 3 bytes uint32 seeds
+        self._seed = list(np.random.SeedSequence(seed).generate_state(3))
+
+        # Instantiate a new random number generator based on the provided seed
+        self.np_random = np.random.Generator(np.random.SFC64(self._seed))
+
+        # Reset the seed of Jiminy Engine
+        self.simulator.seed(self._seed[0])
+
+        return self._seed
+
     def register_variable(self,
                           name: str,
                           value: DataNested,
@@ -558,32 +589,19 @@ class BaseJiminyEnv(JiminyEnvInterface[
         if is_success:
             self._registered_variables[name] = (fieldnames, value)
 
-    def _initialize_seed(self, seed: Optional[int] = None) -> List[np.uint32]:
-        """Specify the seed of the environment.
+    @property
+    def step_dt(self) -> float:
+        return self._step_dt
 
-        .. note::
-            This method is not meant to be called manually.
+    @property
+    def is_training(self) -> bool:
+        return self._is_training
 
-        .. warning::
-            It also resets the low-level jiminy Engine. Therefore one must call
-            the `reset` method afterward.
+    def train(self) -> None:
+        self._is_training = True
 
-        :param seed: Random seed, as a positive integer.
-                     Optional: A strongly random seed will be generated by gym
-                     if omitted.
-
-        :returns: Updated seed of the environment
-        """
-        # Generate a sequence of 3 bytes uint32 seeds
-        self._seed = list(np.random.SeedSequence(seed).generate_state(3))
-
-        # Instantiate a new random number generator based on the provided seed
-        self.np_random = np.random.Generator(np.random.SFC64(self._seed))
-
-        # Reset the seed of Jiminy Engine
-        self.simulator.seed(self._seed[0])
-
-        return self._seed
+    def eval(self) -> None:
+        self._is_training = False
 
     def reset(self,
               *,
@@ -781,14 +799,14 @@ class BaseJiminyEnv(JiminyEnvInterface[
 
     def step(self,
              action: Optional[ActType] = None
-             ) -> Tuple[ObsType, float, bool, bool, InfoType]:
+             ) -> Tuple[ObsType, SupportsFloat, bool, bool, InfoType]:
         # Make sure a simulation is already running
         if not self.simulator.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
         # Update of the action to perform if provided
-        if action is not None:
+        if self.debug and action is not None:
             # Make sure the action is valid
             for value in tree.flatten(action):
                 if np.isnan(value).any():
@@ -796,7 +814,7 @@ class BaseJiminyEnv(JiminyEnvInterface[
                         f"'nan' value found in action ({action}).")
 
             # Update the action
-            set_value(self._action, action)
+            set_value(self.action, action)
 
         # Try performing a single simulation step
         try:
@@ -965,15 +983,15 @@ class BaseJiminyEnv(JiminyEnvInterface[
         # and to update the ground profile.
         self.simulator.render(update_ground_profile=True, **kwargs)
 
-        self.simulator.replay(**{
+        kwargs: Dict[str, Any] = {
             'verbose': False,
             'enable_travelling': self.robot.has_freeflyer,
             'camera_pose': None,
-            **kwargs
-        })
+            **kwargs}
+        self.simulator.replay(**kwargs)
 
     @staticmethod
-    def play_interactive(env: "BaseJiminyEnv[ObsType, ActType]",
+    def play_interactive(env: EnvOrWrapperType,
                          enable_travelling: Optional[bool] = None,
                          start_paused: bool = True,
                          enable_is_done: bool = True,
@@ -1040,8 +1058,8 @@ class BaseJiminyEnv(JiminyEnvInterface[
 
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
-            nonlocal obs, reward, enable_is_done
-            action = env._key_to_action(
+            nonlocal env, obs, reward, enable_is_done
+            action = env.unwrapped._key_to_action(
                 key, obs, reward, **{"verbose": verbose, **kwargs})
             obs, reward, done, truncated, _ = env.step(action)
             env.render()
@@ -1064,12 +1082,12 @@ class BaseJiminyEnv(JiminyEnvInterface[
             env.simulator.stop()
 
         # Disable play interactive mode flag and restore training flag
-        env._is_interactive = False
+        env.unwrapped._is_interactive = False
         if is_training:
             env.train()
 
     @staticmethod
-    def evaluate(env: "BaseJiminyEnv[ObsType, ActType]",
+    def evaluate(env: EnvOrWrapperType,
                  policy_fn: Callable[[
                     ObsType, Optional[float], bool, InfoType
                     ], ActType],
@@ -1140,9 +1158,10 @@ class BaseJiminyEnv(JiminyEnvInterface[
                 obs, reward, done, truncated, info = env.step(action)
                 info_episode.append(info)
                 if done or truncated or (
-                        horizon is not None and env.num_steps > horizon):
+                        horizon is not None and
+                        env.unwrapped.num_steps > horizon):
                     break
-            env.stop()
+            env.unwrapped.stop()
         except KeyboardInterrupt:
             pass
 
@@ -1152,36 +1171,18 @@ class BaseJiminyEnv(JiminyEnvInterface[
 
         # Display some statistic if requested
         if enable_stats:
-            print("env.num_steps:", env.num_steps)
-            print("cumulative reward:", env.total_reward)
+            print("env.num_steps:", env.unwrapped.num_steps)
+            print("cumulative reward:", env.unwrapped.total_reward)
 
         # Replay the result if requested
         if enable_replay:
             try:
-                env.replay(**kwargs)
+                env.unwrapped.replay(**kwargs)
             except Exception as e:  # pylint: disable=broad-except
                 # Do not fail because of replay/recording exception
                 LOGGER.warning("%s", e)
 
         return info_episode
-
-    def train(self) -> None:
-        """Sets the environment in training mode.
-
-        .. note::
-            This mode is enabled by default.
-        """
-        self.is_training = True
-
-    def eval(self) -> None:
-        """Sets the environment in evaluation mode.
-
-        This has any effect only on certain environment. See documentations of
-        particular environment for details of their behaviors in training and
-        evaluation modes, if they are affected. It can be used to enable
-        clipping or filtering of the action at evaluation time specifically.
-        """
-        self.is_training = False
 
     # methods to override:
     # ----------------------------
@@ -1383,10 +1384,10 @@ class BaseJiminyEnv(JiminyEnvInterface[
             checking whether the simulation already started. It is not exactly
             the same but it does the job regarding preserving efficiency.
         """
-        set_value(self._observation, measurement)
+        set_value(self._observation, cast(DataNested, measurement))
 
     def compute_command(self,
-                        action: ActType
+                        action: Optional[ActType]
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
@@ -1401,8 +1402,7 @@ class BaseJiminyEnv(JiminyEnvInterface[
             initialization inside this method itself, using the safeguard
             `if not self.simulator.is_simulation_running:`.
 
-        :param observation: Observation of the environment.
-        :param action: Desired motors efforts.
+        :param action: High-level target to achieve by means of the command.
         """
         # pylint: disable=unused-argument
 

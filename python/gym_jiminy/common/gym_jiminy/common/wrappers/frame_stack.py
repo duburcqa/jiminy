@@ -1,10 +1,13 @@
 """ TODO: Write documentation.
 """
 from copy import deepcopy
+from operator import getitem
 from functools import reduce
 from collections import deque
 from typing import (
-    List, Any, Dict, Optional, Tuple, Sequence, Iterator, Union, Generic)
+    List, Any, Dict, Optional, Tuple, Sequence, Iterator, Union, Generic,
+    SupportsFloat)
+from typing_extensions import TypeAlias
 
 import numpy as np
 
@@ -14,14 +17,13 @@ from ..utils import is_breakpoint, zeros
 from ..bases import (DT_EPS,
                      ObsType,
                      ActType,
-                     BaseObsType,
-                     BaseActType,
+                     EnvOrWrapperType,
                      InfoType,
-                     JiminyEnvInterface,
+                     EngineObsType,
                      BasePipelineWrapper)
 
 
-StackedObsType = ObsType
+StackedObsType: TypeAlias = ObsType
 
 
 class PartialFrameStack(
@@ -80,9 +82,7 @@ class PartialFrameStack(
 
         self.leaf_fields_list: List[List[str]] = []
         for fields in self.nested_filter_keys:
-            root_field = reduce(
-                lambda d, key: d[key],
-                fields, self.env.observation_space)
+            root_field = reduce(getitem, fields, self.env.observation_space)
             if isinstance(root_field, gym.spaces.Dict):
                 leaf_paths = _get_branches(root_field)
                 self.leaf_fields_list += [fields + path for path in leaf_paths]
@@ -93,8 +93,7 @@ class PartialFrameStack(
         self.observation_space = deepcopy(self.env.observation_space)
         for fields in self.leaf_fields_list:
             assert isinstance(self.observation_space, gym.spaces.Dict)
-            root_space = reduce(
-                lambda d, key: d[key], fields[:-1], self.observation_space)
+            root_space = reduce(getitem, fields[:-1], self.observation_space)
             space = root_space[fields[-1]]
             if not isinstance(space, gym.spaces.Box):
                 raise TypeError(
@@ -115,32 +114,16 @@ class PartialFrameStack(
         # Initialize the frames by duplicating the original one
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             assert isinstance(self.env.observation_space, gym.spaces.Dict)
-            leaf_space = reduce(
-                lambda d, key: d[key], fields, self.env.observation_space)
+            leaf_space = reduce(getitem, fields, self.env.observation_space)
             for _ in range(self.num_stack):
                 frames.append(zeros(leaf_space))
-
-    def observation(self, observation: ObsType) -> ObsType:
-        """ TODO: Write documentation.
-        """
-        # Replace nested fields of original observation by the stacked ones
-        for fields, frames in zip(self.leaf_fields_list, self._frames):
-            root_obs = reduce(lambda d, key: d[key], fields[:-1], observation)
-
-            # Assert(s) for type checker
-            assert isinstance(root_obs, dict)
-
-            root_obs[fields[-1]] = np.stack(frames)
-
-        # Return the stacked observation
-        return observation
 
     def compute_observation(self, measurement: ObsType) -> ObsType:
         """ TODO: Write documentation.
         """
         # Backup the nested observation fields to stack
         for fields, frames in zip(self.leaf_fields_list, self._frames):
-            leaf_obs = reduce(lambda d, key: d[key], fields, measurement)
+            leaf_obs = reduce(getitem, fields, measurement)
 
             # Assert(s) for type checker
             assert isinstance(leaf_obs, np.ndarray)
@@ -148,12 +131,21 @@ class PartialFrameStack(
             # Copy to make sure not altered
             frames.append(leaf_obs.copy())
 
+        # Replace nested fields of original observation by the stacked ones
+        for fields, frames in zip(self.leaf_fields_list, self._frames):
+            root_obs = reduce(getitem, fields[:-1], measurement)
+
+            # Assert(s) for type checker
+            assert isinstance(root_obs, dict)
+
+            root_obs[fields[-1]] = np.stack(frames)
+
         # Return the stacked observation
-        return self.observation(measurement)
+        return measurement
 
     def step(self,
              action: Optional[ActType] = None
-             ) -> Tuple[StackedObsType, float, bool, bool, InfoType]:
+             ) -> Tuple[StackedObsType, SupportsFloat, bool, bool, InfoType]:
         observation, reward, done, truncated, info = self.env.step(action)
         return (
             self.compute_observation(observation), reward, done, truncated,
@@ -175,8 +167,7 @@ class StackedJiminyEnv(
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: JiminyEnvInterface[
-                     ObsType, ActType, BaseObsType, BaseActType],
+                 env: EnvOrWrapperType[ObsType, ActType],
                  skip_frames_ratio: int = 0,
                  **kwargs: Any) -> None:
         """ TODO: Write documentation.
@@ -223,7 +214,7 @@ class StackedJiminyEnv(
             raise ValueError(
                 "`StackedJiminyEnv` does not support time-continuous update.")
 
-    def refresh_observation(self, measurement: ObsType) -> None:
+    def refresh_observation(self, measurement: EngineObsType) -> None:
         # Get environment observation
         self.env.refresh_observation(measurement)
 
@@ -234,5 +225,5 @@ class StackedJiminyEnv(
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1
-            self._observation = self.env.get_observation()
-            self.wrapper.compute_observation(self._observation)
+            self._observation = self.wrapper.compute_observation(
+                self.env.get_observation())

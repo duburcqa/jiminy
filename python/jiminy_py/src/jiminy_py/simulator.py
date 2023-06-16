@@ -500,7 +500,7 @@ class Simulator:
             Viewer.close()
 
         # Update viewer_kwargs with provided kwargs
-        viewer_kwargs = {**dict(
+        viewer_kwargs: Dict[str, Any] = {**dict(
             backend=(self.viewer or Viewer).backend,
             delete_robot_on_close=True),
             **self.viewer_kwargs,

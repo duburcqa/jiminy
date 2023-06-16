@@ -1,15 +1,15 @@
 """ TODO: Write documentation.
 """
 import time
-from typing import Any, List, Optional, Tuple, Generic, Union
+from typing import Any, List, Optional, Tuple, Generic, Union, SupportsFloat
 
 import gymnasium as gym
 from gymnasium.core import RenderFrame
 
 from jiminy_py.viewer import sleep
 
-from ..bases import (
-    ObsType, ActType, BaseObsType, BaseActType, InfoType, EnvOrWrapperType)
+from ..bases import ObsType, ActType, InfoType, EnvOrWrapperType
+from ..envs import BaseJiminyEnv
 
 
 class FrameRateLimiter(gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
@@ -25,8 +25,7 @@ class FrameRateLimiter(gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
         `BaseJiminyEnv` as it requires having a `step_dt` attribute.
     """
     def __init__(self,  # pylint: disable=unused-argument
-                 env: EnvOrWrapperType[
-                     ObsType, ActType, BaseObsType, BaseActType],
+                 env: EnvOrWrapperType[ObsType, ActType],
                  speed_ratio: float = 1.0,
                  human_only: bool = True,
                  **kwargs: Any):
@@ -55,7 +54,7 @@ class FrameRateLimiter(gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
 
     def step(self,
              action: Optional[ActType] = None
-             ) -> Tuple[ObsType, float, bool, bool, InfoType]:
+             ) -> Tuple[ObsType, SupportsFloat, bool, bool, InfoType]:
         """This method does nothing more than  recording the current time,
         then calling `self.env.step`. See `BaseJiminyEnv.step` for details.
 
@@ -74,7 +73,8 @@ class FrameRateLimiter(gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
 
         :returns: RGB array if 'render_mode' is 'rgb_array', None otherwise.
         """
-        out = self.env.render()
+        out: Optional[
+            Union[RenderFrame, List[RenderFrame]]] = self.env.render()
         if not self.human_only or out is None:
             sleep(self._step_dt_rel - (time.time() - self._time_prev))
         return out

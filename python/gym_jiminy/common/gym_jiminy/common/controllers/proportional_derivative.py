@@ -12,7 +12,7 @@ from numpy.lib.stride_tricks import as_strided
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder)
 
-from ..bases import ObsType, BaseControllerBlock
+from ..bases import BaseObsType, EnvOrWrapperType, BaseControllerBlock
 from ..utils import fill
 
 
@@ -142,7 +142,7 @@ def _compute_command_impl(encoders_data: np.ndarray,
         u_command, -motor_effort_limit), motor_effort_limit)
 
 
-class PDController(BaseControllerBlock[np.ndarray, np.ndarray]):
+class PDController(BaseControllerBlock[BaseObsType, np.ndarray, np.ndarray]):
     """Low-level Proportional-Derivative controller.
 
     The action corresponds to a given derivative of the target motors
@@ -163,7 +163,7 @@ class PDController(BaseControllerBlock[np.ndarray, np.ndarray]):
     """
     def __init__(self,
                  name: str,
-                 env: gym.Env[ObsType, np.ndarray],
+                 env: EnvOrWrapperType,
                  order: int = 1,
                  update_ratio: int = 1,
                  pid_kp: Union[float, List[float], np.ndarray] = 0.0,
@@ -277,7 +277,7 @@ class PDController(BaseControllerBlock[np.ndarray, np.ndarray]):
         It is proportional to the error between the observed motors positions/
         velocities and the target ones.
 
-        :param action: Desired motors positions and velocities as a dictionary.
+        :param action: Desired N-th order deriv. of the target motor positions.
         """
         # Re-initialize the command state to the current motor state if the
         # simulation is not running. This must be done here because the
