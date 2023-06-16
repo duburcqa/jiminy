@@ -36,6 +36,8 @@ from ray._private.test_utils import monitor_memory_usage
 from ray._raylet import GcsClientOptions  # type: ignore[attr-defined]
 from ray.exceptions import RayTaskError
 from ray.tune.logger import Logger, TBXLogger
+from ray.tune.result import TRAINING_ITERATION, TIME_TOTAL_S, TIMESTEPS_TOTAL
+from ray.tune.utils import flatten_dict
 from ray.tune.utils.util import SafeFallbackEncoder
 from ray.rllib.connectors.connector import Connector, ConnectorContext
 from ray.rllib.connectors.registry import register_connector
@@ -76,19 +78,130 @@ PRINT_RESULT_FIELDS_FILTER = [
     "episode_len_mean"
 ]
 
+VALID_SUMMARY_TYPES = (int, float, np.float32, np.float64, np.int32, np.int64)
 
 LOGGER = logging.getLogger(__name__)
+
+
+class TBXLogger(Logger):
+    """TensorBoardX Logger.
+
+    Note that hparams will be written only after a trial has terminated.
+    This logger automatically flattens nested dicts to show on TensorBoard:
+
+        {"a": {"b": 1, "c": 2}} -> {"a/b": 1, "a/c": 2}
+    """
+
+    VALID_HPARAMS = (str, bool, int, float, list, type(None))
+    VALID_NP_HPARAMS = (np.bool8, np.float32, np.float64, np.int32, np.int64)
+
+    def _init(self):
+        from tensorboardX import SummaryWriter
+        self._file_writer = SummaryWriter(self.logdir, flush_secs=30)
+        self.last_result = None
+
+    def on_result(self, result: Dict):
+        step = result.get(TIMESTEPS_TOTAL) or result[TRAINING_ITERATION]
+
+        tmp = result.copy()
+        for k in ["config", "pid", "timestamp", TIME_TOTAL_S, TRAINING_ITERATION]:
+            if k in tmp:
+                del tmp[k]  # not useful to log these
+
+        flat_result = flatten_dict(tmp, delimiter="/")
+        path = ["ray", "tune"]
+        valid_result = {}
+
+        for attr, value in flat_result.items():
+            full_attr = "/".join(path + [attr])
+            if isinstance(value, VALID_SUMMARY_TYPES) and not np.isnan(value):
+                valid_result[full_attr] = value
+                self._file_writer.add_scalar(
+                    full_attr, value, global_step=step)
+            elif (isinstance(value, list) and len(value) > 0) or (
+                isinstance(value, np.ndarray) and value.size > 0
+            ):
+                valid_result[full_attr] = value
+
+                # Must be video
+                if isinstance(value, np.ndarray) and value.ndim == 5:
+                    self._file_writer.add_video(
+                        full_attr, value, global_step=step, fps=20)
+                    continue
+
+                try:
+                    self._file_writer.add_histogram(
+                        full_attr, value, global_step=step)
+                # In case TensorboardX still doesn't think it's a valid value
+                # (e.g. `[[]]`), warn and move on.
+                except (ValueError, TypeError):
+                    LOGGER.warning(
+                        "You are trying to log an invalid value ({}={}) "
+                        "via {}!".format(full_attr, value, type(self).__name__)
+                    )
+
+        self.last_result = valid_result
+        self._file_writer.flush()
+
+    def flush(self):
+        if self._file_writer is not None:
+            self._file_writer.flush()
+
+    def close(self):
+        if self._file_writer is not None:
+            if self.trial and self.trial.evaluated_params and self.last_result:
+                flat_result = flatten_dict(self.last_result, delimiter="/")
+                scrubbed_result = {
+                    k: value
+                    for k, value in flat_result.items()
+                    if isinstance(value, tuple(VALID_SUMMARY_TYPES))
+                }
+                self._try_log_hparams(scrubbed_result)
+            self._file_writer.close()
+
+    def _try_log_hparams(self, result):
+        # TBX currently errors if the hparams value is None.
+        flat_params = flatten_dict(self.trial.evaluated_params)
+        scrubbed_params = {
+            k: v for k, v in flat_params.items()
+            if isinstance(v, self.VALID_HPARAMS)}
+
+        np_params = {
+            k: v.tolist() for k, v in flat_params.items()
+            if isinstance(v, self.VALID_NP_HPARAMS)}
+
+        scrubbed_params.update(np_params)
+
+        removed = {
+            k: v for k, v in flat_params.items()
+            if not isinstance(v, self.VALID_HPARAMS + self.VALID_NP_HPARAMS)}
+        if removed:
+            LOGGER.info(
+                "Removed the following hyperparameter values when logging to "
+                "tensorboard: %s", str(removed))
+
+        from tensorboardX.summary import hparams
+
+        try:
+            experiment_tag, session_start_tag, session_end_tag = hparams(
+                hparam_dict=scrubbed_params, metric_dict=result)
+            self._file_writer.file_writer.add_summary(experiment_tag)
+            self._file_writer.file_writer.add_summary(session_start_tag)
+            self._file_writer.file_writer.add_summary(session_end_tag)
+        except Exception:
+            LOGGER.exception(
+                "TensorboardX failed to log hparams. This may be due to an "
+                "unsupported type in the hyperparameter values.")
 
 
 def initialize(num_cpus: int,
                num_gpus: int,
                log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
-               logger_cls: type = TBXLogger,
                launch_tensorboard: bool = True,
                debug: bool = False,
                verbose: bool = True,
-               **ray_init_kwargs: Any) -> Callable[[Dict[str, Any]], Logger]:
+               **ray_init_kwargs: Any) -> str:
     """Initialize Ray and Tensorboard daemons.
 
     It will be used later for almost everything from dashboard, remote/client
@@ -98,7 +211,7 @@ def initialize(num_cpus: int,
         The default Tensorboard port will be used, namely 6006 if available,
         using 0.0.0.0 (binding to all IPv4 addresses on local machine).
         Similarly, Ray dashboard port is 8265 if available. In both cases, the
-        port will be increased interatively until to find one available.
+        port will be increased interactively until to find one available.
 
     :param num_cpus: Maximum number of CPU threads that can be executed in
                      parallel. Note that it does not actually reserve part of
@@ -115,8 +228,6 @@ def initialize(num_cpus: int,
                      use default name, empty string '' to set it interactively
                      in command prompt. It must be a valid Python identifier.
                      Optional: full date _ hostname by default.
-    :param logger_cls: Custom logger class type deriving from `TBXLogger`.
-                       Optional: `TBXLogger` by default.
     :param launch_tensorboard: Whether to launch tensorboard automatically.
                                Optional: Enabled by default.
     :param debug: Whether to display debugging trace.
@@ -124,13 +235,8 @@ def initialize(num_cpus: int,
     :param verbose: Whether to print information about what is going on.
                     Optional: True by default.
 
-    :returns: lambda function to pass a `ray.Trainer` to monitor learning
-              progress in Tensorboard.
+    :returns: Fully-qualified path of the logging directory.
     """
-    # Make sure provided logger class derives from ray.tune.logger.Logger
-    assert issubclass(logger_cls, Logger), (
-        "Logger class must derive from `ray.tune.logger.Logger`")
-
     # handling of default log directory
     if log_root_path is None:
         log_root_path = mkdtemp()
@@ -237,18 +343,16 @@ def initialize(num_cpus: int,
     log_path = os.path.join(log_root_path, log_name)
     pathlib.Path(log_path).mkdir(parents=True, exist_ok=True)
     if verbose:
-        print(f"Tensorboard logfiles directory: {log_path}")
+        print(f"Experiment logfiles directory: {log_path}")
 
-    # Define Ray logger
-    def logger_creator(config: Dict[str, Any]) -> Logger:
-        return logger_cls(config, log_path)
-
-    return logger_creator
+    return log_path
 
 
 def train(algo: Algorithm,
           max_timesteps: int = 0,
           max_iters: int = 0,
+          logger_cls: type = TBXLogger,
+          logdir: Optional[Logger] = None,
           checkpoint_period: int = 0,
           verbose: bool = True,
           debug: bool = False) -> str:
@@ -266,6 +370,10 @@ def train(algo: Algorithm,
                           Optional: Disabled by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
                       Optional: Disabled by default.
+    :param logger_cls: Logger class deriving from `ray.tune.logger.Logger`.
+                       Optional: `ray.tune.logger.TBXLogger` by default.
+    :param logdir: Directory where to store the logfiles created by the logger.
+                   Optional: None by default.
     :param checkpoint_period: Backup trainer every given number of training
                               steps in log folder if requested. 0 to disable.
                               Optional: Disabled by default.
@@ -285,6 +393,11 @@ def train(algo: Algorithm,
         reward_threshold = float('inf')
     else:
         reward_threshold = env_spec.reward_threshold
+
+    # Instantiate logger that will be used throughout the experiment
+    result_logger = None
+    if logdir is not None:
+        result_logger = logger_cls({}, logdir=logdir)
 
     # Backup some information
     if algo.iteration == 0:
@@ -333,6 +446,10 @@ def train(algo: Algorithm,
             result = algo.train()
             iter_num = result["training_iteration"]
 
+            # Log results
+            if result_logger is not None:
+                result_logger.on_result(result)
+
             # Monitor memory allocation since the beginning and between iters
             if debug:
                 snapshot_new = tracemalloc.take_snapshot()
@@ -370,6 +487,11 @@ def train(algo: Algorithm,
             print("Interrupting training...")
     except RayTaskError as e:
         LOGGER.warning("%s", e)
+
+    # Flush and close logger before returning
+    if result_logger is not None:
+        result_logger.flush()
+        result_logger.close()
 
     # Backup trained agent and return file location
     return algo.save()

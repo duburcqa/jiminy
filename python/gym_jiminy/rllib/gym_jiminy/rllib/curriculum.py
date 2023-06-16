@@ -6,7 +6,6 @@ from typing import List, Any, Dict, Union, Optional, Callable, Type
 
 import numpy as np
 
-from ray.tune.logger import TBXLogger
 from ray.tune.result import TRAINING_ITERATION, TIMESTEPS_TOTAL
 from ray.rllib.env import BaseEnv
 from ray.rllib.policy import Policy
@@ -23,6 +22,8 @@ except ImportError as e:
     raise ImportError(
         "Submodule not available. Please install 'gym_jiminy[toolbox]'."
         ) from e
+
+from .utilities import TBXLogger
 
 
 def build_task_scheduling_callback(

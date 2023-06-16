@@ -56,7 +56,7 @@ REPLAY_FRAMERATE = 30
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 DEFAULT_CAMERA_XYZRPY_ABS = ((7.5, 0.0, 1.4), (1.4, 0.0, np.pi/2))
-DEFAULT_CAMERA_XYZRPY_REL = ((4.5, -4.5, 0.75), (1.3, 0.0, 0.8))
+DEFAULT_CAMERA_XYZRPY_REL = ((4.5, -4.5, 0.8), (1.3, 0.0, 0.8))
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
@@ -1505,8 +1505,7 @@ class Viewer:
 
         # Compute the absolute transformation
         if relative is not None:
-            H_abs = SE3(rotation_mat, position)
-            H_abs = H_orig * H_abs
+            H_abs = H_orig * SE3(rotation_mat, position)
             position = H_abs.translation
             Viewer.set_camera_transform(None, position, rotation)
             return
