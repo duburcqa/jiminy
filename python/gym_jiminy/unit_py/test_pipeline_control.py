@@ -52,8 +52,7 @@ class PipelineControl(unittest.TestCase):
 
         # Check that the final posture matches the expected one
         data_dir = os.path.join(os.path.dirname(__file__), "data")
-        img_prefix = '_'.join((
-            self.env.robot.name, "standing", self.env.viewer.backend, "*"))
+        img_prefix = '_'.join((self.env.robot.name, "standing", "*"))
         img_diff = np.inf
         for img_fullpath in glob(os.path.join(data_dir, img_prefix)):
             try:
@@ -97,7 +96,7 @@ class PipelineControl(unittest.TestCase):
             np.abs(velocity_mes[time > time[-1] - 1.0]) < 1.0e-3))
 
     def test_pid_standing(self):
-        for backend in ('panda3d', 'meshcat'):
+        for backend in ('panda3d-sync', 'meshcat'):
             for Env in (AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv):
                 self.env = Env(
                     debug=True,
