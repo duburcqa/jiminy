@@ -47,9 +47,9 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         config['batch_size'] = 250
         config['learning_rate'] = 5.0e-4
         config['n_epochs'] = 20
-        config['gamma'] = 0.97
-        config['gae_lambda'] = 0.92
-        config['target_kl'] = None
+        config['gamma'] = 0.98
+        config['gae_lambda'] = 0.93
+        config['target_kl'] = 0.1
         config['ent_coef'] = 0.0
         config['vf_coef'] = 0.02
         config['clip_range'] = 0.3

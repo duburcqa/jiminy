@@ -138,31 +138,33 @@ def build_pipeline(env_config: EnvConfig,
                                of the wrapper. See 'env_kwargs'.
         """
         # Make sure block and wrappers are class type and parse them if string
+        block_class_: Optional[Type[BlockInterface]] = None
         if isinstance(block_class, str):
             obj = locate(block_class)
             assert (isinstance(obj, type) and
                     issubclass(obj, BlockInterface))
-            block_class = obj
+            block_class_ = obj
         elif block_class is not None:
             assert issubclass(block_class, BlockInterface)
-            block_class = block_class
+            block_class_ = block_class
+        wrapper_class_: Optional[Type[BasePipelineWrapper]] = None
         if isinstance(wrapper_class, str):
             obj = locate(wrapper_class)
             assert (isinstance(obj, type) and
                     issubclass(obj, BasePipelineWrapper))
-            wrapper_class = obj
+            wrapper_class_ = obj
         elif wrapper_class is not None:
             assert (isinstance(wrapper_class, type) and
                     issubclass(wrapper_class, BasePipelineWrapper))
-            wrapper_class = wrapper_class
+            wrapper_class_ = wrapper_class
 
         # Handling of default wrapper class type
-        if wrapper_class is None:
-            if block_class is not None:
-                if issubclass(block_class, BaseControllerBlock):
-                    wrapper_class = ControlledJiminyEnv
-                elif issubclass(block_class, BaseObserverBlock):
-                    wrapper_class = ObservedJiminyEnv
+        if wrapper_class_ is None:
+            if block_class_ is not None:
+                if issubclass(block_class_, BaseControllerBlock):
+                    wrapper_class_ = ControlledJiminyEnv
+                elif issubclass(block_class_, BaseObserverBlock):
+                    wrapper_class_ = ObservedJiminyEnv
                 else:
                     raise ValueError(
                         f"Block of type '{block_class}' does not support "
@@ -178,8 +180,8 @@ def build_pipeline(env_config: EnvConfig,
                            environment and the controller. It will overwrite
                            default values.
             """
-            nonlocal env_class, env_kwargs, block_class, block_kwargs, \
-                wrapper_class, wrapper_kwargs
+            nonlocal env_class, env_kwargs, block_class_, block_kwargs, \
+                wrapper_kwargs
 
             # Initialize constructor arguments
             args: Any = []
@@ -193,7 +195,7 @@ def build_pipeline(env_config: EnvConfig,
             args.append(env)
 
             # Define the arguments related to the block, if any
-            if block_class is not None:
+            if block_class_ is not None:
                 if block_kwargs is not None:
                     block_kwargs_default = {**block_kwargs, **kwargs}
                 else:
@@ -201,17 +203,18 @@ def build_pipeline(env_config: EnvConfig,
                 block_name = block_kwargs_default.pop("name", None)
                 if block_name is None:
                     block_index = 0
+                    block_type = block_class_.type
                     env_wrapper: gym.Env = env
                     while isinstance(env_wrapper, gym.Wrapper):
                         if isinstance(env_wrapper, ControlledJiminyEnv):
-                            if env_wrapper.controller.type == block_class.type:
+                            if env_wrapper.controller.type == block_type:
                                 block_index += 1
                         elif isinstance(env_wrapper, ObservedJiminyEnv):
-                            if env_wrapper.observer.type == block_class.type:
+                            if env_wrapper.observer.type == block_type:
                                 block_index += 1
                         env_wrapper = env_wrapper.env
-                    block_name = f"{block_class.type}_{block_index}"
-                block = block_class(block_name, env, **block_kwargs_default)
+                    block_name = f"{block_type}_{block_index}"
+                block = block_class_(block_name, env, **block_kwargs_default)
                 args.append(block)
 
             # Define the arguments related to the wrapper
@@ -234,10 +237,10 @@ def build_pipeline(env_config: EnvConfig,
                 (name for name in dir(self.env) if not name.startswith('_')))
 
         # Dynamically generate wrapping class
-        wrapper_name = f"{wrapper_class.__name__}Wrapper"
-        if block_class is not None:
-            wrapper_name += f"{block_class.__name__}Block"
-        wrapper_class = type(wrapper_name, (wrapper_class,), {
+        wrapper_name = f"{wrapper_class_.__name__}Wrapper"
+        if block_class_ is not None:
+            wrapper_name += f"{block_class_.__name__}Block"
+        wrapper_class = type(wrapper_name, (wrapper_class_,), {
             "__init__": _init_impl, "__dir__": _dir_impl})
 
         return wrapper_class

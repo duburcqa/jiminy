@@ -65,7 +65,6 @@ class BlockInterface(ABC):
                        multiple inheritance through multiple inheritance.
         """
         # Make sure that the provided environment is valid
-        assert isinstance(env, (gym.Wrapper, JiminyEnvInterface))
         assert isinstance(env.unwrapped, JiminyEnvInterface)
 
         # Backup some user argument(s)

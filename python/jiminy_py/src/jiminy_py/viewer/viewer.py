@@ -1822,6 +1822,10 @@ class Viewer:
             # Get raw buffer image instead of numpy array for efficiency
             buffer = Viewer._backend_obj.gui.get_screenshot(
                 requested_format='RGB', raw=True)
+            if buffer is None:
+                raise RuntimeError(
+                    "Impossible to capture frame. There is something wrong "
+                    "with the graphics stack on this machine.")
 
             # Return raw data if requested
             if raw_data:

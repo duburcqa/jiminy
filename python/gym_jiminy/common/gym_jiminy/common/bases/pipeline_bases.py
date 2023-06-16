@@ -268,7 +268,7 @@ class ObservedJiminyEnv(
                        wrapper generation.
         """
         # Make sure that the unwrapped environment matches the observed one
-        assert env.unwrapped is observer.env.unwrapped
+        assert observer.env.unwrapped is env.unwrapped
 
         # Make sure that the environment pipeline does not already have one
         # block with the same base type and name.
@@ -440,7 +440,7 @@ class ControlledJiminyEnv(
                        wrapper generation.
         """
         # Make sure that the unwrapped environment matches the observed one
-        assert env.unwrapped is controller.env.unwrapped
+        assert controller.env.unwrapped is env.unwrapped
 
         # Make sure that the environment pipeline does not already have one
         # block with the same base type and name.

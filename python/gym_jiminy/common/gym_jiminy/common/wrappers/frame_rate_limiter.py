@@ -44,6 +44,7 @@ class FrameRateLimiter(gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
         self.human_only = human_only
 
         # Extract proxies for convenience
+        assert isinstance(env.unwrapped, BaseJiminyEnv)
         self._step_dt_rel = env.unwrapped.step_dt / speed_ratio
 
         # Buffer to keep track of the last time `step` method was called

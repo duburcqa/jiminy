@@ -74,7 +74,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  mesh_path_dir: Optional[str] = None,
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  step_dt: float = DEFAULT_STEP_DT,
-                 enforce_bounded_spaces: Optional[bool] = False,
+                 enforce_bounded_spaces: bool = False,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
@@ -264,7 +264,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                         sensor_options[name] = sample(
                             scale=(self.std_ratio['sensors'] *
                                    SENSOR_NOISE_SCALE[sensor.type]),
-                            shape=len(sensor.fieldnames),
+                            shape=(len(sensor.fieldnames),),
                             rg=self.np_random)
 
         # Randomize the flexibility parameters

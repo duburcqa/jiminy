@@ -228,11 +228,11 @@ class JiminyEnvInterface(
         :param sensors_data: Current sensor data.
         """
         if is_breakpoint(t, self.observe_dt, DT_EPS):
-            self.refresh_observation(OrderedDict(
-                t=t,
+            measurement: EngineObsType = OrderedDict(
+                t=np.array((t,)),
                 agent_state=OrderedDict(q=q, v=v),
-                sensors_data=sensors_data
-            ))
+                sensors_data=sensors_data)
+            self.refresh_observation(measurement)
 
     def _controller_handle(self,
                            t: float,

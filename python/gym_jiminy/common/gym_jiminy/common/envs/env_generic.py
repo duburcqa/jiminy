@@ -1004,10 +1004,14 @@ class BaseJiminyEnv(JiminyEnvInterface[
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
                        method.
         """
+        # Make sure that the provided environment is valid
+        assert isinstance(env.unwrapped, BaseJiminyEnv)
+
         # Enable play interactive flag and make sure training flag is disabled
         is_training = env.is_training
-        env._is_interactive = True
-        env.is_training = False
+        env.unwrapped._is_interactive = True
+        if is_training:
+            env.eval()
 
         # Make sure viewer gui is open, so that the viewer will shared external
         # forces with the robot automatically.
@@ -1061,7 +1065,8 @@ class BaseJiminyEnv(JiminyEnvInterface[
 
         # Disable play interactive mode flag and restore training flag
         env._is_interactive = False
-        env.is_training = is_training
+        if is_training:
+            env.train()
 
     @staticmethod
     def evaluate(env: "BaseJiminyEnv[ObsType, ActType]",
@@ -1106,6 +1111,9 @@ class BaseJiminyEnv(JiminyEnvInterface[
         :param kwargs: Extra keyword arguments to forward to the `replay`
                        method if replay is requested.
         """
+        # Make sure that the provided environment is valid
+        assert isinstance(env.unwrapped, BaseJiminyEnv)
+
         # Handling of default arguments
         if enable_replay is None:
             enable_replay = (
@@ -1382,9 +1390,10 @@ class BaseJiminyEnv(JiminyEnvInterface[
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
-        By default, it does not perform any processing. One is responsible of
-        overloading this method to clip the action if necessary to make sure it
-        does not violate the lower and upper bounds.
+        By default, it is forward the input action as is, without performing
+        any processing. One is responsible of overloading this method if the
+        action space has been customized, or just to clip the action to make
+        sure it is never out-of-bounds if necessary.
 
         .. warning::
             There is not good place to initialize buffers that are necessary to
@@ -1402,9 +1411,9 @@ class BaseJiminyEnv(JiminyEnvInterface[
             LOGGER.warning("The action is out-of-bounds.")
 
         if not isinstance(action, np.ndarray):
-            raise RuntimeError(
-                "`BaseJiminyEnv.compute_command` must be overloaded unless "
-                "the action space has type `gym.spaces.Box`.")
+            raise NotImplementedError(
+                "`BaseJiminyEnv.compute_command` must be overloaded in case "
+                "of custom action spaces.")
 
         return action
 

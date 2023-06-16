@@ -122,6 +122,8 @@ jobs:
         cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
+        # FIXME: Must install stable_baselines3 after running rllib test
+        # because they require a different version of `gymnasium`.
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3==2.0.0a13"
 
         cd "$RootDir/python/gym_jiminy/unit_py"
@@ -140,6 +142,9 @@ jobs:
         # Re-install jiminy with stubs
         cd "$RootDir/build"
         make install
+
+        # FIXME: Force re-installing the right version of gymnasium
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29"
 
         # mypy is not able to follow `.pth` when checking directories or files.
         # This bug may be fixed in the future. The only workaround is to set `MYPYPATH` manually.
