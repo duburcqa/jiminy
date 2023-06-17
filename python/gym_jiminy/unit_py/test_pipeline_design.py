@@ -170,7 +170,7 @@ class PipelineDesign(unittest.TestCase):
 
     def test_update_periods(self):
         # Perform a single step and get log data
-        env = self.ANYmalPipelineEnv()
+        env = self.ANYmalPipelineEnv(debug=True)
 
         def configure_telemetry() -> None:
             engine_options = env.simulator.engine.get_options()
