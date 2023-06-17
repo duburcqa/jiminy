@@ -219,13 +219,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         :param action: Desired motors efforts.
         """
-        # Call base implementation
-        action = super().compute_command(action)
-
-        # Compute the actual torque to apply
         if not self.continuous:
-            action = self.AVAIL_CTRL[round(action[()])]
-
+            action = self.AVAIL_CTRL[action]
         return action
 
     def compute_reward(self,

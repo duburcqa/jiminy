@@ -116,7 +116,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
 
         # Override the default camera pose to be absolute if none is specified
         simulator.viewer_kwargs.setdefault("camera_pose", (
-            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi), None))
+            (0.0, 8.0, 0.0), (np.pi/2, 0.0, np.pi), None))
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
@@ -218,15 +218,10 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
 
         :param action: Desired motors efforts.
         """
-        # Call base implementation
-        action = super().compute_command(action)
-
-        # Compute the actual torque to apply
         if not self.continuous:
-            action = self.AVAIL_CTRL[round(action[()])]
+            action = self.AVAIL_CTRL[action]
         if ACTION_NOISE > 0.0:
             action += sample(scale=ACTION_NOISE, rg=self.np_random)
-
         return action
 
     def compute_reward(self,

@@ -147,7 +147,8 @@ namespace jiminy
                 {
                     if (returnCode == hresult_t::SUCCESS)
                     {
-                        std::visit([&](auto && arg)
+                        // TODO Remove explicit `name` capture when moving to C++20
+                        std::visit([&, & name = name](auto && arg)
                                    {
                                        telemetrySender_.registerVariable(name, *arg);
                                    }, valuePtr);
@@ -232,7 +233,8 @@ namespace jiminy
         {
             for (auto const & [name, valuePtr] : registeredVariables_)
             {
-                std::visit([&](auto && arg)
+                // TODO Remove explicit `name` capture when moving to C++20
+                std::visit([&, & name = name](auto && arg)
                            {
                                telemetrySender_.updateValue(name, *arg);
                            }, valuePtr);

@@ -282,13 +282,16 @@ class PDController(BaseControllerBlock[BaseObsType, np.ndarray, np.ndarray]):
         # Re-initialize the command state to the current motor state if the
         # simulation is not running. This must be done here because the
         # command state must be valid prior to calling `refresh_observation`
-        # for the first time, which happens at `reset`.
-        if not self.simulator.is_simulation_running:
+        # for the first time, which happens at `reset`. Early return to skip
+        # integrating command if no simulation running.
+        is_simulation_running = self.simulator.is_simulation_running
+        if not is_simulation_running:
             self._command_state[:2] = self.sensors_data[encoder.type]
             np.clip(self._command_state,
                     self._command_state_lower,
                     self._command_state_upper,
                     out=self._command_state)
+            return np.zeros_like(action)
 
         # Update the highest order derivative of the target motor positions to
         # match the provided action.

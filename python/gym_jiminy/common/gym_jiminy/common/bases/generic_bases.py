@@ -215,7 +215,7 @@ class JiminyEnvInterface(
 
         # Set default action.
         # It will be used for the initial step.
-        fill(self.action, 0.0)
+        fill(self.action, 0)
 
     def _observer_handle(self,
                          t: float,

@@ -805,12 +805,13 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
                 "No simulation running. Please call `reset` before `step`.")
 
         # Update of the action to perform if provided
-        if self.debug and action is not None:
-            # Make sure the action is valid
-            for value in tree.flatten(action):
-                if np.isnan(value).any():
-                    raise RuntimeError(
-                        f"'nan' value found in action ({action}).")
+        if action is not None:
+            # Make sure the action is valid if debug
+            if self.debug:
+                for value in tree.flatten(action):
+                    if np.isnan(value).any():
+                        raise RuntimeError(
+                            f"'nan' value found in action ({action}).")
 
             # Update the action
             set_value(self.action, action)

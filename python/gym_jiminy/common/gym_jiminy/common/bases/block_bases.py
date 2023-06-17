@@ -184,7 +184,7 @@ class BaseControllerBlock(
         self.control_dt = self.env.control_dt * self.update_ratio
 
         # Set default action
-        fill(self.action, 0.0)
+        fill(self.action, 0)
 
         # Make sure the controller period is lower than environment timestep
         assert self.control_dt <= self.env.step_dt, (
