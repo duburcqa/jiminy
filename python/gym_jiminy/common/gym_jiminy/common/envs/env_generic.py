@@ -222,9 +222,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         # Initialize the seed of the environment
         self._initialize_seed()
 
-        # Initialize the action buffer.
-        # Having `dtype=float64` is required for registration to the telemetry.
-        self.action: ActType = zeros(self.action_space, dtype=np.float64)
+        # Initialize the action buffer
+        self.action: ActType = zeros(self.action_space)
 
         # Set robot in neutral configuration
         qpos = self._neutral()

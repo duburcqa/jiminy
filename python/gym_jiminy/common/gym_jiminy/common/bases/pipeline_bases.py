@@ -468,9 +468,8 @@ class ControlledJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
-        # Initialize the action buffer.
-        # Having `dtype=float64` is required for registration to the telemetry.
-        self.action: ActType = zeros(self.action_space, dtype=np.float64)
+        # Initialize the action buffer
+        self.action: ActType = zeros(self.action_space)
 
         # Register the controller's target to the telemetry
         self.env.register_variable("action",
