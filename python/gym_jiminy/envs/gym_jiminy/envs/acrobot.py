@@ -211,9 +211,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         return done, truncated
 
-    def compute_command(self,
-                        action: np.ndarray
-                        ) -> np.ndarray:
+    def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
         Convert a discrete action into its actual value if necessary, then add

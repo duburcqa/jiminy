@@ -68,6 +68,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
     The observation and action spaces are unchanged wrt `BaseJiminyEnv`.
     """
+    reward_range: Tuple[float, float] = (0.0, 1.0)
+
     def __init__(self,
                  urdf_path: Optional[str],
                  hardware_path: Optional[str] = None,

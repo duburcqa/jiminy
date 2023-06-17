@@ -25,6 +25,7 @@ class InstallPlatlib(install):
 # - Numpy API is not backward compatible but is forward compatible
 # - For some reason, forward compatibility from 1.19 to 1.20+ seems broken
 # - A few versions must be blacklisted because of Boost::Python incompatibility
+# - Numpy >= 1.21.0 is required for full typing support
 np_ver = tuple(map(int, version('numpy').split(".", 3)[:2]))
 np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
 if np_ver < (1, 20):

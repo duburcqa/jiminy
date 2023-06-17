@@ -287,9 +287,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
     def _get_time_space(self) -> spaces.Box:
         """Get time space.
         """
-        return spaces.Box(
-            low=0.0, high=self.simulator.simulation_duration_max, shape=(1,),
-            dtype=np.float64)
+        return spaces.Box(low=0.0,
+                          high=self.simulator.simulation_duration_max,
+                          shape=(1,),
+                          dtype=np.float64)
 
     def _get_state_space(self,
                          use_theoretical_model: Optional[bool] = None
@@ -385,8 +386,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         # Define some proxies for convenience
         sensors_data = self.robot.sensors_data
         command_limit = self.robot.command_limit
-
-        state_space = self._get_state_space(use_theoretical_model=False)
+        position_space, velocity_space = self._get_state_space(
+            use_theoretical_model=False).values()
+        assert isinstance(position_space, spaces.Box)
+        assert isinstance(velocity_space, spaces.Box)
 
         # Replace inf bounds of the action space
         for motor_name in self.robot.motors_names:
@@ -414,15 +417,16 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
                 # configuration, and principal value of the angle for the
                 # sensor.
                 sensor = self.robot.get_sensor(encoder.type, sensor_name)
+                assert isinstance(sensor, encoder)
                 sensor_idx = sensor.idx
                 joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
                 if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
                     sensor_position_lower = -np.pi
                     sensor_position_upper = np.pi
                 else:
-                    sensor_position_lower = state_space['q'].low[joint.idx_q]
-                    sensor_position_upper = state_space['q'].high[joint.idx_q]
-                sensor_velocity_limit = state_space['v'].high[joint.idx_v]
+                    sensor_position_lower = position_space.low[joint.idx_q]
+                    sensor_position_upper = position_space.high[joint.idx_q]
+                sensor_velocity_limit = velocity_space.high[joint.idx_v]
 
                 # Update the bounds accordingly
                 sensor_space_lower[encoder.type][0, sensor_idx] = \
@@ -758,7 +762,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs = clip(self.observation_space, self.get_observation())
+            obs: ObsType = clip(self.observation_space, self.get_observation())
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -841,7 +845,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
             self.sensors_data)
 
         # Get clipped observation
-        obs = clip(self.observation_space, self.get_observation())
+        obs: ObsType = clip(self.observation_space, self.get_observation())
 
         # Make sure there is no 'nan' value in observation
         if np.isnan(self.system_state.a).any():
@@ -1390,9 +1394,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         """
         set_value(self._observation, cast(DataNested, measurement))
 
-    def compute_command(self,
-                        action: Optional[ActType]
-                        ) -> np.ndarray:
+    def compute_command(self, action: ActType) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
         By default, it is forward the input action as is, without performing

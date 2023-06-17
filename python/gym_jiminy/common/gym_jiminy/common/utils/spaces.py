@@ -8,6 +8,7 @@ from typing import Optional, Union, Dict, Sequence, TypeVar
 import gymnasium as gym
 import tree
 import numpy as np
+from numpy import typing as npt
 
 
 ValueT = TypeVar('ValueT')
@@ -111,11 +112,13 @@ def is_bounded(space_nested: gym.Space) -> bool:
     return True
 
 
-def zeros(space: gym.Space[ValueT], dtype: Optional[type] = None) -> ValueT:
+def zeros(space: gym.Space[DataNestedType],
+          dtype: npt.DTypeLike = None) -> DataNestedType:
     """Allocate data structure from `gym.Space` and initialize it to zero.
 
     :param space: `gym.Space` on which to operate.
-    :param dtype: Must be specified to overwrite original space dtype.
+    :param dtype: Can be specified to overwrite original space dtype.
+                  Optional: None by default
     """
     # Note that it is not possible to take advantage of dm-tree because the
     # output type for collections (OrderedDict or Tuple) is not the same as
@@ -140,7 +143,7 @@ def zeros(space: gym.Space[ValueT], dtype: Optional[type] = None) -> ValueT:
         f"Space of type {type(space)} is not supported.")
 
 
-def fill(data: DataNested, fill_value: float) -> None:
+def fill(data: DataNested, fill_value: Union[float, int, np.number]) -> None:
     """Set every element of 'data' from `gym.Space` to scalar 'fill_value'.
 
     :param data: Data structure to update.
@@ -195,7 +198,8 @@ def copy(data: DataNestedType) -> DataNestedType:
     return tree.unflatten_as(data, tree.flatten(data))
 
 
-def clip(space_nested: gym.Space[ValueT], data: ValueT) -> ValueT:
+def clip(space_nested: gym.Space[DataNestedType],
+         data: DataNestedType) -> DataNestedType:
     """Clamp value from `gym.Space` to make sure it is within bounds.
 
     :param space: `gym.Space` on which to operate.

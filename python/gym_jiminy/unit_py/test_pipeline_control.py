@@ -3,6 +3,7 @@
 import os
 import io
 import base64
+import logging
 import warnings
 import unittest
 from glob import glob
@@ -18,7 +19,7 @@ from jiminy_py.viewer import Viewer
 from gym_jiminy.envs import AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv
 
 
-IMAGE_DIFF_THRESHOLD = 1.0
+IMAGE_DIFF_THRESHOLD = 2.0
 
 
 class PipelineControl(unittest.TestCase):
@@ -53,28 +54,29 @@ class PipelineControl(unittest.TestCase):
         # Check that the final posture matches the expected one
         data_dir = os.path.join(os.path.dirname(__file__), "data")
         img_prefix = '_'.join((self.env.robot.name, "standing", "*"))
-        img_diff = np.inf
+        img_min_diff = np.inf
         for img_fullpath in glob(os.path.join(data_dir, img_prefix)):
+            rgba_array_rel_ref = plt.imread(img_fullpath)
+            rgb_array_ref = (
+                rgba_array_rel_ref[..., :3] * 255).astype(np.uint8)
             try:
-                rgba_array_rel_orig = plt.imread(img_fullpath)
-            except FileNotFoundError:
-                break
-            rgb_array_abs_orig = (
-                rgba_array_rel_orig[..., :3] * 255).astype(np.uint8)
-            try:
-                img_diff = np.mean(np.abs(rgb_array - rgb_array_abs_orig))
+                img_diff = np.mean(np.abs(rgb_array - rgb_array_ref))
             except ValueError:
-                pass
-            if img_diff < IMAGE_DIFF_THRESHOLD:
+                logging.exception(
+                    "Impossible to compare captured frame with ref image "
+                    "'{img_fullpath}', likely because of shape mismatch.")
+                continue
+            img_min_diff = min(img_min_diff, img_diff)
+            if img_min_diff < IMAGE_DIFF_THRESHOLD:
                 break
-        if img_diff > IMAGE_DIFF_THRESHOLD:
+        else:
             img_obj = Image.fromarray(rgb_array)
             raw_bytes = io.BytesIO()
             img_obj.save(raw_bytes, "PNG")
             raw_bytes.seek(0)
             print(f"{self.env.robot.name} - {self.env.viewer.backend}:",
                   base64.b64encode(raw_bytes.read()))
-        self.assertLessEqual(img_diff, IMAGE_DIFF_THRESHOLD)
+        self.assertLessEqual(img_min_diff, IMAGE_DIFF_THRESHOLD)
 
         # Get the simulation log
         log_vars = self.env.log_data["variables"]

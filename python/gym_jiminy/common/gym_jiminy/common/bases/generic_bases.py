@@ -43,7 +43,7 @@ class ObserverInterface(ABC, Generic[ObsType, BaseObsType]):
     """Observer interface for both observers and environments.
     """
     observe_dt: float = -1
-    observation_space: gym.Space[ObsType]
+    observation_space: gym.Space  # [ObsType]
     _observation: ObsType
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -106,7 +106,7 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
     """Controller interface for both controllers and environments.
     """
     control_dt: float = -1
-    action_space: gym.Space[ActType]
+    action_space: gym.Space  # [ActType]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the control interface.

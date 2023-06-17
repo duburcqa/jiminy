@@ -35,6 +35,7 @@ from .block_bases import (
 
 
 OtherStateType = TypeVar("OtherStateType", bound=DataNested)
+NestedObsType = TypeVar("NestedObsType", bound=Dict[str, DataNested])
 
 
 # Note that `BasePipelineWrapper` must inherit from `gym.Wrapper` before
@@ -224,8 +225,8 @@ class BasePipelineWrapper(
 
 
 class ObservedJiminyEnv(
-        BasePipelineWrapper[ObsType, ActType, BaseObsType, ActType],
-        Generic[ObsType, ActType, BaseObsType]):
+        BasePipelineWrapper[NestedObsType, ActType, BaseObsType, ActType],
+        Generic[NestedObsType, ActType, BaseObsType]):
     """Wrap a `BaseJiminyEnv` Gym environment and a single observer.
 
     .. aafig::
@@ -372,8 +373,10 @@ class ObservedJiminyEnv(
                     # otherwise it will share all extra keys added later on.
                     self._observation.update(base_observation)
                     if base_features := base_observation.get('features'):
+                        assert isinstance(self._observation['features'], dict)
                         self._observation['features'].update(base_features)
                     if base_states := base_observation.get('states'):
+                        assert isinstance(self._observation['states'], dict)
                         self._observation['states'].update(base_states)
                 else:
                     self._observation['measurement'] = base_observation
@@ -385,8 +388,8 @@ class ObservedJiminyEnv(
 
 
 class ControlledJiminyEnv(
-        BasePipelineWrapper[ObsType, ActType, BaseObsType, BaseActType],
-        Generic[ObsType, ActType, BaseObsType, BaseActType]):
+        BasePipelineWrapper[NestedObsType, ActType, BaseObsType, BaseActType],
+        Generic[NestedObsType, ActType, BaseObsType, BaseActType]):
     """Wrap a `BaseJiminyEnv` Gym environment and a single controller.
 
     .. aafig::
@@ -429,8 +432,6 @@ class ControlledJiminyEnv(
         control, or Model Predictive Control (MPC). It is recommended to add
         the controllers into the policy itself if it has to be trainable.
     """  # noqa: E501  # pylint: disable=line-too-long
-    observation_space: gym.Space
-
     def __init__(self,
                  env: EnvOrWrapperType[BaseObsType, BaseActType],
                  controller: BaseControllerBlock[
@@ -580,8 +581,10 @@ class ControlledJiminyEnv(
                 # otherwise it will share all extra keys added later on.
                 self._observation.update(base_observation)
                 if base_actions := base_observation.get('actions'):
+                    assert isinstance(self._observation['actions'], dict)
                     self._observation['actions'].update(base_actions)
                 if base_states := base_observation.get('states'):
+                    assert isinstance(self._observation['states'], dict)
                     self._observation['states'].update(base_states)
             else:
                 self._observation['measurement'] = base_observation

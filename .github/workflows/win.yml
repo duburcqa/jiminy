@@ -46,10 +46,11 @@ jobs:
     - name: Setup minimal build environment
       run: |
         git config --global advice.detachedHead false
-        python -m pip install --upgrade "pip>=20.3,<23.1"
-        python -m pip install --upgrade "setuptools<66.0" "wheel<0.40" pefile machomachomangler
-        python -m pip install --upgrade "numpy>=1.16" "numba>=0.54.0"
-        python -m pip uninstall -y pipx  # Uninstall unecessary packages causing conflicts with the new resolver
+        python -m pip install "pip>=20.3,<23.1"
+        python -m pip install "setuptools<66.0" "wheel<0.40" pefile machomachomangler
+        python -m pip install "numpy>=1.21" "numba>=0.54.0"
+        # FIXME: Uninstall unecessary packages causing conflicts with the new resolver
+        python -m pip uninstall -y pipx
     - name: Build project dependencies
       run: |
         if ("${{ matrix.PYTHON_VERSION }}" -ne '3.11') {

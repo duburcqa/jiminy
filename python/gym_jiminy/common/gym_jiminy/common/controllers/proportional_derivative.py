@@ -143,7 +143,7 @@ def _compute_command_impl(encoders_data: np.ndarray,
 
 
 class PDController(
-        BaseControllerBlock[BaseObsType, np.ndarray, np.ndarray, np.ndarray]):
+        BaseControllerBlock[np.ndarray, np.ndarray, BaseObsType, np.ndarray]):
     """Low-level Proportional-Derivative controller.
 
     The action corresponds to a given derivative of the target motors
@@ -198,6 +198,7 @@ class PDController(
         for i, motor_name in enumerate(env.robot.motors_names):
             motor = env.robot.get_motor(motor_name)
             for j, sensor in enumerate(encoders):
+                assert isinstance(sensor, encoder)
                 if motor.joint_idx == sensor.joint_idx:
                     self.encoder_to_motor[sensor.idx] = i
                     encoders.pop(j)
@@ -221,7 +222,7 @@ class PDController(
         # span the whole range of the state derivative directly preceding them
         # in a single timestep of the environment, ie acceleration bounds are
         # inferred from velocity bounds.
-        motors_position_idx = sum(env.robot.motors_position_idx, [])
+        motors_position_idx: List[int] = sum(env.robot.motors_position_idx, [])
         motors_velocity_idx = env.robot.motors_velocity_idx
         command_state_lower = [
             env.robot.position_limit_lower[
@@ -284,9 +285,7 @@ class PDController(
         return [f"target{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
                 for name in self.robot.motors_names]
 
-    def compute_command(self,
-                        action: np.ndarray
-                        ) -> np.ndarray:
+    def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motor torques using a PD controller.
 
         It is proportional to the error between the observed motors positions/
