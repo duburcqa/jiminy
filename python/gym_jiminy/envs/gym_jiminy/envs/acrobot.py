@@ -203,10 +203,16 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
 
         :returns: done and truncated flags.
         """
+        # Call base implementation
+        done, truncated = super().has_terminated()
+
+        # Check if the agent has successfully solved the task
         tip_transform = self.robot.pinocchio_data.oMf[self._tipIdx]
         tip_position_z = tip_transform.translation[2]
-        done = tip_position_z > HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax
-        return done, False
+        if tip_position_z > HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax:
+            done = True
+
+        return done, truncated
 
     def compute_command(self,
                         action: np.ndarray

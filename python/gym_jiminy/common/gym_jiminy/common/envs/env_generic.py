@@ -819,10 +819,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         # Try performing a single simulation step
         try:
             self.simulator.step(self.step_dt)
-        except RuntimeError as e:
-            # Stop the simulation if an exception has been raised
-            LOGGER.exception(e)
+        except Exception:
+            # Stop the simulation before raising the exception
             self.simulator.stop()
+            raise
 
         # Update shared buffers
         self._refresh_buffers()
@@ -1424,7 +1424,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
 
         By default, it returns `truncated=True` if the observation is out-of-
         bounds. It must be overloaded to implement a custom termination
-        condition for the environment at hands.
+        condition for the environment at hands. It always returns `done=False`.
 
         .. note::
             This method is called after `refresh_observation`, so that the
@@ -1432,9 +1432,16 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
 
         :returns: done and truncated flags.
         """
-        done = False
+        # Make sure that a simulation is running
+        if not self.simulator.is_simulation_running:
+            raise RuntimeError(
+                "No simulation running. Please start one before calling this "
+                "method.")
+
+        # Check if the observation is out-of-bounds
         truncated = not self.observation_space.contains(self._observation)
-        return done, truncated
+
+        return False, truncated
 
     def _key_to_action(self,
                        key: Optional[str],

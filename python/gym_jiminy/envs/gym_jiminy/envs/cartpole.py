@@ -170,8 +170,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         See documentation: https://gym.openai.com/envs/CartPole-v1/.
         """
         # Compute observation bounds
-        high = np.array([2.0 * X_THRESHOLD,
-                         2.0 * THETA_THRESHOLD,
+        high = np.array([X_THRESHOLD,
+                         THETA_THRESHOLD,
                          *self.robot.velocity_limit])
 
         # Set the observation space
@@ -202,13 +202,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         set_value(self.__state_view, measurement['agent_state'].values())
-
-    def has_terminated(self) -> Tuple[bool, bool]:
-        """ TODO: Write documentation.
-        """
-        x, theta, *_ = self._observation
-        done = (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
-        return done, False
 
     def compute_command(self,
                         action: np.ndarray

@@ -21,12 +21,12 @@ issubclass_orig = issubclass
 def _issubclass(cls, class_or_tuple, /):
     try:
         return issubclass_orig(cls, class_or_tuple)
-    except TypeError as e:
+    except TypeError:
         if not isinstance(class_or_tuple, tuple):
             class_or_tuple = (class_or_tuple,)
         if all(issubclass_orig(cls_, dict) for cls_ in class_or_tuple):
             return issubclass_orig(cls, dict)
-        raise e
+        raise
 
 
 def extract_boost_python_signature(args: str) -> str:

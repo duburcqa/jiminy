@@ -360,19 +360,22 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         It is truncated if one of the following conditions is met:
 
+            - observation out-of-bounds
             - maximum simulation duration exceeded
 
         :returns: done and truncated flags.
         """
-        done, truncated = False, False
-        if not self.simulator.is_simulation_running:
-            raise RuntimeError(
-                "No simulation running. Please start one before calling this "
-                "method.")
+        # Call base implementation
+        done, truncated = super().has_terminated()
+
+        # Check if the agent has successfully solved the task
         if self.system_state.q[2] < self._height_neutral * 0.5:
             done = True
+
+        # Check if the maximum simulation duration is exceeded
         if self.simulator.stepper_state.t >= self.simu_duration_max:
             truncated = True
+
         return done, truncated
 
     def compute_reward(self,

@@ -178,8 +178,15 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     def has_terminated(self) -> Tuple[bool, bool]:
         """ TODO: Write documentation.
         """
+        # Call base implementation
+        done, truncated = super().has_terminated()
+
+        # Check if the agent is jumping far too high or stuck on its back
         zpos = self.system_state.q[2]
-        return 1.0 < zpos or zpos < 0.2, False
+        if 1.0 < zpos or zpos < 0.2:
+            truncated = True
+
+        return done, truncated
 
     def compute_reward(self,
                        done: bool,
