@@ -9,13 +9,13 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
-from gym_jiminy.common.bases import ObsType, ActType, InfoType
+from gym_jiminy.common.bases import ObsT, ActT, InfoType
 
 DataTreeT = Dict[Any, Tuple[Any, "DataTreeT"]]
 
 
-class HierarchicalTaskSettableEnv(gym.Env[ObsType, ActType],
-                                  Generic[ObsType, ActType]):
+class HierarchicalTaskSettableEnv(gym.Env[ObsT, ActT],
+                                  Generic[ObsT, ActT]):
     """Extension of gym.Env to define a task-settable Env.
 
     .. note::
@@ -51,12 +51,12 @@ class HierarchicalTaskSettableEnv(gym.Env[ObsType, ActType],
 
 
 class TaskSchedulingWrapper(
-        gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
-        Generic[ObsType, ActType]):
+        gym.Wrapper,  # [ObsT, ActT, ObsT, ActT],
+        Generic[ObsT, ActT]):
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: HierarchicalTaskSettableEnv[ObsType, ActType],
+                 env: HierarchicalTaskSettableEnv[ObsT, ActT],
                  initial_task_tree: Optional[DataTreeT] = None
                  ) -> None:
         """ TODO: Write documentation.
@@ -83,7 +83,7 @@ class TaskSchedulingWrapper(
                 if isinstance(space, spaces.Discrete):
                     space_size = space.n
                 if isinstance(space, spaces.MultiBinary):
-                    space_size = 2 ** space.n
+                    space_size = 2 ** reduce(mul, space.n)
                 elif isinstance(space, spaces.MultiDiscrete):
                     space_size = reduce(mul, space.nvec)
 
@@ -120,13 +120,15 @@ class TaskSchedulingWrapper(
               *,
               seed: Optional[int] = None,
               options: Optional[Dict[str, Any]] = None
-              ) -> Tuple[ObsType, InfoType]:
+              ) -> Tuple[ObsT, InfoType]:
         """ TODO: Write documentation.
         """
         # Sample new task
-        task, = self.sample_tasks(1)
+        task, = self.\
+            sample_tasks(1)  # pylint: disable=unbalanced-tuple-unpacking
 
         # Set current task
+        assert isinstance(self.env, HierarchicalTaskSettableEnv)
         self.env.set_task(task)
 
         # Reset the environment as usual

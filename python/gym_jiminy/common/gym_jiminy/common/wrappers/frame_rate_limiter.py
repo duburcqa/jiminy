@@ -8,12 +8,12 @@ from gymnasium.core import RenderFrame
 
 from jiminy_py.viewer import sleep
 
-from ..bases import ObsType, ActType, InfoType, EnvOrWrapperType
+from ..bases import ObsT, ActT, InfoType, EnvOrWrapperType
 from ..envs import BaseJiminyEnv
 
 
-class FrameRateLimiter(gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
-                       Generic[ObsType, ActType]):
+class FrameRateLimiter(gym.Wrapper,  # [ObsT, ActT, ObsT, ActT],
+                       Generic[ObsT, ActT]):
     """Limit the rendering framerate of an environment to a given threshold,
     which is typically useful if human rendering is enabled.
 
@@ -25,7 +25,7 @@ class FrameRateLimiter(gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
         `BaseJiminyEnv` as it requires having a `step_dt` attribute.
     """
     def __init__(self,  # pylint: disable=unused-argument
-                 env: EnvOrWrapperType[ObsType, ActType],
+                 env: EnvOrWrapperType[ObsT, ActT],
                  speed_ratio: float = 1.0,
                  human_only: bool = True,
                  **kwargs: Any):
@@ -53,8 +53,8 @@ class FrameRateLimiter(gym.Wrapper,  # [ObsType, ActType, ObsType, ActType],
         super().__init__(env)
 
     def step(self,
-             action: Optional[ActType] = None
-             ) -> Tuple[ObsType, SupportsFloat, bool, bool, InfoType]:
+             action: Optional[ActT] = None
+             ) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
         """This method does nothing more than  recording the current time,
         then calling `self.env.step`. See `BaseJiminyEnv.step` for details.
 

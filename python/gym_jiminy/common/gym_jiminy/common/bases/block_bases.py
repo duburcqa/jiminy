@@ -15,23 +15,23 @@ import gymnasium as gym
 
 from ..utils import FieldNested, DataNested, get_fieldnames, fill
 
-from .generic_bases import (ObsType,
-                            ActType,
-                            BaseObsType,
-                            BaseActType,
+from .generic_bases import (ObsT,
+                            ActT,
+                            BaseObsT,
+                            BaseActT,
                             ControllerInterface,
                             ObserverInterface,
                             JiminyEnvInterface)
 
 
 EnvOrWrapperType = Union[
-    gym.Wrapper,  # [ObsType, ActType, OtherObsType, OtherActType],
-    JiminyEnvInterface[ObsType, ActType]]
+    gym.Wrapper,  # [ObsT, ActT, OtherObsT, OtherActType],
+    JiminyEnvInterface[ObsT, ActT]]
 
-StateType = TypeVar("StateType", bound=DataNested)
+BlockStateT = TypeVar('BlockStateT', bound=Union[DataNested, None])
 
 
-class BlockInterface(ABC, Generic[StateType, BaseObsType, BaseActType]):
+class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
     """Base class for blocks used for pipeline control design. Blocks can be
     either observers and controllers.
 
@@ -40,17 +40,17 @@ class BlockInterface(ABC, Generic[StateType, BaseObsType, BaseActType]):
         and `get_state` must be overloaded accordingly. The internal state will
         be added automatically to the observation space of the environment.
     """
-    env: EnvOrWrapperType[BaseObsType, BaseActType]
+    env: EnvOrWrapperType[BaseObsT, BaseActT]
     name: str
     update_ratio: int
-    state_space: gym.Space[StateType] if StateType is not None else None
+    state_space: gym.Space[BlockStateT]
 
     # Type of the block, ie 'observer' or 'controller'.
     type: str = ""
 
     def __init__(self,
                  name: str,
-                 env: EnvOrWrapperType[BaseObsType, BaseActType],
+                 env: EnvOrWrapperType[BaseObsT, BaseActT],
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
@@ -120,24 +120,21 @@ class BlockInterface(ABC, Generic[StateType, BaseObsType, BaseActType]):
             register some extra variables to monitor the internal state of the
             block.
         """
-        ...
 
     @abstractmethod
     def _initialize_state_space(self) -> None:
         """Configure the internal state space of the controller.
         """
-        ...
 
     @abstractmethod
-    def get_state(self) -> StateType:
+    def get_state(self) -> BlockStateT:
         """Get the internal state space of the controller.
         """
-        ...
 
 
-class BaseObserverBlock(ObserverInterface[ObsType, BaseObsType],
-                        BlockInterface[StateType, BaseObsType, BaseActType],
-                        Generic[ObsType, StateType, BaseObsType, BaseActType]):
+class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
+                        BlockInterface[BlockStateT, BaseObsT, BaseActT],
+                        Generic[ObsT, BlockStateT, BaseObsT, BaseActT]):
     """Base class to implement observe that can be used compute observation
     features of a `BaseJiminyEnv` environment, through any number of
     lower-level observer.
@@ -176,9 +173,9 @@ class BaseObserverBlock(ObserverInterface[ObsType, BaseObsType],
 
 
 class BaseControllerBlock(
-        ControllerInterface[ActType, BaseActType],
-        BlockInterface[StateType, BaseObsType, BaseActType],
-        Generic[ActType, StateType, BaseObsType, BaseActType]):
+        ControllerInterface[ActT, BaseActT],
+        BlockInterface[BlockStateT, BaseObsT, BaseActT],
+        Generic[ActT, BlockStateT, BaseObsT, BaseActT]):
     """Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of
     lower-level controllers.

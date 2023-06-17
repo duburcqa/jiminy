@@ -12,7 +12,7 @@ from numpy.lib.stride_tricks import as_strided
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder)
 
-from ..bases import BaseObsType, EnvOrWrapperType, BaseControllerBlock
+from ..bases import BaseObsT, EnvOrWrapperType, BaseControllerBlock
 from ..utils import fill
 
 
@@ -143,7 +143,7 @@ def _compute_command_impl(encoders_data: np.ndarray,
 
 
 class PDController(
-        BaseControllerBlock[np.ndarray, np.ndarray, BaseObsType, np.ndarray]):
+        BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
     """Low-level Proportional-Derivative controller.
 
     The action corresponds to a given derivative of the target motors

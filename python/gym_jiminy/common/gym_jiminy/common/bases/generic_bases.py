@@ -2,9 +2,10 @@
 specifically design for Jiminy engine, and defined as mixin classes. Any
 observer/controller block must inherit and implement those interfaces.
 """
-from abc import abstractmethod, abstractproperty, ABC
+from abc import abstractmethod, ABC
 from collections import OrderedDict
 from typing import Dict, Any, TypeVar, TypedDict, Generic, Callable
+from typing_extensions import TypeAlias
 
 import numpy as np
 import gymnasium as gym
@@ -19,19 +20,31 @@ from ..utils import DataNested, is_breakpoint, zeros, fill, copy
 DT_EPS: float = jiminy.EngineMultiRobot.telemetry_time_unit
 
 
-ObsType = TypeVar("ObsType", bound=DataNested)
-ActType = TypeVar("ActType", bound=DataNested)
-BaseObsType = TypeVar("BaseObsType", bound=DataNested)
-BaseActType = TypeVar("BaseActType", bound=DataNested)
+ObsT = TypeVar('ObsT', bound=DataNested)
+ActT = TypeVar('ActT', bound=DataNested)
+BaseObsT = TypeVar('BaseObsT', bound=DataNested)
+BaseActT = TypeVar('BaseActT', bound=DataNested)
 
 SensorsDataType = Dict[str, np.ndarray]
 InfoType = Dict[str, Any]
 
-StateType = TypedDict(
-    'StateType', {'q': np.ndarray, 'v': np.ndarray})
-EngineObsType = TypedDict('EngineObsType', {
-    't': np.ndarray, 'agent_state': StateType, 'sensors_data': SensorsDataType
-    })
+
+class AgentStateType(TypedDict):
+    """Fully specify the state of an agent, namely its whole-body configuration
+    'q' and velocity 'v' in reduced space.
+    """
+    q: np.ndarray
+    v: np.ndarray
+
+
+# class EngineObsType(TypedDict):
+#     t: np.ndarray
+#     agent_state:  AgentStateType
+#     sensors_data: SensorsDataType
+
+
+EngineObsType: TypeAlias = DataNested
+
 
 ObserverHandleType = Callable[[
     float, np.ndarray, np.ndarray, Dict[str, np.ndarray]], None]
@@ -39,12 +52,12 @@ ControllerHandleType = Callable[[
     float, np.ndarray, np.ndarray, Dict[str, np.ndarray], np.ndarray], None]
 
 
-class ObserverInterface(ABC, Generic[ObsType, BaseObsType]):
+class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
     """Observer interface for both observers and environments.
     """
     observe_dt: float = -1
-    observation_space: gym.Space  # [ObsType]
-    _observation: ObsType
+    observation_space: gym.Space  # [ObsT]
+    _observation: ObsT
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observation interface.
@@ -60,16 +73,15 @@ class ObserverInterface(ABC, Generic[ObsType, BaseObsType]):
         self._initialize_observation_space()
 
         # Initialize the observation buffer
-        self._observation: ObsType = zeros(self.observation_space)
+        self._observation: ObsT = zeros(self.observation_space)
 
     @abstractmethod
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
         """
-        ...
 
     @abstractmethod
-    def refresh_observation(self, measurement: BaseObsType) -> None:
+    def refresh_observation(self, measurement: BaseObsT) -> None:
         """Compute observed features based on the current simulation state and
         lower-level measure.
 
@@ -84,9 +96,8 @@ class ObserverInterface(ABC, Generic[ObsType, BaseObsType]):
         :param measurement: Low-level measure from the environment to process
                             to get higher-level observation.
         """
-        ...
 
-    def get_observation(self) -> ObsType:
+    def get_observation(self) -> ObsT:
         """Get post-processed observation.
 
         By default, it does not perform any post-processing. One is responsible
@@ -102,11 +113,11 @@ class ObserverInterface(ABC, Generic[ObsType, BaseObsType]):
         return self._observation
 
 
-class ControllerInterface(ABC, Generic[ActType, BaseActType]):
+class ControllerInterface(ABC, Generic[ActT, BaseActT]):
     """Controller interface for both controllers and environments.
     """
     control_dt: float = -1
-    action_space: gym.Space  # [ActType]
+    action_space: gym.Space  # [ActT]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the control interface.
@@ -125,10 +136,9 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
     def _initialize_action_space(self) -> None:
         """Configure the action space.
         """
-        ...
 
     @abstractmethod
-    def compute_command(self, action: ActType) -> BaseActType:
+    def compute_command(self, action: ActT) -> BaseActT:
         """Compute the command to send to the subsequent block, based on the
         action and current observation of the environment.
 
@@ -143,7 +153,6 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
                   the target motors efforts of the environment to ultimately
                   control otherwise.
         """
-        ...
 
     def compute_reward(self,
                        done: bool,
@@ -186,10 +195,10 @@ class ControllerInterface(ABC, Generic[ActType, BaseActType]):
 # Similarly, `gym.Env` must be last to make sure all the other initialization
 # methods are called first.
 class JiminyEnvInterface(
-        ObserverInterface[ObsType, EngineObsType],
-        ControllerInterface[ActType, np.ndarray],
-        gym.Env[ObsType, ActType],
-        Generic[ObsType, ActType]):
+        ObserverInterface[ObsT, EngineObsType],
+        ControllerInterface[ActT, np.ndarray],
+        gym.Env[ObsT, ActT],
+        Generic[ObsT, ActT]):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
@@ -199,7 +208,7 @@ class JiminyEnvInterface(
     system_state: jiminy.SystemState
     sensors_data: SensorsDataType
 
-    action: ActType
+    action: ActT
 
     def _setup(self) -> None:
         """Configure the observer-controller.
@@ -270,7 +279,7 @@ class JiminyEnvInterface(
 
         command[:] = self.compute_command(self.action)
 
-    def get_observation(self) -> ObsType:
+    def get_observation(self) -> ObsT:
         """Get post-processed observation.
 
         It performs a shallow copy of the observation.
@@ -280,23 +289,22 @@ class JiminyEnvInterface(
         """
         return copy(self._observation)
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def step_dt(self) -> float:
         """Get timestep of a single 'step'.
         """
-        ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def is_training(self) -> bool:
         """Check whether the environment is in 'train' or 'eval' mode.
         """
-        ...
 
     @abstractmethod
     def train(self) -> None:
         """Sets the environment in training mode.
         """
-        ...
 
     @abstractmethod
     def eval(self) -> None:
@@ -307,4 +315,3 @@ class JiminyEnvInterface(
         time specifically. See documentations of a given environment for
         details about their behaviors in training and evaluation modes.
         """
-        ...

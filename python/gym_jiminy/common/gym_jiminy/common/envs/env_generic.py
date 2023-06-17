@@ -44,8 +44,8 @@ from ..utils import (FieldNested,
                      clip,
                      get_fieldnames,
                      register_variables)
-from ..bases import (ObsType,
-                     ActType,
+from ..bases import (ObsT,
+                     ActT,
                      InfoType,
                      SensorsDataType,
                      EngineObsType,
@@ -91,8 +91,8 @@ class _LazyDictItemFilter(Mapping):
         return len(self.dict_packed)
 
 
-class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
-                    Generic[ObsType, ActType]):
+class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
+                    Generic[ObsT, ActT]):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.
 
@@ -223,7 +223,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         self._initialize_seed()
 
         # Initialize the action buffer
-        self.action: ActType = zeros(self.action_space)
+        self.action: ActT = zeros(self.action_space)
 
         # Set robot in neutral configuration
         qpos = self._neutral()
@@ -253,8 +253,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
             action_size = self.action.size
             if action_size > 0 and action_size == self.robot.nmotors:
                 action_fieldnames = [
-                    ".".join(("action", e)) for e in self.robot.motors_names]
-                self.register_variable("action",
+                    ".".join(('action', e)) for e in self.robot.motors_names]
+                self.register_variable('action',
                                        self.action,
                                        action_fieldnames)
 
@@ -614,7 +614,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
               *,
               seed: Optional[int] = None,
               options: Optional[Dict[str, Any]] = None,
-              ) -> Tuple[ObsType, InfoType]:
+              ) -> Tuple[ObsT, InfoType]:
         """Reset the environment.
 
         In practice, it resets the backend simulator and set the initial state
@@ -762,7 +762,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs: ObsType = clip(self.observation_space, self.get_observation())
+            obs: ObsT = clip(self.observation_space, self.get_observation())
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -805,8 +805,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         self.simulator.close()
 
     def step(self,
-             action: Optional[ActType] = None
-             ) -> Tuple[ObsType, SupportsFloat, bool, bool, InfoType]:
+             action: Optional[ActT] = None
+             ) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
         # Make sure a simulation is already running
         if not self.simulator.is_simulation_running:
             raise RuntimeError(
@@ -845,7 +845,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
             self.sensors_data)
 
         # Get clipped observation
-        obs: ObsType = clip(self.observation_space, self.get_observation())
+        obs: ObsT = clip(self.observation_space, self.get_observation())
 
         # Make sure there is no 'nan' value in observation
         if np.isnan(self.system_state.a).any():
@@ -918,8 +918,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
             Viewer.close()
 
         # Call base implementation
-        return self.simulator.render(
-            return_rgb_array=(self.render_mode == 'rgb_array'))
+        return self.simulator.render(  # type: ignore[return-value]
+            return_rgb_array=self.render_mode == 'rgb_array')
 
     def plot(self, **kwargs: Any) -> None:
         """Display common simulation data and action over time.
@@ -1067,8 +1067,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
             nonlocal env, obs, reward, enable_is_done
-            action = env.unwrapped._key_to_action(
-                key, obs, reward, **{"verbose": verbose, **kwargs})
+            action = (
+                env.unwrapped._key_to_action(  # type: ignore[attr-defined]
+                    key, obs, reward, **{"verbose": verbose, **kwargs}))
             obs, reward, done, truncated, _ = env.step(action)
             env.render()
             if not enable_is_done and env.robot.has_freeflyer:
@@ -1097,8 +1098,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
     @staticmethod
     def evaluate(env: EnvOrWrapperType,
                  policy_fn: Callable[[
-                    ObsType, Optional[float], bool, InfoType
-                    ], ActType],
+                    ObsT, Optional[float], bool, InfoType
+                    ], ActT],
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
@@ -1115,11 +1116,11 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
                 Policy to evaluate as a callback function. It must have the
                 following signature (**rew** = None at reset):
 
-            | policy_fn\(**obs**: ObsType,
+            | policy_fn\(**obs**: ObsT,
             |            **reward**: Optional[float],
             |            **done_or_truncated**: bool,
             |            **info**: InfoType
-            |            \) -> ActType  # **action**
+            |            \) -> ActT  # **action**
         :param seed: Seed of the environment to be used for the evaluation of
                      the policy.
                      Optional: Random seed if not provided.
@@ -1379,7 +1380,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         efficiency.
 
         By default, it sets the observation to the value of the measurement,
-        which would not work unless `ObsType` corresponds to `EngineObsType`.
+        which would not work unless `ObsT` corresponds to `EngineObsType`.
 
         .. note::
             This method is called and the end of every low-level `Engine.step`.
@@ -1394,7 +1395,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         """
         set_value(self._observation, cast(DataNested, measurement))
 
-    def compute_command(self, action: ActType) -> np.ndarray:
+    def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
         By default, it is forward the input action as is, without performing
@@ -1451,9 +1452,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
 
     def _key_to_action(self,
                        key: Optional[str],
-                       obs: ObsType,
+                       obs: ObsT,
                        reward: Optional[float],
-                       **kwargs: Any) -> ActType:
+                       **kwargs: Any) -> ActT:
         """Mapping from input keyboard keys to actions.
 
         .. note::

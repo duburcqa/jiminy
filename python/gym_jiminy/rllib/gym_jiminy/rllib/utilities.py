@@ -91,16 +91,21 @@ class TBXLogger(Logger):
 
         {"a": {"b": 1, "c": 2}} -> {"a/b": 1, "a/c": 2}
     """
+    # pylint: disable=attribute-defined-outside-init
 
     VALID_HPARAMS = (str, bool, int, float, list, type(None))
     VALID_NP_HPARAMS = (np.bool8, np.float32, np.float64, np.int32, np.int64)
 
-    def _init(self):
+    def _init(self) -> None:
+        # pylint: disable=import-outside-toplevel
+
         from tensorboardX import SummaryWriter
         self._file_writer = SummaryWriter(self.logdir, flush_secs=30)
-        self.last_result = None
+        self.last_result: Optional[Dict[str, Union[
+            int, float, np.floating, np.integer, Sequence[Union[
+                int, float, np.floating, np.integer]], np.ndarray]]] = None
 
-    def on_result(self, result: Dict):
+    def on_result(self, result: Dict) -> None:
         step = result.get(TIMESTEPS_TOTAL) or result[TRAINING_ITERATION]
 
         # Remove keys that are not supposed to be logged
@@ -111,7 +116,9 @@ class TBXLogger(Logger):
 
         flat_result = flatten_dict(tmp, delimiter="/")
         path = ["ray", "tune"]
-        valid_result = {}
+        valid_result: Dict[str, Union[
+            int, float, np.floating, np.integer, Sequence[Union[
+                int, float, np.floating, np.integer]], np.ndarray]] = {}
 
         for attr, value in flat_result.items():
             full_attr = "/".join(path + [attr])
@@ -143,11 +150,11 @@ class TBXLogger(Logger):
         self.last_result = valid_result
         self._file_writer.flush()
 
-    def flush(self):
+    def flush(self) -> None:
         if self._file_writer is not None:
             self._file_writer.flush()
 
-    def close(self):
+    def close(self) -> None:
         if self._file_writer is not None:
             if self.trial and self.trial.evaluated_params and self.last_result:
                 flat_result = flatten_dict(self.last_result, delimiter="/")
@@ -159,8 +166,14 @@ class TBXLogger(Logger):
                 self._try_log_hparams(scrubbed_result)
             self._file_writer.close()
 
-    def _try_log_hparams(self, result):
+    def _try_log_hparams(self,
+                         result: Dict[
+                             str, Union[int, float, np.floating, np.integer]]
+                         ) -> None:
+        # pylint: disable=import-outside-toplevel
+
         # TBX currently errors if the hparams value is None.
+        assert self.trial and self.trial.evaluated_params
         flat_params = flatten_dict(self.trial.evaluated_params)
         scrubbed_params = {
             k: v for k, v in flat_params.items()
@@ -188,7 +201,7 @@ class TBXLogger(Logger):
             self._file_writer.file_writer.add_summary(experiment_tag)
             self._file_writer.file_writer.add_summary(session_start_tag)
             self._file_writer.file_writer.add_summary(session_end_tag)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             LOGGER.exception(
                 "TensorboardX failed to log hparams. This may be due to an "
                 "unsupported type in the hyperparameter values.")
@@ -764,7 +777,8 @@ class _WriteLogHook:
         def write_log(env: gym.Env) -> str:
             fd, log_path = mkstemp(prefix="log_", suffix=".hdf5")
             os.close(fd)
-            env.write_log(log_path, format="hdf5")
+            env.write_log(  # type: ignore[attr-defined]
+                log_path, format="hdf5")
             return log_path
 
         worker.callbacks.log_paths = (  # type: ignore[attr-defined]

@@ -300,10 +300,8 @@ namespace python
     inline int getPyType(float64_t const & /* data */) { return NPY_FLOAT64; }
     inline int getPyType(int32_t const & /* data */) { return NPY_INT32; }
     inline int getPyType(uint32_t const & /* data */) { return NPY_UINT32; }
-    inline int getPyType(long const & /* data */) { return NPY_LONG; }
-    inline int getPyType(unsigned long const & /* data */) { return NPY_ULONG; }
-    inline int getPyType(long long const & /* data */) { return NPY_LONGLONG; }
-    inline int getPyType(unsigned long long const & /* data */) { return NPY_ULONGLONG; }
+    inline int getPyType(int64_t const & /* data */) { return NPY_INT64; }
+    inline int getPyType(uint64_t const & /* data */) { return NPY_UINT64; }
 
     /// Convert Eigen scalar/vector/matrix to Numpy array by reference.
 
@@ -413,7 +411,7 @@ namespace python
         // Check array dtype
         if (PyArray_TYPE(dataPyArray) != getPyType(T{}))
         {
-            PRINT_ERROR("'values' input array has wrong dtype.");
+            PRINT_ERROR("'values' input array has dtype '", PyArray_TYPE(dataPyArray), "' but '", getPyType(T{}), "' was expected.");
             return {};
         }
 

@@ -15,20 +15,20 @@ import gymnasium as gym
 
 from ..utils import is_breakpoint, zeros
 from ..bases import (DT_EPS,
-                     ObsType,
-                     ActType,
+                     ObsT,
+                     ActT,
                      EnvOrWrapperType,
                      InfoType,
                      EngineObsType,
                      BasePipelineWrapper)
 
 
-StackedObsType: TypeAlias = ObsType
+StackedObsType: TypeAlias = ObsT
 
 
 class PartialFrameStack(
-        gym.Wrapper,  # [StackedObsType, ActType, ObsType, ActType],
-        Generic[ObsType, ActType]):
+        gym.Wrapper,  # [StackedObsType, ActT, ObsT, ActT],
+        Generic[ObsT, ActT]):
     """Observation wrapper that partially stacks observations in a rolling
     manner.
 
@@ -44,7 +44,7 @@ class PartialFrameStack(
         stacked leaf fields must be `gym.spaces.Box`.
     """
     def __init__(self,
-                 env: gym.Env[ObsType, ActType],
+                 env: gym.Env[ObsT, ActT],
                  num_stack: int,
                  nested_filter_keys: Optional[
                      Sequence[Union[Sequence[str], str]]] = None,
@@ -64,7 +64,8 @@ class PartialFrameStack(
         # Sanitize user arguments if necessary
         assert isinstance(env.observation_space, gym.spaces.Dict)
         if nested_filter_keys is None:
-            nested_filter_keys = list(env.observation_space.spaces.keys())
+            nested_filter_keys = list(
+                env.observation_space.keys())  # type: ignore[attr-defined]
 
         # Backup user argument(s)
         self.nested_filter_keys: List[List[str]] = list(
@@ -88,7 +89,8 @@ class PartialFrameStack(
 
         self.leaf_fields_list: List[List[str]] = []
         for fields in self.nested_filter_keys:
-            root_field = reduce(getitem, fields, self.env.observation_space)
+            root_field = reduce(getitem,   # type: ignore[arg-type]
+                                fields, self.env.observation_space)
             if isinstance(root_field, gym.spaces.Dict):
                 leaf_paths = _get_branches(root_field)
                 self.leaf_fields_list += [fields + path for path in leaf_paths]
@@ -99,7 +101,8 @@ class PartialFrameStack(
         self.observation_space = deepcopy(self.env.observation_space)
         for fields in self.leaf_fields_list:
             assert isinstance(self.observation_space, gym.spaces.Dict)
-            root_space = reduce(getitem, fields[:-1], self.observation_space)
+            root_space = reduce(getitem,  # type: ignore[arg-type]
+                                fields[:-1],  self.observation_space)
             space = root_space[fields[-1]]
             if not isinstance(space, gym.spaces.Box):
                 raise TypeError(
@@ -107,8 +110,10 @@ class PartialFrameStack(
                     "`gym.spaces.Box` space")
             low = np.repeat(space.low[np.newaxis], self.num_stack, axis=0)
             high = np.repeat(space.high[np.newaxis], self.num_stack, axis=0)
+            assert space.dtype is not None
+            assert issubclass(space.dtype.type, (np.floating, np.integer))
             root_space[fields[-1]] = gym.spaces.Box(
-                low=low, high=high, dtype=space.dtype)
+                low=low, high=high, dtype=space.dtype.type)
 
         # Allocate internal frames buffers
         self._frames: List[deque] = [
@@ -120,16 +125,18 @@ class PartialFrameStack(
         # Initialize the frames by duplicating the original one
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             assert isinstance(self.env.observation_space, gym.spaces.Dict)
-            leaf_space = reduce(getitem, fields, self.env.observation_space)
+            leaf_space = reduce(getitem,  # type: ignore[arg-type]
+                                fields, self.env.observation_space)
             for _ in range(self.num_stack):
                 frames.append(zeros(leaf_space))
 
-    def compute_observation(self, measurement: ObsType) -> ObsType:
+    def compute_observation(self, measurement: ObsT) -> ObsT:
         """ TODO: Write documentation.
         """
         # Backup the nested observation fields to stack
         for fields, frames in zip(self.leaf_fields_list, self._frames):
-            leaf_obs = reduce(getitem, fields, measurement)
+            leaf_obs = reduce(getitem,  # type: ignore[arg-type]
+                              fields, measurement)
 
             # Assert(s) for type checker
             assert isinstance(leaf_obs, np.ndarray)
@@ -139,7 +146,8 @@ class PartialFrameStack(
 
         # Replace nested fields of original observation by the stacked ones
         for fields, frames in zip(self.leaf_fields_list, self._frames):
-            root_obs = reduce(getitem, fields[:-1], measurement)
+            root_obs = reduce(getitem,  # type: ignore[arg-type]
+                              fields[:-1], measurement)
 
             # Assert(s) for type checker
             assert isinstance(root_obs, dict)
@@ -150,7 +158,7 @@ class PartialFrameStack(
         return measurement
 
     def step(self,
-             action: Optional[ActType] = None
+             action: Optional[ActT] = None
              ) -> Tuple[StackedObsType, SupportsFloat, bool, bool, InfoType]:
         observation, reward, done, truncated, info = self.env.step(action)
         return (
@@ -168,12 +176,12 @@ class PartialFrameStack(
 
 
 class StackedJiminyEnv(
-        BasePipelineWrapper[StackedObsType, ActType, ObsType, ActType],
-        Generic[ObsType, ActType]):
+        BasePipelineWrapper[StackedObsType, ActT, ObsT, ActT],
+        Generic[ObsT, ActT]):
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: EnvOrWrapperType[ObsType, ActType],
+                 env: EnvOrWrapperType[ObsT, ActT],
                  skip_frames_ratio: int = 0,
                  **kwargs: Any) -> None:
         """ TODO: Write documentation.
@@ -229,3 +237,13 @@ class StackedJiminyEnv(
             self.__n_last_stack = -1
             self._observation = self.wrapper.compute_observation(
                 self.env.get_observation())
+
+    def compute_command(self, action: ActT) -> np.ndarray:
+        """Compute the motors efforts to apply on the robot.
+
+        It simply forwards the command computed by the wrapped environment
+        without any processing.
+
+        :param action: High-level target to achieve by means of the command.
+        """
+        return self.env.compute_command(action)

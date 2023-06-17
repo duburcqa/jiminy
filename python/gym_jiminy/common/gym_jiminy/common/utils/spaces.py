@@ -3,7 +3,8 @@
 from collections import OrderedDict
 from collections.abc import Iterable
 from itertools import zip_longest
-from typing import Optional, Union, Dict, Sequence, TypeVar
+from typing import (
+    Optional, Union, Sequence, TypeVar, Mapping as MappingT, no_type_check)
 
 import gymnasium as gym
 import tree
@@ -12,13 +13,13 @@ from numpy import typing as npt
 
 
 ValueT = TypeVar('ValueT')
-StructNested = Union[Dict[str, 'StructNested[ValueT]'],
+StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
                      Sequence['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
 
-DataNestedType = TypeVar("DataNestedType", bound=DataNested)
+DataNestedT = TypeVar('DataNestedT', bound=DataNested)
 
 
 global_rng = np.random.default_rng()
@@ -112,8 +113,9 @@ def is_bounded(space_nested: gym.Space) -> bool:
     return True
 
 
-def zeros(space: gym.Space[DataNestedType],
-          dtype: npt.DTypeLike = None) -> DataNestedType:
+@no_type_check
+def zeros(space: gym.Space[DataNestedT],
+          dtype: npt.DTypeLike = None) -> DataNestedT:
     """Allocate data structure from `gym.Space` and initialize it to zero.
 
     :param space: `gym.Space` on which to operate.
@@ -121,8 +123,8 @@ def zeros(space: gym.Space[DataNestedType],
                   Optional: None by default
     """
     # Note that it is not possible to take advantage of dm-tree because the
-    # output type for collections (OrderedDict or Tuple) is not the same as
-    # the input one (gym.Space). This feature request would be too specific.
+    # output type for collections (OrderedDict or Tuple) is not the same as the
+    # input one (gym.Space). This feature request would be too specific.
     if isinstance(space, gym.spaces.Dict):
         value = OrderedDict()
         for field, subspace in dict.items(space.spaces):
@@ -166,8 +168,8 @@ def set_value(data: DataNested, value: DataNested) -> None:
     beforehand, and to work with fixed shape buffers.
 
     .. note::
-        If 'data' is a dictionary, 'value' must be a subtree of 'data',
-        whose leaves must be broadcastable with the ones of 'data'.
+        If 'data' is a dictionary, 'value' must be a subtree of 'data', whose
+        leaves must be broadcast-able with the ones of 'data'.
 
     :param data: Data structure to partially update.
     :param value: Unset of data only containing fields to update.
@@ -178,9 +180,11 @@ def set_value(data: DataNested, value: DataNested) -> None:
         except TypeError as e:
             raise TypeError(f"Cannot broadcast '{value}' to '{data}'.") from e
     elif isinstance(data, dict):
+        assert isinstance(value, dict)
         for field, subval in dict.items(value):
             set_value(data[field], subval)
     elif isinstance(data, Iterable):
+        assert isinstance(value, Iterable)
         for subdata, subval in zip_longest(data, value):
             set_value(subdata, subval)
     else:
@@ -189,7 +193,7 @@ def set_value(data: DataNested, value: DataNested) -> None:
             )
 
 
-def copy(data: DataNestedType) -> DataNestedType:
+def copy(data: DataNestedT) -> DataNestedT:
     """Shallow copy recursively 'data' from `gym.Space`, so that only leaves
     are still references.
 
@@ -198,8 +202,8 @@ def copy(data: DataNestedType) -> DataNestedType:
     return tree.unflatten_as(data, tree.flatten(data))
 
 
-def clip(space_nested: gym.Space[DataNestedType],
-         data: DataNestedType) -> DataNestedType:
+def clip(space_nested: gym.Space[DataNestedT],
+         data: DataNestedT) -> DataNestedT:
     """Clamp value from `gym.Space` to make sure it is within bounds.
 
     :param space: `gym.Space` on which to operate.
