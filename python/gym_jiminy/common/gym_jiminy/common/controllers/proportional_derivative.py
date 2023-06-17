@@ -142,7 +142,8 @@ def _compute_command_impl(encoders_data: np.ndarray,
         u_command, -motor_effort_limit), motor_effort_limit)
 
 
-class PDController(BaseControllerBlock[BaseObsType, np.ndarray, np.ndarray]):
+class PDController(
+        BaseControllerBlock[BaseObsType, np.ndarray, np.ndarray, np.ndarray]):
     """Low-level Proportional-Derivative controller.
 
     The action corresponds to a given derivative of the target motors
@@ -257,6 +258,20 @@ class PDController(BaseControllerBlock[BaseObsType, np.ndarray, np.ndarray]):
             low=self._command_state_lower[-1],
             high=self._command_state_upper[-1],
             dtype=np.float64)
+
+    def _initialize_state_space(self) -> None:
+        """Configure the state space of the controller.
+
+        The state spaces corresponds to all the derivatives of the target
+        motors positions up to order N-1.
+        """
+        self.state_space = gym.spaces.Box(
+            low=self._command_state_lower[:-1],
+            high=self._command_state_upper[:-1],
+            dtype=np.float64)
+
+    def get_state(self) -> np.ndarray:
+        return self._command_state[:-1]
 
     def _setup(self) -> None:
         # Call base implementation

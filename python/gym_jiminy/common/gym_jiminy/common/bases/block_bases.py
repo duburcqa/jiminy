@@ -9,11 +9,11 @@ It implements:
 """
 from itertools import chain
 from abc import abstractmethod, ABC
-from typing import Any, Union, Iterable, Generic
+from typing import Any, Union, Iterable, Generic, TypeVar
 
 import gymnasium as gym
 
-from ..utils import FieldNested, get_fieldnames, fill
+from ..utils import FieldNested, DataNested, get_fieldnames, fill
 
 from .generic_bases import (ObsType,
                             ActType,
@@ -28,33 +28,42 @@ EnvOrWrapperType = Union[
     gym.Wrapper,  # [ObsType, ActType, OtherObsType, OtherActType],
     JiminyEnvInterface[ObsType, ActType]]
 
+StateType = TypeVar("StateType", bound=DataNested)
 
-class BlockInterface(ABC, Generic[ObsType, ActType]):
+
+class BlockInterface(ABC, Generic[StateType, BaseObsType, BaseActType]):
     """Base class for blocks used for pipeline control design. Blocks can be
     either observers and controllers.
+
+    .. warning::
+        A block may be stateful. In such a case, `_initialize_state_space`
+        and `get_state` must be overloaded accordingly. The internal state will
+        be added automatically to the observation space of the environment.
     """
-    env: EnvOrWrapperType[ObsType, ActType]
+    env: EnvOrWrapperType[BaseObsType, BaseActType]
     name: str
     update_ratio: int
+    state_space: gym.Space[StateType] if StateType is not None else None
 
     # Type of the block, ie 'observer' or 'controller'.
     type: str = ""
 
     def __init__(self,
                  name: str,
-                 env: EnvOrWrapperType[ObsType, ActType],
+                 env: EnvOrWrapperType[BaseObsType, BaseActType],
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
 
-        It only allocates some attributes.
+        It defines some proxies for fast access, then it initializes the
+        internal state space of the block and allocates memory for it.
 
         ..warning::
-            All blocks of a given type (observer or controller) must be an
-            unique name within a given pipeline. In practice, it will be
-            impossible to plug a given block to an existing pipeline if the
-            later already has one block of the same type and name. The user
-            is responsible to take care it never happens.
+            All blocks (observers and controllers) must be an unique name
+            within a given pipeline. In practice, it will be impossible to plug
+            a given block to an existing pipeline if the later already has one
+            block of the same type and name. The user is responsible to take
+            care it never happens.
 
         :param name: Name of the block.
         :param env: Environment to connect with.
@@ -74,6 +83,9 @@ class BlockInterface(ABC, Generic[ObsType, ActType]):
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(**kwargs)
+
+        # Refresh the observation space
+        self._initialize_state_space()
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -110,10 +122,22 @@ class BlockInterface(ABC, Generic[ObsType, ActType]):
         """
         ...
 
+    @abstractmethod
+    def _initialize_state_space(self) -> None:
+        """Configure the internal state space of the controller.
+        """
+        ...
+
+    @abstractmethod
+    def get_state(self) -> StateType:
+        """Get the internal state space of the controller.
+        """
+        ...
+
 
 class BaseObserverBlock(ObserverInterface[ObsType, BaseObsType],
-                        BlockInterface[ObsType, ActType],
-                        Generic[ObsType, ActType, BaseObsType]):
+                        BlockInterface[StateType, BaseObsType, BaseActType],
+                        Generic[ObsType, StateType, BaseObsType, BaseActType]):
     """Base class to implement observe that can be used compute observation
     features of a `BaseJiminyEnv` environment, through any number of
     lower-level observer.
@@ -153,8 +177,8 @@ class BaseObserverBlock(ObserverInterface[ObsType, BaseObsType],
 
 class BaseControllerBlock(
         ControllerInterface[ActType, BaseActType],
-        BlockInterface[ObsType, ActType],
-        Generic[ObsType, ActType, BaseActType]):
+        BlockInterface[StateType, BaseObsType, BaseActType],
+        Generic[ActType, StateType, BaseObsType, BaseActType]):
     """Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of
     lower-level controllers.

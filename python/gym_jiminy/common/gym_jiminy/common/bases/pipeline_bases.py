@@ -18,8 +18,7 @@ from typing import (
 import numpy as np
 import gymnasium as gym
 
-from ..utils import (
-    DataNested, is_breakpoint, zeros, fill, copy, set_value)
+from ..utils import DataNested, is_breakpoint, zeros, fill, set_value
 
 from .generic_bases import (DT_EPS,
                             ObsType,
@@ -35,7 +34,7 @@ from .block_bases import (
     EnvOrWrapperType, BaseControllerBlock, BaseObserverBlock)
 
 
-OtherObsType = TypeVar("OtherObsType", bound=DataNested)
+OtherStateType = TypeVar("OtherStateType", bound=DataNested)
 
 
 # Note that `BasePipelineWrapper` must inherit from `gym.Wrapper` before
@@ -59,10 +58,10 @@ class BasePipelineWrapper(
         It is recommended to add the controllers and observers into the
         policy itself if they have to be trainable.
     """
-    env: EnvOrWrapperType
+    env: EnvOrWrapperType[BaseObsType, BaseActType]
 
     def __init__(self,
-                 env: EnvOrWrapperType,
+                 env: EnvOrWrapperType[BaseObsType, BaseActType],
                  **kwargs: Any) -> None:
         """
         :param kwargs: Extra keyword arguments for multiple inheritance.
@@ -159,6 +158,11 @@ class BasePipelineWrapper(
                 controller_handle = pipeline_wrapper._controller_handle
             return observer_handle, controller_handle
 
+        # Reset the seed of the action and observation spaces
+        if seed is not None:
+            self.observation_space.seed(seed)
+            self.action_space.seed(seed)
+
         # Reset base pipeline
         _, info = self.env.reset(seed=seed, options={"reset_hook": reset_hook})
 
@@ -246,6 +250,18 @@ class ObservedJiminyEnv(
     highest-level observer, while its action space will be the one of the
     unwrapped environment 'env'.
 
+    .. note::
+        The observation space gathers the original observation of the
+        environment with the high-level features computed by the observer
+        in `gym.spaces.Dict` instance. If the original observation is already
+        a `gym.spaces.Dict` instance, then the features computed by the
+        observer are added to if under (nested) key ['features', observer.name]
+        along with its internal state ['states', observer.name] if any.
+        Otherwise, the original observation is stored under key 'measurement'.
+
+    .. note::
+        The environment and the observers all have their own update period.
+
     .. warning::
         This design is not suitable for learning the observer, but rather for
         robotic-oriented observers, such as sensor fusion algorithms, Kalman
@@ -255,20 +271,13 @@ class ObservedJiminyEnv(
     def __init__(self,
                  env: EnvOrWrapperType[BaseObsType, ActType],
                  observer: BaseObserverBlock[
-                     OtherObsType, ActType, BaseObsType],
-                 augment_observation: bool = False,
+                     ObsType, OtherStateType, BaseObsType, ActType],
                  **kwargs: Any):
         """
         :param env: Environment to control. It can be an already controlled
                     environment wrapped in `ObservedJiminyEnv` if one desires
                     to stack several controllers with `BaseJiminyEnv`.
         :param observer: Observer to use to extract higher-level features.
-        :param augment_observation: Whether to gather the high-level features
-                                    computed by the observer with the base
-                                    observation of the environment. This option
-                                    is only available if the observation space
-                                    is of type `gym.spaces.Dict`.
-                                    Optional: Disabled by default.
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
         """
@@ -276,16 +285,18 @@ class ObservedJiminyEnv(
         assert observer.env.unwrapped is env.unwrapped
 
         # Make sure that the environment pipeline does not already have one
-        # block with the same base type and name.
+        # block with the same name.
+        block_name = observer.name
         env_wrapper: gym.Env = env
         while isinstance(env_wrapper, gym.Wrapper):
             if isinstance(env_wrapper, ObservedJiminyEnv):
-                assert observer.name != env_wrapper.observer.name
+                assert block_name != env_wrapper.observer.name
+            if isinstance(env_wrapper, ControlledJiminyEnv):
+                assert block_name != env_wrapper.controller.name
             env_wrapper = env_wrapper.env
 
         # Backup user arguments
         self.observer = observer
-        self.augment_observation = augment_observation
 
         # Initialize base wrapper
         super().__init__(env, **kwargs)
@@ -298,16 +309,19 @@ class ObservedJiminyEnv(
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
         """
-        if self.augment_observation:
-            self.observation_space = deepcopy(self.env.observation_space)
-            if not isinstance(self.observation_space, gym.spaces.Dict):
-                self.observation_space = gym.spaces.Dict(OrderedDict(
-                    measurement=self.observation_space))
-            self.observation_space.spaces.setdefault(
-                'features', gym.spaces.Dict()).spaces[
-                    self.observer.name] = self.observer.observation_space
+        observation_space = OrderedDict()
+        base_observation_space = deepcopy(self.env.observation_space)
+        if isinstance(base_observation_space, gym.spaces.Dict):
+            observation_space.update(base_observation_space)
         else:
-            self.observation_space = self.observer.observation_space
+            observation_space['measurement'] = base_observation_space
+        observation_space.setdefault(
+            'states', gym.spaces.Dict())[
+                self.observer.name] = self.observer.state_space
+        observation_space.setdefault(
+            'features', gym.spaces.Dict())[
+                self.observer.name] = self.observer.observation_space
+        self.observation_space = gym.spaces.Dict(observation_space)
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -343,24 +357,31 @@ class ObservedJiminyEnv(
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
+        # The part of the observation corresponding to the original observation
+        # of the environment is not copied by shared with it for efficiency.
+        # Because of this, it is only necessary to update its memory reference
+        # at reset, just before the simulation starts.
         t = self.stepper_state.t
         if is_breakpoint(t, self.observe_dt, DT_EPS):
             base_observation = self.env.get_observation()
             self.observer.refresh_observation(base_observation)
             if not self.simulator.is_simulation_running:
-                observation = self.observer.get_observation()
-                if self.augment_observation:
-                    assert isinstance(self._observation, dict)
-                    # Make sure to store references
-                    if isinstance(base_observation, gym.spaces.Dict):
-                        assert isinstance(base_observation, dict)
-                        self._observation = base_observation
-                    else:
-                        self._observation['measurement'] = base_observation
-                    self._observation.setdefault('features', OrderedDict())[
-                        self.observer.name] = observation
+                self._observation = OrderedDict()
+                if isinstance(base_observation, dict):
+                    # Store references of the values but not the dict itself,
+                    # otherwise it will share all extra keys added later on.
+                    self._observation.update(base_observation)
+                    if base_features := base_observation.get('features'):
+                        self._observation['features'].update(base_features)
+                    if base_states := base_observation.get('states'):
+                        self._observation['states'].update(base_states)
                 else:
-                    self._observation = observation
+                    self._observation['measurement'] = base_observation
+                if (state := self.observer.get_state()) is not None:
+                    self._observation.setdefault('states', OrderedDict())[
+                        self.observer.name] = state
+                self._observation.setdefault('features', OrderedDict())[
+                    self.observer.name] = self.observer.get_observation()
 
 
 class ControlledJiminyEnv(
@@ -413,7 +434,7 @@ class ControlledJiminyEnv(
     def __init__(self,
                  env: EnvOrWrapperType[BaseObsType, BaseActType],
                  controller: BaseControllerBlock[
-                     BaseObsType, ActType, BaseActType],
+                     ActType, OtherStateType, BaseObsType, BaseActType],
                  augment_observation: bool = False,
                  **kwargs: Any):
         """
@@ -435,31 +456,16 @@ class ControlledJiminyEnv(
                     to stack several controllers with `BaseJiminyEnv`.
         :param controller: Controller to use to send targets to the subsequent
                            block.
-        :param augment_observation: Whether to gather the target of the
+        :param augment_observation: Whether to gather the target state of the
                                     controller with the observation of the
-                                    environment. This option is only available
-                                    if the observation space is of type
-                                    `gym.spaces.Dict`.
+                                    environment. Regardless, the internal state
+                                    of the controller will be added if any.
                                     Optional: Disabled by default.
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
         """
         # Make sure that the unwrapped environment matches the observed one
         assert controller.env.unwrapped is env.unwrapped
-
-        # Make sure that the environment pipeline does not already have one
-        # block with the same base type and name.
-        env_wrapper: gym.Env = env
-        while isinstance(env_wrapper, gym.Wrapper):
-            if isinstance(env_wrapper, ControlledJiminyEnv):
-                assert controller.name != env_wrapper.controller.name
-            env_wrapper = env_wrapper.env
-
-        # Check that 'augment_observation' can be enabled
-        assert not augment_observation or isinstance(
-            env.observation_space, gym.spaces.Dict), (
-            "'augment_observation' is only available for environments whose "
-            "observation space inherits from `gym.spaces.Dict`.")
 
         # Backup user arguments
         self.controller = controller
@@ -486,14 +492,20 @@ class ControlledJiminyEnv(
         """Configure the observation space.
         """
         # Append the controller's target to the observation if requested
-        self.observation_space = deepcopy(self.env.observation_space)
+        observation_space = OrderedDict()
+        base_observation_space = deepcopy(self.env.observation_space)
+        if isinstance(base_observation_space, gym.spaces.Dict):
+            observation_space.update(base_observation_space)
+        else:
+            observation_space['measurement'] = base_observation_space
+        observation_space.setdefault(
+            'states', gym.spaces.Dict())[
+                self.controller.name] = self.controller.state_space
         if self.augment_observation:
-            if not isinstance(self.observation_space, gym.spaces.Dict):
-                self.observation_space = gym.spaces.Dict(OrderedDict(
-                    measurement=self.observation_space))
-            self.observation_space.spaces.setdefault(
-                'actions', gym.spaces.Dict()).spaces[
+            observation_space.setdefault(
+                'actions', gym.spaces.Dict())[
                     self.controller.name] = self.controller.action_space
+        self.observation_space = gym.spaces.Dict(observation_space)
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -559,21 +571,26 @@ class ControlledJiminyEnv(
         # Get environment observation
         self.env.refresh_observation(measurement)
 
-        # Add target to observation if requested
+        # Add target and internal state to observation if requested
         if not self.simulator.is_simulation_running:
-            obs = self.env.get_observation()
-            if self.augment_observation:
-                assert isinstance(self._observation, dict)
-                # Make sure to store references
-                if isinstance(obs, dict):
-                    self._observation = copy(obs)
-                else:
-                    self._observation['measurement'] = obs
-                self._observation.setdefault(
-                    'actions', OrderedDict())[
-                        self.controller.name] = self.action
+            self._observation = OrderedDict()
+            base_observation = self.env.get_observation()
+            if isinstance(base_observation, dict):
+                # Store references of the values but not the dict itself,
+                # otherwise it will share all extra keys added later on.
+                self._observation.update(base_observation)
+                if base_actions := base_observation.get('actions'):
+                    self._observation['actions'].update(base_actions)
+                if base_states := base_observation.get('states'):
+                    self._observation['states'].update(base_states)
             else:
-                self._observation = obs
+                self._observation['measurement'] = base_observation
+            if (state := self.controller.get_state()) is not None:
+                self._observation.setdefault('states', OrderedDict())[
+                    self.controller.name] = state
+            if self.augment_observation:
+                self._observation.setdefault('actions', OrderedDict())[
+                    self.controller.name] = self.action
 
     def compute_reward(self,
                        done: bool,

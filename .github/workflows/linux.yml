@@ -144,7 +144,7 @@ jobs:
         make install
 
         # FIXME: Force re-installing the right version of gymnasium
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29"
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<0.29"
 
         # mypy is not able to follow `.pth` when checking directories or files.
         # This bug may be fixed in the future. The only workaround is to set `MYPYPATH` manually.

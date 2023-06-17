@@ -535,8 +535,12 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsType, ActType],
         # Generate a sequence of 3 bytes uint32 seeds
         self._seed = list(np.random.SeedSequence(seed).generate_state(3))
 
-        # Instantiate a new random number generator based on the provided seed
-        self.np_random = np.random.Generator(np.random.SFC64(self._seed))
+        # Re-initialize the low-level bit generator based on the provided seed
+        self.np_random.bit_generator.state = np.random.SFC64(self._seed).state
+
+        # Reset the seed of the action and observation spaces
+        self.observation_space.seed(seed)
+        self.action_space.seed(seed)
 
         # Reset the seed of Jiminy Engine
         self.simulator.seed(self._seed[0])

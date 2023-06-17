@@ -25,7 +25,8 @@ class PipelineDesign(unittest.TestCase):
             'env_config': {
                 'env_class': 'gym_jiminy.envs.ANYmalJiminyEnv',
                 'env_kwargs': {
-                    'step_dt': self.step_dt
+                    'step_dt': self.step_dt,
+                    'debug': True
                 }
             },
             'blocks_config': [{
@@ -170,7 +171,7 @@ class PipelineDesign(unittest.TestCase):
 
     def test_update_periods(self):
         # Perform a single step and get log data
-        env = self.ANYmalPipelineEnv(debug=True)
+        env = self.ANYmalPipelineEnv()
 
         def configure_telemetry() -> None:
             engine_options = env.simulator.engine.get_options()

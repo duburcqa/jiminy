@@ -125,16 +125,16 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         """
         # http://www.mujoco.org/book/APIreference.html#mjData
 
-        state_space = self._get_state_space()
+        position_space, velocity_space = self._get_state_space().values()
 
         low = np.concatenate([
-            np.full_like(state_space['q'].low[2:], -np.inf),
-            np.full_like(state_space['v'].low, -np.inf),
+            np.full_like(position_space.low[2:], -np.inf),
+            np.full_like(velocity_space.low, -np.inf),
             np.full(len(self.bodies_idx) * 6, -1.0)
         ])
         high = np.concatenate([
-            np.full_like(state_space['q'].high[2:], np.inf),
-            np.full_like(state_space['v'].high, np.inf),
+            np.full_like(position_space.high[2:], np.inf),
+            np.full_like(velocity_space.high, np.inf),
             np.full(len(self.bodies_idx) * 6, 1.0)
         ])
 

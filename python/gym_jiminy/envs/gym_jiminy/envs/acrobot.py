@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from typing import Dict, Any, Optional, Tuple, TypeVar
+from typing import Dict, Any, Optional, Tuple
 
 import gymnasium as gym
 from gymnasium.spaces import flatten_space
@@ -34,10 +34,7 @@ HEIGHT_REL_GOAL_THRESHOLD_RANGE = (-0.2, 0.98)
 ACTION_NOISE = 0.0
 
 
-AcrobotActionType = TypeVar("AcrobotActionType", np.int64, np.ndarray)
-
-
-class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, AcrobotActionType]):
+class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     """Implementation of a Gym environment for the Acrobot using Jiminy for
     both physics computations and for rendering.
 

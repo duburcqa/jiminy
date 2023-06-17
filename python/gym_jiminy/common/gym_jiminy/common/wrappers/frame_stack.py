@@ -32,8 +32,12 @@ class PartialFrameStack(
     """Observation wrapper that partially stacks observations in a rolling
     manner.
 
-    It combines and extends OpenAI Gym wrappers `FrameStack` and
+    This wrapper combines and extends OpenAI Gym wrappers `FrameStack` and
     `FilterObservation` to support nested filter keys.
+
+    It adds one extra dimension to all the leaves of the original observation
+    spaces, the first dimension corresponding to the individual timesteps (from
+    oldest [0] to latest [-1]).
 
     .. note::
         The observation space must be `gym.spaces.Dict`, while, ultimately,
@@ -67,7 +71,9 @@ class PartialFrameStack(
             list(fields) for fields in nested_filter_keys)
         self.num_stack = num_stack
 
-        # Initialize base wrapper
+        # Initialize base wrapper.
+        # Note that `gym.Wrapper` automatically binds the action/observation to
+        # the one of the environment if not overridden explicitly.
         super().__init__(env)  # Do not forward extra arguments, if any
 
         # Get the leaf fields to stack
@@ -101,7 +107,7 @@ class PartialFrameStack(
                     "`gym.spaces.Box` space")
             low = np.repeat(space.low[np.newaxis], self.num_stack, axis=0)
             high = np.repeat(space.high[np.newaxis], self.num_stack, axis=0)
-            root_space.spaces[fields[-1]] = gym.spaces.Box(
+            root_space[fields[-1]] = gym.spaces.Box(
                 low=low, high=high, dtype=space.dtype)
 
         # Allocate internal frames buffers
@@ -185,13 +191,9 @@ class StackedJiminyEnv(
         super().__init__(env, **kwargs)
 
     def _initialize_action_space(self) -> None:
-        """Configure the action space.
-        """
         self.action_space = self.env.action_space
 
     def _initialize_observation_space(self) -> None:
-        """Configure the observation space.
-        """
         self.observation_space = self.wrapper.observation_space
 
     def _setup(self) -> None:
