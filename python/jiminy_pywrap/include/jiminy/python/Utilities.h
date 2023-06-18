@@ -300,8 +300,10 @@ namespace python
     inline int getPyType(float64_t const & /* data */) { return NPY_FLOAT64; }
     inline int getPyType(int32_t const & /* data */) { return NPY_INT32; }
     inline int getPyType(uint32_t const & /* data */) { return NPY_UINT32; }
-    inline int getPyType(int64_t const & /* data */) { return NPY_INT64; }
-    inline int getPyType(uint64_t const & /* data */) { return NPY_UINT64; }
+    inline int getPyType(long const & /* data */) { return NPY_LONG; }
+    inline int getPyType(unsigned long const & /* data */) { return NPY_ULONG; }
+    inline int getPyType(long long const & /* data */) { return NPY_LONGLONG; }
+    inline int getPyType(unsigned long long const & /* data */) { return NPY_ULONGLONG; }
 
     /// Convert Eigen scalar/vector/matrix to Numpy array by reference.
 
@@ -409,7 +411,7 @@ namespace python
     getEigenReferenceImpl(PyArrayObject * dataPyArray)
     {
         // Check array dtype
-        if (PyArray_TYPE(dataPyArray) != getPyType(T{}))
+        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), getPyType(T{})) == NPY_FALSE)
         {
             PRINT_ERROR("'values' input array has dtype '", PyArray_TYPE(dataPyArray), "' but '", getPyType(T{}), "' was expected.");
             return {};
@@ -427,8 +429,7 @@ namespace python
         else if (dataPyArrayNdims == 1)
         {
             Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                static_cast<T *>(PyArray_DATA(dataPyArray)),
-                PyArray_SIZE(dataPyArray), 1,
+                static_cast<T *>(PyArray_DATA(dataPyArray)), PyArray_SIZE(dataPyArray), 1,
                 Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(PyArray_SIZE(dataPyArray), 1));
             return {data};
         }
@@ -439,16 +440,14 @@ namespace python
             if (flags & NPY_ARRAY_C_CONTIGUOUS)
             {
                 Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                    static_cast<T *>(PyArray_DATA(dataPyArray)),
-                    dataPyArrayShape[0], dataPyArrayShape[1],
+                    static_cast<T *>(PyArray_DATA(dataPyArray)), dataPyArrayShape[0], dataPyArrayShape[1],
                     Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, dataPyArrayShape[1]));
                 return {data};
             }
             else if (flags & NPY_ARRAY_F_CONTIGUOUS)
             {
                 Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                    static_cast<T *>(PyArray_DATA(dataPyArray)),
-                    dataPyArrayShape[0], dataPyArrayShape[1],
+                    static_cast<T *>(PyArray_DATA(dataPyArray)), dataPyArrayShape[0], dataPyArrayShape[1],
                     Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(dataPyArrayShape[0], 1));
                 return {data};
             }
@@ -483,11 +482,11 @@ namespace python
         PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
 
         // Check array dtype
-        if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64)
+        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_FLOAT64) == NPY_TRUE)
         {
             return {getEigenReferenceImpl<float64_t>(dataPyArray)};
         }
-        if (PyArray_TYPE(dataPyArray) == NPY_INT64)
+        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_INT64) == NPY_TRUE)
         {
             return {getEigenReferenceImpl<int64_t>(dataPyArray)};
         }

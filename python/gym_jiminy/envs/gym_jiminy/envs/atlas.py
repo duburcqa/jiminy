@@ -46,7 +46,7 @@ PID_REDUCED_KD = np.array([
 
 PID_FULL_KP = np.array([
     # Neck: [Y]
-    1000.0,
+    100.0,
     # Back: [Z, Y, X]
     5000.0, 8000.0, 5000.0,
     # Left arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]

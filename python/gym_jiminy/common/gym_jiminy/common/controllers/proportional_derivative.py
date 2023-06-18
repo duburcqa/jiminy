@@ -17,7 +17,7 @@ from ..utils import fill
 
 
 # Pre-computed factorial for small integers
-FACTORIAL_TABLE = tuple(math.factorial(i) for i in range(6))
+INV_FACTORIAL = tuple(1.0 / math.factorial(i) for i in range(6))
 
 # Name of the n-th position derivative
 N_ORDER_DERIVATIVE_NAMES = [
@@ -79,7 +79,7 @@ def integrate_zoh(state_prev: np.ndarray,
     # Compute integration matrix
     order = len(state_prev)
     integ_coeffs = np.array([
-        pow(dt, k) / FACTORIAL_TABLE[k] for k in range(order)])
+        pow(dt, k) * INV_FACTORIAL[k] for k in range(order)])
     integ_matrix = toeplitz(integ_coeffs, np.zeros(order)).T
     integ_zero = integ_matrix[:, :-1].copy() @ state_prev[:-1]
     integ_drift = integ_matrix[:, -1:]
@@ -158,6 +158,15 @@ class PDController(
         but most importantly, it limits the responsiveness of the agent
         and therefore impedes its optimal performance.
 
+    .. note::
+        The position and velocity bounds on the command corresponds to the
+        joint limits specified by the dynamical model of the robot. Then, lax
+        higher-order bounds are extrapolated. In a single timestep of the
+        environment, they are chosen to be sufficient either to span the whole
+        range of the state derivative directly preceding (ie acceleration
+        bounds are inferred from velocity bounds) or to allow reaching the
+        command effort limits depending on what is the most restrictive.
+
     .. warning::
         It must be connected directly to the environment to control without
         any intermediary controllers.
@@ -216,12 +225,7 @@ class PDController(
         self._motors_effort_limit = env.robot.command_limit[
             env.robot.motors_velocity_idx]
 
-        # Compute the lower and upper bounds of the command state.
-        # First, extract the lower and upper position and velocity bounds.
-        # Then, extrapolate lax higher-order bounds. They are sufficient to
-        # span the whole range of the state derivative directly preceding them
-        # in a single timestep of the environment, ie acceleration bounds are
-        # inferred from velocity bounds.
+        # Compute the lower and upper bounds of the command state
         motors_position_idx: List[int] = sum(env.robot.motors_position_idx, [])
         motors_velocity_idx = env.robot.motors_velocity_idx
         command_state_lower = [
@@ -234,10 +238,15 @@ class PDController(
                 motors_position_idx] - soft_bounds_margin,
             env.robot.velocity_limit[motors_velocity_idx],
         ]
-        for _ in range(order - 1):
-            n_order_limit = (
-                command_state_upper[-1] - command_state_lower[-1]
-                ) / env.step_dt
+        step_dt = env.step_dt
+        command_limit = env.robot.command_limit[env.robot.motors_velocity_idx]
+        for i in range(2, order + 1):
+            range_limit = (
+                command_state_upper[-1] - command_state_lower[-1]) / step_dt
+            effort_limit = command_limit / np.maximum(
+                pid_kp * step_dt ** i * INV_FACTORIAL[i],
+                pid_kp * pid_kd * step_dt ** (i - 1) * INV_FACTORIAL[i - 1])
+            n_order_limit = np.minimum(range_limit, effort_limit)
             command_state_lower.append(-n_order_limit)
             command_state_upper.append(n_order_limit)
         self._command_state_lower = np.stack(command_state_lower, axis=0)
