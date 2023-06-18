@@ -50,12 +50,12 @@ def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
                       strides=(-stride, stride))
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def integrate_zoh(state_prev: np.ndarray,
-                  dt: float,
                   state_min: np.ndarray,
-                  state_max: np.ndarray) -> np.ndarray:
-    """N-order exact integration scheme assuming Zero-Order-Hold for the
+                  state_max: np.ndarray,
+                  dt: float) -> np.ndarray:
+    """N-th order exact integration scheme assuming Zero-Order-Hold for the
     highest-order derivative, taking state bounds into account.
 
     .. warning::
@@ -76,10 +76,10 @@ def integrate_zoh(state_prev: np.ndarray,
         return state_prev.copy()
 
     # Compute integration matrix
-    order = len(state_prev)
+    dim = len(state_prev)
     integ_coeffs = np.array([
-        pow(dt, k) * INV_FACTORIAL_TABLE[k] for k in range(order)])
-    integ_matrix = toeplitz(integ_coeffs, np.zeros(order)).T
+        pow(dt, k) * INV_FACTORIAL_TABLE[k] for k in range(dim)])
+    integ_matrix = toeplitz(integ_coeffs, np.zeros(dim)).T
     integ_zero = integ_matrix[:, :-1].copy() @ state_prev[:-1]
     integ_drift = integ_matrix[:, -1:]
 
@@ -106,7 +106,7 @@ def integrate_zoh(state_prev: np.ndarray,
 
 
 @nb.jit(nopython=True, nogil=True)
-def _compute_command_impl(encoders_data: np.ndarray,
+def compute_pd_controller(encoders_data: np.ndarray,
                           command_state: np.ndarray,
                           command_state_lower: np.ndarray,
                           command_state_upper: np.ndarray,
@@ -117,18 +117,18 @@ def _compute_command_impl(encoders_data: np.ndarray,
                           deadband: float) -> np.ndarray:
     """ TODO Write documentation.
     """
-    # Estimate position and motor velocity from encoder data
-    q_measured, v_measured = encoders_data
-
     # Integrate command state
     command_state[:] = integrate_zoh(
-        command_state, control_dt, command_state_lower, command_state_upper)
+        command_state, command_state_lower, command_state_upper, control_dt)
 
-    # Dead band to avoid slow drift of target position
-    command_state[1] *= np.abs(command_state[1]) > deadband
+    # Dead band to avoid slow drift of target at rest
+    command_state[-1] *= np.abs(command_state[-1]) > deadband
 
-    # Extract position/velocity targets
+    # Extract targets motors positions and velocities from command state
     q_target, v_target = command_state[:2]
+
+    # Extract estimated motors positions and velocities from encoder data
+    q_measured, v_measured = encoders_data
 
     # Compute the joint tracking error
     q_error, v_error = q_target - q_measured, v_target - v_measured
@@ -304,8 +304,7 @@ class PDController(
         # Re-initialize the command state to the current motor state if the
         # simulation is not running. This must be done here because the
         # command state must be valid prior to calling `refresh_observation`
-        # for the first time, which happens at `reset`. Early return to skip
-        # integrating command if no simulation running.
+        # for the first time, which happens at `reset`.
         is_simulation_running = self.simulator.is_simulation_running
         if not is_simulation_running:
             self._command_state[:2] = self.sensors_data[encoder.type]
@@ -313,14 +312,19 @@ class PDController(
                     self._command_state_lower,
                     self._command_state_upper,
                     out=self._command_state)
-            return np.zeros_like(action)
 
         # Update the highest order derivative of the target motor positions to
         # match the provided action.
         self._command_state[-1] = action
 
+        # Skip integrating command and return early if no simulation running.
+        # It also checks that the low-level function is already pre-compiled.
+        # This is necessary to avoid spurious timeout during first step.
+        if not is_simulation_running and compute_pd_controller.signatures:
+            return np.zeros_like(action)
+
         # Compute the motor efforts using PD control
-        return _compute_command_impl(
+        return compute_pd_controller(
             self.sensors_data[encoder.type],
             self._command_state,
             self._command_state_lower,
