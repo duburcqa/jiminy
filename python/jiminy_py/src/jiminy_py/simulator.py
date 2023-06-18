@@ -43,7 +43,7 @@ except ImportError:
     TabbedFigure = type(None)  # type: ignore[misc,assignment]
 
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 DEFAULT_UPDATE_PERIOD = 1.0e-3  # 0.0 for time continuous update
@@ -73,10 +73,10 @@ class Simulator:
         :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
                                       fetching the robot's state.
-        :param viewer_kwargs: Keyword arguments to override by default whenever
-                              a viewer must be instantiated, e.g. when `render`
-                              method is first called. Specifically, `backend`
-                              is ignored if one is already available.
+        :param viewer_kwargs: Keyword arguments to override default arguments
+                              whenever a viewer must be instantiated, eg when
+                              `render` method is first called. Specifically,
+                              `backend` is ignored if one is already available.
                               Optional: Empty by default.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
@@ -436,7 +436,7 @@ class Simulator:
             return_code = self.engine.simulate(
                 t_end, q_init, v_init, a_init, is_state_theoretical)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
+            LOGGER.warning(
                 "The simulation failed due to Python exception:\n %s", e)
             return_code = jiminy.hresult_t.ERROR_GENERIC
         finally:  # Make sure that the progress bar is properly closed
@@ -499,6 +499,13 @@ class Simulator:
         if kwargs.get("backend", Viewer.backend) != Viewer.backend:
             Viewer.close()
 
+        # Update viewer_kwargs with provided kwargs
+        viewer_kwargs: Dict[str, Any] = {**dict(
+            backend=(self.viewer or Viewer).backend,
+            delete_robot_on_close=True),
+            **self.viewer_kwargs,
+            **kwargs}
+
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not self.is_viewer_available:
@@ -507,11 +514,7 @@ class Simulator:
                 self.robot,
                 use_theoretical_model=False,
                 open_gui_if_parent=False,
-                **{**dict(  # type: ignore[arg-type]
-                    backend=(self.viewer or Viewer).backend,
-                    delete_robot_on_close=True),
-                    **self.viewer_kwargs,
-                    **kwargs})
+                **viewer_kwargs)
             assert self.viewer is not None and self.viewer.backend is not None
 
             # Share the external force buffer of the viewer with the engine
@@ -522,16 +525,16 @@ class Simulator:
                 # Enable display of COM, DCM and contact markers by default if
                 # the robot has freeflyer.
                 if self.robot.has_freeflyer:
-                    if "display_com" not in kwargs:
+                    if "display_com" not in viewer_kwargs:
                         self.viewer.display_center_of_mass(True)
-                    if "display_dcm" not in kwargs:
+                    if "display_dcm" not in viewer_kwargs:
                         self.viewer.display_capture_point(True)
-                    if "display_contacts" not in kwargs:
+                    if "display_contacts" not in viewer_kwargs:
                         self.viewer.display_contact_forces(True)
 
                 # Enable display of external forces by default only for
                 # the joints having an external force registered to it.
-                if "display_f_external" not in kwargs:
+                if "display_f_external" not in viewer_kwargs:
                     force_frames = set(
                         self.robot.pinocchio_model.frames[f_i.frame_idx].parent
                         for f_i in self.engine.forces_profile)
@@ -546,7 +549,8 @@ class Simulator:
 
             # Initialize camera pose
             if self.viewer.is_backend_parent and camera_pose is None:
-                camera_pose = ((9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None)
+                camera_pose = viewer_kwargs.get("camera_pose", (
+                    (9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None))
 
         # Enable the ground profile is requested and available
         assert self.viewer is not None and self.viewer.backend is not None
@@ -568,7 +572,9 @@ class Simulator:
 
         # Compute and return rgb array if needed
         if return_rgb_array:
-            return Viewer.capture_frame(width, height)
+            return Viewer.capture_frame(
+                width or viewer_kwargs.get("width"),
+                height or viewer_kwargs.get("height"))
         return None
 
     def replay(self,

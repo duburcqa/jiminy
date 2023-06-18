@@ -746,7 +746,7 @@ def plot_log_interactive() -> None:
     for c in compare_data:
         plotted_lines[os.path.basename(c)] = []
 
-    plt.gcf().canvas.set_window_title(main_arguments.input)
+    plt.gcf().canvas.manager.set_window_title(main_arguments.input)
     t = log_vars['Global.Time']
 
     # Plot each element.

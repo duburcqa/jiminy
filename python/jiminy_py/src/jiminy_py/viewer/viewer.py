@@ -56,7 +56,7 @@ REPLAY_FRAMERATE = 30
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 DEFAULT_CAMERA_XYZRPY_ABS = ((7.5, 0.0, 1.4), (1.4, 0.0, np.pi/2))
-DEFAULT_CAMERA_XYZRPY_REL = ((4.5, -4.5, 0.75), (1.3, 0.0, 0.8))
+DEFAULT_CAMERA_XYZRPY_REL = ((4.1, -4.1, 0.85), (1.35, 0.0, 0.8))
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
@@ -77,8 +77,8 @@ COLORS = {'red': (0.85, 0.2, 0.2, 1.0),
           'black': (0.45, 0.45, 0.5, 1.0)}
 
 
-logger = logging.getLogger(__name__)
-logger.addFilter(_DuplicateFilter())
+LOGGER = logging.getLogger(__name__)
+LOGGER.addFilter(_DuplicateFilter())
 
 
 @overload
@@ -534,7 +534,7 @@ class Viewer:
         if not backend.startswith('panda3d'):
             if display_com or display_dcm or display_contact_frames or \
                     display_contact_forces:
-                logger.warning(
+                LOGGER.warning(
                     "Panda3d backend is required to display markers, e.g. "
                     "CoM, DCM or Contact.")
             display_com = False
@@ -612,7 +612,7 @@ class Viewer:
             except RuntimeError as e:
                 # Convert exception into warning if it fails. It is probably
                 # because no display is available.
-                logger.warning("%s", e)
+                LOGGER.warning("%s", e)
         except Exception as e:
             self.close()
             raise RuntimeError(
@@ -967,7 +967,7 @@ class Viewer:
                     webbrowser.get()
                     webbrowser.open(viewer_url, new=2, autoraise=True)
                 except webbrowser.Error:  # Fail if not browser is available
-                    logger.warning(
+                    LOGGER.warning(
                         "No browser available for display. Please install one "
                         "manually.")
                     return  # Skip waiting since there is nothing to wait for
@@ -1400,7 +1400,7 @@ class Viewer:
         if Viewer.backend.startswith('panda3d'):
             Viewer._backend_obj.gui.set_clock(t)
         else:
-            logger.warning("Adding clock is only available for Panda3d.")
+            LOGGER.warning("Adding clock is only available for Panda3d.")
 
     @staticmethod
     @_must_be_open
@@ -1478,9 +1478,15 @@ class Viewer:
         if position is None or rotation is None or relative == 'camera':
             position_camera, rotation_camera = Viewer.get_camera_transform()
         if position is None:
-            position = position_camera
+            if relative is not None:
+                position = (0.0, 0.0, 0.0)
+            else:
+                position = position_camera
         if rotation is None:
-            rotation = rotation_camera
+            if relative == 'camera':
+                rotation = (0.0, 0.0, 0.0)
+            else:
+                rotation = rotation_camera
         position, rotation = np.asarray(position), np.asarray(rotation)
 
         # Compute associated rotation matrix
@@ -1505,9 +1511,9 @@ class Viewer:
 
         # Compute the absolute transformation
         if relative is not None:
-            H_abs = SE3(rotation_mat, position)
-            H_abs = H_orig * H_abs
+            H_abs = H_orig * SE3(rotation_mat, position)
             position = H_abs.translation
+            rotation = matrixToRpy(H_abs.rotation)
             Viewer.set_camera_transform(None, position, rotation)
             return
 
@@ -1714,7 +1720,7 @@ class Viewer:
 
         # Return early if this method is not supported by the current backend
         if not Viewer.backend.startswith('panda3d'):
-            logger.warning("This method is only supported by Panda3d.")
+            LOGGER.warning("This method is only supported by Panda3d.")
             return
 
         # Sanitize user-specified color code
@@ -1764,7 +1770,7 @@ class Viewer:
 
         # Return early if this method is not supported by the current backend
         if not Viewer.backend.startswith('panda3d'):
-            logger.warning("This method is only supported by Panda3d.")
+            LOGGER.warning("This method is only supported by Panda3d.")
             return
 
         # Restore tile ground if heightmap is not specified
@@ -1816,6 +1822,10 @@ class Viewer:
             # Get raw buffer image instead of numpy array for efficiency
             buffer = Viewer._backend_obj.gui.get_screenshot(
                 requested_format='RGB', raw=True)
+            if buffer is None:
+                raise RuntimeError(
+                    "Impossible to capture frame. There is something wrong "
+                    "with the graphics stack on this machine.")
 
             # Return raw data if requested
             if raw_data:

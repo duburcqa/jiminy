@@ -9,7 +9,7 @@ about 300000 at best.
 """
 # ======================== User parameters =========================
 
-GYM_ENV_NAME = "gym_jiminy.envs:ant-v0"
+GYM_ENV_NAME = "gym_jiminy.envs:ant"
 DEBUG = False
 SEED = 0
 N_THREADS = 12
@@ -22,7 +22,7 @@ __import__("os").environ["CUDA_VISIBLE_DEVICES"] = \
     ",".join(map(str, range(N_GPU)))
 
 import logging
-import gym
+import gymnasium as gym
 import ray
 from ray.tune.registry import register_env
 import ray.rllib.agents.ddpg.td3 as td3

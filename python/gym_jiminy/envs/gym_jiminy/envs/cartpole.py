@@ -2,15 +2,16 @@
 """
 import os
 import numpy as np
-from typing import Optional, Tuple, Dict, Any
+from typing import Dict, Any, Optional, Tuple
 
-from gym import spaces
+from gymnasium import spaces
 
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from gym_jiminy.common.utils import sample, DataNested
+from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
+from gym_jiminy.common.utils import sample, set_value
 
 try:
     from importlib.resources import files
@@ -36,7 +37,7 @@ DX_RANDOM_MAX = 0.05
 DTHETA_RANDOM_MAX = 0.05
 
 
-class CartPoleJiminyEnv(BaseJiminyEnv):
+class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     """Implementation of a Gym environment for the Cartpole which is using
     Jiminy Engine to perform physics computations and Meshcat for rendering.
 
@@ -91,9 +92,12 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                            Optional: True by default.
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
-        :param viewer_kwargs: Keyword arguments to override by default whenever
-                              a viewer must be instantiated
-                              See `Simulator` constructor for details.
+        :param viewer_kwargs: Keyword arguments used to override the original
+                              default values whenever a viewer is instantiated.
+                              This is the only way to pass custom arguments to
+                              the viewer when calling `render` method, unlike
+                              `replay` which forwards extra keyword arguments.
+                              Optional: None by default.
         """
         # Backup some input arguments
         self.continuous = continuous
@@ -122,7 +126,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             encoder.initialize(joint_name)
 
         # Instantiate simulator
-        simulator = Simulator(robot)
+        simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
 
         # OpenAI Gym implementation of Cartpole has no velocity limit
         model_options = simulator.robot.get_model_options()
@@ -166,8 +170,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         See documentation: https://gym.openai.com/envs/CartPole-v1/.
         """
         # Compute observation bounds
-        high = np.array([2.0 * X_THRESHOLD,
-                         2.0 * THETA_THRESHOLD,
+        high = np.array([X_THRESHOLD,
+                         THETA_THRESHOLD,
                          *self.robot.velocity_limit])
 
         # Set the observation space
@@ -191,57 +195,35 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         Bounds of hypercube associated with initial state of robot.
         """
         qpos = sample(scale=np.array([
-            X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.rg)
+            X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.np_random)
         qvel = sample(scale=np.array([
-            DX_RANDOM_MAX, DTHETA_RANDOM_MAX]), rg=self.rg)
+            DX_RANDOM_MAX, DTHETA_RANDOM_MAX]), rg=self.np_random)
         return qpos, qvel
 
-    def refresh_observation(self) -> None:
-        # @copydoc BaseJiminyEnv::refresh_observation
-        if not self.simulator.is_simulation_running:
-            self.__state = (self.system_state.q, self.system_state.v)
-        self.__state_view[0][:] = self.__state[0]
-        self.__state_view[1][:] = self.__state[1]
+    def refresh_observation(self, measurement: EngineObsType) -> None:
+        set_value(self.__state_view, measurement['agent_state'].values())
 
-    def is_done(self) -> bool:
-        """ TODO: Write documentation.
-        """
-        x, theta, *_ = self._observation
-        return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
-
-    def compute_command(self,
-                        measure: DataNested,
-                        action: np.ndarray
-                        ) -> np.ndarray:
+    def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
         Convert a discrete action into its actual value if necessary.
 
-        :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
-        # Call base implementation
-        action = super().compute_command(measure, action)
-
-        # Compute the actual torque to apply
         if not self.continuous:
-            action = self.AVAIL_CTRL[round(action[()])]
-
+            action = self.AVAIL_CTRL[action]
         return action
 
-    def compute_reward(self,  # type: ignore[override]
-                       *, info: Dict[str, Any]) -> float:
+    def compute_reward(self,
+                       done: bool,
+                       truncated: bool,
+                       info: InfoType) -> float:
         """ TODO: Write documentation.
 
-        Add a small positive reward as long as the termination condition has
-        never been reached during the same episode.
+        Add a small positive reward as long as a terminal condition has
+        never been reached during the current episode.
         """
-        # pylint: disable=arguments-differ
-
-        reward = 0.0
-        if not self._num_steps_beyond_done:  # True for both None and 0
-            reward += 1.0
-        return reward
+        return 1.0 if not done else 0.0
 
     def _key_to_action(self, key: Optional[str], **kwargs: Any) -> np.ndarray:
         """ TODO: Write documentation.

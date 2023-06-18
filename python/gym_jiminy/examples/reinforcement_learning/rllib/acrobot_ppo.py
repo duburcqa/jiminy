@@ -4,7 +4,7 @@ algorithm of Ray RLlib reinforcement learning framework.
 It solves it consistently in less than 100000 timesteps in average.
 
 .. warning::
-    This script has been tested for pytorch~=1.13 and ray[rllib]~=2.2.
+    This script has been tested for pytorch~=2.0 and ray[rllib]~=2.5.0
 """
 
 # ====================== Configure Python workspace =======================
@@ -13,10 +13,11 @@ import os
 import logging
 from functools import partial
 
-import gym
+import gymnasium as gym
 import ray
 from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS
+from ray.tune.logger import NoopLogger
 
 from gym_jiminy.common.wrappers import FrameRateLimiter
 from gym_jiminy.rllib.ppo import PPOConfig
@@ -32,7 +33,7 @@ from gym_jiminy.rllib.utilities import (initialize,
 if __name__ == "__main__":
     # ============================ User parameters ============================
 
-    GYM_ENV_NAME = "gym_jiminy.envs:acrobot-v0"
+    GYM_ENV_NAME = "gym_jiminy.envs:acrobot"
     GYM_ENV_KWARGS = {
         'continuous': True
     }
@@ -45,7 +46,7 @@ if __name__ == "__main__":
     # ==================== Initialize Ray and Tensorboard =====================
 
     # Start Ray and Tensorboard background processes
-    logger_creator = initialize(
+    logdir = initialize(
         num_cpus=N_THREADS, num_gpus=N_GPU, debug=DEBUG, verbose=True)
 
     # Register the environment
@@ -113,8 +114,11 @@ if __name__ == "__main__":
         log_level=logging.DEBUG if DEBUG else logging.ERROR,
         # Monitor system resource metrics (requires `psutil` and `gputil`)
         log_sys_usage=True,
-
-        logger_creator=logger_creator
+        # Disable default logger but configure logging directory nonetheless
+        logger_config=dict(
+            type=NoopLogger,
+            logdir=logdir
+        )
     )
     algo_config.reporting(
         # Smooth metrics over this many episodes
@@ -128,14 +132,6 @@ if __name__ == "__main__":
     )
 
     # Environment settings
-    algo_config.rollouts(
-        # Number of steps after which the episode is forced to terminate
-        horizon=None,
-        # End the episode but do not reset environment when hitting the horizon
-        soft_horizon=False,
-        # Don't set 'done' at the end of the episode
-        no_done_at_end=False
-    )
     algo_config.environment(
         # The environment specifier
         env="env",
@@ -296,7 +292,7 @@ if __name__ == "__main__":
     algo = algo_config.build()
 
     # Train the agent
-    checkpoint_path = train(algo, max_timesteps=150000)
+    checkpoint_path = train(algo, max_timesteps=200000, logdir=algo.logdir)
 
     # ========================= Terminate Ray backend =========================
 

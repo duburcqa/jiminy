@@ -1,17 +1,12 @@
 """ TODO: Write documentation.
 """
-from typing import Callable, Optional, Dict
+from typing import Optional, Dict
 
 import numpy as np
 
 import jiminy_py.core as jiminy
-from jiminy_py.robot import BaseJiminyRobot
 
-
-ObserverHandleType = Callable[[
-    float, np.ndarray, np.ndarray, Dict[str, np.ndarray]], None]
-ControllerHandleType = Callable[[
-    float, np.ndarray, np.ndarray, Dict[str, np.ndarray], np.ndarray], None]
+from ...bases import ObserverHandleType, ControllerHandleType
 
 
 class BaseJiminyObserverController(jiminy.BaseController):
@@ -46,7 +41,7 @@ class BaseJiminyObserverController(jiminy.BaseController):
         return self.__controller_handle is not None
 
     def initialize(self,  # type: ignore[override]
-                   robot: BaseJiminyRobot) -> None:
+                   robot: jiminy.Robot) -> None:
         """Initialize the controller.
 
         :param robot: Jiminy robot to control.

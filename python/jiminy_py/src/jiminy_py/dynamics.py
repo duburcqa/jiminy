@@ -19,7 +19,7 @@ from pinocchio.rpy import (rpyToMatrix,  # pylint: disable=import-error
 from . import core as jiminy
 
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 # #####################################################################
@@ -502,7 +502,7 @@ def compute_transform_contact(
                 min_distance = distance
                 deepest_idx = i
         else:
-            logger.warning("Collision computation failed for some reason. "
+            LOGGER.warning("Collision computation failed for some reason. "
                            "Skipping this collision pair.")
     if deepest_idx is not None and (
             not contact_frames_pos_rel or

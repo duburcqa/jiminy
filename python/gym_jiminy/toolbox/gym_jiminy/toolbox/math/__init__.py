@@ -5,7 +5,6 @@ from .generic import (squared_norm_2,
                       matrix_to_yaw,
                       quat_to_yaw_cos_sin,
                       quat_to_yaw)
-from .signal import integrate_zoh
 
 
 __all__ = [
@@ -15,7 +14,6 @@ __all__ = [
     "matrix_to_yaw",
     "quat_to_yaw_cos_sin",
     "quat_to_yaw",
-    "integrate_zoh"
 ]
 
 try:

@@ -1,41 +1,28 @@
 """ TODO: Write documentation.
 """
 from collections import OrderedDict
-from typing import Optional, Union, Dict, Sequence, TypeVar
+from collections.abc import Iterable
+from itertools import zip_longest
+from typing import (
+    Optional, Union, Sequence, TypeVar, Mapping as MappingT, no_type_check)
 
-import gym
+import gymnasium as gym
 import tree
 import numpy as np
+from numpy import typing as npt
 
 
 ValueT = TypeVar('ValueT')
-StructNested = Union[Dict[str, 'StructNested[ValueT]'],
+StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
                      Sequence['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
-SpaceNested = StructNested[gym.Space]
+
+DataNestedT = TypeVar('DataNestedT', bound=DataNested)
 
 
 global_rng = np.random.default_rng()
-
-
-if tuple(map(int, (gym.__version__.split(".", 4)[:3]))) < (0, 23, 0):
-    def _space_nested_raw(space_nested: SpaceNested) -> SpaceNested:
-        """Replace any `gym.spaces.Dict|Tuple` by a native collection type for
-        inter-operability with gym<0.23.0.
-
-        .. note::
-            It is necessary because non primitive objects must inherit from
-            `collection.abc.Mapping|Sequence` for `dm-tree` to operate on them.
-        """
-        return tree.traverse(
-            lambda space: _space_nested_raw(space.spaces) if isinstance(
-                space, (gym.spaces.Dict, gym.spaces.Tuple)) else None,
-            space_nested)
-else:
-    def _space_nested_raw(space_nested: SpaceNested) -> SpaceNested:
-        return space_nested
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,
@@ -119,24 +106,25 @@ def is_bounded(space_nested: gym.Space) -> bool:
 
     :param space: `gym.Space` on which to operate.
     """
-    for space in tree.flatten(_space_nested_raw(space_nested)):
+    for space in tree.flatten(space_nested):
         is_bounded_fn = getattr(space, "is_bounded", None)
         if is_bounded_fn is not None and not is_bounded_fn():
             return False
     return True
 
 
-def zeros(space: gym.Space, dtype: Optional[type] = None) -> DataNested:
+@no_type_check
+def zeros(space: gym.Space[DataNestedT],
+          dtype: npt.DTypeLike = None) -> DataNestedT:
     """Allocate data structure from `gym.Space` and initialize it to zero.
 
     :param space: `gym.Space` on which to operate.
-    :param dtype: Must be specified to overwrite original space dtype.
+    :param dtype: Can be specified to overwrite original space dtype.
+                  Optional: None by default
     """
     # Note that it is not possible to take advantage of dm-tree because the
-    # output type for collections (OrderedDict or Tuple) is not the same as
-    # the input one (gym.Space). This feature request would be too specific.
-    if isinstance(space, gym.spaces.Box):
-        return np.zeros(space.shape, dtype=dtype or space.dtype)
+    # output type for collections (OrderedDict or Tuple) is not the same as the
+    # input one (gym.Space). This feature request would be too specific.
     if isinstance(space, gym.spaces.Dict):
         value = OrderedDict()
         for field, subspace in dict.items(space.spaces):
@@ -144,6 +132,8 @@ def zeros(space: gym.Space, dtype: Optional[type] = None) -> DataNested:
         return value
     if isinstance(space, gym.spaces.Tuple):
         return tuple(zeros(subspace, dtype=dtype) for subspace in space.spaces)
+    if isinstance(space, gym.spaces.Box):
+        return np.zeros(space.shape, dtype=dtype or space.dtype)
     if isinstance(space, gym.spaces.Discrete):
         # Note that np.array of 0 dim is returned in order to be mutable
         return np.array(0, dtype=dtype or np.int64)
@@ -155,7 +145,7 @@ def zeros(space: gym.Space, dtype: Optional[type] = None) -> DataNested:
         f"Space of type {type(space)} is not supported.")
 
 
-def fill(data: DataNested, fill_value: float) -> None:
+def fill(data: DataNested, fill_value: Union[float, int, np.number]) -> None:
     """Set every element of 'data' from `gym.Space` to scalar 'fill_value'.
 
     :param data: Data structure to update.
@@ -178,22 +168,32 @@ def set_value(data: DataNested, value: DataNested) -> None:
     beforehand, and to work with fixed shape buffers.
 
     .. note::
-        If 'data' is a dictionary, 'value' must be a subtree of 'data',
-        whose leaves must be broadcastable with the ones of 'data'.
+        If 'data' is a dictionary, 'value' must be a subtree of 'data', whose
+        leaves must be broadcast-able with the ones of 'data'.
 
     :param data: Data structure to partially update.
     :param value: Unset of data only containing fields to update.
     """
-    for data_i, value_i in zip(tree.flatten(data), tree.flatten(value)):
+    if isinstance(data, np.ndarray):
         try:
-            data_i.flat[:] = value_i
-        except AttributeError as e:
-            raise ValueError(
-                "Leaves of 'data' structure must have type `np.ndarray`."
-                ) from e
+            data.flat[:] = value
+        except TypeError as e:
+            raise TypeError(f"Cannot broadcast '{value}' to '{data}'.") from e
+    elif isinstance(data, dict):
+        assert isinstance(value, dict)
+        for field, subval in dict.items(value):
+            set_value(data[field], subval)
+    elif isinstance(data, Iterable):
+        assert isinstance(value, Iterable)
+        for subdata, subval in zip_longest(data, value):
+            set_value(subdata, subval)
+    else:
+        raise ValueError(
+            "Leaves of 'data' structure must have type `np.ndarray`."
+            )
 
 
-def copy(data: DataNested) -> DataNested:
+def copy(data: DataNestedT) -> DataNestedT:
     """Shallow copy recursively 'data' from `gym.Space`, so that only leaves
     are still references.
 
@@ -202,8 +202,8 @@ def copy(data: DataNested) -> DataNested:
     return tree.unflatten_as(data, tree.flatten(data))
 
 
-def clip(space_nested: gym.Space,
-         data: DataNested) -> DataNested:
+def clip(space_nested: gym.Space[DataNestedT],
+         data: DataNestedT) -> DataNestedT:
     """Clamp value from `gym.Space` to make sure it is within bounds.
 
     :param space: `gym.Space` on which to operate.
@@ -213,4 +213,4 @@ def clip(space_nested: gym.Space,
         lambda value, space:
             np.minimum(np.maximum(value, space.low), space.high)
         if isinstance(space, gym.spaces.Box) else value,
-        data, _space_nested_raw(space_nested))
+        data, space_nested)

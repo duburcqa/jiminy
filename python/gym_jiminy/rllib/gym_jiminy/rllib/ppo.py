@@ -8,7 +8,7 @@ import operator
 from functools import reduce, partial
 from typing import Optional, Union, Type, List, Dict, Any, Tuple, cast
 
-import gym
+import gymnasium as gym
 import torch
 
 from ray.rllib.models.action_dist import ActionDistribution
@@ -148,7 +148,7 @@ def get_adversarial_observation_sgld(
 
 
 def _compute_mirrored_value(value: torch.Tensor,
-                            space: gym.spaces.Space,
+                            space: gym.spaces.Box,
                             mirror_mat: Union[
                                 Dict[str, torch.Tensor], torch.Tensor]
                             ) -> torch.Tensor:
@@ -175,7 +175,8 @@ def _compute_mirrored_value(value: torch.Tensor,
         offset = 0
         value_mirrored = []
         for field, slice_mirror_mat in mirror_mat.items():
-            field_shape = space.original_space[field].shape
+            field_shape = space.original_space[  # type: ignore[attr-defined]
+                field].shape
             field_size = reduce(operator.mul, field_shape)
             slice_idx = slice(offset, offset + field_size)
             slice_mirrored = _update_flattened_slice(
@@ -337,23 +338,27 @@ class PPOTorchPolicy(_PPOTorchPolicy):
             # Observation space
             is_obs_dict = hasattr(observation_space, "original_space")
             if is_obs_dict:
-                observation_space = observation_space.original_space
+                observation_space = observation_space.\
+                    original_space  # type: ignore[attr-defined]
                 self.obs_mirror_mat = {}
-                for field, mirror_mat in observation_space.mirror_mat.items():
+                for field, mirror_mat in observation_space.\
+                        mirror_mat.items():  # type: ignore[attr-defined]
                     obs_mirror_mat = torch.tensor(mirror_mat,
                                                   dtype=torch.float32,
                                                   device=self.device)
                     self.obs_mirror_mat[field] = obs_mirror_mat.T.contiguous()
             else:
-                obs_mirror_mat = torch.tensor(observation_space.mirror_mat,
-                                              dtype=torch.float32,
-                                              device=self.device)
+                obs_mirror_mat = torch.tensor(
+                    observation_space.mirror_mat,  # type: ignore[attr-defined]
+                    dtype=torch.float32,
+                    device=self.device)
                 self.obs_mirror_mat = obs_mirror_mat.T.contiguous()
 
             # Action space
-            action_mirror_mat = torch.tensor(action_space.mirror_mat,
-                                             dtype=torch.float32,
-                                             device=self.device)
+            action_mirror_mat = torch.tensor(
+                action_space.mirror_mat,  # type: ignore[attr-defined]
+                dtype=torch.float32,
+                device=self.device)
             self.action_mirror_mat = action_mirror_mat.T.contiguous()
 
         self._initialize_loss_from_dummy_batch()
@@ -434,6 +439,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
                 # Compute mirrorred observation
                 assert self.obs_mirror_mat is not None
+                assert isinstance(self.observation_space, gym.spaces.Box)
                 observation_mirror = _compute_mirrored_value(
                     observation_true,
                     self.observation_space,
@@ -515,6 +521,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         # Compute the mirrored mean action corresponding to the mirrored action
         if self.config["symmetric_policy_reg"] > 0.0:
             assert self.action_mirror_mat is not None
+            assert isinstance(self.action_space, gym.spaces.Box)
             action_mirror_logits = action_logits["mirrored"]
             action_mirror_mean = get_action_mean(
                 model, dist_class, action_mirror_logits)

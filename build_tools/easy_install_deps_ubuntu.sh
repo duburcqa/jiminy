@@ -60,7 +60,7 @@ apt update && \
 apt install -y python3-pip && \
 ${SUDO_CMD} python3 -m pip install "pip>=20.3,<23.1" && \
 ${SUDO_CMD} python3 -m pip install "setuptools<66.0" "wheel<0.40" && \
-${SUDO_CMD} python3 -m pip install "numpy>=1.16" "numba>=0.54.0"
+${SUDO_CMD} python3 -m pip install "numpy>=1.21" "numba>=0.54.0"
 
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc

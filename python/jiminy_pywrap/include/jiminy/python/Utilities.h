@@ -116,22 +116,26 @@ namespace python
         }
     }
 
-    template<typename returnT, typename ... Args>
+    template<typename ReturnT, typename ... Args>
     std::string getPythonSignature()
     {
         std::ostringstream stringStream;
+        stringStream << "(";
         constexpr std::size_t NArgs = sizeof...(Args);
         bp::detail::signature_element const * const signature = bp::detail::signature<boost::mpl::vector<
-            std::add_lvalue_reference_t<returnT>, std::add_lvalue_reference_t<Args>...> >::elements();
-        stringStream << "( (" << py_type_str(signature[0]) << ")self";
-        for (std::size_t i = 2; i < NArgs; ++i)
+            std::add_lvalue_reference_t<ReturnT>, std::add_lvalue_reference_t<Args>...> >::elements();
+        if constexpr (NArgs > 0)
         {
-            stringStream << ", (" << py_type_str(signature[i]) << ")arg" << i;
+            stringStream << " (" << py_type_str(signature[1]) << ")self";
+            for (std::size_t i = 2; i < NArgs; ++i)
+            {
+                stringStream << ", (" << py_type_str(signature[i]) << ")arg" << i;
+            }
         }
         stringStream << ") -> ";
         /* Special handling of the return type to rely primarily on `to_python_target_type`
            for type inference instead of `expected_pytype_for_arg` as `signature_element`. */
-        PyTypeObject const * py_type = bp::converter::to_python_target_type<returnT>::get_pytype();
+        PyTypeObject const * py_type = bp::converter::to_python_target_type<ReturnT>::get_pytype();
         if (py_type)
         {
             stringStream << py_type->tp_name;
@@ -143,10 +147,10 @@ namespace python
         return stringStream.str();
     }
 
-    template<typename C, typename D, typename ... Args>
-    std::string getPythonSignature(D (* /* pm */)(C, Args...))
+    template<typename D, typename ... Args>
+    std::string getPythonSignature(D (* /* pm */)(Args...))
     {
-        return getPythonSignature<D, C, Args...>();
+        return getPythonSignature<D, Args...>();
     }
 
     template<typename C, typename D, typename ... Args>
@@ -402,48 +406,32 @@ namespace python
     }
 
     // Generic convert from Numpy array to Eigen Matrix by reference
-    inline std::tuple<hresult_t, Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > >
-    getEigenReference(PyObject * dataPy)
+    template<typename T>
+    std::optional<Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > >
+    getEigenReferenceImpl(PyArrayObject * dataPyArray)
     {
-        // Define dummy reference in case of error
-        static matrixN_t dummyMat;
-        static Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > dummyRef(
-            dummyMat.data(), 0, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(0, 0));
-
-        // Check if raw Python object pointer is actually a numpy array
-        if (!PyArray_Check(dataPy))
-        {
-            PRINT_ERROR("'values' input array must have dtype 'np.float64'.");
-            return {hresult_t::ERROR_BAD_INPUT, dummyRef};
-        }
-
-        // Cast raw Python object pointer to numpy array.
-        // Note that const qualifier is not supported by PyArray_DATA.
-        PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
-
         // Check array dtype
-        if (PyArray_TYPE(dataPyArray) != NPY_FLOAT64)
+        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), getPyType(T{})) == NPY_FALSE)
         {
-            PRINT_ERROR("'values' input array must have dtype 'np.float64'.");
-            return {hresult_t::ERROR_BAD_INPUT, dummyRef};
+            PRINT_ERROR("'values' input array has dtype '", PyArray_TYPE(dataPyArray), "' but '", getPyType(T{}), "' was expected.");
+            return {};
         }
 
         // Check array number of dimensions
         int dataPyArrayNdims = PyArray_NDIM(dataPyArray);
         if (dataPyArrayNdims == 0)
         {
-            Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
+            Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
+                static_cast<T *>(PyArray_DATA(dataPyArray)),
                 1, 1, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, 1));
-            return {hresult_t::SUCCESS, data};
+            return {data};
         }
         else if (dataPyArrayNdims == 1)
         {
-            Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
-                PyArray_SIZE(dataPyArray), 1,
+            Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
+                static_cast<T *>(PyArray_DATA(dataPyArray)), PyArray_SIZE(dataPyArray), 1,
                 Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(PyArray_SIZE(dataPyArray), 1));
-            return {hresult_t::SUCCESS, data};
+            return {data};
         }
         else if (dataPyArrayNdims == 2)
         {
@@ -451,30 +439,61 @@ namespace python
             npy_intp * dataPyArrayShape = PyArray_SHAPE(dataPyArray);
             if (flags & NPY_ARRAY_C_CONTIGUOUS)
             {
-                Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                    static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
-                    dataPyArrayShape[0], dataPyArrayShape[1],
+                Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
+                    static_cast<T *>(PyArray_DATA(dataPyArray)), dataPyArrayShape[0], dataPyArrayShape[1],
                     Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, dataPyArrayShape[1]));
-                return {hresult_t::SUCCESS, data};
+                return {data};
             }
             else if (flags & NPY_ARRAY_F_CONTIGUOUS)
             {
-                Eigen::Map<matrixN_t, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
-                    static_cast<float64_t *>(PyArray_DATA(dataPyArray)),
-                    dataPyArrayShape[0], dataPyArrayShape[1],
+                Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > data(
+                    static_cast<T *>(PyArray_DATA(dataPyArray)), dataPyArrayShape[0], dataPyArrayShape[1],
                     Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(dataPyArrayShape[0], 1));
-                return {hresult_t::SUCCESS, data};
+                return {data};
             }
             else
             {
                 PRINT_ERROR("Numpy arrays must be either row or column contiguous.");
-                return {hresult_t::ERROR_BAD_INPUT, dummyRef};
+                return {};
             }
         }
         else
         {
             PRINT_ERROR("Only 1D and 2D 'np.ndarray' are supported.");
-            return {hresult_t::ERROR_BAD_INPUT, dummyRef};
+            return {};
+        }
+    }
+
+    // Generic convert from Numpy array to Eigen Matrix by reference
+    inline std::optional<std::variant<
+        Eigen::Map<Eigen::Matrix<float64_t, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> >,
+        Eigen::Map<Eigen::Matrix<int64_t, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > > >
+    getEigenReference(PyObject * dataPy)
+    {
+        // Check if raw Python object pointer is actually a numpy array
+        if (!PyArray_Check(dataPy))
+        {
+            PRINT_ERROR("'values' must have type 'np.ndarray'.");
+            return {};
+        }
+
+        // Cast raw Python object pointer to numpy array.
+        // Note that const qualifier is not supported by PyArray_DATA.
+        PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
+
+        // Check array dtype
+        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_FLOAT64) == NPY_TRUE)
+        {
+            return {getEigenReferenceImpl<float64_t>(dataPyArray)};
+        }
+        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_INT64) == NPY_TRUE)
+        {
+            return {getEigenReferenceImpl<int64_t>(dataPyArray)};
+        }
+        else
+        {
+            PRINT_ERROR("'values' input array must have dtype 'np.float64' or 'np.int64'.");
+            return {};
         }
     }
 

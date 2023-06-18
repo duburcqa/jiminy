@@ -1,20 +1,20 @@
 """Helper methods to generate learning environment pipeline, consisting in an
-barebone environment inheriting from `BaseJiminyEnv`, wrapped together with
+bare-bone environment inheriting from `BaseJiminyEnv`, wrapped together with
 any number of successive blocks as a unified environment, in Matlab Simulink
 fashion.
 
 It enables to break down a complex control architectures in many submodules,
-making it easier to maintain and avoiding code duplications between usecases.
+making it easier to maintain and avoiding code duplications between use cases.
 """
 import json
 import pathlib
 from pydoc import locate
 from itertools import chain
 from typing import (
-    Optional, Union, Dict, Any, Type, Sequence, Iterable, TypedDict, TypeVar)
+    Dict, Any, Optional, Union, Type, Sequence, Iterable, TypedDict, TypeVar)
 
-import gym
 import toml
+import gymnasium as gym
 
 from .bases import (BlockInterface,
                     BaseControllerBlock,
@@ -25,7 +25,7 @@ from .bases import (BlockInterface,
 from .envs import BaseJiminyEnv
 
 
-PipelineWrapperT = TypeVar('PipelineWrapperT', bound=BasePipelineWrapper)
+PipelineWrapperType = TypeVar('PipelineWrapperType', bound=BasePipelineWrapper)
 
 
 class EnvConfig(TypedDict, total=False):
@@ -138,33 +138,33 @@ def build_pipeline(env_config: EnvConfig,
                                of the wrapper. See 'env_kwargs'.
         """
         # Make sure block and wrappers are class type and parse them if string
-        block_class_obj: Optional[Type[BlockInterface]] = None
+        block_class_: Optional[Type[BlockInterface]] = None
         if isinstance(block_class, str):
             obj = locate(block_class)
             assert (isinstance(obj, type) and
                     issubclass(obj, BlockInterface))
-            block_class_obj = obj
+            block_class_ = obj
         elif block_class is not None:
             assert issubclass(block_class, BlockInterface)
-            block_class_obj = block_class
-        wrapper_class_obj: Optional[Type[BasePipelineWrapper]] = None
+            block_class_ = block_class
+        wrapper_class_: Optional[Type[BasePipelineWrapper]] = None
         if isinstance(wrapper_class, str):
             obj = locate(wrapper_class)
             assert (isinstance(obj, type) and
                     issubclass(obj, BasePipelineWrapper))
-            wrapper_class_obj = obj
+            wrapper_class_ = obj
         elif wrapper_class is not None:
             assert (isinstance(wrapper_class, type) and
                     issubclass(wrapper_class, BasePipelineWrapper))
-            wrapper_class_obj = wrapper_class
+            wrapper_class_ = wrapper_class
 
         # Handling of default wrapper class type
-        if wrapper_class_obj is None:
-            if block_class_obj is not None:
-                if issubclass(block_class_obj, BaseControllerBlock):
-                    wrapper_class_obj = ControlledJiminyEnv
-                elif issubclass(block_class_obj, BaseObserverBlock):
-                    wrapper_class_obj = ObservedJiminyEnv
+        if wrapper_class_ is None:
+            if block_class_ is not None:
+                if issubclass(block_class_, BaseControllerBlock):
+                    wrapper_class_ = ControlledJiminyEnv
+                elif issubclass(block_class_, BaseObserverBlock):
+                    wrapper_class_ = ObservedJiminyEnv
                 else:
                     raise ValueError(
                         f"Block of type '{block_class}' does not support "
@@ -172,16 +172,15 @@ def build_pipeline(env_config: EnvConfig,
                         "specify it manually.")
             else:
                 raise ValueError(
-                    "Either 'block_class' or 'wrapper_class' must be "
-                    "specified.")
+                    "Neither 'block_class' or 'wrapper_class' is specified.")
 
-        def _init_impl(self: PipelineWrapperT, **kwargs: Any) -> None:
+        def _init_impl(self: PipelineWrapperType, **kwargs: Any) -> None:
             """
             :param kwargs: Keyword arguments to forward to both the wrapped
                            environment and the controller. It will overwrite
                            default values.
             """
-            nonlocal env_class, env_kwargs, block_class_obj, block_kwargs, \
+            nonlocal env_class, env_kwargs, block_class_, block_kwargs, \
                 wrapper_kwargs
 
             # Initialize constructor arguments
@@ -196,15 +195,27 @@ def build_pipeline(env_config: EnvConfig,
             args.append(env)
 
             # Define the arguments related to the block, if any
-            if block_class_obj is not None:
+            if block_class_ is not None:
                 if block_kwargs is not None:
                     block_kwargs_default = {**block_kwargs, **kwargs}
                 else:
                     block_kwargs_default = kwargs
-                env_unwrapped = env.unwrapped
-                assert isinstance(env_unwrapped, BaseJiminyEnv)
-                args.append(block_class_obj(
-                    env_unwrapped, **block_kwargs_default))
+                block_name = block_kwargs_default.pop("name", None)
+                if block_name is None:
+                    block_index = 0
+                    block_type = block_class_.type
+                    env_wrapper: gym.Env = env
+                    while isinstance(env_wrapper, gym.Wrapper):
+                        if isinstance(env_wrapper, ControlledJiminyEnv):
+                            if env_wrapper.controller.type == block_type:
+                                block_index += 1
+                        elif isinstance(env_wrapper, ObservedJiminyEnv):
+                            if env_wrapper.observer.type == block_type:
+                                block_index += 1
+                        env_wrapper = env_wrapper.env
+                    block_name = f"{block_type}_{block_index}"
+                block = block_class_(block_name, env, **block_kwargs_default)
+                args.append(block)
 
             # Define the arguments related to the wrapper
             if wrapper_kwargs is not None:
@@ -215,7 +226,7 @@ def build_pipeline(env_config: EnvConfig,
             super(self.__class__, self).__init__(
                 *args, **wrapper_kwargs_default)
 
-        def _dir_impl(self: PipelineWrapperT) -> Iterable[str]:
+        def _dir_impl(self: PipelineWrapperType) -> Iterable[str]:
             """Attribute lookup.
 
             It is mainly used by autocomplete feature of Ipython. It is
@@ -226,10 +237,10 @@ def build_pipeline(env_config: EnvConfig,
                 (name for name in dir(self.env) if not name.startswith('_')))
 
         # Dynamically generate wrapping class
-        wrapper_name = f"{wrapper_class_obj.__name__}Wrapper"
-        if block_class_obj is not None:
-            wrapper_name += f"{block_class_obj.__name__}Block"
-        wrapper_class = type(wrapper_name, (wrapper_class_obj,), {
+        wrapper_name = f"{wrapper_class_.__name__}Wrapper"
+        if block_class_ is not None:
+            wrapper_name += f"{block_class_.__name__}Block"
+        wrapper_class = type(wrapper_name, (wrapper_class_,), {
             "__init__": _init_impl, "__dir__": _dir_impl})
 
         return wrapper_class

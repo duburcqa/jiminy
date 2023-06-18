@@ -5,6 +5,7 @@ from typing import Any
 
 from jiminy_py.core import build_models_from_urdf, Robot
 from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
+from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from pinocchio import neutral, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
@@ -45,7 +46,7 @@ PID_REDUCED_KD = np.array([
 
 PID_FULL_KP = np.array([
     # Neck: [Y]
-    1000.0,
+    100.0,
     # Back: [Z, Y, X]
     5000.0, 8000.0, 5000.0,
     # Left arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
@@ -106,11 +107,15 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
         :param kwargs: Keyword arguments to forward to `Simulator` and
-                       `BaseJiminyEnv` constructors.
+                       `WalkerJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
         data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
         urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
+
+        # Override default camera pose to change the reference frame
+        kwargs.setdefault("viewer_kwargs", {}).setdefault(
+            "camera_pose", (*DEFAULT_CAMERA_XYZRPY_REL, 'utorso'))
 
         # Initialize the walker environment
         super().__init__(
@@ -222,8 +227,10 @@ AtlasPDControlJiminyEnv = build_pipeline(**{
         'block_class': PDController,
         'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
+            'order': 1,
             'pid_kp': PID_FULL_KP,
-            'pid_kd': PID_FULL_KD
+            'pid_kd': PID_FULL_KD,
+            'soft_bounds_margin': 0.0
         },
         'wrapper_kwargs': {
             'augment_observation': False
@@ -240,8 +247,10 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(**{
         'block_class': PDController,
         'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
+            'order': 1,
             'pid_kp': PID_REDUCED_KP,
-            'pid_kd': PID_REDUCED_KD
+            'pid_kd': PID_REDUCED_KD,
+            'soft_bounds_margin': 0.0
         },
         'wrapper_kwargs': {
             'augment_observation': False

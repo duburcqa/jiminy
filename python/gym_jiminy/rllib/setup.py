@@ -34,7 +34,7 @@ setup(
         # Highly efficient distributed computation library used for RL
         # - <1.6.0: GPU detection must be patched to work
         # - 1.11.0: Breaking changes
-        "ray[default,rllib]~=2.2.0",
+        "ray[default,rllib]~=2.5.0",
         # Used for monitoring (logging and publishing) learning progress
         "tensorboardX",
         # Plot data directly in terminal to monitor stats without X-server

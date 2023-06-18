@@ -1,20 +1,19 @@
 """ TODO: Write documentation.
 """
 import time
-from typing import Optional, Union, Tuple, Dict, Any
+from typing import Any, List, Optional, Tuple, Generic, Union, SupportsFloat
 
-import numpy as np
-
-import gym
+import gymnasium as gym
+from gymnasium.core import RenderFrame
 
 from jiminy_py.viewer import sleep
 
-from ..utils import DataNested
-from ..bases import BasePipelineWrapper
+from ..bases import ObsT, ActT, InfoType, EnvOrWrapperType
 from ..envs import BaseJiminyEnv
 
 
-class FrameRateLimiter(gym.Wrapper):
+class FrameRateLimiter(gym.Wrapper,  # [ObsT, ActT, ObsT, ActT],
+                       Generic[ObsT, ActT]):
     """Limit the rendering framerate of an environment to a given threshold,
     which is typically useful if human rendering is enabled.
 
@@ -26,7 +25,7 @@ class FrameRateLimiter(gym.Wrapper):
         `BaseJiminyEnv` as it requires having a `step_dt` attribute.
     """
     def __init__(self,  # pylint: disable=unused-argument
-                 env: Union[BasePipelineWrapper, BaseJiminyEnv],
+                 env: EnvOrWrapperType[ObsT, ActT],
                  speed_ratio: float = 1.0,
                  human_only: bool = True,
                  **kwargs: Any):
@@ -44,6 +43,7 @@ class FrameRateLimiter(gym.Wrapper):
         self.human_only = human_only
 
         # Extract proxies for convenience
+        assert isinstance(env.unwrapped, BaseJiminyEnv)
         self._step_dt_rel = env.unwrapped.step_dt / speed_ratio
 
         # Buffer to keep track of the last time `step` method was called
@@ -53,8 +53,8 @@ class FrameRateLimiter(gym.Wrapper):
         super().__init__(env)
 
     def step(self,
-             action: Optional[DataNested] = None
-             ) -> Tuple[DataNested, float, bool, Dict[str, Any]]:
+             action: Optional[ActT] = None
+             ) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
         """This method does nothing more than  recording the current time,
         then calling `self.env.step`. See `BaseJiminyEnv.step` for details.
 
@@ -66,24 +66,15 @@ class FrameRateLimiter(gym.Wrapper):
         self._time_prev = time.time()
         return self.env.step(action)
 
-    def render(self,
-               mode: Optional[str] = None,
-               **kwargs: Any) -> Optional[np.ndarray]:
+    def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         """This method does nothing more than calling `self.env.render`, then
         sleeping to cap the framerate at the requested speed ratio. See
         `BaseJiminyEnv.render` for details.
 
-        :param mode: Rendering mode. It can be either 'human' to display the
-                     current simulation state, or 'rgb_array' to return a
-                     snapshot as an RGB array without showing it on the screen.
-                     Optional: 'human' by default if available based on current
-                     backend, 'rgb_array' otherwise.
-        :param kwargs: Extra keyword arguments to forward to
-                       `jiminy_py.simulator.Simulator.render` method.
-
-        :returns: RGB array if 'mode' is 'rgb_array', None otherwise.
+        :returns: RGB array if 'render_mode' is 'rgb_array', None otherwise.
         """
-        out = self.env.render(mode, **kwargs)
+        out: Optional[
+            Union[RenderFrame, List[RenderFrame]]] = self.env.render()
         if not self.human_only or out is None:
             sleep(self._step_dt_rel - (time.time() - self._time_prev))
         return out

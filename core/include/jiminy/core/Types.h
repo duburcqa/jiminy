@@ -200,9 +200,9 @@ namespace jiminy
         {
             if (sharedDataRef_)
             {
-                /* Return shared memory directly it is up to the sure to make sure
+                /* Return shared memory directly. It is up to the sure to make sure
                    that it is actually up-to-date. */
-                assert(size() == static_cast<std::size_t>(sharedDataRef_->get().rows()) &&
+                assert(size() == static_cast<std::size_t>(sharedDataRef_->get().cols()) &&
                        "Shared data inconsistent with sensors.");
                 return sharedDataRef_->get();
             }
@@ -216,13 +216,13 @@ namespace jiminy
                 }
 
                 // Resize internal buffer if needed
-                sharedData_.resize(static_cast<Eigen::Index>(size()), dataSize);
+                sharedData_.resize(dataSize, static_cast<Eigen::Index>(size()));
 
                 // Set internal buffer by copying sensor data sequentially
                 for (auto const & sensor : *this)
                 {
                     assert(sensor.value.size() == dataSize && "Cannot get all data at once for heterogeneous sensors.");
-                    sharedData_.row(sensor.idx) = sensor.value;
+                    sharedData_.col(sensor.idx) = sensor.value;
                 }
 
                 return sharedData_;

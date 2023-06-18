@@ -27,7 +27,7 @@ jobs:
         shell: bash
 
     env:
-      TORCH_VERSION: "1.13.1+cpu"
+      TORCH_VERSION: "2.0.1+cpu"
       CMAKE_CXX_FLAGS: "-march=x86-64-v3 -mtune=generic"
 
     #####################################################################################
@@ -61,16 +61,16 @@ jobs:
         sudo apt update
         sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "pip>=20.3,<23.1"
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "setuptools<66.0" "wheel<0.40"
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.16" "numba>=0.54.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "pip>=20.3,<23.1"
+        "${PYTHON_EXECUTABLE}" -m pip install "setuptools<66.0" "wheel<0.40"
+        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21" "numba>=0.54.0"
 
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
         BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
         "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -84,8 +84,7 @@ jobs:
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
-              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.11' && 'OFF') || 'ON' }} \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_GYM_JIMINY=ON \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j2
 
@@ -118,13 +117,17 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
-      if: matrix.PYTHON_VERSION != '3.11' && matrix.BUILD_TYPE == 'Release'
+      if: matrix.BUILD_TYPE == 'Release'
       run: |
-        cd "$RootDir/python/gym_jiminy/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
-
         cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
+
+        # FIXME: Must install stable_baselines3 after running rllib test
+        # because they require a different version of `gymnasium`.
+        "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3==2.0.0a13"
+
+        cd "$RootDir/python/gym_jiminy/unit_py"
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Python static type checker
       if: matrix.PYTHON_VERSION == '3.8' && matrix.BUILD_TYPE == 'Release'
@@ -139,6 +142,9 @@ jobs:
         # Re-install jiminy with stubs
         cd "$RootDir/build"
         make install
+
+        # FIXME: Force re-installing the right version of gymnasium
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<0.29"
 
         # mypy is not able to follow `.pth` when checking directories or files.
         # This bug may be fixed in the future. The only workaround is to set `MYPYPATH` manually.

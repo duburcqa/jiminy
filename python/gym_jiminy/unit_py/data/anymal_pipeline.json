@@ -10,8 +10,10 @@
       "block_class": "gym_jiminy.common.controllers.PDController",
       "block_kwargs": {
         "update_ratio": 2,
+        "order": 1,
         "pid_kp": [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
-        "pid_kd": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+        "pid_kd": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+        "soft_bounds_margin": 0.0
       },
       "wrapper_kwargs": {
         "augment_observation": true
@@ -22,8 +24,8 @@
       "wrapper_kwargs": {
         "nested_filter_keys": [
           ["t"],
-          ["sensors", "ImuSensor"],
-          ["targets"]
+          ["sensors_data", "ImuSensor"],
+          ["actions"]
         ],
         "num_stack": 3,
         "skip_frames_ratio": 2

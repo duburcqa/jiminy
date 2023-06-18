@@ -11,7 +11,7 @@ about 40000 at best.
 
 # ======================== User parameters =========================
 
-GYM_ENV_NAME = "gym_jiminy.envs:acrobot-v0"
+GYM_ENV_NAME = "gym_jiminy.envs:acrobot"
 GYM_ENV_KWARGS = {
     'continuous': True
 }
@@ -25,7 +25,7 @@ N_GPU = 1
 __import__("os").environ["CUDA_VISIBLE_DEVICES"] = \
     ",".join(map(str, range(N_GPU)))
 
-import gym
+import gymnasium as gym
 from torch import nn
 
 from stable_baselines3.ppo import PPO

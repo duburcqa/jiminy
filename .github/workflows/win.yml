@@ -19,7 +19,7 @@ jobs:
         shell: pwsh
 
     env:
-      TORCH_VERSION: "1.13.1+cpu"
+      TORCH_VERSION: "2.0.1+cpu"
       BUILD_TYPE: "Release"
       GENERATOR: "Visual Studio 17 2022"
       CMAKE_CXX_FLAGS: "/d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"
@@ -46,15 +46,16 @@ jobs:
     - name: Setup minimal build environment
       run: |
         git config --global advice.detachedHead false
-        python -m pip install --upgrade "pip>=20.3,<23.1"
-        python -m pip install --upgrade "setuptools<66.0" "wheel<0.40" pefile machomachomangler
-        python -m pip install --upgrade "numpy>=1.16" "numba>=0.54.0"
-        python -m pip uninstall -y pipx  # Uninstall unecessary packages causing conflicts with the new resolver
+        python -m pip install "pip>=20.3,<23.1"
+        python -m pip install "setuptools<66.0" "wheel<0.40" pefile machomachomangler
+        python -m pip install "numpy>=1.21" "numba>=0.54.0"
+        # FIXME: Uninstall unecessary packages causing conflicts with the new resolver
+        python -m pip uninstall -y pipx
     - name: Build project dependencies
       run: |
         if ("${{ matrix.PYTHON_VERSION }}" -ne '3.11') {
           python -m pip install "torch==${env:TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
-          python -m pip install "gym>=0.21,<0.24" "importlib-metadata>=3.3.0" stable_baselines3
+          python -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
         }
         & "./build_tools/build_install_deps_windows.ps1"
 
@@ -177,12 +178,14 @@ jobs:
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
 
-        Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
-        python -m unittest discover -v
-
         Set-Location -Path "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         $JIMINY_VIEWER_DEFAULT_BACKEND = "panda3d-sync"
         python acrobot_ppo.py
+
+        python -m pip install "stable_baselines3==2.0.0a13"
+
+        Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
+        python -m unittest discover -v
 
 #########################################################################################
 

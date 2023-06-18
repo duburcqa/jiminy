@@ -11,7 +11,7 @@ about 80000 at best.
 
 # ======================== User parameters =========================
 
-GYM_ENV_NAME = "gym_jiminy.envs:cartpole-v0"
+GYM_ENV_NAME = "gym_jiminy.envs:cartpole"
 GYM_ENV_KWARGS = {
     'continuous': True
 }
@@ -27,7 +27,7 @@ __import__("os").environ["CUDA_VISIBLE_DEVICES"] = \
     ",".join(map(str, range(N_GPU)))
 
 import logging
-import gym
+import gymnasium as gym
 import ray
 from ray.tune.registry import register_env
 from ray.rllib.models import ModelCatalog, MODEL_DEFAULTS

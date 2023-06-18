@@ -56,8 +56,13 @@ setup(
         # - 0.1.7 breaking API and internal changes.
         "dm-tree>=0.1.7",
         # Standard interface library for reinforcement learning.
-        # - >= 0.22.0 adds more type hints and changes `reset` API.
-        "gym>=0.21.0,<0.22.0"
+        # - `gym` has been replaced by `gymnasium` for 0.26.0+
+        # - 0.28.0: fully typed
+        # - bound version for resilience to recurrent API breakage
+        "gymnasium>=0.26,<0.29",
+        # For backward compatibility of latest Python typing features
+        # - TypeAlias has been added with Python 3.10
+        "typing_extensions"
     ],
     extras_require=extras,
     zip_safe=False
