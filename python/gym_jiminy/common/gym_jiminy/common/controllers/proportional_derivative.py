@@ -17,11 +17,10 @@ from ..utils import fill
 
 
 # Pre-computed factorial for small integers
-INV_FACTORIAL = tuple(1.0 / math.factorial(i) for i in range(6))
+INV_FACTORIAL_TABLE = tuple(1.0 / math.factorial(i) for i in range(4))
 
 # Name of the n-th position derivative
-N_ORDER_DERIVATIVE_NAMES = [
-    "Position", "Velocity", "Acceleration", "Jerk", "Snap", "Crackle", "Pop"]
+N_ORDER_DERIVATIVE_NAMES = ("Position", "Velocity", "Acceleration", "Jerk")
 
 # Command velocity deadband to reduce vibrations and internal efforts
 EVAL_DEADBAND = 5.0e-3
@@ -79,7 +78,7 @@ def integrate_zoh(state_prev: np.ndarray,
     # Compute integration matrix
     order = len(state_prev)
     integ_coeffs = np.array([
-        pow(dt, k) * INV_FACTORIAL[k] for k in range(order)])
+        pow(dt, k) * INV_FACTORIAL_TABLE[k] for k in range(order)])
     integ_matrix = toeplitz(integ_coeffs, np.zeros(order)).T
     integ_zero = integ_matrix[:, :-1].copy() @ state_prev[:-1]
     integ_drift = integ_matrix[:, -1:]
@@ -192,7 +191,7 @@ class PDController(
                        generation.
         """
         # Make sure that the specified derivative order is valid
-        assert order > 0
+        assert (0 < order < 4), "Derivative order of command out-of-bounds"
 
         # Backup some user argument(s)
         self.order = order
@@ -243,9 +242,9 @@ class PDController(
         for i in range(2, order + 1):
             range_limit = (
                 command_state_upper[-1] - command_state_lower[-1]) / step_dt
-            effort_limit = command_limit / np.maximum(
-                pid_kp * step_dt ** i * INV_FACTORIAL[i],
-                pid_kp * pid_kd * step_dt ** (i - 1) * INV_FACTORIAL[i - 1])
+            effort_limit = command_limit / (
+                self.pid_kp * step_dt ** (i - 1) * INV_FACTORIAL_TABLE[i - 1] *
+                np.maximum(step_dt / i, self.pid_kd))
             n_order_limit = np.minimum(range_limit, effort_limit)
             command_state_lower.append(-n_order_limit)
             command_state_upper.append(n_order_limit)
