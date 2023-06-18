@@ -64,14 +64,14 @@ class PipelineDesign(unittest.TestCase):
         # Load TOML pipeline description, create env and perform a step
         toml_file = os.path.join(data_dir, "anymal_pipeline.toml")
         ANYmalPipelineEnv = load_pipeline(toml_file)
-        env = ANYmalPipelineEnv()
+        env = ANYmalPipelineEnv(debug=True)
         env.reset()
         env.step()
 
         # Load JSON pipeline description, create env and perform a step
         json_file = os.path.join(data_dir, "anymal_pipeline.json")
         ANYmalPipelineEnv = load_pipeline(json_file)
-        env = ANYmalPipelineEnv()
+        env = ANYmalPipelineEnv(debug=True)
         env.reset()
         env.step()
 

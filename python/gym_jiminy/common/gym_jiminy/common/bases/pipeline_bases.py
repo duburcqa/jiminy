@@ -297,6 +297,34 @@ class ObservedJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
+        # Re-initialize the observation to share memory with the environment.
+        # The part of the observation corresponding to the environment is
+        # shared with it for efficiency. Because of this, it is necessary to
+        # override the wrapper's observation to share memory addresses with
+        # the environment. Yet, it only has to be done once at init, since all
+        # pre-allocated memory addresses are not supposed to change by design
+        # even after calling 'reset' on the environment.
+        base_observation = self.env.get_observation()
+        if isinstance(base_observation, dict):
+            # Store references of the values but not the dict itself,
+            # otherwise it will share all extra keys added later on.
+            self._observation.update(base_observation)
+            if base_features := base_observation.get('features'):
+                assert isinstance(self._observation['features'], dict)
+                self._observation['features'].update(base_features)
+            if base_states := base_observation.get('states'):
+                assert isinstance(self._observation['states'], dict)
+                self._observation['states'].update(base_states)
+        else:
+            self._observation['measurement'] = base_observation
+        if (state := self.observer.get_state()) is not None:
+            self._observation.setdefault(
+                'states', OrderedDict())[  # type: ignore[index]
+                    self.observer.name] = state
+        self._observation.setdefault(
+            'features', OrderedDict())[  # type: ignore[index]
+                self.observer.name] = self.observer.get_observation()
+
     def _setup(self) -> None:
         """Configure the wrapper.
 
@@ -354,34 +382,9 @@ class ObservedJiminyEnv(
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
-        # The part of the observation corresponding to the original observation
-        # of the environment is not copied by shared with it for efficiency.
-        # Because of this, it is only necessary to update its memory reference
-        # at reset, just before the simulation starts.
         t = self.stepper_state.t
         if is_breakpoint(t, self.observe_dt, DT_EPS):
-            base_observation = self.env.get_observation()
-            self.observer.refresh_observation(base_observation)
-            if not self.simulator.is_simulation_running:
-                if isinstance(base_observation, dict):
-                    # Store references of the values but not the dict itself,
-                    # otherwise it will share all extra keys added later on.
-                    self._observation.update(base_observation)
-                    if base_features := base_observation.get('features'):
-                        assert isinstance(self._observation['features'], dict)
-                        self._observation['features'].update(base_features)
-                    if base_states := base_observation.get('states'):
-                        assert isinstance(self._observation['states'], dict)
-                        self._observation['states'].update(base_states)
-                else:
-                    self._observation['measurement'] = base_observation
-                if (state := self.observer.get_state()) is not None:
-                    self._observation.setdefault(
-                        'states', OrderedDict())[  # type: ignore[index]
-                            self.observer.name] = state
-                self._observation.setdefault(
-                    'features', OrderedDict())[  # type: ignore[index]
-                        self.observer.name] = self.observer.get_observation()
+            self.observer.refresh_observation(self.env.get_observation())
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -482,8 +485,31 @@ class ControlledJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
-        # Initialize the action buffer
+        # Allocate action buffer
         self.action: ActT = zeros(self.action_space)
+
+        # Re-initialize the observation to share memory with the environment.
+        base_observation = self.env.get_observation()
+        if isinstance(base_observation, dict):
+            # Store references of the values but not the dict itself,
+            # otherwise it will share all extra keys added later on.
+            self._observation.update(base_observation)
+            if base_actions := base_observation.get('actions'):
+                assert isinstance(self._observation['actions'], dict)
+                self._observation['actions'].update(base_actions)
+            if base_states := base_observation.get('states'):
+                assert isinstance(self._observation['states'], dict)
+                self._observation['states'].update(base_states)
+        else:
+            self._observation['measurement'] = base_observation
+        if (state := self.controller.get_state()) is not None:
+            self._observation.setdefault(
+                'states', OrderedDict())[  # type: ignore[index]
+                    self.controller.name] = state
+        if self.augment_observation:
+            self._observation.setdefault(
+                'actions', OrderedDict())[  # type: ignore[index]
+                    self.controller.name] = self.action
 
         # Register the controller's target to the telemetry
         self.env.register_variable('action',  # type: ignore[union-attr]
@@ -517,6 +543,10 @@ class ControlledJiminyEnv(
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
+
+        It gathers the original observation from the environment plus the
+        internal state to of the controller, and optionally the target computed
+        by the controller if requested.
         """
         # Append the controller's target to the observation if requested
         observation_space: Dict[str, gym.Space[Any]] = OrderedDict()
@@ -544,39 +574,14 @@ class ControlledJiminyEnv(
         directly without any further processing.
 
         .. warning::
-            Beware it shares the environment observation whenever it is
-            possible for the sake of efficiency. Despite that, it is safe to
-            call this method multiple times successively.
+            Beware it shares the environment observation whenever possible
+            for the sake of efficiency. Despite that, it is safe to call this
+            method multiple times successively.
 
         :returns: Original environment observation, eventually including
                   controllers targets if requested.
         """
-        # Get environment observation
         self.env.refresh_observation(measurement)
-
-        # Add target and internal state to observation if requested
-        if not self.simulator.is_simulation_running:
-            base_observation = self.env.get_observation()
-            if isinstance(base_observation, dict):
-                # Store references of the values but not the dict itself,
-                # otherwise it will share all extra keys added later on.
-                self._observation.update(base_observation)
-                if base_actions := base_observation.get('actions'):
-                    assert isinstance(self._observation['actions'], dict)
-                    self._observation['actions'].update(base_actions)
-                if base_states := base_observation.get('states'):
-                    assert isinstance(self._observation['states'], dict)
-                    self._observation['states'].update(base_states)
-            else:
-                self._observation['measurement'] = base_observation
-            if (state := self.controller.get_state()) is not None:
-                self._observation.setdefault(
-                    'states', OrderedDict())[  # type: ignore[index]
-                        self.controller.name] = state
-            if self.augment_observation:
-                self._observation.setdefault(
-                    'actions', OrderedDict())[  # type: ignore[index]
-                        self.controller.name] = self.action
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
