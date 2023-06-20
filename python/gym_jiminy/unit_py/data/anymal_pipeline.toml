@@ -4,7 +4,7 @@ env_class = "gym_jiminy.envs.ANYmalJiminyEnv"
 step_dt = 0.04
 
 [[blocks_config]]
-block_class = "gym_jiminy.common.controllers.PDController"
+block_class = "gym_jiminy.common.blocks.PDController"
 [blocks_config.block_kwargs]
 update_ratio = 2
 order = 1

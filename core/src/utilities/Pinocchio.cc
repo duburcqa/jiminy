@@ -873,6 +873,13 @@ namespace jiminy
                           vectorN_t        const & timesOut,
                           matrixN_t              & positionsOut)
     {
+        // Nothing to do. Return early.
+        if (timesIn.size() == 0)
+        {
+            positionsOut.conservativeResize(0, Eigen::NoChange);
+            return hresult_t::SUCCESS;
+        }
+
         if (!std::is_sorted(timesIn.data(), timesIn.data() + timesIn.size())
          || !std::is_sorted(timesOut.data(), timesOut.data() + timesOut.size()))
         {

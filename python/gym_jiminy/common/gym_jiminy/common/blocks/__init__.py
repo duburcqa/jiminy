@@ -1,6 +1,6 @@
 # pylint: disable=missing-module-docstring
 
-from .proportional_derivative import PDController
+from .controller_proportional_derivative import PDController
 
 
 __all__ = [

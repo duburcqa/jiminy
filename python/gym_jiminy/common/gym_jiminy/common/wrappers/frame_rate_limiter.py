@@ -8,7 +8,7 @@ from gymnasium.core import RenderFrame
 
 from jiminy_py.viewer import sleep
 
-from ..bases import ObsT, ActT, InfoType, EnvOrWrapperType
+from ..bases import ObsT, ActT, InfoType, JiminyEnvInterface
 from ..envs import BaseJiminyEnv
 
 
@@ -25,7 +25,7 @@ class FrameRateLimiter(gym.Wrapper,  # [ObsT, ActT, ObsT, ActT],
         `BaseJiminyEnv` as it requires having a `step_dt` attribute.
     """
     def __init__(self,  # pylint: disable=unused-argument
-                 env: EnvOrWrapperType[ObsT, ActT],
+                 env: JiminyEnvInterface[ObsT, ActT],
                  speed_ratio: float = 1.0,
                  human_only: bool = True,
                  **kwargs: Any):

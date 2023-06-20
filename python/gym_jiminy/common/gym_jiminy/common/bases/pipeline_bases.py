@@ -8,12 +8,14 @@ It implements:
 - a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
   eventually already wrapped, so that it appears as a black-box environment.
 """
+import math
 from weakref import ref
 from copy import deepcopy
 from collections import OrderedDict
 from itertools import chain
 from typing import (
-    Dict, Any, Optional, Tuple, Iterable, Generic, TypeVar, SupportsFloat)
+    Dict, Any, Optional, Tuple, Iterable, Generic, TypeVar, SupportsFloat,
+    Callable)
 
 import numpy as np
 import gymnasium as gym
@@ -26,12 +28,9 @@ from .generic_bases import (DT_EPS,
                             BaseObsT,
                             BaseActT,
                             InfoType,
-                            ObserverHandleType,
-                            ControllerHandleType,
                             EngineObsType,
                             JiminyEnvInterface)
-from .block_bases import (
-    EnvOrWrapperType, BaseControllerBlock, BaseObserverBlock)
+from .block_bases import BaseControllerBlock, BaseObserverBlock
 
 
 OtherObsT = TypeVar('OtherObsT', bound=DataNested)
@@ -39,11 +38,7 @@ OtherStateT = TypeVar('OtherStateT', bound=DataNested)
 NestedObsT = TypeVar('NestedObsT', bound=Dict[str, DataNested])
 
 
-# Note that `BasePipelineWrapper` must inherit from `gym.Wrapper` before
-# `JiminyEnvInterface` as they both inherit from `gym.Env` but `gym.Wrapper`
-# implementation is expected to take precedence.
-class BasePipelineWrapper(  # type: ignore[misc]
-        gym.Wrapper,  # [ObsT, ActT, BaseObsT, BaseActT],
+class BasePipelineWrapper(
         JiminyEnvInterface[ObsT, ActT],
         Generic[ObsT, ActT, BaseObsT, BaseActT]):
     """Base class for wrapping a `BaseJiminyEnv` Gym environment so that it
@@ -60,10 +55,10 @@ class BasePipelineWrapper(  # type: ignore[misc]
         It is recommended to add the controllers and observers into the
         policy itself if they have to be trainable.
     """
-    env: EnvOrWrapperType[BaseObsT, BaseActT]
+    env: JiminyEnvInterface[BaseObsT, BaseActT]
 
     def __init__(self,
-                 env: EnvOrWrapperType[BaseObsT, BaseActT],
+                 env: JiminyEnvInterface[BaseObsT, BaseActT],
                  **kwargs: Any) -> None:
         """
         :param kwargs: Extra keyword arguments for multiple inheritance.
@@ -77,11 +72,8 @@ class BasePipelineWrapper(  # type: ignore[misc]
         self.system_state = env.system_state
         self.sensors_data = env.sensors_data
 
-        # Manually initialize the base interfaces.
-        # This is necessary because `gym.Wrapper` was not designed for multiple
-        # inheritance, hence breaking `__init__` chaining.
-        gym.Wrapper.__init__(self, env)
-        JiminyEnvInterface.__init__(self)  # type: ignore[arg-type]
+        # Call base implementation()
+        super().__init__()  # Do not forward any argument
 
         # By default, bind the action to the one of the base environment
         assert self.action_space.contains(env.action)
@@ -130,8 +122,12 @@ class BasePipelineWrapper(  # type: ignore[misc]
         # corresponding object noncollectable and hence cause a memory leak.
         pipeline_wrapper_ref = ref(self)
 
+        # Extra reset_hook from options if provided
+        derived_reset_hook: Optional[Callable[[], JiminyEnvInterface]] = (
+            options or {}).get("reset_hook")
+
         # Define chained controller hook
-        def reset_hook() -> Tuple[ObserverHandleType, ControllerHandleType]:
+        def reset_hook() -> JiminyEnvInterface:
             """Register the block to the higher-level block.
 
             This method is used internally to make sure that `_setup` method
@@ -139,29 +135,19 @@ class BasePipelineWrapper(  # type: ignore[misc]
             lowest-level block to the highest-level one, right after reset of
             the low-level simulator and just before performing the first step.
             """
-            nonlocal pipeline_wrapper_ref, options
+            nonlocal pipeline_wrapper_ref, derived_reset_hook
 
             # Extract and initialize the pipeline wrapper
-            pipeline_wrapper = pipeline_wrapper_ref()
-            assert pipeline_wrapper is not None
-            pipeline_wrapper._setup()
+            env_derived: Optional[JiminyEnvInterface] = pipeline_wrapper_ref()
+            assert env_derived is not None
 
-            # Forward the observer and controller handles provided by the
-            # controller hook of higher-level block, if any, or use the
-            # ones of this block otherwise.
-            observer_handle, controller_handle = None, None
-            if options is not None:
-                reset_hook = options.get("reset_hook")
-                if reset_hook is not None:
-                    assert callable(reset_hook)
-                    handles = reset_hook()
-                    if handles is not None:
-                        observer_handle, controller_handle = handles
-            if observer_handle is None:
-                observer_handle = pipeline_wrapper._observer_handle
-            if controller_handle is None:
-                controller_handle = pipeline_wrapper._controller_handle
-            return observer_handle, controller_handle
+            # Forward the environment provided by the reset hook of higher-
+            # level block if any, or use this wrapper otherwise.
+            if derived_reset_hook is None:
+                assert callable(derived_reset_hook)
+                env_derived = derived_reset_hook()
+
+            return env_derived
 
         # Reset the seed of the action and observation spaces
         if seed is not None:
@@ -191,11 +177,13 @@ class BasePipelineWrapper(  # type: ignore[misc]
         _, reward, done, truncated, info = self.env.step(
             None)  # type: ignore[arg-type]
 
-        # Compute block's reward and add it to base one
-        is_beyond_done = self.env.unwrapped. \
-            _num_steps_beyond_done == 0  # type: ignore[union-attr]
-        reward = float(reward) + self.compute_reward(
-            done and is_beyond_done, truncated and is_beyond_done, info)
+        # Compute block's reward and add it to base one as long as it is worth
+        # doing so, namely it is not 'nan' already.
+        # Note that the reward would be 'nan' if the episode is over and the
+        # user keeps doing more steps nonetheless.
+        reward = float(reward)
+        if not math.isnan(reward):
+            reward += self.compute_reward(done, truncated, info)
 
         return self.get_observation(), reward, done, truncated, info
 
@@ -265,7 +253,7 @@ class ObservedJiminyEnv(
         if it has to be trainable.
     """
     def __init__(self,
-                 env: EnvOrWrapperType[BaseObsT, ActT],
+                 env: JiminyEnvInterface[BaseObsT, ActT],
                  observer: BaseObserverBlock[
                      OtherObsT, OtherStateT, BaseObsT, ActT],
                  **kwargs: Any):
@@ -283,16 +271,15 @@ class ObservedJiminyEnv(
         # Backup user arguments
         self.observer = observer
 
-        # Make sure that the environment pipeline does not already have one
-        # block with the same name.
+        # Make sure that the pipeline does not have a block with the same name
         block_name = observer.name
-        env_wrapper: gym.Env = env
-        while isinstance(env_wrapper, gym.Wrapper):
-            if isinstance(env_wrapper, ObservedJiminyEnv):
-                assert block_name != env_wrapper.observer.name
-            if isinstance(env_wrapper, ControlledJiminyEnv):
-                assert block_name != env_wrapper.controller.name
-            env_wrapper = env_wrapper.env
+        env_unwrapped: JiminyEnvInterface = env
+        while isinstance(env_unwrapped, BasePipelineWrapper):
+            if isinstance(env_unwrapped, ObservedJiminyEnv):
+                assert block_name != env_unwrapped.observer.name
+            if isinstance(env_unwrapped, ControlledJiminyEnv):
+                assert block_name != env_unwrapped.controller.name
+            env_unwrapped = env_unwrapped.env
 
         # Initialize base wrapper
         super().__init__(env, **kwargs)
@@ -443,7 +430,7 @@ class ControlledJiminyEnv(
         the controllers into the policy itself if it has to be trainable.
     """  # noqa: E501  # pylint: disable=line-too-long
     def __init__(self,
-                 env: EnvOrWrapperType[BaseObsT, BaseActT],
+                 env: JiminyEnvInterface[BaseObsT, BaseActT],
                  controller: BaseControllerBlock[
                      ActT, OtherStateT, BaseObsT, BaseActT],
                  augment_observation: bool = False,
@@ -481,6 +468,16 @@ class ControlledJiminyEnv(
         # Backup user arguments
         self.controller = controller
         self.augment_observation = augment_observation
+
+        # Make sure that the pipeline does not have a block with the same name
+        block_name = controller.name
+        env_unwrapped: JiminyEnvInterface = env
+        while isinstance(env_unwrapped, BasePipelineWrapper):
+            if isinstance(env_unwrapped, ObservedJiminyEnv):
+                assert block_name != env_unwrapped.observer.name
+            if isinstance(env_unwrapped, ControlledJiminyEnv):
+                assert block_name != env_unwrapped.controller.name
+            env_unwrapped = env_unwrapped.env
 
         # Initialize base wrapper
         super().__init__(env, **kwargs)

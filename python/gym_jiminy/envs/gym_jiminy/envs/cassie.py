@@ -12,7 +12,7 @@ from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
 from pinocchio import neutral, SE3, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.controllers import PDController
+from gym_jiminy.common.blocks import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 
 try:

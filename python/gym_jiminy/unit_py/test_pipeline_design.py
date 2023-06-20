@@ -30,7 +30,7 @@ class PipelineDesign(unittest.TestCase):
                 }
             },
             'blocks_config': [{
-                'block_class': 'gym_jiminy.common.controllers.PDController',
+                'block_class': 'gym_jiminy.common.blocks.PDController',
                 'block_kwargs': {
                     'update_ratio': 2,
                     'order': 1,

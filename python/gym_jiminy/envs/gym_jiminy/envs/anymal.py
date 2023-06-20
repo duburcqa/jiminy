@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.controllers import PDController
+from gym_jiminy.common.blocks import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 
 try:

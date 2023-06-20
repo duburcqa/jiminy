@@ -12,7 +12,7 @@ from numpy.lib.stride_tricks import as_strided
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder)
 
-from ..bases import BaseObsT, EnvOrWrapperType, BaseControllerBlock
+from ..bases import BaseObsT, JiminyEnvInterface, BaseControllerBlock
 from ..utils import fill
 
 
@@ -172,7 +172,7 @@ class PDController(
     """
     def __init__(self,
                  name: str,
-                 env: EnvOrWrapperType,
+                 env: JiminyEnvInterface[BaseObsT, np.ndarray],
                  order: int = 1,
                  update_ratio: int = 1,
                  pid_kp: Union[float, List[float], np.ndarray] = 0.0,

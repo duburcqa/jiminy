@@ -9,7 +9,7 @@ from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from pinocchio import neutral, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.controllers import PDController
+from gym_jiminy.common.blocks import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 

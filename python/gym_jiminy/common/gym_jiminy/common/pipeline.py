@@ -16,7 +16,8 @@ from typing import (
 import toml
 import gymnasium as gym
 
-from .bases import (BlockInterface,
+from .bases import (JiminyEnvInterface,
+                    BlockInterface,
                     BaseControllerBlock,
                     BaseObserverBlock,
                     BasePipelineWrapper,
@@ -102,8 +103,7 @@ def build_pipeline(env_config: EnvConfig,
     # pylint: disable-all
 
     # Define helper to wrap a single block
-    def _build_wrapper(env_class: Union[
-                           Type[gym.Wrapper], Type[BaseJiminyEnv]],
+    def _build_wrapper(env_class: Type[JiminyEnvInterface],
                        env_kwargs: Optional[Dict[str, Any]] = None,
                        block_class: Optional[Union[
                            Type[BlockInterface], str]] = None,
@@ -205,7 +205,7 @@ def build_pipeline(env_config: EnvConfig,
                     block_index = 0
                     block_type = block_class_.type
                     env_wrapper: gym.Env = env
-                    while isinstance(env_wrapper, gym.Wrapper):
+                    while isinstance(env_wrapper, BasePipelineWrapper):
                         if isinstance(env_wrapper, ControlledJiminyEnv):
                             if env_wrapper.controller.type == block_type:
                                 block_index += 1
@@ -247,11 +247,10 @@ def build_pipeline(env_config: EnvConfig,
 
     # Generate pipeline sequentially
     pipeline_class: Union[
-        Type[BaseJiminyEnv], Type[gym.Wrapper], str] = env_config['env_class']
+        Type[JiminyEnvInterface], str] = env_config['env_class']
     if isinstance(pipeline_class, str):
         obj = locate(pipeline_class)
-        assert isinstance(obj, type)
-        assert issubclass(obj, (gym.Wrapper, BaseJiminyEnv))
+        assert isinstance(obj, type) and issubclass(obj, JiminyEnvInterface)
         pipeline_class = obj
     env_kwargs = env_config.get('env_kwargs')
     for config in blocks_config:

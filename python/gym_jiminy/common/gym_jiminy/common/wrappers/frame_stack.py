@@ -17,9 +17,9 @@ from ..utils import is_breakpoint, zeros
 from ..bases import (DT_EPS,
                      ObsT,
                      ActT,
-                     EnvOrWrapperType,
                      InfoType,
                      EngineObsType,
+                     JiminyEnvInterface,
                      BasePipelineWrapper)
 
 
@@ -181,7 +181,7 @@ class StackedJiminyEnv(
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: EnvOrWrapperType[ObsT, ActT],
+                 env: JiminyEnvInterface[ObsT, ActT],
                  skip_frames_ratio: int = 0,
                  **kwargs: Any) -> None:
         """ TODO: Write documentation.

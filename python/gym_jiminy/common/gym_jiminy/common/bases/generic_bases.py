@@ -4,7 +4,7 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, TypedDict, Generic, Callable
+from typing import Dict, Any, TypeVar, TypedDict, Generic
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -44,12 +44,6 @@ class AgentStateType(TypedDict):
 
 
 EngineObsType: TypeAlias = DataNested
-
-
-ObserverHandleType = Callable[[
-    float, np.ndarray, np.ndarray, Dict[str, np.ndarray]], None]
-ControllerHandleType = Callable[[
-    float, np.ndarray, np.ndarray, Dict[str, np.ndarray], np.ndarray], None]
 
 
 class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
@@ -226,43 +220,22 @@ class JiminyEnvInterface(
         # It will be used for the initial step.
         fill(self.action, 0)
 
-    def _observer_handle(self,
-                         t: float,
-                         q: np.ndarray,
-                         v: np.ndarray,
-                         sensors_data: SensorsDataType) -> None:
-        """Thin wrapper around user-specified `refresh_observation` method.
-
-        .. warning::
-            This method is not supposed to be called manually nor overloaded.
-
-        :param t: Current simulation time.
-        :param q: Current actual configuration of the robot. Note that it is
-                  not the one of the theoretical model even if
-                  'use_theoretical_model' is enabled for the backend Python
-                  `Simulator`.
-        :param v: Current actual velocity vector.
-        :param sensors_data: Current sensor data.
-        """
-        if is_breakpoint(t, self.observe_dt, DT_EPS):
-            measurement: EngineObsType = OrderedDict(
-                t=np.array((t,)),
-                agent_state=OrderedDict(q=q, v=v),
-                sensors_data=sensors_data)
-            self.refresh_observation(measurement)
-
     def _controller_handle(self,
                            t: float,
                            q: np.ndarray,
                            v: np.ndarray,
                            sensors_data: SensorsDataType,
                            command: np.ndarray) -> None:
-        """Thin wrapper around user-specified `compute_command` method.
+        """Thin wrapper around user-specified `refresh_observation` and
+        `compute_command` methods.
 
         .. warning::
             This method is not supposed to be called manually nor overloaded.
-            It must be passed to `set_controller_handle` to send to use the
-            controller to send commands directly to the robot.
+            It will be used by the base environment to instantiate a
+            `jiminy.ControllerFunctor` that will be responsible for refreshing
+            observations and compute commands of all the way through a given
+            pipeline in the correct order of the blocks to finally sends
+            command motor torques directly to the robot.
 
         :param t: Current simulation time.
         :param q: Current actual configuration of the robot. Note that it is
@@ -274,9 +247,17 @@ class JiminyEnvInterface(
         :param command: Output argument corresponding to motors torques to
                         apply on the robot. It must be updated by reference
                         using `[:]` or `np.copyto`.
-        """
-        # pylint: disable=unused-argument
 
+        :returns: Motors torques to apply on the robot.
+        """
+        if is_breakpoint(t, self.observe_dt, DT_EPS):
+            measurement: EngineObsType = OrderedDict(
+                t=np.array((t,)),
+                agent_state=OrderedDict(q=q, v=v),
+                sensors_data=sensors_data)
+            self.refresh_observation(measurement)
+        # No need to check for breakpoints of the controller because it already
+        # matches the update period by design.
         command[:] = self.compute_command(self.action)
 
     def get_observation(self) -> ObsT:

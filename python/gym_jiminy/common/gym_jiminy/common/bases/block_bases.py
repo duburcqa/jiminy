@@ -24,10 +24,6 @@ from .generic_bases import (ObsT,
                             JiminyEnvInterface)
 
 
-EnvOrWrapperType = Union[
-    gym.Wrapper,  # [ObsT, ActT, OtherObsT, OtherActType],
-    JiminyEnvInterface[ObsT, ActT]]
-
 BlockStateT = TypeVar('BlockStateT', bound=Union[DataNested, None])
 
 
@@ -40,7 +36,7 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
         and `get_state` must be overloaded accordingly. The internal state will
         be added automatically to the observation space of the environment.
     """
-    env: EnvOrWrapperType[BaseObsT, BaseActT]
+    env: JiminyEnvInterface[BaseObsT, BaseActT]
     name: str
     update_ratio: int
     state_space: gym.Space[BlockStateT]
@@ -50,7 +46,7 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
 
     def __init__(self,
                  name: str,
-                 env: EnvOrWrapperType[BaseObsT, BaseActT],
+                 env: JiminyEnvInterface[BaseObsT, BaseActT],
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
