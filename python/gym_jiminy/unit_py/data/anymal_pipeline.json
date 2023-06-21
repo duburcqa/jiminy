@@ -24,7 +24,7 @@
       "wrapper_kwargs": {
         "nested_filter_keys": [
           ["t"],
-          ["sensors_data", "ImuSensor"],
+          ["measurements", "ImuSensor"],
           ["actions"]
         ],
         "num_stack": 3,

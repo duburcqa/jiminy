@@ -246,7 +246,7 @@ class JiminyEnvInterface(
             measurement: EngineObsType = OrderedDict(
                 t=np.array((t,)),
                 states=OrderedDict(agent=OrderedDict(q=q, v=v)),
-                features=OrderedDict(sensors=dict(sensors_data)))
+                measurements=OrderedDict(sensors_data))
             self.refresh_observation(measurement)
         # No need to check for breakpoints of the controller because it already
         # matches the update period by design.

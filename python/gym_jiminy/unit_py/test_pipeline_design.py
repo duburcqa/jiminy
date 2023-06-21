@@ -46,7 +46,7 @@ class PipelineDesign(unittest.TestCase):
                 'wrapper_kwargs': {
                     'nested_filter_keys': [
                         ('t',),
-                        ('sensors_data', 'ImuSensor'),
+                        ('measurements', 'ImuSensor'),
                         ('actions',)
                     ],
                     'num_stack': self.num_stack,
@@ -110,15 +110,15 @@ class PipelineDesign(unittest.TestCase):
         # Target, time, and Imu data are stacked
         self.assertEqual(obs['t'].ndim, 2)
         self.assertEqual(len(obs['t']), self.num_stack)
-        self.assertEqual(obs['sensors_data']['ImuSensor'].ndim, 3)
-        self.assertEqual(len(obs['sensors_data']['ImuSensor']), self.num_stack)
+        self.assertEqual(obs['measurements']['ImuSensor'].ndim, 3)
+        self.assertEqual(len(obs['measurements']['ImuSensor']), self.num_stack)
         controller_target_obs = obs['actions']['controller_0']
         self.assertEqual(len(controller_target_obs), self.num_stack)
-        self.assertEqual(obs['sensors_data']['EffortSensor'].ndim, 2)
+        self.assertEqual(obs['measurements']['EffortSensor'].ndim, 2)
 
         # Stacked obs are zeroed
         self.assertTrue(np.all(obs['t'][:-1] == 0.0))
-        self.assertTrue(np.all(obs['sensors_data']['ImuSensor'][:-1] == 0.0))
+        self.assertTrue(np.all(obs['measurements']['ImuSensor'][:-1] == 0.0))
         self.assertTrue(np.all(controller_target_obs[:-1] == 0.0))
 
         # Action must be zero
@@ -126,7 +126,7 @@ class PipelineDesign(unittest.TestCase):
 
         # Observation is consistent with internal simulator state
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
-        imu_data_obs = obs['sensors_data']['ImuSensor'][-1]
+        imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
         state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
         state_obs = obs['states']['agent']
@@ -151,7 +151,7 @@ class PipelineDesign(unittest.TestCase):
         controller_target_obs = obs['actions']['controller_0']
         self.assertTrue(np.all(controller_target_obs[-1] == action))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
-        imu_data_obs = obs['sensors_data']['ImuSensor'][-1]
+        imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertFalse(np.all(imu_data_ref == imu_data_obs))
         state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
         state_obs = obs['states']['agent']
@@ -166,7 +166,7 @@ class PipelineDesign(unittest.TestCase):
             self.assertTrue(np.isclose(
                 t, n_steps_breakpoint * env.step_dt - i * stack_dt, 1.0e-6))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
-        imu_data_obs = obs['sensors_data']['ImuSensor'][-1]
+        imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
 
     def test_update_periods(self):

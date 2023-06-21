@@ -67,6 +67,9 @@ SENSOR_MOMENT_MAX = 10000.0
 SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
+# Slightly relax observation space bounds to avoid triggering out-of-bounds
+EPS = 1e-5
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -291,9 +294,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                           shape=(1,),
                           dtype=np.float64)
 
-    def _get_state_space(self,
-                         use_theoretical_model: Optional[bool] = None
-                         ) -> spaces.Dict:
+    def _get_agent_state_space(self,
+                               use_theoretical_model: Optional[bool] = None
+                               ) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
@@ -346,14 +349,14 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             velocity_limit = velocity_limit[joints_velocity_idx]
 
         return spaces.Dict(OrderedDict(
-            q=spaces.Box(low=position_limit_lower,
-                         high=position_limit_upper,
+            q=spaces.Box(low=position_limit_lower - EPS,
+                         high=position_limit_upper + EPS,
                          dtype=np.float64),
-            v=spaces.Box(low=-velocity_limit,
-                         high=velocity_limit,
+            v=spaces.Box(low=-velocity_limit - EPS,
+                         high=velocity_limit + EPS,
                          dtype=np.float64)))
 
-    def _get_sensors_space(self) -> spaces.Dict:
+    def _get_measurements_space(self) -> spaces.Dict:
         """Get sensor space.
 
         It gathers the sensors data in a dictionary. It maps each available
@@ -385,7 +388,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Define some proxies for convenience
         sensors_data = self.robot.sensors_data
         command_limit = self.robot.command_limit
-        position_space, velocity_space = self._get_state_space(
+        position_space, velocity_space = self._get_agent_state_space(
             use_theoretical_model=False).values()
         assert isinstance(position_space, spaces.Box)
         assert isinstance(velocity_space, spaces.Box)
@@ -660,7 +663,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Re-initialize some shared memories.
         # It is necessary because the robot may have changed.
-        self.sensors_data = dict(self.robot.sensors_data)
+        self.sensors_data = OrderedDict(self.robot.sensors_data)
 
         # Enforce the low-level controller.
         # The robot may have changed, for example it could be randomly
@@ -825,7 +828,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             t=np.array((self.stepper_state.t,)),
             states=OrderedDict(agent=OrderedDict(
                 q=self.system_state.q, v=self.system_state.v)),
-            features=OrderedDict(sensors=self.sensors_data))
+            measurements=self.sensors_data)
         self._env_derived.refresh_observation(measurement)
 
         # Get clipped observation
@@ -862,7 +865,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self._num_steps_beyond_terminate += 1
 
         # Compute reward if not beyond termination
-        if self._num_steps_beyond_terminate > 0:
+        if self._num_steps_beyond_terminate:
             reward = float('nan')
         else:
             # Compute reward and update extra information
@@ -1239,9 +1242,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         observation_spaces: Dict[str, spaces.Space] = OrderedDict()
         observation_spaces['t'] = self._get_time_space()
         observation_spaces['states'] = spaces.Dict(
-            agent=self._get_state_space())
-        observation_spaces['features'] = spaces.Dict(
-            sensors=self._get_sensors_space())
+            agent=self._get_agent_state_space())
+        observation_spaces['measurements'] = self._get_measurements_space()
         self.observation_space = spaces.Dict(observation_spaces)
 
     def _neutral(self) -> np.ndarray:

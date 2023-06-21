@@ -151,7 +151,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
         """
-        self.observation_space = flatten_space(self._get_state_space())
+        self.observation_space = flatten_space(self._get_agent_state_space())
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """Update the observation based on the current simulation state.
