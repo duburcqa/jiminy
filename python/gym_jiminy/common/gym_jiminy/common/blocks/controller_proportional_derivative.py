@@ -71,6 +71,9 @@ def integrate_zoh(state_prev: np.ndarray,
     :param state_max: Upper bounds of the state.
     :param dt: Integration delta of time since previous state update.
     """
+    # Make sure that dt is not negative
+    assert dt >= 0.0, "The integration timestep 'dt' must be positive."
+
     # Early return if the timestep is too small
     if abs(dt) < 1e-9:
         return state_prev.copy()

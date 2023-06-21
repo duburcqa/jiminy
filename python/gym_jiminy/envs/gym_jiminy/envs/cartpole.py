@@ -201,7 +201,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return qpos, qvel
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
-        set_value(self.__state_view, measurement['agent_state'].values())
+        set_value(self.__state_view, measurement['states']['agent'].values())
 
     def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.

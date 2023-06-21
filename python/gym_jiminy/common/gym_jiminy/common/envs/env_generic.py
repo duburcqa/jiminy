@@ -213,7 +213,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Number of simulation steps performed
         self.num_steps = -1
         self.max_steps = 0
-        self._num_steps_beyond_done: Optional[int] = None
+        self._num_steps_beyond_terminate: Optional[int] = None
 
         # Initialize the interfaces through multiple inheritance
         super().__init__()  # Do not forward extra arguments, if any
@@ -680,7 +680,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Reset some internal buffers
         self.num_steps = 0
-        self._num_steps_beyond_done = None
+        self._num_steps_beyond_terminate = None
 
         # Create a new log file
         if self.debug:
@@ -707,7 +707,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             assert callable(reset_hook)
             env_derived = reset_hook()
             assert env_derived.unwrapped is self
-            self._env_derived = self
+            self._env_derived = env_derived
 
         # Instantiate the actual controller
         controller = jiminy.ControllerFunctor(
@@ -741,15 +741,6 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Update shared buffers
         self._refresh_buffers()
-
-        # Initialize the observer.
-        # Note that it is responsible of refreshing the environment's
-        # observation before anything else, so no need to do it twice.
-        self._env_derived._controller_handle(
-            self.stepper_state.t,
-            self.system_state.q,
-            self.system_state.v,
-            self.sensors_data)
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
@@ -830,11 +821,12 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Update the observer at the end of the step.
         # This is necessary because, internally, it is called at the beginning
         # of the every integration steps, during the controller update.
-        self._env_derived._controller_handle(
-            self.stepper_state.t,
-            self.system_state.q,
-            self.system_state.v,
-            self.sensors_data)
+        measurement: EngineObsType = OrderedDict(
+            t=np.array((self.stepper_state.t,)),
+            states=OrderedDict(agent=OrderedDict(
+                q=self.system_state.q, v=self.system_state.v)),
+            features=OrderedDict(sensors=self.sensors_data))
+        self._env_derived.refresh_observation(measurement)
 
         # Get clipped observation
         obs: ObsT = clip(self.observation_space, self.get_observation())
@@ -857,36 +849,37 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self.num_steps >= self.max_steps)
 
         # Check if stepping after done and if it is an undefined behavior
-        if self._num_steps_beyond_done is None:
+        if self._num_steps_beyond_terminate is None:
             if done or truncated:
-                self._num_steps_beyond_done = 0
+                self._num_steps_beyond_terminate = 0
         else:
-            if not self.is_training and self._num_steps_beyond_done == 0:
+            if not self.is_training and self._num_steps_beyond_terminate == 0:
                 LOGGER.error(
                     "Calling `step` after termination causes the reward to be "
                     "'nan' systematically and is strongly discouraged in "
                     "train mode. Please call `reset` to avoid further "
                     "undefined behavior.")
-            self._num_steps_beyond_done += 1
+            self._num_steps_beyond_terminate += 1
 
-        # Compute reward and extra information
-        if self._num_steps_beyond_done > 0:
+        # Compute reward if not beyond termination
+        if self._num_steps_beyond_terminate > 0:
             reward = float('nan')
         else:
+            # Compute reward and update extra information
             reward = self.compute_reward(done, truncated, self._info)
 
+            # Make sure the reward is not 'nan'
+            if np.isnan(reward):
+                raise RuntimeError(
+                    "The reward is 'nan'. Something went wrong with "
+                    "`compute_reward` implementation.")
+
+            # Update cumulative reward
+            self.total_reward += reward
+
         # Write log file if simulation has just terminated in debug mode
-        if self._num_steps_beyond_done == 0 and self.debug:
+        if self._num_steps_beyond_terminate == 0 and self.debug:
             self.simulator.write_log(self.log_path, format="binary")
-
-        # Make sure the reward is not 'nan'
-        if np.isnan(reward):
-            raise RuntimeError(
-                "The reward is 'nan'. Something went wrong with "
-                "`compute_reward` implementation.")
-
-        # Update cumulative reward
-        self.total_reward += reward
 
         # Update number of (successful) steps
         self.num_steps += 1
@@ -1245,9 +1238,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         """
         observation_spaces: Dict[str, spaces.Space] = OrderedDict()
         observation_spaces['t'] = self._get_time_space()
-        observation_spaces['agent_state'] = self._get_state_space()
-        if self.sensors_data:
-            observation_spaces['sensors_data'] = self._get_sensors_space()
+        observation_spaces['states'] = spaces.Dict(
+            agent=self._get_state_space())
+        observation_spaces['features'] = spaces.Dict(
+            sensors=self._get_sensors_space())
         self.observation_space = spaces.Dict(observation_spaces)
 
     def _neutral(self) -> np.ndarray:

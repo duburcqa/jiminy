@@ -72,12 +72,23 @@ class BasePipelineWrapper(
         self.system_state = env.system_state
         self.sensors_data = env.sensors_data
 
+        # Backup the parent environment
+        self.env = env
+
         # Call base implementation()
         super().__init__()  # Do not forward any argument
 
         # By default, bind the action to the one of the base environment
         assert self.action_space.contains(env.action)
         self.action = env.action  # type: ignore[assignment]
+
+    def __getattr__(self, name: str) -> Any:
+        """Fallback attribute getter.
+
+        It enables to get access to the attribute and methods of the low-level
+        Jiminy engine directly, without having to do it through `env`.
+        """
+        return getattr(self.__getattribute__('env'), name)
 
     def __dir__(self) -> Iterable[str]:
         """Attribute lookup.
@@ -86,6 +97,12 @@ class BasePipelineWrapper(
         to get consistent autocompletion wrt `getattr`.
         """
         return chain(super().__dir__(), dir(self.env))
+
+    @property
+    def unwrapped(self) -> JiminyEnvInterface:
+        """Returns the base environment of the wrapper.
+        """
+        return self.env.unwrapped
 
     @property
     def step_dt(self) -> float:
@@ -138,12 +155,14 @@ class BasePipelineWrapper(
             nonlocal pipeline_wrapper_ref, derived_reset_hook
 
             # Extract and initialize the pipeline wrapper
-            env_derived: Optional[JiminyEnvInterface] = pipeline_wrapper_ref()
-            assert env_derived is not None
+            pipeline_wrapper = pipeline_wrapper_ref()
+            assert pipeline_wrapper is not None
+            pipeline_wrapper._setup()
 
             # Forward the environment provided by the reset hook of higher-
             # level block if any, or use this wrapper otherwise.
-            if derived_reset_hook is None:
+            env_derived = pipeline_wrapper
+            if derived_reset_hook is not None:
                 assert callable(derived_reset_hook)
                 env_derived = derived_reset_hook()
 

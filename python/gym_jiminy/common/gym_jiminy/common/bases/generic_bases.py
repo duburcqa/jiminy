@@ -29,18 +29,10 @@ SensorsDataType = Dict[str, np.ndarray]
 InfoType = Dict[str, Any]
 
 
-class AgentStateType(TypedDict):
-    """Fully specify the state of an agent, namely its whole-body configuration
-    'q' and velocity 'v' in reduced space.
-    """
-    q: np.ndarray
-    v: np.ndarray
-
-
 # class EngineObsType(TypedDict):
 #     t: np.ndarray
-#     agent_state:  AgentStateType
-#     sensors_data: SensorsDataType
+#     state:  DataNested
+#     features: DataNested
 
 
 EngineObsType: TypeAlias = DataNested
@@ -253,8 +245,8 @@ class JiminyEnvInterface(
         if is_breakpoint(t, self.observe_dt, DT_EPS):
             measurement: EngineObsType = OrderedDict(
                 t=np.array((t,)),
-                agent_state=OrderedDict(q=q, v=v),
-                sensors_data=sensors_data)
+                states=OrderedDict(agent=OrderedDict(q=q, v=v)),
+                features=OrderedDict(sensors=dict(sensors_data)))
             self.refresh_observation(measurement)
         # No need to check for breakpoints of the controller because it already
         # matches the update period by design.

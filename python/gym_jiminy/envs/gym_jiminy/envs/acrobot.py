@@ -163,7 +163,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             For goal env, in addition of the current robot state, both the
             desired and achieved goals are observable.
         """
-        set_value(self.__state_view, measurement['agent_state'].values())
+        set_value(self.__state_view, measurement['states']['agent'].values())
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.
