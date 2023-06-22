@@ -7,6 +7,7 @@ import numpy as np
 
 from jiminy_py.robot import _gcd
 from gym_jiminy.common.pipeline import build_pipeline, load_pipeline
+from gym_jiminy.common.bases import JiminyEnvInterface
 
 
 class PipelineDesign(unittest.TestCase):
@@ -173,10 +174,11 @@ class PipelineDesign(unittest.TestCase):
         # Perform a single step and get log data
         env = self.ANYmalPipelineEnv()
 
-        def configure_telemetry() -> None:
+        def configure_telemetry() -> JiminyEnvInterface:
             engine_options = env.simulator.engine.get_options()
             engine_options['telemetry']['enableCommand'] = True
             env.simulator.engine.set_options(engine_options)
+            return env
 
         env.reset(options=dict(reset_hook=configure_telemetry))
         env.step()

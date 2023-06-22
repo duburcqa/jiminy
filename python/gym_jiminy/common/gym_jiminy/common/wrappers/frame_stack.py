@@ -211,7 +211,7 @@ class StackedJiminyEnv(
         # Setup wrapper
         self.wrapper._setup()
 
-        # Re-initialize some internal buffer(s)
+        # Re-initialize some internal buffer(s).
         # Note that the initial observation is always stored.
         self.__n_last_stack = self.skip_frames_ratio - 1
 
@@ -229,9 +229,8 @@ class StackedJiminyEnv(
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
-        t = self.stepper_state.t
         if self.simulator.is_simulation_running and \
-                is_breakpoint(t, self.observe_dt, DT_EPS):
+                is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1

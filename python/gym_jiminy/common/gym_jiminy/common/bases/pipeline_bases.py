@@ -14,11 +14,12 @@ from copy import deepcopy
 from collections import OrderedDict
 from itertools import chain
 from typing import (
-    Dict, Any, Optional, Tuple, Iterable, Generic, TypeVar, SupportsFloat,
-    Callable)
+    Dict, Any, List, Optional, Tuple, Union, Iterable, Generic, TypeVar,
+    SupportsFloat, Callable)
 
 import numpy as np
 import gymnasium as gym
+from gymnasium.core import RenderFrame
 
 from ..utils import DataNested, is_breakpoint, zeros, fill, set_value
 
@@ -99,6 +100,11 @@ class BasePipelineWrapper(
         return chain(super().__dir__(), dir(self.env))
 
     @property
+    def np_random(self) -> np.random.Generator:
+        """Returns the :attr:`Env` :attr:`np_random` attribute."""
+        return self.env.np_random
+
+    @property
     def unwrapped(self) -> JiminyEnvInterface:
         """Returns the base environment of the wrapper.
         """
@@ -144,7 +150,7 @@ class BasePipelineWrapper(
             options or {}).get("reset_hook")
 
         # Define chained controller hook
-        def reset_hook() -> JiminyEnvInterface:
+        def reset_hook() -> Optional[JiminyEnvInterface]:
             """Register the block to the higher-level block.
 
             This method is used internally to make sure that `_setup` method
@@ -161,10 +167,11 @@ class BasePipelineWrapper(
 
             # Forward the environment provided by the reset hook of higher-
             # level block if any, or use this wrapper otherwise.
-            env_derived = pipeline_wrapper
-            if derived_reset_hook is not None:
+            if derived_reset_hook is None:
+                env_derived = pipeline_wrapper
+            else:
                 assert callable(derived_reset_hook)
-                env_derived = derived_reset_hook()
+                env_derived = derived_reset_hook() or pipeline_wrapper
 
             return env_derived
 
@@ -224,6 +231,22 @@ class BasePipelineWrapper(
         # Refresh some proxies for fast lookup
         self.robot = self.env.robot
         self.sensors_data = self.env.sensors_data
+
+    def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
+        """Render the unified environment.
+
+        By default, it does nothing but forwarding the request to the base
+        environment. This behavior can be overwritten by the user.
+        """
+        return self.env.render()
+
+    def close(self):
+        """Closes the wrapper and its base environment.
+
+        By default, it does nothing but forwarding the request to the base
+        environment. This behavior can be overwritten by the user.
+        """
+        return self.env.close()
 
 
 class ObservedJiminyEnv(

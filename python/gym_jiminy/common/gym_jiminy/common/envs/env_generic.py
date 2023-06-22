@@ -30,7 +30,6 @@ from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
-                                     is_display_available,
                                      interactive_mode,
                                      get_default_backend,
                                      Viewer)
@@ -107,11 +106,6 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
     to implement one. It has been designed to be highly flexible and easy to
     customize by overloading it to fit the vast majority of users' needs.
     """
-    metadata: Dict[str, Any] = {
-        "render_modes": (
-            ['rgb_array'] + (['human'] if is_display_available() else []))
-    }
-
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
@@ -703,12 +697,13 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Note that the reset hook must be called after `_setup` because it
         # expects that the robot is not going to change anymore at this point.
         # Similarly, the observer and controller update periods must be set.
-        self._env_derived = self
         reset_hook: Optional[Callable[[], JiminyEnvInterface]] = (
             options or {}).get("reset_hook")
-        if reset_hook is not None:
+        if reset_hook is None:
+            self._env_derived = self
+        else:
             assert callable(reset_hook)
-            env_derived = reset_hook()
+            env_derived = reset_hook() or self
             assert env_derived.unwrapped is self
             self._env_derived = env_derived
 
@@ -744,6 +739,13 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Update shared buffers
         self._refresh_buffers()
+
+        # Initialize the observation
+        self._env_derived._observer_handle(
+            self.stepper_state.t,
+            self.system_state.q,
+            self.system_state.v,
+            self.robot.sensors_data)
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
@@ -824,12 +826,11 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Update the observer at the end of the step.
         # This is necessary because, internally, it is called at the beginning
         # of the every integration steps, during the controller update.
-        measurement: EngineObsType = OrderedDict(
-            t=np.array((self.stepper_state.t,)),
-            states=OrderedDict(agent=OrderedDict(
-                q=self.system_state.q, v=self.system_state.v)),
-            measurements=self.sensors_data)
-        self._env_derived.refresh_observation(measurement)
+        self._env_derived._observer_handle(
+            self.stepper_state.t,
+            self.system_state.q,
+            self.system_state.v,
+            self.robot.sensors_data)
 
         # Get clipped observation
         obs: ObsT = clip(self.observation_space, self.get_observation())

@@ -4,7 +4,7 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, TypedDict, Generic
+from typing import Dict, Any, Mapping, Sequence, TypeVar, Generic
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -12,6 +12,7 @@ import gymnasium as gym
 
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
+from jiminy_py.viewer.viewer import is_display_available
 
 from ..utils import DataNested, is_breakpoint, zeros, fill, copy
 
@@ -188,6 +189,11 @@ class JiminyEnvInterface(
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
+    metadata: Dict[str, Any] = {
+        "render_modes": (
+            ['rgb_array'] + (['human'] if is_display_available() else []))
+    }
+
     simulator: Simulator
     robot: jiminy.Robot
     stepper_state: jiminy.StepperState
@@ -195,6 +201,16 @@ class JiminyEnvInterface(
     sensors_data: SensorsDataType
 
     action: ActT
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        # Track whether the observation has been refreshed manually since the
+        # last called '_controller_handle'. It typically happens at the end of
+        # every simulation step to return an observation that is consistent
+        # with the updated state of the agent.
+        self.__must_refresh_observer = True
+
+        # Call super to allow mixing interfaces through multiple inheritance
+        super().__init__(*args, **kwargs)
 
     def _setup(self) -> None:
         """Configure the observer-controller.
@@ -211,6 +227,33 @@ class JiminyEnvInterface(
         # Set default action.
         # It will be used for the initial step.
         fill(self.action, 0)
+
+    def _observer_handle(self,
+                         t: float,
+                         q: np.ndarray,
+                         v: np.ndarray,
+                         sensors_data: SensorsDataType) -> None:
+        """Thin wrapper around user-specified `refresh_observation` method.
+
+        .. warning::
+            This method is not supposed to be called manually nor overloaded.
+
+        :param t: Current simulation time.
+        :param q: Current actual configuration of the robot. Note that it is
+                  not the one of the theoretical model even if
+                  'use_theoretical_model' is enabled for the backend Python
+                  `Simulator`.
+        :param v: Current actual velocity vector.
+        :param sensors_data: Current sensor data.
+        """
+        if self.__must_refresh_observer and \
+                is_breakpoint(t, self.observe_dt, DT_EPS):
+            measurement: EngineObsType = OrderedDict(
+                t=np.array((t,)),
+                states=OrderedDict(agent=OrderedDict(q=q, v=v)),
+                measurements=OrderedDict(sensors_data))
+            self.refresh_observation(measurement)
+        self.__must_refresh_observer = False
 
     def _controller_handle(self,
                            t: float,
@@ -242,15 +285,16 @@ class JiminyEnvInterface(
 
         :returns: Motors torques to apply on the robot.
         """
-        if is_breakpoint(t, self.observe_dt, DT_EPS):
-            measurement: EngineObsType = OrderedDict(
-                t=np.array((t,)),
-                states=OrderedDict(agent=OrderedDict(q=q, v=v)),
-                measurements=OrderedDict(sensors_data))
-            self.refresh_observation(measurement)
+        # Refresh the observation
+        self._observer_handle(t, q, v, sensors_data)
+
         # No need to check for breakpoints of the controller because it already
         # matches the update period by design.
         command[:] = self.compute_command(self.action)
+
+        # Always consider that the observation must be refreshed after calling
+        # '_controller_handle' as it is never called more often than necessary.
+        self.__must_refresh_observer =  True
 
     def get_observation(self) -> ObsT:
         """Get post-processed observation.
