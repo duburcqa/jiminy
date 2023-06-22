@@ -4,7 +4,7 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, Mapping, Sequence, TypeVar, Generic
+from typing import Dict, Any, TypeVar, Generic
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -294,7 +294,7 @@ class JiminyEnvInterface(
 
         # Always consider that the observation must be refreshed after calling
         # '_controller_handle' as it is never called more often than necessary.
-        self.__must_refresh_observer =  True
+        self.__must_refresh_observer = True
 
     def get_observation(self) -> ObsT:
         """Get post-processed observation.

@@ -484,7 +484,7 @@ class TabbedFigure:
                          without rendering on screen.
         :param kwargs: Extra keyword arguments to forward to `add_tab` method.
         """
-        tabbed_figure = cls(**{  # type: ignore[arg-type]
+        tabbed_figure = cls(**{
             "offscreen": pdf_path is not None, **kwargs})
         for name, data in tabs_data.items():
             tabbed_figure.add_tab(

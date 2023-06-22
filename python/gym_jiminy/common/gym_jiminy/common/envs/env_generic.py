@@ -66,9 +66,6 @@ SENSOR_MOMENT_MAX = 10000.0
 SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
-# Slightly relax observation space bounds to avoid triggering out-of-bounds
-EPS = 1e-5
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -343,11 +340,11 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             velocity_limit = velocity_limit[joints_velocity_idx]
 
         return spaces.Dict(OrderedDict(
-            q=spaces.Box(low=position_limit_lower - EPS,
-                         high=position_limit_upper + EPS,
+            q=spaces.Box(low=position_limit_lower,
+                         high=position_limit_upper,
                          dtype=np.float64),
-            v=spaces.Box(low=-velocity_limit - EPS,
-                         high=velocity_limit + EPS,
+            v=spaces.Box(low=-velocity_limit,
+                         high=velocity_limit,
                          dtype=np.float64)))
 
     def _get_measurements_space(self) -> spaces.Dict:

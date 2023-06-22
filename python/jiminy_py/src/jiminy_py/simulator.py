@@ -628,7 +628,7 @@ class Simulator:
         must_not_open_gui = (
             backend.startswith("panda3d") or
             kwargs.get('record_video_path') is not None)
-        self.render(**{  # type: ignore[arg-type]
+        self.render(**{
             'return_rgb_array': must_not_open_gui,
             'update_floor': True,
             **kwargs})
@@ -641,7 +641,7 @@ class Simulator:
             trajectories,
             update_hooks,
             viewers=viewers,
-            **{'verbose': True,  # type: ignore[arg-type]
+            **{'verbose': True,
                **self.viewer_kwargs,
                **extra_kwargs,
                'display_f_external': None,
