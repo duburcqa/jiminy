@@ -4,7 +4,8 @@ from collections import OrderedDict
 from collections.abc import Iterable
 from itertools import zip_longest
 from typing import (
-    Optional, Union, Sequence, TypeVar, Mapping as MappingT, no_type_check)
+    Optional, Union, Sequence, TypeVar, Mapping as MappingT,
+    Iterable as IterableT, no_type_check)
 
 import gymnasium as gym
 import tree
@@ -14,7 +15,7 @@ from numpy import typing as npt
 
 ValueT = TypeVar('ValueT')
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
-                     Iterable['StructNested[ValueT]'],
+                     IterableT['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]

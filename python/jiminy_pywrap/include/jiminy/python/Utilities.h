@@ -316,7 +316,7 @@ namespace python
     template<>
     inline int getPyType<unsigned long long>(void) { return NPY_ULONGLONG; }
     template<>
-    inline int getPyType<std::string>(void) { return NPY_STRING; }
+    inline int getPyType<std::string>(void) { return NPY_UNICODE; }
 
     /// Convert Eigen scalar/vector/matrix to Numpy array by reference.
 
@@ -721,59 +721,53 @@ namespace python
     std::enable_if_t<!is_vector_v<T>
                   && !is_map_v<T>
                   && !is_eigen_v<T>
-                  && !(std::is_integral_v<T> && !std::is_same_v<T, bool_t>)
                   && !std::is_same_v<T, sensorsDataMap_t>, T>
     convertFromPython(bp::object const & dataPy)
     {
-        bp::extract<T> getIntegral(dataPy);
-        if (getIntegral.check())
+        try
         {
-            return getIntegral();
+            return bp::extract<T>(dataPy);
         }
-        bp::extract<np::ndarray> getNumpy(dataPy);
-        if (getNumpy.check())
+        catch (bp::error_already_set const &)
         {
-            PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy.ptr());
-            if (PyArray_NDIM(dataPyArray) == 0)
+            // Must clear the error indicator, otherwise 'PyArray_Check' will fail
+            PyObject *e, *v, *t;
+            PyErr_Fetch(&e, &v, &t);
+            PyErr_Clear();
+
+            // The input argument may be a 0D numpy array by any chance
+            if (PyArray_Check(dataPy.ptr()))
             {
-                if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), getPyType<T>()) == NPY_TRUE)
+                PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy.ptr());
+                if (PyArray_NDIM(dataPyArray) == 0)
                 {
-                    return *static_cast<T *>(PyArray_DATA(dataPyArray));
+                    if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), getPyType<T>()) == NPY_TRUE)
+                    {
+                        return *static_cast<T *>(PyArray_DATA(dataPyArray));
+                    }
                 }
             }
-        }
-        return bp::extract<T>(dataPy);
-    }
 
-    template<typename T>
-    std::enable_if_t<std::is_integral_v<T>
-                 && !std::is_same_v<T, bool_t>, T>
-    convertFromPython(bp::object const & dataPy)
-    {
-        std::string const optionTypePyStr =
-            bp::extract<std::string>(dataPy.attr("__class__").attr("__name__"));
-        if (optionTypePyStr == "ndarray")
-        {
-            np::ndarray dataNumpy = bp::extract<np::ndarray>(dataPy);
-            return *reinterpret_cast<T const *>(dataNumpy.get_data());
-        }
-        else if (optionTypePyStr == "matrix")
-        {
-            np::matrix dataMatrix = bp::extract<np::matrix>(dataPy);
-            return *reinterpret_cast<T *>(dataMatrix.get_data());
-        }
-        else
-        {
-            bp::extract<T> getIntegral(dataPy);
-            if (getIntegral.check())
+            // Try dealing with unsigned/signed inconsistency in last resort
+            if constexpr (std::is_integral_v<T> && !std::is_same_v<bool_t, T>)
             {
-                return getIntegral();
+                try
+                {
+                    if constexpr (std::is_unsigned_v<T>)
+                    {
+                        return bp::extract<typename std::make_signed_t<T> >(dataPy);
+                    }
+                    return bp::extract<typename std::make_unsigned_t<T> >(dataPy);
+                }
+                catch (bp::error_already_set const &)
+                {
+                    PyErr_Clear();
+                }
             }
-            if (std::is_unsigned_v<T>)
-            {
-                return bp::extract<typename std::make_signed_t<T> >(dataPy);
-            }
-            return bp::extract<typename std::make_unsigned_t<T> >(dataPy);
+
+            // Re-throw the exception if it was impossible to handle it
+            PyErr_Restore(e, v, t);
+            throw;
         }
     }
 
@@ -783,9 +777,7 @@ namespace python
     {
         using Scalar = typename T::Scalar;
 
-        std::string const optionTypePyStr =
-            bp::extract<std::string>(dataPy.attr("__class__").attr("__name__"));
-        if (optionTypePyStr == "ndarray")
+        try
         {
             np::ndarray dataNumpy = bp::extract<np::ndarray>(dataPy);
             if (dataNumpy.get_dtype() != np::dtype::get_builtin<Scalar>())
@@ -799,42 +791,17 @@ namespace python
                 return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> >(
                     dataPtr, dataShape[0]);
             }
-            else
-            {
-                return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> >(
-                    dataPtr, dataShape[0], dataShape[1]);
-            }
+            return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> >(
+                dataPtr, dataShape[0], dataShape[1]);
         }
-        else if (optionTypePyStr == "matrix")
+        catch (bp::error_already_set const &)
         {
-            np::matrix dataMatrix = bp::extract<np::matrix>(dataPy);
-            if (dataMatrix.get_dtype() != np::dtype::get_builtin<Scalar>())
-            {
-                throw std::runtime_error("Scalar type of eigen object does not match dtype of numpy object.");
-            }
-            Scalar * dataPtr = reinterpret_cast<Scalar *>(dataMatrix.get_data());
-            Py_intptr_t const * dataShape = dataMatrix.get_shape();
-            if (is_eigen_vector_v<T>)
-            {
-                return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> >(
-                    dataPtr, dataShape[0]);
-            }
-            else
-            {
-                return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> >(
-                    dataPtr, dataShape[0], dataShape[1]);
-            }
-        }
-        else
-        {
+            PyErr_Clear();
             if (is_eigen_vector_v<T>)
             {
                 return listPyToEigenVector(bp::extract<bp::list>(dataPy));
             }
-            else
-            {
-                return listPyToEigenMatrix(bp::extract<bp::list>(dataPy));
-            }
+            return listPyToEigenMatrix(bp::extract<bp::list>(dataPy));
         }
     }
 
