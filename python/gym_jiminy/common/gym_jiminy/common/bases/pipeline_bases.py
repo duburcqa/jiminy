@@ -20,6 +20,7 @@ from typing import (
 import numpy as np
 import gymnasium as gym
 from gymnasium.core import RenderFrame
+from gymnasium.envs.registration import EnvSpec
 
 from ..utils import DataNested, is_breakpoint, zeros, fill, set_value
 
@@ -98,6 +99,16 @@ class BasePipelineWrapper(
         to get consistent autocompletion wrt `getattr`.
         """
         return chain(super().__dir__(), dir(self.env))
+
+    @property
+    def spec(self) -> Optional[EnvSpec]:
+        """Random number generator of the base environment.
+        """
+        return self.env.spec
+
+    @spec.setter
+    def spec(self, spec: EnvSpec) -> None:
+        self.env.spec = spec
 
     @property
     def np_random(self) -> np.random.Generator:
