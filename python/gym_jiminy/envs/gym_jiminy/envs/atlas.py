@@ -14,9 +14,9 @@ from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 
 try:
-    from importlib.resources import files
+    from importlib.resources import files  # type: ignore[attr-defined]
 except ImportError:
-    from importlib_resources import files  # type: ignore[no-redef]
+    from importlib_resources import files
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])
@@ -123,7 +123,7 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
             mesh_path_dir=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
@@ -213,7 +213,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             mesh_path_dir=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,

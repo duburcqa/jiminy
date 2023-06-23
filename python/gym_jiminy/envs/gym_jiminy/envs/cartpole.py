@@ -15,9 +15,9 @@ from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample, set_value
 
 try:
-    from importlib.resources import files
+    from importlib.resources import files  # type: ignore[attr-defined]
 except ImportError:
-    from importlib_resources import files  # type: ignore[no-redef]
+    from importlib_resources import files
 
 
 # Stepper update period

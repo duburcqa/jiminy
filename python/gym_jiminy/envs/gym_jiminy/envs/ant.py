@@ -19,9 +19,9 @@ from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample
 
 try:
-    from importlib.resources import files
+    from importlib.resources import files  # type: ignore[attr-defined]
 except ImportError:
-    from importlib_resources import files  # type: ignore[no-redef]
+    from importlib_resources import files
 
 
 # Stepper update period
@@ -71,7 +71,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         super().__init__(
             simulator=simulator,
             debug=debug,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 step_dt=STEP_DT,
                 enforce_bounded_spaces=False),
                 **kwargs})

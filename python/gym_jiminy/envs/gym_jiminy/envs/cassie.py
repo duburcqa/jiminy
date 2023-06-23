@@ -18,9 +18,9 @@ from gym_jiminy.common.blocks import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 
 try:
-    from importlib.resources import files
+    from importlib.resources import files  # type: ignore[attr-defined]
 except ImportError:
-    from importlib_resources import files  # type: ignore[no-redef]
+    from importlib_resources import files
 
 
 # Parameters of neutral configuration
@@ -112,7 +112,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             mesh_path_dir=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
