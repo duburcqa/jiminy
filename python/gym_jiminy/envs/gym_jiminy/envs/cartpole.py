@@ -1,6 +1,7 @@
 """ TODO: Write documentation.
 """
 import os
+import sys
 import logging
 from typing import Dict, Any, Optional, Tuple
 
@@ -14,10 +15,10 @@ from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample, set_value
 
-try:
-    from importlib.resources import files  # type: ignore[attr-defined]
-except ImportError:
+if sys.version_info < (3, 9):
     from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Stepper update period

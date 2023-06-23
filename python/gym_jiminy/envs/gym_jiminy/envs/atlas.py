@@ -1,7 +1,9 @@
 import os
-import numpy as np
+import sys
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 from jiminy_py.core import build_models_from_urdf, Robot
 from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
@@ -13,10 +15,10 @@ from gym_jiminy.common.blocks import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 
-try:
-    from importlib.resources import files  # type: ignore[attr-defined]
-except ImportError:
+if sys.version_info < (3, 9):
     from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])

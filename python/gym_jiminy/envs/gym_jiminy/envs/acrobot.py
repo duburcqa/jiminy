@@ -1,7 +1,8 @@
 import os
-import numpy as np
+import sys
 from typing import Dict, Any, Optional, Tuple
 
+import numpy as np
 import gymnasium as gym
 from gymnasium.spaces import flatten_space
 
@@ -12,10 +13,10 @@ from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample, set_value
 
-try:
-    from importlib.resources import files  # type: ignore[attr-defined]
-except ImportError:
+if sys.version_info < (3, 9):
     from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Stepper update period

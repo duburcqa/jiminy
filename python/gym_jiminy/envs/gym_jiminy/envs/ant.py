@@ -3,6 +3,7 @@
 """
 
 import os
+import sys
 from typing import Any, List, Tuple
 
 import gymnasium as gym
@@ -18,10 +19,10 @@ from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample
 
-try:
-    from importlib.resources import files  # type: ignore[attr-defined]
-except ImportError:
+if sys.version_info < (3, 9):
     from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Stepper update period

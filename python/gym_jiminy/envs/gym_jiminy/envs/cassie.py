@@ -1,4 +1,5 @@
 import os
+import sys
 import math
 from pathlib import Path
 from typing import Any, Sequence, Union
@@ -17,10 +18,10 @@ from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.blocks import PDController
 from gym_jiminy.common.pipeline import build_pipeline
 
-try:
-    from importlib.resources import files  # type: ignore[attr-defined]
-except ImportError:
+if sys.version_info < (3, 9):
     from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Parameters of neutral configuration
