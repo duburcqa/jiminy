@@ -221,8 +221,13 @@ class JiminyEnvInterface(
             This method must be called once, after the environment has been
             reset. This is done automatically when calling `reset` method.
         """
+        # Re-initialize observation and control periods to ill-defined value to
+        # trigger exception if not set properly later on.
         self.observe_dt = -1
         self.control_dt = -1
+
+        # It is always necessary to refresh the observation at after reset
+        self.__must_refresh_observer = True
 
         # Set default action.
         # It will be used for the initial step.
