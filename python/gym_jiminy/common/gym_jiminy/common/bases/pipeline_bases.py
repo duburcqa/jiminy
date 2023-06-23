@@ -84,10 +84,10 @@ class BasePipelineWrapper(
         self.action = env.action  # type: ignore[assignment]
 
     def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
+        """Convenient fallback attribute getter.
 
-        It enables to get access to the attribute and methods of the low-level
-        Jiminy engine directly, without having to do it through `env`.
+        It enables to get access to the attribute and methods of the wrapped
+        environment directly without having to do it through `env`.
         """
         return getattr(self.__getattribute__('env'), name)
 

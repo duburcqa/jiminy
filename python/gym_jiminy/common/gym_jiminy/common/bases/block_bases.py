@@ -7,13 +7,12 @@ It implements:
     - the base controller block
     - the base observer block
 """
-from itertools import chain
 from abc import abstractmethod, ABC
-from typing import Any, Union, Iterable, Generic, TypeVar
+from typing import Any, Union, Generic, TypeVar
 
 import gymnasium as gym
 
-from ..utils import FieldNested, DataNested, get_fieldnames, fill
+from ..utils import FieldNested, DataNested, get_fieldnames, fill, zeros
 
 from .generic_bases import (ObsT,
                             ActT,
@@ -82,22 +81,6 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
 
         # Refresh the observation space
         self._initialize_state_space()
-
-    def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
-
-        It enables to get access to the attribute and methods of the low-level
-        Jiminy engine directly, without having to do it through `env`.
-        """
-        return getattr(self.__getattribute__('env'), name)
-
-    def __dir__(self) -> Iterable[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return chain(super().__dir__(), dir(self.env))
 
     @abstractmethod
     def _setup(self) -> None:
@@ -195,6 +178,19 @@ class BaseControllerBlock(
     period of the environment, but both can be infinite, ie time-continuous.
     """
     type = "controller"
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the control interface.
+
+        :param args: Extra arguments that may be useful for mixing
+                     multiple inheritance through multiple inheritance.
+        :param kwargs: Extra keyword arguments. See 'args'.
+        """
+        # Call super to allow mixing interfaces through multiple inheritance
+        super().__init__(*args, **kwargs)
+
+        # Allocate action buffer
+        self.action: ActT = zeros(self.action_space)
 
     def _setup(self) -> None:
         # Compute the update period

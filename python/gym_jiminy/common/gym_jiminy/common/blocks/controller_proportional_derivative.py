@@ -294,7 +294,7 @@ class PDController(
 
     def get_fieldnames(self) -> List[str]:
         return [f"target{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
-                for name in self.robot.motors_names]
+                for name in self.env.robot.motors_names]
 
     def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motor torques using a PD controller.
@@ -308,9 +308,9 @@ class PDController(
         # simulation is not running. This must be done here because the
         # command state must be valid prior to calling `refresh_observation`
         # for the first time, which happens at `reset`.
-        is_simulation_running = self.simulator.is_simulation_running
+        is_simulation_running = self.env.simulator.is_simulation_running
         if not is_simulation_running:
-            self._command_state[:2] = self.sensors_data[encoder.type]
+            self._command_state[:2] = self.env.sensors_data[encoder.type]
             np.clip(self._command_state,
                     self._command_state_lower,
                     self._command_state_upper,
@@ -328,7 +328,7 @@ class PDController(
 
         # Compute the motor efforts using PD control
         return compute_pd_controller(
-            self.sensors_data[encoder.type],
+            self.env.sensors_data[encoder.type],
             self._command_state,
             self._command_state_lower,
             self._command_state_upper,

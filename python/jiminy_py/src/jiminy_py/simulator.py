@@ -244,7 +244,7 @@ class Simulator:
         self.close()
 
     def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
+        """Convenient fallback attribute getter.
 
         It enables to get access to the attribute and methods of the low-level
         Jiminy engine directly, without having to do it through `engine`.
