@@ -1051,9 +1051,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
             nonlocal obs, reward, enable_is_done
-            action = (
-                self._key_to_action(  # type: ignore[attr-defined]
-                    key, obs, reward, **{"verbose": verbose, **kwargs}))
+            action = None
+            if key is not None:
+                action = self._key_to_action(
+                    key, obs, reward, **{"verbose": verbose, **kwargs})
             obs, reward, done, truncated, _ = self._env_derived.step(action)
             self._env_derived.render()
             if not enable_is_done and self.robot.has_freeflyer:
@@ -1433,10 +1434,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         return False, truncated
 
     def _key_to_action(self,
-                       key: Optional[str],
+                       key: str,
                        obs: ObsT,
                        reward: Optional[float],
-                       **kwargs: Any) -> ActT:
+                       **kwargs: Any) -> Optional[ActT]:
         """Mapping from input keyboard keys to actions.
 
         .. note::

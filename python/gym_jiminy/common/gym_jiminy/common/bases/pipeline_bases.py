@@ -101,12 +101,17 @@ class BasePipelineWrapper(
 
     @property
     def np_random(self) -> np.random.Generator:
-        """Returns the :attr:`Env` :attr:`np_random` attribute."""
+        """Random number generator of the base environment.
+        """
         return self.env.np_random
+
+    @np_random.setter
+    def np_random(self, value: np.random.Generator) -> None:
+        self.env.np_random = value
 
     @property
     def unwrapped(self) -> JiminyEnvInterface:
-        """Returns the base environment of the wrapper.
+        """Base environment of the pipeline.
         """
         return self.env.unwrapped
 
@@ -168,7 +173,7 @@ class BasePipelineWrapper(
             # Forward the environment provided by the reset hook of higher-
             # level block if any, or use this wrapper otherwise.
             if derived_reset_hook is None:
-                env_derived = pipeline_wrapper
+                env_derived: JiminyEnvInterface = pipeline_wrapper
             else:
                 assert callable(derived_reset_hook)
                 env_derived = derived_reset_hook() or pipeline_wrapper
@@ -240,13 +245,13 @@ class BasePipelineWrapper(
         """
         return self.env.render()
 
-    def close(self):
+    def close(self) -> None:
         """Closes the wrapper and its base environment.
 
         By default, it does nothing but forwarding the request to the base
         environment. This behavior can be overwritten by the user.
         """
-        return self.env.close()
+        self.env.close()
 
 
 class ObservedJiminyEnv(
@@ -505,6 +510,7 @@ class ControlledJiminyEnv(
                        wrapper generation.
         """
         # Make sure that the unwrapped environment matches the observed one
+        assert isinstance(env.unwrapped, JiminyEnvInterface)
         assert controller.env.unwrapped is env.unwrapped
 
         # Backup user arguments
@@ -551,7 +557,7 @@ class ControlledJiminyEnv(
                     self.controller.name] = self.action
 
         # Register the controller's target to the telemetry
-        self.env.register_variable('action',  # type: ignore[union-attr]
+        self.env.register_variable('action',  # type: ignore[attr-defined]
                                    self.action,
                                    self.controller.get_fieldnames(),
                                    self.controller.name)

@@ -153,7 +153,7 @@ jobs:
         # See: https://github.com/python/mypy/issues/14848.
         cd "$RootDir/python/jiminy_py/"
         mypy --config-file="$RootDir/.mypy.ini" -p src
-        for name in "common" "toolbox" "rllib"; do
+        for name in "common" "envs" "toolbox" "rllib"; do
           cd "$RootDir/python/gym_jiminy/$name"
           mypy --config-file="$RootDir/.mypy.ini" -p gym_jiminy
         done

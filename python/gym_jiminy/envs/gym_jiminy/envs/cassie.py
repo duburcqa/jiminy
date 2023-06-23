@@ -1,7 +1,9 @@
 import os
 import math
-import numpy as np
 from pathlib import Path
+from typing import Any, Sequence, Union
+
+import numpy as np
 
 from jiminy_py.core import (joint_t,
                             get_joint_type,
@@ -18,7 +20,7 @@ from gym_jiminy.common.pipeline import build_pipeline
 try:
     from importlib.resources import files
 except ImportError:
-    from importlib_resources import files
+    from importlib_resources import files  # type: ignore[no-redef]
 
 
 # Parameters of neutral configuration
@@ -62,7 +64,7 @@ STD_RATIO = {
 class CassieJiminyEnv(WalkerJiminyEnv):
     """ TODO: Write documentation.
     """
-    def __init__(self, debug: bool = False, **kwargs):
+    def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         """
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
@@ -95,7 +97,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         # Build the robot and load the hardware
         robot = BaseJiminyRobot()
         Robot.initialize(robot, pinocchio_model, collision_model, visual_model)
-        robot._urdf_path_orig = urdf_path
+        robot._urdf_path_orig = urdf_path  # type: ignore[attr-defined]
         hardware_path = str(Path(urdf_path).with_suffix('')) + '_hardware.toml'
         load_hardware_description_file(
             robot,
@@ -148,20 +150,25 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             name for name in self.robot.contact_frames_names
             if int(name.split("_")[-1]) in (0, 1, 4, 5)])
 
-    def _neutral(self):
-        def set_joint_rotary_position(joint_name, q_full, theta):
+    def _neutral(self) -> np.ndarray:
+        def set_joint_rotary_position(joint_name: str,
+                                      q_full: np.ndarray,
+                                      theta: float) -> None:
+            """Helper to set the configuration of a 1-DoF revolute joint.
+            """
             joint_idx = self.robot.pinocchio_model.getJointId(joint_name)
             joint = self.robot.pinocchio_model.joints[joint_idx]
             joint_type = get_joint_type(
                 self.robot.pinocchio_model, joint_idx)
+            q_joint: Union[Sequence[float], float]
             if joint_type == joint_t.ROTARY_UNBOUNDED:
-                q_joint = np.array([math.cos(theta), math.sin(theta)])
+                q_joint = (math.cos(theta), math.sin(theta))
             else:
                 q_joint = theta
             q_full[joint.idx_q + np.arange(joint.nq)] = q_joint
 
         qpos = neutral(self.robot.pinocchio_model)
-        for s in ['left', 'right']:
+        for s in ('left', 'right'):
             set_joint_rotary_position(
                 f'hip_flexion_{s}', qpos, DEFAULT_SAGITTAL_HIP_ANGLE)
             set_joint_rotary_position(
@@ -174,7 +181,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         return qpos
 
 
-CassiePDControlJiminyEnv = build_pipeline(**{
+CassiePDControlJiminyEnv = build_pipeline(**{  # type: ignore[arg-type]
     'env_config': {
         'env_class': CassieJiminyEnv
     },

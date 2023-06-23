@@ -16,7 +16,7 @@ from gym_jiminy.toolbox.math import ConvexHull
 try:
     from importlib.resources import files
 except ImportError:
-    from importlib_resources import files
+    from importlib_resources import files  # type: ignore[no-redef]
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])
@@ -82,7 +82,7 @@ STD_RATIO = {
 }
 
 
-def _cleanup_contact_points(env: "AtlasJiminyEnv") -> None:
+def _cleanup_contact_points(env: WalkerJiminyEnv) -> None:
     contact_frames_idx = env.robot.contact_frames_idx
     contact_frames_names = env.robot.contact_frames_names
     num_contacts = int(len(env.robot.contact_frames_idx) // 2)
@@ -133,8 +133,10 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         # Remove irrelevant contact points
         _cleanup_contact_points(self)
 
-    def _neutral(self):
-        def joint_position_idx(joint_name):
+    def _neutral(self) -> np.ndarray:
+        def joint_position_idx(joint_name: str) -> int:
+            """Helper to get the start index from a joint index.
+            """
             joint_idx = self.robot.pinocchio_model.getJointId(joint_name)
             return self.robot.pinocchio_model.joints[joint_idx].idx_q
 
@@ -166,7 +168,10 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
                                    mesh_package_dirs=[data_dir])
 
         # Generate the reference configuration
-        def joint_position_idx(joint_name):
+        def joint_position_idx(joint_name: str) -> int:
+            """Helper to get the start index from a joint index.
+            """
+            nonlocal pinocchio_model
             joint_idx = pinocchio_model.getJointId(joint_name)
             return pinocchio_model.joints[joint_idx].idx_q
 
@@ -193,7 +198,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
         # Build the robot and load the hardware
         robot = BaseJiminyRobot()
         Robot.initialize(robot, pinocchio_model, collision_model, visual_model)
-        robot._urdf_path_orig = urdf_path
+        robot._urdf_path_orig = urdf_path  # type: ignore[attr-defined]
         hardware_path = str(Path(urdf_path).with_suffix('')) + '_hardware.toml'
         load_hardware_description_file(
             robot,
@@ -219,7 +224,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
         _cleanup_contact_points(self)
 
 
-AtlasPDControlJiminyEnv = build_pipeline(**{
+AtlasPDControlJiminyEnv = build_pipeline(**{  # type: ignore[arg-type]
     'env_config': {
         'env_class': AtlasJiminyEnv
     },
@@ -239,7 +244,7 @@ AtlasPDControlJiminyEnv = build_pipeline(**{
 })
 
 
-AtlasReducedPDControlJiminyEnv = build_pipeline(**{
+AtlasReducedPDControlJiminyEnv = build_pipeline(**{  # type: ignore[arg-type]
     'env_config': {
         'env_class': AtlasReducedJiminyEnv
     },

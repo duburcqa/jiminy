@@ -15,7 +15,7 @@ from gym_jiminy.common.utils import sample, set_value
 try:
     from importlib.resources import files
 except ImportError:
-    from importlib_resources import files
+    from importlib_resources import files  # type: ignore[no-redef]
 
 
 # Stepper update period
@@ -117,7 +117,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
-            self.AVAIL_CTRL = [-motor.command_limit, 0.0, motor.command_limit]
+            command_limit = np.asarray(motor.command_limit)
+            self.AVAIL_CTRL = (-command_limit, np.array(0.0), command_limit)
 
         # Internal parameters used for computing termination condition
         self._tipIdx = robot.pinocchio_model.getFrameId("Tip")
@@ -163,7 +164,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             For goal env, in addition of the current robot state, both the
             desired and achieved goals are observable.
         """
-        set_value(self.__state_view, measurement['states']['agent'].values())
+        set_value(self.__state_view, measurement[
+            'states']['agent'].values())  # type: ignore[index,union-attr]
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.

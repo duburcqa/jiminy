@@ -1,6 +1,8 @@
 """ TODO: Write documentation.
 """
 import os
+from typing import Any
+
 import numpy as np
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
@@ -10,7 +12,7 @@ from gym_jiminy.common.pipeline import build_pipeline
 try:
     from importlib.resources import files
 except ImportError:
-    from importlib_resources import files
+    from importlib_resources import files  # type: ignore[no-redef]
 
 
 # Default simulation duration (:float [s])
@@ -46,7 +48,7 @@ STD_RATIO = {
 class ANYmalJiminyEnv(WalkerJiminyEnv):
     """ TODO: Write documentation.
     """
-    def __init__(self, debug: bool = False, **kwargs):
+    def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         """
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
@@ -72,7 +74,7 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
                 **kwargs})
 
 
-ANYmalPDControlJiminyEnv = build_pipeline(**{
+ANYmalPDControlJiminyEnv = build_pipeline(**{  # type: ignore[arg-type]
     'env_config': {
         'env_class': ANYmalJiminyEnv
     },

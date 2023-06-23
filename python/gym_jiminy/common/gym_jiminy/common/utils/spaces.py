@@ -14,7 +14,7 @@ from numpy import typing as npt
 
 ValueT = TypeVar('ValueT')
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
-                     Sequence['StructNested[ValueT]'],
+                     Iterable['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
@@ -32,7 +32,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
            enable_log_scale: bool = False,
            shape: Optional[Sequence[int]] = None,
            rg: Optional[np.random.Generator] = None
-           ) -> Union[float, np.ndarray]:
+           ) -> np.ndarray:
     """Randomly sample values from a given distribution.
 
     .. note:
@@ -98,7 +98,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     if enable_log_scale:
         value = 10 ** value
 
-    return value
+    return np.asarray(value)
 
 
 def is_bounded(space_nested: gym.Space) -> bool:

@@ -22,7 +22,7 @@ class PipelineDesign(unittest.TestCase):
         self.num_stack = 3
         self.skip_frames_ratio = 2
 
-        self.ANYmalPipelineEnv = build_pipeline(**{
+        self.ANYmalPipelineEnv = build_pipeline(**{  # type: ignore[arg-type]
             'env_config': {
                 'env_class': 'gym_jiminy.envs.ANYmalJiminyEnv',
                 'env_kwargs': {

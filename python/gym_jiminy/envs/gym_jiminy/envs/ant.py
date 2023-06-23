@@ -3,7 +3,7 @@
 """
 
 import os
-from typing import Tuple
+from typing import Any, List, Tuple
 
 import gymnasium as gym
 import numpy as np
@@ -21,7 +21,7 @@ from gym_jiminy.common.utils import sample
 try:
     from importlib.resources import files
 except ImportError:
-    from importlib_resources import files
+    from importlib_resources import files  # type: ignore[no-redef]
 
 
 # Stepper update period
@@ -32,7 +32,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     """ TODO: Write documentation.
     """
 
-    def __init__(self, debug: bool = False, **kwargs) -> None:
+    def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         """
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
@@ -61,8 +61,8 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                     self.bodies_idx.append(i)
 
         # Observation chunks proxy for fast access
-        self.obs_chunks = []
-        self.obs_chunks_sizes = []
+        self.obs_chunks: List[np.ndarray] = []
+        self.obs_chunks_sizes: List[Tuple[int, int]] = []
 
         # Previous torso position along x-axis in world frame
         self.xpos_prev = 0.0
@@ -126,6 +126,8 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # http://www.mujoco.org/book/APIreference.html#mjData
 
         position_space, velocity_space = self._get_agent_state_space().values()
+        assert isinstance(position_space, gym.spaces.Box)
+        assert isinstance(velocity_space, gym.spaces.Box)
 
         low = np.concatenate([
             np.full_like(position_space.low[2:], -np.inf),
@@ -158,13 +160,14 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             idx_start = 0
             for obs in self.obs_chunks:
                 idx_end = idx_start + len(obs)
-                self.obs_chunks_sizes.append([idx_start, idx_end])
+                self.obs_chunks_sizes.append((idx_start, idx_end))
                 idx_start = idx_end
 
             # Initialize previous torso position
             self.xpos_prev = self.system_state.q[0]
 
         # Update observation buffer
+        assert isinstance(self.observation_space, gym.spaces.Box)
         for obs, size in zip(self.obs_chunks, self.obs_chunks_sizes):
             obs_idx = slice(*size)
             low = self.observation_space.low[obs_idx]

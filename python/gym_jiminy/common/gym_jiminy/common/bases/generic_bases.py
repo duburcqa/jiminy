@@ -232,7 +232,7 @@ class JiminyEnvInterface(
                          t: float,
                          q: np.ndarray,
                          v: np.ndarray,
-                         sensors_data: SensorsDataType) -> None:
+                         sensors_data: jiminy.sensorsData) -> None:
         """Thin wrapper around user-specified `refresh_observation` method.
 
         .. warning::
@@ -259,7 +259,7 @@ class JiminyEnvInterface(
                            t: float,
                            q: np.ndarray,
                            v: np.ndarray,
-                           sensors_data: SensorsDataType,
+                           sensors_data: jiminy.sensorsData,
                            command: np.ndarray) -> None:
         """Thin wrapper around user-specified `refresh_observation` and
         `compute_command` methods.
@@ -305,6 +305,12 @@ class JiminyEnvInterface(
             This method is not supposed to be overloaded.
         """
         return copy(self._observation)
+
+    @property
+    def unwrapped(self) -> "JiminyEnvInterface":
+        """Base environment of the pipeline.
+        """
+        return self
 
     @property
     @abstractmethod

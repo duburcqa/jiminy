@@ -1,9 +1,10 @@
 """ TODO: Write documentation.
 """
 import os
-import numpy as np
+import logging
 from typing import Dict, Any, Optional, Tuple
 
+import numpy as np
 from gymnasium import spaces
 
 import jiminy_py.core as jiminy
@@ -16,7 +17,7 @@ from gym_jiminy.common.utils import sample, set_value
 try:
     from importlib.resources import files
 except ImportError:
-    from importlib_resources import files
+    from importlib_resources import files  # type: ignore[no-redef]
 
 
 # Stepper update period
@@ -135,7 +136,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Map between discrete actions and actual motor force if necessary
         if not self.continuous:
-            self.AVAIL_CTRL = [-motor.command_limit, motor.command_limit]
+            command_limit = np.asarray(motor.command_limit)
+            self.AVAIL_CTRL = (-command_limit, np.array(0.0), command_limit)
 
         # Configure the learning environment
         super().__init__(simulator, step_dt=STEP_DT, debug=debug)
@@ -201,7 +203,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return qpos, qvel
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
-        set_value(self.__state_view, measurement['states']['agent'].values())
+        set_value(self.__state_view, measurement[
+            'states']['agent'].values())  # type: ignore[index,union-attr]
 
     def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -225,14 +228,16 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         """
         return 1.0 if not done else 0.0
 
-    def _key_to_action(self, key: Optional[str], **kwargs: Any) -> np.ndarray:
+    def _key_to_action(self,
+                       key: str,
+                       obs: np.ndarray,
+                       reward: Optional[float],
+                       **kwargs: Any) -> Optional[np.ndarray]:
         """ TODO: Write documentation.
         """
-        if key is None:
-            return None
         if key == "Left":
-            return 1
+            return np.array(1)
         if key == "Right":
-            return 0
-        print(f"Key '{key}' not bound to any action.")
+            return np.array(0)
+        logging.warning(f"Key '{key}' not bound to any action.")
         return None
