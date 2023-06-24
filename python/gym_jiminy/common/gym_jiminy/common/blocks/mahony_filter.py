@@ -20,7 +20,6 @@ def mahony_filter(q: np.ndarray,
                   gyro: np.ndarray,
                   acc: np.ndarray,
                   bias_hat: np.ndarray,
-                  g: float,
                   dt: float,
                   k_P: float,
                   k_I: float) -> None:
@@ -45,7 +44,7 @@ def mahony_filter(q: np.ndarray,
     ), axis=-1)
 
     # Compute the angular velocity using Explicit Complementary Filter
-    v_a_hat = acc / g
+    v_a_hat = acc / EARTH_SURFACE_GRAVITY
     omega_mes = np.cross(v_a_hat, v_a)
     omega = gyro - bias_hat + k_P * omega_mes
 
