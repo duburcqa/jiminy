@@ -22,7 +22,7 @@ class PipelineDesign(unittest.TestCase):
         self.num_stack = 3
         self.skip_frames_ratio = 2
 
-        self.ANYmalPipelineEnv = build_pipeline(**dict(
+        self.ANYmalPipelineEnv = build_pipeline(
             env_config=dict(
                 env_class='gym_jiminy.envs.ANYmalJiminyEnv',
                 env_kwargs=dict(
@@ -49,10 +49,11 @@ class PipelineDesign(unittest.TestCase):
                         update_ratio=1,
                         exact_init=True,
                         kp=1.0,
-                        kd=0.1,
+                        ki=0.1
                     )
                 ), dict(
-                    wrapper_class='gym_jiminy.common.wrappers.StackedJiminyEnv',
+                    wrapper_class=(
+                        'gym_jiminy.common.wrappers.StackedJiminyEnv'),
                     wrapper_kwargs=dict(
                         nested_filter_keys=[
                             ('t',),
@@ -64,7 +65,7 @@ class PipelineDesign(unittest.TestCase):
                     )
                 )
             ]
-        ))
+        )
 
     def test_load_files(self):
         """ TODO: Write documentation

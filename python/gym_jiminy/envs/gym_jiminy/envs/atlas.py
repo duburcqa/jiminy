@@ -71,7 +71,7 @@ PID_FULL_KD = np.array([
 
 # Mahony filter proportional and derivative gains
 MAHONY_KP = 1.0
-MAHONY_KD = 0.1
+MAHONY_KI = 0.1
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
@@ -230,7 +230,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
         _cleanup_contact_points(self)
 
 
-AtlasPDControlJiminyEnv = build_pipeline(**dict(
+AtlasPDControlJiminyEnv = build_pipeline(
     env_config=dict(
         env_class=AtlasJiminyEnv
     ),
@@ -252,14 +252,14 @@ AtlasPDControlJiminyEnv = build_pipeline(**dict(
             block_kwargs=dict(
                 update_ratio=1,
                 exact_init=False,
-                kp=1.0,
-                kd=1.0,
+                kp=MAHONY_KP,
+                ki=MAHONY_KI
             )
         )
     ]
-))
+)
 
-AtlasReducedPDControlJiminyEnv = build_pipeline(**dict(
+AtlasReducedPDControlJiminyEnv = build_pipeline(
     env_config=dict(
         env_class=AtlasReducedJiminyEnv
     ),
@@ -282,8 +282,8 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(**dict(
                 update_ratio=1,
                 exact_init=False,
                 kp=MAHONY_KP,
-                kd=MAHONY_KD,
+                ki=MAHONY_KI
             )
         )
     ]
-))
+)

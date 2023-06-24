@@ -1,4 +1,7 @@
-from typing import Any, List, Optional
+"""Implementation of Mahony filter block compatible with gym_jiminy
+reinforcement learning pipeline environment design.
+"""
+from typing import Any, List, Union
 
 import numpy as np
 import numba as nb
@@ -21,8 +24,8 @@ def mahony_filter(q: np.ndarray,
                   acc: np.ndarray,
                   bias_hat: np.ndarray,
                   dt: float,
-                  k_P: float,
-                  k_I: float) -> None:
+                  kp: float,
+                  ki: float) -> None:
     """Attitude Estimation using Mahony filter.
 
     .. note::
@@ -46,7 +49,7 @@ def mahony_filter(q: np.ndarray,
     # Compute the angular velocity using Explicit Complementary Filter
     v_a_hat = acc / EARTH_SURFACE_GRAVITY
     omega_mes = np.cross(v_a_hat, v_a)
-    omega = gyro - bias_hat + k_P * omega_mes
+    omega = gyro - bias_hat + kp * omega_mes
 
     # Early return if there is no IMU motion
     if np.all(omega < 1e-6):
@@ -72,7 +75,7 @@ def mahony_filter(q: np.ndarray,
         q * q), axis=-1).reshape((*q.shape[:-1], 1))) / 2
 
     # Update Gyro bias
-    bias_hat -= dt * k_I * omega_mes.reshape(bias_hat.shape)
+    bias_hat -= dt * ki * omega_mes.reshape(bias_hat.shape)
 
 
 class MahonyFilter(
@@ -91,8 +94,8 @@ class MahonyFilter(
                  env: JiminyEnvInterface[BaseObsT, BaseActT],
                  update_ratio: int = 1,
                  exact_init: bool = True,
-                 mahony_kp: float = 1.0,
-                 mahony_ki: float = 0.1,
+                 kp: Union[np.ndarray, float] = 1.0,
+                 ki: Union[np.ndarray, float] = 0.1,
                  **kwargs: Any) -> None:
         """
         :param name: Name of the block.
@@ -106,13 +109,19 @@ class MahonyFilter(
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
+        # Handling of default argument(s)
+        num_imu_sensors = len(env.robot.sensors_names[imu.type])
+        if isinstance(kp, float):
+            kp = np.full((num_imu_sensors,), kp)
+        if isinstance(ki, float):
+            ki = np.full((num_imu_sensors,), ki)
+
         # Backup some of the user arguments
         self.exact_init = exact_init
-        self.kp = mahony_kp
-        self.ki = mahony_ki
+        self.kp = kp
+        self.ki = ki
 
         # Allocate bias estimate
-        num_imu_sensors = len(env.robot.sensors_names[imu.type])
         self._bias = np.zeros((num_imu_sensors, 3))
 
         # Initialize the observer
@@ -144,7 +153,7 @@ class MahonyFilter(
         # Reset the sensor bias
         fill(self._bias, 0)
 
-    def get_state(self) -> DataNested:
+    def get_state(self) -> np.ndarray:
         return self._bias
 
     @property
@@ -176,7 +185,8 @@ class MahonyFilter(
             else:
                 if np.all(acc < 0.1 * EARTH_SURFACE_GRAVITY):
                     raise RuntimeError(
-                        "Impossible to initialize Mahony filter because the acceleration at reset is too small.")
+                        "The acceleration at reset is too small. Impossible "
+                        "to initialize Mahony filter for 'exact_init=False'.")
                 acc = acc / np.linalg.norm(acc, axis=0)
                 axis = np.stack(
                     (acc[1], -acc[0], np.zeros(acc.shape[1:])), axis=0)

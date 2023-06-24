@@ -115,7 +115,6 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
     def fieldnames(self) -> FieldNested:
         """Blocks fieldnames for logging.
         """
-        return get_fieldnames(self.action_space)
 
 
 class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],

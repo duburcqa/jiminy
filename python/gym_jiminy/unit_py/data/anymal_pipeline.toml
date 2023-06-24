@@ -20,7 +20,7 @@ block_class = "gym_jiminy.common.blocks.MahonyFilter"
 update_ratio = 1
 exact_init = false
 kp = 1.0
-kd = 0.1
+ki = 0.1
 
 [[blocks_config]]
 wrapper_class = "gym_jiminy.common.wrappers.StackedJiminyEnv"
