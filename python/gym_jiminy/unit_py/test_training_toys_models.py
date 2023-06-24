@@ -54,7 +54,7 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         config['vf_coef'] = 0.02
         config['clip_range'] = 0.3
         config['clip_range_vf'] = None
-        config['max_grad_norm'] = 1.0
+        config['max_grad_norm'] = float('inf')
         config['seed'] = SEED
 
         # Policy model config

@@ -1,6 +1,7 @@
 """Implementation of Mahony filter block compatible with gym_jiminy
 reinforcement learning pipeline environment design.
 """
+import logging
 from typing import Any, List, Union
 
 import numpy as np
@@ -12,10 +13,12 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 import pinocchio as pin
 
 from ..bases import BaseObsT, BaseActT, BaseObserverBlock, JiminyEnvInterface
-from ..utils import DataNested, fill
+from ..utils import fill
 
 
 EARTH_SURFACE_GRAVITY = 9.81
+
+LOGGER = logging.getLogger(__name__)
 
 
 @nb.jit(nopython=True, nogil=True)
@@ -52,7 +55,7 @@ def mahony_filter(q: np.ndarray,
     omega = gyro - bias_hat + kp * omega_mes
 
     # Early return if there is no IMU motion
-    if np.all(omega < 1e-6):
+    if np.all(np.abs(omega) < 1e-6):
         return
 
     # Compute Axis-Angle repr. of the angular velocity: exp3(dt * omega)
@@ -175,23 +178,25 @@ class MahonyFilter(
         # Re-initialize the quaternion estimate if no simulation running.
         # It corresponds to the rotation transforming 'acc' in 'e_z'.
         if not self.env.simulator.is_simulation_running:
-            if self.exact_init:
+            is_initialized = False
+            if not self.exact_init:
+                if np.all(np.abs(acc) < 0.1 * EARTH_SURFACE_GRAVITY):
+                    LOGGER.warning(
+                        "The acceleration at reset is too small. Impossible "
+                        "to initialize Mahony filter for 'exact_init=False'.")
+                else:
+                    acc = acc / np.linalg.norm(acc, axis=0)
+                    axis = np.stack(
+                        (acc[1], -acc[0], np.zeros(acc.shape[1:])), axis=0)
+                    s = np.sqrt(2 * (1 + acc[2]))
+                    self._observation.T[:] = *(axis / s), s / 2
+            if not is_initialized:
                 robot = self.env.robot
                 for i, name in enumerate(robot.sensors_names[imu.type]):
                     sensor = robot.get_sensor(imu.type, name)
                     assert isinstance(sensor, imu)
                     rot = robot.pinocchio_data.oMf[sensor.frame_idx].rotation
                     self._observation[i] = pin.Quaternion(rot).coeffs()
-            else:
-                if np.all(acc < 0.1 * EARTH_SURFACE_GRAVITY):
-                    raise RuntimeError(
-                        "The acceleration at reset is too small. Impossible "
-                        "to initialize Mahony filter for 'exact_init=False'.")
-                acc = acc / np.linalg.norm(acc, axis=0)
-                axis = np.stack(
-                    (acc[1], -acc[0], np.zeros(acc.shape[1:])), axis=0)
-                s = np.sqrt(2 * (1 + acc[2]))
-                self._observation.T[:] = *(axis / s), s / 2
             if mahony_filter.signatures:
                 return
 

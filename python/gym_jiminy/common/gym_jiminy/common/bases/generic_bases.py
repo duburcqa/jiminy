@@ -14,11 +14,11 @@ import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
 
-from ..utils import DataNested, is_breakpoint, zeros, fill, copy
+from ..utils import DataNested, zeros, fill, copy
 
 
 # Temporal resolution of simulator steps
-DT_EPS: float = jiminy.EngineMultiRobot.telemetry_time_unit
+DT_EPS: float = 1e-6  # 'SIMULATION_MIN_TIMESTEP'
 
 
 ObsT = TypeVar('ObsT', bound=DataNested)
@@ -252,8 +252,7 @@ class JiminyEnvInterface(
         :param sensors_data: Current sensor data.
         """
         # Refresh the observation if not already done
-        if not self.__is_observation_refreshed and \
-                is_breakpoint(t, self.observe_dt, DT_EPS):
+        if not self.__is_observation_refreshed:
             measurement: EngineObsType = OrderedDict(
                 t=np.array((t,)),
                 states=OrderedDict(agent=OrderedDict(q=q, v=v)),

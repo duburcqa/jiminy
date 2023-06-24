@@ -189,6 +189,13 @@ namespace jiminy
 
     void ImuSensor::measureData(void)
     {
+        // Add measurement white noise
+        if (baseSensorOptions_->noiseStd.size())
+        {
+            // Accel + gyroscope: simply apply additive noise
+            get() += randVectorNormal(baseSensorOptions_->noiseStd);
+        }
+
         // Add measurement bias
         if (baseSensorOptions_->bias.size())
         {
@@ -200,13 +207,6 @@ namespace jiminy
                sensor rotation bias R_b, such that w_R_sensor = w_R_imu R_b. */
             get().head<3>() = sensorRotationBiasInv_ * get().head<3>();
             get().tail<3>() = sensorRotationBiasInv_ * get().tail<3>();
-        }
-
-        // Add measurement white noise
-        if (baseSensorOptions_->noiseStd.size())
-        {
-            // Accel + gyroscope: simply apply additive noise.
-            get() += randVectorNormal(baseSensorOptions_->noiseStd.tail<6>());
         }
     }
 
