@@ -15,6 +15,14 @@ soft_bounds_margin = 0.0
 augment_observation = true
 
 [[blocks_config]]
+block_class = "gym_jiminy.common.blocks.MahonyFilter"
+[blocks_config.block_kwargs]
+update_ratio = 1
+exact_init = false
+kp = 1.0
+kd = 1.0
+
+[[blocks_config]]
 wrapper_class = "gym_jiminy.common.wrappers.StackedJiminyEnv"
 [blocks_config.wrapper_kwargs]
 nested_filter_keys = [

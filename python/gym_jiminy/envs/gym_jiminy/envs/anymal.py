@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.blocks import PDController
+from gym_jiminy.common.blocks import PDController, MahonyFilter
 from gym_jiminy.common.pipeline import build_pipeline
 
 if sys.version_info < (3, 9):
@@ -75,21 +75,31 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
                 **kwargs})
 
 
-ANYmalPDControlJiminyEnv = build_pipeline(**{  # type: ignore[arg-type]
-    'env_config': {
-        'env_class': ANYmalJiminyEnv
-    },
-    'blocks_config': [{
-        'block_class': PDController,
-        'block_kwargs': {
-            'update_ratio': HLC_TO_LLC_RATIO,
-            'order': 1,
-            'kp': PID_KP,
-            'kd': PID_KD,
-            'soft_bounds_margin': 0.0
-        },
-        'wrapper_kwargs': {
-            'augment_observation': False
-        }}
+ANYmalPDControlJiminyEnv = build_pipeline(**dict(
+    env_config=dict(
+        env_class=ANYmalJiminyEnv
+    ),
+    blocks_config=[
+        dict(
+            block_class=PDController,
+            block_kwargs=dict(
+                update_ratio=HLC_TO_LLC_RATIO,
+                order=1,
+                kp=PID_KP,
+                kd=PID_KD,
+                soft_bounds_margin=0.0
+            ),
+            wrapper_kwargs=dict(
+                augment_observation=False
+            )
+        ), dict(
+            block_class=MahonyFilter,
+            block_kwargs=dict(
+                update_ratio=1,
+                exact_init=False,
+                kp=1.0,
+                kd=1.0,
+            )
+        )
     ]
-})
+))

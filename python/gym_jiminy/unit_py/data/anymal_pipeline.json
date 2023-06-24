@@ -20,6 +20,15 @@
       }
     },
     {
+      "block_class": "gym_jiminy.common.blocks.MahonyFilter",
+      "block_kwargs": {
+        "update_ratio": 1,
+        "exact_init": false,
+        "kp": 1.0,
+        "kd": 1.0
+      }
+    },
+    {
       "wrapper_class": "gym_jiminy.common.wrappers.StackedJiminyEnv",
       "wrapper_kwargs": {
         "nested_filter_keys": [
