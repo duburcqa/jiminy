@@ -77,16 +77,13 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Extract state evolution over time
         time = log_vars['Global.Time']
         if split:
-            quat_jiminy = np.stack([
-                log_vars['PendulumLink.Quat' + s] for s in ['x', 'y', 'z', 'w']
-            ], axis=-1)
             gyro_jiminy = np.stack([
                 log_vars['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']
             ], axis=-1)
             accel_jiminy = np.stack([
                 log_vars['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
             ], axis=-1)
-            return time, quat_jiminy, gyro_jiminy, accel_jiminy
+            return time, gyro_jiminy, accel_jiminy
         else:
             imu_jiminy = np.stack([
                 log_vars['PendulumLink.' + f]
@@ -191,7 +188,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Run simulation and extract log data
         x0 = np.array([0.1, 0.1])
         tf = 2.0
-        time, quat_jiminy, gyro_jiminy, accel_jiminy = \
+        time, gyro_jiminy, accel_jiminy = \
             SimulateSimplePendulum._simulate_and_get_imu_data_evolution(
                 engine, tf, x0, split=True)
 
@@ -222,15 +219,8 @@ class SimulateSimplePendulum(unittest.TestCase):
             dtheta,
             np.zeros_like(theta)], axis=-1)
 
-        expected_quat = np.stack([
-            Quaternion(rpyToMatrix(np.array([0., t, 0.]))).coeffs()
-            for t in theta
-        ], axis=0)
-
         # Compare sensor signal, ignoring first iterations that correspond to
         # system initialization
-        self.assertTrue(np.allclose(
-            expected_quat[2:, :], quat_jiminy[2:, :], atol=TOLERANCE))
         self.assertTrue(np.allclose(
             expected_gyro[2:, :], gyro_jiminy[2:, :], atol=TOLERANCE))
         self.assertTrue(np.allclose(
@@ -307,61 +297,52 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine = jiminy.Engine()
         setup_controller_and_engine(engine, self.robot)
 
-        # Configure the engine: No gravity
-        engine_options = engine.get_options()
-        engine_options["world"]["gravity"] = np.zeros(6)
-        engine.set_options(engine_options)
-
         # Configure the IMU
         imu_options = self.imu_sensor.get_options()
-        imu_options['noiseStd'] = np.linspace(0.0, 0.2, 9)
-        imu_options['bias'] = np.linspace(0.0, 1.0, 9)
+        imu_options['noiseStd'] = np.array([0.03, 0.06, 0.1, 0.13, 0.16, 0.2])
+        imu_options['bias'] = np.array([0.1, 0.2, 0.0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.7])
         self.imu_sensor.set_options(imu_options)
 
         # Run simulation and extract log data
         x0 = np.array([0.0, 0.0])
         tf = 200.0
-        _, quat_jiminy, gyro_jiminy, accel_jiminy = \
+        _, gyro_jiminy, accel_jiminy = \
             SimulateSimplePendulum._simulate_and_get_imu_data_evolution(
                 engine, tf, x0, split=True)
 
-        # Convert quaternion to a rotation vector.
-        quat_axis = np.stack([log3(Quaternion(q[:, np.newaxis]).matrix())
-                              for q in quat_jiminy], axis=0)
-
-        # Estimate the quaternion noise and bias
+        # Estimate the quaternion bias
         # Because the IMU rotation is identity, the resulting rotation will
-        # simply be R_b R_noise. Since R_noise is a small rotation, we can
-        # consider that the resulting rotation is simply the rotation resulting
-        # from the sum of the rotation vector (this is only true at the first
-        # order) and thus directly recover the unbiased sensor data.
-        quat_axis_bias = np.mean(quat_axis, axis=0)
-        quat_axis_std = np.std(quat_axis, axis=0)
+        # simply be R_b and thus directly recover the unbiased sensor data.
+        quat_rot_bias = exp3(imu_options['bias'][:3])
+        accel_mean = np.mean(
+            accel_jiminy, axis=0) - quat_rot_bias.T @ imu_options['bias'][-3:]
+        acc = accel_mean / np.linalg.norm(accel_mean)
+        axis = np.array((acc[1], -acc[0], 0.0))
+        s = np.sqrt(2 * (1 + acc[2]))
+        quat_bias = np.stack((*(axis / s), s / 2))
+        quat_axis_bias = log3(Quaternion(quat_bias).matrix())
 
         # Remove sensor rotation bias from gyro / accel data
-        quat_rot_bias = exp3(quat_axis_bias)
         gyro_jiminy = np.vstack([quat_rot_bias @ v for v in gyro_jiminy])
         accel_jiminy = np.vstack([quat_rot_bias @ v for v in accel_jiminy])
 
         # Estimate the gyroscope and accelerometer noise and bias
-        gyro_std = np.std(gyro_jiminy, axis=0)
         gyro_bias = np.mean(gyro_jiminy, axis=0)
+        accel_bias = np.mean(accel_jiminy, axis=0) - np.array([0.0, 0.0, 9.81])
+        gyro_std = np.std(gyro_jiminy, axis=0)
         accel_std = np.std(accel_jiminy, axis=0)
-        accel_bias = np.mean(accel_jiminy, axis=0)
 
         # Compare estimated sensor noise and bias with the configuration
         self.assertTrue(np.allclose(
-            imu_options['noiseStd'][:3], quat_axis_std, atol=1.0e-2))
-        self.assertTrue(np.allclose(
-            imu_options['bias'][:3], quat_axis_bias, atol=1.0e-2))
-        self.assertTrue(np.allclose(
-            imu_options['noiseStd'][3:-3], gyro_std, atol=1.0e-2))
+            imu_options['bias'][:2], quat_axis_bias[:2], atol=1.0e-2))
         self.assertTrue(np.allclose(
             imu_options['bias'][3:-3], gyro_bias, atol=1.0e-2))
         self.assertTrue(np.allclose(
-            imu_options['noiseStd'][-3:], accel_std, atol=1.0e-2))
-        self.assertTrue(np.allclose(
             imu_options['bias'][-3:], accel_bias, atol=1.0e-2))
+        self.assertTrue(np.allclose(
+            imu_options['noiseStd'][:3], gyro_std, atol=1.0e-2))
+        self.assertTrue(np.allclose(
+            imu_options['noiseStd'][-3:], accel_std, atol=1.0e-2))
 
     def test_pendulum_force_impulse(self):
         """Validate the impulse-momentum theorem

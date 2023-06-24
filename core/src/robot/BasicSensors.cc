@@ -69,13 +69,13 @@ namespace jiminy
     bool_t const AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_(false);
     template<>
     std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldnames_(
-        {"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
+        {"Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
 
     ImuSensor::ImuSensor(std::string const & name) :
     AbstractSensorTpl(name),
     frameName_(),
     frameIdx_(0),
-    sensorRotationBias_()
+    sensorRotationBiasInv_(matrix3_t::Identity())
     {
         // Empty on purpose
     }
@@ -104,11 +104,16 @@ namespace jiminy
         // Check that bias / std is of the correct size
         vectorN_t const & bias = boost::get<vectorN_t>(sensorOptions.at("bias"));
         vectorN_t const & noiseStd = boost::get<vectorN_t>(sensorOptions.at("noiseStd"));
-        if ((bias.size() && bias.size() != 9) || (noiseStd.size() && noiseStd.size() != 9))
+        if (bias.size() && bias.size() != 9)
         {
-            PRINT_ERROR("Wrong bias or std vector size. Bias vector should contain 9 coordinates:\n"
+            PRINT_ERROR("Wrong bias vector. It must contain 9 values:\n"
                         "  - the first three are the angle-axis representation of a rotation bias applied to all sensor signal.\n"
                         "  - the next six are respectively gyroscope and accelerometer additive bias.");
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+        if (noiseStd.size() && noiseStd.size() != 6)
+        {
+            PRINT_ERROR("Wrong noise std vector. It must contain 6 values corresponding respectively to gyroscope and accelerometer additive bias.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -136,11 +141,11 @@ namespace jiminy
             if (baseSensorOptions_->bias.size())
             {
                 // Convert first three components of bias to quaternion
-                sensorRotationBias_ = quaternion_t(pinocchio::exp3(baseSensorOptions_->bias.head<3>()));
+                sensorRotationBiasInv_ = pinocchio::exp3(- baseSensorOptions_->bias.head<3>());
             }
             else
             {
-                sensorRotationBias_ = quaternion_t(0.0, 0.0, 0.0, 1.0);
+                sensorRotationBiasInv_ = matrix3_t::Identity();
             }
         }
 
@@ -166,69 +171,43 @@ namespace jiminy
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        /* Compute quaternion (x,y,z,w).
-           - Convert the rotation matrix of the attached frame into a quaternion.
-           - Ensure continuity of the measured quaternion. */
-        matrix3_t const & rot = robot->pncData_.oMf[frameIdx_].rotation();
-        quaternion_t quat(rot);
-        Eigen::Map<quaternion_t> quatPrev(data().head<4>().data());
-        if (quatPrev.dot(quat) < 0.0)
-        {
-            quat.coeffs() *= -1;
-        }
-        quatPrev = quat;
-
         // Compute gyroscope signal
         pinocchio::Motion const velocity = pinocchio::getFrameVelocity(
             robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
-        data().segment<3>(4) = velocity.angular();
+        data().head<3>() = velocity.angular();
 
         // Compute accelerometer signal
         pinocchio::Motion const acceleration = pinocchio::getFrameClassicalAcceleration(
             robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
 
         // Accelerometer signal is sensor classical (not spatial !) linear acceleration minus gravity
-        data().tail<3>() = acceleration.linear() - quat.conjugate() * robot->pncModel_.gravity.linear();
+        matrix3_t const & rot = robot->pncData_.oMf[frameIdx_].rotation();
+        data().tail<3>() = acceleration.linear() - rot.transpose() * robot->pncModel_.gravity.linear();
 
         return hresult_t::SUCCESS;
     }
 
     void ImuSensor::measureData(void)
     {
-        // Add bias
+        // Add measurement bias
         if (baseSensorOptions_->bias.size())
         {
             // Accel + gyroscope: simply add additive bias
-            get().tail<6>() += baseSensorOptions_->bias.tail<6>();
+            get() += baseSensorOptions_->bias.tail<6>();
 
-            // Quaternion: interpret bias as angle-axis representation of a
-            // sensor rotation bias R_b, such that w_R_sensor = w_R_imu R_b.
-            get().head<4>() = (Eigen::Map<const quaternion_t>(get().head<4>().data()) *
-                               sensorRotationBias_).coeffs();
-
-            // Apply the same bias to the accelerometer / gyroscope output.
-            get().segment<3>(4) = sensorRotationBias_.conjugate() * get().segment<3>(4);
-            get().tail<3>() = sensorRotationBias_.conjugate() * get().tail<3>();
+            /* Apply the same bias to the accelerometer / gyroscope output.
+               We interpret quaternion bias as angle-axis representation of a
+               sensor rotation bias R_b, such that w_R_sensor = w_R_imu R_b. */
+            get().head<3>() = sensorRotationBiasInv_ * get().head<3>();
+            get().tail<3>() = sensorRotationBiasInv_ * get().tail<3>();
         }
 
-        // Add white noise
+        // Add measurement white noise
         if (baseSensorOptions_->noiseStd.size())
         {
-            /* Quaternion: interpret noise as a random rotation vector applied
-               as an extra bias to the right, i.e. w_R_sensor = w_R_imu R_noise.
-               Note that R_noise = exp3(gaussian(noiseStd)): this means the
-               rotation vector follows a gaussian probability law, but doesn't
-               say much in general about the rotation. However in practice we
-               expect the standard deviation to be small, and thus the
-               approximation to be valid. */
-            vector3_t const randAxis = randVectorNormal(baseSensorOptions_->noiseStd.head<3>());
-            get().head<4>() = (Eigen::Map<const quaternion_t>(get().head<4>().data()) *
-                               quaternion_t(pinocchio::exp3(randAxis))).coeffs();
-
             // Accel + gyroscope: simply apply additive noise.
-            get().tail<6>() += randVectorNormal(baseSensorOptions_->noiseStd.tail<6>());
+            get() += randVectorNormal(baseSensorOptions_->noiseStd.tail<6>());
         }
-
     }
 
     // ===================== ContactSensor =========================
