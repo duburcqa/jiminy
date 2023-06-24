@@ -86,7 +86,7 @@ class PipelineControl(unittest.TestCase):
         velocity_target = np.stack([
             log_vars['.'.join((
                 'HighLevelController', self.env.controller.name, name))]
-            for name in self.env.controller.get_fieldnames()], axis=-1)
+            for name in self.env.controller.fieldnames], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_target[time > time[-1] - 1.0]) < 1.0e-9))
 

@@ -370,6 +370,12 @@ class ObservedJiminyEnv(
             'features', OrderedDict())[  # type: ignore[index]
                 self.observer.name] = self.observer.get_observation()
 
+        # Register the observer's feature to the telemetry
+        self.env.register_variable('feature',  # type: ignore[attr-defined]
+                                   self.observation,
+                                   self.observer.fieldnames,
+                                   self.observer.name)
+
     def _setup(self) -> None:
         """Configure the wrapper.
 
@@ -570,7 +576,7 @@ class ControlledJiminyEnv(
         # Register the controller's target to the telemetry
         self.env.register_variable('action',  # type: ignore[attr-defined]
                                    self.action,
-                                   self.controller.get_fieldnames(),
+                                   self.controller.fieldnames,
                                    self.controller.name)
 
     def _setup(self) -> None:

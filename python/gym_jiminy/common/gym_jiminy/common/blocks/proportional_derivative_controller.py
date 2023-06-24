@@ -109,15 +109,15 @@ def integrate_zoh(state_prev: np.ndarray,
 
 
 @nb.jit(nopython=True, nogil=True)
-def compute_pd_controller(encoders_data: np.ndarray,
-                          command_state: np.ndarray,
-                          command_state_lower: np.ndarray,
-                          command_state_upper: np.ndarray,
-                          pid_kp: np.ndarray,
-                          pid_kd: np.ndarray,
-                          motor_effort_limit: np.ndarray,
-                          control_dt: float,
-                          deadband: float) -> np.ndarray:
+def pd_controller(encoders_data: np.ndarray,
+                  command_state: np.ndarray,
+                  command_state_lower: np.ndarray,
+                  command_state_upper: np.ndarray,
+                  pid_kp: np.ndarray,
+                  pid_kd: np.ndarray,
+                  motor_effort_limit: np.ndarray,
+                  control_dt: float,
+                  deadband: float) -> np.ndarray:
     """ TODO Write documentation.
     """
     # Integrate command state
@@ -176,8 +176,8 @@ class PDController(
     def __init__(self,
                  name: str,
                  env: JiminyEnvInterface[BaseObsT, np.ndarray],
-                 order: int = 1,
                  update_ratio: int = 1,
+                 order: int = 1,
                  pid_kp: Union[float, List[float], np.ndarray] = 0.0,
                  pid_kd: Union[float, List[float], np.ndarray] = 0.0,
                  soft_bounds_margin: float = 0.0,
@@ -185,9 +185,9 @@ class PDController(
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
-        :param order: Derivative order of the action.
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller.
+        :param order: Derivative order of the action.
         :param pid_kp: PD controller position-proportional gain in motor order.
         :param pid_kd: PD controller velocity-proportional gain in motor order.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
@@ -282,19 +282,20 @@ class PDController(
             high=self._command_state_upper[:-1],
             dtype=np.float64)
 
-    def get_state(self) -> np.ndarray:
-        return self._command_state[:-1]
-
     def _setup(self) -> None:
         # Call base implementation
         super()._setup()
 
         # Reset the command state
-        fill(self._command_state, 0.0)
+        fill(self._command_state, 0)
 
-    def get_fieldnames(self) -> List[str]:
+    @property
+    def fieldnames(self) -> List[str]:
         return [f"target{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
                 for name in self.env.robot.motors_names]
+
+    def get_state(self) -> np.ndarray:
+        return self._command_state[:-1]
 
     def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motor torques using a PD controller.
@@ -323,11 +324,11 @@ class PDController(
         # Skip integrating command and return early if no simulation running.
         # It also checks that the low-level function is already pre-compiled.
         # This is necessary to avoid spurious timeout during first step.
-        if not is_simulation_running and compute_pd_controller.signatures:
+        if not is_simulation_running and pd_controller.signatures:
             return np.zeros_like(action)
 
         # Compute the motor efforts using PD control
-        return compute_pd_controller(
+        return pd_controller(
             self.env.sensors_data[encoder.type],
             self._command_state,
             self._command_state_lower,

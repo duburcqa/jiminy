@@ -1,8 +1,10 @@
 # pylint: disable=missing-module-docstring
 
-from .controller_proportional_derivative import PDController
+from .proportional_derivative_controller import PDController
+from .mahony_filter import MahonyFilter
 
 
 __all__ = [
-    'PDController'
+    'PDController',
+    'MahonyFilter'
 ]

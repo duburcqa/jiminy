@@ -110,6 +110,13 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
         """Get the internal state space of the controller.
         """
 
+    @property
+    @abstractmethod
+    def fieldnames(self) -> FieldNested:
+        """Blocks fieldnames for logging.
+        """
+        return get_fieldnames(self.action_space)
+
 
 class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
                         BlockInterface[BlockStateT, BaseObsT, BaseActT],
@@ -149,6 +156,17 @@ class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
         assert self.observe_dt <= self.env.step_dt, (
             "The observer update period must be lower than or equal to the "
             "environment simulation timestep.")
+
+    @property
+    def get_fieldnames(self) -> FieldNested:
+        """Get mapping between each scalar element of the observation space of
+        the observer block and the associated fieldname for logging.
+
+        It is expected to return an object with the same structure than the
+        observation space, but having lists of string as leaves. Generic
+        fieldnames are used by default.
+        """
+        return get_fieldnames(self.observation_space)
 
 
 class BaseControllerBlock(
@@ -204,20 +222,14 @@ class BaseControllerBlock(
             "The controller update period must be lower than or equal to the "
             "environment simulation timestep.")
 
+    @property
     def get_fieldnames(self) -> FieldNested:
-        """Get mapping between each scalar element of the action space of the
-        controller and the associated fieldname for logging.
+        """Get mapping between each scalar element of the action space of
+        the controller block and the associated fieldname for logging.
 
         It is expected to return an object with the same structure than the
-        action space, the difference being numerical arrays replaced by lists
-        of string.
-
-        By default, generic fieldnames using 'Action' prefix and index as
-        suffix for `np.ndarray`.
-
-        .. note::
-            This method is not supposed to be called before `reset`, so that
-            the controller should be already initialized at this point.
+        action space, but having lists of string as leaves. Generic fieldnames
+        are used by default.
         """
         return get_fieldnames(self.action_space)
 
