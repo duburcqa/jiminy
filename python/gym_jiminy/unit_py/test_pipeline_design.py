@@ -22,39 +22,49 @@ class PipelineDesign(unittest.TestCase):
         self.num_stack = 3
         self.skip_frames_ratio = 2
 
-        self.ANYmalPipelineEnv = build_pipeline(**{  # type: ignore[arg-type]
-            'env_config': {
-                'env_class': 'gym_jiminy.envs.ANYmalJiminyEnv',
-                'env_kwargs': {
-                    'step_dt': self.step_dt,
-                    'debug': True
-                }
-            },
-            'blocks_config': [{
-                'block_class': 'gym_jiminy.common.blocks.PDController',
-                'block_kwargs': {
-                    'update_ratio': 2,
-                    'order': 1,
-                    'kp': self.pid_kp,
-                    'kd': self.pid_kd,
-                    'soft_bounds_margin': 0.0
-                },
-                'wrapper_kwargs': {
-                    'augment_observation': True
-                }},
-                {
-                'wrapper_class': 'gym_jiminy.common.wrappers.StackedJiminyEnv',
-                'wrapper_kwargs': {
-                    'nested_filter_keys': [
-                        ('t',),
-                        ('measurements', 'ImuSensor'),
-                        ('actions',)
-                    ],
-                    'num_stack': self.num_stack,
-                    'skip_frames_ratio': self.skip_frames_ratio
-                }}
+        self.ANYmalPipelineEnv = build_pipeline(**dict(
+            env_config=dict(
+                env_class='gym_jiminy.envs.ANYmalJiminyEnv',
+                env_kwargs=dict(
+                    step_dt=self.step_dt,
+                    debug=True
+                )
+            ),
+            blocks_config=[
+                dict(
+                    block_class='gym_jiminy.common.blocks.PDController',
+                    block_kwargs=dict(
+                        update_ratio=2,
+                        order=1,
+                        kp=self.pid_kp,
+                        kd=self.pid_kd,
+                        soft_bounds_margin=0.0
+                    ),
+                    wrapper_kwargs=dict(
+                        augment_observation=True
+                    )
+                ), dict(
+                    block_class='gym_jiminy.common.blocks.MahonyFilter',
+                    block_kwargs=dict(
+                        update_ratio=1,
+                        exact_init=True,
+                        kp=1.0,
+                        kd=0.1,
+                    )
+                ), dict(
+                    wrapper_class='gym_jiminy.common.wrappers.StackedJiminyEnv',
+                    wrapper_kwargs=dict(
+                        nested_filter_keys=[
+                            ('t',),
+                            ('measurements', 'ImuSensor'),
+                            ('actions',)
+                        ],
+                        num_stack=self.num_stack,
+                        skip_frames_ratio=self.skip_frames_ratio
+                    )
+                )
             ]
-        })
+        ))
 
     def test_load_files(self):
         """ TODO: Write documentation

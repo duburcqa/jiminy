@@ -91,8 +91,8 @@ class MahonyFilter(
                  env: JiminyEnvInterface[BaseObsT, BaseActT],
                  update_ratio: int = 1,
                  exact_init: bool = True,
-                 mahony_kp: float = 0.0,
-                 mahony_ki: float = 0.0,
+                 mahony_kp: float = 1.0,
+                 mahony_ki: float = 0.1,
                  **kwargs: Any) -> None:
         """
         :param name: Name of the block.

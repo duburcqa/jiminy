@@ -47,6 +47,10 @@ PID_KP = np.array([50.0, 50.0, 50.0, 80.0, 8.0,
 PID_KD = np.array([0.01, 0.02, 0.02, 0.03, 0.02,
                    0.01, 0.02, 0.02, 0.03, 0.02])
 
+# Mahony filter proportional and derivative gains
+MAHONY_KP = 1.0
+MAHONY_KD = 0.1
+
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
     'direction': 0.0,
@@ -204,8 +208,8 @@ CassiePDControlJiminyEnv = build_pipeline(**dict(
             block_kwargs=dict(
                 update_ratio=1,
                 exact_init=False,
-                kp=1.0,
-                kd=1.0,
+                kp=MAHONY_KP,
+                kd=MAHONY_KD,
             )
         )
     ]

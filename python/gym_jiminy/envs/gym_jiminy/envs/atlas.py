@@ -69,6 +69,10 @@ PID_FULL_KD = np.array([
     # Lower body motors
     *PID_REDUCED_KD])
 
+# Mahony filter proportional and derivative gains
+MAHONY_KP = 1.0
+MAHONY_KD = 0.1
+
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
     'direction': 0.0,
@@ -277,8 +281,8 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(**dict(
             block_kwargs=dict(
                 update_ratio=1,
                 exact_init=False,
-                kp=1.0,
-                kd=1.0,
+                kp=MAHONY_KP,
+                kd=MAHONY_KD,
             )
         )
     ]
