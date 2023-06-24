@@ -20,6 +20,7 @@ def mahony_filter(q: np.ndarray,
                   gyro: np.ndarray,
                   acc: np.ndarray,
                   bias_hat: np.ndarray,
+                  g: float,
                   dt: float,
                   k_P: float,
                   k_I: float) -> None:
@@ -44,9 +45,13 @@ def mahony_filter(q: np.ndarray,
     ), axis=-1)
 
     # Compute the angular velocity using Explicit Complementary Filter
-    v_a_hat = acc / EARTH_SURFACE_GRAVITY
+    v_a_hat = acc / g
     omega_mes = np.cross(v_a_hat, v_a)
     omega = gyro - bias_hat + k_P * omega_mes
+
+    # Early return if there is no IMU motion
+    if np.all(omega < 1e-6):
+        return
 
     # Compute Axis-Angle repr. of the angular velocity: exp3(dt * omega)
     theta = np.sqrt(
@@ -107,7 +112,7 @@ class MahonyFilter(
         self.kp = mahony_kp
         self.ki = mahony_ki
 
-        # Allocate bias and orientation estimates
+        # Allocate bias estimate
         num_imu_sensors = len(env.robot.sensors_names[imu.type])
         self._bias = np.zeros((num_imu_sensors, 3))
 
@@ -137,9 +142,8 @@ class MahonyFilter(
         # Call base implementation
         super()._setup()
 
-        # Reset the sensor bias and quaternion estimate
+        # Reset the sensor bias
         fill(self._bias, 0)
-        fill(self._q_prev, float('nan'))
 
     def get_state(self) -> DataNested:
         return self._bias
@@ -162,22 +166,28 @@ class MahonyFilter(
 
         # Re-initialize the quaternion estimate if no simulation running.
         # It corresponds to the rotation transforming 'acc' in 'e_z'.
-        is_simulation_running = self.env.simulator.is_simulation_running
-        if not is_simulation_running:
+        if not self.env.simulator.is_simulation_running:
             if self.exact_init:
-                for i, name in enumerate(
-                        self.env.robot.sensors_names[imu.type]):
-                    sensor: imu = self.env.robot.get_sensor(imu.type, name)
-                    oMf = self.robot.pinocchio_model.oMf[sensor.frame_idx]
-                    self._q_prev[i] = pin.Quaternion(oMf.rotation).coeffs()
+                robot = self.env.robot
+                for i, name in enumerate(robot.sensors_names[imu.type]):
+                    sensor = robot.get_sensor(imu.type, name)
+                    assert isinstance(sensor, imu)
+                    rot = robot.pinocchio_data.oMf[sensor.frame_idx].rotation
+                    self._observation[i] = pin.Quaternion(rot).coeffs()
             else:
+                if np.all(acc < 0.1 * EARTH_SURFACE_GRAVITY):
+                    raise RuntimeError(
+                        "Impossible to initialize Mahony filter because the acceleration at reset is too small.")
                 acc = acc / np.linalg.norm(acc, axis=0)
-                axis = np.array((acc[1], -acc[0], 0.0))
+                axis = np.stack(
+                    (acc[1], -acc[0], np.zeros(acc.shape[1:])), axis=0)
                 s = np.sqrt(2 * (1 + acc[2]))
-                self._q_prev[:] = np.stack((*(axis / s), s / 2), axis=0)
+                self._observation.T[:] = *(axis / s), s / 2
+            if mahony_filter.signatures:
+                return
 
         # Run an iteration of the filter, computing the next state estimate
-        mahony_filter(self._q_prev,
+        mahony_filter(self._observation,
                       gyro.T,
                       acc.T,
                       self._bias,

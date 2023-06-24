@@ -372,7 +372,7 @@ class ObservedJiminyEnv(
 
         # Register the observer's feature to the telemetry
         self.env.register_variable('feature',  # type: ignore[attr-defined]
-                                   self.observation,
+                                   self.observer.get_observation(),
                                    self.observer.fieldnames,
                                    self.observer.name)
 

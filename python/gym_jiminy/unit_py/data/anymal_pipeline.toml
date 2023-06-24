@@ -8,8 +8,8 @@ block_class = "gym_jiminy.common.blocks.PDController"
 [blocks_config.block_kwargs]
 update_ratio = 2
 order = 1
-pid_kp = [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0]
-pid_kd = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+kp = [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0]
+kd = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
 soft_bounds_margin = 0.0
 [blocks_config.wrapper_kwargs]
 augment_observation = true

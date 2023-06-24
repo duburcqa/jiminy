@@ -113,8 +113,8 @@ def pd_controller(encoders_data: np.ndarray,
                   command_state: np.ndarray,
                   command_state_lower: np.ndarray,
                   command_state_upper: np.ndarray,
-                  pid_kp: np.ndarray,
-                  pid_kd: np.ndarray,
+                  kp: np.ndarray,
+                  kd: np.ndarray,
                   motor_effort_limit: np.ndarray,
                   control_dt: float,
                   deadband: float) -> np.ndarray:
@@ -137,7 +137,7 @@ def pd_controller(encoders_data: np.ndarray,
     q_error, v_error = q_target - q_measured, v_target - v_measured
 
     # Compute PD command
-    u_command = pid_kp * (q_error + pid_kd * v_error)
+    u_command = kp * (q_error + kd * v_error)
 
     # Clip the command motors torques before returning
     return np.minimum(np.maximum(
@@ -178,8 +178,8 @@ class PDController(
                  env: JiminyEnvInterface[BaseObsT, np.ndarray],
                  update_ratio: int = 1,
                  order: int = 1,
-                 pid_kp: Union[float, List[float], np.ndarray] = 0.0,
-                 pid_kd: Union[float, List[float], np.ndarray] = 0.0,
+                 kp: Union[float, List[float], np.ndarray] = 0.0,
+                 kd: Union[float, List[float], np.ndarray] = 0.0,
                  soft_bounds_margin: float = 0.0,
                  **kwargs: Any) -> None:
         """
@@ -188,8 +188,8 @@ class PDController(
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller.
         :param order: Derivative order of the action.
-        :param pid_kp: PD controller position-proportional gain in motor order.
-        :param pid_kd: PD controller velocity-proportional gain in motor order.
+        :param kp: PD controller position-proportional gain in motor order.
+        :param kd: PD controller velocity-proportional gain in motor order.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
@@ -198,8 +198,8 @@ class PDController(
 
         # Backup some user argument(s)
         self.order = order
-        self.pid_kp = np.asarray(pid_kp)
-        self.pid_kd = np.asarray(pid_kd)
+        self.kp = np.asarray(kp)
+        self.kd = np.asarray(kd)
 
         # Define the mapping from motors to encoders
         self.encoder_to_motor = np.full(
@@ -246,8 +246,8 @@ class PDController(
             range_limit = (
                 command_state_upper[-1] - command_state_lower[-1]) / step_dt
             effort_limit = command_limit / (
-                self.pid_kp * step_dt ** (i - 1) * INV_FACTORIAL_TABLE[i - 1] *
-                np.maximum(step_dt / i, self.pid_kd))
+                self.kp * step_dt ** (i - 1) * INV_FACTORIAL_TABLE[i - 1] *
+                np.maximum(step_dt / i, self.kd))
             n_order_limit = np.minimum(range_limit, effort_limit)
             command_state_lower.append(-n_order_limit)
             command_state_upper.append(n_order_limit)
@@ -333,8 +333,8 @@ class PDController(
             self._command_state,
             self._command_state_lower,
             self._command_state_upper,
-            self.pid_kp,
-            self.pid_kd,
+            self.kp,
+            self.kd,
             self._motors_effort_limit,
             self.control_dt,
             0.0 if self.env.is_training else EVAL_DEADBAND)

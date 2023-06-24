@@ -207,7 +207,7 @@ class JiminyEnvInterface(
         # last called '_controller_handle'. It typically happens at the end of
         # every simulation step to return an observation that is consistent
         # with the updated state of the agent.
-        self.__must_refresh_observer = True
+        self.__is_observation_refreshed = True
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
@@ -227,7 +227,7 @@ class JiminyEnvInterface(
         self.control_dt = -1
 
         # It is always necessary to refresh the observation at after reset
-        self.__must_refresh_observer = True
+        self.__is_observation_refreshed = True
 
         # Set default action.
         # It will be used for the initial step.
@@ -251,14 +251,17 @@ class JiminyEnvInterface(
         :param v: Current actual velocity vector.
         :param sensors_data: Current sensor data.
         """
-        if self.__must_refresh_observer and \
+        # Refresh the observation if not already done
+        if not self.__is_observation_refreshed and \
                 is_breakpoint(t, self.observe_dt, DT_EPS):
             measurement: EngineObsType = OrderedDict(
                 t=np.array((t,)),
                 states=OrderedDict(agent=OrderedDict(q=q, v=v)),
                 measurements=OrderedDict(sensors_data))
             self.refresh_observation(measurement)
-        self.__must_refresh_observer = False
+
+        # Consider observation has been refreshed iif a simulation is running
+        self.__is_observation_refreshed = self.simulator.is_simulation_running
 
     def _controller_handle(self,
                            t: float,
@@ -299,7 +302,7 @@ class JiminyEnvInterface(
 
         # Always consider that the observation must be refreshed after calling
         # '_controller_handle' as it is never called more often than necessary.
-        self.__must_refresh_observer = True
+        self.__is_observation_refreshed = False
 
     def get_observation(self) -> ObsT:
         """Get post-processed observation.

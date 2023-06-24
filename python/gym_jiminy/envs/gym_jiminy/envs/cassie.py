@@ -191,8 +191,8 @@ CassiePDControlJiminyEnv = build_pipeline(**{  # type: ignore[arg-type]
         'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
             'order': 1,
-            'pid_kp': PID_KP,
-            'pid_kd': PID_KD,
+            'kp': PID_KP,
+            'kd': PID_KD,
             'soft_bounds_margin': 0.0
         },
         'wrapper_kwargs': {

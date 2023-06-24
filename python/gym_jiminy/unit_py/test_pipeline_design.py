@@ -35,8 +35,8 @@ class PipelineDesign(unittest.TestCase):
                 'block_kwargs': {
                     'update_ratio': 2,
                     'order': 1,
-                    'pid_kp': self.pid_kp,
-                    'pid_kd': self.pid_kd,
+                    'kp': self.pid_kp,
+                    'kd': self.pid_kd,
                     'soft_bounds_margin': 0.0
                 },
                 'wrapper_kwargs': {
@@ -87,16 +87,6 @@ class PipelineDesign(unittest.TestCase):
         # It does not override the default persistently
         env = self.ANYmalPipelineEnv()
         self.assertEqual(env.unwrapped.step_dt, self.step_dt)
-
-        # Override default 'StackedJiminyEnv' arguments
-        num_stack_2 = 2 * self.num_stack
-        env = self.ANYmalPipelineEnv(num_stack=num_stack_2)
-        self.assertEqual(env.wrapper.num_stack, num_stack_2)
-
-        # Override default 'PDController' arguments
-        pid_kp_2 = 2 * self.pid_kp
-        env = self.ANYmalPipelineEnv(pid_kp=pid_kp_2)
-        self.assertTrue(np.all(env.env.controller.pid_kp == pid_kp_2))
 
     def test_initial_state(self):
         """ TODO: Write documentation

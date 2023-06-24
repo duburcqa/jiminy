@@ -150,7 +150,7 @@ class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
         self.observe_dt = self.env.observe_dt * self.update_ratio
 
         # Set default observation
-        fill(self._observation, 0.0)
+        fill(self._observation, 0)
 
         # Make sure the controller period is lower than environment timestep
         assert self.observe_dt <= self.env.step_dt, (

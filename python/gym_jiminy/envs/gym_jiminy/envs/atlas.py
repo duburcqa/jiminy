@@ -11,7 +11,7 @@ from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from pinocchio import neutral, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.blocks import PDController
+from gym_jiminy.common.blocks import PDController, MahonyFilter
 from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 
@@ -255,8 +255,8 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(**{  # type: ignore[arg-type]
         'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
             'order': 1,
-            'pid_kp': PID_REDUCED_KP,
-            'pid_kd': PID_REDUCED_KD,
+            'kp': PID_REDUCED_KP,
+            'kd': PID_REDUCED_KD,
             'soft_bounds_margin': 0.0
         },
         'wrapper_kwargs': {
