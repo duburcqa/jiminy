@@ -15,7 +15,7 @@ from collections import OrderedDict
 from itertools import chain
 from typing import (
     Dict, Any, List, Optional, Tuple, Union, Iterable, Generic, TypeVar,
-    SupportsFloat, Callable)
+    SupportsFloat, Callable, cast)
 
 import numpy as np
 import gymnasium as gym
@@ -232,9 +232,10 @@ class BasePipelineWrapper(
         if not math.isnan(reward):
             reward += self.compute_reward(done, truncated, info)
 
-        # Get clipped observation
-        # TODO: Only clip part of the observation associated with the wrapper
-        obs: ObsT = clip(self.observation_space, self.observation)
+        # Get observation, clipped (and copied) for most derived env
+        obs = self.observation
+        if self.unwrapped._env_derived is self:  # type: ignore[attr-defined]
+            obs = clip(self.observation_space, obs)
 
         return obs, reward, done, truncated, info
 
@@ -358,27 +359,28 @@ class ObservedJiminyEnv(
         # the environment. Yet, it only has to be done once at init, since all
         # pre-allocated memory addresses are not supposed to change by design
         # even after calling 'reset' on the environment.
-        self.observation: ObsT = {}
+        observation: Dict[str, DataNested] = OrderedDict()
         base_observation = self.env.observation
         if isinstance(base_observation, dict):
             # Store references of the values but not the dict itself,
             # otherwise it will share all extra keys added later on.
-            self.observation.update(base_observation)
+            observation.update(base_observation)
             if base_features := base_observation.get('features'):
-                assert isinstance(self.observation['features'], dict)
-                self.observation['features'] = copy(base_features)
+                assert isinstance(observation['features'], dict)
+                observation['features'] = copy(base_features)
             if base_states := base_observation.get('states'):
-                assert isinstance(self.observation['states'], dict)
-                self.observation['states'] = copy(base_states)
+                assert isinstance(observation['states'], dict)
+                observation['states'] = copy(base_states)
         else:
-            self.observation['measurement'] = base_observation
+            observation['measurement'] = base_observation
         if (state := self.observer.get_state()) is not None:
-            self.observation.setdefault(
+            observation.setdefault(
                 'states', OrderedDict())[  # type: ignore[index]
                     self.observer.name] = state
-        self.observation.setdefault(
+        observation.setdefault(
             'features', OrderedDict())[  # type: ignore[index]
                 self.observer.name] = self.observer.observation
+        self.observation = cast(NestedObsT, observation)
 
         # Register the observer's feature to the telemetry
         self.env.register_variable('feature',  # type: ignore[attr-defined]
@@ -557,28 +559,29 @@ class ControlledJiminyEnv(
         self.action: ActT = zeros(self.action_space)
 
         # Initialize the observation to share memory with the environment
-        self.observation: ObsT = {}
+        observation: Dict[str, DataNested] = OrderedDict()
         base_observation = self.env.observation
         if isinstance(base_observation, dict):
             # Store references of the values but not the dict itself,
             # otherwise it will share all extra keys added later on.
-            self.observation.update(base_observation)
+            observation.update(base_observation)
             if base_actions := base_observation.get('actions'):
-                assert isinstance(self.observation['actions'], dict)
-                self.observation['actions'] = copy(base_actions)
+                assert isinstance(observation['actions'], dict)
+                observation['actions'] = copy(base_actions)
             if base_states := base_observation.get('states'):
-                assert isinstance(self.observation['states'], dict)
-                self.observation['states'] = copy(base_states)
+                assert isinstance(observation['states'], dict)
+                observation['states'] = copy(base_states)
         else:
-            self.observation['measurement'] = base_observation
+            observation['measurement'] = base_observation
         if (state := self.controller.get_state()) is not None:
-            self.observation.setdefault(
+            observation.setdefault(
                 'states', OrderedDict())[  # type: ignore[index]
                     self.controller.name] = state
         if self.augment_observation:
-            self.observation.setdefault(
+            observation.setdefault(
                 'actions', OrderedDict())[  # type: ignore[index]
                     self.controller.name] = self.action
+        self.observation = cast(NestedObsT, observation)
 
         # Register the controller's target to the telemetry
         self.env.register_variable('action',  # type: ignore[attr-defined]

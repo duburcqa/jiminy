@@ -182,7 +182,7 @@ def set_value(data: DataNested, value: DataNested) -> None:
             raise TypeError(f"Cannot broadcast '{value}' to '{data}'.") from e
     elif isinstance(data, dict):
         assert isinstance(value, dict)
-        for field, subval in dict.items(value):
+        for field, subval in value.items():
             set_value(data[field], subval)
     elif isinstance(data, Iterable):
         assert isinstance(value, Iterable)

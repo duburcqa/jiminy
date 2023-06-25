@@ -825,8 +825,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self.system_state.v,
             self.robot.sensors_data)
 
-        # Get clipped observation
-        obs: ObsT = clip(self.observation_space, self.observation)
+        # Clip (and copy) observation if most derived env
+        obs = self.observation
+        if self._env_derived is self:
+            obs = clip(self.observation_space, obs)
 
         # Make sure there is no 'nan' value in observation
         if np.isnan(self.system_state.a).any():

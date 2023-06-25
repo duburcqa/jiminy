@@ -13,7 +13,7 @@ import numpy as np
 
 import gymnasium as gym
 
-from ..utils import is_breakpoint, zeros, copy
+from ..utils import is_breakpoint, zeros, copy, set_value
 from ..bases import (DT_EPS,
                      ObsT,
                      ActT,
@@ -89,7 +89,7 @@ class PartialFrameStack(
 
         self.leaf_fields_list: List[List[str]] = []
         for fields in self.nested_filter_keys:
-            root_field = reduce(getitem,   # type: ignore[arg-type]
+            root_field = reduce(getitem,  # type: ignore[arg-type]
                                 fields, self.env.observation_space)
             if isinstance(root_field, gym.spaces.Dict):
                 leaf_paths = _get_branches(root_field)
@@ -115,13 +115,18 @@ class PartialFrameStack(
             root_space[fields[-1]] = gym.spaces.Box(
                 low=low, high=high, dtype=space.dtype.type)
 
-        # Share memory with the environment for all keys but the stacked ones
-        self.observation = copy(self.observation)
-        for fields in self.leaf_fields_list:
-            assert isinstance(self.observation_space, gym.spaces.Dict)
-            root_obs = reduce(getitem, fields[:-1], self.observation)
-            space = reduce(getitem, fields, self.observation_space)
-            root_obs[fields[-1]] = zeros(space)
+        # Bind observation of the environment for all keys but the stacked ones
+        if isinstance(self.env, JiminyEnvInterface):
+            self.observation = copy(self.env.observation)
+            for fields in self.leaf_fields_list:
+                assert isinstance(self.observation_space, gym.spaces.Dict)
+                root_obs = reduce(getitem, fields[:-1], self.observation)
+                space = reduce(getitem,  # type: ignore[arg-type]
+                               fields, self.observation_space)
+                root_obs[fields[-1]] = zeros(space)
+        else:
+            # Fallback to classical memory allocation
+            self.observation = zeros(self.observation_space)
 
         # Allocate internal frames buffers
         self._frames: List[deque] = [
@@ -141,6 +146,10 @@ class PartialFrameStack(
     def refresh_observation(self, measurement: ObsT) -> None:
         """ TODO: Write documentation.
         """
+        # Copy measurement if impossible to bind memory in the first place
+        if not isinstance(self.env, JiminyEnvInterface):
+            set_value(self.observation, measurement)
+
         # Backup the nested observation fields to stack.
         # Leaf values are copied to ensure they do not get altered later on.
         for fields, frames in zip(self.leaf_fields_list, self._frames):
@@ -151,8 +160,7 @@ class PartialFrameStack(
 
         # Update nested fields of the observation by the stacked ones
         for fields, frames in zip(self.leaf_fields_list, self._frames):
-            leaf_obs = reduce(getitem,  # type: ignore[arg-type]
-                              fields, self.observation)
+            leaf_obs = reduce(getitem, fields, self.observation)
             assert isinstance(leaf_obs, np.ndarray)
             leaf_obs[:] = frames
 

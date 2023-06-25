@@ -4,7 +4,7 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, Tuple, TypeVar, Generic
+from typing import Dict, Any, TypeVar, Generic
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -15,7 +15,7 @@ import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
 
-from ..utils import DataNested, zeros, fill, copy
+from ..utils import DataNested, fill
 
 
 # Temporal resolution of simulator steps
@@ -81,6 +81,7 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
         :param measurement: Low-level measure from the environment to process
                             to get higher-level observation.
         """
+
 
 class ControllerInterface(ABC, Generic[ActT, BaseActT]):
     """Controller interface for both controllers and environments.

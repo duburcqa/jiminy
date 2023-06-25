@@ -169,9 +169,9 @@ class MahonyFilter(
         # Warn if 'observe_dt' is too large to provide a meaningful
         if self.observe_dt > 0.01 + 1e-6:
             LOGGER.warning(
-                f"Beware 'observe_dt' ({self.observe_dt}) is too large for "
-                "Mahony filters to provide a meaningful estimate of the IMU "
-                "orientations. It should not exceed 10ms.")
+                "Beware 'observe_dt' (%s) is too large for Mahony filters to "
+                "provide a meaningful estimate of the IMU orientations. It "
+                "should not exceed 10ms.", self.observe_dt)
 
     def get_state(self) -> np.ndarray:
         return self._bias
