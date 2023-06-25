@@ -115,10 +115,9 @@ class Simulator:
                 "initialized.")
 
         # Create shared memories and python-native attribute for fast access
-        self.is_simulation_running = self.engine.is_simulation_running
         self.stepper_state = self.engine.stepper_state
         self.system_state = self.engine.system_state
-        self.sensors_data = self.robot.sensors_data
+        self.is_simulation_running = self.engine.is_simulation_running
 
         # Viewer management
         self.viewer: Optional[Viewer] = None

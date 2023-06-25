@@ -4,7 +4,7 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, Generic
+from typing import Dict, Any, Tuple, TypeVar, Generic
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -26,7 +26,7 @@ ActT = TypeVar('ActT', bound=DataNested)
 BaseObsT = TypeVar('BaseObsT', bound=DataNested)
 BaseActT = TypeVar('BaseActT', bound=DataNested)
 
-SensorsDataType = Dict[str, np.ndarray]
+SensorsDataType = Dict[str, np.ndarray[Tuple[int, int], np.float64]]
 InfoType = Dict[str, Any]
 
 
@@ -199,6 +199,7 @@ class JiminyEnvInterface(
     stepper_state: jiminy.StepperState
     system_state: jiminy.SystemState
     sensors_data: SensorsDataType
+    is_simulation_running: np.ndarray[Tuple[()], np.bool_]
 
     action: ActT
 
@@ -260,7 +261,7 @@ class JiminyEnvInterface(
             self.refresh_observation(measurement)
 
         # Consider observation has been refreshed iif a simulation is running
-        self.__is_observation_refreshed = self.simulator.is_simulation_running
+        self.__is_observation_refreshed = bool(self.is_simulation_running)
 
     def _controller_handle(self,
                            t: float,

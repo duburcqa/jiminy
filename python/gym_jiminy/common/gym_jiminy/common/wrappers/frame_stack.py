@@ -229,7 +229,7 @@ class StackedJiminyEnv(
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
-        if self.simulator.is_simulation_running and \
+        if self.is_simulation_running and \
                 is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:

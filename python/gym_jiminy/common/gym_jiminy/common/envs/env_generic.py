@@ -173,9 +173,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Define some proxies for fast access
         self.engine: jiminy.Engine = self.simulator.engine
         self.robot = self.engine.robot
-        self.stepper_state = self.engine.stepper_state
-        self.system_state = self.engine.system_state
+        self.stepper_state = self.simulator.stepper_state
+        self.system_state = self.simulator.system_state
         self.sensors_data: SensorsDataType = dict(self.robot.sensors_data)
+        self.is_simulation_running = self.simulator.is_simulation_running
 
         # Top-most block of the pipeline to which the environment is part of
         self._env_derived: JiminyEnvInterface = self
@@ -787,7 +788,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
              action: Optional[ActT] = None
              ) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
         # Make sure a simulation is already running
-        if not self.simulator.is_simulation_running:
+        if not self.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
@@ -840,7 +841,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # if the maximum number of steps will be exceeded next step.
         done, truncated = self.has_terminated()
         truncated = (
-            truncated or not self.simulator.is_simulation_running or
+            truncated or not self.is_simulation_running or
             self.num_steps >= self.max_steps)
 
         # Check if stepping after done and if it is an undefined behavior
@@ -964,7 +965,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Stop any running simulation before replay if `has_terminated` is True
-        if self.simulator.is_simulation_running and any(self.has_terminated()):
+        if self.is_simulation_running and any(self.has_terminated()):
             self.simulator.stop()
 
         # Call render before replay in order to take into account custom
@@ -1325,8 +1326,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         .. warning::
             This method is not appropriate for initializing buffers involved in
             `compute_command`. At the time being, there is no better way that
-            taking advantage of the flag `self.simulator.is_simulation_running`
-            in the method `compute_command` itself.
+            taking advantage of the flag `self.is_simulation_running` in the
+            method `compute_command` itself.
         """
 
     def _refresh_buffers(self) -> None:
@@ -1384,7 +1385,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             There is not good place to initialize buffers that are necessary to
             compute the command. The only solution for now is to define
             initialization inside this method itself, using the safeguard
-            `if not self.simulator.is_simulation_running:`.
+            `if not self.is_simulation_running:`.
 
         :param action: High-level target to achieve by means of the command.
         """
@@ -1417,7 +1418,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         :returns: done and truncated flags.
         """
         # Make sure that a simulation is running
-        if not self.simulator.is_simulation_running:
+        if not self.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please start one before calling this "
                 "method.")

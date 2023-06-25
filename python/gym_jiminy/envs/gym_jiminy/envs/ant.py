@@ -148,7 +148,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # TODO: Do not rely on anything else than `measurement` to compute the
         # observation, as anything else is not reliable.
 
-        if not self.simulator.is_simulation_running:
+        if not self.is_simulation_running:
             # Initialize observation chunks
             self.obs_chunks = [
                 self.system_state.q[2:],

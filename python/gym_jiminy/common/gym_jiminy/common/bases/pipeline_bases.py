@@ -73,6 +73,7 @@ class BasePipelineWrapper(
         self.stepper_state = env.stepper_state
         self.system_state = env.system_state
         self.sensors_data = env.sensors_data
+        self.is_simulation_running = env.is_simulation_running
 
         # Backup the parent environment
         self.env = env
@@ -433,8 +434,7 @@ class ObservedJiminyEnv(
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
-        t = self.stepper_state.t
-        if is_breakpoint(t, self.observe_dt, DT_EPS):
+        if is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
             self.observer.refresh_observation(self.env.get_observation())
 
     def compute_command(self, action: ActT) -> np.ndarray:

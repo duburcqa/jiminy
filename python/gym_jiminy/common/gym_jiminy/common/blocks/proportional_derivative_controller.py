@@ -109,7 +109,8 @@ def integrate_zoh(state_prev: np.ndarray,
 
 
 @nb.jit(nopython=True, nogil=True)
-def pd_controller(encoders_data: np.ndarray,
+def pd_controller(q_measured: np.ndarray,
+                  v_measured: np.ndarray,
                   command_state: np.ndarray,
                   command_state_lower: np.ndarray,
                   command_state_upper: np.ndarray,
@@ -129,9 +130,6 @@ def pd_controller(encoders_data: np.ndarray,
 
     # Extract targets motors positions and velocities from command state
     q_target, v_target = command_state[:2]
-
-    # Extract estimated motors positions and velocities from encoder data
-    q_measured, v_measured = encoders_data
 
     # Compute the joint tracking error
     q_error, v_error = q_target - q_measured, v_target - v_measured
@@ -254,6 +252,9 @@ class PDController(
         self._command_state_lower = np.stack(command_state_lower, axis=0)
         self._command_state_upper = np.stack(command_state_upper, axis=0)
 
+        # Extract measured motor positions and velocities for fast access
+        self.q_measured, self.v_measured = env.sensors_data[encoder.type]
+
         # Allocate memory for the command state
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
 
@@ -286,6 +287,9 @@ class PDController(
         # Call base implementation
         super()._setup()
 
+        # Refresh measured motor positions and velocities proxies
+        self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
+
         # Reset the command state
         fill(self._command_state, 0)
 
@@ -309,9 +313,9 @@ class PDController(
         # simulation is not running. This must be done here because the
         # command state must be valid prior to calling `refresh_observation`
         # for the first time, which happens at `reset`.
-        is_simulation_running = self.env.simulator.is_simulation_running
+        is_simulation_running = self.env.is_simulation_running
         if not is_simulation_running:
-            self._command_state[:2] = self.env.sensors_data[encoder.type]
+            self._command_state[:2] = self.q_measured, self.v_measured
             np.clip(self._command_state,
                     self._command_state_lower,
                     self._command_state_upper,
@@ -329,7 +333,8 @@ class PDController(
 
         # Compute the motor efforts using PD control
         return pd_controller(
-            self.env.sensors_data[encoder.type],
+            self.q_measured,
+            self.v_measured,
             self._command_state,
             self._command_state_lower,
             self._command_state_upper,

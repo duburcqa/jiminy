@@ -42,16 +42,16 @@ def mahony_filter(q: np.ndarray,
     :param dt: Time step, in seconds, between consecutive Quaternions.
     """
     # Compute expected Earth's gravity: R(q).T @ e_z
-    q_x, q_y, q_z, q_w = np.atleast_2d(q).T
+    q_x, q_y, q_z, q_w = q
     v_a = np.stack((
         2 * (q_x * q_z - q_y * q_w),
         2 * (q_y * q_z + q_w * q_x),
         1 - 2 * (q_x * q_x + q_y * q_y),
-    ), axis=-1)
+    ), axis=0)
 
     # Compute the angular velocity using Explicit Complementary Filter
     v_a_hat = acc / EARTH_SURFACE_GRAVITY
-    omega_mes = np.cross(v_a_hat, v_a)
+    omega_mes = np.cross(v_a_hat.T, v_a.T).T
     omega = gyro - bias_hat + kp * omega_mes
 
     # Early return if there is no IMU motion
@@ -59,11 +59,10 @@ def mahony_filter(q: np.ndarray,
         return
 
     # Compute Axis-Angle repr. of the angular velocity: exp3(dt * omega)
-    theta = np.sqrt(
-        np.sum(omega * omega, axis=-1)).reshape((*omega.shape[:-1], 1))
+    theta = np.sqrt(np.sum(omega * omega, axis=0))
     axis = omega / theta
     theta *= dt / 2
-    (p_x, p_y, p_z), p_w = (axis * np.sin(theta)).T, np.cos(theta).reshape(-1)
+    (p_x, p_y, p_z), p_w = (axis * np.sin(theta)), np.cos(theta)
 
     # Integrate the orientation: q * exp3(dt * omega)
     q[:] = np.stack((
@@ -71,14 +70,13 @@ def mahony_filter(q: np.ndarray,
         q_y * p_w + q_z * p_x + q_w * p_y - q_x * p_z,
         q_z * p_w - q_y * p_x + q_x * p_y + q_w * p_z,
         q_w * p_w - q_x * p_x - q_y * p_y - q_z * p_z,
-    ), axis=-1)
+    ), axis=0)
 
     # First order quaternion normalization to prevent compounding of errors
-    q *= (3 - np.sum(np.atleast_2d(
-        q * q), axis=-1).reshape((*q.shape[:-1], 1))) / 2
+    q *= (3 - np.sum(q * q, axis=0)) / 2
 
     # Update Gyro bias
-    bias_hat -= dt * ki * omega_mes.reshape(bias_hat.shape)
+    bias_hat -= dt * ki * omega_mes
 
 
 class MahonyFilter(
@@ -130,8 +128,11 @@ class MahonyFilter(
         self.kp = kp
         self.ki = ki
 
+        # Extract gyroscope and accelerometer data for fast access
+        self.gyro, self.acc = np.split(env.sensors_data[imu.type], 2)
+
         # Allocate bias estimate
-        self._bias = np.zeros((num_imu_sensors, 3))
+        self._bias = np.zeros((3, num_imu_sensors))
 
         # Initialize the observer
         super().__init__(name, env, update_ratio)
@@ -144,20 +145,23 @@ class MahonyFilter(
         # dynamics by definition.
         num_imu_sensors = len(self.env.robot.sensors_names[imu.type])
         self.state_space = gym.spaces.Box(
-            low=np.full((num_imu_sensors, 3), -np.inf),
-            high=np.full((num_imu_sensors, 3), np.inf),
+            low=np.full((3, num_imu_sensors), -np.inf),
+            high=np.full((3, num_imu_sensors), np.inf),
             dtype=np.float64)
 
     def _initialize_observation_space(self) -> None:
         num_imu_sensors = len(self.env.robot.sensors_names[imu.type])
         self.observation_space = gym.spaces.Box(
-            low=np.full((num_imu_sensors, 4), -1.0 - 1e-12),
-            high=np.full((num_imu_sensors, 4), 1.0 + 1e-12),
+            low=np.full((4, num_imu_sensors), -1.0 - 1e-12),
+            high=np.full((4, num_imu_sensors), 1.0 + 1e-12),
             dtype=np.float64)
 
     def _setup(self) -> None:
         # Call base implementation
         super()._setup()
+
+        # Refresh gyroscope and accelerometer proxies
+        self.gyro, self.acc = np.split(self.env.sensors_data[imu.type], 2)
 
         # Reset the sensor bias
         fill(self._bias, 0)
@@ -181,42 +185,41 @@ class MahonyFilter(
         observation space, but having lists of string as leaves. Generic
         fieldnames are used by default.
         """
-        return [[f"{name}.Quat{e}" for e in ("x", "y", "z", "w")]
-                for name in self.env.robot.sensors_names[imu.type]]
+        sensor_names = self.env.robot.sensors_names[imu.type]
+        return [[f"{name}.Quat{e}" for name in sensor_names]
+                for e in ("x", "y", "z", "w")]
 
     def refresh_observation(self, measurement: BaseObsT) -> None:
-        # Extract gyroscope and accelerometer data
-        gyro, acc = np.split(self.env.sensors_data[imu.type], 2)
-
         # Re-initialize the quaternion estimate if no simulation running.
         # It corresponds to the rotation transforming 'acc' in 'e_z'.
-        if not self.env.simulator.is_simulation_running:
+        if not self.env.is_simulation_running:
             is_initialized = False
             if not self.exact_init:
-                if np.all(np.abs(acc) < 0.1 * EARTH_SURFACE_GRAVITY):
+                if np.all(np.abs(self.acc) < 0.1 * EARTH_SURFACE_GRAVITY):
                     LOGGER.warning(
                         "The acceleration at reset is too small. Impossible "
                         "to initialize Mahony filter for 'exact_init=False'.")
                 else:
-                    acc = acc / np.linalg.norm(acc, axis=0)
+                    acc = self.acc / np.linalg.norm(self.acc, axis=0)
                     axis = np.stack(
                         (acc[1], -acc[0], np.zeros(acc.shape[1:])), axis=0)
                     s = np.sqrt(2 * (1 + acc[2]))
-                    self._observation.T[:] = *(axis / s), s / 2
+                    self._observation[:] = *(axis / s), s / 2
+                    is_initialized = True
             if not is_initialized:
                 robot = self.env.robot
                 for i, name in enumerate(robot.sensors_names[imu.type]):
                     sensor = robot.get_sensor(imu.type, name)
                     assert isinstance(sensor, imu)
                     rot = robot.pinocchio_data.oMf[sensor.frame_idx].rotation
-                    self._observation[i] = pin.Quaternion(rot).coeffs()
+                    self._observation[:, i] = pin.Quaternion(rot).coeffs()
             if mahony_filter.signatures:
                 return
 
         # Run an iteration of the filter, computing the next state estimate
         mahony_filter(self._observation,
-                      gyro.T,
-                      acc.T,
+                      self.gyro,
+                      self.acc,
                       self._bias,
                       self.observe_dt,
                       self.kp,

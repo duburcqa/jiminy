@@ -124,7 +124,7 @@ jobs:
 
         # FIXME: Must install stable_baselines3 after running rllib test
         # because they require a different version of `gymnasium`.
-        "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3==2.0.0a13"
+        "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
         cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
