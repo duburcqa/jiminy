@@ -55,7 +55,7 @@ def compute_distance_convex_to_point(points: np.ndarray,
     ratios = np.sum(
         (np.expand_dims(queries, -1) - points_0) * vectors, axis=1
         ) / np.sum(np.square(vectors), axis=0)
-    ratios = np.minimum(np.maximum(ratios, 0.0), 1.0)
+    ratios = np.clip(ratios, 0.0, 1.0)
     projs = np.expand_dims(ratios, 1) * vectors + points_0
     dist = np.sqrt(_amin_last_axis(np.sum(np.square(
         np.expand_dims(queries, -1) - projs), axis=1)))

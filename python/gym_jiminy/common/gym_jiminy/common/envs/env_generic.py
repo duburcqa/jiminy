@@ -1292,9 +1292,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         qpos = self._neutral()
 
         # Make sure the configuration is not out-of-bound
-        qpos = np.minimum(
-            np.maximum(qpos, self.robot.position_limit_lower),
-            self.robot.position_limit_upper)
+        np.clip(qpos,
+                self.robot.position_limit_lower,
+                self.robot.position_limit_upper,
+                out=qpos)
 
         # Make sure the configuration is normalized
         qpos = normalize(self.robot.pinocchio_model, qpos)

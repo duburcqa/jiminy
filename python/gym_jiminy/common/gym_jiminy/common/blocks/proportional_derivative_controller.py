@@ -102,7 +102,7 @@ def integrate_zoh(state_prev: np.ndarray,
 
     # Clip highest-order derivative to ensure every derivative are withing
     # bounds if possible, lowest orders in priority otherwise.
-    deriv = np.minimum(np.maximum(deriv, deriv_min), deriv_max)
+    np.clip(deriv, deriv_min, deriv_max, deriv)
 
     # Integrate, taking into account clipped highest derivative
     return integ_zero + integ_drift * deriv
@@ -138,8 +138,7 @@ def pd_controller(q_measured: np.ndarray,
     u_command = kp * (q_error + kd * v_error)
 
     # Clip the command motors torques before returning
-    return np.minimum(np.maximum(
-        u_command, -motor_effort_limit), motor_effort_limit)
+    return np.clip(u_command, -motor_effort_limit, motor_effort_limit)
 
 
 class PDController(

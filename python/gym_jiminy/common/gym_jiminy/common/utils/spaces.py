@@ -207,11 +207,15 @@ def clip(space_nested: gym.Space[DataNestedT],
          data: DataNestedT) -> DataNestedT:
     """Clamp value from `gym.Space` to make sure it is within bounds.
 
+    .. note:
+        None of the leaves of the returned data structured is sharing memory
+        with the original one, even if clipping had no effect or was not
+        applicable. This alleviate the need of calling 'deepcopy' afterward.
+
     :param space: `gym.Space` on which to operate.
-    :param data: Data to clamp.
+    :param data: Data to clip.
     """
     return tree.map_structure(
-        lambda value, space:
-            np.minimum(np.maximum(value, space.low), space.high)
-        if isinstance(space, gym.spaces.Box) else value,
+        lambda value, space: np.clip(value, space.low, space.high)
+        if isinstance(space, gym.spaces.Box) else value.copy(),
         data, space_nested)

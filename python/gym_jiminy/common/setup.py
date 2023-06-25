@@ -51,7 +51,8 @@ setup(
         # Use to perform linear algebra computation
         "numpy",
         # Use internally to speedup computation of math methods
-        "numba",
+        # - 0.54: Adds 'np.clip'
+        "numba>=0.54.0",
         # Use to operate on nested data structure conveniently.
         # - 0.1.7 breaking API and internal changes.
         "dm-tree>=0.1.7",
