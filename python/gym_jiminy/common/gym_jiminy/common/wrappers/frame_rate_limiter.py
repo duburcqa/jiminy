@@ -53,8 +53,7 @@ class FrameRateLimiter(gym.Wrapper,  # [ObsT, ActT, ObsT, ActT],
         super().__init__(env)
 
     def step(self,
-             action: Optional[ActT] = None
-             ) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
+             action: ActT) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
         """This method does nothing more than  recording the current time,
         then calling `self.env.step`. See `BaseJiminyEnv.step` for details.
 

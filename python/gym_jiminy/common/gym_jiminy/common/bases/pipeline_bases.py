@@ -198,16 +198,10 @@ class BasePipelineWrapper(
             self.action_space.seed(seed)
 
         # Reset base pipeline
-        _, info = self.env.reset(seed=seed, options={"reset_hook": reset_hook})
-
-        # Get clipped observation
-        obs: ObsT = clip(self.observation, self.observation_space)
-
-        return obs, info
+        return self.env.reset(seed=seed, options={"reset_hook": reset_hook})
 
     def step(self,
-             action: Optional[ActT] = None
-             ) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
+             action: ActT) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
         """Run a simulation step for a given action.
 
         :param action: Next action to perform. `None` to not update it.
@@ -216,12 +210,11 @@ class BasePipelineWrapper(
                   not), and a dictionary of extra information.
         """
         # Backup the action to perform, if any
-        if action is not None:
+        if action is not self.action:
             set_value(self.action, action)
 
         # Compute the next learning step
-        _, reward, done, truncated, info = self.env.step(
-            None)  # type: ignore[arg-type]
+        obs, reward, done, truncated, info = self.env.step(self.env.action)
 
         # Compute block's reward and add it to base one as long as it is worth
         # doing so, namely it is not 'nan' already.
@@ -230,11 +223,6 @@ class BasePipelineWrapper(
         reward = float(reward)
         if not math.isnan(reward):
             reward += self.compute_reward(done, truncated, info)
-
-        # Get observation, clipped (and copied) for most derived env
-        obs = self.observation
-        if self.unwrapped._env_derived is self:  # type: ignore[attr-defined]
-            obs = clip(obs, self.observation_space, check=False)
 
         return obs, reward, done, truncated, info
 

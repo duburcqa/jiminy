@@ -78,14 +78,14 @@ class PipelineDesign(unittest.TestCase):
         ANYmalPipelineEnv = load_pipeline(toml_file)
         env = ANYmalPipelineEnv(debug=True)
         env.reset()
-        env.step()
+        env.step(env.action)
 
         # Load JSON pipeline description, create env and perform a step
         json_file = os.path.join(data_dir, "anymal_pipeline.json")
         ANYmalPipelineEnv = load_pipeline(json_file)
         env = ANYmalPipelineEnv(debug=True)
         env.reset()
-        env.step()
+        env.step(env.action)
 
     def test_override_default(self):
         """ TODO: Write documentation
@@ -183,7 +183,7 @@ class PipelineDesign(unittest.TestCase):
             return env
 
         env.reset(options=dict(reset_hook=configure_telemetry))
-        env.step()
+        env.step(env.action)
 
         # Check that the command is updated 1/2 low-level controller update
         log_vars = env.log_data["variables"]

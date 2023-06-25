@@ -165,7 +165,7 @@ class PartialFrameStack(
             leaf_obs[:] = frames
 
     def step(self,
-             action: Optional[ActT] = None
+             action: ActT
              ) -> Tuple[StackedObsType, SupportsFloat, bool, bool, InfoType]:
         observation, reward, done, truncated, info = self.env.step(action)
         self.refresh_observation(observation)

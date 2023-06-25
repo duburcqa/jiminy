@@ -692,17 +692,16 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Similarly, the observer and controller update periods must be set.
         reset_hook: Optional[Callable[[], JiminyEnvInterface]] = (
             options or {}).get("reset_hook")
-        if reset_hook is None:
-            self._env_derived = self
-        else:
+        env: JiminyEnvInterface = self
+        if reset_hook is not None:
             assert callable(reset_hook)
             env_derived = reset_hook() or self
             assert env_derived.unwrapped is self
-            self._env_derived = env_derived
+            env = env_derived
+        self._env_derived = env
 
         # Instantiate the actual controller
-        controller = jiminy.ControllerFunctor(
-            self._env_derived._controller_handle)
+        controller = jiminy.ControllerFunctor(env._controller_handle)
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
 
@@ -734,7 +733,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self._refresh_buffers()
 
         # Initialize the observation
-        self._env_derived._observer_handle(
+        env._observer_handle(
             self.stepper_state.t,
             self.system_state.q,
             self.system_state.v,
@@ -743,7 +742,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs: ObsT = clip(self.observation, self.observation_space)
+            obs: ObsT = clip(env.observation, env.observation_space)
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -786,15 +785,14 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.simulator.close()
 
     def step(self,
-             action: Optional[ActT] = None
-             ) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
+             action: ActT) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
         # Make sure a simulation is already running
         if not self.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
-        # Update of the action to perform if provided
-        if action is not None:
+        # Update of the action to perform if relevant
+        if action is not self.action:
             # Make sure the action is valid if debug
             if self.debug:
                 for value in tree.flatten(action):
@@ -819,16 +817,12 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Update the observer at the end of the step.
         # This is necessary because, internally, it is called at the beginning
         # of the every integration steps, during the controller update.
-        self._env_derived._observer_handle(
+        env = self._env_derived
+        env._observer_handle(
             self.stepper_state.t,
             self.system_state.q,
             self.system_state.v,
             self.robot.sensors_data)
-
-        # Clip (and copy) observation if most derived env
-        obs = self.observation
-        if self._env_derived is self:
-            obs = clip(obs, self.observation_space, check=False)
 
         # Make sure there is no 'nan' value in observation
         if np.isnan(self.system_state.a).any():
@@ -882,6 +876,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Update number of (successful) steps
         self.num_steps += 1
+
+        # Clip (and copy) the most derived observation before returning it
+        obs = clip(env.observation, env.observation_space, check=False)
 
         return obs, reward, done, truncated, deepcopy(self._info)
 
@@ -1044,17 +1041,18 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self.simulator.viewer.attach_camera(tracked_frame)
 
         # Refresh the scene once again to update camera placement
-        self._env_derived.render()
+        env = self._env_derived
+        env.render()
 
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
-            nonlocal obs, reward, enable_is_done
+            nonlocal env, obs, reward, enable_is_done
             action = None
             if key is not None:
                 action = self._key_to_action(
                     key, obs, reward, **{"verbose": verbose, **kwargs})
-            obs, reward, done, truncated, _ = self._env_derived.step(action)
-            self._env_derived.render()
+            obs, reward, done, truncated, _ = env.step(action)
+            env.render()
             if not enable_is_done and self.robot.has_freeflyer:
                 return self.system_state.q[2] < 0.0
             return done or truncated
@@ -1142,10 +1140,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Run the simulation
         info_episode = [info]
         try:
+            env = self._env_derived
             while not done:
                 action = policy_fn(obs, reward, done or truncated, info)
-                obs, reward, done, truncated, info = self._env_derived.step(
-                    action)
+                obs, reward, done, truncated, info = env.step(action)
                 info_episode.append(info)
                 if done or truncated or (
                         horizon is not None and
