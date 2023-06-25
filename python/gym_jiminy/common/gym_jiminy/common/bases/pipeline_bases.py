@@ -22,8 +22,7 @@ import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
 
-from ..utils import (
-    DataNested, is_breakpoint, zeros, fill, set_value, clip, copy)
+from ..utils import DataNested, is_breakpoint, zeros, set_value, clip, copy
 
 from .generic_bases import (DT_EPS,
                             ObsT,

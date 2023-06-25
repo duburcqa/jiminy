@@ -2,11 +2,9 @@
 low-level Jiminy engine, to the Gym environment integration. However, it does
 not assessed that the viewer is working properly.
 """
-import warnings
 import unittest
 from typing import Optional, Dict, Any
 
-import numpy as np
 from torch import nn
 
 from stable_baselines3.ppo import PPO
@@ -30,12 +28,6 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
     .. warning::
         It requires pytorch>=1.4 and stable-baselines3[extra]>=0.10.0
     """
-    def setUp(self):
-        """Disable all warnings to avoid flooding.
-        """
-        warnings.filterwarnings("ignore")
-        np.seterr(all="ignore")
-
     @staticmethod
     def _get_default_config_stable_baselines():
         """Return default configuration for stables baselines that should work
