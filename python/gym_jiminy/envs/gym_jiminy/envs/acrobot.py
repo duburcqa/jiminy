@@ -11,7 +11,7 @@ from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, set_value
+from gym_jiminy.common.utils import sample, copyto
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -165,7 +165,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             For goal env, in addition of the current robot state, both the
             desired and achieved goals are observable.
         """
-        set_value(self.__state_view, measurement[
+        copyto(self.__state_view, measurement[
             'states']['agent'].values())  # type: ignore[index,union-attr]
 
     def _initialize_action_space(self) -> None:

@@ -13,7 +13,7 @@ from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, set_value
+from gym_jiminy.common.utils import sample, copyto
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -204,7 +204,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return qpos, qvel
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
-        set_value(self.__state_view, measurement[
+        copyto(self.__state_view, measurement[
             'states']['agent'].values())  # type: ignore[index,union-attr]
 
     def compute_command(self, action: np.ndarray) -> np.ndarray:

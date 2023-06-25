@@ -22,7 +22,7 @@ import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
 
-from ..utils import DataNested, is_breakpoint, zeros, set_value, clip, copy
+from ..utils import DataNested, is_breakpoint, zeros, copyto, copy
 
 from .generic_bases import (DT_EPS,
                             ObsT,
@@ -211,7 +211,7 @@ class BasePipelineWrapper(
         """
         # Backup the action to perform, if any
         if action is not self.action:
-            set_value(self.action, action)
+            copyto(self.action, action)
 
         # Compute the next learning step
         obs, reward, done, truncated, info = self.env.step(self.env.action)
@@ -650,7 +650,7 @@ class ControlledJiminyEnv(
         # measure argument without issue.
         if is_breakpoint(self.stepper_state.t, self.control_dt, DT_EPS):
             target = self.controller.compute_command(action)
-            set_value(self.env.action, target)
+            copyto(self.env.action, target)
 
         # Update the command to send to the actuators of the robot.
         # Note that the environment itself is responsible of making sure to

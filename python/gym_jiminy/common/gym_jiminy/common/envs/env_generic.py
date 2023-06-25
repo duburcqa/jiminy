@@ -39,7 +39,7 @@ from pinocchio import neutral, normalize, framesForwardKinematics
 from ..utils import (FieldNested,
                      DataNested,
                      zeros,
-                     set_value,
+                     copyto,
                      clip,
                      get_fieldnames,
                      register_variables)
@@ -801,7 +801,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                             f"'nan' value found in action ({action}).")
 
             # Update the action
-            set_value(self.action, action)
+            copyto(self.action, action)
 
         # Try performing a single simulation step
         try:
@@ -1372,7 +1372,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             checking whether the simulation already started. It is not exactly
             the same but it does the job regarding preserving efficiency.
         """
-        set_value(self.observation, cast(DataNested, measurement))
+        copyto(self.observation, cast(DataNested, measurement))
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.

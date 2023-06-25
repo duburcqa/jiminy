@@ -199,7 +199,7 @@ def set_value(data: DataNested, value: DataNested) -> None:
     """Partially set 'data' from `gym.Space` to 'value'.
 
     It avoids memory allocation, so that memory pointers of 'data' remains
-    unchanged. A direct consequences, it is necessary to preallocate memory
+    unchanged. As direct consequences, it is necessary to preallocate memory
     beforehand, and to work with fixed shape buffers.
 
     .. note::
@@ -207,7 +207,7 @@ def set_value(data: DataNested, value: DataNested) -> None:
         leaves must be broadcast-able with the ones of 'data'.
 
     :param data: Data structure to partially update.
-    :param value: Unset of data only containing fields to update.
+    :param value: Subtree of data only containing fields to update.
     """
     if isinstance(data, np.ndarray):
         try:
@@ -226,6 +226,21 @@ def set_value(data: DataNested, value: DataNested) -> None:
         raise ValueError(
             "Leaves of 'data' structure must have type `np.ndarray`."
             )
+
+
+def copyto(src: DataNestedT, dest: DataNestedT) -> None:
+    """Copy arbitrarily nested data structure of 'np.ndarray' to a given
+    pre-allocated destination.
+
+    It avoids memory allocation completely, so that memory pointers of 'data'
+    remains unchanged. As direct consequences, it is necessary to preallocate
+    memory beforehand, and it only supports arrays of fixed shape.
+
+    :param data: Data structure to update.
+    :param value: Data to copy.
+    """
+    for data, value in zip(*map(tree.flatten, (src, dest))):
+        data.flat[:] = value
 
 
 def copy(data: DataNestedT) -> DataNestedT:

@@ -13,7 +13,7 @@ import numpy as np
 
 import gymnasium as gym
 
-from ..utils import is_breakpoint, zeros, copy, set_value
+from ..utils import is_breakpoint, zeros, copy, copyto
 from ..bases import (DT_EPS,
                      ObsT,
                      ActT,
@@ -148,7 +148,7 @@ class PartialFrameStack(
         """
         # Copy measurement if impossible to bind memory in the first place
         if not isinstance(self.env, JiminyEnvInterface):
-            set_value(self.observation, measurement)
+            copyto(self.observation, measurement)
 
         # Backup the nested observation fields to stack.
         # Leaf values are copied to ensure they do not get altered later on.
