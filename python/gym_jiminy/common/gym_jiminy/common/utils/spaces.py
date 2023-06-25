@@ -28,6 +28,38 @@ DataNestedT = TypeVar('DataNestedT', bound=DataNested)
 global_rng = np.random.default_rng()
 
 
+@nb.jit(nopython=True, nogil=True, inline='always')
+def _clip(value: np.ndarray, low: np.ndarray, high: np.ndarray) -> np.ndarray:
+    return value.clip(low, high)
+
+
+def _unflatten_as(structure: DataNested,
+                  flat_sequence: Iterable[DataNested]) -> DataNested:
+    """Unflattens a sequence into a given structure.
+
+    .. seealso::
+        This method is the same as 'tree.unflatten_as' without runtime checks.
+
+    :param structure: Arbitrarily nested structure.
+    :param flat_sequence: Sequence to unflatten.
+
+    :returns: 'flat_sequence' unflattened into 'structure'.
+    """
+    _, packed = tree._packed_nest_with_indices(structure, flat_sequence, 0)
+    return tree._sequence_like(structure, packed)
+
+
+def _clip_or_copy(value: np.ndarray, space: gym.Space) -> np.ndarray:
+    """Clip value if associated to 'gym.spaces.Box', otherwise return a copy.
+
+    :param value: Value to clip.
+    :param space: `gym.Space` associated with 'value'.
+    """
+    if isinstance(space, gym.spaces.Box):
+        return _clip(value, space.low, space.high)
+    return value.copy()
+
+
 def sample(low: Union[float, np.ndarray] = -1.0,
            high: Union[float, np.ndarray] = 1.0,
            dist: str = 'uniform',
@@ -202,16 +234,12 @@ def copy(data: DataNestedT) -> DataNestedT:
 
     :param data: Hierarchical data structure to copy without allocation.
     """
-    return tree.unflatten_as(data, tree.flatten(data))
+    return _unflatten_as(data, tree.flatten(data))
 
 
-@nb.jit(nopython=True, nogil=True, inline='always')
-def _clip(value: np.ndarray, low: np.ndarray, high: np.ndarray) -> np.ndarray:
-    return value.clip(low, high)
-
-
-def clip(space_nested: gym.Space[DataNestedT],
-         data: DataNestedT) -> DataNestedT:
+def clip(data: DataNestedT,
+         space_nested: gym.Space[DataNestedT],
+         check: bool = True) -> DataNestedT:
     """Clamp value from `gym.Space` to make sure it is within bounds.
 
     .. note:
@@ -222,7 +250,8 @@ def clip(space_nested: gym.Space[DataNestedT],
     :param space: `gym.Space` on which to operate.
     :param data: Data to clip.
     """
-    return tree.map_structure(
-        lambda value, space: _clip(value, space.low, space.high)
-        if isinstance(space, gym.spaces.Box) else value.copy(),
-        data, space_nested)
+    if check:
+        return tree.map_structure(_clip_or_copy, data, space_nested)
+    return _unflatten_as(data, [
+        _clip_or_copy(value, space)
+        for value, space in zip(*map(tree.flatten, (data, space_nested)))])

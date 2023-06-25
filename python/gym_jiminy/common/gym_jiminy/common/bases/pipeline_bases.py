@@ -201,7 +201,7 @@ class BasePipelineWrapper(
         _, info = self.env.reset(seed=seed, options={"reset_hook": reset_hook})
 
         # Get clipped observation
-        obs: ObsT = clip(self.observation_space, self.observation)
+        obs: ObsT = clip(self.observation, self.observation_space)
 
         return obs, info
 
@@ -234,7 +234,7 @@ class BasePipelineWrapper(
         # Get observation, clipped (and copied) for most derived env
         obs = self.observation
         if self.unwrapped._env_derived is self:  # type: ignore[attr-defined]
-            obs = clip(self.observation_space, obs)
+            obs = clip(obs, self.observation_space, check=False)
 
         return obs, reward, done, truncated, info
 

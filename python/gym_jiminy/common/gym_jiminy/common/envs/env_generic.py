@@ -743,7 +743,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs: ObsT = clip(self.observation_space, self.observation)
+            obs: ObsT = clip(self.observation, self.observation_space)
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -828,7 +828,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Clip (and copy) observation if most derived env
         obs = self.observation
         if self._env_derived is self:
-            obs = clip(self.observation_space, obs)
+            obs = clip(obs, self.observation_space, check=False)
 
         # Make sure there is no 'nan' value in observation
         if np.isnan(self.system_state.a).any():
