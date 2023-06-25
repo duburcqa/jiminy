@@ -45,6 +45,8 @@ def _unflatten_as(structure: DataNested,
 
     :returns: 'flat_sequence' unflattened into 'structure'.
     """
+    if not tree.is_nested(structure):
+        return flat_sequence[0]
     _, packed = tree._packed_nest_with_indices(structure, flat_sequence, 0)
     return tree._sequence_like(structure, packed)
 
