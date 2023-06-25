@@ -91,6 +91,12 @@ class MahonyFilter(
         Transactions on Automatic Control, Institute of Electrical and
         Electronics Engineers, 2008, 53 (5), pp.1203-1217:
         https://hal.archives-ouvertes.fr/hal-00488376/document
+
+    .. warning::
+        This filter works best for 'observe_dt' smaller or equal to 5ms. Its
+        performance drops rapidly beyond this point. Having 'observe_dt' equal
+        to 10ms is generally acceptable but the yaw estimate is drifting anyway
+        even for fairly slow motions and without sensor noise and bias.
     """
     def __init__(self,
                  name: str,
@@ -155,6 +161,13 @@ class MahonyFilter(
 
         # Reset the sensor bias
         fill(self._bias, 0)
+
+        # Warn if 'observe_dt' is too large to provide a meaningful
+        if self.observe_dt > 0.01 + 1e-6:
+            LOGGER.warning(
+                f"Beware 'observe_dt' ({self.observe_dt}) is too large for "
+                "Mahony filters to provide a meaningful estimate of the IMU "
+                "orientations. It should not exceed 10ms.")
 
     def get_state(self) -> np.ndarray:
         return self._bias

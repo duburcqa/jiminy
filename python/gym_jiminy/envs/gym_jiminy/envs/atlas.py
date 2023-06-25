@@ -70,8 +70,9 @@ PID_FULL_KD = np.array([
     *PID_REDUCED_KD])
 
 # Mahony filter proportional and derivative gains
-MAHONY_KP = 1.0
-MAHONY_KI = 0.1
+# See: https://cas.mines-paristech.fr/~petit/papers/ral22/main.pdf
+MAHONY_KP = 0.75
+MAHONY_KI = 0.057
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
