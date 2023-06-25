@@ -46,7 +46,7 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         config['n_steps'] = 4000
         config['batch_size'] = 250
         config['learning_rate'] = 5.0e-4
-        config['n_epochs'] = 15
+        config['n_epochs'] = 20
         config['gamma'] = 0.98
         config['gae_lambda'] = 0.93
         config['target_kl'] = 0.1
@@ -59,12 +59,14 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
 
         # Policy model config
         config['policy_kwargs'] = {
-            'net_arch': [dict(pi=[64, 64], vf=[64, 64])],
+            'net_arch': dict(pi=[64, 64], vf=[64, 64]),
             'activation_fn': nn.Tanh,
             'ortho_init': True,
             'log_std_init': 1.0,
             'optimizer_kwargs': {
-                'eps': 0.0
+                'weight_decay': 1e-4,
+                'betas': (0.9, 0.999),
+                'eps': 1e-6,
             }
         }
 
