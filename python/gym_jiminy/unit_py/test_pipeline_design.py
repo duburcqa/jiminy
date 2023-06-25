@@ -141,7 +141,7 @@ class PipelineDesign(unittest.TestCase):
         # Perform a single step
         env = self.ANYmalPipelineEnv()
         env.reset()
-        action = env.env.get_observation()['actions']['controller_0']
+        action = env.env.observation['actions']['controller_0'].copy()
         action += 1.0e-3
         obs, *_ = env.step(action)
 

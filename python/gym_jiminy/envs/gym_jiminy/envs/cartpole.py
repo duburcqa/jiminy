@@ -145,8 +145,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Create some proxies for fast access
         self.__state_view = (
-            self._observation[:self.robot.nq],
-            self._observation[self.robot.nq:(self.robot.nq+self.robot.nv)])
+            self.observation[:self.robot.nq],
+            self.observation[self.robot.nq:(self.robot.nq+self.robot.nv)])
 
     def _setup(self) -> None:
         """ TODO: Write documentation.

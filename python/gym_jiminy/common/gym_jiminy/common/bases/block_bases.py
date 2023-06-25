@@ -144,12 +144,25 @@ class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
     """
     type = "observer"
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the observer interface.
+
+        :param args: Extra arguments that may be useful for mixing
+                     multiple inheritance through multiple inheritance.
+        :param kwargs: Extra keyword arguments. See 'args'.
+        """
+        # Call super to allow mixing interfaces through multiple inheritance
+        super().__init__(*args, **kwargs)
+
+        # Allocate observation buffer
+        self.observation: ObsT = zeros(self.observation_space)
+
     def _setup(self) -> None:
         # Compute the update period
         self.observe_dt = self.env.observe_dt * self.update_ratio
 
         # Set default observation
-        fill(self._observation, 0)
+        fill(self.observation, 0)
 
         # Make sure the controller period is lower than environment timestep
         assert self.observe_dt <= self.env.step_dt, (
@@ -247,8 +260,8 @@ BaseControllerBlock.compute_command.__doc__ = \
     .. note::
         The user is expected to fetch by itself the observation of the
         environment if necessary to carry out its computations by calling
-        `self.env.get_observation()`. Beware it will NOT contain any
-        information provided by higher-level blocks in the pipeline.
+        `self.env.observation`. Beware it will NOT contain any information
+        provided by higher-level blocks in the pipeline.
 
     :param target: Target to achieve by means of the output action.
 

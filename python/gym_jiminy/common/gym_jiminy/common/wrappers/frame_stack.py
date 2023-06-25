@@ -115,6 +115,9 @@ class PartialFrameStack(
             root_space[fields[-1]] = gym.spaces.Box(
                 low=low, high=high, dtype=space.dtype.type)
 
+        # Allocate memory for the observation
+        self.observation = zeros(self.observation_space)
+
         # Allocate internal frames buffers
         self._frames: List[deque] = [
             deque(maxlen=self.num_stack) for _ in self.leaf_fields_list]
@@ -122,7 +125,7 @@ class PartialFrameStack(
     def _setup(self) -> None:
         """ TODO: Write documentation.
         """
-        # Initialize the frames by duplicating the original one
+        # Reset frames to zero
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             assert isinstance(self.env.observation_space, gym.spaces.Dict)
             leaf_space = reduce(getitem,  # type: ignore[arg-type]
@@ -130,40 +133,30 @@ class PartialFrameStack(
             for _ in range(self.num_stack):
                 frames.append(zeros(leaf_space))
 
-    def compute_observation(self, measurement: ObsT) -> ObsT:
+    def refresh_observation(self, measurement: ObsT) -> None:
         """ TODO: Write documentation.
         """
-        # Backup the nested observation fields to stack
+        # Backup the nested observation fields to stack.
+        # Leaf values are copied to ensure they do not get altered later on.
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             leaf_obs = reduce(getitem,  # type: ignore[arg-type]
                               fields, measurement)
-
-            # Assert(s) for type checker
             assert isinstance(leaf_obs, np.ndarray)
-
-            # Copy to make sure not altered
             frames.append(leaf_obs.copy())
 
-        # Replace nested fields of original observation by the stacked ones
+        # Update nested fields of the observation by the stacked ones
         for fields, frames in zip(self.leaf_fields_list, self._frames):
-            root_obs = reduce(getitem,  # type: ignore[arg-type]
-                              fields[:-1], measurement)
-
-            # Assert(s) for type checker
-            assert isinstance(root_obs, dict)
-
-            root_obs[fields[-1]] = np.stack(frames)
-
-        # Return the stacked observation
-        return measurement
+            leaf_obs = reduce(getitem,  # type: ignore[arg-type]
+                              fields, self.observation)
+            assert isinstance(leaf_obs, np.ndarray)
+            self.observation[:] = frames
 
     def step(self,
              action: Optional[ActT] = None
              ) -> Tuple[StackedObsType, SupportsFloat, bool, bool, InfoType]:
         observation, reward, done, truncated, info = self.env.step(action)
-        return (
-            self.compute_observation(observation), reward, done, truncated,
-            info)
+        self.refresh_observation(observation)
+        return self.observation, reward, done, truncated, info
 
     def reset(self,
               *,
@@ -172,7 +165,8 @@ class PartialFrameStack(
               ) -> Tuple[StackedObsType, InfoType]:
         observation, info = self.env.reset(seed=seed, options=options)
         self._setup()
-        return self.compute_observation(observation), info
+        self.refresh_observation(observation)
+        return self.observation, info
 
 
 class StackedJiminyEnv(
@@ -194,6 +188,9 @@ class StackedJiminyEnv(
 
         # Instantiate wrapper
         self.wrapper = PartialFrameStack(env, **kwargs)
+
+        # Share observation with the wrapper
+        self.observation = self.wrapper.observation
 
         # Initialize base classes
         super().__init__(env, **kwargs)
@@ -234,8 +231,7 @@ class StackedJiminyEnv(
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1
-            self._observation = self.wrapper.compute_observation(
-                self.env.get_observation())
+            self.wrapper.refresh_observation(self.env.observation)
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.

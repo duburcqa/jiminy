@@ -204,7 +204,7 @@ class MahonyFilter(
                     axis = np.stack(
                         (acc[1], -acc[0], np.zeros(acc.shape[1:])), axis=0)
                     s = np.sqrt(2 * (1 + acc[2]))
-                    self._observation[:] = *(axis / s), s / 2
+                    self.observation[:] = *(axis / s), s / 2
                     is_initialized = True
             if not is_initialized:
                 robot = self.env.robot
@@ -212,12 +212,12 @@ class MahonyFilter(
                     sensor = robot.get_sensor(imu.type, name)
                     assert isinstance(sensor, imu)
                     rot = robot.pinocchio_data.oMf[sensor.frame_idx].rotation
-                    self._observation[:, i] = pin.Quaternion(rot).coeffs()
+                    self.observation[:, i] = pin.Quaternion(rot).coeffs()
             if mahony_filter.signatures:
                 return
 
         # Run an iteration of the filter, computing the next state estimate
-        mahony_filter(self._observation,
+        mahony_filter(self.observation,
                       self.gyro,
                       self.acc,
                       self._bias,

@@ -343,37 +343,38 @@ class ObservedJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
-        # Re-initialize the observation to share memory with the environment.
+        # Initialize the observation to share memory with the environment.
         # The part of the observation corresponding to the environment is
         # shared with it for efficiency. Because of this, it is necessary to
         # override the wrapper's observation to share memory addresses with
         # the environment. Yet, it only has to be done once at init, since all
         # pre-allocated memory addresses are not supposed to change by design
         # even after calling 'reset' on the environment.
-        base_observation = self.env.get_observation()
+        self.observation: ObsT = {}
+        base_observation = self.env.observation
         if isinstance(base_observation, dict):
             # Store references of the values but not the dict itself,
             # otherwise it will share all extra keys added later on.
-            self._observation.update(base_observation)
+            self.observation.update(base_observation)
             if base_features := base_observation.get('features'):
-                assert isinstance(self._observation['features'], dict)
-                self._observation['features'].update(base_features)
+                assert isinstance(self.observation['features'], dict)
+                self.observation['features'].update(base_features)
             if base_states := base_observation.get('states'):
-                assert isinstance(self._observation['states'], dict)
-                self._observation['states'].update(base_states)
+                assert isinstance(self.observation['states'], dict)
+                self.observation['states'].update(base_states)
         else:
-            self._observation['measurement'] = base_observation
+            self.observation['measurement'] = base_observation
         if (state := self.observer.get_state()) is not None:
-            self._observation.setdefault(
+            self.observation.setdefault(
                 'states', OrderedDict())[  # type: ignore[index]
                     self.observer.name] = state
-        self._observation.setdefault(
+        self.observation.setdefault(
             'features', OrderedDict())[  # type: ignore[index]
-                self.observer.name] = self.observer.get_observation()
+                self.observer.name] = self.observer.observation
 
         # Register the observer's feature to the telemetry
         self.env.register_variable('feature',  # type: ignore[attr-defined]
-                                   self.observer.get_observation(),
+                                   self.observer.observation,
                                    self.observer.fieldnames,
                                    self.observer.name)
 
@@ -420,22 +421,19 @@ class ObservedJiminyEnv(
         environment's observation.
 
         It gathers the original observation from the environment with the
-        features computed by the observer, if requested, otherwise it forwards
-        the features directly without any further processing.
+        features computed by the observer.
 
-        .. warning::
-            Beware it updates and returns '_observation' buffer to deal with
-            multiple observers with different update periods. Even so, it is
-            safe to call this method multiple times successively.
-
-        :returns: Updated part of the observation only for efficiency.
+        .. note::
+            Internally, it can deal with multiple observers with different
+            update periods. Besides, it is safe to call this method multiple
+            times successively.
         """
         # Get environment observation
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
         if is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
-            self.observer.refresh_observation(self.env.get_observation())
+            self.observer.refresh_observation(self.env.observation)
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -550,26 +548,27 @@ class ControlledJiminyEnv(
         # Allocate action buffer
         self.action: ActT = zeros(self.action_space)
 
-        # Re-initialize the observation to share memory with the environment.
-        base_observation = self.env.get_observation()
+        # Initialize the observation to share memory with the environment
+        self.observation: ObsT = {}
+        base_observation = self.env.observation
         if isinstance(base_observation, dict):
             # Store references of the values but not the dict itself,
             # otherwise it will share all extra keys added later on.
-            self._observation.update(base_observation)
+            self.observation.update(base_observation)
             if base_actions := base_observation.get('actions'):
-                assert isinstance(self._observation['actions'], dict)
-                self._observation['actions'].update(base_actions)
+                assert isinstance(self.observation['actions'], dict)
+                self.observation['actions'].update(base_actions)
             if base_states := base_observation.get('states'):
-                assert isinstance(self._observation['states'], dict)
-                self._observation['states'].update(base_states)
+                assert isinstance(self.observation['states'], dict)
+                self.observation['states'].update(base_states)
         else:
-            self._observation['measurement'] = base_observation
+            self.observation['measurement'] = base_observation
         if (state := self.controller.get_state()) is not None:
-            self._observation.setdefault(
+            self.observation.setdefault(
                 'states', OrderedDict())[  # type: ignore[index]
                     self.controller.name] = state
         if self.augment_observation:
-            self._observation.setdefault(
+            self.observation.setdefault(
                 'actions', OrderedDict())[  # type: ignore[index]
                     self.controller.name] = self.action
 
@@ -657,7 +656,7 @@ class ControlledJiminyEnv(
         :param action: High-level target to achieve by means of the command.
         """
         # Update the target to send to the subsequent block if necessary.
-        # Note that `_observation` buffer has already been updated right before
+        # Note that `observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
         # measure argument without issue.
         if is_breakpoint(self.stepper_state.t, self.control_dt, DT_EPS):

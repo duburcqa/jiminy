@@ -8,6 +8,7 @@ from typing import Dict, Any, Tuple, TypeVar, Generic
 from typing_extensions import TypeAlias
 
 import numpy as np
+import numpy.typing as npt
 import gymnasium as gym
 
 import jiminy_py.core as jiminy
@@ -26,7 +27,7 @@ ActT = TypeVar('ActT', bound=DataNested)
 BaseObsT = TypeVar('BaseObsT', bound=DataNested)
 BaseActT = TypeVar('BaseActT', bound=DataNested)
 
-SensorsDataType = Dict[str, np.ndarray[Tuple[int, int], np.float64]]
+SensorsDataType = Dict[str, npt.NDArray[np.float64]]
 InfoType = Dict[str, Any]
 
 
@@ -44,7 +45,7 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
     """
     observe_dt: float = -1
     observation_space: gym.Space  # [ObsT]
-    _observation: ObsT
+    observation: ObsT
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observation interface.
@@ -59,9 +60,6 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
         # Refresh the observation space
         self._initialize_observation_space()
 
-        # Initialize the observation buffer
-        self._observation: ObsT = zeros(self.observation_space)
-
     @abstractmethod
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
@@ -74,7 +72,7 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
 
         .. warning:
             When overloading this method, one is expected to use the internal
-            buffer `_observation` to store the observation by updating it by
+            buffer `observation` to store the observation by updating it by
             reference. It may be error prone and tricky to get use to it, but
             it is computationally more efficient as it avoids allocating memory
             multiple times and redundant calculus. Additionally, it enables to
@@ -83,22 +81,6 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
         :param measurement: Low-level measure from the environment to process
                             to get higher-level observation.
         """
-
-    def get_observation(self) -> ObsT:
-        """Get post-processed observation.
-
-        By default, it does not perform any post-processing. One is responsible
-        for clipping the observation if necessary to make sure it does not
-        violate the lower and upper bounds. This can be done either by
-        overloading this method, or in the case of pipeline design, by adding a
-        clipping observation block at the very end.
-
-        .. warning::
-            In most cases, it is not necessary to overloaded this method, and
-            doing so may lead to unexpected behavior if not done carefully.
-        """
-        return self._observation
-
 
 class ControllerInterface(ABC, Generic[ActT, BaseActT]):
     """Controller interface for both controllers and environments.
@@ -199,7 +181,7 @@ class JiminyEnvInterface(
     stepper_state: jiminy.StepperState
     system_state: jiminy.SystemState
     sensors_data: SensorsDataType
-    is_simulation_running: np.ndarray[Tuple[()], np.bool_]
+    is_simulation_running: npt.NDArray[np.bool_]
 
     action: ActT
 
@@ -303,16 +285,6 @@ class JiminyEnvInterface(
         # Always consider that the observation must be refreshed after calling
         # '_controller_handle' as it is never called more often than necessary.
         self.__is_observation_refreshed = False
-
-    def get_observation(self) -> ObsT:
-        """Get post-processed observation.
-
-        It performs a shallow copy of the observation.
-
-        .. warning::
-            This method is not supposed to be overloaded.
-        """
-        return copy(self._observation)
 
     @property
     def unwrapped(self) -> "JiminyEnvInterface":

@@ -216,7 +216,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Initialize the seed of the environment
         self._initialize_seed()
 
-        # Initialize the action buffer
+        # Initialize the observation and action buffers
+        self.observation: ObsT = zeros(self.observation_space)
         self.action: ActT = zeros(self.action_space)
 
         # Set robot in neutral configuration
@@ -742,7 +743,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs: ObsT = clip(self.observation_space, self.get_observation())
+            obs: ObsT = clip(self.observation_space, self.observation)
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -825,7 +826,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self.robot.sensors_data)
 
         # Get clipped observation
-        obs: ObsT = clip(self.observation_space, self.get_observation())
+        obs: ObsT = clip(self.observation_space, self.observation)
 
         # Make sure there is no 'nan' value in observation
         if np.isnan(self.system_state.a).any():
@@ -1371,7 +1372,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             checking whether the simulation already started. It is not exactly
             the same but it does the job regarding preserving efficiency.
         """
-        set_value(self._observation, cast(DataNested, measurement))
+        set_value(self.observation, cast(DataNested, measurement))
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -1413,7 +1414,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         .. note::
             This method is called after `refresh_observation`, so that the
-            internal buffer '_observation' is up-to-date.
+            internal buffer 'observation' is up-to-date.
 
         :returns: done and truncated flags.
         """
@@ -1424,7 +1425,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 "method.")
 
         # Check if the observation is out-of-bounds
-        truncated = not self.observation_space.contains(self._observation)
+        truncated = not self.observation_space.contains(self.observation)
 
         return False, truncated
 

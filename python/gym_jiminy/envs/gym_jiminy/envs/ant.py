@@ -173,10 +173,10 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             obs_idx = slice(*size)
             low = self.observation_space.low[obs_idx]
             high = self.observation_space.high[obs_idx]
-            self._observation[obs_idx] = np.clip(obs, low, high)
+            self.observation[obs_idx] = np.clip(obs, low, high)
 
         # Transform observed linear velocity to be in world frame
-        self._observation[slice(*self.obs_chunks_sizes[1])][:3] = \
+        self.observation[slice(*self.obs_chunks_sizes[1])][:3] = \
             Quaternion(self.system_state.q[3:7]) * self.obs_chunks[1][:3]
 
     def has_terminated(self) -> Tuple[bool, bool]:
@@ -209,7 +209,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         f_ext_idx = slice(self.obs_chunks_sizes[2][0],
                           self.obs_chunks_sizes[-1][1])
-        f_ext = self._observation[f_ext_idx]
+        f_ext = self.observation[f_ext_idx]
         contact_cost = 0.5 * 1e-3 * np.square(f_ext).sum()
 
         survive_reward = 1.0 if not done else 0.0
