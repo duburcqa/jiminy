@@ -213,8 +213,8 @@ class JiminyEnvInterface(
         # It is always necessary to refresh the observation at after reset
         self.__is_observation_refreshed = True
 
-        # Set default action.
-        # It will be used for the initial step.
+        # Reset observation and action buffers
+        fill(self.observation, 0)
         fill(self.action, 0)
 
     def _observer_handle(self,

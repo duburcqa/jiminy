@@ -601,9 +601,6 @@ class ControlledJiminyEnv(
         # Call base implementation
         super()._setup()
 
-        # Reset some additional internal buffers
-        fill(self.action, 0)
-
         # Compute the observe and control update periods
         self.observe_dt = self.env.observe_dt
         self.control_dt = self.controller.control_dt
