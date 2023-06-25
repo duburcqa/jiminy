@@ -13,7 +13,7 @@ import numpy as np
 
 import gymnasium as gym
 
-from ..utils import is_breakpoint, zeros
+from ..utils import is_breakpoint, zeros, copy
 from ..bases import (DT_EPS,
                      ObsT,
                      ActT,
@@ -36,8 +36,8 @@ class PartialFrameStack(
     `FilterObservation` to support nested filter keys.
 
     It adds one extra dimension to all the leaves of the original observation
-    spaces, the first dimension corresponding to the individual timesteps (from
-    oldest [0] to latest [-1]).
+    spaces that must be stacked. If so, the first dimension corresponds to the
+    individual timesteps (from oldest [0] to latest [-1]).
 
     .. note::
         The observation space must be `gym.spaces.Dict`, while, ultimately,
@@ -115,8 +115,13 @@ class PartialFrameStack(
             root_space[fields[-1]] = gym.spaces.Box(
                 low=low, high=high, dtype=space.dtype.type)
 
-        # Allocate memory for the observation
-        self.observation = zeros(self.observation_space)
+        # Share memory with the environment for all keys but the stacked ones
+        self.observation = copy(self.observation)
+        for fields in self.leaf_fields_list:
+            assert isinstance(self.observation_space, gym.spaces.Dict)
+            root_obs = reduce(getitem, fields[:-1], self.observation)
+            space = reduce(getitem, fields, self.observation_space)
+            root_obs[fields[-1]] = zeros(space)
 
         # Allocate internal frames buffers
         self._frames: List[deque] = [
@@ -149,7 +154,7 @@ class PartialFrameStack(
             leaf_obs = reduce(getitem,  # type: ignore[arg-type]
                               fields, self.observation)
             assert isinstance(leaf_obs, np.ndarray)
-            self.observation[:] = frames
+            leaf_obs[:] = frames
 
     def step(self,
              action: Optional[ActT] = None

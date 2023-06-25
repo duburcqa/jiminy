@@ -22,7 +22,8 @@ import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
 
-from ..utils import DataNested, is_breakpoint, zeros, fill, set_value
+from ..utils import (
+    DataNested, is_breakpoint, zeros, fill, set_value, clip, copy)
 
 from .generic_bases import (DT_EPS,
                             ObsT,
@@ -200,7 +201,10 @@ class BasePipelineWrapper(
         # Reset base pipeline
         _, info = self.env.reset(seed=seed, options={"reset_hook": reset_hook})
 
-        return self.get_observation(), info
+        # Get clipped observation
+        obs: ObsT = clip(self.observation_space, self.observation)
+
+        return obs, info
 
     def step(self,
              action: Optional[ActT] = None
@@ -228,7 +232,11 @@ class BasePipelineWrapper(
         if not math.isnan(reward):
             reward += self.compute_reward(done, truncated, info)
 
-        return self.get_observation(), reward, done, truncated, info
+        # Get clipped observation
+        # TODO: Only clip part of the observation associated with the wrapper
+        obs: ObsT = clip(self.observation_space, self.observation)
+
+        return obs, reward, done, truncated, info
 
     # methods to override:
     # ----------------------------
@@ -358,10 +366,10 @@ class ObservedJiminyEnv(
             self.observation.update(base_observation)
             if base_features := base_observation.get('features'):
                 assert isinstance(self.observation['features'], dict)
-                self.observation['features'].update(base_features)
+                self.observation['features'] = copy(base_features)
             if base_states := base_observation.get('states'):
                 assert isinstance(self.observation['states'], dict)
-                self.observation['states'].update(base_states)
+                self.observation['states'] = copy(base_states)
         else:
             self.observation['measurement'] = base_observation
         if (state := self.observer.get_state()) is not None:
@@ -557,10 +565,10 @@ class ControlledJiminyEnv(
             self.observation.update(base_observation)
             if base_actions := base_observation.get('actions'):
                 assert isinstance(self.observation['actions'], dict)
-                self.observation['actions'].update(base_actions)
+                self.observation['actions'] = copy(base_actions)
             if base_states := base_observation.get('states'):
                 assert isinstance(self.observation['states'], dict)
-                self.observation['states'].update(base_states)
+                self.observation['states'] = copy(base_states)
         else:
             self.observation['measurement'] = base_observation
         if (state := self.controller.get_state()) is not None:
