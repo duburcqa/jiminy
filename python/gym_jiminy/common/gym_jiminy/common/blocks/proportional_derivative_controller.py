@@ -26,7 +26,7 @@ N_ORDER_DERIVATIVE_NAMES = ("Position", "Velocity", "Acceleration", "Jerk")
 EVAL_DEADBAND = 5.0e-3
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
     """Numba-compatible implementation of `scipy.linalg.toeplitz` method.
 
@@ -79,7 +79,7 @@ def integrate_zoh(state_prev: np.ndarray,
         return state_prev.copy()
 
     # Compute integration matrix
-    dim = len(state_prev)
+    dim, size = state_prev.shape
     integ_coeffs = np.array([
         pow(dt, k) * INV_FACTORIAL_TABLE[k] for k in range(dim)])
     integ_matrix = toeplitz(integ_coeffs, np.zeros(dim)).T
@@ -87,11 +87,10 @@ def integrate_zoh(state_prev: np.ndarray,
     integ_drift = integ_matrix[:, -1:]
 
     # Propagate derivative bounds to compute highest-order derivative bounds
-    deriv = state_prev[-1]
     deriv_min_stack = (state_min - integ_zero) / integ_drift
     deriv_max_stack = (state_max - integ_zero) / integ_drift
-    deriv_min = np.full_like(deriv, fill_value=-np.inf)
-    deriv_max = np.full_like(deriv, fill_value=np.inf)
+    deriv_min = np.full((size,), -np.inf)
+    deriv_max = np.full((size,), np.inf)
     for deriv_min_i, deriv_max_i in zip(deriv_min_stack, deriv_max_stack):
         deriv_min_i_valid = np.logical_and(
             deriv_min < deriv_min_i, deriv_min_i < deriv_max)
@@ -102,7 +101,7 @@ def integrate_zoh(state_prev: np.ndarray,
 
     # Clip highest-order derivative to ensure every derivative are withing
     # bounds if possible, lowest orders in priority otherwise.
-    np.clip(deriv, deriv_min, deriv_max, deriv)
+    deriv = np.clip(state_prev[-1], deriv_min, deriv_max)
 
     # Integrate, taking into account clipped highest derivative
     return integ_zero + integ_drift * deriv
@@ -138,7 +137,7 @@ def pd_controller(q_measured: np.ndarray,
     u_command = kp * (q_error + kd * v_error)
 
     # Clip the command motors torques before returning
-    return np.clip(u_command, -motor_effort_limit, motor_effort_limit)
+    return u_command.clip(-motor_effort_limit, motor_effort_limit, u_command)
 
 
 class PDController(
@@ -314,11 +313,11 @@ class PDController(
         # for the first time, which happens at `reset`.
         is_simulation_running = self.env.is_simulation_running
         if not is_simulation_running:
-            self._command_state[:2] = self.q_measured, self.v_measured
-            np.clip(self._command_state,
-                    self._command_state_lower,
-                    self._command_state_upper,
-                    out=self._command_state)
+            for i, value in enumerate((self.q_measured, self.v_measured)):
+                np.clip(value,
+                        self._command_state_lower[i],
+                        self._command_state_upper[i],
+                        out=self._command_state[i])
 
         # Update the highest order derivative of the target motor positions to
         # match the provided action.

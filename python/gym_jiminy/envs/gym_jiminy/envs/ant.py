@@ -173,7 +173,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             obs_idx = slice(*size)
             low = self.observation_space.low[obs_idx]
             high = self.observation_space.high[obs_idx]
-            self.observation[obs_idx] = np.clip(obs, low, high)
+            obs.clip(low, high, out=self.observation[obs_idx])
 
         # Transform observed linear velocity to be in world frame
         self.observation[slice(*self.obs_chunks_sizes[1])][:3] = \

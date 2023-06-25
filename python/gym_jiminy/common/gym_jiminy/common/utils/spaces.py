@@ -7,10 +7,12 @@ from typing import (
     Optional, Union, Sequence, TypeVar, Mapping as MappingT,
     Iterable as IterableT, no_type_check)
 
-import gymnasium as gym
-import tree
+import numba as nb
 import numpy as np
 from numpy import typing as npt
+
+import tree
+import gymnasium as gym
 
 
 ValueT = TypeVar('ValueT')
@@ -203,6 +205,11 @@ def copy(data: DataNestedT) -> DataNestedT:
     return tree.unflatten_as(data, tree.flatten(data))
 
 
+@nb.jit(nopython=True, nogil=True, inline='always')
+def _clip(value: np.ndarray, low: np.ndarray, high: np.ndarray) -> np.ndarray:
+    return value.clip(low, high)
+
+
 def clip(space_nested: gym.Space[DataNestedT],
          data: DataNestedT) -> DataNestedT:
     """Clamp value from `gym.Space` to make sure it is within bounds.
@@ -216,6 +223,6 @@ def clip(space_nested: gym.Space[DataNestedT],
     :param data: Data to clip.
     """
     return tree.map_structure(
-        lambda value, space: np.clip(value, space.low, space.high)
+        lambda value, space: _clip(value, space.low, space.high)
         if isinstance(space, gym.spaces.Box) else value.copy(),
         data, space_nested)

@@ -10,7 +10,7 @@ from scipy.spatial.qhull import _qhull
 from .generic import squared_norm_2
 
 
-@nb.jit("float64[:](float64[:, :])", nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def _amin_last_axis(array: np.ndarray) -> np.ndarray:
     """ TODO: Write documentation.
     """
@@ -20,7 +20,7 @@ def _amin_last_axis(array: np.ndarray) -> np.ndarray:
     return res
 
 
-@nb.jit("boolean[:](boolean[:, :])", nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def _all_last_axis(array: np.ndarray) -> np.ndarray:
     """ TODO: Write documentation.
     """
