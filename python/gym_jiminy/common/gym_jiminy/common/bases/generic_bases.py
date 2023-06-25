@@ -48,7 +48,7 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
     observation: ObsT
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the observation interface.
+        """Initialize the observer interface.
 
         :param args: Extra arguments that may be useful for mixing
                      multiple inheritance through multiple inheritance.
@@ -90,7 +90,7 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
     action_space: gym.Space  # [ActT]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the control interface.
+        """Initialize the controller interface.
 
         :param args: Extra arguments that may be useful for mixing
                      multiple inheritance through multiple inheritance.

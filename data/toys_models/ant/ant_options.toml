@@ -2,10 +2,9 @@
 
 [engine.stepper]
 verbose = false
-odeSolver = "euler_explicit"
-sensorsUpdatePeriod = 0.005
-controllerUpdatePeriod = 0.005
-dtMax = 0.005
+odeSolver = "runge_kutta_4"
+sensorsUpdatePeriod = 0.01
+controllerUpdatePeriod = 0.01
 logInternalStepperSteps = false
 randomSeed = 0
 

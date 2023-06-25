@@ -202,7 +202,7 @@ class StackedJiminyEnv(
         # Instantiate wrapper
         self.wrapper = PartialFrameStack(env, **kwargs)
 
-        # Share observation with the wrapper
+        # Bind the observation of the wrapper
         self.observation = self.wrapper.observation
 
         # Initialize base classes

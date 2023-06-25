@@ -352,18 +352,14 @@ class ObservedJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
-        # Initialize the observation to share memory with the environment.
-        # The part of the observation corresponding to the environment is
-        # shared with it for efficiency. Because of this, it is necessary to
-        # override the wrapper's observation to share memory addresses with
-        # the environment. Yet, it only has to be done once at init, since all
-        # pre-allocated memory addresses are not supposed to change by design
-        # even after calling 'reset' on the environment.
+        # Initialize the observation.
+        # One part is bound to the environment while the other is bound to the
+        # observer. In this way, no memory at all must be allocated.
         observation: Dict[str, DataNested] = OrderedDict()
         base_observation = self.env.observation
         if isinstance(base_observation, dict):
-            # Store references of the values but not the dict itself,
-            # otherwise it will share all extra keys added later on.
+            # Bind values but not dict itself, otherwise the base observation
+            # would be altered when adding extra keys.
             observation.update(base_observation)
             if base_features := base_observation.get('features'):
                 assert isinstance(observation['features'], dict)
@@ -558,12 +554,10 @@ class ControlledJiminyEnv(
         # Allocate action buffer
         self.action: ActT = zeros(self.action_space)
 
-        # Initialize the observation to share memory with the environment
+        # Initialize the observation
         observation: Dict[str, DataNested] = OrderedDict()
         base_observation = self.env.observation
         if isinstance(base_observation, dict):
-            # Store references of the values but not the dict itself,
-            # otherwise it will share all extra keys added later on.
             observation.update(base_observation)
             if base_actions := base_observation.get('actions'):
                 assert isinstance(observation['actions'], dict)

@@ -210,7 +210,7 @@ class BaseControllerBlock(
     type = "controller"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the control interface.
+        """Initialize the controller interface.
 
         :param args: Extra arguments that may be useful for mixing
                      multiple inheritance through multiple inheritance.

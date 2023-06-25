@@ -147,7 +147,8 @@ class PipelineDesign(unittest.TestCase):
 
         # Observation stacking is skipping the required number of frames
         stack_dt = (self.skip_frames_ratio + 1) * env.observe_dt
-        self.assertEqual(obs['t'][-1], stack_dt)
+        for i in range(3):
+            self.assertEqual(obs['t'][i], i * stack_dt)
 
         # Initial observation is consistent with internal simulator state
         controller_target_obs = obs['actions']['controller_0']
