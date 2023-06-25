@@ -34,7 +34,7 @@ def _clip(value: np.ndarray, low: np.ndarray, high: np.ndarray) -> np.ndarray:
 
 
 def _unflatten_as(structure: DataNested,
-                  flat_sequence: Iterable[DataNested]) -> DataNested:
+                  flat_sequence: IterableT[DataNested]) -> DataNested:
     """Unflattens a sequence into a given structure.
 
     .. seealso::
@@ -197,39 +197,6 @@ def fill(data: DataNested, fill_value: Union[float, int, np.number]) -> None:
                 ) from e
 
 
-def set_value(data: DataNested, value: DataNested) -> None:
-    """Partially set 'data' from `gym.Space` to 'value'.
-
-    It avoids memory allocation, so that memory pointers of 'data' remains
-    unchanged. As direct consequences, it is necessary to preallocate memory
-    beforehand, and to work with fixed shape buffers.
-
-    .. note::
-        If 'data' is a dictionary, 'value' must be a subtree of 'data', whose
-        leaves must be broadcast-able with the ones of 'data'.
-
-    :param data: Data structure to partially update.
-    :param value: Subtree of data only containing fields to update.
-    """
-    if isinstance(data, np.ndarray):
-        try:
-            data.flat[:] = value
-        except TypeError as e:
-            raise TypeError(f"Cannot broadcast '{value}' to '{data}'.") from e
-    elif isinstance(data, dict):
-        assert isinstance(value, dict)
-        for field, subval in value.items():
-            set_value(data[field], subval)
-    elif isinstance(data, Iterable):
-        assert isinstance(value, Iterable)
-        for subdata, subval in zip_longest(data, value):
-            set_value(subdata, subval)
-    else:
-        raise ValueError(
-            "Leaves of 'data' structure must have type `np.ndarray`."
-            )
-
-
 def copyto(src: DataNestedT, dest: DataNestedT) -> None:
     """Copy arbitrarily nested data structure of 'np.ndarray' to a given
     pre-allocated destination.
@@ -241,8 +208,23 @@ def copyto(src: DataNestedT, dest: DataNestedT) -> None:
     :param data: Data structure to update.
     :param value: Data to copy.
     """
-    for data, value in zip(*map(tree.flatten, (src, dest))):
-        data.flat[:] = value
+    # for data, value in zip(*map(tree.flatten, (src, dest))):
+    #     data.flat[:] = value
+    if isinstance(src, np.ndarray):
+        try:
+            src.flat[:] = dest
+        except TypeError as e:
+            raise TypeError(f"Cannot broadcast '{dest}' to '{src}'.") from e
+    elif isinstance(src, dict):
+        assert isinstance(dest, dict)
+        for data, value in zip_longest(src.values(), dest.values()):
+            copyto(data, value)
+    elif isinstance(src, Iterable):
+        assert isinstance(dest, Iterable)
+        for data, value in zip_longest(src, dest):
+            copyto(data, value)
+    else:
+        raise ValueError("All leaves must have type `np.ndarray`.")
 
 
 def copy(data: DataNestedT) -> DataNestedT:
