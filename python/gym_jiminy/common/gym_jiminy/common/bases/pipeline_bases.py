@@ -141,11 +141,11 @@ class BasePipelineWrapper(
     def eval(self) -> None:
         self.env.eval()
 
-    def reset(self,
+    def reset(self,  # type: ignore[override]
               *,
               seed: Optional[int] = None,
               options: Optional[Dict[str, Any]] = None
-              ) -> Tuple[ObsT, InfoType]:
+              ) -> Tuple[DataNested, InfoType]:
         """Reset the unified environment.
 
         In practice, it resets the environment and initializes the generic
@@ -200,8 +200,9 @@ class BasePipelineWrapper(
         # Reset base pipeline
         return self.env.reset(seed=seed, options={"reset_hook": reset_hook})
 
-    def step(self,
-             action: ActT) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
+    def step(self,  # type: ignore[override]
+             action: ActT
+             ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
         """Run a simulation step for a given action.
 
         :param action: Next action to perform. `None` to not update it.

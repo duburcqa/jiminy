@@ -1,11 +1,11 @@
 """ TODO: Write documentation.
 """
+from itertools import zip_longest
 from collections import OrderedDict
 from collections.abc import Iterable
-from itertools import zip_longest
 from typing import (
-    Optional, Union, Sequence, TypeVar, Mapping as MappingT,
-    Iterable as IterableT, no_type_check)
+    Any, Optional, Union, Sequence, TypeVar, Mapping as MappingT,
+    Iterable as IterableT, no_type_check, cast)
 
 import numba as nb
 import numpy as np
@@ -28,7 +28,11 @@ DataNestedT = TypeVar('DataNestedT', bound=DataNested)
 global_rng = np.random.default_rng()
 
 
-_array_copyto = np.core.multiarray._multiarray_umath.copyto
+try:
+    _array_copyto = np.core.multiarray.\
+        _multiarray_umath.copyto  # type: ignore[attr-defined]
+except AttributeError:
+    _array_copyto = np.copyto
 
 
 @nb.jit(nopython=True, nogil=True, inline='always')
@@ -38,8 +42,8 @@ def _array_clip(value: np.ndarray,
     return value.clip(low, high)
 
 
-def _unflatten_as(structure: DataNested,
-                  flat_sequence: IterableT[DataNested]) -> DataNested:
+def _unflatten_as(structure: StructNested[Any],
+                  flat_sequence: Sequence[DataNested]) -> DataNested:
     """Unflatten a sequence into a given structure.
 
     .. seealso::
@@ -259,7 +263,7 @@ def copy(data: DataNestedT) -> DataNestedT:
 
     :param data: Hierarchical data structure to copy without allocation.
     """
-    return _unflatten_as(data, tree.flatten(data))
+    return cast(DataNestedT, _unflatten_as(data, tree.flatten(data)))
 
 
 def clip(data: DataNestedT,
@@ -277,6 +281,6 @@ def clip(data: DataNestedT,
     """
     if check:
         return tree.map_structure(_clip_or_copy, data, space_nested)
-    return _unflatten_as(data, [
+    return cast(DataNestedT, _unflatten_as(data, [
         _clip_or_copy(value, space) for value, space in zip(
-        tree.flatten(data), tree.flatten(space_nested))])
+            tree.flatten(data), tree.flatten(space_nested))]))

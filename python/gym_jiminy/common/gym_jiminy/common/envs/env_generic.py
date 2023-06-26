@@ -599,11 +599,11 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
     def eval(self) -> None:
         self._is_training = False
 
-    def reset(self,
+    def reset(self,  # type: ignore[override]
               *,
               seed: Optional[int] = None,
               options: Optional[Dict[str, Any]] = None,
-              ) -> Tuple[ObsT, InfoType]:
+              ) -> Tuple[DataNested, InfoType]:
         """Reset the environment.
 
         In practice, it resets the backend simulator and set the initial state
@@ -784,8 +784,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         """
         self.simulator.close()
 
-    def step(self,
-             action: ActT) -> Tuple[ObsT, SupportsFloat, bool, bool, InfoType]:
+    def step(self,  # type: ignore[override]
+             action: ActT
+             ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
         # Make sure a simulation is already running
         if not self.is_simulation_running:
             raise RuntimeError(
@@ -1025,7 +1026,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self.simulator.render(update_ground_profile=False)
 
         # Reset the environnement
-        obs, _ = self.reset()
+        self.reset()
+        obs = self.observation
         reward = None
 
         # Refresh the ground profile
@@ -1041,18 +1043,19 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self.simulator.viewer.attach_camera(tracked_frame)
 
         # Refresh the scene once again to update camera placement
-        env = self._env_derived
-        env.render()
+        self.render()
 
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
-            nonlocal env, obs, reward, enable_is_done
-            action = None
+            nonlocal obs, reward, enable_is_done
             if key is not None:
                 action = self._key_to_action(
                     key, obs, reward, **{"verbose": verbose, **kwargs})
-            obs, reward, done, truncated, _ = env.step(action)
-            env.render()
+            if action is None:
+                action = self.action
+            _, reward, done, truncated, _ = self.step(action)
+            obs = self.observation
+            self.render()
             if not enable_is_done and self.robot.has_freeflyer:
                 return self.system_state.q[2] < 0.0
             return done or truncated
@@ -1078,7 +1081,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
     def evaluate(self,
                  policy_fn: Callable[[
-                    ObsT, Optional[float], bool, InfoType
+                    DataNested, Optional[float], bool, InfoType
                     ], ActT],
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
@@ -1097,7 +1100,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 Policy to evaluate as a callback function. It must have the
                 following signature (**rew** = None at reset):
 
-            | policy_fn\(**obs**: ObsT,
+            | policy_fn\(**obs**: DataNested,
             |            **reward**: Optional[float],
             |            **done_or_truncated**: bool,
             |            **info**: InfoType
