@@ -10,6 +10,8 @@ from typing import (
 import numba as nb
 import numpy as np
 from numpy import typing as npt
+from numpy.core.umath import (  # type: ignore[attr-defined]
+    copyto as _array_copyto)
 
 import tree
 import gymnasium as gym
@@ -26,13 +28,6 @@ DataNestedT = TypeVar('DataNestedT', bound=DataNested)
 
 
 global_rng = np.random.default_rng()
-
-
-try:
-    _array_copyto = np.core.multiarray.\
-        _multiarray_umath.copyto  # type: ignore[attr-defined]
-except AttributeError:
-    _array_copyto = np.copyto
 
 
 @nb.jit(nopython=True, nogil=True, inline='always')
