@@ -930,7 +930,7 @@ def _play_logs_files_entrypoint() -> None:
     while repeat:
         viewers = play_logs_files(
             viewers=viewers,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 remove_widgets_overlay=False),
                 **kwargs})
         kwargs["start_paused"] = False

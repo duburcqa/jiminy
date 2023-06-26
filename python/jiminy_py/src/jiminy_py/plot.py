@@ -326,7 +326,7 @@ class TabbedFigure:
                 if self.tabs_data:
                     self.figure.delaxes(ax)
                 if ref_ax is not None:
-                    ax.get_shared_x_axes().join(ref_ax, ax)
+                    ax.sharex(ref_ax)
                 else:
                     ref_ax = ax
                 axes.append(ax)
@@ -484,7 +484,7 @@ class TabbedFigure:
                          without rendering on screen.
         :param kwargs: Extra keyword arguments to forward to `add_tab` method.
         """
-        tabbed_figure = cls(**{  # type: ignore[arg-type]
+        tabbed_figure = cls(**{
             "offscreen": pdf_path is not None, **kwargs})
         for name, data in tabs_data.items():
             tabbed_figure.add_tab(
@@ -736,7 +736,7 @@ def plot_log_interactive() -> None:
     for i in range(n_plot):
         ax = fig.add_subplot(int(n_rows), int(n_cols), i+1)
         if i > 0:
-            ax.get_shared_x_axes().join(axes[0], ax)
+            ax.sharex(axes[0])
         axes.append(ax)
 
     # Store lines in dictionnary {file_name: plotted lines}, to enable to

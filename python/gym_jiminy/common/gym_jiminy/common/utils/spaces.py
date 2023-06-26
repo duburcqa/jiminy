@@ -1,20 +1,23 @@
 """ TODO: Write documentation.
 """
+from itertools import zip_longest
 from collections import OrderedDict
 from collections.abc import Iterable
-from itertools import zip_longest
 from typing import (
-    Optional, Union, Sequence, TypeVar, Mapping as MappingT, no_type_check)
+    Any, Optional, Union, Sequence, TypeVar, Mapping as MappingT,
+    Iterable as IterableT, no_type_check, cast)
 
-import gymnasium as gym
-import tree
+import numba as nb
 import numpy as np
 from numpy import typing as npt
+
+import tree
+import gymnasium as gym
 
 
 ValueT = TypeVar('ValueT')
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
-                     Sequence['StructNested[ValueT]'],
+                     IterableT['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
@@ -25,6 +28,49 @@ DataNestedT = TypeVar('DataNestedT', bound=DataNested)
 global_rng = np.random.default_rng()
 
 
+try:
+    _array_copyto = np.core.multiarray.\
+        _multiarray_umath.copyto  # type: ignore[attr-defined]
+except AttributeError:
+    _array_copyto = np.copyto
+
+
+@nb.jit(nopython=True, nogil=True, inline='always')
+def _array_clip(value: np.ndarray,
+                low: np.ndarray,
+                high: np.ndarray) -> np.ndarray:
+    return value.clip(low, high)
+
+
+def _unflatten_as(structure: StructNested[Any],
+                  flat_sequence: Sequence[DataNested]) -> DataNested:
+    """Unflatten a sequence into a given structure.
+
+    .. seealso::
+        This method is the same as 'tree.unflatten_as' without runtime checks.
+
+    :param structure: Arbitrarily nested structure.
+    :param flat_sequence: Sequence to unflatten.
+
+    :returns: 'flat_sequence' unflattened into 'structure'.
+    """
+    if not tree.is_nested(structure):
+        return flat_sequence[0]
+    _, packed = tree._packed_nest_with_indices(structure, flat_sequence, 0)
+    return tree._sequence_like(structure, packed)
+
+
+def _clip_or_copy(value: np.ndarray, space: gym.Space) -> np.ndarray:
+    """Clip value if associated to 'gym.spaces.Box', otherwise return a copy.
+
+    :param value: Value to clip.
+    :param space: `gym.Space` associated with 'value'.
+    """
+    if isinstance(space, gym.spaces.Box):
+        return _array_clip(value, space.low, space.high)
+    return value.copy()
+
+
 def sample(low: Union[float, np.ndarray] = -1.0,
            high: Union[float, np.ndarray] = 1.0,
            dist: str = 'uniform',
@@ -32,7 +78,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
            enable_log_scale: bool = False,
            shape: Optional[Sequence[int]] = None,
            rg: Optional[np.random.Generator] = None
-           ) -> Union[float, np.ndarray]:
+           ) -> np.ndarray:
     """Randomly sample values from a given distribution.
 
     .. note:
@@ -98,7 +144,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     if enable_log_scale:
         value = 10 ** value
 
-    return value
+    return np.asarray(value)
 
 
 def is_bounded(space_nested: gym.Space) -> bool:
@@ -164,7 +210,7 @@ def set_value(data: DataNested, value: DataNested) -> None:
     """Partially set 'data' from `gym.Space` to 'value'.
 
     It avoids memory allocation, so that memory pointers of 'data' remains
-    unchanged. A direct consequences, it is necessary to preallocate memory
+    unchanged. As direct consequences, it is necessary to preallocate memory
     beforehand, and to work with fixed shape buffers.
 
     .. note::
@@ -172,7 +218,7 @@ def set_value(data: DataNested, value: DataNested) -> None:
         leaves must be broadcast-able with the ones of 'data'.
 
     :param data: Data structure to partially update.
-    :param value: Unset of data only containing fields to update.
+    :param value: Subtree of data only containing fields to update.
     """
     if isinstance(data, np.ndarray):
         try:
@@ -181,7 +227,7 @@ def set_value(data: DataNested, value: DataNested) -> None:
             raise TypeError(f"Cannot broadcast '{value}' to '{data}'.") from e
     elif isinstance(data, dict):
         assert isinstance(value, dict)
-        for field, subval in dict.items(value):
+        for field, subval in value.items():
             set_value(data[field], subval)
     elif isinstance(data, Iterable):
         assert isinstance(value, Iterable)
@@ -193,24 +239,48 @@ def set_value(data: DataNested, value: DataNested) -> None:
             )
 
 
+def copyto(src: DataNestedT, dest: DataNestedT) -> None:
+    """Copy arbitrarily nested data structure of 'np.ndarray' to a given
+    pre-allocated destination.
+
+    It avoids memory allocation completely, so that memory pointers of 'data'
+    remains unchanged. As direct consequences, it is necessary to preallocate
+    memory beforehand, and it only supports arrays of fixed shape.
+
+    :param data: Data structure to update.
+    :param value: Data to copy.
+    """
+    if isinstance(src, np.ndarray):
+        _array_copyto(src, dest)
+    else:
+        for data, value in zip(tree.flatten(src), tree.flatten(dest)):
+            _array_copyto(data, value)
+
+
 def copy(data: DataNestedT) -> DataNestedT:
     """Shallow copy recursively 'data' from `gym.Space`, so that only leaves
     are still references.
 
     :param data: Hierarchical data structure to copy without allocation.
     """
-    return tree.unflatten_as(data, tree.flatten(data))
+    return cast(DataNestedT, _unflatten_as(data, tree.flatten(data)))
 
 
-def clip(space_nested: gym.Space[DataNestedT],
-         data: DataNestedT) -> DataNestedT:
+def clip(data: DataNestedT,
+         space_nested: gym.Space[DataNestedT],
+         check: bool = True) -> DataNestedT:
     """Clamp value from `gym.Space` to make sure it is within bounds.
 
+    .. note:
+        None of the leaves of the returned data structured is sharing memory
+        with the original one, even if clipping had no effect or was not
+        applicable. This alleviate the need of calling 'deepcopy' afterward.
+
     :param space: `gym.Space` on which to operate.
-    :param data: Data to clamp.
+    :param data: Data to clip.
     """
-    return tree.map_structure(
-        lambda value, space:
-            np.minimum(np.maximum(value, space.low), space.high)
-        if isinstance(space, gym.spaces.Box) else value,
-        data, space_nested)
+    if check:
+        return tree.map_structure(_clip_or_copy, data, space_nested)
+    return cast(DataNestedT, _unflatten_as(data, [
+        _clip_or_copy(value, space) for value, space in zip(
+            tree.flatten(data), tree.flatten(space_nested))]))

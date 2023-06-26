@@ -26,10 +26,10 @@ Once done, `Pytorch` can be installed following the official "getting started" i
 
 #### (optional) stable_baselines3
 
-Installing the Python packages `stable_baselines3==0.9` is required to run some of the provided examples, though it is not required to use gym_jiminy.
+Installing the Python packages `stable_baselines3==2.0` is required to run some of the provided examples, though it is not required to use gym_jiminy.
 
 ```bash
-python3 -m pip install stable-baselines3[extra]==0.9
+python3 -m pip install stable-baselines3==2.0
 ```
 
 #### (optional) tianshou

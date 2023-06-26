@@ -10,7 +10,7 @@ from scipy.spatial.qhull import _qhull
 from .generic import squared_norm_2
 
 
-@nb.jit("float64[:](float64[:, :])", nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def _amin_last_axis(array: np.ndarray) -> np.ndarray:
     """ TODO: Write documentation.
     """
@@ -20,7 +20,7 @@ def _amin_last_axis(array: np.ndarray) -> np.ndarray:
     return res
 
 
-@nb.jit("boolean[:](boolean[:, :])", nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def _all_last_axis(array: np.ndarray) -> np.ndarray:
     """ TODO: Write documentation.
     """
@@ -55,7 +55,7 @@ def compute_distance_convex_to_point(points: np.ndarray,
     ratios = np.sum(
         (np.expand_dims(queries, -1) - points_0) * vectors, axis=1
         ) / np.sum(np.square(vectors), axis=0)
-    ratios = np.minimum(np.maximum(ratios, 0.0), 1.0)
+    ratios = np.clip(ratios, 0.0, 1.0)
     projs = np.expand_dims(ratios, 1) * vectors + points_0
     dist = np.sqrt(_amin_last_axis(np.sum(np.square(
         np.expand_dims(queries, -1) - projs), axis=1)))

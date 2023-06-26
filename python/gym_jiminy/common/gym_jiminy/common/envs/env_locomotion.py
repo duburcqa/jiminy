@@ -47,7 +47,14 @@ SENSOR_NOISE_SCALE = {
     effort.type: np.array([10.0]),
     contact.type: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
     force.type: np.array([2.0, 2.0, 2.0]),
-    imu.type:  np.array([0.0, 0.0, 0.0, 0.02, 0.02, 0.02, 0.2, 0.2, 0.2])
+    imu.type:  np.array([0.0, 0.0, 0.0, 0.01, 0.01, 0.01, 0.2, 0.2, 0.2])
+}
+SENSOR_BIAS_SCALE = {
+    encoder.type:  np.array([0.0, 0.0]),
+    effort.type: np.array([0.0]),
+    contact.type: np.array([4.0, 4.0, 4.0, 20.0, 20.0, 20.0]),
+    force.type: np.array([4.0, 4.0, 4.0]),
+    imu.type:  np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.0, 0.0, 0.0])
 }
 
 DEFAULT_SIMULATION_DURATION = 20.0  # (s) Default simulation duration
@@ -262,7 +269,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                             high=(self.std_ratio['sensors'] *
                                   SENSOR_DELAY_SCALE[sensor.type]),
                             rg=self.np_random)
-                    for name in ("bias", "noiseStd"):
+                    for name in (
+                            ("bias", SENSOR_BIAS_SCALE),
+                            ("noiseStd", SENSOR_NOISE_SCALE)):
                         sensor_options[name] = sample(
                             scale=(self.std_ratio['sensors'] *
                                    SENSOR_NOISE_SCALE[sensor.type]),
@@ -299,7 +308,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     0.0, self.simu_duration_max, F_IMPULSE_PERIOD)[1:]:
                 t = t_ref + sample(scale=F_IMPULSE_DELTA, rg=self.np_random)
                 f_xy = sample(dist='normal', shape=(2,), rg=self.np_random)
-                f_xy /= np.linalg.norm(f_xy, ord=2)  # type: ignore[assignment]
+                f_xy /= np.linalg.norm(f_xy, ord=2)
                 f_xy *= sample(
                     0.0, self.std_ratio['disturbance']*F_IMPULSE_SCALE,
                     rg=self.np_random)

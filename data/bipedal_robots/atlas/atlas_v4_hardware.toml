@@ -186,8 +186,8 @@ frictionViscousNegative = -0.1
 
 # =============== IMU sensors =================
 
-[Sensor.ImuSensor.pelvis]
-frame_name = "pelvis"
+[Sensor.ImuSensor.utorso]
+frame_name = "utorso"
 
 # ============= Force sensors ===============
 

@@ -4,7 +4,6 @@ import os
 import io
 import base64
 import logging
-import warnings
 import unittest
 from glob import glob
 from tempfile import mkstemp
@@ -13,8 +12,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-from jiminy_py.core import EncoderSensor as encoder
+from jiminy_py.core import ImuSensor as imu
 from jiminy_py.viewer import Viewer
+
+import pinocchio as pin
 
 from gym_jiminy.envs import AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv
 
@@ -25,11 +26,6 @@ IMAGE_DIFF_THRESHOLD = 5.0
 class PipelineControl(unittest.TestCase):
     """ TODO: Write documentation
     """
-    def setUp(self):
-        """ TODO: Write documentation
-        """
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-
     def _test_pid_standing(self):
         """ TODO: Write documentation
         """
@@ -86,7 +82,7 @@ class PipelineControl(unittest.TestCase):
         velocity_target = np.stack([
             log_vars['.'.join((
                 'HighLevelController', self.env.controller.name, name))]
-            for name in self.env.controller.get_fieldnames()], axis=-1)
+            for name in self.env.controller.fieldnames], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_target[time > time[-1] - 1.0]) < 1.0e-9))
 
@@ -114,3 +110,31 @@ class PipelineControl(unittest.TestCase):
                 )
                 self._test_pid_standing()
                 Viewer.close()
+
+    def test_mahony_filter(self):
+        """Check consistency between IMU orientation estimation provided by
+        Mahony filter and ground truth for moderately slow motions.
+        """
+        # Instantiate and reset the environment
+        env = AtlasPDControlJiminyEnv()
+        env.reset()
+
+        # Define a constant action that move the upper-body in all directions
+        robot = env.robot
+        action = np.zeros((robot.nmotors,))
+        for name, value in (
+                ('back_bkz', 0.4), ('back_bky', 0.08), ('back_bkx', 0.08)):
+            action[robot.get_motor(name).idx] = value
+
+        # Extract proxies for convenience
+        sensor = robot.get_sensor(imu.type, robot.sensors_names[imu.type][0])
+        imu_rot = robot.pinocchio_data.oMf[sensor.frame_idx].rotation
+
+        # Check that the estimate IMU orientation is accurate over the episode
+        for i in range(200):
+            env.step(action * (1 - 2 * ((i // 50) % 2)))
+            rpy_true = pin.rpy.matrixToRpy(imu_rot)
+            rpy_est = pin.rpy.matrixToRpy(
+                pin.Quaternion(env.observer.observation).matrix())
+            self.assertTrue(np.allclose(rpy_true, rpy_est, atol=0.01))
+        env.stop()

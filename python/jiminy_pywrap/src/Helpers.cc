@@ -36,6 +36,14 @@ namespace python
         return jointType;
     }
 
+    int32_t getJointPositionIdx(pinocchio::Model const & model,
+                                std::string      const & name)
+    {
+        int32_t jointPositionFirstIdx = model.nq;
+        ::jiminy::getJointPositionIdx(model, name, jointPositionFirstIdx);
+        return jointPositionFirstIdx;
+    }
+
     bool_t isPositionValid(pinocchio::Model const & model,
                            vectorN_t        const & position)
     {
@@ -146,6 +154,8 @@ namespace python
 
         bp::def("get_joint_type", &getJointTypeFromIdx,
                                   (bp::arg("pinocchio_model"), "joint_idx"));
+        bp::def("get_joint_position_idx", &getJointPositionIdx,
+                                          (bp::arg("pinocchio_model"), "joint_name"));
         bp::def("is_position_valid", &isPositionValid,
                                      (bp::arg("pinocchio_model"), "position"));
 

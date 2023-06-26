@@ -4,22 +4,30 @@ env_class = "gym_jiminy.envs.ANYmalJiminyEnv"
 step_dt = 0.04
 
 [[blocks_config]]
-block_class = "gym_jiminy.common.controllers.PDController"
+block_class = "gym_jiminy.common.blocks.PDController"
 [blocks_config.block_kwargs]
 update_ratio = 2
 order = 1
-pid_kp = [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0]
-pid_kd = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+kp = [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0]
+kd = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
 soft_bounds_margin = 0.0
 [blocks_config.wrapper_kwargs]
 augment_observation = true
+
+[[blocks_config]]
+block_class = "gym_jiminy.common.blocks.MahonyFilter"
+[blocks_config.block_kwargs]
+update_ratio = 1
+exact_init = false
+kp = 1.0
+ki = 0.1
 
 [[blocks_config]]
 wrapper_class = "gym_jiminy.common.wrappers.StackedJiminyEnv"
 [blocks_config.wrapper_kwargs]
 nested_filter_keys = [
   ["t"],
-  ["sensors_data", "ImuSensor"],
+  ["measurements", "ImuSensor"],
   ["actions"],
 ]
 num_stack = 3

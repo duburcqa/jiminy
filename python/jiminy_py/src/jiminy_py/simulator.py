@@ -115,10 +115,9 @@ class Simulator:
                 "initialized.")
 
         # Create shared memories and python-native attribute for fast access
-        self.is_simulation_running = self.engine.is_simulation_running
         self.stepper_state = self.engine.stepper_state
         self.system_state = self.engine.system_state
-        self.sensors_data = self.robot.sensors_data
+        self.is_simulation_running = self.engine.is_simulation_running
 
         # Viewer management
         self.viewer: Optional[Viewer] = None
@@ -244,7 +243,7 @@ class Simulator:
         self.close()
 
     def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
+        """Convenient fallback attribute getter.
 
         It enables to get access to the attribute and methods of the low-level
         Jiminy engine directly, without having to do it through `engine`.
@@ -628,7 +627,7 @@ class Simulator:
         must_not_open_gui = (
             backend.startswith("panda3d") or
             kwargs.get('record_video_path') is not None)
-        self.render(**{  # type: ignore[arg-type]
+        self.render(**{
             'return_rgb_array': must_not_open_gui,
             'update_floor': True,
             **kwargs})
@@ -641,7 +640,7 @@ class Simulator:
             trajectories,
             update_hooks,
             viewers=viewers,
-            **{'verbose': True,  # type: ignore[arg-type]
+            **{'verbose': True,
                **self.viewer_kwargs,
                **extra_kwargs,
                'display_f_external': None,

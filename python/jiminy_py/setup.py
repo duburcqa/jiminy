@@ -154,7 +154,7 @@ setup(
             # Python linter
             "pylint>=2.16.0",
             # Python static type checker
-            "mypy>=1.0.0",
+            "mypy>=1.4.0",
             # Dependency for documentation generation
             "pygments",
             # Dependency for documentation generation

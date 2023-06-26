@@ -3,7 +3,7 @@
 from . import utils
 from . import bases
 from . import envs
-from . import controllers
+from . import blocks
 from . import wrappers
 from . import pipeline
 
@@ -12,7 +12,7 @@ __all__ = [
     'utils',
     'bases',
     'envs',
-    'controllers',
+    'blocks',
     'wrappers',
     'pipeline'
 ]

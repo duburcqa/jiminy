@@ -7,13 +7,12 @@ It implements:
     - the base controller block
     - the base observer block
 """
-from itertools import chain
 from abc import abstractmethod, ABC
-from typing import Any, Union, Iterable, Generic, TypeVar
+from typing import Any, Union, Generic, TypeVar
 
 import gymnasium as gym
 
-from ..utils import FieldNested, DataNested, get_fieldnames, fill
+from ..utils import FieldNested, DataNested, get_fieldnames, fill, zeros
 
 from .generic_bases import (ObsT,
                             ActT,
@@ -23,10 +22,6 @@ from .generic_bases import (ObsT,
                             ObserverInterface,
                             JiminyEnvInterface)
 
-
-EnvOrWrapperType = Union[
-    gym.Wrapper,  # [ObsT, ActT, OtherObsT, OtherActType],
-    JiminyEnvInterface[ObsT, ActT]]
 
 BlockStateT = TypeVar('BlockStateT', bound=Union[DataNested, None])
 
@@ -40,7 +35,7 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
         and `get_state` must be overloaded accordingly. The internal state will
         be added automatically to the observation space of the environment.
     """
-    env: EnvOrWrapperType[BaseObsT, BaseActT]
+    env: JiminyEnvInterface[BaseObsT, BaseActT]
     name: str
     update_ratio: int
     state_space: gym.Space[BlockStateT]
@@ -50,7 +45,7 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
 
     def __init__(self,
                  name: str,
-                 env: EnvOrWrapperType[BaseObsT, BaseActT],
+                 env: JiminyEnvInterface[BaseObsT, BaseActT],
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
@@ -87,22 +82,6 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
         # Refresh the observation space
         self._initialize_state_space()
 
-    def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
-
-        It enables to get access to the attribute and methods of the low-level
-        Jiminy engine directly, without having to do it through `env`.
-        """
-        return getattr(self.__getattribute__('env'), name)
-
-    def __dir__(self) -> Iterable[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return chain(super().__dir__(), dir(self.env))
-
     @abstractmethod
     def _setup(self) -> None:
         """Configure the internal state of the block.
@@ -129,6 +108,12 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
     @abstractmethod
     def get_state(self) -> BlockStateT:
         """Get the internal state space of the controller.
+        """
+
+    @property
+    @abstractmethod
+    def fieldnames(self) -> FieldNested:
+        """Blocks fieldnames for logging.
         """
 
 
@@ -159,17 +144,41 @@ class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
     """
     type = "observer"
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the observer interface.
+
+        :param args: Extra arguments that may be useful for mixing
+                     multiple inheritance through multiple inheritance.
+        :param kwargs: Extra keyword arguments. See 'args'.
+        """
+        # Call super to allow mixing interfaces through multiple inheritance
+        super().__init__(*args, **kwargs)
+
+        # Allocate observation buffer
+        self.observation: ObsT = zeros(self.observation_space)
+
     def _setup(self) -> None:
         # Compute the update period
         self.observe_dt = self.env.observe_dt * self.update_ratio
 
         # Set default observation
-        fill(self._observation, 0.0)
+        fill(self.observation, 0)
 
         # Make sure the controller period is lower than environment timestep
         assert self.observe_dt <= self.env.step_dt, (
             "The observer update period must be lower than or equal to the "
             "environment simulation timestep.")
+
+    @property
+    def get_fieldnames(self) -> FieldNested:
+        """Get mapping between each scalar element of the observation space of
+        the observer block and the associated fieldname for logging.
+
+        It is expected to return an object with the same structure than the
+        observation space, but having lists of string as leaves. Generic
+        fieldnames are used by default.
+        """
+        return get_fieldnames(self.observation_space)
 
 
 class BaseControllerBlock(
@@ -200,6 +209,19 @@ class BaseControllerBlock(
     """
     type = "controller"
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the controller interface.
+
+        :param args: Extra arguments that may be useful for mixing
+                     multiple inheritance through multiple inheritance.
+        :param kwargs: Extra keyword arguments. See 'args'.
+        """
+        # Call super to allow mixing interfaces through multiple inheritance
+        super().__init__(*args, **kwargs)
+
+        # Allocate action buffer
+        self.action: ActT = zeros(self.action_space)
+
     def _setup(self) -> None:
         # Compute the update period
         self.control_dt = self.env.control_dt * self.update_ratio
@@ -212,20 +234,14 @@ class BaseControllerBlock(
             "The controller update period must be lower than or equal to the "
             "environment simulation timestep.")
 
+    @property
     def get_fieldnames(self) -> FieldNested:
-        """Get mapping between each scalar element of the action space of the
-        controller and the associated fieldname for logging.
+        """Get mapping between each scalar element of the action space of
+        the controller block and the associated fieldname for logging.
 
         It is expected to return an object with the same structure than the
-        action space, the difference being numerical arrays replaced by lists
-        of string.
-
-        By default, generic fieldnames using 'Action' prefix and index as
-        suffix for `np.ndarray`.
-
-        .. note::
-            This method is not supposed to be called before `reset`, so that
-            the controller should be already initialized at this point.
+        action space, but having lists of string as leaves. Generic fieldnames
+        are used by default.
         """
         return get_fieldnames(self.action_space)
 
@@ -244,8 +260,8 @@ BaseControllerBlock.compute_command.__doc__ = \
     .. note::
         The user is expected to fetch by itself the observation of the
         environment if necessary to carry out its computations by calling
-        `self.env.get_observation()`. Beware it will NOT contain any
-        information provided by higher-level blocks in the pipeline.
+        `self.env.observation`. Beware it will NOT contain any information
+        provided by higher-level blocks in the pipeline.
 
     :param target: Target to achieve by means of the output action.
 

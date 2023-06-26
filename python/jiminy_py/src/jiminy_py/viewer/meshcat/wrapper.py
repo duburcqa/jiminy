@@ -1,6 +1,8 @@
 """ TODO: Write documentation.
 """
+# pylint: disable=wrong-import-position
 import os
+import sys
 import urllib
 import base64
 import atexit
@@ -15,6 +17,8 @@ import zmq
 import umsgpack
 import tornado.ioloop
 from zmq.eventloop.zmqstream import ZMQStream
+
+sys.modules['zmq.eventloop.ioloop'] = tornado.ioloop
 
 import meshcat
 

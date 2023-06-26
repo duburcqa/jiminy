@@ -1,7 +1,8 @@
 import os
-import numpy as np
+import sys
 from typing import Dict, Any, Optional, Tuple
 
+import numpy as np
 import gymnasium as gym
 from gymnasium.spaces import flatten_space
 
@@ -10,12 +11,12 @@ from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, set_value
+from gym_jiminy.common.utils import sample, copyto
 
-try:
-    from importlib.resources import files
-except ImportError:
+if sys.version_info < (3, 9):
     from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Stepper update period
@@ -117,7 +118,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
-            self.AVAIL_CTRL = [-motor.command_limit, 0.0, motor.command_limit]
+            command_limit = np.asarray(motor.command_limit)
+            self.AVAIL_CTRL = (-command_limit, np.array(0.0), command_limit)
 
         # Internal parameters used for computing termination condition
         self._tipIdx = robot.pinocchio_model.getFrameId("Tip")
@@ -130,8 +132,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                          debug=debug)
 
         # Create some proxies for fast access
-        self.__state_view = (self._observation[:self.robot.nq],
-                             self._observation[-self.robot.nv:])
+        self.__state_view = (self.observation[:self.robot.nq],
+                             self.observation[-self.robot.nv:])
 
     def _setup(self) -> None:
         """ TODO: Write documentation.
@@ -151,7 +153,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
         """
-        self.observation_space = flatten_space(self._get_state_space())
+        self.observation_space = flatten_space(self._get_agent_state_space())
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """Update the observation based on the current simulation state.
@@ -163,7 +165,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             For goal env, in addition of the current robot state, both the
             desired and achieved goals are observable.
         """
-        set_value(self.__state_view, measurement['agent_state'].values())
+        copyto(self.__state_view, measurement[
+            'states']['agent'].values())  # type: ignore[index,union-attr]
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.

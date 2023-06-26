@@ -4,20 +4,22 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, TypedDict, Generic, Callable
+from typing import Dict, Any, TypeVar, Generic
 from typing_extensions import TypeAlias
 
 import numpy as np
+import numpy.typing as npt
 import gymnasium as gym
 
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
+from jiminy_py.viewer.viewer import is_display_available
 
-from ..utils import DataNested, is_breakpoint, zeros, fill, copy
+from ..utils import DataNested, fill
 
 
 # Temporal resolution of simulator steps
-DT_EPS: float = jiminy.EngineMultiRobot.telemetry_time_unit
+DT_EPS: float = 1e-6  # 'SIMULATION_MIN_TIMESTEP'
 
 
 ObsT = TypeVar('ObsT', bound=DataNested)
@@ -25,31 +27,17 @@ ActT = TypeVar('ActT', bound=DataNested)
 BaseObsT = TypeVar('BaseObsT', bound=DataNested)
 BaseActT = TypeVar('BaseActT', bound=DataNested)
 
-SensorsDataType = Dict[str, np.ndarray]
+SensorsDataType = Dict[str, npt.NDArray[np.float64]]
 InfoType = Dict[str, Any]
-
-
-class AgentStateType(TypedDict):
-    """Fully specify the state of an agent, namely its whole-body configuration
-    'q' and velocity 'v' in reduced space.
-    """
-    q: np.ndarray
-    v: np.ndarray
 
 
 # class EngineObsType(TypedDict):
 #     t: np.ndarray
-#     agent_state:  AgentStateType
-#     sensors_data: SensorsDataType
+#     state:  DataNested
+#     features: DataNested
 
 
 EngineObsType: TypeAlias = DataNested
-
-
-ObserverHandleType = Callable[[
-    float, np.ndarray, np.ndarray, Dict[str, np.ndarray]], None]
-ControllerHandleType = Callable[[
-    float, np.ndarray, np.ndarray, Dict[str, np.ndarray], np.ndarray], None]
 
 
 class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
@@ -57,10 +45,10 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
     """
     observe_dt: float = -1
     observation_space: gym.Space  # [ObsT]
-    _observation: ObsT
+    observation: ObsT
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the observation interface.
+        """Initialize the observer interface.
 
         :param args: Extra arguments that may be useful for mixing
                      multiple inheritance through multiple inheritance.
@@ -71,9 +59,6 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
 
         # Refresh the observation space
         self._initialize_observation_space()
-
-        # Initialize the observation buffer
-        self._observation: ObsT = zeros(self.observation_space)
 
     @abstractmethod
     def _initialize_observation_space(self) -> None:
@@ -87,7 +72,7 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
 
         .. warning:
             When overloading this method, one is expected to use the internal
-            buffer `_observation` to store the observation by updating it by
+            buffer `observation` to store the observation by updating it by
             reference. It may be error prone and tricky to get use to it, but
             it is computationally more efficient as it avoids allocating memory
             multiple times and redundant calculus. Additionally, it enables to
@@ -97,21 +82,6 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
                             to get higher-level observation.
         """
 
-    def get_observation(self) -> ObsT:
-        """Get post-processed observation.
-
-        By default, it does not perform any post-processing. One is responsible
-        for clipping the observation if necessary to make sure it does not
-        violate the lower and upper bounds. This can be done either by
-        overloading this method, or in the case of pipeline design, by adding a
-        clipping observation block at the very end.
-
-        .. warning::
-            In most cases, it is not necessary to overloaded this method, and
-            doing so may lead to unexpected behavior if not done carefully.
-        """
-        return self._observation
-
 
 class ControllerInterface(ABC, Generic[ActT, BaseActT]):
     """Controller interface for both controllers and environments.
@@ -120,7 +90,7 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
     action_space: gym.Space  # [ActT]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the control interface.
+        """Initialize the controller interface.
 
         :param args: Extra arguments that may be useful for mixing
                      multiple inheritance through multiple inheritance.
@@ -202,13 +172,29 @@ class JiminyEnvInterface(
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
+    metadata: Dict[str, Any] = {
+        "render_modes": (
+            ['rgb_array'] + (['human'] if is_display_available() else []))
+    }
+
     simulator: Simulator
     robot: jiminy.Robot
     stepper_state: jiminy.StepperState
     system_state: jiminy.SystemState
     sensors_data: SensorsDataType
+    is_simulation_running: npt.NDArray[np.bool_]
 
     action: ActT
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        # Track whether the observation has been refreshed manually since the
+        # last called '_controller_handle'. It typically happens at the end of
+        # every simulation step to return an observation that is consistent
+        # with the updated state of the agent.
+        self.__is_observation_refreshed = True
+
+        # Call super to allow mixing interfaces through multiple inheritance
+        super().__init__(*args, **kwargs)
 
     def _setup(self) -> None:
         """Configure the observer-controller.
@@ -219,18 +205,23 @@ class JiminyEnvInterface(
             This method must be called once, after the environment has been
             reset. This is done automatically when calling `reset` method.
         """
+        # Re-initialize observation and control periods to ill-defined value to
+        # trigger exception if not set properly later on.
         self.observe_dt = -1
         self.control_dt = -1
 
-        # Set default action.
-        # It will be used for the initial step.
+        # It is always necessary to refresh the observation at after reset
+        self.__is_observation_refreshed = True
+
+        # Reset observation and action buffers
+        fill(self.observation, 0)
         fill(self.action, 0)
 
     def _observer_handle(self,
                          t: float,
                          q: np.ndarray,
                          v: np.ndarray,
-                         sensors_data: SensorsDataType) -> None:
+                         sensors_data: jiminy.sensorsData) -> None:
         """Thin wrapper around user-specified `refresh_observation` method.
 
         .. warning::
@@ -244,25 +235,33 @@ class JiminyEnvInterface(
         :param v: Current actual velocity vector.
         :param sensors_data: Current sensor data.
         """
-        if is_breakpoint(t, self.observe_dt, DT_EPS):
+        # Refresh the observation if not already done
+        if not self.__is_observation_refreshed:
             measurement: EngineObsType = OrderedDict(
                 t=np.array((t,)),
-                agent_state=OrderedDict(q=q, v=v),
-                sensors_data=sensors_data)
+                states=OrderedDict(agent=OrderedDict(q=q, v=v)),
+                measurements=OrderedDict(sensors_data))
             self.refresh_observation(measurement)
+
+        # Consider observation has been refreshed iif a simulation is running
+        self.__is_observation_refreshed = bool(self.is_simulation_running)
 
     def _controller_handle(self,
                            t: float,
                            q: np.ndarray,
                            v: np.ndarray,
-                           sensors_data: SensorsDataType,
+                           sensors_data: jiminy.sensorsData,
                            command: np.ndarray) -> None:
-        """Thin wrapper around user-specified `compute_command` method.
+        """Thin wrapper around user-specified `refresh_observation` and
+        `compute_command` methods.
 
         .. warning::
             This method is not supposed to be called manually nor overloaded.
-            It must be passed to `set_controller_handle` to send to use the
-            controller to send commands directly to the robot.
+            It will be used by the base environment to instantiate a
+            `jiminy.ControllerFunctor` that will be responsible for refreshing
+            observations and compute commands of all the way through a given
+            pipeline in the correct order of the blocks to finally sends
+            command motor torques directly to the robot.
 
         :param t: Current simulation time.
         :param q: Current actual configuration of the robot. Note that it is
@@ -274,20 +273,25 @@ class JiminyEnvInterface(
         :param command: Output argument corresponding to motors torques to
                         apply on the robot. It must be updated by reference
                         using `[:]` or `np.copyto`.
-        """
-        # pylint: disable=unused-argument
 
+        :returns: Motors torques to apply on the robot.
+        """
+        # Refresh the observation
+        self._observer_handle(t, q, v, sensors_data)
+
+        # No need to check for breakpoints of the controller because it already
+        # matches the update period by design.
         command[:] = self.compute_command(self.action)
 
-    def get_observation(self) -> ObsT:
-        """Get post-processed observation.
+        # Always consider that the observation must be refreshed after calling
+        # '_controller_handle' as it is never called more often than necessary.
+        self.__is_observation_refreshed = False
 
-        It performs a shallow copy of the observation.
-
-        .. warning::
-            This method is not supposed to be overloaded.
+    @property
+    def unwrapped(self) -> "JiminyEnvInterface":
+        """Base environment of the pipeline.
         """
-        return copy(self._observation)
+        return self
 
     @property
     @abstractmethod

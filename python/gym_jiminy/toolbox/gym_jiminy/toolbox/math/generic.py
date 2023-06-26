@@ -7,7 +7,7 @@ import numpy as np
 import numba as nb
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def squared_norm_2(array: np.ndarray) -> float:
     """Fast implementation of the sum of squared array elements, optimized for
     small to medium size 1D arrays.
@@ -15,7 +15,7 @@ def squared_norm_2(array: np.ndarray) -> float:
     return np.sum(np.square(array))
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def matrix_to_yaw(rotation_matrix: np.ndarray) -> float:
     """Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a
     rotation matrix.
@@ -23,7 +23,7 @@ def matrix_to_yaw(rotation_matrix: np.ndarray) -> float:
     return math.atan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def quat_to_yaw_cos_sin(quat: np.ndarray) -> np.ndarray:
     """Compute cosine and sine of the yaw from Yaw-Pitch-Roll Euler angles
     representation of a single or a batch of quaternions.
@@ -41,7 +41,7 @@ def quat_to_yaw_cos_sin(quat: np.ndarray) -> np.ndarray:
     return yaw_cos_sin
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def quat_to_yaw(quat: np.ndarray) -> Union[float, np.ndarray]:
     """Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a
     single or a batch of quaternions.
@@ -54,7 +54,7 @@ def quat_to_yaw(quat: np.ndarray) -> Union[float, np.ndarray]:
     return np.arctan2(sin_yaw, cos_yaw)
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def quat_to_rpy(quat: np.ndarray) -> np.ndarray:
     """Compute the Yaw-Pitch-Roll Euler angles representation of a single or a
     batch of quaternions.

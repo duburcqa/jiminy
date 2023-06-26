@@ -12,7 +12,7 @@ from numpy.lib.stride_tricks import as_strided
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder)
 
-from ..bases import BaseObsT, EnvOrWrapperType, BaseControllerBlock
+from ..bases import BaseObsT, JiminyEnvInterface, BaseControllerBlock
 from ..utils import fill
 
 
@@ -26,7 +26,7 @@ N_ORDER_DERIVATIVE_NAMES = ("Position", "Velocity", "Acceleration", "Jerk")
 EVAL_DEADBAND = 5.0e-3
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
     """Numba-compatible implementation of `scipy.linalg.toeplitz` method.
 
@@ -71,12 +71,15 @@ def integrate_zoh(state_prev: np.ndarray,
     :param state_max: Upper bounds of the state.
     :param dt: Integration delta of time since previous state update.
     """
+    # Make sure that dt is not negative
+    assert dt >= 0.0, "The integration timestep 'dt' must be positive."
+
     # Early return if the timestep is too small
     if abs(dt) < 1e-9:
         return state_prev.copy()
 
     # Compute integration matrix
-    dim = len(state_prev)
+    dim, size = state_prev.shape
     integ_coeffs = np.array([
         pow(dt, k) * INV_FACTORIAL_TABLE[k] for k in range(dim)])
     integ_matrix = toeplitz(integ_coeffs, np.zeros(dim)).T
@@ -84,11 +87,10 @@ def integrate_zoh(state_prev: np.ndarray,
     integ_drift = integ_matrix[:, -1:]
 
     # Propagate derivative bounds to compute highest-order derivative bounds
-    deriv = state_prev[-1]
     deriv_min_stack = (state_min - integ_zero) / integ_drift
     deriv_max_stack = (state_max - integ_zero) / integ_drift
-    deriv_min = np.full_like(deriv, fill_value=-np.inf)
-    deriv_max = np.full_like(deriv, fill_value=np.inf)
+    deriv_min = np.full((size,), -np.inf)
+    deriv_max = np.full((size,), np.inf)
     for deriv_min_i, deriv_max_i in zip(deriv_min_stack, deriv_max_stack):
         deriv_min_i_valid = np.logical_and(
             deriv_min < deriv_min_i, deriv_min_i < deriv_max)
@@ -99,22 +101,23 @@ def integrate_zoh(state_prev: np.ndarray,
 
     # Clip highest-order derivative to ensure every derivative are withing
     # bounds if possible, lowest orders in priority otherwise.
-    deriv = np.minimum(np.maximum(deriv, deriv_min), deriv_max)
+    deriv = np.clip(state_prev[-1], deriv_min, deriv_max)
 
     # Integrate, taking into account clipped highest derivative
     return integ_zero + integ_drift * deriv
 
 
 @nb.jit(nopython=True, nogil=True)
-def compute_pd_controller(encoders_data: np.ndarray,
-                          command_state: np.ndarray,
-                          command_state_lower: np.ndarray,
-                          command_state_upper: np.ndarray,
-                          pid_kp: np.ndarray,
-                          pid_kd: np.ndarray,
-                          motor_effort_limit: np.ndarray,
-                          control_dt: float,
-                          deadband: float) -> np.ndarray:
+def pd_controller(q_measured: np.ndarray,
+                  v_measured: np.ndarray,
+                  command_state: np.ndarray,
+                  command_state_lower: np.ndarray,
+                  command_state_upper: np.ndarray,
+                  kp: np.ndarray,
+                  kd: np.ndarray,
+                  motor_effort_limit: np.ndarray,
+                  control_dt: float,
+                  deadband: float) -> np.ndarray:
     """ TODO Write documentation.
     """
     # Integrate command state
@@ -127,18 +130,14 @@ def compute_pd_controller(encoders_data: np.ndarray,
     # Extract targets motors positions and velocities from command state
     q_target, v_target = command_state[:2]
 
-    # Extract estimated motors positions and velocities from encoder data
-    q_measured, v_measured = encoders_data
-
     # Compute the joint tracking error
     q_error, v_error = q_target - q_measured, v_target - v_measured
 
     # Compute PD command
-    u_command = pid_kp * (q_error + pid_kd * v_error)
+    u_command = kp * (q_error + kd * v_error)
 
     # Clip the command motors torques before returning
-    return np.minimum(np.maximum(
-        u_command, -motor_effort_limit), motor_effort_limit)
+    return u_command.clip(-motor_effort_limit, motor_effort_limit, u_command)
 
 
 class PDController(
@@ -172,21 +171,21 @@ class PDController(
     """
     def __init__(self,
                  name: str,
-                 env: EnvOrWrapperType,
-                 order: int = 1,
+                 env: JiminyEnvInterface[BaseObsT, np.ndarray],
                  update_ratio: int = 1,
-                 pid_kp: Union[float, List[float], np.ndarray] = 0.0,
-                 pid_kd: Union[float, List[float], np.ndarray] = 0.0,
+                 order: int = 1,
+                 kp: Union[float, List[float], np.ndarray] = 0.0,
+                 kd: Union[float, List[float], np.ndarray] = 0.0,
                  soft_bounds_margin: float = 0.0,
                  **kwargs: Any) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
-        :param order: Derivative order of the action.
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller.
-        :param pid_kp: PD controller position-proportional gain in motor order.
-        :param pid_kd: PD controller velocity-proportional gain in motor order.
+        :param order: Derivative order of the action.
+        :param kp: PD controller position-proportional gain in motor order.
+        :param kd: PD controller velocity-proportional gain in motor order.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
@@ -195,8 +194,8 @@ class PDController(
 
         # Backup some user argument(s)
         self.order = order
-        self.pid_kp = np.asarray(pid_kp)
-        self.pid_kd = np.asarray(pid_kd)
+        self.kp = np.asarray(kp)
+        self.kd = np.asarray(kd)
 
         # Define the mapping from motors to encoders
         self.encoder_to_motor = np.full(
@@ -243,13 +242,16 @@ class PDController(
             range_limit = (
                 command_state_upper[-1] - command_state_lower[-1]) / step_dt
             effort_limit = command_limit / (
-                self.pid_kp * step_dt ** (i - 1) * INV_FACTORIAL_TABLE[i - 1] *
-                np.maximum(step_dt / i, self.pid_kd))
+                self.kp * step_dt ** (i - 1) * INV_FACTORIAL_TABLE[i - 1] *
+                np.maximum(step_dt / i, self.kd))
             n_order_limit = np.minimum(range_limit, effort_limit)
             command_state_lower.append(-n_order_limit)
             command_state_upper.append(n_order_limit)
         self._command_state_lower = np.stack(command_state_lower, axis=0)
         self._command_state_upper = np.stack(command_state_upper, axis=0)
+
+        # Extract measured motor positions and velocities for fast access
+        self.q_measured, self.v_measured = env.sensors_data[encoder.type]
 
         # Allocate memory for the command state
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
@@ -279,19 +281,23 @@ class PDController(
             high=self._command_state_upper[:-1],
             dtype=np.float64)
 
-    def get_state(self) -> np.ndarray:
-        return self._command_state[:-1]
-
     def _setup(self) -> None:
         # Call base implementation
         super()._setup()
 
-        # Reset the command state
-        fill(self._command_state, 0.0)
+        # Refresh measured motor positions and velocities proxies
+        self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
 
-    def get_fieldnames(self) -> List[str]:
+        # Reset the command state
+        fill(self._command_state, 0)
+
+    @property
+    def fieldnames(self) -> List[str]:
         return [f"target{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
-                for name in self.robot.motors_names]
+                for name in self.env.robot.motors_names]
+
+    def get_state(self) -> np.ndarray:
+        return self._command_state[:-1]
 
     def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motor torques using a PD controller.
@@ -305,13 +311,13 @@ class PDController(
         # simulation is not running. This must be done here because the
         # command state must be valid prior to calling `refresh_observation`
         # for the first time, which happens at `reset`.
-        is_simulation_running = self.simulator.is_simulation_running
+        is_simulation_running = self.env.is_simulation_running
         if not is_simulation_running:
-            self._command_state[:2] = self.sensors_data[encoder.type]
-            np.clip(self._command_state,
-                    self._command_state_lower,
-                    self._command_state_upper,
-                    out=self._command_state)
+            for i, value in enumerate((self.q_measured, self.v_measured)):
+                np.clip(value,
+                        self._command_state_lower[i],
+                        self._command_state_upper[i],
+                        out=self._command_state[i])
 
         # Update the highest order derivative of the target motor positions to
         # match the provided action.
@@ -320,17 +326,18 @@ class PDController(
         # Skip integrating command and return early if no simulation running.
         # It also checks that the low-level function is already pre-compiled.
         # This is necessary to avoid spurious timeout during first step.
-        if not is_simulation_running and compute_pd_controller.signatures:
+        if not is_simulation_running and pd_controller.signatures:
             return np.zeros_like(action)
 
         # Compute the motor efforts using PD control
-        return compute_pd_controller(
-            self.sensors_data[encoder.type],
+        return pd_controller(
+            self.q_measured,
+            self.v_measured,
             self._command_state,
             self._command_state_lower,
             self._command_state_upper,
-            self.pid_kp,
-            self.pid_kd,
+            self.kp,
+            self.kd,
             self._motors_effort_limit,
             self.control_dt,
             0.0 if self.env.is_training else EVAL_DEADBAND)

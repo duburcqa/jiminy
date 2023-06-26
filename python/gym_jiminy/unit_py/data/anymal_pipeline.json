@@ -7,12 +7,12 @@
   },
   "blocks_config": [
     {
-      "block_class": "gym_jiminy.common.controllers.PDController",
+      "block_class": "gym_jiminy.common.blocks.PDController",
       "block_kwargs": {
         "update_ratio": 2,
         "order": 1,
-        "pid_kp": [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
-        "pid_kd": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+        "kp": [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
+        "kd": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
         "soft_bounds_margin": 0.0
       },
       "wrapper_kwargs": {
@@ -20,11 +20,20 @@
       }
     },
     {
+      "block_class": "gym_jiminy.common.blocks.MahonyFilter",
+      "block_kwargs": {
+        "update_ratio": 1,
+        "exact_init": false,
+        "kp": 1.0,
+        "ki": 0.1
+      }
+    },
+    {
       "wrapper_class": "gym_jiminy.common.wrappers.StackedJiminyEnv",
       "wrapper_kwargs": {
         "nested_filter_keys": [
           ["t"],
-          ["sensors_data", "ImuSensor"],
+          ["measurements", "ImuSensor"],
           ["actions"]
         ],
         "num_stack": 3,

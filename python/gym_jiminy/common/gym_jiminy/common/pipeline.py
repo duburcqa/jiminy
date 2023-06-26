@@ -16,7 +16,8 @@ from typing import (
 import toml
 import gymnasium as gym
 
-from .bases import (BlockInterface,
+from .bases import (JiminyEnvInterface,
+                    BlockInterface,
                     BaseControllerBlock,
                     BaseObserverBlock,
                     BasePipelineWrapper,
@@ -102,8 +103,7 @@ def build_pipeline(env_config: EnvConfig,
     # pylint: disable-all
 
     # Define helper to wrap a single block
-    def _build_wrapper(env_class: Union[
-                           Type[gym.Wrapper], Type[BaseJiminyEnv]],
+    def _build_wrapper(env_class: Type[JiminyEnvInterface],
                        env_kwargs: Optional[Dict[str, Any]] = None,
                        block_class: Optional[Union[
                            Type[BlockInterface], str]] = None,
@@ -176,9 +176,8 @@ def build_pipeline(env_config: EnvConfig,
 
         def _init_impl(self: PipelineWrapperType, **kwargs: Any) -> None:
             """
-            :param kwargs: Keyword arguments to forward to both the wrapped
-                           environment and the controller. It will overwrite
-                           default values.
+            :param kwargs: Keyword arguments to forward to both the base
+                           environment. It will overwrite default values.
             """
             nonlocal env_class, env_kwargs, block_class_, block_kwargs, \
                 wrapper_kwargs
@@ -187,25 +186,21 @@ def build_pipeline(env_config: EnvConfig,
             args: Any = []
 
             # Define the arguments related to the environment
-            if env_kwargs is not None:
-                env_kwargs_default = {**env_kwargs, **kwargs}
-            else:
-                env_kwargs_default = kwargs
-            env = env_class(**env_kwargs_default)
+            if env_kwargs is None:
+                env_kwargs = {}
+            env = env_class(**{**env_kwargs, **kwargs})
             args.append(env)
 
             # Define the arguments related to the block, if any
             if block_class_ is not None:
-                if block_kwargs is not None:
-                    block_kwargs_default = {**block_kwargs, **kwargs}
-                else:
-                    block_kwargs_default = kwargs
-                block_name = block_kwargs_default.pop("name", None)
+                if block_kwargs is None:
+                    block_kwargs = {}
+                block_name = block_kwargs.pop("name", None)
                 if block_name is None:
                     block_index = 0
                     block_type = block_class_.type
                     env_wrapper: gym.Env = env
-                    while isinstance(env_wrapper, gym.Wrapper):
+                    while isinstance(env_wrapper, BasePipelineWrapper):
                         if isinstance(env_wrapper, ControlledJiminyEnv):
                             if env_wrapper.controller.type == block_type:
                                 block_index += 1
@@ -214,17 +209,13 @@ def build_pipeline(env_config: EnvConfig,
                                 block_index += 1
                         env_wrapper = env_wrapper.env
                     block_name = f"{block_type}_{block_index}"
-                block = block_class_(block_name, env, **block_kwargs_default)
+                block = block_class_(block_name, env, **block_kwargs)
                 args.append(block)
 
             # Define the arguments related to the wrapper
-            if wrapper_kwargs is not None:
-                wrapper_kwargs_default = {**wrapper_kwargs, **kwargs}
-            else:
-                wrapper_kwargs_default = kwargs
-
-            super(self.__class__, self).__init__(
-                *args, **wrapper_kwargs_default)
+            if wrapper_kwargs is None:
+                wrapper_kwargs = {}
+            super(self.__class__, self).__init__(*args, **wrapper_kwargs)
 
         def _dir_impl(self: PipelineWrapperType) -> Iterable[str]:
             """Attribute lookup.
@@ -247,11 +238,10 @@ def build_pipeline(env_config: EnvConfig,
 
     # Generate pipeline sequentially
     pipeline_class: Union[
-        Type[BaseJiminyEnv], Type[gym.Wrapper], str] = env_config['env_class']
+        Type[JiminyEnvInterface], str] = env_config['env_class']
     if isinstance(pipeline_class, str):
         obj = locate(pipeline_class)
-        assert isinstance(obj, type)
-        assert issubclass(obj, (gym.Wrapper, BaseJiminyEnv))
+        assert isinstance(obj, type) and issubclass(obj, JiminyEnvInterface)
         pipeline_class = obj
     env_kwargs = env_config.get('env_kwargs')
     for config in blocks_config:
