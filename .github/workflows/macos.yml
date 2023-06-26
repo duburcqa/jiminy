@@ -51,7 +51,7 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
-        "${PYTHON_EXECUTABLE}" -m pip install "pip>=20.3,<23.1"
+        "${PYTHON_EXECUTABLE}" -m pip install "pip>=20.3"
         "${PYTHON_EXECUTABLE}" -m pip install "setuptools<66.0" "wheel<0.40" delocate twine
         "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21" "numba>=0.54.0"
     - name: Build project dependencies
