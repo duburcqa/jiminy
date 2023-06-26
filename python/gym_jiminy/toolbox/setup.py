@@ -1,12 +1,12 @@
-from pkg_resources import get_distribution
+from importlib.metadata import version
 from setuptools import setup, find_namespace_packages
 
 
-version = get_distribution('gym-jiminy').version
+gym_jiminy_version = version('gym-jiminy')
 
 setup(
     name="gym-jiminy-toolbox",
-    version=version,
+    version=gym_jiminy_version,
     description=(
         "Generic Reinforcement learning toolbox based on Pytorch for Gym "
         "Jiminy."),
@@ -30,7 +30,7 @@ setup(
     packages=find_namespace_packages(),
     package_data={"gym_jiminy.toolbox": ["py.typed"]},
     install_requires=[
-        f"gym-jiminy=={version}",
+        f"gym-jiminy~={gym_jiminy_version}",
         # Used to compute convex hull.
         # No wheel is distributed on pypi for PyPy, and pip requires to install
         # `libatlas-base-dev` system dependency to build it from source.

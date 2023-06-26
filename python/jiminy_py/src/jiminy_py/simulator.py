@@ -2,10 +2,12 @@
 """ TODO: Write documentation.
 """
 import os
+import re
 import atexit
 import logging
 import pathlib
 import tempfile
+from weakref import ref
 from copy import deepcopy
 from itertools import chain
 from functools import partial
@@ -23,7 +25,8 @@ from .robot import (generate_default_hardware_description_file,
                     BaseJiminyRobot)
 from .dynamics import TrajectoryDataType
 from .log import read_log, build_robot_from_log
-from .viewer import (interactive_mode,
+from .viewer import (CameraPoseType,
+                     interactive_mode,
                      get_default_backend,
                      extract_replay_data_from_log,
                      play_trajectories,
@@ -40,7 +43,7 @@ except ImportError:
     TabbedFigure = type(None)  # type: ignore[misc,assignment]
 
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 DEFAULT_UPDATE_PERIOD = 1.0e-3  # 0.0 for time continuous update
@@ -70,28 +73,38 @@ class Simulator:
         :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
                                       fetching the robot's state.
-        :param viewer_kwargs: Keyword arguments to override by default whenever
-                              a viewer must be instantiated, e.g. when `render`
-                              method is first called. Specifically, `backend`
-                              is ignored if one is already available.
+        :param viewer_kwargs: Keyword arguments to override default arguments
+                              whenever a viewer must be instantiated, eg when
+                              `render` method is first called. Specifically,
+                              `backend` is ignored if one is already available.
                               Optional: Empty by default.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
         # Backup the user arguments
         self.use_theoretical_model = use_theoretical_model
-        self.viewer_kwargs = dict(
-            robot_name=f"{robot.name}_{next(tempfile._get_candidate_names())}",
-            **deepcopy(viewer_kwargs or {}))
+        self.viewer_kwargs = deepcopy(viewer_kwargs or {})
+
+        # Handling of default argument(s)
+        if "robot_name" not in self.viewer_kwargs:
+            base_name = re.sub('[^A-Za-z0-9_]', '_', robot.name)
+            robot_name = f"{base_name}_{next(tempfile._get_candidate_names())}"
+            self.viewer_kwargs["robot_name"] = robot_name
 
         # Wrap callback in nested function to hide update of progress bar
+        # Note that a weak reference must be used to avoid circular reference
+        # resulting in uncollectable object and hence memory leak.
+        simulator_ref = ref(self)
+
         def callback_wrapper(t: float,
                              *args: Any,
                              **kwargs: Any) -> None:
-            nonlocal self
-            if self.__pbar is not None:
-                self.__pbar.update(t - self.__pbar.n)
-            self._callback(t, *args, **kwargs)
+            nonlocal simulator_ref
+            simulator = simulator_ref()
+            assert simulator is not None
+            if simulator.__pbar is not None:
+                simulator.__pbar.update(t - simulator.__pbar.n)
+            simulator._callback(t, *args, **kwargs)
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = engine_class()
@@ -102,10 +115,9 @@ class Simulator:
                 "initialized.")
 
         # Create shared memories and python-native attribute for fast access
-        self.is_simulation_running = self.engine.is_simulation_running
         self.stepper_state = self.engine.stepper_state
         self.system_state = self.engine.system_state
-        self.sensors_data = self.robot.sensors_data
+        self.is_simulation_running = self.engine.is_simulation_running
 
         # Viewer management
         self.viewer: Optional[Viewer] = None
@@ -124,7 +136,7 @@ class Simulator:
     def build(cls,
               urdf_path: str,
               hardware_path: Optional[str] = None,
-              mesh_path: Optional[str] = None,
+              mesh_path_dir: Optional[str] = None,
               has_freeflyer: bool = True,
               config_path: Optional[str] = None,
               avoid_instable_collisions: bool = True,
@@ -137,9 +149,9 @@ class Simulator:
         :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '\*_hardware.toml' file in
                               the same folder and with the same name.
-        :param mesh_path: Path to the folder containing the model meshes.
-                          Optional: Env variable 'JIMINY_DATA_PATH' will be
-                          used if available.
+        :param mesh_path_dir: Path to the folder containing all the meshes.
+                              Optional: Env variable 'JIMINY_DATA_PATH' will be
+                              used if available.
         :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
                               Optional: True by default.
@@ -187,7 +199,7 @@ class Simulator:
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
         robot.initialize(
-            urdf_path, hardware_path, mesh_path, has_freeflyer,
+            urdf_path, hardware_path, mesh_path_dir, (), has_freeflyer,
             avoid_instable_collisions, load_visual_meshes=debug, verbose=debug)
 
         # Instantiate and initialize the engine
@@ -231,7 +243,7 @@ class Simulator:
         self.close()
 
     def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
+        """Convenient fallback attribute getter.
 
         It enables to get access to the attribute and methods of the low-level
         Jiminy engine directly, without having to do it through `engine`.
@@ -423,7 +435,7 @@ class Simulator:
             return_code = self.engine.simulate(
                 t_end, q_init, v_init, a_init, is_state_theoretical)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
+            LOGGER.warning(
                 "The simulation failed due to Python exception:\n %s", e)
             return_code = jiminy.hresult_t.ERROR_GENERIC
         finally:  # Make sure that the progress bar is properly closed
@@ -453,9 +465,7 @@ class Simulator:
                return_rgb_array: bool = False,
                width: Optional[int] = None,
                height: Optional[int] = None,
-               camera_xyzrpy: Optional[Tuple[
-                   Union[Tuple[float, float, float], np.ndarray],
-                   Union[Tuple[float, float, float], np.ndarray]]] = None,
+               camera_pose: Optional[CameraPoseType] = None,
                update_ground_profile: Optional[bool] = None,
                **kwargs: Any) -> Optional[np.ndarray]:
         """Render the current state of the simulation. One can display it
@@ -465,10 +475,10 @@ class Simulator:
                                  array or render it directly.
         :param width: Width of the returned RGB frame, if enabled.
         :param height: Height of the returned RGB frame, if enabled.
-        :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch,
-                              Yaw] corresponding to the absolute pose of the
-                              camera. None to disable.
-                              Optional: None by default.
+        :param camera_pose: Tuple position [X, Y, Z], rotation [Roll, Pitch,
+                            Yaw], frame name/index specifying the absolute or
+                            relative pose of the camera. `None` to disable.
+                            Optional: `None` by default.
         :param update_ground_profile: Whether to update the ground profile. It
                                       must be called manually only if necessary
                                       because it is costly.
@@ -488,6 +498,13 @@ class Simulator:
         if kwargs.get("backend", Viewer.backend) != Viewer.backend:
             Viewer.close()
 
+        # Update viewer_kwargs with provided kwargs
+        viewer_kwargs: Dict[str, Any] = {**dict(
+            backend=(self.viewer or Viewer).backend,
+            delete_robot_on_close=True),
+            **self.viewer_kwargs,
+            **kwargs}
+
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not self.is_viewer_available:
@@ -496,11 +513,7 @@ class Simulator:
                 self.robot,
                 use_theoretical_model=False,
                 open_gui_if_parent=False,
-                **{**dict(  # type: ignore[arg-type]
-                    backend=(self.viewer or Viewer).backend,
-                    delete_robot_on_close=True),
-                    **self.viewer_kwargs,
-                    **kwargs})
+                **viewer_kwargs)
             assert self.viewer is not None and self.viewer.backend is not None
 
             # Share the external force buffer of the viewer with the engine
@@ -511,16 +524,16 @@ class Simulator:
                 # Enable display of COM, DCM and contact markers by default if
                 # the robot has freeflyer.
                 if self.robot.has_freeflyer:
-                    if "display_com" not in kwargs:
+                    if "display_com" not in viewer_kwargs:
                         self.viewer.display_center_of_mass(True)
-                    if "display_dcm" not in kwargs:
+                    if "display_dcm" not in viewer_kwargs:
                         self.viewer.display_capture_point(True)
-                    if "display_contacts" not in kwargs:
+                    if "display_contacts" not in viewer_kwargs:
                         self.viewer.display_contact_forces(True)
 
                 # Enable display of external forces by default only for
                 # the joints having an external force registered to it.
-                if "display_f_external" not in kwargs:
+                if "display_f_external" not in viewer_kwargs:
                     force_frames = set(
                         self.robot.pinocchio_model.frames[f_i.frame_idx].parent
                         for f_i in self.engine.forces_profile)
@@ -534,8 +547,9 @@ class Simulator:
                     self.viewer.display_external_forces(visibility)
 
             # Initialize camera pose
-            if self.viewer.is_backend_parent and camera_xyzrpy is None:
-                camera_xyzrpy = ((9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2))
+            if self.viewer.is_backend_parent and camera_pose is None:
+                camera_pose = viewer_kwargs.get("camera_pose", (
+                    (9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None))
 
         # Enable the ground profile is requested and available
         assert self.viewer is not None and self.viewer.backend is not None
@@ -545,8 +559,8 @@ class Simulator:
             Viewer.update_floor(ground_profile, show_meshes=False)
 
         # Set the camera pose if requested
-        if camera_xyzrpy is not None:
-            self.viewer.set_camera_transform(*camera_xyzrpy)
+        if camera_pose is not None:
+            self.viewer.set_camera_transform(*camera_pose)
 
         # Make sure the graphical window is open if required
         if not return_rgb_array:
@@ -557,7 +571,9 @@ class Simulator:
 
         # Compute and return rgb array if needed
         if return_rgb_array:
-            return Viewer.capture_frame(width, height)
+            return Viewer.capture_frame(
+                width or viewer_kwargs.get("width"),
+                height or viewer_kwargs.get("height"))
         return None
 
     def replay(self,
@@ -580,7 +596,7 @@ class Simulator:
         for log_file in extra_logs_files:
             log_data = read_log(log_file)
             robot = build_robot_from_log(
-                log_data, self.robot.mesh_package_dirs)
+                log_data, mesh_package_dirs=self.robot.mesh_package_dirs)
             robots.append(robot)
             logs_data.append(log_data)
 
@@ -611,7 +627,7 @@ class Simulator:
         must_not_open_gui = (
             backend.startswith("panda3d") or
             kwargs.get('record_video_path') is not None)
-        self.render(**{  # type: ignore[arg-type]
+        self.render(**{
             'return_rgb_array': must_not_open_gui,
             'update_floor': True,
             **kwargs})
@@ -624,7 +640,7 @@ class Simulator:
             trajectories,
             update_hooks,
             viewers=viewers,
-            **{'verbose': True,  # type: ignore[arg-type]
+            **{'verbose': True,
                **self.viewer_kwargs,
                **extra_kwargs,
                'display_f_external': None,
@@ -669,7 +685,7 @@ class Simulator:
             from .plot import plot_log
         except ImportError as e:
             raise ImportError(
-                "This method not supported. Please install 'jiminy_py[plot]'."
+                "Method not available. Please install 'jiminy_py[plot]'."
                 ) from e
 
         # Create figure, without closing the existing one

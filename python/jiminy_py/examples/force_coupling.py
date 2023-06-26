@@ -106,9 +106,9 @@ try:
             oMf * (
                 robot.pinocchio_model.inertias[1] * robot.pinocchio_data.v[1])
             ).vector for oMf, robot in zip((oMf1, oMf2), (robot1, robot2))])
-        # assert sum(energy_robots[-1]) < 1.02 * (energy_spring[0] + sum(energy_robots[0]))
-except AssertionError as e:
-    logging.exception(e)
+        assert sum(energy_robots[-1]) < 1.02 * (energy_spring[0] + sum(energy_robots[0]))
+except AssertionError:
+    logging.exception("The energy of the whole system should be decreasing.")
 except Exception:
     pass
 engine.stop()

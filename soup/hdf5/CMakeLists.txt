@@ -5,13 +5,13 @@ cmake_minimum_required(VERSION 3.12.4)
 project(hdf5_external)
 
 # Define path of the generated zlib library
-if(NOT WIN32)
+if(WIN32)
+     set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/Release/zlibstatic.lib")
+     set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/zlibstatic.lib")
+else()
      set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/libz.a")
      set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/libz.a")
      set(zlib_NINJA BUILD_BYPRODUCTS "${zlib_PATH}")
-else()
-     set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/Release/zlibstatic.lib")
-     set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/zlibstatic.lib")
 endif()
 
 # Download, build and install zlib.
@@ -54,18 +54,18 @@ ExternalProject_Add_Step(
 )
 
 # Define paths of the generated hdf5 libraries
-if(NOT WIN32)
+if(WIN32)
+     set(libhdf5_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
+     set(libhdf5_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
+     set(libhdf5_cpp_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
+     set(libhdf5_cpp_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
+else()
      set(libhdf5_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.a")
      set(libhdf5_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_debug.a")
      set(libhdf5_NINJA BUILD_BYPRODUCTS "${libhdf5_PATH_${CMAKE_BUILD_TYPE}}")
      set(libhdf5_cpp_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.a")
      set(libhdf5_cpp_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp_debug.a")
      set(libhdf5_cpp_NINJA BUILD_BYPRODUCTS "${libhdf5_cpp_PATH_${CMAKE_BUILD_TYPE}}")
-else()
-     set(libhdf5_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
-     set(libhdf5_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
-     set(libhdf5_cpp_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
-     set(libhdf5_cpp_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
 endif()
 
 # Pick different version of HDF5 depending on the platform:

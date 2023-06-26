@@ -141,7 +141,7 @@ def test(test_agent: BaseAlgorithm,
         num_episodes = 0
         while (num_episodes < max_episodes) and \
                 (t_cur - t_init < max_duration):
-            obs = test_agent.eval_env.reset()
+            obs, _ = test_agent.eval_env.reset()
             cum_step, cum_reward = 0, 0.0
             done = False
             while not done:

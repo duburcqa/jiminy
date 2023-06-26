@@ -90,11 +90,13 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t registerVariable(std::vector<std::string> const & fieldnames,
-                                   Eigen::Ref<vectorN_t, 0, Eigen::InnerStride<> > values);  // Make a "copy" to support both vectorN_t and reference
+                                   Eigen::Ref<Eigen::Matrix<float64_t, -1, 1>, 0, Eigen::InnerStride<> > const & values);
+        hresult_t registerVariable(std::vector<std::string> const & fieldnames,
+                                   Eigen::Ref<Eigen::Matrix<int64_t, -1, 1>, 0, Eigen::InnerStride<> > const & values);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief      Dynamically registered a float64 to the telemetry.
+        /// \brief      Dynamically registered a float64 or int64 to the telemetry.
         ///
         /// \details    Internally, all it does is to store a reference to the variable, then it logs
         ///             its value periodically. There is no update mechanism what so ever nor safety
@@ -107,8 +109,9 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
+        template<typename T>
         hresult_t registerVariable(std::string const & fieldname,
-                                   float64_t   const & value);
+                                   T           const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -283,8 +286,10 @@ namespace jiminy
         TelemetrySender telemetrySender_;       ///< Telemetry sender of the controller used to register and update telemetry variables
 
     private:
-        static_map_t<std::string, float64_t const *> registeredVariables_;    ///< Vector of dynamically registered telemetry variables
-        static_map_t<std::string, std::string> registeredConstants_;          ///< Vector of dynamically registered telemetry constants
+        static_map_t<std::string,
+                     std::variant<float64_t const *, int64_t const *>
+                     > registeredVariables_;                            ///< Vector of dynamically registered telemetry variables
+        static_map_t<std::string, std::string> registeredConstants_;    ///< Vector of dynamically registered telemetry constants
     };
 }
 

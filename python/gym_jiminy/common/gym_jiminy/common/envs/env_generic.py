@@ -3,19 +3,21 @@ as backend physics engine, and Jiminy Viewer as 3D visualizer. It implements
 the official OpenAI Gym API and extended it to add more functionalities.
 """
 import os
+import logging
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
 from collections.abc import Mapping
 from itertools import chain
 from typing import (
-    Optional, Tuple, Dict, Any, Callable, List, Iterable, Union, Iterator,
-    Mapping as MappingT, MutableMapping as MutableMappingT)
+    Dict, Any, List, cast, Optional, Tuple, Callable, Iterable, Union,
+    SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
+    MutableMapping as MutableMappingT)
 
 import tree
 import numpy as np
-import gym
-from gym import logger, spaces
+from gymnasium import spaces
+from gymnasium.core import RenderFrame
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
@@ -24,31 +26,31 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
     ContactSensor as contact,
     ForceSensor as force,
     ImuSensor as imu)
+from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
+from jiminy_py.log import extract_variables_from_log
+from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
-                                     is_display_available,
                                      interactive_mode,
                                      get_default_backend,
                                      Viewer)
-from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
-from jiminy_py.simulator import Simulator
-from jiminy_py.log import extract_variables_from_log
 
 from pinocchio import neutral, normalize, framesForwardKinematics
 
-from ..utils import (zeros,
-                     fill,
-                     set_value,
+from ..utils import (FieldNested,
+                     DataNested,
+                     zeros,
+                     copyto,
                      clip,
                      get_fieldnames,
-                     register_variables,
-                     FieldNested,
-                     DataNested)
-from ..bases import ObserverControllerInterface
+                     register_variables)
+from ..bases import (ObsT,
+                     ActT,
+                     InfoType,
+                     SensorsDataType,
+                     EngineObsType,
+                     JiminyEnvInterface)
 
-from .internal import (ObserverHandleType,
-                       ControllerHandleType,
-                       BaseJiminyObserverController,
-                       loop_interactive)
+from .internal import loop_interactive
 
 
 # Define universal bounds for the observation space
@@ -65,9 +67,12 @@ SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 class _LazyDictItemFilter(Mapping):
     def __init__(self,
-                 dict_packed: MappingT[str, Tuple[Any, ...]],
+                 dict_packed: MappingT[str, Sequence[Any]],
                  item_index: int) -> None:
         self.dict_packed = dict_packed
         self.item_index = item_index
@@ -82,7 +87,8 @@ class _LazyDictItemFilter(Mapping):
         return len(self.dict_packed)
 
 
-class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
+class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
+                    Generic[ObsT, ActT]):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.
 
@@ -100,8 +106,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
-                 enforce_bounded_spaces: Optional[bool] = False,
+                 enforce_bounded_spaces: bool = False,
                  debug: bool = False,
+                 render_mode: Optional[str] = None,
                  **kwargs: Any) -> None:
         r"""
         :param simulator: Jiminy Python simulator used for physics
@@ -110,6 +117,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                         independent from the controller and observation update
                         periods. The latter are configured via
                         `engine.set_options`.
+        :param mode: Rendering mode. It can be either 'human' to display the
+                     current simulation state, or 'rgb_array' to return a
+                     snapshot as an RGB array without showing it on the screen.
+                     Optional: 'human' by default if available with the current
+                     backend (or default if none), 'rgb_array' otherwise.
         :param enforce_bounded_spaces:
             Whether to enforce finite bounds for the observation and action
             spaces. If so, then '\*_MAX' are used whenever it is necessary.
@@ -117,49 +129,57 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             for the vast majority of systems.
         :param debug: Whether the debug mode must be enabled. Doing it enables
                       telemetry recording.
+        :param viewer_kwargs: Keyword arguments used to override the original
+                              default values whenever a viewer is instantiated.
+                              This is the only way to pass custom arguments to
+                              the viewer when calling `render` method, unlike
+                              `replay` which forwards extra keyword arguments.
+                              Optional: None by default.
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
         """
-        # pylint: disable=unused-argument
+        # Handling of default rendering mode
+        viewer_backend = (simulator.viewer or Viewer).backend
+        if render_mode is None:
+            # 'rgb_array' by default if the backend is or will be
+            # 'panda3d-sync', otherwise 'human' if available.
+            backend = (kwargs.get('backend') or viewer_backend or
+                       simulator.viewer_kwargs.get('backend') or
+                       get_default_backend())
+            if backend == "panda3d-sync":
+                render_mode = 'rgb_array'
+            elif 'human' in self.metadata['render_modes']:
+                render_mode = 'human'
+            else:
+                render_mode = 'rgb_array'
 
-        # Initialize the interfaces through multiple inheritance
-        super().__init__()  # Do not forward extra arguments, if any
+        # Make sure the rendering mode is valid.
+        if render_mode == 'human' and {
+                **kwargs, **simulator.viewer_kwargs
+                }.get('backend') == 'panda3d-sync':
+            raise ValueError(
+                "render_mode='human' is incompatible with "
+                "backend='panda3d-sync'.")
+        assert render_mode in self.metadata['render_modes']
 
         # Backup some user arguments
         self.simulator: Simulator = simulator
-        self.step_dt = step_dt
+        self._step_dt = step_dt
+        self.render_mode = render_mode
         self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
-        # Configure default camera pose if not already the case
-        if "camera_xyzrpy" not in self.simulator.viewer_kwargs:
-            if self.robot.has_freeflyer:
-                # Get root frame name.
-                # The first and second frames are respectively "universe" no
-                # matter if the robot has a freeflyer or not, and the second
-                # one is the freeflyer joint "root_joint" if any.
-                root_name = self.robot.pinocchio_model.frames[2].name
-
-                # Note that the actual signature is hacked to set relative pose
-                self.simulator.viewer_kwargs["camera_xyzrpy"] = (
-                    *DEFAULT_CAMERA_XYZRPY_REL, root_name)
-            else:
-                self.simulator.viewer_kwargs["camera_xyzrpy"] = (
-                    (0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi))
-
-        # Set the available rendering modes
-        self.metadata['render.modes'] = ['rgb_array']
-        if is_display_available():
-            self.metadata['render.modes'].append('human')
-
         # Define some proxies for fast access
         self.engine: jiminy.Engine = self.simulator.engine
-        self.stepper_state: jiminy.StepperState = self.engine.stepper_state
-        self.system_state: jiminy.SystemState = self.engine.system_state
-        self.sensors_data: Dict[str, np.ndarray] = dict(
-            self.robot.sensors_data)
-        self.controller = BaseJiminyObserverController()
+        self.robot = self.engine.robot
+        self.stepper_state = self.simulator.stepper_state
+        self.system_state = self.simulator.system_state
+        self.sensors_data: SensorsDataType = dict(self.robot.sensors_data)
+        self.is_simulation_running = self.simulator.is_simulation_running
+
+        # Top-most block of the pipeline to which the environment is part of
+        self._env_derived: JiminyEnvInterface = self
 
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
@@ -169,17 +189,18 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Internal buffers for physics computations
         self._seed: List[np.uint32] = []
-        self.rg = np.random.Generator(np.random.SFC64())
+        self.np_random = np.random.Generator(
+            np.random.SFC64(np.random.SeedSequence()))
         self.log_path: Optional[str] = None
 
         # Whether evaluation mode is active
-        self.is_training = True
+        self._is_training = True
 
         # Whether play interactive mode is active
         self._is_interactive = False
 
         # Information about the learning process
-        self._info: Dict[str, Any] = {}
+        self._info: InfoType = {}
 
         # Keep track of cumulative reward
         self.total_reward = 0.0
@@ -187,38 +208,50 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Number of simulation steps performed
         self.num_steps = -1
         self.max_steps = 0
-        self._num_steps_beyond_done: Optional[int] = None
+        self._num_steps_beyond_terminate: Optional[int] = None
 
-        # Initialize the seed of the environment.
-        # Note that resetting the seed also reset robot internal state.
-        self.seed()
+        # Initialize the interfaces through multiple inheritance
+        super().__init__()  # Do not forward extra arguments, if any
+
+        # Initialize the seed of the environment
+        self._initialize_seed()
+
+        # Initialize the observation and action buffers
+        self.observation: ObsT = zeros(self.observation_space)
+        self.action: ActT = zeros(self.action_space)
 
         # Set robot in neutral configuration
         qpos = self._neutral()
         framesForwardKinematics(
             self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
 
-        # Refresh the observation and action spaces.
-        # Note that it is necessary to refresh the action space before the
-        # observation one, since it may be useful to observe the action.
-        self._initialize_action_space()
-        self._initialize_observation_space()
+        # Configure the default camera pose if not already done
+        if "camera_pose" not in self.simulator.viewer_kwargs:
+            if self.robot.has_freeflyer:
+                # Get root frame name.
+                # The first and second frames are respectively "universe" no
+                # matter if the robot has a freeflyer or not, and the second
+                # one is the freeflyer joint "root_joint" if any.
+                root_name = self.robot.pinocchio_model.frames[2].name
 
-        # Initialize some internal buffers.
-        # Note that float64 dtype must be enforced for the action, otherwise
-        # it would be impossible to register action to controller's telemetry.
-        self._action = zeros(self.action_space, dtype=np.float64)
-        self._observation = zeros(self.observation_space)
+                # Relative camera pose wrt the root frame by default
+                self.simulator.viewer_kwargs["camera_pose"] = (
+                    *DEFAULT_CAMERA_XYZRPY_REL, root_name)
+            else:
+                # Absolute camera pose by default
+                self.simulator.viewer_kwargs["camera_pose"] = (
+                    (0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi), None)
 
         # Register the action to the telemetry automatically iif there is
         # exactly one scalar action per motor.
-        if isinstance(self._action, np.ndarray):
-            action_size = self._action.size
+        if isinstance(self.action, np.ndarray):
+            action_size = self.action.size
             if action_size > 0 and action_size == self.robot.nmotors:
                 action_fieldnames = [
-                    ".".join(("action", e)) for e in self.robot.motors_names]
-                self.register_variable(
-                    "action", self._action, action_fieldnames)
+                    ".".join(('action', e)) for e in self.robot.motors_names]
+                self.register_variable('action',
+                                       self.action,
+                                       action_fieldnames)
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -246,31 +279,17 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             # This method must not fail under any circumstances
             pass
 
-    def _controller_handle(self,
-                           t: float,
-                           q: np.ndarray,
-                           v: np.ndarray,
-                           sensors_data: Dict[str, np.ndarray],
-                           command: np.ndarray) -> None:
-        """Thin wrapper around user-specified `compute_command` method.
-
-        .. warning::
-            This method is not supposed to be called manually nor overloaded.
-        """
-        assert self._action is not None
-        command[:] = self.compute_command(
-            self.get_observation(), self._action)
-
     def _get_time_space(self) -> spaces.Box:
         """Get time space.
         """
-        return spaces.Box(
-            low=0.0, high=self.simulator.simulation_duration_max, shape=(1,),
-            dtype=np.float64)
+        return spaces.Box(low=0.0,
+                          high=self.simulator.simulation_duration_max,
+                          shape=(1,),
+                          dtype=np.float64)
 
-    def _get_state_space(self,
-                         use_theoretical_model: Optional[bool] = None
-                         ) -> spaces.Dict:
+    def _get_agent_state_space(self,
+                               use_theoretical_model: Optional[bool] = None
+                               ) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
@@ -323,14 +342,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             velocity_limit = velocity_limit[joints_velocity_idx]
 
         return spaces.Dict(OrderedDict(
-            Q=spaces.Box(low=position_limit_lower,
+            q=spaces.Box(low=position_limit_lower,
                          high=position_limit_upper,
                          dtype=np.float64),
-            V=spaces.Box(low=-velocity_limit,
+            v=spaces.Box(low=-velocity_limit,
                          high=velocity_limit,
                          dtype=np.float64)))
 
-    def _get_sensors_space(self) -> spaces.Dict:
+    def _get_measurements_space(self) -> spaces.Dict:
         """Get sensor space.
 
         It gathers the sensors data in a dictionary. It maps each available
@@ -362,8 +381,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Define some proxies for convenience
         sensors_data = self.robot.sensors_data
         command_limit = self.robot.command_limit
-
-        state_space = self._get_state_space(use_theoretical_model=False)
+        position_space, velocity_space = self._get_agent_state_space(
+            use_theoretical_model=False).values()
+        assert isinstance(position_space, spaces.Box)
+        assert isinstance(velocity_space, spaces.Box)
 
         # Replace inf bounds of the action space
         for motor_name in self.robot.motors_names:
@@ -391,15 +412,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 # configuration, and principal value of the angle for the
                 # sensor.
                 sensor = self.robot.get_sensor(encoder.type, sensor_name)
+                assert isinstance(sensor, encoder)
                 sensor_idx = sensor.idx
                 joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
                 if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
                     sensor_position_lower = -np.pi
                     sensor_position_upper = np.pi
                 else:
-                    sensor_position_lower = state_space['Q'].low[joint.idx_q]
-                    sensor_position_upper = state_space['Q'].high[joint.idx_q]
-                sensor_velocity_limit = state_space['V'].high[joint.idx_v]
+                    sensor_position_lower = position_space.low[joint.idx_q]
+                    sensor_position_upper = position_space.high[joint.idx_q]
+                sensor_velocity_limit = velocity_space.high[joint.idx_v]
 
                 # Update the bounds accordingly
                 sensor_space_lower[encoder.type][0, sensor_idx] = \
@@ -416,6 +438,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
                 sensor = self.robot.get_sensor(effort.type, sensor_name)
+                assert isinstance(sensor, effort)
                 sensor_idx = sensor.idx
                 motor_idx = self.robot.motors_velocity_idx[sensor.motor_idx]
                 sensor_space_lower[effort.type][0, sensor_idx] = \
@@ -424,12 +447,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     +command_limit[motor_idx]
 
         # Replace inf bounds of the imu sensor space
-        if imu.type in sensors_data.keys():
-            quat_imu_idx = [
-                field.startswith('Quat') for field in imu.fieldnames]
-            sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0 - 1e-12
-            sensor_space_upper[imu.type][quat_imu_idx, :] = 1.0 + 1e-12
-
         if self.enforce_bounded_spaces:
             # Replace inf bounds of the contact sensor space
             if contact.type in sensors_data.keys():
@@ -492,6 +509,37 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.action_space = spaces.Box(
             low=-action_scale, high=action_scale, dtype=np.float64)
 
+    def _initialize_seed(self, seed: Optional[int] = None) -> List[np.uint32]:
+        """Specify the seed of the environment.
+
+        .. note::
+            This method is not meant to be called manually.
+
+        .. warning::
+            It also resets the low-level jiminy Engine. Therefore one must call
+            the `reset` method afterward.
+
+        :param seed: Random seed, as a positive integer.
+                     Optional: A strongly random seed will be generated by gym
+                     if omitted.
+
+        :returns: Updated seed of the environment
+        """
+        # Generate a sequence of 3 bytes uint32 seeds
+        self._seed = list(np.random.SeedSequence(seed).generate_state(3))
+
+        # Re-initialize the low-level bit generator based on the provided seed
+        self.np_random.bit_generator.state = np.random.SFC64(self._seed).state
+
+        # Reset the seed of the action and observation spaces
+        self.observation_space.seed(seed)
+        self.action_space.seed(seed)
+
+        # Reset the seed of Jiminy Engine
+        self.simulator.seed(self._seed[0])
+
+        return self._seed
+
     def register_variable(self,
                           name: str,
                           value: DataNested,
@@ -516,7 +564,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Early return with a warning is fieldnames is empty
         if not fieldnames:
-            logger.warn("'value' or 'fieldnames' cannot be empty.")
+            LOGGER.warning("'value' or 'fieldnames' cannot be empty.")
             return
 
         # Check if variable can be registered successfully to the telemetry.
@@ -537,11 +585,25 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if is_success:
             self._registered_variables[name] = (fieldnames, value)
 
-    def reset(self,
-              controller_hook: Optional[Callable[[], Optional[Tuple[
-                  Optional[ObserverHandleType],
-                  Optional[ControllerHandleType]]]]] = None
-              ) -> DataNested:
+    @property
+    def step_dt(self) -> float:
+        return self._step_dt
+
+    @property
+    def is_training(self) -> bool:
+        return self._is_training
+
+    def train(self) -> None:
+        self._is_training = True
+
+    def eval(self) -> None:
+        self._is_training = False
+
+    def reset(self,  # type: ignore[override]
+              *,
+              seed: Optional[int] = None,
+              options: Optional[Dict[str, Any]] = None,
+              ) -> Tuple[DataNested, InfoType]:
         """Reset the environment.
 
         In practice, it resets the backend simulator and set the initial state
@@ -552,16 +614,23 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. warning::
             It starts the simulation immediately. As a result, it is not
             possible to change the robot (included options), nor to register
-            log variable. The only way to do so is via 'controller_hook'.
+            log variable.
 
-        :param controller_hook: Used internally for chaining multiple
-                                `BasePipelineWrapper`. It is not meant to be
-                                defined manually.
-                                Optional: None by default.
+        :param seed: Random seed, as a positive integer.
+                     Optional: A strongly random seed will be generated by gym
+                     if omitted.
+        :param options: Additional information to specify how the environment
+                        is reset. The field 'reset_hook' is reserved for
+                        chaining multiple `BasePipelineWrapper`. It is not
+                        meant to be defined manually.
+                        Optional: None by default.
 
-        :returns: Initial observation of the episode.
+        :returns: Initial observation of the episode and some auxiliary
+                  information for debugging or monitoring purpose.
         """
-        # pylint: disable=arguments-differ
+        # Reset the seed if requested
+        if seed is not None:
+            self._initialize_seed(seed)
 
         # Stop the simulator
         self.simulator.stop()
@@ -576,38 +645,32 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # otherwise some proxies would be corrupted.
         if self.engine is not self.simulator.engine:
             raise RuntimeError(
-                "The memory address of the low-level has changed.")
+                "Changing unexpectedly the memory address of the low-level "
+                "jiminy engine is an undefined behavior.")
 
         # Re-initialize some shared memories.
         # It is necessary because the robot may have changed.
-        self.sensors_data = dict(self.robot.sensors_data)
+        self.sensors_data = OrderedDict(self.robot.sensors_data)
 
         # Enforce the low-level controller.
         # The robot may have changed, for example it could be randomly
         # generated, which would corrupt the old controller. As a result, it is
         # necessary to either instantiate a new low-level controller and to
         # re-initialize the existing one by calling `controller.initialize`
-        # method BEFORE calling `reset` method because otherwise it would
-        # cause a segfault. In practice, `BaseJiminyObserverController` must be
-        # used because it enables to define observer and controller handles
-        # separately, while dealing with all the logics internally. This extra
-        # layer of indirection makes it computationally less efficient than
-        # `jiminy.ControllerFunctor` but it is a small price to pay.
-        self.controller.initialize(self.robot)
-        self.simulator.set_controller(self.controller)
+        # method BEFORE calling `reset` method because doing otherwise would
+        # cause a segfault.
+        mock_controller = jiminy.ControllerFunctor()
+        mock_controller.initialize(self.robot)
+        self.simulator.set_controller(mock_controller)
 
         # Reset the simulator.
         # Do NOT remove all forces since it has already been done before, and
         # because it would make it impossible to register forces in  `_setup`.
         self.simulator.reset(remove_all_forces=False)
 
-        # Set default action.
-        # It will be used for the initial step.
-        fill(self._action, 0.0)
-
         # Reset some internal buffers
         self.num_steps = 0
-        self._num_steps_beyond_done = None
+        self._num_steps_beyond_terminate = None
 
         # Create a new log file
         if self.debug:
@@ -623,20 +686,24 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if self.observe_dt < 0.0:
             self.observe_dt = self.control_dt
 
-        # Run controller hook and set the observer and controller handles
-        observer_handle, controller_handle = None, None
-        if controller_hook is not None:
-            handles = controller_hook()
-            if handles is not None:
-                observer_handle, controller_handle = handles
-        if observer_handle is None:
-            observer_handle = self._observer_handle
-        self.controller.set_observer_handle(
-            observer_handle, unsafe=True)
-        if controller_handle is None:
-            controller_handle = self._controller_handle
-        self.controller.set_controller_handle(
-            controller_handle, unsafe=True)
+        # Run the reset hook if any.
+        # Note that the reset hook must be called after `_setup` because it
+        # expects that the robot is not going to change anymore at this point.
+        # Similarly, the observer and controller update periods must be set.
+        reset_hook: Optional[Callable[[], JiminyEnvInterface]] = (
+            options or {}).get("reset_hook")
+        env: JiminyEnvInterface = self
+        if reset_hook is not None:
+            assert callable(reset_hook)
+            env_derived = reset_hook() or self
+            assert env_derived.unwrapped is self
+            env = env_derived
+        self._env_derived = env
+
+        # Instantiate the actual controller
+        controller = jiminy.ControllerFunctor(env._controller_handle)
+        controller.initialize(self.robot)
+        self.simulator.set_controller(controller)
 
         # Configure the maximum number of steps
         self.max_steps = int(
@@ -644,7 +711,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Register user-specified variables to the telemetry
         for header, value in self._registered_variables.values():
-            register_variables(self.controller, header, value)
+            register_variables(controller, header, value)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -665,19 +732,17 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Update shared buffers
         self._refresh_buffers()
 
-        # Initialize the observer.
-        # Note that it is responsible of refreshing the environment's
-        # observation before anything else, so no need to do it twice.
-        self.controller.refresh_observation(
+        # Initialize the observation
+        env._observer_handle(
             self.stepper_state.t,
             self.system_state.q,
             self.system_state.v,
-            self.sensors_data)
+            self.robot.sensors_data)
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs = clip(self.observation_space, self.get_observation())
+            obs: ObsT = clip(env.observation, env.observation_space)
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -692,10 +757,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     "went wrong with `refresh_observation` method.")
 
         # The simulation cannot be done before doing a single step.
-        if self.is_done():
+        if any(self.has_terminated()):
             raise RuntimeError(
-                "The simulation is already done at `reset`. Check the "
-                "implementation of `is_done` if overloaded.")
+                "The simulation has already terminated at `reset`. Check the "
+                "implementation of `has_terminated` if overloaded.")
 
         # Reset cumulative reward
         self.total_reward = 0.0
@@ -707,80 +772,58 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.simulator.viewer.has_gui():
                 self.simulator.viewer.refresh()
 
-        return obs
-
-    def seed(self, seed: Optional[int] = None) -> List[np.uint32]:
-        """Specify the seed of the environment.
-
-        .. warning::
-            It also resets the low-level jiminy Engine. Therefore one must call
-            the `reset` method manually afterward.
-
-        :param seed: Random seed, as a positive integer.
-                     Optional: A strongly random seed will be generated by gym
-                     if omitted.
-
-        :returns: Updated seed of the environment
-        """
-        # Generate a sequence of 3 bytes uint32 seeds
-        self._seed = list(np.random.SeedSequence(seed).generate_state(3))
-
-        # Instantiate a new random number generator based on the provided seed
-        self.rg = np.random.Generator(np.random.SFC64(self._seed))
-
-        # Reset the seed of Jiminy Engine
-        self.simulator.seed(self._seed[0])
-
-        return self._seed
+        return obs, deepcopy(self._info)
 
     def close(self) -> None:
-        """Terminate the Python Jiminy engine.
+        """Clean up the environment after the user has finished using it.
+
+        It terminates the Python Jiminy engine.
+
+        .. warning::
+            Calling `reset` or `step` afterward is an undefined behavior.
         """
         self.simulator.close()
 
-    def step(self,
-             action: Optional[DataNested] = None
-             ) -> Tuple[DataNested, float, bool, Dict[str, Any]]:
-        """Run a simulation step for a given action.
-
-        :param action: Action to perform. `None` to not update the action.
-
-        :returns: Next observation, reward, status of the episode (done or
-                  not), plus some of extra information
-        """
+    def step(self,  # type: ignore[override]
+             action: ActT
+             ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
         # Make sure a simulation is already running
-        if not self.simulator.is_simulation_running:
+        if not self.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
-        # Update of the action to perform if provided
-        if action is not None:
-            # Make sure the action is valid
-            for value in tree.flatten(action):
-                if np.isnan(value).any():
-                    raise RuntimeError(
-                        f"'nan' value found in action ({action}).")
+        # Update of the action to perform if relevant
+        if action is not self.action:
+            # Make sure the action is valid if debug
+            if self.debug:
+                for value in tree.flatten(action):
+                    if np.isnan(value).any():
+                        raise RuntimeError(
+                            f"'nan' value found in action ({action}).")
 
             # Update the action
-            set_value(self._action, action)
+            copyto(self.action, action)
 
-        # Perform a single simulation step
-        self.simulator.step(self.step_dt)
+        # Try performing a single simulation step
+        try:
+            self.simulator.step(self.step_dt)
+        except Exception:
+            # Stop the simulation before raising the exception
+            self.simulator.stop()
+            raise
 
         # Update shared buffers
         self._refresh_buffers()
 
-        # Update the observer at the end of the step. Indeed, internally,
-        # it is called at the beginning of the every integration steps,
-        # during the controller update.
-        self.controller.refresh_observation(
+        # Update the observer at the end of the step.
+        # This is necessary because, internally, it is called at the beginning
+        # of the every integration steps, during the controller update.
+        env = self._env_derived
+        env._observer_handle(
             self.stepper_state.t,
             self.system_state.q,
             self.system_state.v,
-            self.sensors_data)
-
-        # Get clipped observation
-        obs = clip(self.observation_space, self.get_observation())
+            self.robot.sensors_data)
 
         # Make sure there is no 'nan' value in observation
         if np.isnan(self.system_state.a).any():
@@ -789,105 +832,77 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "wrong with jiminy engine.")
 
         # Reset the extra information buffer
-        self._info = {}
+        self._info.clear()
 
         # Check if the simulation is over.
-        # Note that 'done' is always True if the integration failed or if the
-        # maximum number of steps will be exceeded next step.
-        done = not self.simulator.is_simulation_running or \
-            self.num_steps >= self.max_steps or self.is_done()
+        # Note that 'truncated' is forced to True if the integration failed or
+        # if the maximum number of steps will be exceeded next step.
+        done, truncated = self.has_terminated()
+        truncated = (
+            truncated or not self.is_simulation_running or
+            self.num_steps >= self.max_steps)
 
         # Check if stepping after done and if it is an undefined behavior
-        if self._num_steps_beyond_done is None:
-            if done:
-                self._num_steps_beyond_done = 0
+        if self._num_steps_beyond_terminate is None:
+            if done or truncated:
+                self._num_steps_beyond_terminate = 0
         else:
-            if self.enable_reward_terminal and \
-                    self._num_steps_beyond_done == 0:
-                logger.error(
-                    "Calling 'step' even though this environment has already "
-                    "returned done = True whereas terminal reward is enabled. "
-                    "Please call `reset` to avoid further undefined behavior.")
-            self._num_steps_beyond_done += 1
+            if not self.is_training and self._num_steps_beyond_terminate == 0:
+                LOGGER.error(
+                    "Calling `step` after termination causes the reward to be "
+                    "'nan' systematically and is strongly discouraged in "
+                    "train mode. Please call `reset` to avoid further "
+                    "undefined behavior.")
+            self._num_steps_beyond_terminate += 1
 
-        # Compute reward and extra information
-        reward = self.compute_reward(info=self._info)
+        # Compute reward if not beyond termination
+        if self._num_steps_beyond_terminate:
+            reward = float('nan')
+        else:
+            # Compute reward and update extra information
+            reward = self.compute_reward(done, truncated, self._info)
 
-        # Finalize the episode is the simulation is over
-        if done and self._num_steps_beyond_done == 0:
-            # Write log file if simulation is over (debug mode only)
-            if self.debug:
-                self.simulator.write_log(self.log_path, format="binary")
+            # Make sure the reward is not 'nan'
+            if np.isnan(reward):
+                raise RuntimeError(
+                    "The reward is 'nan'. Something went wrong with "
+                    "`compute_reward` implementation.")
 
-            # Compute terminal reward if any
-            if self.enable_reward_terminal:
-                # Add terminal reward to current reward
-                reward += self.compute_reward_terminal(info=self._info)
+            # Update cumulative reward
+            self.total_reward += reward
 
-        # Make sure the reward is not 'nan'
-        if np.isnan(reward):
-            raise RuntimeError(
-                "The reward is 'nan'. Something went wrong with "
-                "`compute_reward` or `compute_reward_terminal` methods.")
-
-        # Update cumulative reward
-        self.total_reward += reward
+        # Write log file if simulation has just terminated in debug mode
+        if self._num_steps_beyond_terminate == 0 and self.debug:
+            self.simulator.write_log(self.log_path, format="binary")
 
         # Update number of (successful) steps
         self.num_steps += 1
 
-        return obs, reward, done, deepcopy(self._info)
+        # Clip (and copy) the most derived observation before returning it
+        obs = clip(env.observation, env.observation_space, check=False)
 
-    def render(self,
-               mode: Optional[str] = None,
-               **kwargs: Any) -> Optional[np.ndarray]:
-        """Render the world.
+        return obs, reward, done, truncated, deepcopy(self._info)
 
-        :param mode: Rendering mode. It can be either 'human' to display the
-                     current simulation state, or 'rgb_array' to return a
-                     snapshot as an RGB array without showing it on the screen.
-                     Optional: 'human' by default if available with the current
-                     backend (or default if none), 'rgb_array' otherwise.
-        :param kwargs: Extra keyword arguments to forward to
-                       `jiminy_py.simulator.Simulator.render` method.
+    def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
+        """Render the agent in its environment.
 
-        :returns: RGB array if 'mode' is 'rgb_array', None otherwise.
+        .. versionchanged::
+            This method does not take input arguments anymore due to changes of
+            the official `gym.Wrapper` API. A workaround is to set
+            `simulator.viewer_kwargs` beforehand. Alternatively, it is possible
+            to call the low-level implementation `simulator.render` directly to
+            avoid API restrictions.
+
+        :returns: RGB array if 'render_mode' is 'rgb_array', None otherwise.
         """
-        # Handling of default rendering mode
-        viewer_backend = (self.simulator.viewer or Viewer).backend
-        if mode is None:
-            # 'rgb_array' by default if the backend is or will be
-            # 'panda3d-sync', otherwise 'human' if available.
-            backend = (kwargs.get('backend') or viewer_backend or
-                       self.simulator.viewer_kwargs.get('backend') or
-                       get_default_backend())
-            if backend == "panda3d-sync":
-                mode = 'rgb_array'
-            elif 'human' in self.metadata['render.modes']:
-                mode = 'human'
-            else:
-                mode = 'rgb_array'
-
-        # Make sure that the request makes sense
-        if mode == 'human' and {
-                **kwargs, **self.simulator.viewer_kwargs
-                }.get('backend') == 'panda3d-sync':
-            raise ValueError(
-                "mode='human' is incompatible with backend='panda3d-sync'.")
-
-        # Make sure the rendering mode is valid.
-        # Note that it is not possible to raise an exception, because the
-        # default is overwritten by gym wrappers by mistake to 'human'.
-        if mode not in self.metadata['render.modes']:
-            mode = 'rgb_array'
-
         # Set the available rendering modes
-        if mode == 'human' and viewer_backend == "panda3d-sync":
+        viewer_backend = (self.simulator.viewer or Viewer).backend
+        if self.render_mode == 'human' and viewer_backend == "panda3d-sync":
             Viewer.close()
 
         # Call base implementation
-        return self.simulator.render(
-            return_rgb_array=(mode == 'rgb_array'), **kwargs)
+        return self.simulator.render(  # type: ignore[return-value]
+            return_rgb_array=self.render_mode == 'rgb_array')
 
     def plot(self, **kwargs: Any) -> None:
         """Display common simulation data and action over time.
@@ -921,7 +936,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if isinstance(action_fieldnames, dict):
             for group, fieldnames in action_fieldnames.items():
                 if not isinstance(fieldnames, list):
-                    logger.error("Action space not supported by this method.")
+                    LOGGER.error(
+                        "Action space not supported by this method.")
                     return
                 tab_data[group] = {
                     ".".join(key.split(".")[1:]): value
@@ -936,14 +952,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Add action tab
         self.simulator.figure.add_tab("Action", t, tab_data)
 
-    def replay(self, enable_travelling: bool = True, **kwargs: Any) -> None:
+    def replay(self, **kwargs: Any) -> None:
         """Replay the current episode until now.
 
-        :param enable_travelling: Whether enable travelling, following the
-                                  motion of the root frame of the model. This
-                                  parameter is ignored if the model has no
-                                  freeflyer.
-                                  Optional: True by default.
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
@@ -952,28 +963,25 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # backend available at this point, to reduce memory pressure, but it
         # will take time to restart it systematically for every recordings.
         if kwargs.get('record_video_path') is not None:
-            kwargs['mode'] = 'rgb_array'
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
-        # Stop any running simulation before replay if `is_done` is True
-        if self.simulator.is_simulation_running and self.is_done():
+        # Stop any running simulation before replay if `has_terminated` is True
+        if self.is_simulation_running and any(self.has_terminated()):
             self.simulator.stop()
 
         # Call render before replay in order to take into account custom
         # backend viewer instantiation options, such as initial camera pose,
         # and to update the ground profile.
-        self.render(update_ground_profile=True, **kwargs)
+        self.simulator.render(update_ground_profile=True, **kwargs)
 
-        # Set default travelling options
-        if enable_travelling and self.robot.has_freeflyer:
-            kwargs['travelling_frame'] = \
-                self.robot.pinocchio_model.frames[2].name
+        kwargs: Dict[str, Any] = {
+            'verbose': False,
+            'enable_travelling': self.robot.has_freeflyer,
+            'camera_pose': None,
+            **kwargs}
+        self.simulator.replay(**kwargs)
 
-        self.simulator.replay(
-            **{'verbose': False, **kwargs})  # type: ignore[arg-type]
-
-    @staticmethod
-    def play_interactive(env: Union["BaseJiminyEnv", gym.Wrapper],
+    def play_interactive(self,
                          enable_travelling: Optional[bool] = None,
                          start_paused: bool = True,
                          enable_is_done: bool = True,
@@ -986,12 +994,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         not updated and the previous one keeps being sent to the robot.
 
         .. warning::
+            It ignores any external `gym.Wrapper` that may be used for training
+            but are not considered part of the environment pipeline.
+
+        .. warning::
             This method requires `_key_to_action` method to be implemented by
             the user by overloading it, otherwise it raises an exception.
 
-        :param env: `BaseJiminyEnv` environment instance to play with,
-                    eventually wrapped by composition, typically using
-                    `gym.Wrapper`.
         :param enable_travelling: Whether enable travelling, following the
                                   motion of the root frame of the model. This
                                   parameter is ignored if the model has no
@@ -1004,87 +1013,87 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
                        method.
         """
-        # Get unwrapped environment
-        if isinstance(env, gym.Wrapper):
-            # Make sure the unwrapped environment derive from this class
-            assert isinstance(env.unwrapped, BaseJiminyEnv), (
-                "Unwrapped environment must derived from `BaseJiminyEnv`.")
-            env = env.unwrapped
-
         # Enable play interactive flag and make sure training flag is disabled
-        is_training = env.is_training
-        env._is_interactive = True
-        env.is_training = False
+        is_training = self.is_training
+        self._is_interactive = True
+        if is_training:
+            self.eval()
 
         # Make sure viewer gui is open, so that the viewer will shared external
         # forces with the robot automatically.
-        if not (env.simulator.is_viewer_available and
-                env.simulator.viewer.has_gui()):
-            env.render(update_ground_profile=False)
+        if not (self.simulator.is_viewer_available and
+                self.simulator.viewer.has_gui()):
+            self.simulator.render(update_ground_profile=False)
 
         # Reset the environnement
-        obs = env.reset()
+        self.reset()
+        obs = self.observation
         reward = None
 
         # Refresh the ground profile
-        env.render(update_ground_profile=True)
+        self.simulator.render(update_ground_profile=True)
 
         # Enable travelling
         if enable_travelling is None:
             enable_travelling = \
-                env.simulator.viewer.backend.startswith('panda3d')
-        enable_travelling = enable_travelling and env.robot.has_freeflyer
+                self.simulator.viewer.backend.startswith('panda3d')
+        enable_travelling = enable_travelling and self.robot.has_freeflyer
         if enable_travelling:
-            tracked_frame = env.robot.pinocchio_model.frames[2].name
-            env.simulator.viewer.attach_camera(tracked_frame)
+            tracked_frame = self.robot.pinocchio_model.frames[2].name
+            self.simulator.viewer.attach_camera(tracked_frame)
 
         # Refresh the scene once again to update camera placement
-        env.render()
+        self.render()
 
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
             nonlocal obs, reward, enable_is_done
-            action = env._key_to_action(
-                key, obs, reward, **{"verbose": verbose, **kwargs})
-            obs, reward, done, _ = env.step(action)
-            env.render()
-            if not enable_is_done and env.robot.has_freeflyer:
-                return env.system_state.q[2] < 0.0
-            return done
+            if key is not None:
+                action = self._key_to_action(
+                    key, obs, reward, **{"verbose": verbose, **kwargs})
+            if action is None:
+                action = self.action
+            _, reward, done, truncated, _ = self.step(action)
+            obs = self.observation
+            self.render()
+            if not enable_is_done and self.robot.has_freeflyer:
+                return self.system_state.q[2] < 0.0
+            return done or truncated
 
         # Run interactive loop
-        loop_interactive(max_rate=env.step_dt,
+        loop_interactive(max_rate=self.step_dt,
                          start_paused=start_paused,
                          verbose=verbose)(_interact)()
 
         # Disable travelling if it enabled
         if enable_travelling:
-            env.simulator.viewer.detach_camera()
+            self.simulator.viewer.detach_camera()
 
         # Stop the simulation to unlock the robot.
         # It will enable to display contact forces for replay.
-        if env.simulator.is_simulation_running:
-            env.simulator.stop()
+        if self.simulator.is_simulation_running:
+            self.simulator.stop()
 
         # Disable play interactive mode flag and restore training flag
-        env._is_interactive = False
-        env.is_training = is_training
+        self._is_interactive = False
+        if is_training:
+            self.train()
 
-    @staticmethod
-    def evaluate(env: Union["BaseJiminyEnv", gym.Wrapper],
+    def evaluate(self,
                  policy_fn: Callable[[
-                    DataNested, Optional[float], bool, Dict[str, Any]
-                    ], DataNested],
+                    DataNested, Optional[float], bool, InfoType
+                    ], ActT],
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
                  enable_replay: Optional[bool] = None,
-                 **kwargs: Any) -> List[Dict[str, Any]]:
+                 **kwargs: Any) -> List[InfoType]:
         r"""Evaluate a policy on the environment over a complete episode.
 
-        :param env: `BaseJiminyEnv` environment instance to play with,
-                    eventually wrapped by composition, typically using
-                    `gym.Wrapper`.
+        .. warning::
+            It ignores any external `gym.Wrapper` that may be used for training
+            but are not considered part of the environment pipeline.
+
         :param policy_fn:
             .. raw:: html
 
@@ -1093,9 +1102,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
             | policy_fn\(**obs**: DataNested,
             |            **reward**: Optional[float],
-            |            **done**: bool,
-            |            **info**: Dict[str, Any]
-            |            \) -> DataNested  # **action**
+            |            **done_or_truncated**: bool,
+            |            **info**: InfoType
+            |            \) -> ActT  # **action**
         :param seed: Seed of the environment to be used for the evaluation of
                      the policy.
                      Optional: Random seed if not provided.
@@ -1119,74 +1128,52 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 (Viewer.backend or get_default_backend()) != "panda3d-sync" or
                 interactive_mode() >= 2)
 
-        # Get unwrapped environment
-        if isinstance(env, gym.Wrapper):
-            # Make sure the unwrapped environment derive from this class
-            assert isinstance(env.unwrapped, BaseJiminyEnv), (
-                "Unwrapped environment must derived from `BaseJiminyEnv`.")
-
         # Make sure evaluation mode is enabled
-        is_training = env.is_training
+        is_training = self.is_training
         if is_training:
-            env.eval()
+            self.eval()
 
-        # Reset the seed of the environment
-        env.seed(seed)
+        # Set the seed without forcing full reset of the environment
+        self._initialize_seed(seed)
 
         # Initialize the simulation
-        obs = env.reset()
-        reward, done = None, False
-        info: Dict[str, Any] = {}
+        obs, info = self.reset()
+        reward, done, truncated = None, False, False
 
         # Run the simulation
-        info_episode = []
+        info_episode = [info]
         try:
+            env = self._env_derived
             while not done:
-                action = policy_fn(obs, reward, done, info)
-                obs, reward, done, info = env.step(action)
+                action = policy_fn(obs, reward, done or truncated, info)
+                obs, reward, done, truncated, info = env.step(action)
                 info_episode.append(info)
-                if done or (horizon is not None and env.num_steps > horizon):
+                if done or truncated or (
+                        horizon is not None and
+                        self.num_steps > horizon):
                     break
-            env.stop()
+            self.simulator.stop()
         except KeyboardInterrupt:
             pass
 
         # Restore training mode if it was enabled
         if is_training:
-            env.train()
+            self.train()
 
         # Display some statistic if requested
         if enable_stats:
-            print("env.num_steps:", env.num_steps)
-            print("cumulative reward:", env.total_reward)
+            print("env.num_steps:", self.num_steps)
+            print("cumulative reward:", self.total_reward)
 
         # Replay the result if requested
         if enable_replay:
             try:
-                env.replay(**kwargs)
+                self.replay(**kwargs)
             except Exception as e:  # pylint: disable=broad-except
                 # Do not fail because of replay/recording exception
-                logger.warn("%s", e)
+                LOGGER.warning("%s", e)
 
         return info_episode
-
-    def train(self) -> None:
-        """Sets the environment in training mode.
-
-        .. note::
-            This mode is enabled by default.
-        """
-        self.is_training = True
-
-    def eval(self) -> None:
-        """Sets the environment in evaluation mode.
-
-        This has any effect only on certain environment. See documentations of
-        particular environment for details of their behaviors in training and
-        evaluation modes, if they are affected. It can be used to activate
-        clipping or some filtering of the action specifical at evaluation time.
-        """
-        self.is_training = False
 
     # methods to override:
     # ----------------------------
@@ -1252,9 +1239,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         observation_spaces: Dict[str, spaces.Space] = OrderedDict()
         observation_spaces['t'] = self._get_time_space()
-        observation_spaces['state'] = self._get_state_space()
-        if self.sensors_data:
-            observation_spaces['sensors'] = self._get_sensors_space()
+        observation_spaces['states'] = spaces.Dict(
+            agent=self._get_agent_state_space())
+        observation_spaces['measurements'] = self._get_measurements_space()
         self.observation_space = spaces.Dict(observation_spaces)
 
     def _neutral(self) -> np.ndarray:
@@ -1306,14 +1293,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         qpos = self._neutral()
 
         # Make sure the configuration is not out-of-bound
-        pinocchio_model = self.robot.pinocchio_model
-        position_limit_lower = pinocchio_model.lowerPositionLimit
-        position_limit_upper = pinocchio_model.upperPositionLimit
-        qpos = np.minimum(np.maximum(
-            qpos, position_limit_lower), position_limit_upper)
+        qpos.clip(self.robot.position_limit_lower,
+                  self.robot.position_limit_upper,
+                  out=qpos)
 
         # Make sure the configuration is normalized
-        qpos = normalize(pinocchio_model, qpos)
+        qpos = normalize(self.robot.pinocchio_model, qpos)
 
         # Make sure the robot impacts the ground
         if self.robot.has_freeflyer:
@@ -1323,7 +1308,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 self.robot, qpos, ground_profile=ground_fun)
 
         # Zero velocity
-        qvel = np.zeros(self.simulator.pinocchio_model.nv)
+        qvel = np.zeros(self.robot.pinocchio_model.nv)
 
         return qpos, qvel
 
@@ -1345,8 +1330,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. warning::
             This method is not appropriate for initializing buffers involved in
             `compute_command`. At the time being, there is no better way that
-            taking advantage of the flag `self.simulator.is_simulation_running`
-            in the method `compute_command` itself.
+            taking advantage of the flag `self.is_simulation_running` in the
+            method `compute_command` itself.
         """
 
     def _refresh_buffers(self) -> None:
@@ -1370,97 +1355,88 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             `_setup` method.
         """
 
-    def refresh_observation(self) -> None:
+    def refresh_observation(self, measurement: EngineObsType) -> None:
         """Compute the observation based on the current state of the robot.
+
+        In practice, it updates the internal buffer directly for the sake of
+        efficiency.
+
+        By default, it sets the observation to the value of the measurement,
+        which would not work unless `ObsT` corresponds to `EngineObsType`.
 
         .. note::
             This method is called and the end of every low-level `Engine.step`.
 
-        .. note::
-            Note that `np.nan` values will be automatically clipped to 0.0 by
-            `get_observation` method before return it, so it is valid.
-
         .. warning::
-            In practice, it updates the internal buffer directly for the sake
-            of efficiency.
-
-            As a side note, there is no way in the current implementation to
-            discriminate the initialization of the observation buffer from the
-            next one. The workaround is to check if the simulation already
-            started. Even though it is not the same rigorously speaking, it
-            does the job here since it is only about preserving efficiency.
+            This method may be called without any simulation running, either
+            to perform basic consistency checking or allocate and initialize
+            buffers. There is no way at the time being to distinguish the
+            initialization stage in particular. A workaround consists in
+            checking whether the simulation already started. It is not exactly
+            the same but it does the job regarding preserving efficiency.
         """
-        # pylint: disable=arguments-differ
+        copyto(self.observation, cast(DataNested, measurement))
 
-        assert isinstance(self._observation, dict)
-        t = self._observation['t']
-        assert isinstance(t, np.ndarray)
-        t[0] = self.stepper_state.t
-        state = self._observation['state']
-        assert isinstance(state, dict)
-        if not self.simulator.is_simulation_running:
-            state['Q'], state['V'] = self.simulator.state
-            if self.sensors_data:
-                self._observation[
-                    'sensors'] = self.sensors_data  # type: ignore[assignment]
-        else:
-            q, v = state['Q'], state['V']
-            assert isinstance(q, np.ndarray) and isinstance(v, np.ndarray)
-            q[:], v[:] = self.simulator.state
-
-    def compute_command(self,
-                        measure: DataNested,
-                        action: DataNested
-                        ) -> np.ndarray:
+    def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
-        By default, it does not perform any processing. One is responsible of
-        overloading this method to clip the action if necessary to make sure it
-        does not violate the lower and upper bounds.
+        By default, it is forward the input action as is, without performing
+        any processing. One is responsible of overloading this method if the
+        action space has been customized, or just to clip the action to make
+        sure it is never out-of-bounds if necessary.
 
         .. warning::
             There is not good place to initialize buffers that are necessary to
             compute the command. The only solution for now is to define
             initialization inside this method itself, using the safeguard
-            `if not self.simulator.is_simulation_running:`.
+            `if not self.is_simulation_running:`.
 
-        :param measure: Observation of the environment.
-        :param action: Desired motors efforts.
+        :param action: High-level target to achieve by means of the command.
         """
+        # pylint: disable=unused-argument
+
         # Check if the action is out-of-bounds, in debug mode only
         if self.debug and not self.action_space.contains(action):
-            logger.warn("The action is out-of-bounds.")
+            LOGGER.warning("The action is out-of-bounds.")
 
         if not isinstance(action, np.ndarray):
-            raise RuntimeError(
-                "`BaseJiminyEnv.compute_command` must be overloaded unless "
-                "the action space has type `gym.spaces.Box`.")
+            raise NotImplementedError(
+                "`BaseJiminyEnv.compute_command` must be overloaded in case "
+                "of custom action spaces.")
 
         return action
 
-    def is_done(self, *args: Any, **kwargs: Any) -> bool:
-        """Determine whether the episode is over.
+    def has_terminated(self) -> Tuple[bool, bool]:
+        """Determine whether the episode is over, because a terminal state of
+        the underlying MDP has been reached or an aborting condition outside
+        the scope of the MDP has been triggered.
 
-        By default, it returns True if the observation reaches or exceeds the
-        lower or upper limit. It must be overloaded to implement a custom
-        termination condition for the simulation.
+        By default, it returns `truncated=True` if the observation is out-of-
+        bounds. It must be overloaded to implement a custom termination
+        condition for the environment at hands. It always returns `done=False`.
 
         .. note::
             This method is called after `refresh_observation`, so that the
-            internal buffer '_observation' is up-to-date.
+            internal buffer 'observation' is up-to-date.
 
-        :param args: Extra arguments that may be useful for derived
-                     environments, for example `Gym.GoalEnv`.
-        :param kwargs: Extra keyword arguments. See 'args'.
+        :returns: done and truncated flags.
         """
-        # pylint: disable=unused-argument
-        return not self.observation_space.contains(self._observation)
+        # Make sure that a simulation is running
+        if not self.is_simulation_running:
+            raise RuntimeError(
+                "No simulation running. Please start one before calling this "
+                "method.")
+
+        # Check if the observation is out-of-bounds
+        truncated = not self.observation_space.contains(self.observation)
+
+        return False, truncated
 
     def _key_to_action(self,
-                       key: Optional[str],
-                       obs: DataNested,
+                       key: str,
+                       obs: ObsT,
                        reward: Optional[float],
-                       **kwargs: Any) -> DataNested:
+                       **kwargs: Any) -> Optional[ActT]:
         """Mapping from input keyboard keys to actions.
 
         .. note::
@@ -1489,162 +1465,4 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         :returns: Action to forward to the environment.
         """
-        raise NotImplementedError
-
-
-BaseJiminyEnv.compute_reward.__doc__ = \
-    """Compute reward at current episode state.
-
-    See `ControllerInterface.compute_reward` for details.
-
-    .. note::
-        This method is called after updating the internal buffer
-        '_num_steps_beyond_done', which is None if the simulation is not done,
-        0 right after, and so on.
-
-    :param args: Extra arguments that may be useful for derived environments,
-                 for example `Gym.GoalEnv`.
-    :param info: Dictionary of extra information for monitoring.
-    :param kwargs: Extra keyword arguments. See 'args'.
-
-    :returns: Total reward.
-    """
-
-
-class BaseJiminyGoalEnv(BaseJiminyEnv):
-    """A goal-based environment. It functions just as any regular OpenAI Gym
-    environment but it imposes a required structure on the observation_space.
-    More concretely, the observation space is required to contain at least
-    three elements, namely `observation`, `desired_goal`, and `achieved_goal`.
-    Here, `desired_goal` specifies the goal that the agent should attempt to
-    achieve. `achieved_goal` is the goal that it currently achieved instead.
-    `observation` contains the actual observations of the environment as per
-    usual.
-    """
-    def __init__(self,
-                 simulator: Simulator,
-                 step_dt: float,
-                 debug: bool = False) -> None:
-        # Initialize base class
-        super().__init__(simulator, step_dt, debug)
-
-        # Append default desired and achieved goal spaces to observation space
-        goal_space = self._get_goal_space()
-        self.observation_space = spaces.Dict(OrderedDict(
-            observation=self.observation_space,
-            desired_goal=goal_space,
-            achieved_goal=goal_space))
-
-        # Define some internal buffers
-        self._desired_goal = zeros(goal_space)
-
-    def get_observation(self) -> DataNested:
-        """Get post-processed observation.
-
-        It gathers the original observation from the environment with the
-        currently achieved and desired goal, as a dictionary. See
-        `ObserverInterface.get_observation` documentation for details.
-        """
-        return OrderedDict(
-            observation=super().get_observation(),
-            achieved_goal=self._get_achieved_goal(),
-            desired_goal=self._desired_goal)
-
-    def reset(self,
-              controller_hook: Optional[Callable[[], Optional[Tuple[
-                  Optional[ObserverHandleType],
-                  Optional[ControllerHandleType]]]]] = None
-              ) -> DataNested:
-        self._desired_goal = self._sample_goal()
-        return super().reset(controller_hook)
-
-    # methods to override:
-    # ----------------------------
-
-    def _get_goal_space(self) -> gym.Space:
-        """Get goal space.
-
-        .. note::
-            This method is called internally at init to define the observation
-            space. It is called BEFORE `super().reset` so non goal-env-specific
-            internal buffers are NOT up-to-date. This method must be overloaded
-            while implementing a goal environment.
-        """
-        raise NotImplementedError
-
-    def _sample_goal(self) -> DataNested:
-        """Sample a goal randomly.
-
-        .. note::
-            This method is called internally by `reset` to sample the new
-            desired goal that the agent will have to achieve. It is called
-            BEFORE `super().reset` so non goal-env-specific internal buffers
-            are NOT up-to-date. This method must be overloaded while
-            implementing a goal environment.
-        """
-        raise NotImplementedError
-
-    def _get_achieved_goal(self) -> DataNested:
-        """Compute the achieved goal based on current state of the robot.
-
-        .. note::
-            This method can be called by `refresh_observation` to get the
-            currently achieved goal. This method must be overloaded while
-            implementing a goal environment.
-
-        :returns: Currently achieved goal.
-        """
-        raise NotImplementedError
-
-    def is_done(self,
-                achieved_goal: Optional[DataNested] = None,
-                desired_goal: Optional[DataNested] = None) -> bool:
-        """Determine whether a termination condition has been reached.
-
-        By default, it uses the termination condition inherited from normal
-        environment.
-
-        .. note::
-            This method is called right after calling `refresh_observation`, so
-            that the internal buffer '_observation' is up-to-date. This method
-            can be overloaded while implementing a goal environment.
-
-        :param achieved_goal: Achieved goal. If set to None, one is supposed to
-                              call `_get_achieved_goal` instead.
-                              Optional: None by default.
-        :param desired_goal: Desired goal. If set to None, one is supposed to
-                             use the internal buffer '_desired_goal' instead.
-                             Optional: None by default.
-        """
-        # pylint: disable=arguments-differ
-
-        raise NotImplementedError
-
-    def compute_reward(self,  # type: ignore[override]
-                       achieved_goal: Optional[DataNested] = None,
-                       desired_goal: Optional[DataNested] = None,
-                       *, info: Dict[str, Any]) -> float:
-        """Compute the step reward. This externalizes the reward function and
-        makes it dependent on a desired goal and the one that was achieved. If
-        you wish to include additional rewards that are independent of the
-        goal, you can include the necessary values to derive it in 'info' and
-        compute it accordingly.
-
-        :param achieved_goal: Achieved goal. `None` to evalute the reward for
-            currently achieved goal.
-        :param desired_goal: Desired goal. `None` to evalute the reward for
-            currently desired goal.
-        :param info: Dictionary of extra information for monitoring.
-
-        :returns: The reward that corresponds to the provided achieved goal wrt
-            to the desired goal. The following should always hold true:
-
-            .. code-block:: python
-
-                obs, reward, done, info = env.step()
-                assert reward == env.compute_reward(
-                    obs['achieved_goal'], obs['desired_goal'], info=info)
-        """
-        # pylint: disable=arguments-differ
-
         raise NotImplementedError

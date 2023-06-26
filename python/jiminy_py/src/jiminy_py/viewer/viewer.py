@@ -56,7 +56,7 @@ REPLAY_FRAMERATE = 30
 CAMERA_INV_TRANSFORM_PANDA3D = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(-np.pi/2, 0.0, 0.0)
 DEFAULT_CAMERA_XYZRPY_ABS = ((7.5, 0.0, 1.4), (1.4, 0.0, np.pi/2))
-DEFAULT_CAMERA_XYZRPY_REL = ((4.5, -4.5, 0.75), (1.3, 0.0, 0.8))
+DEFAULT_CAMERA_XYZRPY_REL = ((4.1, -4.1, 0.85), (1.35, 0.0, 0.8))
 
 DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
@@ -77,8 +77,8 @@ COLORS = {'red': (0.85, 0.2, 0.2, 1.0),
           'black': (0.45, 0.45, 0.5, 1.0)}
 
 
-logger = logging.getLogger(__name__)
-logger.addFilter(_DuplicateFilter())
+LOGGER = logging.getLogger(__name__)
+LOGGER.addFilter(_DuplicateFilter())
 
 
 @overload
@@ -359,7 +359,8 @@ class _ProcessWrapper:
                 multiprocessing.active_children()
 
 
-CameraPoseType = Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]
+CameraPoseType = Tuple[
+    Optional[Tuple3FType], Optional[Tuple3FType], Optional[Union[int, str]]]
 
 
 class CameraMotionBreakpointType(TypedDict, total=True):
@@ -513,6 +514,65 @@ class Viewer:
             else:
                 backend = get_default_backend()
 
+        # Make sure that the windows, scene and robot names are valid
+        if scene_name == Viewer.window_name:
+            raise ValueError(
+                "The name of the scene and window must be different.")
+        if not re.match(r'^[A-Za-z0-9_]+$', scene_name + robot_name):
+            raise RuntimeError(
+                "Scene and robot names restricted to case-insensitive ASCII "
+                "alphanumeric characters plus underscore.")
+
+        # Robot names must be unique, then backup the desired one
+        if robot_name in Viewer._backend_robot_names:
+            raise ValueError(
+                "Robot name already exists but must be unique. Please choose "
+                "a different one, or close the associated viewer.")
+        Viewer._backend_robot_names.add(robot_name)
+
+        # Enforce some arguments based on available features
+        if not backend.startswith('panda3d'):
+            if display_com or display_dcm or display_contact_frames or \
+                    display_contact_forces:
+                LOGGER.warning(
+                    "Panda3d backend is required to display markers, e.g. "
+                    "CoM, DCM or Contact.")
+            display_com = False
+            display_dcm = False
+            display_contact_frames = False
+            display_contact_forces = False
+
+        # Backup some user arguments
+        self.robot_color = get_color_code(robot_color)
+        self.robot_name = robot_name
+        self.scene_name = scene_name
+        self.use_theoretical_model = use_theoretical_model
+        self.delete_robot_on_close = delete_robot_on_close
+        self._lock = lock or Viewer._lock
+        self._display_com = display_com
+        self._display_dcm = display_dcm
+        self._display_contact_frames = display_contact_frames
+        self._display_contact_forces = display_contact_forces
+        self._display_f_external = display_f_external
+
+        # Initialize marker register
+        self.markers: Dict[str, MarkerDataType] = {}
+        self._markers_group = '/'.join((
+            self.scene_name, self.robot_name, "markers"))
+        self._markers_visibility: Dict[str, bool] = {}
+
+        # Initialize external forces
+        if self.use_theoretical_model:
+            njoints = robot.pinocchio_model_th.njoints
+        else:
+            njoints = robot.pinocchio_model.njoints
+        self.f_external = pin.StdVec_Force()
+        self.f_external.extend([pin.Force.Zero() for _ in range(njoints - 1)])
+
+        # Create a unique temporary directory, specific to this viewer instance
+        self._tempdir = tempfile.mkdtemp(
+            prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
+
         # Access the current backend or create one if none is available
         self.__is_open = False
         self.is_backend_parent = not Viewer.is_alive()
@@ -552,70 +612,11 @@ class Viewer:
             except RuntimeError as e:
                 # Convert exception into warning if it fails. It is probably
                 # because no display is available.
-                logger.warning("%s", e)
+                LOGGER.warning("%s", e)
         except Exception as e:
             self.close()
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
-
-        # Make sure that the windows, scene and robot names are valid
-        if scene_name == Viewer.window_name:
-            raise ValueError(
-                "The name of the scene and window must be different.")
-        if not re.match(r'^[A-Za-z0-9_]+$', scene_name + robot_name):
-            raise RuntimeError(
-                "Scene and robot names restricted to case-insensitive ASCII "
-                "alphanumeric characters plus underscore.")
-
-        # Robot names must be unique, then backup the desired one
-        if robot_name in Viewer._backend_robot_names:
-            raise ValueError(
-                "Robot name already exists but must be unique. Please choose "
-                "a different one, or close the associated viewer.")
-        Viewer._backend_robot_names.add(robot_name)
-
-        # Enforce some arguments based on available features
-        if not backend.startswith('panda3d'):
-            if display_com or display_dcm or display_contact_frames or \
-                    display_contact_forces:
-                logger.warning(
-                    "Panda3d backend is required to display markers, e.g. "
-                    "CoM, DCM or Contact.")
-            display_com = False
-            display_dcm = False
-            display_contact_frames = False
-            display_contact_forces = False
-
-        # Backup some user arguments
-        self.robot_color = get_color_code(robot_color)
-        self.robot_name = robot_name
-        self.scene_name = scene_name
-        self.use_theoretical_model = use_theoretical_model
-        self.delete_robot_on_close = delete_robot_on_close
-        self._lock = lock or Viewer._lock
-        self._display_com = display_com
-        self._display_dcm = display_dcm
-        self._display_contact_frames = display_contact_frames
-        self._display_contact_forces = display_contact_forces
-        self._display_f_external = display_f_external
-
-        # Initialize marker register
-        self.markers: Dict[str, MarkerDataType] = {}
-        self._markers_group = '/'.join((
-            self.scene_name, self.robot_name, "markers"))
-        self._markers_visibility: Dict[str, bool] = {}
-
-        # Initialize external forces
-        if self.use_theoretical_model:
-            njoints = robot.pinocchio_model_th.njoints
-        else:
-            njoints = robot.pinocchio_model.njoints
-        self.f_external = pin.StdVec_Force()
-        self.f_external.extend([pin.Force.Zero() for _ in range(njoints - 1)])
-
-        # Create a unique temporary directory, specific to this viewer instance
-        self._tempdir = tempfile.mkdtemp(
-            prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
 
         # Load the robot
         self._setup(robot, self.robot_color)
@@ -966,7 +967,7 @@ class Viewer:
                     webbrowser.get()
                     webbrowser.open(viewer_url, new=2, autoraise=True)
                 except webbrowser.Error:  # Fail if not browser is available
-                    logger.warning(
+                    LOGGER.warning(
                         "No browser available for display. Please install one "
                         "manually.")
                     return  # Skip waiting since there is nothing to wait for
@@ -1100,7 +1101,7 @@ class Viewer:
             # Consider that the robot name is now available, no matter
             # whether the robot has actually been deleted or not.
             Viewer._backend_robot_names.discard(self.robot_name)
-            Viewer._backend_robot_colors.pop(self.robot_name)
+            Viewer._backend_robot_colors.pop(self.robot_name, None)
             if self.delete_robot_on_close:
                 Viewer._delete_nodes_viewer([
                     self._client.visual_group,
@@ -1166,24 +1167,29 @@ class Viewer:
         if backend.startswith('panda3d'):
             # Instantiate client with onscreen rendering capability enabled.
             # Note that it fallbacks to software rendering if necessary.
-            if backend == 'panda3d-qt':
-                from .panda3d.panda3d_widget import Panda3dQWidget
-                client = Panda3dQWidget()
-                proc = _ProcessWrapper(client, close_at_exit)
-            elif backend == 'panda3d-sync':
-                client = Panda3dApp()
-                proc = _ProcessWrapper(client, close_at_exit)
-            else:
-                client = Panda3dViewer(window_type='onscreen',
-                                       window_title=Viewer.window_name)
-                proc = _ProcessWrapper(client._app, close_at_exit)
+            try:
+                if backend == 'panda3d-qt':
+                    from .panda3d.panda3d_widget import Panda3dQWidget
+                    client = Panda3dQWidget()
+                    proc = _ProcessWrapper(client, close_at_exit)
+                elif backend == 'panda3d-sync':
+                    client = Panda3dApp()
+                    proc = _ProcessWrapper(client, close_at_exit)
+                else:
+                    client = Panda3dViewer(window_type='onscreen',
+                                           window_title=Viewer.window_name)
+                    proc = _ProcessWrapper(client._app, close_at_exit)
+            except RuntimeError as e:
+                raise RuntimeError(
+                    "Something went wrong. Impossible to instantiate viewer "
+                    "backend.") from e
 
             # The gui is the client itself
             client.gui = client
         else:
             # List of connections likely to correspond to Meshcat servers
             import psutil
-            meshcat_candidate_conn = {}
+            meshcat_candidate_conn = []
             for pid in psutil.pids():
                 try:
                     proc_info = Process(pid)
@@ -1194,7 +1200,7 @@ class Viewer:
                         cmdline = proc_info.cmdline()
                         if cmdline and ('python' in cmdline[0].lower() or
                                         'meshcat' in cmdline[-1]):
-                            meshcat_candidate_conn[pid] = conn
+                            meshcat_candidate_conn.append(conn)
                 except (psutil.AccessDenied,
                         psutil.ZombieProcess,
                         psutil.NoSuchProcess):
@@ -1212,11 +1218,13 @@ class Viewer:
                 except (NameError, AttributeError):
                     pass  # No Ipython kernel running
 
-            # Use the first port responding to zmq request, if any
+            # Use the first port responding to zmq request, if any.
+            # Sorting connections to scan most likely ports first.
             import zmq
             zmq_url = None
             context = zmq.Context.instance()
-            for pid, conn in meshcat_candidate_conn.items():
+            for conn in sorted(
+                    meshcat_candidate_conn, key=lambda conn: conn.laddr.port):
                 try:
                     # Note that the timeout must be long enough to give enough
                     # time to the server to respond, but not to long to avoid
@@ -1243,7 +1251,7 @@ class Viewer:
             client = MeshcatWrapper(zmq_url)
             server_proc: Union[Process, multiprocessing.Process]
             if client.server_proc is None:
-                server_proc = Process(pid)
+                server_proc = Process(conn.pid)
             else:
                 server_proc = client.server_proc
             proc = _ProcessWrapper(server_proc, close_at_exit)
@@ -1392,7 +1400,7 @@ class Viewer:
         if Viewer.backend.startswith('panda3d'):
             Viewer._backend_obj.gui.set_clock(t)
         else:
-            logger.warning("Adding clock is only available for Panda3d.")
+            LOGGER.warning("Adding clock is only available for Panda3d.")
 
     @staticmethod
     @_must_be_open
@@ -1470,9 +1478,15 @@ class Viewer:
         if position is None or rotation is None or relative == 'camera':
             position_camera, rotation_camera = Viewer.get_camera_transform()
         if position is None:
-            position = position_camera
+            if relative is not None:
+                position = (0.0, 0.0, 0.0)
+            else:
+                position = position_camera
         if rotation is None:
-            rotation = rotation_camera
+            if relative == 'camera':
+                rotation = (0.0, 0.0, 0.0)
+            else:
+                rotation = rotation_camera
         position, rotation = np.asarray(position), np.asarray(rotation)
 
         # Compute associated rotation matrix
@@ -1497,9 +1511,9 @@ class Viewer:
 
         # Compute the absolute transformation
         if relative is not None:
-            H_abs = SE3(rotation_mat, position)
-            H_abs = H_orig * H_abs
+            H_abs = H_orig * SE3(rotation_mat, position)
             position = H_abs.translation
+            rotation = matrixToRpy(H_abs.rotation)
             Viewer.set_camera_transform(None, position, rotation)
             return
 
@@ -1602,8 +1616,9 @@ class Viewer:
 
     @_must_be_open
     def attach_camera(self,
-                      frame: Union[str, int],
-                      camera_xyzrpy: Optional[CameraPoseType] = (None, None),
+                      relative: Union[str, int],
+                      position: Optional[Tuple3FType] = None,
+                      rotation: Optional[Tuple3FType] = None,
                       lock_relative_pose: Optional[bool] = None) -> None:
         """Attach the camera to a given robot frame.
 
@@ -1612,31 +1627,35 @@ class Viewer:
         then the relative camera pose wrt the frame is locked, otherwise the
         camera is only constrained to look at the frame.
 
-        :param frame: Name or index of the frame of the robot to follow with
-                      the camera.
-        :param camera_xyzrpy: Tuple position [X, Y, Z], rotation
-                              [Roll, Pitch, Yaw] corresponding to the relative
-                              pose of the camera wrt the tracked frame. It will
-                              be used to initialize the camera pose if relative
-                              pose is not locked. `None` to disable.
-                              Optional: Disable by default.
+        :param relative: Name or index of the frame of the robot to follow with
+                         the camera.
+        :param position: Relative position [X, Y, Z] of the camera wrt the
+                         tracked frame. It is used to initialize the camera
+                         pose if relative pose is not locked. `None` to
+                         disable.
+                         Optional: Disable by default.
+        :param rotation: Relative orientation [Roll, Pitch, Yaw] of the camera
+                         wrt the tracked frame. It is used to initialize the
+                         camera pose if relative pose is not locked. `None` to
+                         disable.
+                         Optional: Disable by default.
         :param lock_relative_pose: Whether to lock the relative pose of the
                                    camera wrt tracked frame.
                                    Optional: False by default iif Panda3d
                                    backend is used.
         """
         # Make sure one is not trying to track the camera itself
-        assert frame != 'camera', "Impossible to track the camera itself !"
+        assert relative != 'camera', "Impossible to track the camera itself !"
 
         # Assert(s) for type checker
         assert Viewer.backend is not None
 
         # Make sure the frame exists and it is not the universe itself
-        if isinstance(frame, str):
-            frame = self._client.model.getFrameId(frame)
-        if frame == self._client.model.nframes:
+        if isinstance(relative, str):
+            relative = self._client.model.getFrameId(relative)
+        if relative == self._client.model.nframes:
             raise ValueError("Trying to attach camera to non-existing frame.")
-        assert frame != 0, "Impossible to track the universe !"
+        assert relative != 0, "Impossible to track the universe !"
 
         # Handle of default camera lock mode
         if lock_relative_pose is None:
@@ -1648,25 +1667,26 @@ class Viewer:
                 "Not locking camera pose is only supported by Panda3d.")
 
         # Handling of default camera pose
-        if lock_relative_pose and camera_xyzrpy is None:
+        camera_xyzrpy: Optional[
+            Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]] = None
+        if lock_relative_pose:
             camera_xyzrpy = (None, None)
 
         # Set default relative camera pose if position/orientation undefined
-        if camera_xyzrpy is not None:
-            camera_xyz, camera_rpy = camera_xyzrpy
-            if camera_xyz is None:
-                camera_xyz = DEFAULT_CAMERA_XYZRPY_REL[0]
-            if camera_rpy is None:
-                camera_rpy = DEFAULT_CAMERA_XYZRPY_REL[1]
-            camera_xyzrpy = (camera_xyz, camera_rpy)
+        if lock_relative_pose or position is not None or rotation is not None:
+            if position is None:
+                position = DEFAULT_CAMERA_XYZRPY_REL[0]
+            if rotation is None:
+                rotation = DEFAULT_CAMERA_XYZRPY_REL[1]
+            camera_xyzrpy = (position, rotation)
 
         # Set camera pose if relative pose is not locked but provided
         if not lock_relative_pose and camera_xyzrpy is not None:
-            self.set_camera_transform(*camera_xyzrpy, frame)
+            self.set_camera_transform(*camera_xyzrpy, relative)
             camera_xyzrpy = None
 
         Viewer._camera_travelling = {
-            'viewer': self, 'frame': frame, 'pose': camera_xyzrpy}
+            'viewer': self, 'frame': relative, 'pose': camera_xyzrpy}
 
     @staticmethod
     def detach_camera() -> None:
@@ -1700,7 +1720,7 @@ class Viewer:
 
         # Return early if this method is not supported by the current backend
         if not Viewer.backend.startswith('panda3d'):
-            logger.warning("This method is only supported by Panda3d.")
+            LOGGER.warning("This method is only supported by Panda3d.")
             return
 
         # Sanitize user-specified color code
@@ -1750,7 +1770,7 @@ class Viewer:
 
         # Return early if this method is not supported by the current backend
         if not Viewer.backend.startswith('panda3d'):
-            logger.warning("This method is only supported by Panda3d.")
+            LOGGER.warning("This method is only supported by Panda3d.")
             return
 
         # Restore tile ground if heightmap is not specified
@@ -1802,6 +1822,10 @@ class Viewer:
             # Get raw buffer image instead of numpy array for efficiency
             buffer = Viewer._backend_obj.gui.get_screenshot(
                 requested_format='RGB', raw=True)
+            if buffer is None:
+                raise RuntimeError(
+                    "Impossible to capture frame. There is something wrong "
+                    "with the graphics stack on this machine.")
 
             # Return raw data if requested
             if raw_data:
@@ -2536,7 +2560,7 @@ class Viewer:
                     import zmq  # pylint: disable=import-outside-toplevel
                     if isinstance(e, (zmq.error.Again, zmq.error.ZMQError)):
                         return
-                raise e
+                raise
 
         # Restore Viewer's state if it has been altered
         if Viewer.is_alive():

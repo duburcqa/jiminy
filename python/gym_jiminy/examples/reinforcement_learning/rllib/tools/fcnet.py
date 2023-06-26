@@ -148,7 +148,7 @@ class FrameStackingModel(TFModelV2):
 
         # Define some proxies for convenience
         sensor_space_start = 0
-        for field, space in obs_space.original_space.spaces.items():
+        for field, space in obs_space.original_space.items():
             if field != "sensors":
                 sensor_space_start += flatdim(space)
             else:

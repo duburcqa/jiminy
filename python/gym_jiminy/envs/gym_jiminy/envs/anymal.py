@@ -1,12 +1,19 @@
 """ TODO: Write documentation.
 """
 import os
+import sys
+from typing import Any
+
 import numpy as np
-from pkg_resources import resource_filename
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.controllers import PDController
+from gym_jiminy.common.blocks import PDController, MahonyFilter
 from gym_jiminy.common.pipeline import build_pipeline
+
+if sys.version_info < (3, 9):
+    from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Default simulation duration (:float [s])
@@ -23,6 +30,10 @@ PID_KP = np.array([1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0,
 # PID derivative gains (one per actuated joint)
 PID_KD = np.array([0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
                    0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
+
+# Mahony filter proportional and derivative gains
+MAHONY_KP = 1.0
+MAHONY_KI = 0.1
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
@@ -42,25 +53,25 @@ STD_RATIO = {
 class ANYmalJiminyEnv(WalkerJiminyEnv):
     """ TODO: Write documentation.
     """
-    def __init__(self, debug: bool = False, **kwargs):
+    def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         """
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
         :param kwargs: Keyword arguments to forward to `Simulator` and
-                       `BaseJiminyEnv` constructors.
+                       `WalkerJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
-        data_root_dir = resource_filename(
-            "gym_jiminy.envs", "data/quadrupedal_robots/anymal")
-        urdf_path = os.path.join(data_root_dir, "anymal.urdf")
+        data_dir = str(
+            files("gym_jiminy.envs") / "data/quadrupedal_robots/anymal")
+        urdf_path = os.path.join(data_dir, "anymal.urdf")
 
         # Initialize the walker environment
         super().__init__(
             urdf_path=urdf_path,
-            mesh_path=data_root_dir,
+            mesh_path_dir=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
@@ -68,19 +79,31 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
                 **kwargs})
 
 
-ANYmalPDControlJiminyEnv = build_pipeline(**{
-    'env_config': {
-        'env_class': ANYmalJiminyEnv
-    },
-    'blocks_config': [{
-        'block_class': PDController,
-        'block_kwargs': {
-            'update_ratio': HLC_TO_LLC_RATIO,
-            'pid_kp': PID_KP,
-            'pid_kd': PID_KD
-        },
-        'wrapper_kwargs': {
-            'augment_observation': False
-        }}
+ANYmalPDControlJiminyEnv = build_pipeline(
+    env_config=dict(
+        env_class=ANYmalJiminyEnv
+    ),
+    blocks_config=[
+        dict(
+            block_class=PDController,
+            block_kwargs=dict(
+                update_ratio=HLC_TO_LLC_RATIO,
+                order=1,
+                kp=PID_KP,
+                kd=PID_KD,
+                soft_bounds_margin=0.0
+            ),
+            wrapper_kwargs=dict(
+                augment_observation=False
+            )
+        ), dict(
+            block_class=MahonyFilter,
+            block_kwargs=dict(
+                update_ratio=1,
+                exact_init=False,
+                kp=MAHONY_KP,
+                ki=MAHONY_KI,
+            )
+        )
     ]
-})
+)

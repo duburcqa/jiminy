@@ -3,20 +3,20 @@
 import logging
 from typing import Union, ValuesView
 
-import gym
+import gymnasium as gym
 import tree
 import numpy as np
 import numba as nb
 
 import jiminy_py.core as jiminy
 
-from .spaces import FieldNested, DataNested, SpaceNested, zeros
+from .spaces import FieldNested, DataNested, zeros
 
 
 logger = logging.getLogger(__name__)
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, inline='always')
 def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """Check if 't' is multiple of 'dt' at a given precision 'eps'.
 
@@ -34,9 +34,9 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     return False
 
 
-def get_fieldnames(structure: Union[SpaceNested, DataNested],
+def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
                    namespace: str = "") -> FieldNested:
-    """Generate generic fieldnames from `gym..Space`, so that it can be used
+    """Generate generic fieldnames from `gym.Space`, so that it can be used
     in conjunction with `register_variables`, to register any value from gym
     Space to the telemetry conveniently.
 
@@ -97,7 +97,7 @@ def register_variables(controller: jiminy.AbstractController,
     for fieldname, value in zip(
             tree.flatten_up_to(data, fieldnames),
             tree.flatten(data)):
-        if np.issubsctype(value, np.float64):
+        if any(np.issubsctype(value, type) for type in (np.float64, np.int64)):
             assert isinstance(fieldname, list), (
                 f"'fieldname' ({fieldname}) should be a list of strings.")
             hresult = controller.register_variables(fieldname, value)
@@ -105,8 +105,8 @@ def register_variables(controller: jiminy.AbstractController,
                 return False
         else:
             logger.warning(
-                "Variable of dtype '%s' cannot be registered to "
-                "the telemetry and must have dtype 'np.float64' instead.",
+                "Variables of dtype '%s' cannot be registered to the "
+                "telemetry. It must have dtype 'np.float64' or 'np.int64'.",
                 value.dtype)
             return False
     return True

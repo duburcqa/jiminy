@@ -1,9 +1,18 @@
 # pylint: disable=missing-module-docstring
 
-from .generic_bases import (ObserverInterface,
+from .generic_bases import (DT_EPS,
+                            ObsT,
+                            ActT,
+                            BaseObsT,
+                            BaseActT,
+                            InfoType,
+                            SensorsDataType,
+                            EngineObsType,
+                            ObserverInterface,
                             ControllerInterface,
-                            ObserverControllerInterface)
-from .block_bases import (BlockInterface,
+                            JiminyEnvInterface)
+from .block_bases import (BlockStateT,
+                          BlockInterface,
                           BaseObserverBlock,
                           BaseControllerBlock)
 from .pipeline_bases import (BasePipelineWrapper,
@@ -12,9 +21,18 @@ from .pipeline_bases import (BasePipelineWrapper,
 
 
 __all__ = [
+    'DT_EPS',
+    'ObsT',
+    'ActT',
+    'BaseObsT',
+    'BaseActT',
+    'BlockStateT',
+    'InfoType',
+    'SensorsDataType',
+    'EngineObsType',
     'ObserverInterface',
     'ControllerInterface',
-    'ObserverControllerInterface',
+    'JiminyEnvInterface',
     'BlockInterface',
     'BaseObserverBlock',
     'BaseControllerBlock',

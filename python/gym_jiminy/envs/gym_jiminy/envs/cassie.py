@@ -1,8 +1,10 @@
 import os
+import sys
 import math
-import numpy as np
 from pathlib import Path
-from pkg_resources import resource_filename
+from typing import Any, Sequence, Union
+
+import numpy as np
 
 from jiminy_py.core import (joint_t,
                             get_joint_type,
@@ -10,13 +12,16 @@ from jiminy_py.core import (joint_t,
                             DistanceConstraint,
                             Robot)
 from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
-from pinocchio import buildReducedModel
+from pinocchio import neutral, SE3, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.controllers import PDController
+from gym_jiminy.common.blocks import PDController, MahonyFilter
 from gym_jiminy.common.pipeline import build_pipeline
 
-from pinocchio import neutral, SE3
+if sys.version_info < (3, 9):
+    from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Parameters of neutral configuration
@@ -42,6 +47,10 @@ PID_KP = np.array([50.0, 50.0, 50.0, 80.0, 8.0,
 PID_KD = np.array([0.01, 0.02, 0.02, 0.03, 0.02,
                    0.01, 0.02, 0.02, 0.03, 0.02])
 
+# Mahony filter proportional and derivative gains
+MAHONY_KP = 1.0
+MAHONY_KI = 0.1
+
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
     'direction': 0.0,
@@ -60,24 +69,23 @@ STD_RATIO = {
 class CassieJiminyEnv(WalkerJiminyEnv):
     """ TODO: Write documentation.
     """
-    def __init__(self, debug: bool = False, **kwargs):
+    def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         """
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
         :param kwargs: Keyword arguments to forward to `Simulator` and
-                       `BaseJiminyEnv` constructors.
+                       `WalkerJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
-        data_root_dir = resource_filename(
-            "gym_jiminy.envs", "data/bipedal_robots/cassie")
-        urdf_path = os.path.join(data_root_dir, "cassie.urdf")
+        data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/cassie")
+        urdf_path = os.path.join(data_dir, "cassie.urdf")
 
         # Load the full models
         pinocchio_model, collision_model, visual_model = \
             build_models_from_urdf(urdf_path,
                                    has_freeflyer=True,
                                    build_visual_model=True,
-                                   mesh_package_dirs=[data_root_dir])
+                                   mesh_package_dirs=[data_dir])
 
         # Fix passive rotary joints with spring.
         # Alternatively, it would be more realistic to model them using the
@@ -94,7 +102,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         # Build the robot and load the hardware
         robot = BaseJiminyRobot()
         Robot.initialize(robot, pinocchio_model, collision_model, visual_model)
-        robot._urdf_path_orig = urdf_path
+        robot._urdf_path_orig = urdf_path  # type: ignore[attr-defined]
         hardware_path = str(Path(urdf_path).with_suffix('')) + '_hardware.toml'
         load_hardware_description_file(
             robot,
@@ -106,10 +114,10 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         super().__init__(
             robot=robot,
             urdf_path=urdf_path,
-            mesh_path=data_root_dir,
+            mesh_path_dir=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
@@ -147,20 +155,25 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             name for name in self.robot.contact_frames_names
             if int(name.split("_")[-1]) in (0, 1, 4, 5)])
 
-    def _neutral(self):
-        def set_joint_rotary_position(joint_name, q_full, theta):
+    def _neutral(self) -> np.ndarray:
+        def set_joint_rotary_position(joint_name: str,
+                                      q_full: np.ndarray,
+                                      theta: float) -> None:
+            """Helper to set the configuration of a 1-DoF revolute joint.
+            """
             joint_idx = self.robot.pinocchio_model.getJointId(joint_name)
             joint = self.robot.pinocchio_model.joints[joint_idx]
             joint_type = get_joint_type(
                 self.robot.pinocchio_model, joint_idx)
+            q_joint: Union[Sequence[float], float]
             if joint_type == joint_t.ROTARY_UNBOUNDED:
-                q_joint = np.array([math.cos(theta), math.sin(theta)])
+                q_joint = (math.cos(theta), math.sin(theta))
             else:
                 q_joint = theta
             q_full[joint.idx_q + np.arange(joint.nq)] = q_joint
 
         qpos = neutral(self.robot.pinocchio_model)
-        for s in ['left', 'right']:
+        for s in ('left', 'right'):
             set_joint_rotary_position(
                 f'hip_flexion_{s}', qpos, DEFAULT_SAGITTAL_HIP_ANGLE)
             set_joint_rotary_position(
@@ -173,19 +186,31 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         return qpos
 
 
-CassiePDControlJiminyEnv = build_pipeline(**{
-    'env_config': {
-        'env_class': CassieJiminyEnv
-    },
-    'blocks_config': [{
-        'block_class': PDController,
-        'block_kwargs': {
-            'update_ratio': HLC_TO_LLC_RATIO,
-            'pid_kp': PID_KP,
-            'pid_kd': PID_KD
-        },
-        'wrapper_kwargs': {
-            'augment_observation': False
-        }}
+CassiePDControlJiminyEnv = build_pipeline(
+    env_config=dict(
+        env_class=CassieJiminyEnv
+    ),
+    blocks_config=[
+        dict(
+            block_class=PDController,
+            block_kwargs=dict(
+                update_ratio=HLC_TO_LLC_RATIO,
+                order=1,
+                kp=PID_KP,
+                kd=PID_KD,
+                soft_bounds_margin=0.0
+            ),
+            wrapper_kwargs=dict(
+                augment_observation=False
+            )
+        ), dict(
+            block_class=MahonyFilter,
+            block_kwargs=dict(
+                update_ratio=1,
+                exact_init=False,
+                kp=MAHONY_KP,
+                ki=MAHONY_KI
+            )
+        )
     ]
-})
+)

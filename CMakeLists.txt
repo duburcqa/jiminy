@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.12.4)
 
 # Set the build version
-set(BUILD_VERSION 1.7.15)
+set(BUILD_VERSION 1.7.16)
 
 # Set compatibility
 set(COMPATIBILITY_VERSION SameMinorVersion)
@@ -34,7 +34,7 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 # Set the compilation flags.
 # Not using `add_compile_options` because it does not propagate to external projects.
 set(CMAKE_CXX_FLAGS "$ENV{CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS}")
-if(WIN32)
+if(MSVC)
     string(REGEX MATCH "/arch:[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
     if(CMAKE_CXX_ARCH MATCHES "AVX[0-9]+")
         # Eigen<3.4 relies on __FMA__ definition to detect if FMA is available,

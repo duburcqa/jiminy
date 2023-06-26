@@ -394,7 +394,7 @@ namespace python
                             float64_t   const &)
                     >(&EngineMultiRobot::registerViscoelasticDirectionalForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2", "frame_name_1", "frame_name_2",
-		     "stiffness", "damping", bp::arg("rest_length") = 0.0))
+                     "stiffness", "damping", bp::arg("rest_length") = 0.0))
                 .def("register_viscoelastic_directional_force_coupling",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
@@ -442,8 +442,8 @@ namespace python
                 .ADD_PROPERTY_GET_WITH_POLICY("is_simulation_running",
                                               &EngineMultiRobot::getIsSimulationRunning,
                                               bp::return_value_policy<result_converter<false> >())
-                .ADD_PROPERTY_GET("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
-                .ADD_PROPERTY_GET("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
+                .add_static_property("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
+                .add_static_property("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
                 ;
         }
 
@@ -644,16 +644,29 @@ namespace python
                 }
                 else if (endsWith(key, ".pinocchio_model"))
                 {
-                    pinocchio::Model model;
-                    ::jiminy::loadFromBinary<pinocchio::Model>(model, value);
-                    constants[key] = model;
+                    try
+                    {
+                        pinocchio::Model model;
+                        ::jiminy::loadFromBinary<pinocchio::Model>(model, value);
+                        constants[key] = model;
+                    }
+                    catch(const std::exception& e)
+                    {
+                        PRINT_ERROR("Failed to load pinocchio model from log.");
+                    }
                 }
                 else if (endsWith(key, ".visual_model") || endsWith(key, ".collision_model"))
                 {
-                    pinocchio::GeometryModel geometryModel;
-                    ::jiminy::loadFromBinary<pinocchio::GeometryModel>(geometryModel, value);
-                    constants[key] = geometryModel;
-
+                    try
+                    {
+                        pinocchio::GeometryModel geometryModel;
+                        ::jiminy::loadFromBinary<pinocchio::GeometryModel>(geometryModel, value);
+                        constants[key] = geometryModel;
+                    }
+                    catch(const std::exception& e)
+                    {
+                        PRINT_ERROR("Failed to load collision and/or visual model from log.");
+                    }
                 }
                 else if (endsWith(key, ".mesh_package_dirs"))
                 {

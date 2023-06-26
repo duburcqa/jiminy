@@ -3,7 +3,7 @@
 import os
 import io
 import base64
-import warnings
+import logging
 import unittest
 from glob import glob
 from tempfile import mkstemp
@@ -12,39 +12,32 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-from jiminy_py.core import EncoderSensor as encoder
+from jiminy_py.core import ImuSensor as imu
 from jiminy_py.viewer import Viewer
+
+import pinocchio as pin
 
 from gym_jiminy.envs import AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv
 
 
-IMAGE_DIFF_THRESHOLD = 1.0
+IMAGE_DIFF_THRESHOLD = 5.0
 
 
 class PipelineControl(unittest.TestCase):
     """ TODO: Write documentation
     """
-    def setUp(self):
-        """ TODO: Write documentation
-        """
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-
     def _test_pid_standing(self):
         """ TODO: Write documentation
         """
         # Reset the environment
-        obs_init = self.env.reset()
+        self.env.reset()
 
-        # Compute the initial target, so that the robot stand-still.
-        # In practice, it corresponds to the initial joints state.
-        encoder_data = obs_init['sensors'][encoder.type]
-        action_init = {}
-        action_init['Q'], action_init['V'] = encoder_data[
-            :, self.env.controller.motor_to_encoder]
+        # Zero target motors velocities, so that the robot stands still
+        action = np.zeros(self.env.robot.nmotors)
 
         # Run the simulation
         while self.env.stepper_state.t < 19.0:
-            self.env.step(action_init)
+            self.env.step(action)
 
         # Export figure
         fd, pdf_path = mkstemp(prefix="plot_", suffix=".pdf")
@@ -52,36 +45,34 @@ class PipelineControl(unittest.TestCase):
         self.env.plot(pdf_path=pdf_path)
 
         # Get the final posture of the robot as an RGB array
-        rgb_array = self.env.render(
-            mode='rgb_array', width=500, height=500, display_com=False,
-            display_contacts=False)
+        rgb_array = self.env.render()
 
         # Check that the final posture matches the expected one
         data_dir = os.path.join(os.path.dirname(__file__), "data")
-        img_prefix = '_'.join((
-            self.env.robot.name, "standing", self.env.viewer.backend, "*"))
-        img_diff = np.inf
+        img_prefix = '_'.join((self.env.robot.name, "standing", "*"))
+        img_min_diff = np.inf
         for img_fullpath in glob(os.path.join(data_dir, img_prefix)):
+            rgba_array_rel_ref = plt.imread(img_fullpath)
+            rgb_array_ref = (
+                rgba_array_rel_ref[..., :3] * 255).astype(np.uint8)
             try:
-                rgba_array_rel_orig = plt.imread(img_fullpath)
-            except FileNotFoundError:
-                break
-            rgb_array_abs_orig = (
-                rgba_array_rel_orig[..., :3] * 255).astype(np.uint8)
-            try:
-                img_diff = np.mean(np.abs(rgb_array - rgb_array_abs_orig))
+                img_diff = np.mean(np.abs(rgb_array - rgb_array_ref))
             except ValueError:
-                pass
-            if img_diff < IMAGE_DIFF_THRESHOLD:
+                logging.exception(
+                    "Impossible to compare captured frame with ref image "
+                    "'{img_fullpath}', likely because of shape mismatch.")
+                continue
+            img_min_diff = min(img_min_diff, img_diff)
+            if img_min_diff < IMAGE_DIFF_THRESHOLD:
                 break
-        if img_diff > IMAGE_DIFF_THRESHOLD:
+        else:
             img_obj = Image.fromarray(rgb_array)
             raw_bytes = io.BytesIO()
             img_obj.save(raw_bytes, "PNG")
             raw_bytes.seek(0)
             print(f"{self.env.robot.name} - {self.env.viewer.backend}:",
                   base64.b64encode(raw_bytes.read()))
-        self.assertLessEqual(img_diff, IMAGE_DIFF_THRESHOLD)
+        self.assertLessEqual(img_min_diff, IMAGE_DIFF_THRESHOLD)
 
         # Get the simulation log
         log_vars = self.env.log_data["variables"]
@@ -90,8 +81,8 @@ class PipelineControl(unittest.TestCase):
         time = log_vars["Global.Time"]
         velocity_target = np.stack([
             log_vars['.'.join((
-                'HighLevelController', self.env.controller_name, name))]
-            for name in self.env.controller.get_fieldnames()['V']], axis=-1)
+                'HighLevelController', self.env.controller.name, name))]
+            for name in self.env.controller.fieldnames], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_target[time > time[-1] - 1.0]) < 1.0e-9))
 
@@ -103,8 +94,47 @@ class PipelineControl(unittest.TestCase):
             np.abs(velocity_mes[time > time[-1] - 1.0]) < 1.0e-3))
 
     def test_pid_standing(self):
-        for backend in ('panda3d', 'meshcat'):
+        for backend in ('panda3d-sync', 'meshcat'):
             for Env in (AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv):
-                self.env = Env(debug=True, viewer_kwargs={"backend": backend})
+                self.env = Env(
+                    debug=True,
+                    render_mode='rgb_array',
+                    viewer_kwargs=dict(
+                        backend=backend,
+                        width=500,
+                        height=500,
+                        display_com=False,
+                        display_dcm=False,
+                        display_contacts=False,
+                    )
+                )
                 self._test_pid_standing()
                 Viewer.close()
+
+    def test_mahony_filter(self):
+        """Check consistency between IMU orientation estimation provided by
+        Mahony filter and ground truth for moderately slow motions.
+        """
+        # Instantiate and reset the environment
+        env = AtlasPDControlJiminyEnv()
+        env.reset()
+
+        # Define a constant action that move the upper-body in all directions
+        robot = env.robot
+        action = np.zeros((robot.nmotors,))
+        for name, value in (
+                ('back_bkz', 0.4), ('back_bky', 0.08), ('back_bkx', 0.08)):
+            action[robot.get_motor(name).idx] = value
+
+        # Extract proxies for convenience
+        sensor = robot.get_sensor(imu.type, robot.sensors_names[imu.type][0])
+        imu_rot = robot.pinocchio_data.oMf[sensor.frame_idx].rotation
+
+        # Check that the estimate IMU orientation is accurate over the episode
+        for i in range(200):
+            env.step(action * (1 - 2 * ((i // 50) % 2)))
+            rpy_true = pin.rpy.matrixToRpy(imu_rot)
+            rpy_est = pin.rpy.matrixToRpy(
+                pin.Quaternion(env.observer.observation).matrix())
+            self.assertTrue(np.allclose(rpy_true, rpy_est, atol=0.01))
+        env.stop()

@@ -1,19 +1,24 @@
 import os
-import numpy as np
+import sys
 from pathlib import Path
-from pkg_resources import resource_filename
 from typing import Any
+
+import numpy as np
 
 from jiminy_py.core import build_models_from_urdf, Robot
 from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
-from pinocchio import buildReducedModel
+from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
+from pinocchio import neutral, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.controllers import PDController
+from gym_jiminy.common.blocks import PDController, MahonyFilter
 from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 
-from pinocchio import neutral
+if sys.version_info < (3, 9):
+    from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])
@@ -43,7 +48,7 @@ PID_REDUCED_KD = np.array([
 
 PID_FULL_KP = np.array([
     # Neck: [Y]
-    1000.0,
+    100.0,
     # Back: [Z, Y, X]
     5000.0, 8000.0, 5000.0,
     # Left arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
@@ -64,6 +69,11 @@ PID_FULL_KD = np.array([
     # Lower body motors
     *PID_REDUCED_KD])
 
+# Mahony filter proportional and derivative gains
+# See: https://cas.mines-paristech.fr/~petit/papers/ral22/main.pdf
+MAHONY_KP = 0.75
+MAHONY_KI = 0.057
+
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
     'direction': 0.0,
@@ -79,7 +89,7 @@ STD_RATIO = {
 }
 
 
-def _cleanup_contact_points(env: "AtlasJiminyEnv") -> None:
+def _cleanup_contact_points(env: WalkerJiminyEnv) -> None:
     contact_frames_idx = env.robot.contact_frames_idx
     contact_frames_names = env.robot.contact_frames_names
     num_contacts = int(len(env.robot.contact_frames_idx) // 2)
@@ -104,20 +114,23 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
         :param kwargs: Keyword arguments to forward to `Simulator` and
-                       `BaseJiminyEnv` constructors.
+                       `WalkerJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
-        data_root_dir = resource_filename(
-            "gym_jiminy.envs", "data/bipedal_robots/atlas")
-        urdf_path = os.path.join(data_root_dir, "atlas_v4.urdf")
+        data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
+        urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
+
+        # Override default camera pose to change the reference frame
+        kwargs.setdefault("viewer_kwargs", {}).setdefault(
+            "camera_pose", (*DEFAULT_CAMERA_XYZRPY_REL, 'utorso'))
 
         # Initialize the walker environment
         super().__init__(
             urdf_path=urdf_path,
-            mesh_path=data_root_dir,
+            mesh_path_dir=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
@@ -127,8 +140,10 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         # Remove irrelevant contact points
         _cleanup_contact_points(self)
 
-    def _neutral(self):
-        def joint_position_idx(joint_name):
+    def _neutral(self) -> np.ndarray:
+        def joint_position_idx(joint_name: str) -> int:
+            """Helper to get the start index from a joint index.
+            """
             joint_idx = self.robot.pinocchio_model.getJointId(joint_name)
             return self.robot.pinocchio_model.joints[joint_idx].idx_q
 
@@ -149,19 +164,21 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
 class AtlasReducedJiminyEnv(WalkerJiminyEnv):
     def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         # Get the urdf and mesh paths
-        data_root_dir = resource_filename(
-            "gym_jiminy.envs", "data/bipedal_robots/atlas")
-        urdf_path = os.path.join(data_root_dir, "atlas_v4.urdf")
+        data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
+        urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
 
         # Load the full models
         pinocchio_model, collision_model, visual_model = \
             build_models_from_urdf(urdf_path,
                                    has_freeflyer=True,
                                    build_visual_model=True,
-                                   mesh_package_dirs=[data_root_dir])
+                                   mesh_package_dirs=[data_dir])
 
         # Generate the reference configuration
-        def joint_position_idx(joint_name):
+        def joint_position_idx(joint_name: str) -> int:
+            """Helper to get the start index from a joint index.
+            """
+            nonlocal pinocchio_model
             joint_idx = pinocchio_model.getJointId(joint_name)
             return pinocchio_model.joints[joint_idx].idx_q
 
@@ -188,7 +205,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
         # Build the robot and load the hardware
         robot = BaseJiminyRobot()
         Robot.initialize(robot, pinocchio_model, collision_model, visual_model)
-        robot._urdf_path_orig = urdf_path
+        robot._urdf_path_orig = urdf_path  # type: ignore[attr-defined]
         hardware_path = str(Path(urdf_path).with_suffix('')) + '_hardware.toml'
         load_hardware_description_file(
             robot,
@@ -200,10 +217,10 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
         super().__init__(
             robot=robot,
             urdf_path=urdf_path,
-            mesh_path=data_root_dir,
+            mesh_path_dir=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 simu_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
@@ -214,37 +231,60 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
         _cleanup_contact_points(self)
 
 
-AtlasPDControlJiminyEnv = build_pipeline(**{
-    'env_config': {
-        'env_class': AtlasJiminyEnv
-    },
-    'blocks_config': [{
-        'block_class': PDController,
-        'block_kwargs': {
-            'update_ratio': HLC_TO_LLC_RATIO,
-            'pid_kp': PID_FULL_KP,
-            'pid_kd': PID_FULL_KD
-        },
-        'wrapper_kwargs': {
-            'augment_observation': False
-        }}
+AtlasPDControlJiminyEnv = build_pipeline(
+    env_config=dict(
+        env_class=AtlasJiminyEnv
+    ),
+    blocks_config=[
+        dict(
+            block_class=PDController,
+            block_kwargs=dict(
+                update_ratio=HLC_TO_LLC_RATIO,
+                order=1,
+                kp=PID_FULL_KP,
+                kd=PID_FULL_KD,
+                soft_bounds_margin=0.0
+            ),
+            wrapper_kwargs=dict(
+                augment_observation=False
+            )
+        ), dict(
+            block_class=MahonyFilter,
+            block_kwargs=dict(
+                update_ratio=1,
+                exact_init=False,
+                kp=MAHONY_KP,
+                ki=MAHONY_KI
+            )
+        )
     ]
-})
+)
 
-
-AtlasReducedPDControlJiminyEnv = build_pipeline(**{
-    'env_config': {
-        'env_class': AtlasReducedJiminyEnv
-    },
-    'blocks_config': [{
-        'block_class': PDController,
-        'block_kwargs': {
-            'update_ratio': HLC_TO_LLC_RATIO,
-            'pid_kp': PID_REDUCED_KP,
-            'pid_kd': PID_REDUCED_KD
-        },
-        'wrapper_kwargs': {
-            'augment_observation': False
-        }}
+AtlasReducedPDControlJiminyEnv = build_pipeline(
+    env_config=dict(
+        env_class=AtlasReducedJiminyEnv
+    ),
+    blocks_config=[
+        dict(
+            block_class=PDController,
+            block_kwargs=dict(
+                update_ratio=HLC_TO_LLC_RATIO,
+                order=1,
+                kp=PID_REDUCED_KP,
+                kd=PID_REDUCED_KD,
+                soft_bounds_margin=0.0
+            ),
+            wrapper_kwargs=dict(
+                augment_observation=False
+            )
+        ), dict(
+            block_class=MahonyFilter,
+            block_kwargs=dict(
+                update_ratio=1,
+                exact_init=False,
+                kp=MAHONY_KP,
+                ki=MAHONY_KI
+            )
+        )
     ]
-})
+)

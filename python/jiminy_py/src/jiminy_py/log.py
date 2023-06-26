@@ -19,6 +19,7 @@ from .core import (  # pylint: disable=no-name-in-module
     ContactSensor as contact,
     ForceSensor as force,
     ImuSensor as imu)
+from .robot import _fix_urdf_mesh_path
 from .dynamics import State, TrajectoryDataType
 
 
@@ -112,13 +113,15 @@ def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
 
 def build_robot_from_log(
         log_data: Dict[str, Any],
-        mesh_package_dirs: Union[str, Sequence[str]] = ()
-        ) -> jiminy.Model:
+        mesh_path_dir: Optional[str] = None,
+        mesh_package_dirs: Sequence[str] = (),
+        ) -> jiminy.Robot:
     """Build robot from log.
 
     .. note::
-        model options and `robot.pinocchio_model` are guarantee to be the same
-        as during the simulation until the next call to `reset` method.
+        model options and `robot.pinocchio_model` will be the same as during
+        the simulation until the next call to `reset` method unless the options
+        of the robot that has been restored are overwritten manually.
 
     .. note::
         It returns a valid and fully initialized robot, that can be used to
@@ -131,6 +134,9 @@ def build_robot_from_log(
         archive for now.
 
     :param log_file: Logged data (constants and variables) as a dictionary.
+    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
+                          It which may be necessary to read log generated on a
+                          different environment.
     :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
@@ -139,9 +145,6 @@ def build_robot_from_log(
     :returns: Reconstructed robot, and parsed log data as returned by
               `jiminy_py.log.read_log` method.
     """
-    # Make sure provided 'mesh_package_dirs' is a list
-    mesh_package_dirs = list(mesh_package_dirs)
-
     # Instantiate empty robot
     robot = jiminy.Robot()
 
@@ -167,8 +170,8 @@ def build_robot_from_log(
             ".".join((ENGINE_NAMESPACE, "urdf_file"))]
         has_freeflyer = int(log_constants[
             ".".join((ENGINE_NAMESPACE, "has_freeflyer"))])
-        mesh_package_dirs += log_constants.get(
-            ".".join((ENGINE_NAMESPACE, "mesh_package_dirs")), [])
+        mesh_package_dirs = [*mesh_package_dirs, *log_constants.get(
+            ".".join((ENGINE_NAMESPACE, "mesh_package_dirs")), ())]
 
         # Make sure urdf data is available
         if len(urdf_data) <= 1:
@@ -182,6 +185,12 @@ def build_robot_from_log(
             f"{next(tempfile._get_candidate_names())}.urdf")
         with open(urdf_path, "xb") as f:
             f.write(urdf_data.encode())
+
+        # Fix the mesh paths in the URDF model if requested
+        if mesh_path_dir is not None:
+            fixed_urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_path_dir)
+            os.remove(urdf_path)
+            urdf_path = fixed_urdf_path
 
         # Initialize model
         robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)

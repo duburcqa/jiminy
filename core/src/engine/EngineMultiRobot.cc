@@ -2980,12 +2980,12 @@ namespace jiminy
         return isSimulationRunning_;
     }
 
-    float64_t EngineMultiRobot::getMaxSimulationDuration(void) const
+    float64_t EngineMultiRobot::getMaxSimulationDuration(void)
     {
         return TelemetryRecorder::getMaximumLogTime(getTelemetryTimeUnit());
     }
 
-    float64_t EngineMultiRobot::getTelemetryTimeUnit(void) const
+    float64_t EngineMultiRobot::getTelemetryTimeUnit(void)
     {
         return STEPPER_MIN_TIMESTEP;
     }

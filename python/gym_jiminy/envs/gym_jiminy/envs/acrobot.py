@@ -1,16 +1,22 @@
 import os
-import numpy as np
-from pkg_resources import resource_filename
-from typing import Optional, Tuple, Dict, Any
+import sys
+from typing import Dict, Any, Optional, Tuple
 
-import gym
-from gym.spaces import flatten_space
+import numpy as np
+import gymnasium as gym
+from gymnasium.spaces import flatten_space
 
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from gym_jiminy.common.utils import sample, DataNested
-from gym_jiminy.common.envs import BaseJiminyEnv, BaseJiminyGoalEnv
+from gym_jiminy.common.bases import InfoType, EngineObsType
+from gym_jiminy.common.envs import BaseJiminyEnv
+from gym_jiminy.common.utils import sample, copyto
+
+if sys.version_info < (3, 9):
+    from importlib_resources import files
+else:
+    from importlib.resources import files
 
 
 # Stepper update period
@@ -29,9 +35,9 @@ HEIGHT_REL_GOAL_THRESHOLD_RANGE = (-0.2, 0.98)
 ACTION_NOISE = 0.0
 
 
-class AcrobotJiminyEnv(BaseJiminyEnv):
-    """Implementation of a Gym environment for the Acrobot which is using
-    Jiminy Engine to perform physics computations and Meshcat for rendering.
+class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
+    """Implementation of a Gym environment for the Acrobot using Jiminy for
+    both physics computations and for rendering.
 
     It is a specialization of BaseJiminyEnv. The acrobot is a 2-link
     pendulum with only the second joint actuated. Initially, both links point
@@ -73,18 +79,19 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
                            Optional: True by default.
         :param debug: Whether the debug mode must be enabled.
                       See `BaseJiminyEnv` constructor for details.
-        :param viewer_kwargs: Keyword arguments to override by default whenever
-                              a viewer must be instantiated
-                              See `Simulator` constructor for details.
+        :param viewer_kwargs: Keyword arguments used to override the original
+                              default values whenever a viewer is instantiated.
+                              This is the only way to pass custom arguments to
+                              the viewer when calling `render` method, unlike
+                              `replay` which forwards extra keyword arguments.
+                              Optional: None by default.
         """
         # Backup some input arguments
         self.continuous = continuous
 
         # Get URDF path
-        data_dir = resource_filename(
-            "gym_jiminy.envs", "data/toys_models/acrobot")
-        urdf_path = os.path.join(
-            data_dir, "acrobot.urdf")
+        data_dir = str(files("gym_jiminy.envs") / "data/toys_models/acrobot")
+        urdf_path = os.path.join(data_dir, "acrobot.urdf")
 
         # Instantiate robot
         robot = jiminy.Robot()
@@ -105,26 +112,28 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
 
-        # Overwrite default camera pose
-        simulator.viewer_kwargs.setdefault("camera_xyzrpy", (
-            (0.0, 10.0, 0.0), (np.pi/2, 0.0, np.pi)))
+        # Override the default camera pose to be absolute if none is specified
+        simulator.viewer_kwargs.setdefault("camera_pose", (
+            (0.0, 8.0, 0.0), (np.pi/2, 0.0, np.pi), None))
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
-            self.AVAIL_CTRL = [-motor.command_limit, 0.0, motor.command_limit]
+            command_limit = np.asarray(motor.command_limit)
+            self.AVAIL_CTRL = (-command_limit, np.array(0.0), command_limit)
 
         # Internal parameters used for computing termination condition
         self._tipIdx = robot.pinocchio_model.getFrameId("Tip")
-        self._tipPosZMax = abs(robot.pinocchio_data.oMf[
-            self._tipIdx].translation[[2]])
+        self._tipPosZMax = abs(
+            robot.pinocchio_data.oMf[self._tipIdx].translation[2])
 
         # Configure the learning environment
-        super().__init__(simulator, step_dt=STEP_DT, debug=debug)
+        super().__init__(simulator,
+                         step_dt=STEP_DT,
+                         debug=debug)
 
         # Create some proxies for fast access
-        self.__state_view = (
-            self._observation[:self.robot.nq],
-            self._observation[self.robot.nq:(self.robot.nq+self.robot.nv)])
+        self.__state_view = (self.observation[:self.robot.nq],
+                             self.observation[-self.robot.nv:])
 
     def _setup(self) -> None:
         """ TODO: Write documentation.
@@ -144,9 +153,9 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
         """
-        self.observation_space = flatten_space(self._get_state_space())
+        self.observation_space = flatten_space(self._get_agent_state_space())
 
-    def refresh_observation(self, *args: Any, **kwargs: Any) -> None:
+    def refresh_observation(self, measurement: EngineObsType) -> None:
         """Update the observation based on the current simulation state.
 
         Only the state is observable, while by default, the current time,
@@ -156,10 +165,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
             For goal env, in addition of the current robot state, both the
             desired and achieved goals are observable.
         """
-        if not self.simulator.is_simulation_running:
-            self.__state = (self.system_state.q, self.system_state.v)
-        self.__state_view[0][:] = self.__state[0]
-        self.__state_view[1][:] = self.__state[1]
+        copyto(self.__state_view, measurement[
+            'states']['agent'].values())  # type: ignore[index,union-attr]
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.
@@ -181,129 +188,52 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         See documentation: https://gym.openai.com/envs/Acrobot-v1/.
         """
         theta1, theta2 = sample(
-            scale=THETA_RANDOM_MAX, shape=(2,), rg=self.rg)
+            scale=THETA_RANDOM_MAX, shape=(2,), rg=self.np_random)
         qpos = np.array([np.cos(theta1), np.sin(theta1),
                          np.cos(theta2), np.sin(theta2)])
-        qvel = sample(
-            scale=DTHETA_RANDOM_MAX, shape=(2,), rg=self.rg)
+        qvel = sample(scale=DTHETA_RANDOM_MAX, shape=(2,), rg=self.np_random)
         return qpos, qvel
 
-    def _get_achieved_goal(self) -> np.ndarray:
-        """Compute achieved goal based on current state of the robot.
+    def has_terminated(self) -> Tuple[bool, bool]:
+        """Determine whether the episode is over.
 
-        It corresponds to the position of the tip of the acrobot.
+        It terminates (`done=True`) if the goal has been achieved, namely if
+        the tip of the Acrobot is above 'HEIGHT_REL_DEFAULT_THRESHOLD'. Apart
+        from that, there is no specific truncation condition.
+
+        :returns: done and truncated flags.
         """
+        # Call base implementation
+        done, truncated = super().has_terminated()
+
+        # Check if the agent has successfully solved the task
         tip_transform = self.robot.pinocchio_data.oMf[self._tipIdx]
-        tip_position_z = tip_transform.translation[[2]]
-        return tip_position_z
+        tip_position_z = tip_transform.translation[2]
+        if tip_position_z > HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax:
+            done = True
 
-    def is_done(self) -> bool:  # type: ignore[override]
-        """Determine whether a termination condition has been reached.
+        return done, truncated
 
-        The episode terminates if the goal has been achieved, namely if the tip
-        of the acrobot is above 'HEIGHT_REL_DEFAULT_THRESHOLD'.
-        """
-        # pylint: disable=arguments-differ
-
-        achieved_goal = self._get_achieved_goal()
-        desired_goal = HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax
-        return bool(achieved_goal > desired_goal)
-
-    def compute_command(self,
-                        measure: DataNested,
-                        action: np.ndarray
-                        ) -> np.ndarray:
+    def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
         Convert a discrete action into its actual value if necessary, then add
         noise to the action is enable.
 
-        :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
-        # Call base implementation
-        action = super().compute_command(measure, action)
-
-        # Compute the actual torque to apply
         if not self.continuous:
-            action = self.AVAIL_CTRL[round(action[()])]
+            action = self.AVAIL_CTRL[action]
         if ACTION_NOISE > 0.0:
-            action += sample(scale=ACTION_NOISE, rg=self.rg)
-
+            action += sample(scale=ACTION_NOISE, rg=self.np_random)
         return action
 
-    def compute_reward(self,  # type: ignore[override]
-                       info: Dict[str, Any]) -> float:
+    def compute_reward(self,
+                       done: bool,
+                       truncated: bool,
+                       info: InfoType) -> float:
         """Compute reward at current episode state.
 
         Get a small negative reward till success.
         """
-        # pylint: disable=arguments-differ
-
-        if self.is_done():
-            reward = 0.0
-        else:
-            reward = -1.0
-        return reward
-
-
-class AcrobotJiminyGoalEnv(AcrobotJiminyEnv, BaseJiminyGoalEnv):
-    """ TODO: Write documentation.
-    """
-    def _get_goal_space(self) -> gym.Space:
-        """ TODO: Write documentation.
-        """
-        return gym.spaces.Box(
-            low=-self._tipPosZMax,
-            high=self._tipPosZMax,
-            dtype=np.float64)
-
-    def _sample_goal(self) -> np.ndarray:
-        """Sample goal.
-
-        The goal is sampled using a uniform distribution in range
-        [HEIGHT_REL_MIN_GOAL_THRESHOLD, HEIGHT_REL_MAX_GOAL_THRESHOLD].
-        """
-        return self._tipPosZMax * sample(
-            *HEIGHT_REL_GOAL_THRESHOLD_RANGE, shape=(1,), rg=self.rg)
-
-    def _get_achieved_goal(self) -> np.ndarray:
-        """Compute achieved goal based on current state of the robot.
-
-        It corresponds to the position of the tip of the acrobot.
-        """
-        tip_transform = self.robot.pinocchio_data.oMf[self._tipIdx]
-        tip_position_z = tip_transform.translation[2]
-        return np.array([tip_position_z])
-
-    def is_done(self,  # type: ignore[override]
-                achieved_goal: Optional[np.ndarray] = None,
-                desired_goal: Optional[np.ndarray] = None) -> bool:
-        """Determine whether a desired goal has been achieved.
-
-        The episode is successful if the achieved goal strictly exceeds the
-        desired goal.
-        """
-        # pylint: disable=arguments-differ
-
-        if achieved_goal is None:
-            achieved_goal = self._get_achieved_goal()
-        if desired_goal is None:
-            desired_goal = self._desired_goal
-        return bool(achieved_goal > desired_goal)
-
-    def compute_reward(self,  # type: ignore[override]
-                       achieved_goal: Optional[np.ndarray] = None,
-                       desired_goal: Optional[np.ndarray] = None,
-                       *, info: Dict[str, Any]) -> float:
-        """Compute reward at current episode state.
-
-        Get a small negative reward till success.
-        """
-        # pylint: disable=arguments-differ
-
-        if self.is_done(achieved_goal, desired_goal):
-            reward = 0.0
-        else:
-            reward = -1.0
-        return reward
+        return 0.0 if done else -1.0

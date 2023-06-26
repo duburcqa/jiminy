@@ -26,10 +26,10 @@ Once done, `Pytorch` can be installed following the official "getting started" i
 
 #### (optional) stable_baselines3
 
-Installing the Python packages `stable_baselines3==0.9` is required to run some of the provided examples, though it is not required to use gym_jiminy.
+Installing the Python packages `stable_baselines3==2.0` is required to run some of the provided examples, though it is not required to use gym_jiminy.
 
 ```bash
-python3 -m pip install stable-baselines3[extra]==0.9
+python3 -m pip install stable-baselines3==2.0
 ```
 
 #### (optional) tianshou
@@ -79,7 +79,7 @@ make install -j2
 
 ```bash
 sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
-python -m pip install "numpy>=1.16,<1.22"
+python -m pip install "numpy>=1.21,<1.24"
 ```
 
 ### Jiminy dependencies build and install
@@ -118,10 +118,10 @@ make install -j2
 
 You have to preinstall by yourself the (free) MSVC 2019 toolchain.
 
-Then, install `numpy` and `wheel`.
+Then, install `setuptools`, `wheel` and `numpy`.
 
 ```powershell
-python -m pip install wheel "numpy>=1.16,<1.22"
+python -m pip install "setuptools<66.0" "wheel<0.40" "numpy>=1.21"
 ```
 
 ### Jiminy dependencies build and install

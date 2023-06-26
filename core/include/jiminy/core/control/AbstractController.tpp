@@ -72,6 +72,33 @@ namespace jiminy
 
         return hresult_t::SUCCESS;
     }
+
+    template<typename T>
+    hresult_t AbstractController::registerVariable(std::string const & fieldname,
+                                                   T           const & value)
+    {
+        if (isTelemetryConfigured_)
+        {
+            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        // Check in local cache before.
+        auto variableIt = std::find_if(registeredVariables_.begin(),
+                                       registeredVariables_.end(),
+                                       [&fieldname](auto const & element)
+                                       {
+                                           return element.first == fieldname;
+                                       });
+        if (variableIt != registeredVariables_.end())
+        {
+            PRINT_ERROR("Variable already registered.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        registeredVariables_.emplace_back(fieldname, &value);
+
+        return hresult_t::SUCCESS;
+    }
 }
 
 #endif // JIMINY_ABSTRACT_CONTROLLER_TPP

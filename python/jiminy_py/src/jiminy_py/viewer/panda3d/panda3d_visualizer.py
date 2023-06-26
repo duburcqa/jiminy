@@ -110,6 +110,7 @@ def _sanitize_path(path: str) -> str:
 
 def make_gradient_skybox(sky_color: Tuple4FType,
                          ground_color: Tuple4FType,
+                         span: float = 1.0,
                          offset: float = 0.0,
                          subdiv: int = 2) -> NodePath:
     """Simple gradient to be used as skybox.
@@ -118,8 +119,8 @@ def make_gradient_skybox(sky_color: Tuple4FType,
     - https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
     """
     # Check validity of arguments
-    assert subdiv >= 2, "Number of sub-division must be larger than 2."
-    assert 0.0 <= offset <= 1.0, "Offset must be in [0.0, 1.0]."
+    assert subdiv > 1, "Number of sub-division must be strictly larger than 1."
+    assert 0.0 <= span <= 1.0, "Offset must be in [0.0, 1.0]."
 
     # Define vertex format
     vformat = GeomVertexFormat()
@@ -137,15 +138,15 @@ def make_gradient_skybox(sky_color: Tuple4FType,
     # Make it very wide to avoid ever seeing its left and right sides.
     # One edge is at the "horizon", while the two other edges are above
     # and a bit behind the camera so they are only visible when looking
-    # straight up.
+    # straight up. ((-50., 86.6) -> (cos(2*pi/3), sin(2*pi/3)))
     vertex_data = GeomVertexData(
         "prism_data", vformat, GeomEnums.UH_static)
     vertex_data.unclean_set_num_rows(4 + subdiv * 2)
     values = array.array("f", (-1000., -50., 86.6, 1000., -50., 86.6))
-    offset_angle = np.pi / 1.5 * offset
-    delta_angle = (np.pi / .75 - offset_angle * 2.) / (subdiv + 1)
+    offset_angle = np.pi / 1.5 * (1.0 - span)
+    delta_angle = 2. * (np.pi / 1.5 - offset_angle) / (subdiv + 1)
     for i in range(subdiv):
-        angle = np.pi / 3. + offset_angle + delta_angle * (i + 1)
+        angle = np.pi / 3. + offset + offset_angle + delta_angle * (i + 1)
         y = -np.cos(angle) * 100.
         z = np.sin(angle) * 100.
         values.extend((-1000., y, z, 1000., y, z))
@@ -187,6 +188,7 @@ def make_gradient_skybox(sky_color: Tuple4FType,
     node.add_geom(geom)
     node.set_bounds(OmniBoundingVolume())
     prism = NodePath(node)
+    prism.set_color_scale((*(3 * (1.1,)), 1.0))
     prism.set_bin("background", 0)
     prism.set_depth_write(False)
     prism.set_depth_test(False)
@@ -379,7 +381,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Create gradient for skybox
         sky_color = (0.53, 0.8, 0.98, 1.0)
         ground_color = (0.1, 0.1, 0.43, 1.0)
-        self.skybox = make_gradient_skybox(sky_color, ground_color, 0.7)
+        self.skybox = make_gradient_skybox(sky_color, ground_color, 0.35, 0.17)
         self.skybox.set_shader_auto(True)
         self.skybox.set_light_off()
         self.skybox.hide(self.LightMask)
@@ -579,6 +581,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         win = self.graphicsEngine.make_output(
             self.pipe, "offscreen_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
+        if win is None:
+            raise RuntimeError("Faulty graphics pipeline of this machine.")
         self.buff = win
 
         # Append buffer to the list of windows managed by the ShowBase
@@ -834,16 +838,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node = self.render.attach_new_node(model)
 
         if heightmap is None:
-            for xi in range(-10, 11):
-                for yi in range(-10, 11):
+            for xi in range(-10, 10):
+                for yi in range(-10, 10):
                     tile = GeomNode(f"tile-{xi}.{yi}")
                     tile.add_geom(geometry.make_plane(size=(1.0, 1.0)))
                     tile_path = node.attach_new_node(tile)
-                    tile_path.set_pos((xi, yi, 0.0))
+                    tile_path.set_pos((xi + 0.5, yi + 0.5, 0.0))
                     if (xi + yi) % 2:
                         tile_path.set_color((0.95, 0.95, 1.0, 1.0))
                     else:
-                        tile_path.set_color((0.13, 0.13, 0.2, 1.0))
+                        tile_path.set_color((0.14, 0.14, 0.21, 1.0))
         else:
             model.add_geom(make_heightmap(heightmap))
             node.set_color((0.75, 0.75, 0.85, 1.0))
@@ -1251,7 +1255,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             from matplotlib import font_manager
         except ImportError as e:
             raise ImportError(
-                "Method not supported. Please install 'jiminy_py[plot]'."
+                "Method not available. Please install 'jiminy_py[plot]'."
                 ) from e
 
         # Remove existing watermark, if any

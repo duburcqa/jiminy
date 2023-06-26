@@ -24,9 +24,9 @@ if (-not (Test-Path env:GENERATOR)) {
 ### Set common CMAKE_C/CXX_FLAGS
 ${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /MP2 /EHsc /bigobj /Zc:preprocessor /Zc:__cplusplus /permissive- -DWIN32 -D_USE_MATH_DEFINES -DNOMINMAX"
 if (${BUILD_TYPE} -eq "Debug") {
-  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Zi /Od"
+  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /DEBUG:FULL /Zi /Od"
 } else {
-  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /O2 /Ob3 /wd9025 -DNDEBUG"
+  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} -DNDEBUG /O2 /Ob3"
 }
 Write-Output "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 
@@ -144,7 +144,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
 git fetch --all
-git checkout --force "v2.2.0"
+git checkout --force "v2.3.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
@@ -160,7 +160,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 Set-Location -Path "$RootDir/pinocchio"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.15"
+git checkout --force "v2.6.17"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
@@ -337,7 +337,7 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-      -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON -DGENERATE_PYTHON_STUBS=OFF `
+      -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF `
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4068 /wd4267 /wd4005 /wd4081 $(
 )     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DHPP_FCL_STATIC"

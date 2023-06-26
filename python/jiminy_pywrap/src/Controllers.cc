@@ -122,14 +122,27 @@ namespace python
             if (PyArray_Check(dataPy))
             {
                 PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
-                if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64 && PyArray_SIZE(dataPyArray) == 1U)
+                if (PyArray_SIZE(dataPyArray) <= 1U)
                 {
-                    float64_t const * data = static_cast<float64_t *>(PyArray_DATA(dataPyArray));
-                    return self.registerVariable(fieldname, *data);
+                    if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64)
+                    {
+                        auto data = static_cast<float64_t *>(PyArray_DATA(dataPyArray));
+                        return self.registerVariable(fieldname, *data);
+                    }
+                    if (PyArray_TYPE(dataPyArray) == NPY_INT64)
+                    {
+                        auto data = static_cast<int64_t *>(PyArray_DATA(dataPyArray));
+                        return self.registerVariable(fieldname, *data);
+                    }
+                    else
+                    {
+                        PRINT_ERROR("'value' input array must have dtype 'np.float64' or 'np.int64'.");
+                        return hresult_t::ERROR_BAD_INPUT;
+                    }
                 }
                 else
                 {
-                    PRINT_ERROR("'value' input array must have dtype 'np.float64' and a single element.");
+                    PRINT_ERROR("'value' input array must have a single element.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -140,69 +153,80 @@ namespace python
             }
         }
 
-        static hresult_t registerVariableArray(AbstractController       & self,
-                                               bp::list           const & fieldnamesPy,
-                                               PyObject                 * dataPy)
+        template<typename T>
+        static hresult_t registerVariableArrayImpl(AbstractController       & self,
+                                                   bp::list           const & fieldnamesPy,
+                                                   Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > & data)
         {
-            // Note that const qualifier is not supported by PyArray_DATA
+            hresult_t returnCode = hresult_t::SUCCESS;
 
-            // Get Eigen::Map from Numpy array
-            auto [returnCode, data] = getEigenReference(dataPy);
-
-            if (returnCode == hresult_t::SUCCESS)
+            // Check if fieldnames are stored in one or two dimensional list
+            if (bp::len(fieldnamesPy) > 0 && bp::extract<std::string>(fieldnamesPy[0]).check())
             {
-                // Check if fieldnames are stored in one or two dimensional list
-                if (bp::len(fieldnamesPy) > 0 && bp::extract<std::string>(fieldnamesPy[0]).check())
+                // Extract fieldnames
+                auto fieldnames = convertFromPython<std::vector<std::string> >(fieldnamesPy);
+
+                // Check fieldnames and array have same length
+                if (static_cast<std::size_t>(data.size()) != fieldnames.size())
                 {
-                    // Extract fieldnames
-                    auto fieldnames = convertFromPython<std::vector<std::string> >(fieldnamesPy);
+                    PRINT_ERROR("'values' input array must have same length than 'fieldnames'.");
+                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                }
 
-                    // Check fieldnames and array have same length
-                    if (static_cast<std::size_t>(data.size()) != fieldnames.size())
-                    {
-                        PRINT_ERROR("'values' input array must have same length than 'fieldnames'.");
-                        returnCode = hresult_t::ERROR_BAD_INPUT;
-                    }
+                // Register all variables at once
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    returnCode = self.registerVariable(fieldnames, data.col(0));
+                }
+            }
+            else
+            {
+                // Extract fieldnames
+                auto fieldnames = convertFromPython<std::vector<std::vector<std::string> > >(fieldnamesPy);
 
-                    // Register all variables at once
-                    if (returnCode == hresult_t::SUCCESS)
+                // Check fieldnames and array have same shape
+                bool_t are_fieldnames_valid = (static_cast<std::size_t>(data.rows()) == fieldnames.size());
+                for (std::vector<std::string> const & subfieldnames : fieldnames)
+                {
+                    if (static_cast<std::size_t>(data.cols()) != subfieldnames.size())
                     {
-                        returnCode = self.registerVariable(fieldnames, data.col(0));
+                        are_fieldnames_valid = false;
+                        break;
                     }
                 }
-                else
+                if (!are_fieldnames_valid)
                 {
-                    // Extract fieldnames
-                    auto fieldnames = convertFromPython<std::vector<std::vector<std::string> > >(fieldnamesPy);
+                    PRINT_ERROR("'fieldnames' must be nested list with same shape than 'value'.");
+                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                }
 
-                    // Check fieldnames and array have same shape
-                    bool_t are_fieldnames_valid = (static_cast<std::size_t>(data.rows()) == fieldnames.size());
-                    for (std::vector<std::string> const & subfieldnames : fieldnames)
+                // Register rows sequentially
+                for (Eigen::Index i = 0; i < data.rows(); ++i)
+                {
+                    if (returnCode == hresult_t::SUCCESS)
                     {
-                        if (static_cast<std::size_t>(data.cols()) != subfieldnames.size())
-                        {
-                            are_fieldnames_valid = false;
-                            break;
-                        }
-                    }
-                    if (!are_fieldnames_valid)
-                    {
-                        PRINT_ERROR("'fieldnames' must be nested list with same shape than 'value'.");
-                        returnCode = hresult_t::ERROR_BAD_INPUT;
-                    }
-
-                    // Register rows sequentially
-                    for (Eigen::Index i = 0; i < data.rows(); ++i)
-                    {
-                        if (returnCode == hresult_t::SUCCESS)
-                        {
-                            returnCode = self.registerVariable(fieldnames[i], data.row(i));
-                        }
+                        returnCode = self.registerVariable(fieldnames[i], data.row(i));
                     }
                 }
             }
 
             return returnCode;
+        }
+
+        static hresult_t registerVariableArray(AbstractController       & self,
+                                               bp::list           const & fieldnamesPy,
+                                               PyObject                 * dataPy)
+        {
+            auto data = getEigenReference(dataPy);
+            if (!data)
+            {
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+            return std::visit(
+                [&](auto && arg)
+                {
+                    return registerVariableArrayImpl(self, fieldnamesPy, arg);
+                }, data.value());
         }
 
         static hresult_t registerConstant(AbstractController       & self,
@@ -211,13 +235,16 @@ namespace python
         {
             if (PyArray_Check(dataPy))
             {
-                auto pair = getEigenReference(dataPy);
-                auto returnCode = std::get<0>(pair); auto data = std::get<1>(pair);
-                if (returnCode == hresult_t::SUCCESS)
+                auto data = getEigenReference(dataPy);
+                if (!data)
                 {
-                    returnCode = self.registerConstant(fieldname, data);
+                    return hresult_t::ERROR_BAD_INPUT;
                 }
-                return returnCode;
+                return std::visit(
+                    [&](auto && arg)
+                    { 
+                        return self.registerConstant(fieldname, arg);
+                    }, data.value());
             }
             else if (PyFloat_Check(dataPy))
             {

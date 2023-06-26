@@ -29,6 +29,7 @@ good-names =
     I, R, H, T, M, dt,                # Physics: dynamics
     a, b, c, y, z, n, e,              # Maths / Algebra : variables
     f, rg, lo, hi,                    # Maths / Algebra : operators
+    kp, kd, ki,                       # Control: Gains
     ax                                # Matplotlib
 
 [tool.pylint.format]
@@ -60,6 +61,7 @@ disable =
     too-many-locals,
     too-many-branches,
     too-many-statements,
+    too-many-ancestors,
     too-few-public-methods,
     fixme,
     consider-iterating-dictionary,

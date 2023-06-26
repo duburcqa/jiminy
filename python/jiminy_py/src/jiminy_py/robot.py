@@ -55,8 +55,8 @@ class _DuplicateFilter(logging.Filter):
         return True
 
 
-logger = logging.getLogger(__name__)
-logger.addFilter(_DuplicateFilter())
+LOGGER = logging.getLogger(__name__)
+LOGGER.addFilter(_DuplicateFilter())
 
 
 def _gcd(a: float,
@@ -72,12 +72,12 @@ def _gcd(a: float,
 
 
 def _fix_urdf_mesh_path(urdf_path: str,
-                        mesh_path: str,
+                        mesh_path_dir: str,
                         output_root_path: Optional[str] = None) -> str:
     """Generate an URDF with updated mesh paths.
 
     :param urdf_path: Full path of the URDF file.
-    :param mesh_path: Root path of the meshes.
+    :param mesh_path_dir: Root path of the meshes.
     :param output_root_path: Root directory of the fixed URDF file.
                              Optional: temporary directory by default.
 
@@ -97,19 +97,19 @@ def _fix_urdf_mesh_path(urdf_path: str,
     # If mesh root path already matching, then nothing to do
     if len(pathlists) > 1:
         if all(path.startswith('.') for path in pathlists):
-            mesh_path_orig = '.'
+            mesh_path_dir_orig = '.'
         else:
-            mesh_path_orig = os.path.commonpath(list(pathlists))
+            mesh_path_dir_orig = os.path.commonpath(list(pathlists))
     else:
-        mesh_path_orig = os.path.dirname(next(iter(pathlists)))
-    if mesh_path == mesh_path_orig:
+        mesh_path_dir_orig = os.path.dirname(next(iter(pathlists)))
+    if mesh_path_dir == mesh_path_dir_orig:
         return urdf_path
 
     # Create the output directory
     if output_root_path is None:
         output_root_path = tempfile.mkdtemp()
     fixed_urdf_dir = os.path.join(
-        output_root_path, "fixed_urdf" + mesh_path.translate(
+        output_root_path, "fixed_urdf" + mesh_path_dir.translate(
             str.maketrans({k: '_' for k in '/:'})))  # type: ignore[arg-type]
     os.makedirs(fixed_urdf_dir, exist_ok=True)
     fixed_urdf_path = os.path.join(
@@ -117,8 +117,8 @@ def _fix_urdf_mesh_path(urdf_path: str,
 
     # Override the root mesh path with the desired one
     urdf_contents = urdf_contents.replace(
-        '"'.join((mesh_tag, mesh_path_orig)),
-        '"'.join((mesh_tag, mesh_path)))
+        '"'.join((mesh_tag, mesh_path_dir_orig)),
+        '"'.join((mesh_tag, mesh_path_dir)))
     with open(fixed_urdf_path, 'w') as f:
         f.write(urdf_contents)
 
@@ -182,9 +182,9 @@ def generate_default_hardware_description_file(
     """
     # Handle verbosity level
     if verbose:
-        logger.setLevel(logging.DEBUG)
+        LOGGER.setLevel(logging.DEBUG)
     else:
-        logger.setLevel(logging.ERROR)
+        LOGGER.setLevel(logging.ERROR)
 
     # Read the XML
     tree = ET.parse(urdf_path)
@@ -261,7 +261,7 @@ def generate_default_hardware_description_file(
                 collision_bodies_names.add(body_name)
                 sensor_type = force.type
             else:
-                logger.warning(
+                LOGGER.warning(
                     "Unsupported Gazebo sensor plugin of type '%s'.",
                     sensor_type)
                 continue
@@ -274,7 +274,7 @@ def generate_default_hardware_description_file(
             if gazebo_update_rate is None:
                 gazebo_update_rate = update_rate
             elif gazebo_update_rate != update_rate:
-                logger.warning(
+                LOGGER.warning(
                     "Jiminy does not support sensors with different "
                     "update rate. Using greatest common divisor instead.")
                 gazebo_update_rate = _gcd(gazebo_update_rate, update_rate)
@@ -339,7 +339,7 @@ def generate_default_hardware_description_file(
                         frame_pose=6*[0.0])
                 })
             else:
-                logger.warning("Unsupported Gazebo plugin '%s'", plugin)
+                LOGGER.warning("Unsupported Gazebo plugin '%s'", plugin)
 
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
     if link_root and imu.type not in hardware_info['Sensor'].keys():
@@ -412,7 +412,7 @@ def generate_default_hardware_description_file(
         assert transmission_type is not None
         transmission_type = os.path.basename(transmission_type).casefold()
         if transmission_type != 'simpletransmission':
-            logger.warning(
+            LOGGER.warning(
                 "Jiminy only support SimpleTransmission for now. Skipping"
                 "transmission '%s' of type '%s'.", transmission_name,
                 transmission_type)
@@ -435,7 +435,7 @@ def generate_default_hardware_description_file(
         assert joint is not None
         joint_type = joint.attrib['type'].casefold()
         if joint_type not in ("revolute", "continuous", "prismatic"):
-            logger.warning(
+            LOGGER.warning(
                 "Jiminy only support 1-dof joint actuators and effort "
                 "sensors. Attached joint cannot of type '%s'.", joint_type)
             continue
@@ -501,7 +501,7 @@ def generate_default_hardware_description_file(
 
     # Warn if friction model has been defined for non-actuated joints
     if joints_options:
-        logger.warning(
+        LOGGER.warning(
             "Jiminy only support friction model for actuated joint.")
 
     # Specify custom update rate for the controller and the sensors, if any
@@ -545,9 +545,9 @@ def load_hardware_description_file(
     """
     # Handle verbosity level
     if verbose:
-        logger.setLevel(logging.DEBUG)
+        LOGGER.setLevel(logging.DEBUG)
     else:
-        logger.setLevel(logging.ERROR)
+        LOGGER.setLevel(logging.ERROR)
 
     hardware_info = toml.load(hardware_path)
     extra_info = hardware_info.pop('Global', {})
@@ -594,7 +594,7 @@ def load_hardware_description_file(
                 body_name in geometry_types['collision']['primitive']:
             if not avoid_instable_collisions:
                 continue
-            logger.warning(
+            LOGGER.warning(
                 "Collision body having both primitive and mesh geometries "
                 "is not supported. Enabling only primitive collision for "
                 "this body.")
@@ -604,19 +604,19 @@ def load_hardware_description_file(
         elif body_name in geometry_types['collision']['mesh']:
             if not avoid_instable_collisions:
                 continue
-            logger.warning(
+            LOGGER.warning(
                 "Collision body associated with mesh geometry is not "
                 "supported for now. Replacing it by contact points at the "
                 "vertices of the minimal volume bounding box.")
         elif body_name not in geometry_types['visual']['mesh']:
-            logger.warning(
+            LOGGER.warning(
                 "No visual mesh nor collision geometry associated with "
                 "collision body '%s'. Fallback to adding a single contact "
                 "point at body frame.", body_name)
             contact_frames_names.append(body_name)
             continue
         else:
-            logger.warning(
+            LOGGER.warning(
                 "No collision geometry associated with the collision body "
                 "'%s'. Fallback to replacing it by contact points at the "
                 "vertices of the minimal volume bounding box of the available "
@@ -635,7 +635,7 @@ def load_hardware_description_file(
         if collision_boxes_size:
             if not avoid_instable_collisions:
                 continue
-            logger.warning(
+            LOGGER.warning(
                 "Collision body associated with box geometry is not "
                 "numerically stable for now. Replacing it by contact points "
                 "at the vertices.")
@@ -720,7 +720,7 @@ def load_hardware_description_file(
             # Make sure the motor can be instantiated
             joint_name = motor_descr.pop('joint_name')
             if not robot.pinocchio_model.existJointName(joint_name):
-                logger.warning("'%s' is not a valid joint name.", joint_name)
+                LOGGER.warning("'%s' is not a valid joint name.", joint_name)
                 continue
 
             # Create the motor and attach it
@@ -744,7 +744,7 @@ def load_hardware_description_file(
             option_fields = options.keys()
             for name, value in motor_descr.items():
                 if name not in option_fields:
-                    logger.warning(
+                    LOGGER.warning(
                         "'%s' is not a valid option for the motor '%s' of "
                         "type '%s'.", name, motor_name, motor_type)
                 options[name] = value
@@ -758,25 +758,24 @@ def load_hardware_description_file(
             if sensor_type == encoder.type:
                 joint_name = sensor_descr.pop('joint_name')
                 if not robot.pinocchio_model.existJointName(joint_name):
-                    logger.warning(
+                    LOGGER.warning(
                         "'%s' is not a valid joint name.", joint_name)
                     continue
             elif sensor_type == effort.type:
                 motor_name = sensor_descr.pop('motor_name')
                 if motor_name not in robot.motors_names:
-                    logger.warning(
+                    LOGGER.warning(
                         "'%s' is not a valid motor name.", motor_name)
                     continue
 
             # Create the sensor and attach it
-            sensor = None
             for module in (jiminy, *EXTENSION_MODULES):
                 try:
                     sensor = getattr(module, sensor_type)(sensor_name)
                     break
                 except AttributeError:
                     pass
-            if sensor is None:
+            else:
                 raise RuntimeError(
                     f"Cannot instantiate sensor of type '{sensor_type}'.")
             robot.attach_sensor(sensor)
@@ -836,7 +835,7 @@ def load_hardware_description_file(
             option_fields = options.keys()
             for name, value in sensor_descr.items():
                 if name not in option_fields:
-                    logger.warning(
+                    LOGGER.warning(
                         "'%s' is not a valid option for the sensor '%s' of "
                         "type '%s'.", name, sensor_name, sensor_type)
                 options[name] = value
@@ -873,7 +872,8 @@ class BaseJiminyRobot(jiminy.Robot):
     def initialize(self,
                    urdf_path: str,
                    hardware_path: Optional[str] = None,
-                   mesh_path: Optional[str] = None,
+                   mesh_path_dir: Optional[str] = None,
+                   mesh_package_dirs: Sequence[str] = (),
                    has_freeflyer: bool = True,
                    avoid_instable_collisions: bool = True,
                    load_visual_meshes: bool = False,
@@ -886,10 +886,14 @@ class BaseJiminyRobot(jiminy.Robot):
                               the same folder and with the same name. If not
                               found, then no hardware is added to the robot,
                               which is valid and can be used for display.
-        :param mesh_path: Path to the folder containing the URDF meshes. It
-                          will overwrite any absolute mesh path.
-                          Optional: Env variable 'JIMINY_DATA_PATH' will be
-                          used if available.
+        :param mesh_path_dir: Path to the folder containing the URDF meshes. It
+                              will overwrite the common root of all absolute
+                              mesh paths.
+                              Optional: Env variable 'JIMINY_DATA_PATH' will be
+                              used if available.
+        :param mesh_package_dirs: Additional search paths for all relative mesh
+                                  paths beginning with 'packages://' directive.
+                                  'mesh_path_dir' is systematically appended.
         :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
         :param avoid_instable_collisions: Prevent numerical instabilities by
@@ -907,19 +911,20 @@ class BaseJiminyRobot(jiminy.Robot):
         self._urdf_path_orig = urdf_path
 
         # Fix the URDF mesh paths
-        if mesh_path is not None:
-            urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_path)
+        if mesh_path_dir is not None:
+            urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_path_dir)
 
         # Initialize the robot without motors nor sensors
-        if mesh_path is not None:
-            mesh_root_dirs = [mesh_path]
+        mesh_package_dirs = list(mesh_package_dirs)
+        if mesh_path_dir is not None:
+            mesh_package_dirs.append(mesh_path_dir)
         else:
-            mesh_root_dirs = [os.path.dirname(urdf_path)]
+            mesh_package_dirs.append(os.path.dirname(urdf_path))
         mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)
         if mesh_env_path is not None:
-            mesh_root_dirs += [mesh_env_path]
+            mesh_package_dirs.append(mesh_env_path)
         return_code = super().initialize(
-            urdf_path, has_freeflyer, mesh_root_dirs, load_visual_meshes)
+            urdf_path, has_freeflyer, mesh_package_dirs, load_visual_meshes)
 
         if return_code != jiminy.hresult_t.SUCCESS:
             raise ValueError(
@@ -934,7 +939,7 @@ class BaseJiminyRobot(jiminy.Robot):
         self.hardware_path = hardware_path
         if not os.path.exists(hardware_path):
             if hardware_path:
-                logger.warning(
+                LOGGER.warning(
                     "Hardware configuration file not found. Not adding any "
                     "hardware to the robot.\n Default file can be generated "
                     "using 'generate_default_hardware_description_file' "

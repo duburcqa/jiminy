@@ -8,19 +8,27 @@ import operator
 from functools import reduce, partial
 from typing import Optional, Union, Type, List, Dict, Any, Tuple, cast
 
-import gym
+import gymnasium as gym
 import torch
 
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.torch.torch_action_dist import TorchDiagGaussian
 from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.torch_mixins import (
+    EntropyCoeffSchedule,
+    KLCoeffMixin,
+    LearningRateSchedule,
+    ValueNetworkMixin,
+)
 from ray.rllib.policy.policy import Policy
+from ray.rllib.policy.torch_policy_v2 import TorchPolicyV2
 from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.ppo import PPOConfig as _PPOConfig, PPO as _PPO
 from ray.rllib.algorithms.ppo.ppo_torch_policy import (
     PPOTorchPolicy as _PPOTorchPolicy)
+from ray.rllib.algorithms.ppo.ppo_tf_policy import validate_config
 from ray.rllib.utils.numpy import convert_to_numpy
 from ray.rllib.utils.torch_utils import l2_loss
 from ray.rllib.utils.annotations import override
@@ -140,7 +148,7 @@ def get_adversarial_observation_sgld(
 
 
 def _compute_mirrored_value(value: torch.Tensor,
-                            space: gym.spaces.Space,
+                            space: gym.spaces.Box,
                             mirror_mat: Union[
                                 Dict[str, torch.Tensor], torch.Tensor]
                             ) -> torch.Tensor:
@@ -167,7 +175,8 @@ def _compute_mirrored_value(value: torch.Tensor,
         offset = 0
         value_mirrored = []
         for field, slice_mirror_mat in mirror_mat.items():
-            field_shape = space.original_space[field].shape
+            field_shape = space.original_space[  # type: ignore[attr-defined]
+                field].shape
             field_size = reduce(operator.mul, field_shape)
             slice_idx = slice(offset, offset + field_size)
             slice_mirrored = _update_flattened_slice(
@@ -292,39 +301,67 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
         It extracts observation mirroring transforms for symmetry computations.
         """
+        # pylint: disable=non-parent-init-called,super-init-not-called
+
         # Convert any type of input dict input classical dictionary for compat
         config_dict: Dict[str, Any] = dict(PPOConfig().to_dict(), **config)
+        validate_config(config_dict)
 
-        # Extract and convert observation and acrtion mirroring transform
+        # Call base implementation. Note that `PPOTorchPolicy.__init__` is
+        # bypassed because it calls `_initialize_loss_from_dummy_batch`
+        # automatically, and mirroring matrices are not extracted at this
+        # point. It is not possible to extract them since `self.device` is set
+        # by `TorchPolicyV2.__init__`.
+        TorchPolicyV2.__init__(
+            self,
+            observation_space,
+            action_space,
+            config_dict,
+            max_seq_len=config_dict["model"]["max_seq_len"],
+        )
+
+        # Initialize mixins
+        ValueNetworkMixin.__init__(self, config_dict)
+        LearningRateSchedule.__init__(
+            self, config_dict["lr"], config_dict["lr_schedule"])
+        EntropyCoeffSchedule.__init__(self,
+                                      config_dict["entropy_coeff"],
+                                      config_dict["entropy_coeff_schedule"])
+        KLCoeffMixin.__init__(self, config_dict)
+
+        # Extract and convert observation and action mirroring transform
         self.obs_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
         self.action_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
         if config_dict["symmetric_policy_reg"] > 0.0:
+            # Observation space
             is_obs_dict = hasattr(observation_space, "original_space")
             if is_obs_dict:
-                observation_space = observation_space.original_space
-            # Observation space
-            if is_obs_dict:
+                observation_space = observation_space.\
+                    original_space  # type: ignore[attr-defined]
                 self.obs_mirror_mat = {}
-                for field, mirror_mat in observation_space.mirror_mat.items():
+                for field, mirror_mat in observation_space.\
+                        mirror_mat.items():  # type: ignore[attr-defined]
                     obs_mirror_mat = torch.tensor(mirror_mat,
                                                   dtype=torch.float32,
                                                   device=self.device)
                     self.obs_mirror_mat[field] = obs_mirror_mat.T.contiguous()
             else:
-                obs_mirror_mat = torch.tensor(observation_space.mirror_mat,
-                                              dtype=torch.float32,
-                                              device=self.device)
+                obs_mirror_mat = torch.tensor(
+                    observation_space.mirror_mat,  # type: ignore[attr-defined]
+                    dtype=torch.float32,
+                    device=self.device)
                 self.obs_mirror_mat = obs_mirror_mat.T.contiguous()
 
             # Action space
-            action_mirror_mat = torch.tensor(action_space.mirror_mat,
-                                             dtype=torch.float32,
-                                             device=self.device)
+            action_mirror_mat = torch.tensor(
+                action_space.mirror_mat,  # type: ignore[attr-defined]
+                dtype=torch.float32,
+                device=self.device)
             self.action_mirror_mat = action_mirror_mat.T.contiguous()
 
-        super().__init__(observation_space, action_space, config_dict)
+        self._initialize_loss_from_dummy_batch()
         self.config: Dict[str, Any]
 
     def _get_default_view_requirements(self) -> None:
@@ -402,6 +439,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
                 # Compute mirrorred observation
                 assert self.obs_mirror_mat is not None
+                assert isinstance(self.observation_space, gym.spaces.Box)
                 observation_mirror = _compute_mirrored_value(
                     observation_true,
                     self.observation_space,
@@ -483,6 +521,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         # Compute the mirrored mean action corresponding to the mirrored action
         if self.config["symmetric_policy_reg"] > 0.0:
             assert self.action_mirror_mat is not None
+            assert isinstance(self.action_space, gym.spaces.Box)
             action_mirror_logits = action_logits["mirrored"]
             action_mirror_mean = get_action_mean(
                 model, dist_class, action_mirror_logits)

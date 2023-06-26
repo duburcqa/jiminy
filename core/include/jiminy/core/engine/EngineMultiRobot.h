@@ -507,8 +507,8 @@ namespace jiminy
                                  systemState_t const * & systemState) const;
         stepperState_t const & getStepperState(void) const;
         bool_t const & getIsSimulationRunning(void) const;
-        float64_t getMaxSimulationDuration(void) const;
-        float64_t getTelemetryTimeUnit(void) const;
+        static float64_t getMaxSimulationDuration(void);
+        static float64_t getTelemetryTimeUnit(void);
 
         static void computeForwardKinematics(systemHolder_t  & system,
                                              vectorN_t const & q,

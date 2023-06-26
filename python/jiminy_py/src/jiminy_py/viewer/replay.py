@@ -46,7 +46,7 @@ VIDEO_FRAMERATE = 30
 VIDEO_QUALITY = 0.3  # [Mbytes/s]
 
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 viewer_lock = RLock()  # Unique lock for threads
 
@@ -66,8 +66,8 @@ def play_trajectories(
             Union[Tuple3FType, Sequence[Optional[Tuple3FType]]]] = None,
         robots_colors: Optional[
             Union[ColorType, Sequence[Optional[ColorType]]]] = None,
-        travelling_frame: Optional[Union[str, int]] = None,
-        camera_xyzrpy: Optional[CameraPoseType] = (None, None),
+        camera_pose: Optional[CameraPoseType] = None,
+        enable_travelling: bool = False,
         camera_motion: Optional[CameraMotionType] = None,
         watermark_fullpath: Optional[str] = None,
         legend: Optional[Union[str, Sequence[str]]] = None,
@@ -122,17 +122,16 @@ def play_trajectories(
                           None to disable.
                           Optional: Original color if single robot, default
                           color cycle otherwise.
-    :param travelling_frame: Name or index of the frame to track. The camera
-                             will automatically follow the frame of the robot
-                             associated with the first `trajs_data`.`None` to
-                             disable.
-                             Optional: Disabled by default.
-    :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
-                          corresponding to the absolute pose of the camera
-                          during replay, if travelling is disable, or the
-                          relative pose wrt the tracked frame otherwise. None
-                          to disable.
-                          Optional: None by default.
+    :param camera_pose: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw],
+                        frame name/index specifying the initial pose of the
+                        camera or the relative pose wrt the tracked frame
+                        depending on whether travelling is enabled. `None` to
+                        disable.
+                        Optional: None by default.
+    :param enable_travelling: Whether the camera tracks the robot associated
+                              with the first trajectory specified in
+                              `trajs_data`. `None` to disable.
+                              Optional: Disabled by default.
     :param camera_motion: Camera breakpoint poses over time, as a list of
                           `CameraMotionBreakpointType` dict. None to disable.
                           Optional: None by default.
@@ -292,7 +291,7 @@ def play_trajectories(
             robot = traj['robot']
             assert robot is not None
             if robot.is_locked:
-                logger.debug(
+                LOGGER.debug(
                     "`display_contacts` is not available if robot is locked. "
                     "Please stop any running simulation before replay.")
                 display_contacts = False
@@ -377,13 +376,13 @@ def play_trajectories(
 
     # Make sure clock is only enabled for panda3d backend
     if enable_clock and not backend.startswith('panda3d'):
-        logger.warning(
+        LOGGER.warning(
             "`enable_clock` is only available with 'panda3d' backend.")
         enable_clock = False
 
     # Early return if nothing to replay
     if all(not traj['evolution_robot'] for traj in trajs_data):
-        logger.debug("Nothing to replay.")
+        LOGGER.debug("Nothing to replay.")
         return viewers
 
     # Enable camera motion if requested
@@ -395,7 +394,7 @@ def play_trajectories(
         try:
             Viewer.set_legend(legend)
         except ImportError:
-            logger.warning(
+            LOGGER.warning(
                 "Impossible to add legend. Please install 'jiminy_py[plot]'.")
             legend = None
 
@@ -427,10 +426,23 @@ def play_trajectories(
                 viewer_i.display_external_forces(display_f_external)
 
     # Set camera pose or activate camera travelling if requested
-    if travelling_frame is not None:
-        viewer.attach_camera(travelling_frame, camera_xyzrpy)
-    elif camera_xyzrpy is not None and any(camera_xyzrpy):
-        viewer.set_camera_transform(*camera_xyzrpy)
+    if enable_travelling:
+        position, rotation, relative = None, None, None
+        if camera_pose is not None:
+            position, rotation, relative = camera_pose
+        if relative is None:
+            # Track the first actual frame by default (0: world, 1: root_joint)
+            robot = trajs_data[0]['robot']
+            assert robot is not None
+            if not robot.has_freeflyer:
+                raise ValueError(
+                    "Enabling travelling requires `camera_pose` to specify at "
+                    "least the relative frame to track if the first robot has "
+                    "no freeflyer.")
+            relative = 2
+        viewer.attach_camera(relative, position, rotation)
+    elif camera_pose is not None:
+        viewer.set_camera_transform(*camera_pose)
 
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:
@@ -590,7 +602,7 @@ def play_trajectories(
                 if not Viewer.is_alive():
                     return viewers
             else:
-                logger.warning("Start paused is disabled in interactive mode.")
+                LOGGER.warning("Start paused is disabled in interactive mode.")
 
         # Play trajectories with multithreading
         def replay_thread(viewer: Viewer, *args: Any) -> None:
@@ -623,7 +635,7 @@ def play_trajectories(
 
     if Viewer.is_alive():
         # Disable camera travelling and camera motion if it was enabled
-        if travelling_frame is not None:
+        if enable_travelling:
             Viewer.detach_camera()
         if camera_motion is not None:
             Viewer.remove_camera_motion()
@@ -696,7 +708,7 @@ def extract_replay_data_from_log(
         update_hook = update_sensors_data_from_log(log_data, robot)
     else:
         if robot.sensors_names:
-            logger.warning(
+            LOGGER.warning(
                 "At least one of the robot is locked, which means that a "
                 "simulation using the robot is still running. It will be "
                 "impossible to display sensor data. Call `simulator.stop` to "
@@ -744,7 +756,8 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
 
 
 def play_logs_files(logs_files: Union[str, Sequence[str]],
-                    mesh_package_dirs: Union[str, Sequence[str]] = (),
+                    mesh_path_dir: Optional[str] = None,
+                    mesh_package_dirs: Sequence[str] = (),
                     **kwargs: Any) -> Sequence[Viewer]:
     """Play the content of a logfile in a viewer.
 
@@ -753,8 +766,11 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 
     :param logs_files: Either a single simulation log files in any format, or
                        a list.
-    :param mesh_package_dirs: Prepend custom mesh package search path
-                              directories to the ones provided by log file. It
+    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
+                          It which may be necessary to read log generated on a
+                          different environment.
+    :param mesh_package_dirs: Additional search paths for all relative mesh
+                              paths beginning with 'packages://' directive. It
                               may be necessary to specify it to read log
                               generated on a different environment.
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
@@ -767,7 +783,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
     robots, logs_data = [], []
     for log_file in logs_files:
         log_data = read_log(log_file)
-        robot = build_robot_from_log(log_data, mesh_package_dirs)
+        robot = build_robot_from_log(
+            log_data, mesh_path_dir, mesh_package_dirs)
         logs_data.append(log_data)
         robots.append(robot)
 
@@ -783,7 +800,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
 def async_play_and_record_logs_files(
         logs_files: Union[str, Sequence[str]],
         enable_replay: Optional[bool] = None,
-        mesh_package_dirs: Union[str, Sequence[str]] = (),
+        mesh_path_dir: Optional[str] = None,
+        mesh_package_dirs: Sequence[str] = (),
         **kwargs: Any) -> Optional[Thread]:
     """Play and/or replay the content of a logfile in a viewer asynchronously.
 
@@ -798,6 +816,9 @@ def async_play_and_record_logs_files(
                           Optional: True by default if `record_video_path` is
                           not specified and the current backend supports
                           onscreen rendering, False otherwise.
+    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
+                          It which may be necessary to read log generated on a
+                          different environment.
     :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file.
     :param kwargs: Keyword arguments to forward to `play_logs_files` method.
@@ -811,7 +832,7 @@ def async_play_and_record_logs_files(
 
     # Disable replay if not available and video recording is requested
     if enable_replay and not is_display_available():
-        logger.warning("No display available. Disabling replay.")
+        LOGGER.warning("No display available. Disabling replay.")
         enable_replay = False
 
     # Nothing to do. Silently returning early.
@@ -821,7 +842,8 @@ def async_play_and_record_logs_files(
     # Define method to pass to threading
     def _locked_play_and_record(lock: RLock,
                                 logs_files: Sequence[str],
-                                mesh_package_dirs: Union[str, Sequence[str]],
+                                mesh_path_dir: Optional[str],
+                                mesh_package_dirs: Sequence[str],
                                 enable_replay: bool,
                                 **kwargs: Any) -> None:
         """A lock is used to force waiting for the current evaluation to finish
@@ -836,17 +858,17 @@ def async_play_and_record_logs_files(
             if enable_replay:
                 try:
                     viewers = play_logs_files(
-                        logs_files, mesh_package_dirs, **kwargs)
+                        logs_files, mesh_path_dir, mesh_package_dirs, **kwargs)
                     for viewer in viewers:
                         viewer.close()
                 except RuntimeError as e:
                     # Replay may fail if current backend does not support it
-                    logger.warning(
+                    LOGGER.warning(
                         f"The current viewer backend '{Viewer.backend}' does "
                         "not support replaying simulation: %s", e)
             if record_video_path is not None:
                 viewers = play_logs_files(
-                    logs_files, mesh_package_dirs,
+                    logs_files, mesh_path_dir, mesh_package_dirs,
                     record_video_path=record_video_path, **kwargs)
                 for viewer in viewers:
                     viewer.close()
@@ -854,7 +876,9 @@ def async_play_and_record_logs_files(
     # Start replay and record thread
     thread = Thread(
         target=_locked_play_and_record,
-        args=(viewer_lock, logs_files, mesh_package_dirs, enable_replay),
+        args=(
+            viewer_lock, logs_files, mesh_path_dir, mesh_package_dirs,
+            enable_replay),
         kwargs={
             **dict(
                 close_backend=(enable_replay and enable_recording),
@@ -888,8 +912,8 @@ def _play_logs_files_entrypoint() -> None:
         '-b', '--backend', default='panda3d',
         help="Display backend ('panda3d' or 'meshcat').")
     parser.add_argument(
-        '-m', '--mesh_package_dir', default=None,
-        help="Fullpath location of mesh package directory.")
+        '-m', '--mesh_path_dir', default=None,
+        help="Fullpath location of mesh directory.")
     parser.add_argument(
         '-v', '--record_video_path', default=None,
         help="Fullpath location where to save generated video.")
@@ -897,13 +921,8 @@ def _play_logs_files_entrypoint() -> None:
     kwargs = vars(options)
     kwargs['logs_files'] = files
 
-    # Convert mesh package dir into a list
-    if kwargs['mesh_package_dir'] is not None:
-        kwargs['mesh_package_dirs'] = [kwargs.pop('mesh_package_dir')]
-
-    # Convert travelling mode into frame index
-    if kwargs.pop('travelling'):
-        kwargs['travelling_frame'] = 2
+    # Map argument name(s)
+    kwargs['enable_travelling'] = kwargs.pop('travelling')
 
     # Replay trajectories
     repeat = True
@@ -911,11 +930,11 @@ def _play_logs_files_entrypoint() -> None:
     while repeat:
         viewers = play_logs_files(
             viewers=viewers,
-            **{**dict(  # type: ignore[arg-type]
+            **{**dict(
                 remove_widgets_overlay=False),
                 **kwargs})
         kwargs["start_paused"] = False
-        kwargs.setdefault("camera_xyzrpy", None)
+        kwargs.setdefault("camera_pose", None)
         if kwargs["record_video_path"] is None:
             while True:
                 reply = input("Do you want to replay again (y/[n])?").lower()

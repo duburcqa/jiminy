@@ -1,26 +1,26 @@
 from itertools import chain
-from pkg_resources import get_distribution
+from importlib.metadata import version
 from setuptools import setup, find_namespace_packages
 
 
-version = get_distribution('jiminy-py').version
+jiminy_version = version('jiminy-py')
 
 extras = {
     "zoo": [
-        f"gym-jiminy-zoo=={version}",
+        f"gym-jiminy-zoo~={jiminy_version}",
     ],
     "toolbox": [
-        f"gym-jiminy-toolbox=={version}"
+        f"gym-jiminy-toolbox~={jiminy_version}"
     ],
     "rllib": [
-        f"gym-jiminy-rllib=={version}"
+        f"gym-jiminy-rllib~={jiminy_version}"
     ]
 }
 extras["all"] = list(set(chain.from_iterable(extras.values())))
 
 setup(
     name="gym-jiminy",
-    version=version,
+    version=jiminy_version,
     description=(
         "Python-native OpenAI Gym interface between Jiminy open-source "
         "simulator and Reinforcement Learning frameworks."),
@@ -47,17 +47,23 @@ setup(
     packages=find_namespace_packages(),
     package_data={"gym_jiminy.common": ["py.typed"]},
     install_requires=[
-        f"jiminy-py=={version}",
+        f"jiminy-py~={jiminy_version}",
         # Use to perform linear algebra computation
         "numpy",
         # Use internally to speedup computation of math methods
-        "numba",
+        # - 0.54: Adds 'np.clip'
+        "numba>=0.54.0",
         # Use to operate on nested data structure conveniently.
         # - 0.1.7 breaking API and internal changes.
         "dm-tree>=0.1.7",
         # Standard interface library for reinforcement learning.
-        # - >= 0.22.0 adds more type hints and changes `reset` API.
-        "gym>=0.21.0,<0.22.0"
+        # - `gym` has been replaced by `gymnasium` for 0.26.0+
+        # - 0.28.0: fully typed
+        # - bound version for resilience to recurrent API breakage
+        "gymnasium>=0.26,<0.29",
+        # For backward compatibility of latest Python typing features
+        # - TypeAlias has been added with Python 3.10
+        "typing_extensions"
     ],
     extras_require=extras,
     zip_safe=False

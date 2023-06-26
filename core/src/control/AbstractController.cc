@@ -143,20 +143,22 @@ namespace jiminy
                     objectName = objectPrefixName + TELEMETRY_FIELDNAME_DELIMITER + objectName;
                 }
                 telemetrySender_.configureObject(telemetryData, objectName);
-                for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
+                for (auto const & [name, valuePtr] : registeredVariables_)
                 {
                     if (returnCode == hresult_t::SUCCESS)
                     {
-                        returnCode = telemetrySender_.registerVariable(registeredVariable.first,
-                                                                       *registeredVariable.second);
+                        // TODO Remove explicit `name` capture when moving to C++20
+                        std::visit([&, & name = name](auto && arg)
+                                   {
+                                       telemetrySender_.registerVariable(name, *arg);
+                                   }, valuePtr);
                     }
                 }
-                for (std::pair<std::string, std::string> const & registeredConstant : registeredConstants_)
+                for (auto const & [name, value] : registeredConstants_)
                 {
                     if (returnCode == hresult_t::SUCCESS)
                     {
-                        returnCode = telemetrySender_.registerConstant(registeredConstant.first,
-                                                                       registeredConstant.second);
+                        returnCode = telemetrySender_.registerConstant(name, value);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -174,12 +176,13 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t AbstractController::registerVariable(std::vector<std::string> const & fieldnames,
-                                                   Eigen::Ref<vectorN_t, 0, Eigen::InnerStride<> > values)
+    template<typename T>
+    hresult_t registerVariableImpl(static_map_t<std::string, std::variant<float64_t const *, int64_t const *> > & registeredVariables,
+                                   bool_t const & isTelemetryConfigured,
+                                   std::vector<std::string> const & fieldnames,
+                                   Eigen::Ref<Eigen::Matrix<T, -1, 1>, 0, Eigen::InnerStride<> > const & values)
     {
-        // Delayed variable registration (Taken into account by 'configureTelemetry')
-
-        if (isTelemetryConfigured_)
+        if (isTelemetryConfigured)
         {
             PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.");
             return hresult_t::ERROR_INIT_FAILED;
@@ -189,49 +192,33 @@ namespace jiminy
         for (std::size_t i=0; fieldIt != fieldnames.end(); ++fieldIt, ++i)
         {
             // Check in local cache before.
-            auto variableIt = std::find_if(registeredVariables_.begin(),
-                                           registeredVariables_.end(),
+            auto variableIt = std::find_if(registeredVariables.begin(),
+                                           registeredVariables.end(),
                                            [&fieldIt](auto const & element)
                                            {
                                                return element.first == *fieldIt;
                                            });
-            if (variableIt != registeredVariables_.end())
+            if (variableIt != registeredVariables.end())
             {
                 PRINT_ERROR("Variable already registered.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
-            registeredVariables_.emplace_back(*fieldIt, &values[i]);
+            registeredVariables.emplace_back(*fieldIt, &values[i]);
         }
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractController::registerVariable(std::string const & fieldname,
-                                                   float64_t   const & value)
+    hresult_t AbstractController::registerVariable(std::vector<std::string> const & fieldnames,
+                                                   Eigen::Ref<Eigen::Matrix<float64_t, -1, 1>, 0, Eigen::InnerStride<> > const & values)
     {
-        // Delayed variable registration (Taken into account by 'configureTelemetry')
+        return registerVariableImpl<float64_t>(registeredVariables_, isTelemetryConfigured_, fieldnames, values);
+    }
 
-        if (isTelemetryConfigured_)
-        {
-            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.");
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
-        // Check in local cache before.
-        auto variableIt = std::find_if(registeredVariables_.begin(),
-                                       registeredVariables_.end(),
-                                       [&fieldname](auto const & element)
-                                       {
-                                           return element.first == fieldname;
-                                       });
-        if (variableIt != registeredVariables_.end())
-        {
-            PRINT_ERROR("Variable already registered.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-        registeredVariables_.emplace_back(fieldname, &value);
-
-        return hresult_t::SUCCESS;
+    hresult_t AbstractController::registerVariable(std::vector<std::string> const & fieldnames,
+                                                   Eigen::Ref<Eigen::Matrix<int64_t, -1, 1>, 0, Eigen::InnerStride<> > const & values)
+    {
+        return registerVariableImpl<int64_t>(registeredVariables_, isTelemetryConfigured_, fieldnames, values);
     }
 
     void AbstractController::removeEntries(void)
@@ -244,9 +231,13 @@ namespace jiminy
     {
         if (isTelemetryConfigured_)
         {
-            for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
+            for (auto const & [name, valuePtr] : registeredVariables_)
             {
-                telemetrySender_.updateValue(registeredVariable.first, *registeredVariable.second);
+                // TODO Remove explicit `name` capture when moving to C++20
+                std::visit([&, & name = name](auto && arg)
+                           {
+                               telemetrySender_.updateValue(name, *arg);
+                           }, valuePtr);
             }
         }
     }

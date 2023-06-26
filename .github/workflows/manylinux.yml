@@ -49,9 +49,9 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "setuptools<66.0" wheel twine cmake
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy<1.24.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "pip>=20.3"
+        "${PYTHON_EXECUTABLE}" -m pip install "setuptools<66.0" "wheel<0.40" twine cmake
+        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21" "numba>=0.54.0"
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
@@ -71,8 +71,7 @@ jobs:
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp311' && 'OFF') || 'ON' }} \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_GYM_JIMINY=ON \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 

@@ -2,11 +2,9 @@
 low-level Jiminy engine, to the Gym environment integration. However, it does
 not assessed that the viewer is working properly.
 """
-import warnings
 import unittest
 from typing import Optional, Dict, Any
 
-import numpy as np
 from torch import nn
 
 from stable_baselines3.ppo import PPO
@@ -30,12 +28,6 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
     .. warning::
         It requires pytorch>=1.4 and stable-baselines3[extra]>=0.10.0
     """
-    def setUp(self):
-        """Disable all warnings to avoid flooding.
-        """
-        warnings.filterwarnings("ignore")
-        np.seterr(all="ignore")
-
     @staticmethod
     def _get_default_config_stable_baselines():
         """Return default configuration for stables baselines that should work
@@ -43,28 +35,30 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         """
         # Agent algorithm config
         config = {}
-        config['n_steps'] = 2500
+        config['n_steps'] = 4000
         config['batch_size'] = 250
         config['learning_rate'] = 5.0e-4
-        config['n_epochs'] = 10
-        config['gamma'] = 0.99
-        config['gae_lambda'] = 0.95
+        config['n_epochs'] = 20
+        config['gamma'] = 0.98
+        config['gae_lambda'] = 0.94
         config['target_kl'] = 0.1
-        config['ent_coef'] = 0.0
-        config['vf_coef'] = 0.5
-        config['clip_range'] = 0.2
+        config['ent_coef'] = 0.01
+        config['vf_coef'] = 0.04
+        config['clip_range'] = 0.3
         config['clip_range_vf'] = None
-        config['max_grad_norm'] = 0.5
+        config['max_grad_norm'] = 1.0
         config['seed'] = SEED
 
         # Policy model config
         config['policy_kwargs'] = {
-            'net_arch': [dict(pi=[64, 64], vf=[64, 64])],
+            'net_arch': dict(pi=[64, 64], vf=[64, 64]),
             'activation_fn': nn.Tanh,
             'ortho_init': True,
             'log_std_init': 1.0,
             'optimizer_kwargs': {
-                'eps': 0.0
+                'weight_decay': 1e-4,
+                'betas': (0.9, 0.999),
+                'eps': 1e-6,
             }
         }
 
@@ -94,20 +88,20 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         train_agent.eval_env = test_env
 
         # Run the learning process
-        return train(train_agent, max_timesteps=150000)
+        return train(train_agent, max_timesteps=200000)
 
     def test_acrobot_stable_baselines(self):
         """Solve acrobot for both continuous and discrete action spaces.
         """
         self.assertTrue(self._ppo_training(
-            "gym_jiminy.envs:acrobot-v0", {'continuous': True}))
+            "gym_jiminy.envs:acrobot", {'continuous': True}))
         self.assertTrue(self._ppo_training(
-            "gym_jiminy.envs:acrobot-v0", {'continuous': False}))
+            "gym_jiminy.envs:acrobot", {'continuous': False}))
 
     def test_cartpole_stable_baselines(self):
         """Solve cartpole for both continuous and discrete action spaces.
         """
         self.assertTrue(self._ppo_training(
-            "gym_jiminy.envs:cartpole-v0", {'continuous': True}))
+            "gym_jiminy.envs:cartpole", {'continuous': True}))
         self.assertTrue(self._ppo_training(
-            "gym_jiminy.envs:cartpole-v0", {'continuous': False}))
+            "gym_jiminy.envs:cartpole", {'continuous': False}))

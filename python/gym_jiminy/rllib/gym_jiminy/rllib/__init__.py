@@ -3,12 +3,16 @@
 from . import ppo
 from . import utilities
 from . import callbacks
-from . import curriculum
 
 
 __all__ = [
     "ppo",
     "utilities",
-    "callbacks",
-    "curriculum"
+    "callbacks"
 ]
+
+try:
+    from . import curriculum
+    __all__ += ["curriculum"]
+except ImportError:
+    pass

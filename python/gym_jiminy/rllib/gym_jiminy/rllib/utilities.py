@@ -22,7 +22,7 @@ from operator import attrgetter, itemgetter
 from typing import (
     Optional, Callable, Dict, Any, Union, List, Sequence, Tuple, Type, cast)
 
-import gym
+import gymnasium as gym
 import numpy as np
 import plotext as plt
 import tree
@@ -35,10 +35,12 @@ from ray._private.gcs_utils import AvailableResources
 from ray._private.test_utils import monitor_memory_usage
 from ray._raylet import GcsClientOptions  # type: ignore[attr-defined]
 from ray.exceptions import RayTaskError
-from ray.tune.logger import Logger, TBXLogger
+from ray.tune.logger import Logger
+from ray.tune.result import TRAINING_ITERATION, TIME_TOTAL_S, TIMESTEPS_TOTAL
+from ray.tune.utils import flatten_dict
 from ray.tune.utils.util import SafeFallbackEncoder
-from ray.rllib.connectors.connector import (
-    register_connector, Connector, ConnectorContext)
+from ray.rllib.connectors.connector import Connector, ConnectorContext
+from ray.rllib.connectors.registry import register_connector
 from ray.rllib.connectors.util import (
     get_agent_connectors_from_config, get_action_connectors_from_config)
 from ray.rllib.algorithms.algorithm import Algorithm
@@ -76,19 +78,143 @@ PRINT_RESULT_FIELDS_FILTER = [
     "episode_len_mean"
 ]
 
+VALID_SUMMARY_TYPES = (int, float, np.float32, np.float64, np.int32, np.int64)
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+
+
+class TBXLogger(Logger):
+    """TensorBoardX Logger.
+
+    Note that hparams will be written only after a trial has terminated.
+    This logger automatically flattens nested dicts to show on TensorBoard:
+
+        {"a": {"b": 1, "c": 2}} -> {"a/b": 1, "a/c": 2}
+    """
+    # pylint: disable=attribute-defined-outside-init
+
+    VALID_HPARAMS = (str, bool, int, float, list, type(None))
+    VALID_NP_HPARAMS = (np.bool_, np.float32, np.float64, np.int32, np.int64)
+
+    def _init(self) -> None:
+        # pylint: disable=import-outside-toplevel
+
+        from tensorboardX import SummaryWriter
+        self._file_writer = SummaryWriter(self.logdir, flush_secs=30)
+        self.last_result: Optional[Dict[str, Union[
+            int, float, np.floating, np.integer, Sequence[Union[
+                int, float, np.floating, np.integer]], np.ndarray]]] = None
+
+    def on_result(self, result: Dict) -> None:
+        step = result.get(TIMESTEPS_TOTAL) or result[TRAINING_ITERATION]
+
+        # Remove keys that are not supposed to be logged
+        tmp = result.copy()
+        for k in ("config", "pid", "timestamp", TIME_TOTAL_S,
+                  TRAINING_ITERATION):
+            tmp.pop(k, None)
+
+        flat_result = flatten_dict(tmp, delimiter="/")
+        path = ["ray", "tune"]
+        valid_result: Dict[str, Union[
+            int, float, np.floating, np.integer, Sequence[Union[
+                int, float, np.floating, np.integer]], np.ndarray]] = {}
+
+        for attr, value in flat_result.items():
+            full_attr = "/".join(path + [attr])
+            if isinstance(value, VALID_SUMMARY_TYPES) and not np.isnan(value):
+                valid_result[full_attr] = value
+                self._file_writer.add_scalar(
+                    full_attr, value, global_step=step)
+            elif (isinstance(value, list) and len(value) > 0) or (
+                isinstance(value, np.ndarray) and value.size > 0
+            ):
+                valid_result[full_attr] = value
+
+                # Must be video
+                if isinstance(value, np.ndarray) and value.ndim == 5:
+                    self._file_writer.add_video(
+                        full_attr, value, global_step=step, fps=20)
+                    continue
+
+                try:
+                    self._file_writer.add_histogram(
+                        full_attr, value, global_step=step)
+                # In case TensorboardX still doesn't think it's a valid value
+                # (e.g. `[[]]`), warn and move on.
+                except (ValueError, TypeError):
+                    LOGGER.warning(
+                        "You are trying to log an invalid value (%s=%s) "
+                        "via %s!", full_attr, value, type(self).__name__)
+
+        self.last_result = valid_result
+        self._file_writer.flush()
+
+    def flush(self) -> None:
+        if self._file_writer is not None:
+            self._file_writer.flush()
+
+    def close(self) -> None:
+        if self._file_writer is not None:
+            if self.trial and self.trial.evaluated_params and self.last_result:
+                flat_result = flatten_dict(self.last_result, delimiter="/")
+                scrubbed_result = {
+                    k: value
+                    for k, value in flat_result.items()
+                    if isinstance(value, tuple(VALID_SUMMARY_TYPES))
+                }
+                self._try_log_hparams(scrubbed_result)
+            self._file_writer.close()
+
+    def _try_log_hparams(self,
+                         result: Dict[
+                             str, Union[int, float, np.floating, np.integer]]
+                         ) -> None:
+        # pylint: disable=import-outside-toplevel
+
+        # TBX currently errors if the hparams value is None.
+        assert self.trial and self.trial.evaluated_params
+        flat_params = flatten_dict(self.trial.evaluated_params)
+        scrubbed_params = {
+            k: v for k, v in flat_params.items()
+            if isinstance(v, self.VALID_HPARAMS)}
+
+        np_params = {
+            k: v.tolist() for k, v in flat_params.items()
+            if isinstance(v, self.VALID_NP_HPARAMS)}
+
+        scrubbed_params.update(np_params)
+
+        removed = {
+            k: v for k, v in flat_params.items()
+            if not isinstance(v, self.VALID_HPARAMS + self.VALID_NP_HPARAMS)}
+        if removed:
+            LOGGER.info(
+                "Removed the following hyperparameter values when logging to "
+                "tensorboard: %s", str(removed))
+
+        from tensorboardX.summary import hparams
+
+        try:
+            experiment_tag, session_start_tag, session_end_tag = hparams(
+                hparam_dict=scrubbed_params, metric_dict=result)
+            self._file_writer.file_writer.add_summary(experiment_tag)
+            self._file_writer.file_writer.add_summary(session_start_tag)
+            self._file_writer.file_writer.add_summary(session_end_tag)
+        except Exception:  # pylint: disable=broad-exception-caught
+            LOGGER.exception(
+                "TensorboardX failed to log hparams. This may be due to an "
+                "unsupported type in the hyperparameter values.")
 
 
 def initialize(num_cpus: int,
                num_gpus: int,
                log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
-               logger_cls: type = TBXLogger,
                launch_tensorboard: bool = True,
                debug: bool = False,
                verbose: bool = True,
-               **ray_init_kwargs: Any) -> Callable[[Dict[str, Any]], Logger]:
+               **ray_init_kwargs: Any) -> str:
     """Initialize Ray and Tensorboard daemons.
 
     It will be used later for almost everything from dashboard, remote/client
@@ -98,7 +224,7 @@ def initialize(num_cpus: int,
         The default Tensorboard port will be used, namely 6006 if available,
         using 0.0.0.0 (binding to all IPv4 addresses on local machine).
         Similarly, Ray dashboard port is 8265 if available. In both cases, the
-        port will be increased interatively until to find one available.
+        port will be increased interactively until to find one available.
 
     :param num_cpus: Maximum number of CPU threads that can be executed in
                      parallel. Note that it does not actually reserve part of
@@ -115,8 +241,6 @@ def initialize(num_cpus: int,
                      use default name, empty string '' to set it interactively
                      in command prompt. It must be a valid Python identifier.
                      Optional: full date _ hostname by default.
-    :param logger_cls: Custom logger class type deriving from `TBXLogger`.
-                       Optional: `TBXLogger` by default.
     :param launch_tensorboard: Whether to launch tensorboard automatically.
                                Optional: Enabled by default.
     :param debug: Whether to display debugging trace.
@@ -124,15 +248,11 @@ def initialize(num_cpus: int,
     :param verbose: Whether to print information about what is going on.
                     Optional: True by default.
 
-    :returns: lambda function to pass a `ray.Trainer` to monitor learning
-              progress in Tensorboard.
+    :returns: Fully-qualified path of the logging directory.
     """
-    # Make sure provided logger class derives from ray.tune.logger.Logger
-    assert issubclass(logger_cls, Logger), (
-        "Logger class must derive from `ray.tune.logger.Logger`")
-
     # handling of default log directory
-    log_root_path = mkdtemp()
+    if log_root_path is None:
+        log_root_path = mkdtemp()
 
     # Check if cluster servers are already running, and if requested resources
     # are available.
@@ -208,7 +328,7 @@ def initialize(num_cpus: int,
                 print(f"Started Tensorboard {url}.",
                       f"Root directory: {log_root_path}")
         except ImportError:
-            logger.warning("Tensorboard not available. Cannot start server.")
+            LOGGER.warning("Tensorboard not available. Cannot start server.")
 
     # Monitor memory usage in debug
     if debug:
@@ -236,18 +356,16 @@ def initialize(num_cpus: int,
     log_path = os.path.join(log_root_path, log_name)
     pathlib.Path(log_path).mkdir(parents=True, exist_ok=True)
     if verbose:
-        print(f"Tensorboard logfiles directory: {log_path}")
+        print(f"Experiment logfiles directory: {log_path}")
 
-    # Define Ray logger
-    def logger_creator(config: Dict[str, Any]) -> Logger:
-        return logger_cls(config, log_path)
-
-    return logger_creator
+    return log_path
 
 
 def train(algo: Algorithm,
           max_timesteps: int = 0,
           max_iters: int = 0,
+          logger_cls: type = TBXLogger,
+          logdir: Optional[Logger] = None,
           checkpoint_period: int = 0,
           verbose: bool = True,
           debug: bool = False) -> str:
@@ -265,6 +383,10 @@ def train(algo: Algorithm,
                           Optional: Disabled by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
                       Optional: Disabled by default.
+    :param logger_cls: Logger class deriving from `ray.tune.logger.Logger`.
+                       Optional: `ray.tune.logger.TBXLogger` by default.
+    :param logdir: Directory where to store the logfiles created by the logger.
+                   Optional: None by default.
     :param checkpoint_period: Backup trainer every given number of training
                               steps in log folder if requested. 0 to disable.
                               Optional: Disabled by default.
@@ -280,10 +402,15 @@ def train(algo: Algorithm,
     # Get environment's reward threshold, if any
     assert isinstance(algo.workers, WorkerSet)
     env_spec, *_ = chain(*algo.workers.foreach_env(attrgetter('spec')))
-    if env_spec is None or env_spec is None:
+    if env_spec is None or env_spec.reward_threshold is None:
         reward_threshold = float('inf')
     else:
         reward_threshold = env_spec.reward_threshold
+
+    # Instantiate logger that will be used throughout the experiment
+    result_logger = None
+    if logdir is not None:
+        result_logger = logger_cls({}, logdir=logdir)
 
     # Backup some information
     if algo.iteration == 0:
@@ -332,6 +459,10 @@ def train(algo: Algorithm,
             result = algo.train()
             iter_num = result["training_iteration"]
 
+            # Log results
+            if result_logger is not None:
+                result_logger.on_result(result)
+
             # Monitor memory allocation since the beginning and between iters
             if debug:
                 snapshot_new = tracemalloc.take_snapshot()
@@ -368,7 +499,12 @@ def train(algo: Algorithm,
         if verbose:
             print("Interrupting training...")
     except RayTaskError as e:
-        logger.warning("%s", e)
+        LOGGER.warning("%s", e)
+
+    # Flush and close logger before returning
+    if result_logger is not None:
+        result_logger.flush()
+        result_logger.close()
 
     # Backup trained agent and return file location
     return algo.save()
@@ -418,6 +554,7 @@ def _extract_eval_worker_info_from_checkpoint(
     # Extract original evaluation config and tweak it to be local only
     config.output = None
     config.evaluation_num_workers = 0
+    config.num_envs_per_worker = 1
     config.evaluation_parallel_to_training = False
     evaluation_config = config.get_evaluation_config_object()
     if (evaluation_config.off_policy_estimation_methods or
@@ -453,19 +590,15 @@ def build_eval_policy_from_checkpoint(checkpoint_path: str) -> PolicyMap:
         config.preprocessor_pref is not None)
 
     # Create empty policy map
-    seed = (config.seed or 0) + config.in_evaluation * 10000
     policy_map = PolicyMap(
-        worker_index=0,
-        num_workers=0,
         capacity=config.policy_map_capacity,
-        path=config.policy_map_cache,
-        seed=seed)
+        policy_states_are_swappable=config.policy_states_are_swappable)
 
     # Restore all saved policies
     policy_states = worker_state["policy_states"]
     for pid, policy_state in policy_states.items():
         # Extract policy spec
-        spec = policy_state.get("policy_spec", None)
+        spec = policy_state["policy_spec"]
         policy_spec = PolicySpec.deserialize(spec) if (
             config.enable_connectors or
             isinstance(spec, dict)) else spec
@@ -484,18 +617,14 @@ def build_eval_policy_from_checkpoint(checkpoint_path: str) -> PolicyMap:
             if preprocessor is not None:
                 obs_space = preprocessor.observation_space
 
-        # Create the actual policy object
-        policy_map.create_policy(
-            pid,
-            policy_spec.policy_class,
+        # Instantiate the policy
+        policy_map[pid] = policy_spec.policy_class(
             obs_space,
             policy_spec.action_space,
-            config_override=None,
-            merged_config=merged_conf)
+            merged_conf)
 
-        # Restore the state of the policy
-        if policy_state:
-            policy_map[pid].set_state(policy_state)
+        # Restore its state
+        policy_map[pid].set_state(policy_state)
 
     return policy_map
 
@@ -613,7 +742,7 @@ def build_eval_worker_from_checkpoint(
     .. warning::
         This method is *NOT* standalone in the event where a custom connector
         or environment has been registered by calling
-        `ray.rllib.connectors.connector.register_connector` or
+        `ray.rllib.connectors.registry.register_connector` or
         `ray.tune.registry.register_env` and then used during training. In such
         a case, it is necessary to ensure this registration has been done prior
         to calling this method otherwise it will raise an exception.
@@ -648,7 +777,8 @@ class _WriteLogHook:
         def write_log(env: gym.Env) -> str:
             fd, log_path = mkstemp(prefix="log_", suffix=".hdf5")
             os.close(fd)
-            env.write_log(log_path, format="hdf5")
+            env.write_log(  # type: ignore[attr-defined]
+                log_path, format="hdf5")
             return log_path
 
         worker.callbacks.log_paths = (  # type: ignore[attr-defined]
@@ -689,7 +819,7 @@ def _pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
             ax.title(title)
         plt.show()
     except (IndexError, UnicodeEncodeError) as e:
-        logger.warning("'plotext' figure rendering failure: %s", e)
+        LOGGER.warning("'plotext' figure rendering failure: %s", e)
         for i, (title, values) in enumerate(data):
             print(
                 f"* {title}: {np.mean(values):.2f} +/- {np.std(values):.2f} "
@@ -769,7 +899,7 @@ def evaluate_local_worker(worker: RolloutWorker,
                 ("Episode duration", env_dt * np.array(all_num_steps)),
                 ("Total reward", np.array(all_total_rewards))))
         else:
-            logger.warning(
+            LOGGER.warning(
                 "'evaluation_duration' must be at least 10 to print "
                 "meaningful statistics.")
 
@@ -848,8 +978,8 @@ def evaluate_algo(algo: Algorithm,
 
     # Collect samples.
     # `sample` either produces 1 episode or exactly `evaluation_duration` based
-    # on `unit` being set to "episodes" or "timesteps" respectively.
-    # See https://github.com/ray-project/ray/blob/ray-2.2.0/rllib/algorithms/algorithm.py#L937  # noqa: E501  # pylint: disable=line-too-long
+    # on `unit` being set to "episodes" or "timesteps" respectively. See:
+    # https://github.com/ray-project/ray/blob/ray-2.2.0/rllib/algorithms/algorithm.py#L937  # noqa: E501  # pylint: disable=line-too-long
     eval_workers.foreach_worker(_toggle_write_log_hook)
     if eval_workers.num_remote_workers() == 0:
         # Collect the data
@@ -880,7 +1010,7 @@ def evaluate_algo(algo: Algorithm,
                 remote_worker_ids=selected_eval_worker_ids,
                 timeout_seconds=algo_cfg["evaluation_sample_timeout_s"])
             if len(batches) != len(selected_eval_worker_ids):
-                logger.warning(
+                LOGGER.warning(
                     "Calling `sample()` on your remote evaluation worker(s) "
                     "resulted in a timeout. Please configure the parameter "
                     "`evaluation_sample_timeout_s` accordingly.")
@@ -892,7 +1022,7 @@ def evaluate_algo(algo: Algorithm,
                 all_num_steps.append(batch.env_steps())
                 all_total_rewards.append(np.sum(batch[batch.REWARDS]))
             all_log_paths += chain(*eval_workers.foreach_worker(
-                lambda w: w.callbacks.log_paths))
+                lambda w: w.callbacks.log_paths, local_worker=False))
 
             # Store all batches for later use
             if algo.reward_estimators:
@@ -921,7 +1051,7 @@ def evaluate_algo(algo: Algorithm,
                 ("Episode duration", env_dt * np.array(all_num_steps)),
                 ("Total reward", np.array(all_total_rewards))))
         else:
-            logger.warning(
+            LOGGER.warning(
                 "'evaluation_num' must be at least 10 to print meaningful "
                 "statistics.")
 
