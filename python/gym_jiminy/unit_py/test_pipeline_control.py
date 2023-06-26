@@ -112,7 +112,8 @@ class PipelineControl(unittest.TestCase):
                 Viewer.close()
 
     def test_mahony_filter(self):
-        """ TODO: Write documentation
+        """Check consistency between IMU orientation estimation provided by
+        Mahony filter and ground truth for moderately slow motions.
         """
         # Instantiate and reset the environment
         env = AtlasPDControlJiminyEnv()
