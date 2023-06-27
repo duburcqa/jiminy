@@ -51,9 +51,9 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
-        "${PYTHON_EXECUTABLE}" -m pip install "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "setuptools<66.0" "wheel<0.40" delocate twine
+        "${PYTHON_EXECUTABLE}" -m pip install "setuptools" "wheel" "pip>=20.3"
         "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21" "numba>=0.54.0"
+        "${PYTHON_EXECUTABLE}" -m pip install delocate twine
     - name: Build project dependencies
       run: |
         MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
@@ -158,12 +158,10 @@ jobs:
     - name: Run unit tests for gym jiminy
       if: matrix.PYTHON_VERSION != '3.11'
       run: |
-        # FIXME: 'No registered converter [...] of type unsigned int from [...] of type numpy.uint32
-        #export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
 
-        # FIXME: 'Segmentation fault: 11'
-        #cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
-        #JIMINY_VIEWER_DEFAULT_BACKEND="meshcat" "${PYTHON_EXECUTABLE}" acrobot_ppo.py
+        cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
+        JIMINY_VIEWER_DEFAULT_BACKEND="meshcat" "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
