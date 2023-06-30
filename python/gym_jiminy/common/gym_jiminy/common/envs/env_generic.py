@@ -283,8 +283,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         """Get time space.
         """
         return spaces.Box(low=0.0,
-                          high=self.simulator.simulation_duration_max,
-                          shape=(1,),
+                          high=self.simulation_duration_max,
+                          shape=(),
                           dtype=np.float64)
 
     def _get_agent_state_space(self,
@@ -1412,8 +1412,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         the scope of the MDP has been triggered.
 
         By default, it returns `truncated=True` if the observation is out-of-
-        bounds. It must be overloaded to implement a custom termination
-        condition for the environment at hands. It always returns `done=False`.
+        bounds or the maximum simulation duration exceeded. It must be
+        overloaded to implement custom termination conditions for the
+        environment at hands. It always returns `done=False`.
 
         .. note::
             This method is called after `refresh_observation`, so that the
@@ -1429,6 +1430,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Check if the observation is out-of-bounds
         truncated = not self.observation_space.contains(self.observation)
+
+        # Check if the maximum simulation duration is exceeded
+        if self.simulator.stepper_state.t >= self.simulation_duration_max:
+            truncated = True
 
         return False, truncated
 
