@@ -185,14 +185,13 @@ namespace jiminy
                         return hresult_t::ERROR_GENERIC;
                     }
 
-                    // Update rotor inertia of pinocchio model
-                    float64_t const & armature = motorIn.getArmature();
-                    std::string const & jointName = motorIn.getJointName();
-                    int32_t jointVelocityIdx;
-                    ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName, jointVelocityIdx);
-                    robot->pncModel_.rotorInertia[jointVelocityIdx] = armature;
-                    ::jiminy::getJointVelocityIdx(robot->pncModelOrig_, jointName, jointVelocityIdx);
-                    robot->pncModelOrig_.rotorInertia[jointVelocityIdx] = armature;
+                    // Update rotor inertia and effort limit of pinocchio model
+                    int32_t jointVelocityOrigIdx;
+                    ::jiminy::getJointVelocityIdx(robot->pncModelOrig_, motorIn.getJointName(), jointVelocityOrigIdx);
+                    robot->pncModel_.rotorInertia[motorIn.getJointVelocityIdx()] =
+                         motorIn.getArmature() + robot->pncModelOrig_.rotorInertia[jointVelocityOrigIdx];
+                    robot->pncModel_.effortLimit[motorIn.getJointVelocityIdx()] = motorIn.getCommandLimit();
+
                     return hresult_t::SUCCESS;
                 };
 
@@ -239,6 +238,13 @@ namespace jiminy
             PRINT_ERROR("No motor with this name exists.");
             return hresult_t::ERROR_BAD_INPUT;
         }
+
+        // Reset effortLimit and rotorInertia
+        int32_t jointVelocityOrigIdx;
+        ::jiminy::getJointVelocityIdx(robot->pncModelOrig_, motorIn.getJointName(), jointVelocityOrigIdx);
+        robot->pncModel_.rotorInertia[motorIn.getJointVelocityIdx()] =
+            robot->pncModelOrig_.rotorInertia[jointVelocityOrigIdx];
+        robot->pncModel_.effortLimit[motorIn.getJointVelocityIdx()] = 0.0;
 
         // Detach the motor
         (*motorIt)->detach();  // It cannot fail at this point
@@ -858,10 +864,6 @@ namespace jiminy
             }
         }
 
-        // Propagate the user-defined motor inertia at Pinocchio model level
-        pncModelOrig_.rotorInertia = getArmatures();
-        pncModel_.rotorInertia = pncModelOrig_.rotorInertia;
-
         return returnCode;
     }
 
@@ -1362,6 +1364,11 @@ namespace jiminy
         return motorsVelocityIdx;
     }
 
+    vectorN_t const & Robot::getCommandLimit(void) const
+    {
+        return pncModel_.effortLimit;
+    }
+
     std::unordered_map<std::string, std::vector<std::string> > const & Robot::getSensorsNames(void) const
     {
         return sensorsNames_;
@@ -1380,48 +1387,6 @@ namespace jiminy
         {
             return sensorsNamesEmpty;
         }
-    }
-
-    vectorN_t const & Robot::getCommandLimit(void) const
-    {
-        static vectorN_t commandLimit;
-        commandLimit.resize(pncModel_.nv);
-
-        commandLimit.setConstant(qNAN);
-        for (auto const & motor : motorsHolder_)
-        {
-            auto const & motorOptions = motor->baseMotorOptions_;
-            int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            if (motorOptions->enableCommandLimit)
-            {
-                commandLimit[motorsVelocityIdx] = motor->getCommandLimit();
-            }
-            else
-            {
-                commandLimit[motorsVelocityIdx] = INF;
-            }
-
-        }
-
-        return commandLimit;
-    }
-
-    vectorN_t const & Robot::getArmatures(void) const
-    {
-        static vectorN_t armatures;
-        armatures.resize(pncModel_.nv);
-
-        armatures.setZero();
-        for (auto const & motor : motorsHolder_)
-        {
-            if (motor->getIsInitialized())
-            {
-                int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-                armatures[motorsVelocityIdx] = motor->getArmature();
-            }
-        }
-
-        return armatures;
     }
 
     std::vector<std::string> const & Robot::getCommandFieldnames(void) const

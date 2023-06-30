@@ -1088,9 +1088,9 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        // Reset the robot either with the original rigid or flexible model
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Reset the robot either with the original rigid or flexible model
             if (mdlOptions_->dynamics.enableFlexibleModel)
             {
                 pncModel_ = pncModelFlexibleOrig_;
@@ -1099,6 +1099,9 @@ namespace jiminy
             {
                 pncModel_ = pncModelOrig_;
             }
+
+            // Initially set effortLimit to zero systematically
+            pncModel_.effortLimit.setZero();
 
             for (std::string const & jointName : rigidJointsNames_)
             {
