@@ -189,7 +189,7 @@ namespace jiminy
                     int32_t jointVelocityOrigIdx;
                     ::jiminy::getJointVelocityIdx(robot->pncModelOrig_, motorIn.getJointName(), jointVelocityOrigIdx);
                     robot->pncModel_.rotorInertia[motorIn.getJointVelocityIdx()] =
-                         motorIn.getArmature() + robot->pncModelOrig_.rotorInertia[jointVelocityOrigIdx];
+                         robot->pncModelOrig_.rotorInertia[jointVelocityOrigIdx] + motorIn.getArmature();
                     robot->pncModel_.effortLimit[motorIn.getJointVelocityIdx()] = motorIn.getCommandLimit();
 
                     return hresult_t::SUCCESS;
@@ -240,14 +240,15 @@ namespace jiminy
         }
 
         // Reset effortLimit and rotorInertia
+        std::shared_ptr<AbstractMotorBase> const & motor = *motorIt;
         int32_t jointVelocityOrigIdx;
-        ::jiminy::getJointVelocityIdx(robot->pncModelOrig_, motorIn.getJointName(), jointVelocityOrigIdx);
-        robot->pncModel_.rotorInertia[motorIn.getJointVelocityIdx()] =
-            robot->pncModelOrig_.rotorInertia[jointVelocityOrigIdx];
-        robot->pncModel_.effortLimit[motorIn.getJointVelocityIdx()] = 0.0;
+        ::jiminy::getJointVelocityIdx(pncModelOrig_, motor->getJointName(), jointVelocityOrigIdx);
+        pncModel_.rotorInertia[motor->getJointVelocityIdx()] =
+            pncModelOrig_.rotorInertia[jointVelocityOrigIdx];
+        pncModel_.effortLimit[motor->getJointVelocityIdx()] = 0.0;
 
         // Detach the motor
-        (*motorIt)->detach();  // It cannot fail at this point
+        motor->detach();  // It cannot fail at this point
 
         // Remove the motor from the holder
         motorsHolder_.erase(motorIt);

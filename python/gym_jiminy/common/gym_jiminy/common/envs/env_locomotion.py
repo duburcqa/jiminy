@@ -4,7 +4,6 @@ Jiminy simulator as physics engine.
 from typing import Optional, Dict, Union, Callable, Any, Type, Sequence, Tuple
 
 import numpy as np
-import gymnasium as gym
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder,

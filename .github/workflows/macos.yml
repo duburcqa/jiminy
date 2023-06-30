@@ -51,7 +51,7 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
-        "${PYTHON_EXECUTABLE}" -m pip install "setuptools" "wheel" "pip>=20.3"
+        "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
         "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21" "numba>=0.54.0"
         "${PYTHON_EXECUTABLE}" -m pip install delocate twine
     - name: Build project dependencies
@@ -162,7 +162,7 @@ jobs:
 
         cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         JIMINY_VIEWER_DISABLE= lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- \
-          "${PYTHON_EXECUTABLE}" acrobot_ppo.py 2>&1
+          "${PYTHON_EXECUTABLE}" acrobot_ppo.py 2>&1 | grep -v ^"No stack."$ && exit 1
 
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
