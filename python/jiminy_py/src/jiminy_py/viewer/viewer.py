@@ -136,11 +136,11 @@ def is_display_available() -> bool:
         return True
     if multiprocessing.current_process().daemon:
         return False
-    if sys.platform.startswith("win"):
+    if not sys.platform.startswith("linux"):
         return True
-    if not os.environ.get("DISPLAY"):
-        return False
-    return True
+    if os.environ.get("DISPLAY"):
+        return True
+    return False
 
 
 def get_default_backend() -> str:

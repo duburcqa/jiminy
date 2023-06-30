@@ -59,7 +59,7 @@ jobs:
     - name: Setup minimal build environment
       run: |
         sudo apt update
-        sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
+        sudo apt install -y gdb gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
         "${PYTHON_EXECUTABLE}" -m pip install "setuptools" "wheel" "pip>=20.3"
         "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21" "numba>=0.54.0"
@@ -119,7 +119,7 @@ jobs:
       if: matrix.BUILD_TYPE == 'Release'
       run: |
         cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
-        "${PYTHON_EXECUTABLE}" acrobot_ppo.py
+        gdb -batch -ex "run" -ex "bt" --args "${PYTHON_EXECUTABLE}" acrobot_ppo.py 2>&1
 
         # FIXME: Must install stable_baselines3 after running rllib test
         # because they require a different version of `gymnasium`.
