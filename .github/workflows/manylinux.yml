@@ -21,7 +21,7 @@ jobs:
     defaults:
       run:
         # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
-        shell: bash -ieo pipefail {0}
+        shell: bash -euxo pipefail {0}
 
     env:
       BUILD_TYPE: "Release"
@@ -136,7 +136,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash -ieo pipefail {0}
+        shell: bash -euxo pipefail {0}
 
     env:
       BUILD_TYPE: "Release"
