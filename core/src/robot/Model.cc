@@ -429,11 +429,22 @@ namespace jiminy
                 pncModelFlexibleOrig_.addFrame(frame);
             }
 
+            /* Backup the current rotor inertias and effort limits to restore them.
+               Note that it is only necessary because 'reset' is not called
+               for efficiency. It is reasonable to assume that no other fields
+               have been overriden by derived classes such as Robot. */
+            vectorN_t rotorInertia = pncModel_.rotorInertia;
+            vectorN_t effortLimit = pncModel_.effortLimit;
+
             /* One must re-generate the model after adding a frame.
                Note that it is unecessary to call 'reset' since the proxies
                are still up-to-date, because the frame is added at the end
                of the vector. */
             generateModelBiased();
+
+            // Restore the current rotor inertias and effort limits
+            pncModel_.rotorInertia.swap(rotorInertia);
+            pncModel_.effortLimit.swap(effortLimit);
         }
 
         return returnCode;
@@ -1099,6 +1110,9 @@ namespace jiminy
             {
                 pncModel_ = pncModelOrig_;
             }
+
+            // Initially set effortLimit to zero systematically
+            pncModel_.effortLimit.setZero();
 
             for (std::string const & jointName : rigidJointsNames_)
             {

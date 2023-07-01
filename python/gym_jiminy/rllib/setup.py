@@ -36,7 +36,7 @@ setup(
         # - 1.11.0: Breaking changes
         "ray[default,rllib]~=2.5.0",
         # Internal dependency of Ray that must be pinned
-        "pydantic<2.0.0"
+        "pydantic<2.0.0",
         # Used for monitoring (logging and publishing) learning progress
         "tensorboardX",
         # Plot data directly in terminal to monitor stats without X-server

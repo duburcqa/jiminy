@@ -237,11 +237,10 @@ class PDController(
             env.robot.velocity_limit[motors_velocity_idx],
         ]
         step_dt = env.step_dt
-        command_limit = env.robot.command_limit[env.robot.motors_velocity_idx]
         for i in range(2, order + 1):
             range_limit = (
                 command_state_upper[-1] - command_state_lower[-1]) / step_dt
-            effort_limit = command_limit / (
+            effort_limit = self._motors_effort_limit / (
                 self.kp * step_dt ** (i - 1) * INV_FACTORIAL_TABLE[i - 1] *
                 np.maximum(step_dt / i, self.kd))
             n_order_limit = np.minimum(range_limit, effort_limit)
