@@ -245,7 +245,8 @@ namespace jiminy
         ::jiminy::getJointVelocityIdx(pncModelOrig_, motor->getJointName(), jointVelocityOrigIdx);
         pncModel_.rotorInertia[motor->getJointVelocityIdx()] =
             pncModelOrig_.rotorInertia[jointVelocityOrigIdx];
-        pncModel_.effortLimit[motor->getJointVelocityIdx()] = 0.0;
+        pncModel_.effortLimit[motor->getJointVelocityIdx()] =
+            pncModelOrig_.effortLimit[jointVelocityOrigIdx];
 
         // Detach the motor
         motor->detach();  // It cannot fail at this point

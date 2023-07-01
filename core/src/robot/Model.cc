@@ -1100,9 +1100,6 @@ namespace jiminy
                 pncModel_ = pncModelOrig_;
             }
 
-            // Initially set effortLimit to zero systematically
-            pncModel_.effortLimit.setZero();
-
             for (std::string const & jointName : rigidJointsNames_)
             {
                 jointIndex_t const & jointIdx = pncModel_.getJointId(jointName);
