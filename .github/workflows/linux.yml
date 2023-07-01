@@ -24,7 +24,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash
+        shell: bash -ieo pipefail {0}
 
     env:
       TORCH_VERSION: "2.0.1+cpu"

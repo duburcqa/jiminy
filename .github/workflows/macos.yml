@@ -19,7 +19,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash -euxo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
+        shell: bash -ieo pipefail {0}
 
     env:
       TORCH_VERSION: "2.0.1"
@@ -97,7 +97,8 @@ jobs:
 
     - name: Generate and install Python Pip wheels
       run: |
-        export DYLD_LIBRARY_PATH="$InstallDir/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export DYLD_LIBRARY_PATH="$LD_LIBRARY_PATH"
 
         # Generate stubs.
         # It does not work on MacOS because of panda3d import errors in frozen mode. Disabling for now.
@@ -145,10 +146,11 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
+        # Do NOT set LD_LIBRARY_PATH to check the import of bundled dependencies as fallback
+
         cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
-        # Do NOT set LD_LIBRARY_PATH to check the import of bundled dependencies as fallback
         cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
@@ -156,6 +158,7 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
 
+        # FIXME: segfault when enabling viewer for Panda3D 1.10.12
         cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         JIMINY_VIEWER_DISABLE= "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 

@@ -21,10 +21,11 @@ jobs:
     defaults:
       run:
         # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
-        shell: bash -euxo pipefail {0}
+        shell: bash -ieo pipefail {0}
 
     env:
       BUILD_TYPE: "Release"
+      CMAKE_CXX_FLAGS: ""
 
     #####################################################################################
 
@@ -136,7 +137,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash -euxo pipefail {0}
+        shell: bash -ieo pipefail {0}
 
     env:
       BUILD_TYPE: "Release"

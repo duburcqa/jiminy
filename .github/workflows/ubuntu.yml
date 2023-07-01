@@ -34,7 +34,8 @@ jobs:
 
     defaults:
       run:
-        shell: bash -euxo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
+        # Using bash with automatic sourcing `.bashrc` and fail-fast behavior enabled
+        shell: bash -ieo pipefail {0}
 
     env:
       TORCH_VERSION: "2.0.1+cpu"
