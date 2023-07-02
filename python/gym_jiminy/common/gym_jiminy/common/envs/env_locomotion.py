@@ -4,7 +4,6 @@ Jiminy simulator as physics engine.
 from typing import Optional, Dict, Union, Callable, Any, Type, Sequence, Tuple
 
 import numpy as np
-import gymnasium as gym
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder,
@@ -81,7 +80,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  urdf_path: Optional[str],
                  hardware_path: Optional[str] = None,
                  mesh_path_dir: Optional[str] = None,
-                 simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
+                 simulation_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  step_dt: float = DEFAULT_STEP_DT,
                  enforce_bounded_spaces: bool = False,
                  reward_mixture: Optional[dict] = None,
@@ -100,8 +99,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         :param mesh_path_dir: Path to the folder containing the model meshes.
                               Optional: Env variable 'JIMINY_DATA_PATH' will be
                               used if available.
-        :param simu_duration_max: Maximum duration of a simulation before
-                                  returning done.
+        :param simulation_duration_max: Maximum duration of a simulation before
+                                        returning done.
         :param step_dt: Simulation timestep for learning.
         :param enforce_bounded_spaces:
             Whether to enforce finite bounds for the observation and action
@@ -156,7 +155,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         std_ratio = {k: v for k, v in std_ratio.items() if v > 0.0}
 
         # Backup user arguments
-        self.simu_duration_max = simu_duration_max
+        self.simulation_duration_max = simulation_duration_max
         self.reward_mixture = reward_mixture
         self.urdf_path = urdf_path
         self.mesh_path_dir = mesh_path_dir
@@ -305,7 +304,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
             # Schedule some external impulse forces applied on PelvisLink
             for t_ref in np.arange(
-                    0.0, self.simu_duration_max, F_IMPULSE_PERIOD)[1:]:
+                    0.0, self.simulation_duration_max, F_IMPULSE_PERIOD)[1:]:
                 t = t_ref + sample(scale=F_IMPULSE_DELTA, rg=self.np_random)
                 f_xy = sample(dist='normal', shape=(2,), rg=self.np_random)
                 f_xy /= np.linalg.norm(f_xy, ord=2)
@@ -324,17 +323,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Set the options, finally
         self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
-
-    def _get_time_space(self) -> gym.spaces.Box:
-        """Get time space.
-
-        It takes advantage of knowing the maximum simulation duration to shrink
-        down the range. Note that observation will be out-of-bounds steps are
-        performed after this point.
-        """
-        return gym.spaces.Box(
-            low=0.0, high=self.simu_duration_max, shape=(1,),
-            dtype=np.float64)
 
     def _force_external_profile(self,
                                 t: float,
@@ -382,10 +370,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Check if the agent has successfully solved the task
         if self.system_state.q[2] < self._height_neutral * 0.5:
             done = True
-
-        # Check if the maximum simulation duration is exceeded
-        if self.simulator.stepper_state.t >= self.simu_duration_max:
-            truncated = True
 
         return done, truncated
 

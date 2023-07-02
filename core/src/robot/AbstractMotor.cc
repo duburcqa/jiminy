@@ -262,7 +262,9 @@ namespace jiminy
             // Get the motor effort limits from the URDF or the user options.
             if (baseMotorOptions_->commandLimitFromUrdf)
             {
-                commandLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_] / baseMotorOptions_->mechanicalReduction;
+                int32_t jointVelocityOrigIdx;
+                ::jiminy::getJointVelocityIdx(robot->pncModelOrig_, jointName_, jointVelocityOrigIdx);
+                commandLimit_ = robot->pncModelOrig_.effortLimit[jointVelocityOrigIdx] / baseMotorOptions_->mechanicalReduction;
             }
             else
             {

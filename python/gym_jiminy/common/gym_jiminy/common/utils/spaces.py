@@ -34,7 +34,9 @@ global_rng = np.random.default_rng()
 def _array_clip(value: np.ndarray,
                 low: np.ndarray,
                 high: np.ndarray) -> np.ndarray:
-    return value.clip(low, high)
+    if value.ndim:
+        return np.minimum(np.maximum(value, low), high)
+    return np.array(min(max(value.item(), low.item()), high.item()))
 
 
 def _unflatten_as(structure: StructNested[Any],

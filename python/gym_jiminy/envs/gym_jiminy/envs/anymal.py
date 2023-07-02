@@ -72,7 +72,7 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(
-                simu_duration_max=SIMULATION_DURATION,
+                simulation_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
                 std_ratio=STD_RATIO),

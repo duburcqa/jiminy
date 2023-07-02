@@ -37,6 +37,7 @@ if __name__ == "__main__":
     GYM_ENV_KWARGS = {
         'continuous': True
     }
+    ENABLE_VIEWER = "JIMINY_VIEWER_DISABLE" in os.environ
     SPEED_RATIO = 1.0
     DEBUG = False
     SEED = 0
@@ -204,9 +205,8 @@ if __name__ == "__main__":
         custom_evaluation_function=partial(
             evaluate_algo,
             print_stats=True,
-            enable_replay=(
-                os.getenv('JIMINY_VIEWER_DEFAULT_BACKEND') != "panda3d-sync"),
-            record_video=True
+            enable_replay=ENABLE_VIEWER or None,
+            record_video=ENABLE_VIEWER
         ),
         # Partially override configuration for evaluation
         evaluation_config=dict(
@@ -305,7 +305,10 @@ if __name__ == "__main__":
     register_env("env", lambda env_config: FrameRateLimiter(
         gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
     worker = build_eval_worker_from_checkpoint(checkpoint_path)
-    evaluate_local_worker(worker, evaluation_num=1, close_backend=True)
+    evaluate_local_worker(worker,
+                          evaluation_num=1,
+                          close_backend=True,
+                          enable_replay=ENABLE_VIEWER)
 
     # Build a standalone single-agent evaluation policy
     env = gym.make(GYM_ENV_NAME, **algo_config.env_config)

@@ -110,7 +110,7 @@ class PipelineDesign(unittest.TestCase):
         self.assertTrue('actions' in obs and 'controller_0' in obs['actions'])
 
         # Target, time, and Imu data are stacked
-        self.assertEqual(obs['t'].ndim, 2)
+        self.assertEqual(obs['t'].ndim, 1)
         self.assertEqual(len(obs['t']), self.num_stack)
         self.assertEqual(obs['measurements']['ImuSensor'].ndim, 3)
         self.assertEqual(len(obs['measurements']['ImuSensor']), self.num_stack)

@@ -385,9 +385,6 @@ namespace python
                 .ADD_PROPERTY_GET_WITH_POLICY("command_limit",
                                               &Robot::getCommandLimit,
                                               bp::return_value_policy<bp::copy_const_reference>())
-                .ADD_PROPERTY_GET_WITH_POLICY("armatures",
-                                              &Robot::getArmatures,
-                                              bp::return_value_policy<bp::copy_const_reference>())
 
                 .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_command",
                                               &Robot::getCommandFieldnames,

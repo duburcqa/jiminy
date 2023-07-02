@@ -283,8 +283,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         """Get time space.
         """
         return spaces.Box(low=0.0,
-                          high=self.simulator.simulation_duration_max,
-                          shape=(1,),
+                          high=self.simulation_duration_max,
+                          shape=(),
                           dtype=np.float64)
 
     def _get_agent_state_space(self,
@@ -706,8 +706,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.simulator.set_controller(controller)
 
         # Configure the maximum number of steps
-        self.max_steps = int(
-            self.simulator.simulation_duration_max / self.step_dt)
+        self.max_steps = int(self.simulation_duration_max // self.step_dt)
 
         # Register user-specified variables to the telemetry
         for header, value in self._registered_variables.values():
@@ -1411,9 +1410,13 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         the underlying MDP has been reached or an aborting condition outside
         the scope of the MDP has been triggered.
 
-        By default, it returns `truncated=True` if the observation is out-of-
-        bounds. It must be overloaded to implement a custom termination
-        condition for the environment at hands. It always returns `done=False`.
+        By default, it always returns `done=False`, and `truncated=True` iif
+        the observation is out-of-bounds. It can be overloaded to implement
+        custom termination conditions for the environment at hands. No matter
+        what, truncation will happen when reaching the maximum simulation
+        duration, which is specified by 'simulator.simulation_duration_max'
+        unless the attribute 'simulation_duration_max' has been defined
+        explicitly in the derived environment.
 
         .. note::
             This method is called after `refresh_observation`, so that the

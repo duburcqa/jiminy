@@ -127,7 +127,6 @@ namespace jiminy
         std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;
 
         vectorN_t const & getCommandLimit(void) const;
-        vectorN_t const & getArmatures(void) const;
 
         std::vector<std::string> const & getCommandFieldnames(void) const;
         std::vector<std::string> const & getMotorEffortFieldnames(void) const;
