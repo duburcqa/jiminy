@@ -37,7 +37,7 @@ if __name__ == "__main__":
     GYM_ENV_KWARGS = {
         'continuous': True
     }
-    ENABLE_VIEWER = False if "JIMINY_VIEWER_DISABLE" in os.environ else None
+    ENABLE_VIEWER = "JIMINY_VIEWER_DISABLE" in os.environ
     SPEED_RATIO = 1.0
     DEBUG = False
     SEED = 0
@@ -205,8 +205,8 @@ if __name__ == "__main__":
         custom_evaluation_function=partial(
             evaluate_algo,
             print_stats=True,
-            enable_replay=ENABLE_VIEWER,
-            record_video=True
+            enable_replay=ENABLE_VIEWER or None,
+            record_video=ENABLE_VIEWER
         ),
         # Partially override configuration for evaluation
         evaluation_config=dict(

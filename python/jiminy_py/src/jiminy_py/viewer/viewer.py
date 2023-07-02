@@ -1351,8 +1351,11 @@ class Viewer:
         assert Viewer._backend_obj is not None
 
         # Make sure number of labels is consistent with number of robots
-        if labels is not None:
-            assert len(labels) == len(Viewer._backend_robot_colors)
+        if labels is not None and (
+                len(labels) != len(Viewer._backend_robot_colors)):
+            raise RuntimeError(
+                f"Inconsistency between robots {Viewer._backend_robot_names}' "
+                f"and labels {labels}")
 
         # Make sure all robots have a specific color
         if any(color is None for color in Viewer._backend_robot_colors):
