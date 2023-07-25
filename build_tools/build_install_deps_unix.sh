@@ -245,7 +245,7 @@ mkdir -p "$RootDir/boost/build"
 
 mkdir -p "$RootDir/eigen3/build"
 cd "$RootDir/eigen3/build"
-cmake "$RootDir/eigen3" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/eigen3" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON
 make install -j2
 
@@ -254,7 +254,7 @@ make install -j2
 mkdir -p "$RootDir/eigenpy/build"
 cd "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -272,7 +272,7 @@ make install -j2
 mkdir -p "$RootDir/tinyxml/build"
 cd "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
@@ -286,7 +286,7 @@ make install -j2
 mkdir -p "$RootDir/console_bridge/build"
 cd "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
@@ -306,7 +306,7 @@ make install -j2
 mkdir -p "$RootDir/urdfdom/build"
 cd "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
@@ -319,7 +319,7 @@ make install -j2
 mkdir -p "$RootDir/assimp/build"
 cd "$RootDir/assimp/build"
 cmake "$RootDir/assimp" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
@@ -335,7 +335,7 @@ make install -j2
 mkdir -p "$RootDir/hpp-fcl/third-parties/qhull/build"
 cd "$RootDir/hpp-fcl/third-parties/qhull/build"
 cmake "$RootDir/hpp-fcl/third-parties/qhull" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
@@ -346,7 +346,7 @@ make install -j2
 mkdir -p "$RootDir/hpp-fcl/build"
 cd "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -368,7 +368,7 @@ make install -j2
 mkdir -p "$RootDir/pinocchio/build"
 cd "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \

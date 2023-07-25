@@ -1,19 +1,7 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -120,11 +120,6 @@
-   ADD_DEFINITIONS(-DPINOCCHIO_WITH_URDFDOM)
-   LIST(APPEND CFLAGS_DEPENDENCIES "-DPINOCCHIO_WITH_URDFDOM")
- 
--  IF(${urdfdom_VERSION} VERSION_GREATER "0.4.2")
--    SET(CMAKE_CXX_STANDARD 11)
--    SET(CMAKE_CXX_STANDARD_REQUIRED ON)
--    MESSAGE(STATUS "Since urdfdom >= 1.0.0, the default C++ standard is C++11. The project is then compiled with C++11 standard.")
--  ENDIF(${urdfdom_VERSION} VERSION_GREATER "0.4.2")
- ENDIF(BUILD_WITH_URDF_SUPPORT)
- 
- IF(BUILD_WITH_AUTODIFF_SUPPORT)
-@@ -148,7 +143,6 @@
+@@ -148,7 +148,6 @@
  
  SET_BOOST_DEFAULT_OPTIONS()
  EXPORT_BOOST_DEFAULT_OPTIONS()
@@ -21,7 +9,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
  
  IF(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "The Python bindings of Pinocchio will be compiled along the main library. If you want to disable this feature, please set the option BUILD_PYTHON_INTERFACE to OFF.")
-@@ -157,6 +153,9 @@
+@@ -157,6 +156,9 @@
    IF(BUILD_WITH_LIBPYTHON)
      set(PYTHON_COMPONENTS ${PYTHON_COMPONENTS} Development)
    ENDIF()
@@ -31,7 +19,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
  
    ADD_PROJECT_DEPENDENCY(eigenpy 2.7.10 REQUIRED)
  
-@@ -176,19 +173,19 @@
+@@ -176,19 +178,19 @@
  ELSE(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "Pinocchio won't be compiled with its Python bindings. If you want to enable this feature, please set the option BUILD_PYTHON_INTERFACE to ON.")
  ENDIF(BUILD_PYTHON_INTERFACE)
