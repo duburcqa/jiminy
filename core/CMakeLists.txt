@@ -23,11 +23,6 @@ find_package(pinocchio 2.6.15 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # >=2.6.
 find_package(hpp-fcl 2.2.0 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)     # >=2.2.0 improves serialization
 find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)
 
-# Specialize jiminy core configuration file
-set(JIMINY_CONFIG_IN ${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake.in)
-set(JIMINY_CONFIG_OUT ${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake)
-configure_file(${JIMINY_CONFIG_IN} ${JIMINY_CONFIG_OUT} @ONLY)
-
 # Enable all warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")
 
@@ -85,25 +80,31 @@ set_target_properties(${PROJECT_NAME}-object PROPERTIES
 )
 target_compile_features(${PROJECT_NAME}-object PUBLIC cxx_std_17)
 
-# Pinocchio-specific stuffs.
+# Pinocchio-specific definitions.
 # Note that the maximum cpp version of Eigen must be consistent with
 # jiminy, otherwise memory alignment issues may occur.
-set(COMPILE_FLAGS EIGEN_MAX_CPP_VER=11 PINOCCHIO_WITH_URDFDOM PINOCCHIO_WITH_HPP_FCL)
+set(CORE_DEFINITIONS PINOCCHIO_WITH_URDFDOM PINOCCHIO_WITH_HPP_FCL)
 if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom version undefined
-    if (urdfdom_VERSION VERSION_GREATER_EQUAL "0.4.0")
-        list(APPEND COMPILE_FLAGS PINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR)
+    if (urdfdom_VERSION VERSION_GREATER_EQUAL 0.4.0)
+        list(APPEND CORE_DEFINITIONS PINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR)
     endif()
-    if (urdfdom_VERSION VERSION_GREATER "0.4.2")
-        list(APPEND COMPILE_FLAGS PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR)
+    if (urdfdom_VERSION VERSION_GREATER 0.4.2)
+        list(APPEND CORE_DEFINITIONS PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR)
     endif()
 endif()
-target_compile_definitions(${PROJECT_NAME}-object PUBLIC ${COMPILE_FLAGS})
 
-# Boost-specific stuffs. It must be defined before pinocchio does it,
+# Boost-specific definitions. It must be defined before pinocchio does it,
 # otherwise it messes with LTO.
-target_compile_definitions(${PROJECT_NAME}-object PUBLIC
+list(APPEND CORE_DEFINITIONS
+    BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON
     BOOST_MPL_LIMIT_VECTOR_SIZE=30
 )
+
+# Eigen-specific definitions
+list(APPEND CORE_DEFINITIONS ${EIGEN_DEFINITIONS})
+
+# Set all definitions at once
+target_compile_definitions(${PROJECT_NAME}-object PUBLIC ${CORE_DEFINITIONS})
 
 # Set include directory
 target_include_directories(${PROJECT_NAME}-object PUBLIC
@@ -162,6 +163,11 @@ option(BUILD_EXAMPLES "Build the C++ examples." ON)
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
+
+# Specialize jiminy core configuration file
+set(JIMINY_CONFIG_IN ${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake.in)
+set(JIMINY_CONFIG_OUT ${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake)
+configure_file(${JIMINY_CONFIG_IN} ${JIMINY_CONFIG_OUT} @ONLY)
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"
