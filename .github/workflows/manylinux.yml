@@ -25,7 +25,9 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
-      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -DEIGEN_MAX_CPP_VER=11"
+      # Enable AVX2 while enforcing ABI compatibility with pre-compiled dependencies:
+      # https://eigen.tuxfamily.org/dox-devel/TopicPreprocessorDirectives.html
+      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -DEIGEN_MAX_CPP_VER=11 -DEIGEN_MAX_ALIGN_BYTES=16 -march=haswell -mtune=generic"
 
     #####################################################################################
 
@@ -180,6 +182,10 @@ jobs:
 
     #####################################################################################
 
+    - name: Run unit tests on user environment
+      run: |
+        cd "${GITHUB_WORKSPACE}/python/jiminy_py/unit_py"
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
     - name: Build extension module
       run: |
         mkdir -p "$RootDir/core/examples/external_project/build"
@@ -190,10 +196,6 @@ jobs:
         make install
 
         "$InstallDir/bin/pip_double_pendulum"
-    - name: Run unit tests on user environment
-      run: |
-        cd "${GITHUB_WORKSPACE}/python/jiminy_py/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     #####################################################################################
 
