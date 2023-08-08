@@ -19,7 +19,7 @@ from machomachomangler.pe import redll
 
 
 WHITE_LIST_DEPS = (
-    "boost_python",) #"boost_numpy", "eigenpy", "hpp-fcl", "pinocchio")
+    "boost_python", "boost_numpy", "eigenpy", "hpp-fcl", "pinocchio")
 
 
 def hash_filename(filepath, blocksize=65536):

@@ -318,6 +318,8 @@ make install -j2
 
 ###################################### Build and install assimp ########################################
 
+# C flag 'HAVE_HIDDEN' must be specified to hide internal symbols of zlib that may not be exposed at
+# runtime causing undefined symbol error when loading hpp-fcl shared library.
 mkdir -p "$RootDir/assimp/build"
 cd "$RootDir/assimp/build"
 cmake "$RootDir/assimp" \
@@ -327,7 +329,7 @@ cmake "$RootDir/assimp" \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF \
-      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
+      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS} -DHAVE_HIDDEN" -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare $(
       ) -Wno-array-compare -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
