@@ -75,6 +75,7 @@ if [ ! -d "$RootDir/boost" ]; then
 fi
 cd "$RootDir/boost"
 git reset --hard
+git fetch --all || true
 git checkout --force "boost-1.76.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
@@ -89,6 +90,7 @@ if [ ! -d "$RootDir/eigen3" ]; then
 fi
 cd "$RootDir/eigen3"
 git reset --hard
+git fetch --all || true
 git checkout --force "3.4.0"
 
 ### Checkout eigenpy and its submodules
@@ -97,7 +99,7 @@ if [ ! -d "$RootDir/eigenpy" ]; then
 fi
 cd "$RootDir/eigenpy"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "v2.9.2"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
@@ -109,7 +111,7 @@ if [ ! -d "$RootDir/tinyxml" ]; then
 fi
 cd "$RootDir/tinyxml"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "master"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/tinyxml.patch"
 
@@ -119,7 +121,7 @@ if [ ! -d "$RootDir/console_bridge" ]; then
 fi
 cd "$RootDir/console_bridge"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "0.3.2"
 
 ### Checkout urdfdom_headers
@@ -128,7 +130,7 @@ if [ ! -d "$RootDir/urdfdom_headers" ]; then
 fi
 cd "$RootDir/urdfdom_headers"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "1.0.4"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
@@ -136,9 +138,9 @@ if [ ! -d "$RootDir/urdfdom" ]; then
   git clone https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 fi
 cd "$RootDir/urdfdom"
-git checkout --force "1.0.3"
 git reset --hard
-git fetch --all
+git fetch --all || true
+git checkout --force "1.0.3"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/urdfdom.patch"
 
 ### Checkout assimp
@@ -147,7 +149,7 @@ if [ ! -d "$RootDir/assimp" ]; then
 fi
 cd "$RootDir/assimp"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "v5.2.5"
 
 ### Checkout hpp-fcl
@@ -157,7 +159,7 @@ if [ ! -d "$RootDir/hpp-fcl" ]; then
 fi
 cd "$RootDir/hpp-fcl"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "v2.3.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
@@ -172,7 +174,7 @@ if [ ! -d "$RootDir/pinocchio" ]; then
 fi
 cd "$RootDir/pinocchio"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "v2.6.17"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
