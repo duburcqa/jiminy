@@ -454,10 +454,9 @@ class Simulator:
             # initialized. It may be the case no matter if a simulation is
             # actually running, since data are cleared at reset not at stop.
             log_suffix = pathlib.Path(log_path).suffix[1:]
-            if log_suffix not in ("data", "csv", "hdf5"):
+            if log_suffix not in ("data", "hdf5"):
                 raise ValueError(
-                    "Log format not recognized. It must be either '.data', "
-                    "'.csv', or '.hdf5'.")
+                    "Log format must be either '.data' or '.hdf5'.")
             log_format = log_suffix if log_suffix != 'data' else 'binary'
             self.engine.write_log(log_path, format=log_format)
 

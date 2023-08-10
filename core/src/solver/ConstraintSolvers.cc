@@ -292,7 +292,7 @@ namespace jiminy
         /* Compute JMinvJt, including cholesky decomposition of inertia matrix.
            Abort computation if the inertia matrix is not positive definite,
            which is never supposed to happen in theory but in practice it is
-           not sure because of compunding of errors. */
+           not sure because of compounding of errors. */
         hresult_t returnCode = pinocchio_overload::computeJMinvJt(*model_, *data_, J);
         if (returnCode != hresult_t::SUCCESS)
         {
@@ -315,7 +315,8 @@ namespace jiminy
         data_->torque_residual = data_->u - data_->nle;
         pinocchio::cholesky::solve(*model_, *data_, data_->torque_residual);
 
-        // Compute b
+        /* Compute b.
+           - TODO: Leverage sparsity of J to avoid dense matrix multiplication */
         b = - gamma;
         b.noalias() -= J * data_->torque_residual;
 
