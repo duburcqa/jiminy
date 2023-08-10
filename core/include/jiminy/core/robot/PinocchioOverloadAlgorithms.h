@@ -501,7 +501,7 @@ namespace pinocchio_overload
         /* Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T
            - Use row-major for sDUiJt and U to enable vectorization
            - Implement custom cholesky::Uiv to compute all columns at once (faster SIMD)
-           - TODO: take advantage of the sparsity of J when multiplying by sqrt(D)^-1 */
+           - TODO: Leverage sparsity of J when multiplying by sqrt(D)^-1 */
         Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> sDUiJt = J.transpose();
         Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U = data.U;
         std::vector<int> const & nvt = data.nvSubtree_fromRow;
@@ -513,11 +513,11 @@ namespace pinocchio_overload
         sDUiJt.array().colwise() *= data.Dinv.array().sqrt();
 
         /* Compute JMinvJt := sDUiJt.T * sDUiJt
-           - TODO: Take advantage of the sparsity pattern of the jacobian which propagates
-             through sDUiJt. Reference: Exploiting Sparsity in Operational-Space Dynamics
+           - TODO: Leverage sparsity of J which propagates through sDUiJt.
+             Reference: Exploiting Sparsity in Operational-Space Dynamics
              (Figure 10 of http://royfeatherstone.org/papers/sparseOSIM.pdf).
-             Each constraint must provide a std::vector of std::pair<start,dim> that are
-             dependency blocks. */
+             Each constraint should provide a std::vector of slice
+             std::pair<start, dim> corresponding to all dependency blocks. */
         data.JMinvJt.resize(J.rows(), J.rows());
         data.JMinvJt.triangularView<Eigen::Lower>().setZero();
         data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(sDUiJt.transpose());

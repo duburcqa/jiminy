@@ -2081,6 +2081,7 @@ namespace jiminy
             // Fix the FSAL issue if the dynamics has changed
             if (!std::isfinite(stepperUpdatePeriod_) && hasDynamicsChanged)
             {
+                // TODO: only update quantities acting at force/acceleration-level
                 computeSystemsDynamics(t, qSplit, vSplit, aSplit);
                 computeAllExtraTerms(systems_, systemsDataHolder_);
                 syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
@@ -2132,6 +2133,7 @@ namespace jiminy
                     // Fix the FSAL issue if the dynamics has changed
                     if (hasDynamicsChanged)
                     {
+                        // TODO: only update quantities acting at force/acceleration-level
                         computeSystemsDynamics(t, qSplit, vSplit, aSplit);
                         computeAllExtraTerms(systems_, systemsDataHolder_);
                         syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
