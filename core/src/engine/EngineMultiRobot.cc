@@ -1405,8 +1405,11 @@ namespace jiminy
                     collisionPairsIdx[i].size(), pinocchio::Force::Zero());
             }
 
-            // Initialize some addition buffers used by impulse contact solver
-            systemDataIt->jointJacobian.setZero(6, systemIt->robot->pncModel_.nv);
+            /* Initialize some addition buffers used by impulse contact solver.
+               It must be initialized to zero because 'getJointJacobian' will only
+               update non-zero coefficients for efficiency. */
+            systemDataIt->jointsJacobians.resize(
+                systemIt->robot->pncModel_.njoints, matrixN_t::Zero(6, systemIt->robot->pncModel_.nv));
 
             // Reset the constraints
             returnCode = systemIt->robot->resetConstraints(q, v);
@@ -1540,8 +1543,9 @@ namespace jiminy
                 uInternalConst.push_back(systemData.state.uInternal);
             }
 
-            /* Solve algebric coupling between accelerations, sensors and controllers,
+            /* Solve algebraic coupling between accelerations, sensors and controllers,
                by iterating several times until it (hopefully) converges. */
+            bool_t isFirstIter = true;
             for (uint32_t i = 0; i < INIT_ITERATIONS; ++i)
             {
                 systemIt = systems_.begin();
@@ -1567,7 +1571,7 @@ namespace jiminy
                     uInternal = *uInternalConstIt;
 
                     // Compute dynamics
-                    a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext, i == 0);
+                    a = computeAcceleration(*systemIt, *systemDataIt, q, v, u, fext, !isFirstIter, isFirstIter);
 
                     // Make sure there is no nan at this point
                     if ((a.array() != a.array()).any())
@@ -1600,6 +1604,7 @@ namespace jiminy
                         u[motorVelocityIdx] += uMotor[motorIdx];
                     }
                 }
+                isFirstIter = false;
             }
 
             // Update sensor data one last time to take into account the actual acceleration
@@ -2081,9 +2086,7 @@ namespace jiminy
             // Fix the FSAL issue if the dynamics has changed
             if (!std::isfinite(stepperUpdatePeriod_) && hasDynamicsChanged)
             {
-                // TODO: only update quantities acting at force/acceleration-level
-                computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                computeAllExtraTerms(systems_, systemsDataHolder_);
+                computeSystemsDynamics(t, qSplit, vSplit, aSplit, true);
                 syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
                 syncSystemsStateWithStepper(true);
                 hasDynamicsChanged = false;
@@ -2133,9 +2136,7 @@ namespace jiminy
                     // Fix the FSAL issue if the dynamics has changed
                     if (hasDynamicsChanged)
                     {
-                        // TODO: only update quantities acting at force/acceleration-level
-                        computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                        computeAllExtraTerms(systems_, systemsDataHolder_);
+                        computeSystemsDynamics(t, qSplit, vSplit, aSplit, true);
                         syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper(true);
                         hasDynamicsChanged = false;
@@ -2255,7 +2256,7 @@ namespace jiminy
 
                         /* Backup the stepper and systems' state on success only:
                            - t at last successful iteration is used to compute dt,
-                             which is project the accelation in the state space
+                             which is project the acceleration in the state space
                              instead of SO3^2.
                            - dtLargestPrev is used to restore the largest step
                              size in case of a breakpoint requiring lowering it.
@@ -3011,9 +3012,9 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::syncSystemsStateWithStepper(bool_t const & sync_acceleration_only)
+    void EngineMultiRobot::syncSystemsStateWithStepper(bool_t const & isStateUpToDate)
     {
-        if (sync_acceleration_only)
+        if (isStateUpToDate)
         {
             auto aSplitIt = stepperState_.aSplit.begin();
             auto systemDataIt = systemsDataHolder_.begin();
@@ -3810,14 +3811,14 @@ namespace jiminy
         }
     }
 
-    hresult_t EngineMultiRobot::computeSystemsDynamics(float64_t              const & t,
+    hresult_t EngineMultiRobot::computeSystemsDynamics(float64_t const & t,
                                                        std::vector<vectorN_t> const & qSplit,
                                                        std::vector<vectorN_t> const & vSplit,
-                                                       std::vector<vectorN_t>       & aSplit)
+                                                       std::vector<vectorN_t> & aSplit,
+                                                       bool_t const & isStateUpToDate)
     {
-        /* - Note that the position of the free flyer is in world frame,
-             whereas the velocities and accelerations are relative to
-             the parent body frame. */
+        /* Note that the position of the free flyer is in world frame, whereas the
+           velocities and accelerations are relative to the parent body frame. */
 
         // Make sure that a simulation is running
         if (!isSimulationRunning_)
@@ -3829,29 +3830,33 @@ namespace jiminy
         // Make sure memory has been allocated for the output acceleration
         aSplit.resize(vSplit.size());
 
-        // Update the kinematics of each system
-        auto systemIt = systems_.begin();
-        auto systemDataIt = systemsDataHolder_.begin();
-        auto qIt = qSplit.begin();
-        auto vIt = vSplit.begin();
-        for ( ; systemIt != systems_.end();
-             ++systemIt, ++systemDataIt, ++qIt, ++vIt)
+        if (!isStateUpToDate)
         {
-            vectorN_t const & aPrev = systemDataIt->statePrev.a;
-            computeForwardKinematics(*systemIt, *qIt, *vIt, aPrev);
+            // Update kinematics for each system
+            auto systemIt = systems_.begin();
+            auto systemDataIt = systemsDataHolder_.begin();
+            auto qIt = qSplit.begin();
+            auto vIt = vSplit.begin();
+            for ( ; systemIt != systems_.end();
+                ++systemIt, ++systemDataIt, ++qIt, ++vIt)
+            {
+                vectorN_t const & aPrev = systemDataIt->statePrev.a;
+                computeForwardKinematics(*systemIt, *qIt, *vIt, aPrev);
+            }
         }
 
         /* Compute internal and external forces and efforts applied on every systems,
            excluding user-specified internal dynamics if any.
            Note that one must call this method BEFORE updating the sensors
-           since the force sensor measurements rely on robot_->contactForces_. */
+           since the force sensor measurements rely on robot_->contactForces_.
+           - TODO: Avoid redundant computations if state is up-to-date. */
         computeAllTerms(t, qSplit, vSplit);
 
         // Compute each individual system dynamics
-        systemIt = systems_.begin();
-        systemDataIt = systemsDataHolder_.begin();
-        qIt = qSplit.begin();
-        vIt = vSplit.begin();
+        auto systemIt = systems_.begin();
+        auto systemDataIt = systemsDataHolder_.begin();
+        auto qIt = qSplit.begin();
+        auto vIt = vSplit.begin();
         auto contactForcesPrevIt = contactForcesPrev_.begin();
         auto fPrevIt = fPrev_.begin();
         auto aPrevIt = aPrev_.begin();
@@ -3873,7 +3878,7 @@ namespace jiminy
             /* Update the sensor data if necessary (only for infinite update frequency).
                Note that it is impossible to have access to the current accelerations
                and efforts since they depend on the sensor values themselves. */
-            if (engineOptions_->stepper.sensorsUpdatePeriod < EPS)
+            if (!isStateUpToDate && engineOptions_->stepper.sensorsUpdatePeriod < EPS)
             {
                 // Roll back to forces and accelerations computed at previous iteration
                 contactForcesPrevIt->swap(systemIt->robot->contactForces_);
@@ -3917,7 +3922,7 @@ namespace jiminy
             }
 
             // Compute the dynamics
-            *aIt = computeAcceleration(*systemIt, *systemDataIt, *qIt, *vIt, u, fext);
+            *aIt = computeAcceleration(*systemIt, *systemDataIt, *qIt, *vIt, u, fext, isStateUpToDate);
         }
 
         return hresult_t::SUCCESS;
@@ -3929,6 +3934,7 @@ namespace jiminy
                                                             vectorN_t const & v,
                                                             vectorN_t const & u,
                                                             forceVector_t & fext,
+                                                            bool_t const & isStateUpToDate,
                                                             bool_t const & ignoreBounds)
     {
         pinocchio::Model const & model = system.robot->pncModel_;
@@ -3936,31 +3942,31 @@ namespace jiminy
 
         if (system.robot->hasConstraints())
         {
-            // Define some proxies for convenience
-            matrix6N_t & jointJacobian = systemData.jointJacobian;
+            if (!isStateUpToDate)
+            {
+                /* Compute kinematic constraints.
+                   It will take care of updating the joint Jacobian. */
+                system.robot->computeConstraints(q, v);
 
-            // Compute kinematic constraints
-            system.robot->computeConstraints(q, v);
+                // Compute non-linear effects
+                pinocchio::nonLinearEffects(model, data, q, v);
+            }
 
             // Project external forces from cartesian space to joint space
             data.u = u;
             for (int32_t i = 1; i < model.njoints; ++i)
             {
-                jointJacobian.setZero();
                 pinocchio::getJointJacobian(model,
                                             data,
                                             i,
                                             pinocchio::LOCAL,
-                                            jointJacobian);
-                data.u.noalias() += jointJacobian.transpose() * fext[i].toVector();
+                                            systemData.jointsJacobians[i]);
+                data.u.noalias() += systemData.jointsJacobians[i].transpose() * fext[i].toVector();
             }
-
-            // Compute non-linear effects
-            pinocchio::nonLinearEffects(model, data, q, v);
 
             // Call forward dynamics
             systemData.constraintSolver->SolveBoxedForwardDynamics(
-                engineOptions_->constraints.regularization, ignoreBounds);
+                engineOptions_->constraints.regularization, isStateUpToDate, ignoreBounds);
 
             // Restore contact frame forces and bounds internal efforts
             systemData.constraintsHolder.foreach(
