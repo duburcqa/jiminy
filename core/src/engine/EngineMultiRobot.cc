@@ -3098,24 +3098,7 @@ namespace jiminy
 
         /* Update collision information selectively,
            ie only for geometries involved in at least one collision pair. */
-        std::unordered_set<geomIndex_t> activeGeometriesIdx;
-        for (auto const & pair : geomModel.collisionPairs)
-        {
-            activeGeometriesIdx.insert(pair.first);
-            activeGeometriesIdx.insert(pair.second);
-        }
-        for (geomIndex_t const & i : activeGeometriesIdx)
-        {
-            jointIndex_t const & jointIdx = geomModel.geometryObjects[i].parentJoint;
-            if (jointIdx > 0)
-            {
-                geomData.oMg[i] = data.oMi[jointIdx] * geomModel.geometryObjects[i].placement;
-            }
-            else
-            {
-                geomData.oMg[i] = geomModel.geometryObjects[i].placement;
-            }
-        }
+        pinocchio::updateGeometryPlacements(model, data, geomModel, geomData);
         pinocchio::computeCollisions(geomModel, geomData, false);
     }
 
