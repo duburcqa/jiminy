@@ -180,6 +180,24 @@ git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"
 
+### Checkout CppAD
+if [ ! -d "$RootDir/CppAD" ]; then
+  git clone https://github.com/coin-or/CppAD.git "$RootDir/CppAD"
+fi
+cd "$RootDir/CppAD"
+git reset --hard
+git fetch --all
+git checkout --force "20230000.0"
+
+### Checkout CppADCodeGen
+if [ ! -d "$RootDir/CppADCodeGen" ]; then
+  git clone https://github.com/joaoleal/CppADCodeGen.git "$RootDir/CppADCodeGen"
+fi
+cd "$RootDir/CppADCodeGen"
+git reset --hard
+git fetch --all
+git checkout --force "v2.4.3"
+
 ################################### Build and install boost ############################################
 
 # How to properly detect custom install of Boost library:
@@ -268,6 +286,35 @@ cmake "$RootDir/eigenpy" \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} $(
       ) -Wno-strict-aliasing" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
+
+
+################################### Build and install CppAD ##########################################
+
+mkdir -p "$RootDir/CppAD/build"
+cd "$RootDir/CppAD/build"
+cmake "$RootDir/CppAD" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
+      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-conversion" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
+
+################################### Build and install CppADCodeGen ##########################################
+
+mkdir -p "$RootDir/CppADCodeGen/build"
+cd "$RootDir/CppADCodeGen/build"
+cmake "$RootDir/CppADCodeGen" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DGOOGLETEST_GIT=ON \
+      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-conversion" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
 
 ################################## Build and install tinyxml ###########################################
 
@@ -381,9 +428,10 @@ cmake "$RootDir/pinocchio" \
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
-      -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF \
+      -DBUILD_WITH_AUTODIFF_SUPPORT=ON -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=ON \
       -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
       ) -Wno-uninitialized -Wno-type-limits -Wno-deprecated-declarations -Wno-unused-local-typedefs $(
       ) -Wno-extra -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
+cp -r $RootDir/pinocchio/cmake/find-external/**/*cppad* $InstallDir/lib64/cmake
