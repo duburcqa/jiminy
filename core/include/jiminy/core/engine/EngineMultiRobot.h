@@ -514,17 +514,18 @@ namespace jiminy
                                              vectorN_t const & q,
                                              vectorN_t const & v,
                                              vectorN_t const & a);
-        hresult_t computeSystemsDynamics(float64_t              const & t,
+        hresult_t computeSystemsDynamics(float64_t const & t,
                                          std::vector<vectorN_t> const & qSplit,
                                          std::vector<vectorN_t> const & vSplit,
-                                         std::vector<vectorN_t>       & aSplit);
+                                         std::vector<vectorN_t> & aSplit,
+                                         bool_t const & isStateUpToDate = false);
 
     protected:
         hresult_t configureTelemetry(void);
         void updateTelemetry(void);
 
         void syncStepperStateWithSystems(void);
-        void syncSystemsStateWithStepper(bool_t const & sync_acceleration_only = false);
+        void syncSystemsStateWithStepper(bool_t const & isStateUpToDate = false);
 
 
         /// \brief Compute the force resulting from ground contact on a given body.
@@ -598,6 +599,7 @@ namespace jiminy
                                               vectorN_t const & v,
                                               vectorN_t const & u,
                                               forceVector_t & fext,
+                                              bool_t const & isStateUpToDate = false,
                                               bool_t const & ignoreBounds = false);
 
     public:

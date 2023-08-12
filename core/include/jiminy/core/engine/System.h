@@ -147,7 +147,7 @@ namespace jiminy
         constraintsHolder_t constraintsHolder;                         ///< Store copy of constraints register for fast access.
         forceVector_t contactFramesForces;                             ///< Contact forces for each contact frames in local frame
         vector_aligned_t<forceVector_t> collisionBodiesForces;         ///< Contact forces for each geometries of each collision bodies in local frame
-        matrix6N_t jointJacobian;                                      ///< Buffer used for intermediary computation of `data.u`
+        std::vector<matrix6N_t> jointsJacobians;                       ///< Jacobian of the joints in local frame. Used for computing `data.u`.
 
         std::vector<std::string> logFieldnamesPosition;
         std::vector<std::string> logFieldnamesVelocity;

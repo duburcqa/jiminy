@@ -59,14 +59,8 @@ check_collision = CollisionChecker(simulator.robot.collision_model,
                                    "ground")
 
 # Run the simulation until collision detection
-# Note that jiminy does not update automatically the geometry placements for
-# efficiency because no collision pair has been registered in geometry model.
 while True:
     simulator.step(1e-3)
-    pin.updateGeometryPlacements(simulator.robot.pinocchio_model,
-                                 simulator.robot.pinocchio_data,
-                                 simulator.robot.collision_model,
-                                 simulator.robot.collision_data)
     if check_collision():
         break
 simulator.stop()
