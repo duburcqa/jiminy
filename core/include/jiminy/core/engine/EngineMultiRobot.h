@@ -564,9 +564,10 @@ namespace jiminy
                                      vectorN_t          const & q,
                                      vectorN_t          const & v,
                                      vectorN_t                & uInternal) const;
-        void computeCollisionForces(systemHolder_t     const & system,
-                                    systemDataHolder_t       & systemData,
-                                    forceVector_t            & fext) const;
+        void computeCollisionForces(systemHolder_t const & system,
+                                    systemDataHolder_t & systemData,
+                                    forceVector_t & fext,
+                                    bool_t const & isStateUpToDate = false) const;
         void computeExternalForces(systemHolder_t     const & system,
                                    systemDataHolder_t       & systemData,
                                    float64_t          const & t,
@@ -576,9 +577,10 @@ namespace jiminy
         void computeForcesCoupling(float64_t              const & t,
                                    std::vector<vectorN_t> const & qSplit,
                                    std::vector<vectorN_t> const & vSplit);
-        void computeAllTerms(float64_t              const & t,
+        void computeAllTerms(float64_t const & t,
                              std::vector<vectorN_t> const & qSplit,
-                             std::vector<vectorN_t> const & vSplit);
+                             std::vector<vectorN_t> const & vSplit,
+                             bool_t const & isStateUpToDate = false);
 
         /// \brief Compute system acceleration from current system state.
         ///

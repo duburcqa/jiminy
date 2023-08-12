@@ -3627,9 +3627,10 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeCollisionForces(systemHolder_t     const & system,
-                                                  systemDataHolder_t       & systemData,
-                                                  forceVector_t            & fext) const
+    void EngineMultiRobot::computeCollisionForces(systemHolder_t const & system,
+                                                  systemDataHolder_t & systemData,
+                                                  forceVector_t & fext,
+                                                  bool_t const & isStateUpToDate) const
     {
         // Compute the forces at contact points
         std::vector<frameIndex_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
@@ -3639,7 +3640,10 @@ namespace jiminy
             frameIndex_t const & frameIdx = contactFramesIdx[i];
             auto & constraint = systemData.constraintsHolder.contactFrames[i].second;
             pinocchio::Force & fextLocal = systemData.contactFramesForces[i];
-            computeContactDynamicsAtFrame(system, frameIdx, constraint, fextLocal);
+            if (!isStateUpToDate)
+            {
+                computeContactDynamicsAtFrame(system, frameIdx, constraint, fextLocal);
+            }
 
             // Apply the force at the origin of the parent joint frame, in local joint frame
             jointIndex_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
@@ -3661,10 +3665,13 @@ namespace jiminy
             jointIndex_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
             for (std::size_t j = 0; j < collisionPairsIdx[i].size(); ++j)
             {
-                pairIndex_t const & collisionPairIdx = collisionPairsIdx[i][j];
-                auto & constraint = systemData.constraintsHolder.collisionBodies[i][j].second;
                 pinocchio::Force & fextLocal = systemData.collisionBodiesForces[i][j];
-                computeContactDynamicsAtBody(system, collisionPairIdx, constraint, fextLocal);
+                if (!isStateUpToDate)
+                {
+                    pairIndex_t const & collisionPairIdx = collisionPairsIdx[i][j];
+                    auto & constraint = systemData.constraintsHolder.collisionBodies[i][j].second;
+                    computeContactDynamicsAtBody(system, collisionPairIdx, constraint, fextLocal);
+                }
 
                 // Apply the force at the origin of the parent joint frame, in local joint frame
                 fext[parentJointIdx] += fextLocal;
@@ -3752,9 +3759,10 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeAllTerms(float64_t              const & t,
+    void EngineMultiRobot::computeAllTerms(float64_t const & t,
                                            std::vector<vectorN_t> const & qSplit,
-                                           std::vector<vectorN_t> const & vSplit)
+                                           std::vector<vectorN_t> const & vSplit,
+                                           bool_t const & isStateUpToDate)
     {
         // Reinitialize the external forces and internal efforts
         for (auto & systemData : systemsDataHolder_)
@@ -3763,7 +3771,10 @@ namespace jiminy
             {
                 fext_i.setZero();
             }
-            systemData.state.uInternal.setZero();
+            if (!isStateUpToDate)
+            {
+                systemData.state.uInternal.setZero();
+            }
         }
 
         // Compute the internal forces
@@ -3783,11 +3794,14 @@ namespace jiminy
 
             /* Compute internal dynamics, namely the efforts in joint space associated
                with position/velocity bounds dynamics, and flexibility dynamics. */
-            computeInternalDynamics(*systemIt, *systemDataIt, t, *qIt, *vIt, uInternal);
+            if (!isStateUpToDate)
+            {
+                computeInternalDynamics(*systemIt, *systemDataIt, t, *qIt, *vIt, uInternal);
+            }
 
             /* Compute the collision forces and estimated time at which the contact state
                will changed (Take-off / Touch-down). */
-            computeCollisionForces(*systemIt, *systemDataIt, fext);
+            computeCollisionForces(*systemIt, *systemDataIt, fext, isStateUpToDate);
 
             // Compute the external contact forces.
             computeExternalForces(*systemIt, *systemDataIt, t, *qIt, *vIt, fext);
@@ -3831,9 +3845,8 @@ namespace jiminy
         /* Compute internal and external forces and efforts applied on every systems,
            excluding user-specified internal dynamics if any.
            Note that one must call this method BEFORE updating the sensors
-           since the force sensor measurements rely on robot_->contactForces_.
-           - TODO: Avoid redundant computations if state is up-to-date. */
-        computeAllTerms(t, qSplit, vSplit);
+           since the force sensor measurements rely on robot_->contactForces_. */
+        computeAllTerms(t, qSplit, vSplit, isStateUpToDate);
 
         // Compute each individual system dynamics
         auto systemIt = systems_.begin();
@@ -3935,16 +3948,24 @@ namespace jiminy
                 pinocchio::nonLinearEffects(model, data, q, v);
             }
 
-            // Project external forces from cartesian space to joint space
+            // Project external forces from cartesian space to joint space.
             data.u = u;
             for (int32_t i = 1; i < model.njoints; ++i)
             {
-                pinocchio::getJointJacobian(model,
-                                            data,
-                                            i,
-                                            pinocchio::LOCAL,
-                                            systemData.jointsJacobians[i]);
-                data.u.noalias() += systemData.jointsJacobians[i].transpose() * fext[i].toVector();
+                /* Skip computation if force is zero for efficiency,
+                   since it should be the case in most cases. */
+                if ((fext[i].toVector().array().abs() > EPS).any())
+                {
+                    if (!isStateUpToDate)
+                    {
+                        pinocchio::getJointJacobian(model,
+                                                    data,
+                                                    i,
+                                                    pinocchio::LOCAL,
+                                                    systemData.jointsJacobians[i]);
+                    }
+                    data.u.noalias() += systemData.jointsJacobians[i].transpose() * fext[i].toVector();
+                }
             }
 
             // Call forward dynamics
