@@ -28,7 +28,7 @@ jobs:
 
     env:
       TORCH_VERSION: "2.0.1+cpu"
-      CMAKE_CXX_FLAGS: "-DEIGEN_MAX_CPP_VER=11 -march=x86-64-v3 -mtune=generic"
+      CMAKE_CXX_FLAGS: "-march=x86-64-v3 -mtune=generic"
 
     #####################################################################################
 
