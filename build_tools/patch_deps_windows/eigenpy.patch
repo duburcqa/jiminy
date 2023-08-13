@@ -2,9 +2,9 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -206,7 +206,7 @@
-     src/std-vector.cpp
+     src/optional.cpp
      src/version.cpp)
- 
+
 -add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES}
 +add_library(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCES}
                                     ${${PROJECT_NAME}_HEADERS})
@@ -37,17 +37,3 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
      set(Boost_NO_BOOST_CMAKE ON)
    endif("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70"
          OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
-diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
---- a/cmake/deprecated.hh.cmake
-+++ b/cmake/deprecated.hh.cmake
-@@ -26,8 +26,8 @@
- #  define @PACKAGE_CPPNAME@_DEPRECATED [[deprecated]]
- #  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) [[deprecated(#message)]]
- # elif defined(__GNUC__) || defined(__clang__)
--#  define @PACKAGE_CPPNAME@_DEPRECATED __attribute__ ((deprecated))
--#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) __attribute__ (( deprecated(#message) ))
-+#  define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
-+#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message)
- # else
- #  if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
- #   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)

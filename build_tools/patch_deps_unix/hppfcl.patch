@@ -1,7 +1,7 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -94,40 +94,31 @@
+@@ -107,48 +107,39 @@
  #ENDIF(WIN32)
  
  ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED PKG_CONFIG_REQUIRES "eigen3 >= 3.0.0")
@@ -28,6 +28,14 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 +  ADD_PROJECT_DEPENDENCY(Boost REQUIRED chrono serialization)
 +ENDIF(WIN32)
  
+ if(Boost_VERSION_STRING VERSION_LESS 1.81)
+   # Default C++ version should be C++11
+   CHECK_MINIMAL_CXX_STANDARD(11 ENFORCE)
+ else()
+   # Boost.Math will be C++14 starting in July 2023 (Boost 1.82 release)
+   CHECK_MINIMAL_CXX_STANDARD(14 ENFORCE)
+ endif()
+ 
  # Optional dependencies
 -ADD_PROJECT_DEPENDENCY(octomap PKG_CONFIG_REQUIRES "octomap >= 1.6")
 -if(octomap_FOUND)
@@ -51,7 +59,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
    if(Qhull_FOUND)
      set(HPP_FCL_USE_SYSTEM_QHULL TRUE)
    else()
-@@ -262,7 +253,6 @@
+@@ -283,7 +274,6 @@
    include/hpp/fcl/timings.h
    )
 
@@ -62,15 +70,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -168,7 +168,6 @@
- LIST(APPEND PROJECT_HEADERS_FULL_PATH ${PROJECT_BINARY_DIR}/include/hpp/fcl/deprecated.hh)
- LIST(APPEND PROJECT_HEADERS_FULL_PATH ${PROJECT_BINARY_DIR}/include/hpp/fcl/warning.hh)
- add_library(${LIBRARY_NAME}
--  SHARED
-   ${PROJECT_HEADERS_FULL_PATH}
-   ${${LIBRARY_NAME}_SOURCES}
-   )
-@@ -179,6 +178,7 @@
+@@ -179,6 +179,7 @@
  ADD_SOURCE_GROUP(${LIBRARY_NAME}_SOURCES)
  ADD_HEADER_GROUP(PROJECT_HEADERS_FULL_PATH)
  
@@ -78,7 +78,7 @@ diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
  MODERNIZE_TARGET_LINK_LIBRARIES(${LIBRARY_NAME} SCOPE PRIVATE
    TARGETS assimp::assimp
    LIBRARIES ${assimp_LIBRARIES}
-@@ -201,7 +201,7 @@
+@@ -202,7 +202,7 @@
  if(HPP_FCL_HAS_QHULL)
    target_compile_definitions(${LIBRARY_NAME} PRIVATE -DHPP_FCL_HAS_QHULL)
    if (HPP_FCL_USE_SYSTEM_QHULL)
@@ -101,24 +101,6 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
    string(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
 
    list(APPEND LOGGING_WATCHED_VARIABLES Boost_${UPPERCOMPONENT}_FOUND
-@@ -192,7 +195,6 @@
-   string(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
-   if("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}"
-                                                         VERSION_EQUAL "1.70")
--    set(BUILD_SHARED_LIBS ON)
-     set(Boost_NO_BOOST_CMAKE ON)
-   endif("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70"
-         OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
-@@ -289,6 +288,9 @@
-       ${target} ${PUBLIC_KEYWORD}
-       Boost::python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR})
- 
-+    if(APPLE)
-+      target_link_options(${target} INTERFACE -undefined dynamic_lookup)
-+    endif(APPLE)
-   else()
- 
-     if(APPLE)
 diff --git a/cmake/python.cmake b/cmake/python.cmake
 --- a/cmake/python.cmake
 +++ b/cmake/python.cmake
