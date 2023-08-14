@@ -252,7 +252,6 @@ AtlasPDControlJiminyEnv = build_pipeline(
             block_class=MahonyFilter,
             block_kwargs=dict(
                 update_ratio=1,
-                exact_init=False,
                 kp=MAHONY_KP,
                 ki=MAHONY_KI
             )
@@ -281,7 +280,6 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
             block_class=MahonyFilter,
             block_kwargs=dict(
                 update_ratio=1,
-                exact_init=False,
                 kp=MAHONY_KP,
                 ki=MAHONY_KI
             )
