@@ -110,7 +110,9 @@ class MahonyFilter(
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller.
         :param exact_init: Whether to initialize orientation estimate using
-                           accelerometer measurements or ground truth.
+                           accelerometer measurements or ground truth. `False`
+                           is not recommended because the robot is often
+                           free-falling at init, which is not realistic anyway.
         :param mahony_kp: Proportional gain used for gyro-accel sensor fusion.
         :param mahony_ki: Integral gain used for gyro bias estimate.
         :param kwargs: Used arguments to allow automatic pipeline wrapper

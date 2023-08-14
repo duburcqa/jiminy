@@ -100,7 +100,7 @@ fi
 cd "$RootDir/eigenpy"
 git reset --hard
 git fetch --all || true
-git checkout --force "v2.9.2"
+git checkout --force "v3.1.1"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
@@ -160,7 +160,7 @@ fi
 cd "$RootDir/hpp-fcl"
 git reset --hard
 git fetch --all || true
-git checkout --force "v2.3.0"
+git checkout --force "v2.3.5"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/hppfcl.patch"
@@ -175,7 +175,7 @@ fi
 cd "$RootDir/pinocchio"
 git reset --hard
 git fetch --all || true
-git checkout --force "v2.6.17"
+git checkout --force "v2.6.20"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"

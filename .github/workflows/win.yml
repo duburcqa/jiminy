@@ -22,7 +22,7 @@ jobs:
       TORCH_VERSION: "2.0.1+cpu"
       BUILD_TYPE: "Release"
       GENERATOR: "Visual Studio 17 2022"
-      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -DEIGEN_MAX_CPP_VER=11 /d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"
+      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY /d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"
 
     strategy:
       matrix:
