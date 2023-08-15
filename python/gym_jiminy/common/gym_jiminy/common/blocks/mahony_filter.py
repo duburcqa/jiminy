@@ -55,7 +55,7 @@ def mahony_filter(q: np.ndarray,
     omega = gyro - bias_hat + kp * omega_mes
 
     # Early return if there is no IMU motion
-    if np.all(np.abs(omega) < 1e-6):
+    if (np.abs(omega) < 1e-6).all():
         return
 
     # Compute Axis-Angle repr. of the angular velocity: exp3(dt * omega)
@@ -197,7 +197,7 @@ class MahonyFilter(
         if not self.env.is_simulation_running:
             is_initialized = False
             if not self.exact_init:
-                if np.all(np.abs(self.acc) < 0.1 * EARTH_SURFACE_GRAVITY):
+                if (np.abs(self.acc) < 0.1 * EARTH_SURFACE_GRAVITY).all():
                     LOGGER.warning(
                         "The acceleration at reset is too small. Impossible "
                         "to initialize Mahony filter for 'exact_init=False'.")

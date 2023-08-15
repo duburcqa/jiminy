@@ -8,7 +8,11 @@ from .spaces import (DataNested,
                      set_value,
                      copyto,
                      copy,
-                     clip)
+                     clip,
+                     contains,
+                     build_contains,
+                     build_copyto,
+                     build_clip)
 from .helpers import (is_breakpoint,
                       get_fieldnames,
                       register_variables)
@@ -24,6 +28,10 @@ __all__ = [
     'copyto',
     'copy',
     'clip',
+    'contains',
+    'build_contains',
+    'build_copyto',
+    'build_clip',
     'is_breakpoint',
     'get_fieldnames',
     'register_variables'

@@ -238,7 +238,7 @@ class JiminyEnvInterface(
         # Refresh the observation if not already done
         if not self.__is_observation_refreshed:
             measurement: EngineObsType = OrderedDict(
-                t=np.array((t,)),
+                t=np.array(t),
                 states=OrderedDict(agent=OrderedDict(q=q, v=v)),
                 measurements=OrderedDict(sensors_data))
             self.refresh_observation(measurement)
