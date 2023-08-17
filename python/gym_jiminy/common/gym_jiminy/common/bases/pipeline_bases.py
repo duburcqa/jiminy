@@ -22,7 +22,7 @@ import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
 
-from ..utils import DataNested, is_breakpoint, zeros, copyto, copy
+from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
 
 from .generic_bases import (DT_EPS,
                             ObsT,
@@ -84,6 +84,11 @@ class BasePipelineWrapper(
         # By default, bind the action to the one of the base environment
         assert self.action_space.contains(env.action)
         self.action = env.action  # type: ignore[assignment]
+
+        # Define specialized operator(s) for efficiency.
+        # Note that it cannot be done at this point because the action
+        # may be overwritten by derived classes afterward.
+        self._copyto_action: Callable[[ActT], None] = lambda action: None
 
     def __getattr__(self, name: str) -> Any:
         """Convenient fallback attribute getter.
@@ -210,9 +215,9 @@ class BasePipelineWrapper(
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information.
         """
-        # Backup the action to perform, if any
+        # Backup the action to perform if relevant
         if action is not self.action:
-            copyto(self.action, action)
+            self._copyto_action(action)
 
         # Compute the next learning step
         obs, reward, done, truncated, info = self.env.step(self.env.action)
@@ -245,6 +250,9 @@ class BasePipelineWrapper(
         # Refresh some proxies for fast lookup
         self.robot = self.env.robot
         self.sensors_data = self.env.sensors_data
+
+        # Initialize specialized operator(s) for efficiency
+        self._copyto_action = build_copyto(self.action)
 
     def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         """Render the unified environment.
@@ -539,6 +547,9 @@ class ControlledJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
+        # Define specialized operator(s) for efficiency
+        self._copyto_env_action = build_copyto(self.env.action)
+
         # Allocate action buffer
         self.action: ActT = zeros(self.action_space)
 
@@ -651,7 +662,7 @@ class ControlledJiminyEnv(
         # measure argument without issue.
         if is_breakpoint(self.stepper_state.t, self.control_dt, DT_EPS):
             target = self.controller.compute_command(action)
-            copyto(self.env.action, target)
+            self._copyto_env_action(target)
 
         # Update the command to send to the actuators of the robot.
         # Note that the environment itself is responsible of making sure to

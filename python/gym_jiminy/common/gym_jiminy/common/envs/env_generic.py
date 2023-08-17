@@ -225,7 +225,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Check that the action space and 'compute_command' are consistent
         if (BaseJiminyEnv.compute_command is type(self).compute_command and
                 BaseJiminyEnv._initialize_action_space is not
-                    type(self)._initialize_action_space):
+                type(self)._initialize_action_space):
             raise NotImplementedError(
                 "`BaseJiminyEnv.compute_command` must be overloaded in case "
                 "of custom action spaces.")
@@ -1420,6 +1420,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         if self.debug and not self._contains_action():
             LOGGER.warning("The action is out-of-bounds.")
 
+        assert isinstance(action, np.ndarray)
         return action
 
     def has_terminated(self) -> Tuple[bool, bool]:

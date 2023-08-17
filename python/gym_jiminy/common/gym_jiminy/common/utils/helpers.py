@@ -29,9 +29,7 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     if dt < eps:
         return True
     dt_next = dt - t % dt
-    if (dt_next <= eps / 2) or ((dt - dt_next) < eps / 2):
-        return True
-    return False
+    return (dt_next <= eps / 2) or ((dt - dt_next) < eps / 2)
 
 
 def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
