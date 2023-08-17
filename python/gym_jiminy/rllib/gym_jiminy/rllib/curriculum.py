@@ -163,7 +163,7 @@ def build_task_scheduling_callback(
                     for task_scores_mean, _ in task_branch_mean.values()])
                 task_probas = np.exp(- softmin_beta * task_scores_mean)
                 task_probas_undef = np.isnan(task_probas)
-                if np.all(task_probas_undef):
+                if task_probas_undef.all():
                     task_probas = np.ones_like(task_probas)
                 else:
                     task_probas[task_probas_undef] = np.nanmean(task_probas)

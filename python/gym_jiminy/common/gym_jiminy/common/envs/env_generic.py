@@ -39,8 +39,9 @@ from pinocchio import neutral, normalize, framesForwardKinematics
 from ..utils import (FieldNested,
                      DataNested,
                      zeros,
-                     copyto,
-                     clip,
+                     build_clip,
+                     build_copyto,
+                     build_contains,
                      get_fieldnames,
                      register_variables)
 from ..bases import (ObsT,
@@ -219,6 +220,15 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Initialize the observation and action buffers
         self.observation: ObsT = zeros(self.observation_space)
         self.action: ActT = zeros(self.action_space)
+
+        # Define specialized operators for efficiency
+        self._get_clipped_env_observation: Callable[
+            [], DataNested] = lambda: OrderedDict()
+        self._copyto_observation = build_copyto(self.observation)
+        self._copyto_action = build_copyto(self.action)
+        self._contains_observation = build_contains(
+            self.observation, self.observation_space)
+        self._contains_action = build_contains(self.action, self.action_space)
 
         # Set robot in neutral configuration
         qpos = self._neutral()
@@ -738,10 +748,14 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self.system_state.v,
             self.robot.sensors_data)
 
+        # Initialize specialized most-derived observation clipping operator
+        self._get_clipped_env_observation = build_clip(
+            env.observation, env.observation_space)
+
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs: ObsT = clip(env.observation, env.observation_space)
+            obs: ObsT = cast(ObsT, self._get_clipped_env_observation())
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -801,7 +815,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                             f"'nan' value found in action ({action}).")
 
             # Update the action
-            copyto(self.action, action)
+            self._copyto_action(action)
 
         # Try performing a single simulation step
         try:
@@ -817,8 +831,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Update the observer at the end of the step.
         # This is necessary because, internally, it is called at the beginning
         # of the every integration steps, during the controller update.
-        env = self._env_derived
-        env._observer_handle(
+        self._env_derived._observer_handle(
             self.stepper_state.t,
             self.system_state.q,
             self.system_state.v,
@@ -878,7 +891,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.num_steps += 1
 
         # Clip (and copy) the most derived observation before returning it
-        obs = clip(env.observation, env.observation_space, check=False)
+        obs = self._get_clipped_env_observation()
 
         return obs, reward, done, truncated, deepcopy(self._info)
 
@@ -1374,7 +1387,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             checking whether the simulation already started. It is not exactly
             the same but it does the job regarding preserving efficiency.
         """
-        copyto(self.observation, cast(DataNested, measurement))
+        self._copyto_observation(measurement)
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -1395,7 +1408,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # pylint: disable=unused-argument
 
         # Check if the action is out-of-bounds, in debug mode only
-        if self.debug and not self.action_space.contains(action):
+        if self.debug and not self._contains_action():
             LOGGER.warning("The action is out-of-bounds.")
 
         if not isinstance(action, np.ndarray):
@@ -1431,7 +1444,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 "method.")
 
         # Check if the observation is out-of-bounds
-        truncated = not self.observation_space.contains(self.observation)
+        truncated = not self._contains_observation()
 
         return False, truncated
 
