@@ -583,6 +583,14 @@ namespace python
         return std::move(flexibilityJointDataPy);
     }
 
+    template<>
+    inline bp::object convertToPython<std::pair<std::string const, sensorDataTypeMap_t>>(
+        std::pair<std::string const, sensorDataTypeMap_t> const & sensorDataItem,
+        bool const & copy)
+    {
+        return bp::make_tuple(sensorDataItem.first, convertToPython(sensorDataItem.second.getAll(), copy));
+    }
+
     class AppendBoostVariantToPython : public boost::static_visitor<bp::object>
     {
     public:
