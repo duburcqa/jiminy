@@ -176,7 +176,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.robot = self.engine.robot
         self.stepper_state = self.simulator.stepper_state
         self.system_state = self.simulator.system_state
-        self.sensors_data: SensorsDataType = dict(self.robot.sensors_data)
+        self.sensors_data: SensorsDataType = OrderedDict(
+            self.robot.sensors_data)
         self.is_simulation_running = self.simulator.is_simulation_running
 
         # Top-most block of the pipeline to which the environment is part of
@@ -221,14 +222,22 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.observation: ObsT = zeros(self.observation_space)
         self.action: ActT = zeros(self.action_space)
 
+        # Check that the action space and 'compute_command' are consistent
+        if (BaseJiminyEnv.compute_command is type(self).compute_command and
+                BaseJiminyEnv._initialize_action_space is not
+                    type(self)._initialize_action_space):
+            raise NotImplementedError(
+                "`BaseJiminyEnv.compute_command` must be overloaded in case "
+                "of custom action spaces.")
+
         # Define specialized operators for efficiency
-        self._get_clipped_env_observation: Callable[
-            [], DataNested] = lambda: OrderedDict()
         self._copyto_observation = build_copyto(self.observation)
         self._copyto_action = build_copyto(self.action)
         self._contains_observation = build_contains(
             self.observation, self.observation_space)
         self._contains_action = build_contains(self.action, self.action_space)
+        self._get_clipped_env_observation: Callable[
+            [], DataNested] = OrderedDict
 
         # Set robot in neutral configuration
         qpos = self._neutral()
@@ -1410,11 +1419,6 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Check if the action is out-of-bounds, in debug mode only
         if self.debug and not self._contains_action():
             LOGGER.warning("The action is out-of-bounds.")
-
-        if not isinstance(action, np.ndarray):
-            raise NotImplementedError(
-                "`BaseJiminyEnv.compute_command` must be overloaded in case "
-                "of custom action spaces.")
 
         return action
 

@@ -2,9 +2,9 @@
 specifically design for Jiminy engine, and defined as mixin classes. Any
 observer/controller block must inherit and implement those interfaces.
 """
-from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, Generic
+from abc import abstractmethod, ABC
+from typing import Dict, Any, TypeVar, Generic, no_type_check
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -193,6 +193,13 @@ class JiminyEnvInterface(
         # with the updated state of the agent.
         self.__is_observation_refreshed = True
 
+        # Store latest engine measurement for efficiency
+        self.__measurement: EngineObsType = OrderedDict(
+            t=np.array(0.0),
+            states=OrderedDict(
+                agent=OrderedDict(q=np.array([]), v=np.array([]))),
+            measurements=OrderedDict(self.robot.sensors_data))
+
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
 
@@ -217,6 +224,7 @@ class JiminyEnvInterface(
         fill(self.observation, 0)
         fill(self.action, 0)
 
+    @no_type_check
     def _observer_handle(self,
                          t: float,
                          q: np.ndarray,
@@ -237,10 +245,11 @@ class JiminyEnvInterface(
         """
         # Refresh the observation if not already done
         if not self.__is_observation_refreshed:
-            measurement: EngineObsType = OrderedDict(
-                t=np.array(t),
-                states=OrderedDict(agent=OrderedDict(q=q, v=v)),
-                measurements=OrderedDict(sensors_data))
+            measurement = self.__measurement
+            measurement["t"][()] = t
+            measurement["states"]["agent"]["q"] = q
+            measurement["states"]["agent"]["v"] = v
+            dict.update(measurement["measurements"], sensors_data.items())
             self.refresh_observation(measurement)
 
         # Consider observation has been refreshed iif a simulation is running
