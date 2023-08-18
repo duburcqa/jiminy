@@ -10,12 +10,14 @@ from collections import OrderedDict
 from collections.abc import Mapping
 from itertools import chain
 from typing import (
-    Dict, Any, List, cast, Optional, Tuple, Callable, Iterable, Union,
-    SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
+    Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Iterable,
+    Union, SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
     MutableMapping as MutableMappingT)
 
 import tree
 import numpy as np
+from numpy.core.umath import (  # type: ignore[attr-defined]
+    copyto as _array_copyto)
 from gymnasium import spaces
 from gymnasium.core import RenderFrame
 
@@ -231,7 +233,6 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 "of custom action spaces.")
 
         # Define specialized operators for efficiency
-        self._copyto_observation = build_copyto(self.observation)
         self._copyto_action = build_copyto(self.action)
         self._contains_observation = build_contains(
             self.observation, self.observation_space)
@@ -1376,6 +1377,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             `_setup` method.
         """
 
+    @no_type_check
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """Compute the observation based on the current state of the robot.
 
@@ -1396,7 +1398,15 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             checking whether the simulation already started. It is not exactly
             the same but it does the job regarding preserving efficiency.
         """
-        self._copyto_observation(measurement)
+        observation = self.observation
+        observation["t"][()] = measurement["t"]
+        _array_copyto(observation['states']['agent']['q'],
+                      measurement['states']['agent']['q'])
+        _array_copyto(observation['states']['agent']['v'],
+                      measurement['states']['agent']['v'])
+        sensors_data = observation['measurements']
+        for key, value in dict.items(measurement['measurements']):
+            _array_copyto(sensors_data[key], value)
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
