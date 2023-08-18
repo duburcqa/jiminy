@@ -205,7 +205,7 @@ def zeros(space: gym.Space[DataNestedT],
     value = None
     if isinstance(space, gym.spaces.Dict):
         value = OrderedDict()
-        for field, subspace in dict.items(space.spaces):
+        for field, subspace in space.spaces.items():
             value[field] = zeros(subspace, dtype=dtype)
         return value
     if isinstance(space, gym.spaces.Tuple):
@@ -296,7 +296,7 @@ def build_copyto(dst: DataNested) -> Callable[[DataNested], None]:
         :param src_nested: Data with the same hierarchy than the destination.
         """
         src: DataNested
-        for func, src in zip(funcs, dict.values(src_nested)):
+        for func, src in zip(funcs, src_nested.values()):
             func(src)
 
     return partial(_seq_calls, [build_copyto(value) for value in dst.values()])
@@ -314,6 +314,7 @@ def copyto(dst: DataNested, src: DataNested) -> None:
         Unlike the function returned by 'build_copyto', only the flattened data
         structure needs to match, not the original one. This means that the
         source and/or destination can be flattened already when provided.
+        Beware values must be sorted by keys in case of nested dict.
 
     :param dst: Hierarchical data structure to update, possibly flattened.
     :param value: Hierarchical data to copy, possibly flattened.
@@ -377,11 +378,11 @@ def build_clip(data: DataNested,
         func2(out)
 
     func = None
-    for field, subspace in dict.items(space.spaces):
+    for field, subspace in space.spaces.items():
         op = partial(_setitem, field, build_clip(data[field], subspace))
         func = op if func is None else partial(_seq_calls, func, op)
     if func is None:
-        return lambda: OrderedDict()
+        return OrderedDict
 
     # Define the chain of functions operating on a given out
     def _clip_impl(func: Callable[[DataNested], None]) -> DataNested:
@@ -416,7 +417,7 @@ def clip(data: DataNested,
     assert isinstance(data, dict)
 
     out: Dict[str, DataNested] = OrderedDict()
-    for field, subspace in dict.items(space.spaces):
+    for field, subspace in space.spaces.items():
         out[field] = clip(data[field], subspace)
     return out
 
@@ -442,7 +443,7 @@ def build_contains(data: DataNested,
         return func1() and func2()
 
     func = None
-    for field, subspace in dict.items(space.spaces):
+    for field, subspace in space.spaces.items():
         try:
             op = build_contains(data[field], subspace)
             func = op if func is None else partial(_all, func, op)
@@ -469,4 +470,4 @@ def contains(data: DataNested, space: gym.Space[DataNested]) -> bool:
     assert isinstance(data, dict)
 
     return all(contains(data[field], subspace)
-               for field, subspace in dict.items(space.spaces))
+               for field, subspace in space.spaces.items())

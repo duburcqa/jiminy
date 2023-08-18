@@ -323,76 +323,62 @@ namespace python
     template<typename T>
     inline PyObject * getNumpyReferenceFromScalar(T & value)
     {
-        return PyArray_SimpleNewFromData(0, {}, getPyType<T>(), &value);
+        return PyArray_New(&PyArray_Type, 0, {}, getPyType<T>(), NULL, &value, 0, NPY_ARRAY_OUT_FARRAY, NULL);
     }
 
     template<typename T>
     PyObject * getNumpyReferenceFromScalar(T const & value)
     {
-        PyObject * array = getNumpyReferenceFromScalar(const_cast<T &>(value));
-        PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array), NPY_ARRAY_WRITEABLE);
-        return array;
+        return PyArray_New(&PyArray_Type, 0, {}, getPyType<T>(), NULL, const_cast<T*>(&value), 0, NPY_ARRAY_IN_FARRAY, NULL);
     }
 
     template<typename T, int RowsAtCompileTime>
     PyObject * getNumpyReferenceFromEigenVector(Eigen::Matrix<T, RowsAtCompileTime, 1> & value)
     {
-        npy_intp dims[1] = {npy_intp(value.size())};
-        return PyArray_SimpleNewFromData(1, dims, getPyType<T>(), value.data());
+        npy_intp dims[1] = {{value.size()}};
+        return PyArray_New(&PyArray_Type, 1, dims, getPyType<T>(), NULL, value.data(), 0, NPY_ARRAY_OUT_FARRAY, NULL);
     }
 
     template<typename T, int RowsAtCompileTime>
     PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> > & value)
     {
-        npy_intp dims[1] = {npy_intp(value.size())};
-        return PyArray_SimpleNewFromData(1, dims, getPyType<T>(), value.data());
+        npy_intp dims[1] = {{value.size()}};
+        return PyArray_New(&PyArray_Type, 1, dims, getPyType<T>(), NULL, value.data(), 0, NPY_ARRAY_OUT_FARRAY, NULL);
     }
 
     template<typename T, int RowsAtCompileTime>
     PyObject * getNumpyReferenceFromEigenVector(Eigen::Matrix<T, RowsAtCompileTime, 1> const & value)
     {
-        PyObject * array = getNumpyReferenceFromEigenVector(
-            const_cast<Eigen::Matrix<T, RowsAtCompileTime, 1> &>(value));
-        PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array), NPY_ARRAY_WRITEABLE);
-        return array;
+        npy_intp dims[1] = {{value.size()}};
+        return PyArray_New(&PyArray_Type, 1, dims, getPyType<T>(), NULL, const_cast<T*>(value.data()), 0, NPY_ARRAY_IN_FARRAY, NULL);
     }
 
     template<typename T, int RowsAtCompileTime>
     PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> const> const & value)
     {
-        npy_intp dims[1] = {npy_intp(value.size())};
-        PyObject * array = PyArray_SimpleNewFromData(1, dims, getPyType<T>(), const_cast<T*>(value.data()));
-        PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array), NPY_ARRAY_WRITEABLE);
-        return array;
+        npy_intp dims[1] = {{value.size()}};
+        return PyArray_New(&PyArray_Type, 1, dims, getPyType<T>(), NULL, const_cast<T*>(value.data()), 0, NPY_ARRAY_IN_FARRAY, NULL);
     }
 
     template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
     PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> & value)
     {
-        npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
-        PyObject * array = PyArray_SimpleNewFromData(2, dims, getPyType<T>(), const_cast<T*>(value.data()));
-        PyObject * arrayT = PyArray_Transpose(reinterpret_cast<PyArrayObject *>(array), NULL);
-        bp::decref(array);
-        return arrayT;
+        npy_intp dims[2] = {{value.rows()}, {value.cols()}};
+        return PyArray_New(&PyArray_Type, 2, dims, getPyType<T>(), NULL, const_cast<T*>(value.data()), 0, NPY_ARRAY_OUT_FARRAY, NULL);
     }
 
     template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
     PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> > & value)
     {
-        npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
-        PyObject * array = PyArray_SimpleNewFromData(2, dims, getPyType<T>(), value.data());
-        PyObject * arrayT = PyArray_Transpose(reinterpret_cast<PyArrayObject *>(array), NULL);
-        bp::decref(array);
-        return arrayT;
+        npy_intp dims[2] = {{value.rows()}, {value.cols()}};
+        return PyArray_New(&PyArray_Type, 2, dims, getPyType<T>(), NULL, value.data(), 0, NPY_ARRAY_OUT_FARRAY, NULL);
     }
 
     template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
     PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const & value)
     {
-        PyObject * array = getNumpyReferenceFromEigenMatrix(
-            const_cast<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> &>(value));
-        PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array), NPY_ARRAY_WRITEABLE);
-        return array;
+        npy_intp dims[2] = {{value.rows()}, {value.cols()}};
+        return PyArray_New(&PyArray_Type, 2, dims, getPyType<T>(), NULL, const_cast<T*>(value.data()), 0, NPY_ARRAY_IN_FARRAY, NULL);
     }
 
     /// Generic converter from Eigen Matrix to Numpy array by reference
@@ -595,6 +581,14 @@ namespace python
         flexibilityJointDataPy["damping"] = flexibleJointData.damping;
         flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
         return std::move(flexibilityJointDataPy);
+    }
+
+    template<>
+    inline bp::object convertToPython<std::pair<std::string const, sensorDataTypeMap_t>>(
+        std::pair<std::string const, sensorDataTypeMap_t> const & sensorDataItem,
+        bool const & copy)
+    {
+        return bp::make_tuple(sensorDataItem.first, convertToPython(sensorDataItem.second.getAll(), copy));
     }
 
     class AppendBoostVariantToPython : public boost::static_visitor<bp::object>

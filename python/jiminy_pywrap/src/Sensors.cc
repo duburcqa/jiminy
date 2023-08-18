@@ -41,7 +41,15 @@ namespace python
                 .def("__getitem__", &PySensorsDataMapVisitor::getSub,
                                     bp::return_value_policy<result_converter<false> >(),
                                     (bp::arg("self"), "sensor_type"))
-                .def("__iter__", bp::iterator<sensorsDataMap_t>())
+                /* Using '__iter__' is discouraged because it has very poor efficiency due to
+                   the overhead of translating 'StopIteration' exception when reaching the end. */
+                .def("__iter__", bp::range<bp::return_value_policy<result_converter<false> > >(
+                                 static_cast<
+                                     sensorsDataMap_t::iterator (sensorsDataMap_t::*)(void)
+                                 >(&sensorsDataMap_t::begin),
+                                 static_cast<
+                                     sensorsDataMap_t::iterator (sensorsDataMap_t::*)(void)
+                                 >(&sensorsDataMap_t::end)))
                 .def("__contains__", &PySensorsDataMapVisitor::contains,
                                      (bp::arg("self"), "key"))
                 .def("__repr__", &PySensorsDataMapVisitor::repr)
@@ -162,9 +170,7 @@ namespace python
             bp::list sensorsDataPy;
             for (auto const & sensorsDataType : self)
             {
-                sensorsDataPy.append(bp::make_tuple(
-                    sensorsDataType.first,
-                    convertToPython(sensorsDataType.second.getAll(), false)));
+                sensorsDataPy.append(convertToPython(sensorsDataType, false));
             }
             return sensorsDataPy;
         }
