@@ -7,7 +7,7 @@ import numpy as np
 import numba as nb
 
 
-@nb.jit(nopython=True, nogil=True, inline='always')
+@nb.jit(nopython=True, inline='always')
 def squared_norm_2(array: np.ndarray) -> float:
     """Fast implementation of the sum of squared array elements, optimized for
     small to medium size 1D arrays.
