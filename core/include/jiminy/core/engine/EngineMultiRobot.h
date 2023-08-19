@@ -667,6 +667,7 @@ namespace jiminy
         vector_aligned_t<forceVector_t> contactForcesPrev_;
         vector_aligned_t<forceVector_t> fPrev_;
         vector_aligned_t<motionVector_t> aPrev_;
+        std::vector<float64_t> energy_;
         std::shared_ptr<logData_t> logData_;
     };
 }

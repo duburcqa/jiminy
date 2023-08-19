@@ -72,6 +72,7 @@ namespace jiminy
     contactForcesPrev_(),
     fPrev_(),
     aPrev_(),
+    energy_(),
     logData_(nullptr)
     {
         // Initialize the configuration options to the default.
@@ -83,9 +84,6 @@ namespace jiminy
 
         // Initialize the global telemetry recorder
         telemetryRecorder_ = std::make_unique<TelemetryRecorder>();
-
-        // Initialize the engine-specific telemetry sender
-        telemetrySender_.configureObject(telemetryData_, ENGINE_TELEMETRY_NAMESPACE);
     }
 
     EngineMultiRobot::~EngineMultiRobot(void) = default;  // Cannot be default in the header since some types are incomplete at this point
@@ -750,9 +748,13 @@ namespace jiminy
 
         if (!isTelemetryConfigured_)
         {
+            // Initialize the engine-specific telemetry sender
+            telemetrySender_.configureObject(telemetryData_, ENGINE_TELEMETRY_NAMESPACE);
+
             auto systemIt = systems_.begin();
             auto systemDataIt = systemsDataHolder_.begin();
-            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+            auto energyIt = energy_.begin();
+            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt, ++energyIt)
             {
                 // Generate the log fieldnames
                 systemDataIt->logFieldnamesPosition =
@@ -814,7 +816,7 @@ namespace jiminy
                         {
                             returnCode = telemetrySender_.registerVariable(
                                 systemDataIt->logFieldnamesForceExternal[(i - 1) * 6U + j],
-                                fext[j]);
+                                &fext[j]);
                         }
                     }
                 }
@@ -841,7 +843,8 @@ namespace jiminy
                     if (engineOptions_->telemetry.enableEnergy)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->logFieldnameEnergy, 0.0);
+                            systemDataIt->logFieldnameEnergy,
+                            &(*energyIt));
                     }
                 }
 
@@ -868,68 +871,24 @@ namespace jiminy
 
     void EngineMultiRobot::updateTelemetry(void)
     {
+        // Compute the total energy of the system
         auto systemIt = systems_.begin();
-        auto systemDataIt = systemsDataHolder_.begin();
-        for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+        auto energyIt = energy_.begin();
+        for ( ; systemIt != systems_.end(); ++systemIt, ++energyIt)
         {
-            // Compute the total energy of the system
-            float64_t energy = pinocchio_overload::computeKineticEnergy(
-                systemIt->robot->pncModel_,
-                systemIt->robot->pncData_,
-                systemDataIt->state.q,
-                systemDataIt->state.v,
-                false);
-            energy += pinocchio::computePotentialEnergy(
-                systemIt->robot->pncModel_,
-                systemIt->robot->pncData_);
-
-            // Update telemetry values
-            if (engineOptions_->telemetry.enableConfiguration)
-            {
-                telemetrySender_.updateValue(systemDataIt->logFieldnamesPosition,
-                                             systemDataIt->state.q);
-            }
-            if (engineOptions_->telemetry.enableVelocity)
-            {
-                telemetrySender_.updateValue(systemDataIt->logFieldnamesVelocity,
-                                             systemDataIt->state.v);
-            }
-            if (engineOptions_->telemetry.enableAcceleration)
-            {
-                telemetrySender_.updateValue(systemDataIt->logFieldnamesAcceleration,
-                                             systemDataIt->state.a);
-            }
-            if (engineOptions_->telemetry.enableForceExternal)
-            {
-                for (std::size_t i = 1; i < systemDataIt->state.fExternal.size(); ++i)
-                {
-                    auto const & fext = systemDataIt->state.fExternal[i].toVector();
-                    for (uint8_t j = 0; j < 6U; ++j)
-                    {
-                        telemetrySender_.updateValue(
-                            systemDataIt->logFieldnamesForceExternal[(i - 1) * 6U + j],
-                            fext[j]);
-                    }
-                }
-            }
-            if (engineOptions_->telemetry.enableCommand)
-            {
-                telemetrySender_.updateValue(systemDataIt->logFieldnamesCommand,
-                                             systemDataIt->state.command);
-            }
-            if (engineOptions_->telemetry.enableMotorEffort)
-            {
-                telemetrySender_.updateValue(systemDataIt->logFieldnamesMotorEffort,
-                                             systemDataIt->state.uMotor);
-            }
-            if (engineOptions_->telemetry.enableEnergy)
-            {
-                telemetrySender_.updateValue(systemDataIt->logFieldnameEnergy, energy);
-            }
-
-            systemIt->controller->updateTelemetry();
-            systemIt->robot->updateTelemetry();
+            *energyIt = systemIt->robot->pncData_.kinetic_energy +
+                        systemIt->robot->pncData_.potential_energy;
         }
+
+        // Update system-specific telemetry variables
+        for (auto & system : systems_)
+        {
+            system.controller->updateTelemetry();
+            system.robot->updateTelemetry();
+        }
+
+        // Update engine-specific telemetry variables
+        telemetrySender_.updateValues();
 
         // Flush the telemetry internal state
         telemetryRecorder_->flushDataSnapshot(stepperState_.t);
@@ -986,7 +945,7 @@ namespace jiminy
     }
 
     void computeExtraTerms(systemHolder_t           & system,
-                           systemDataHolder_t const & /* systemData */)
+                           systemDataHolder_t const & systemData)
     {
         /// This method is optimized to avoid redundant computations.
         /// See `pinocchio::computeAllTerms` for reference:
@@ -998,6 +957,11 @@ namespace jiminy
 
         pinocchio::Model const & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
+
+        // Compute the potential and kinematic energy of the system
+        pinocchio_overload::computeKineticEnergy(
+            model, data, systemData.state.q, systemData.state.v, false);
+        pinocchio::computePotentialEnergy(model, data);
 
         /* Update manually the subtree (apparent) inertia, since it is only
            computed by crba, which is doing more computation than necessary.
@@ -1124,7 +1088,8 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (qInit.size() != systems_.size() || vInit.size() != systems_.size())
+        std::size_t const nSystems = systems_.size();
+        if (qInit.size() != nSystems || vInit.size() != nSystems)
         {
             PRINT_ERROR("The number of initial configurations and velocities must match the number of systems.");
             return hresult_t::ERROR_BAD_INPUT;
@@ -1133,8 +1098,8 @@ namespace jiminy
         // Check the dimension of the initial state associated with every system and order them
         std::vector<vectorN_t> qSplit;
         std::vector<vectorN_t> vSplit;
-        qSplit.reserve(systems_.size());
-        vSplit.reserve(systems_.size());
+        qSplit.reserve(nSystems);
+        vSplit.reserve(nSystems);
         for (auto const & system : systems_)
         {
             auto qInitIt = qInit.find(system.name);
@@ -1185,11 +1150,11 @@ namespace jiminy
         }
 
         std::vector<vectorN_t> aSplit;
-        aSplit.reserve(systems_.size());
+        aSplit.reserve(nSystems);
         if (aInit)
         {
             // Check the dimension of the initial acceleration associated with every system and order them
-            if (aInit->size() != systems_.size())
+            if (aInit->size() != nSystems)
             {
                 PRINT_ERROR("If specified, the number of initial accelerations must match the number of systems.");
                 return hresult_t::ERROR_BAD_INPUT;
@@ -1286,7 +1251,7 @@ namespace jiminy
                              this->computeSystemsDynamics(t, q, v, a);
                          };
         std::vector<Robot const *> robots;
-        robots.reserve(systems_.size());
+        robots.reserve(nSystems);
         std::transform(systems_.begin(), systems_.end(),
                         std::back_inserter(robots),
                         [](auto const & sys) -> Robot const *
@@ -1320,15 +1285,16 @@ namespace jiminy
         contactForcesPrev_.clear();
         fPrev_.clear();
         aPrev_.clear();
-        contactForcesPrev_.reserve(systems_.size());
-        fPrev_.reserve(systems_.size());
-        aPrev_.reserve(systems_.size());
+        contactForcesPrev_.reserve(nSystems);
+        fPrev_.reserve(nSystems);
+        aPrev_.reserve(nSystems);
         for (auto const & system : systems_)
         {
             contactForcesPrev_.push_back(system.robot->contactForces_);
             fPrev_.push_back(system.robot->pncData_.f);
             aPrev_.push_back(system.robot->pncData_.a);
         }
+        energy_.resize(nSystems, 0.0);
 
         // Synchronize the individual system states with the global stepper state
         syncSystemsStateWithStepper();
@@ -1536,8 +1502,8 @@ namespace jiminy
             // Backup all external forces and internal efforts excluding constraint forces
             vector_aligned_t<forceVector_t> fextNoConst;
             std::vector<vectorN_t> uInternalConst;
-            fextNoConst.reserve(systems_.size());
-            uInternalConst.reserve(systems_.size());
+            fextNoConst.reserve(nSystems);
+            uInternalConst.reserve(nSystems);
             for (auto const & systemData : systemsDataHolder_)
             {
                 fextNoConst.push_back(systemData.state.fExternal);

@@ -64,7 +64,7 @@ namespace jiminy
     {
         if (isTelemetryConfigured_)
         {
-            telemetrySender_.updateValue(getFieldnames(), get());
+            telemetrySender_.updateValues();
         }
     }
 

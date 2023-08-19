@@ -9,7 +9,6 @@
 
 #include <deque>
 
-#include "jiminy/core/telemetry/TelemetrySender.h"
 #include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
