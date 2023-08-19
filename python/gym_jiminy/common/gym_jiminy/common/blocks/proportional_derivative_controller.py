@@ -252,6 +252,10 @@ class PDController(
         # Extract measured motor positions and velocities for fast access
         self.q_measured, self.v_measured = env.sensors_data[encoder.type]
 
+        # Whether stored reference to encoder measurements are already in the
+        # same order as the motors, allowing skipping re-ordering entirely.
+        self._is_already_ordered = False
+
         # Allocate memory for the command state
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
 
@@ -286,6 +290,10 @@ class PDController(
 
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
+
+        # Convert to slice if possible for efficiency. It is usually the case.
+        self._is_already_ordered = np.all(
+            self.encoder_to_motor == np.arange(self.env.robot.nmotors))
 
         # Reset the command state
         fill(self._command_state, 0)
@@ -328,15 +336,21 @@ class PDController(
         if not is_simulation_running and pd_controller.signatures:
             return np.zeros_like(action)
 
+        # Compute motor positions and velocity from encoder data
+        q_measured, v_measured = self.q_measured, self.v_measured
+        if not self._is_already_ordered:
+            q_measured = q_measured[self.encoder_to_motor]
+            v_measured = v_measured[self.encoder_to_motor]
+
         # Compute the motor efforts using PD control
         return pd_controller(
-            self.q_measured,
-            self.v_measured,
+            q_measured,
+            v_measured,
             self._command_state,
             self._command_state_lower,
             self._command_state_upper,
             self.kp,
             self.kd,
-            self._motors_effort_limit,
+            self.motors_effort_limit,
             self.control_dt,
             0.0 if self.env.is_training else EVAL_DEADBAND)
