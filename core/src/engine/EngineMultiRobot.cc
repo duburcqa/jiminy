@@ -877,7 +877,8 @@ namespace jiminy
                 systemIt->robot->pncModel_,
                 systemIt->robot->pncData_,
                 systemDataIt->state.q,
-                systemDataIt->state.v);
+                systemDataIt->state.v,
+                false);
             energy += pinocchio::computePotentialEnergy(
                 systemIt->robot->pncModel_,
                 systemIt->robot->pncData_);

@@ -41,10 +41,15 @@ namespace pinocchio_overload
     computeKineticEnergy(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
                          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
                          Eigen::MatrixBase<ConfigVectorType>                      const & q,
-                         Eigen::MatrixBase<TangentVectorType>                     const & v)
+                         Eigen::MatrixBase<TangentVectorType>                     const & v,
+                         bool_t                                                   const & update_kinematics = true)
     {
-        (void) pinocchio::computeKineticEnergy(model, data, q, v);
-        data.kinetic_energy += 0.5 * (model.rotorInertia.array() * v.array().pow(2)).sum();
+        if (update_kinematics)
+        {
+            pinocchio::forwardKinematics(model, data, q, v);
+        }
+        (void) pinocchio::computeKineticEnergy(model, data);
+        data.kinetic_energy += 0.5 * (model.rotorInertia.array() * v.array().square()).sum();
         return data.kinetic_energy;
     }
 
