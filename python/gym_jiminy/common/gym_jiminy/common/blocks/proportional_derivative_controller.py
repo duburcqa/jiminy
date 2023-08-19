@@ -117,16 +117,12 @@ def pd_controller(q_measured: np.ndarray,
                   kp: np.ndarray,
                   kd: np.ndarray,
                   motor_effort_limit: np.ndarray,
-                  control_dt: float,
-                  deadband: float) -> np.ndarray:
+                  control_dt: float) -> np.ndarray:
     """ TODO Write documentation.
     """
     # Integrate command state
     command_state[:] = integrate_zoh(
         command_state, command_state_lower, command_state_upper, control_dt)
-
-    # Dead band to avoid slow drift of target at rest
-    command_state[-1] *= np.abs(command_state[-1]) > deadband
 
     # Extract targets motors positions and velocities from command state
     q_target, v_target = command_state[:2]
@@ -296,8 +292,8 @@ class PDController(
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
 
         # Convert to slice if possible for efficiency. It is usually the case.
-        self._is_already_ordered = np.all(
-            self.encoder_to_motor == np.arange(self.env.robot.nmotors))
+        self._is_already_ordered = bool((
+            self.encoder_to_motor == np.arange(self.env.robot.nmotors)).all())
 
         # Reset the command state
         fill(self._command_state, 0.0)
@@ -330,15 +326,19 @@ class PDController(
                         self._command_state_upper[i],
                         out=self._command_state[i])
 
-        # Update the highest order derivative of the target motor positions to
-        # match the provided action.
-        _array_copyto(self._action, action)
-
         # Skip integrating command and return early if no simulation running.
         # It also checks that the low-level function is already pre-compiled.
         # This is necessary to avoid spurious timeout during first step.
         if not is_simulation_running and pd_controller.signatures:
             return np.zeros_like(action)
+
+        # Update the highest order derivative of the target motor positions to
+        # match the provided action.
+        _array_copyto(self._action, action)
+
+        # Dead band to avoid slow drift of target at rest for evaluation only
+        if not self.env.is_training:
+            self._action[np.abs(self._action) > EVAL_DEADBAND] = 0.0
 
         # Compute motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
@@ -356,5 +356,4 @@ class PDController(
             self.kp,
             self.kd,
             self.motors_effort_limit,
-            self.control_dt,
-            0.0 if self.env.is_training else EVAL_DEADBAND)
+            self.control_dt)
