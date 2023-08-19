@@ -2,7 +2,6 @@
 specifically design for Jiminy engine, and defined as mixin classes. Any
 observer/controller block must inherit and implement those interfaces.
 """
-from collections import OrderedDict
 from abc import abstractmethod, ABC
 from typing import Dict, Any, TypeVar, Generic, no_type_check
 from typing_extensions import TypeAlias
@@ -193,12 +192,12 @@ class JiminyEnvInterface(
         # with the updated state of the agent.
         self.__is_observation_refreshed = True
 
-        # Store latest engine measurement for efficiency
-        self.__measurement: EngineObsType = OrderedDict(
+        # Store latest engine measurement for efficiency.
+        # Plain 'dict' is preferred over 'OrderedDict' for further speed-up.
+        self.__measurement: EngineObsType = dict(
             t=np.array(0.0),
-            states=OrderedDict(
-                agent=OrderedDict(q=np.array([]), v=np.array([]))),
-            measurements=OrderedDict(self.robot.sensors_data))
+            states=dict(agent=dict(q=np.array([]), v=np.array([]))),
+            measurements=dict(self.robot.sensors_data))
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
@@ -249,7 +248,7 @@ class JiminyEnvInterface(
             measurement["t"][()] = t
             measurement["states"]["agent"]["q"] = q
             measurement["states"]["agent"]["v"] = v
-            dict.update(measurement["measurements"], sensors_data.items())
+            measurement["measurements"] = dict(sensors_data.items())
             self.refresh_observation(measurement)
 
         # Consider observation has been refreshed iif a simulation is running
