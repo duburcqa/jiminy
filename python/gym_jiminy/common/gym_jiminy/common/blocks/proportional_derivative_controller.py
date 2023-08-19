@@ -8,6 +8,8 @@ import numpy as np
 import numba as nb
 import gymnasium as gym
 from numpy.lib.stride_tricks import as_strided
+from numpy.core.umath import (  # type: ignore[attr-defined]
+    copyto as _array_copyto)
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder)
@@ -261,6 +263,9 @@ class PDController(
         # Initialize the controller
         super().__init__(name, env, update_ratio)
 
+        # Reference to highest-order derivative for fast access
+        self._action = self._command_state[-1]
+
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
 
@@ -295,7 +300,7 @@ class PDController(
             self.encoder_to_motor == np.arange(self.env.robot.nmotors))
 
         # Reset the command state
-        fill(self._command_state, 0)
+        fill(self._command_state, 0.0)
 
     @property
     def fieldnames(self) -> List[str]:
@@ -327,7 +332,7 @@ class PDController(
 
         # Update the highest order derivative of the target motor positions to
         # match the provided action.
-        self._command_state[-1] = action
+        _array_copyto(self._action, action)
 
         # Skip integrating command and return early if no simulation running.
         # It also checks that the low-level function is already pre-compiled.
