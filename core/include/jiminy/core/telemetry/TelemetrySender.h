@@ -29,52 +29,59 @@ namespace jiminy
     class TelemetrySender
     {
     public:
+        template<typename T>
+        using telemetry_data_pair_t = std::pair<T const * const, T * const>;
+
+        template<typename ... T>
+        using telemetry_data_registry_t = std::vector<std::variant<telemetry_data_pair_t<T>... > >;
+
         explicit TelemetrySender(void);
         ~TelemetrySender(void) = default;
 
         ////////////////////////////////////////////////////////////////////////
-        /// \brief      Register a variable into the telemetry system..
+        /// \brief     Configure the object.
         ///
-        /// \details    A variable must be registered to be taken into account by the telemetry system.
+        /// \param[in]  telemetryDataInstance Shared pointer to the telemetry instance.
+        /// \param[in]  objectName            Name of the object.
+        ///
+        /// \remark  Should only be used when default constructor is called for
+        ///          later configuration. Should be set before registering any entry.
+        ///////////////////////////////////////////////////////////////////////
+        void configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
+                             std::string const & objectName);
+
+        ////////////////////////////////////////////////////////////////////////
+        /// \brief      Register a new variable to the telemetry system..
+        ///
+        /// \details    A variable must be registered to be taken into account by the
+        ///             telemetry system. The user is responsible for  managing its
+        ///             lifetime and updating it in-place. The telemetry sender will
+        ///             fetch its value when calling 'updateValues'.
         ///
         /// \param[in]  fieldname   Name of the field to record in the telemetry system.
-        /// \param[in]  initialValue  Initial value of the newly recored field.
+        /// \param[in]  value       Pointer to the newly recorded field.
         ////////////////////////////////////////////////////////////////////////
         template<typename T>
         hresult_t registerVariable(std::string const & fieldname,
-                                   T           const & initialValue);
+                                   T           const * value);
 
         template<typename Derived>
         hresult_t registerVariable(std::vector<std::string>   const & fieldnames,
                                    Eigen::MatrixBase<Derived> const & values);
 
         ////////////////////////////////////////////////////////////////////////
-        /// \brief      Update specified registered variable in the telemetry buffer.
+        /// \brief     Add an invariant header entry in the log file.
         ///
-        /// \param[in]  fieldname  Name of the value to update.
-        /// \param[in]  value      Updated value of the variable.
-        ////////////////////////////////////////////////////////////////////////
-        template<typename T>
-        void updateValue(std::string const & fieldname,
-                         T           const & value);
-
-        template<typename Derived>
-        void updateValue(std::vector<std::string>   const & fieldnames,
-                         Eigen::MatrixBase<Derived> const & values);
-
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief     Configure the object.
-        ///
-        /// \param[in]  telemetryDataInstance Shared pointer to the telemetry instance
-        /// \param[in]  objectName            Name of the object.
-        ///
-        /// \remark  Should only be used when default constructor is called for
-        ///          later configuration.
-        ///          Should be set before registering any entry.
-        /// \retval   E_EPERM if object is already configured.
+        /// \param[in] invariantName  Name of the invariant.
+        /// \param[in] value          Value of the invariant.
         ///////////////////////////////////////////////////////////////////////
-        void configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
-                             std::string const & objectName);
+        hresult_t registerConstant(std::string const & invariantName,
+                                   std::string const & value);
+
+        ////////////////////////////////////////////////////////////////////////
+        /// \brief      Update all registered variables in the telemetry buffer.
+        ////////////////////////////////////////////////////////////////////////
+        void updateValues(void);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief     Get the number of registered entries.
@@ -90,27 +97,14 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////
         std::string const & getObjectName(void) const;
 
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief     Add an invariant header entry in the log file.
-        ///
-        /// \param[in] invariantName  Name of the invariant.
-        /// \param[in] value          Value of the invariant.
-        ///
-        /// \retval E_REGISTERING_NOT_AVAILABLE if the registering is closed (the telemetry is already started).
-        /// \retval E_ALREADY_REGISTERED        if the constant was already registered.
-        ///////////////////////////////////////////////////////////////////////
-        hresult_t registerConstant(std::string const & invariantName,
-                                   std::string const & value);
-
     protected:
         std::string objectName_;  ///< Name of the logged object.
 
     private:
         std::shared_ptr<TelemetryData> telemetryData_;
-        /// \brief Associate int64_t variable position to their ID.
-        std::unordered_map<std::string, int64_t *> intBufferPosition_;
-        /// \brief Associate float64_t variable position to their ID.
-        std::unordered_map<std::string, float64_t *> floatBufferPosition_;
+        /// \brief Associate each variable pointer provided by the user to their
+        ///        reserved position in the contiguous storage of telemetry data.
+        telemetry_data_registry_t<float64_t, int64_t> bufferPosition_;
     };
 } // End of jiminy namespace
 

@@ -76,12 +76,27 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief      Dynamically registered a Eigen Vector to the telemetry.
+        /// \brief      Dynamically registered a scalar variable to the telemetry. It is the main entry 
+        ///             point for a user to log custom variables.
         ///
         /// \details    Internally, all it does is to store a reference to the variable, then it logs
         ///             its value periodically. There is no update mechanism what so ever nor safety
-        ///             check. So the user has to take care of the life span of the variable, and to
+        ///             check. The user has to take care of the life span of the variable, and to
         ///             update it manually whenever it is necessary to do so.
+        ///
+        /// \param[in]  fieldnames      Name of the variable. It will appear in the header of the log.
+        /// \param[in]  values          Variable to add to the telemetry.
+        ///
+        /// \return     Return code to determine whether the execution of the method was successful.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        template<typename T>
+        hresult_t registerVariable(std::string const & fieldname,
+                                   T           const & value);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Dynamically registered a Eigen Vector to the telemetry.
         ///
         /// \param[in]  fieldnames      Name of each element of the variable. It will appear in the header of the log.
         /// \param[in]  values          Eigen vector to add to the telemetry. It accepts non-contiguous temporary.
@@ -93,25 +108,6 @@ namespace jiminy
                                    Eigen::Ref<Eigen::Matrix<float64_t, -1, 1>, 0, Eigen::InnerStride<> > const & values);
         hresult_t registerVariable(std::vector<std::string> const & fieldnames,
                                    Eigen::Ref<Eigen::Matrix<int64_t, -1, 1>, 0, Eigen::InnerStride<> > const & values);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Dynamically registered a float64 or int64 to the telemetry.
-        ///
-        /// \details    Internally, all it does is to store a reference to the variable, then it logs
-        ///             its value periodically. There is no update mechanism what so ever nor safety
-        ///             check. So the user has to take care of the life span of the variable, and to
-        ///             update it manually whenever it is necessary to do so.
-        ///
-        /// \param[in]  fieldnames      Name of the variable. It will appear in the header of the log.
-        /// \param[in]  values          Variable to add to the telemetry
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        template<typename T>
-        hresult_t registerVariable(std::string const & fieldname,
-                                   T           const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

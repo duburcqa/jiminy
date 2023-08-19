@@ -8,6 +8,8 @@ import numpy as np
 import numba as nb
 import gymnasium as gym
 from numpy.lib.stride_tricks import as_strided
+from numpy.core.umath import (  # type: ignore[attr-defined]
+    copyto as _array_copyto)
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder)
@@ -89,17 +91,16 @@ def integrate_zoh(state_prev: np.ndarray,
     # Propagate derivative bounds to compute highest-order derivative bounds
     deriv_min_stack = (state_min - integ_zero) / integ_drift
     deriv_max_stack = (state_max - integ_zero) / integ_drift
-    deriv_min = np.full((size,), -np.inf)
-    deriv_max = np.full((size,), np.inf)
+    deriv_min, deriv_max = np.full((size,), -np.inf), np.full((size,), np.inf)
     for deriv_min_i, deriv_max_i in zip(deriv_min_stack, deriv_max_stack):
-        deriv_min_i_valid = np.logical_and(
-            deriv_min < deriv_min_i, deriv_min_i < deriv_max)
-        deriv_min[deriv_min_i_valid] = deriv_min_i[deriv_min_i_valid]
-        deriv_max_i_valid = np.logical_and(
-            deriv_min < deriv_max_i, deriv_max_i < deriv_max)
-        deriv_max[deriv_max_i_valid] = deriv_max_i[deriv_max_i_valid]
+        for k, (deriv_min_k, deriv_max_k) in enumerate(zip(
+                deriv_min, deriv_max)):
+            if deriv_min_k < deriv_min_i[k] < deriv_max_k:
+                deriv_min[k] = deriv_min_i[k]
+            if deriv_min_k < deriv_max_i[k] < deriv_max_k:
+                deriv_max[k] = deriv_max_i[k]
 
-    # Clip highest-order derivative to ensure every derivative are withing
+    # Clip highest-order derivative to ensure every derivative are within
     # bounds if possible, lowest orders in priority otherwise.
     deriv = np.clip(state_prev[-1], deriv_min, deriv_max)
 
@@ -116,16 +117,12 @@ def pd_controller(q_measured: np.ndarray,
                   kp: np.ndarray,
                   kd: np.ndarray,
                   motor_effort_limit: np.ndarray,
-                  control_dt: float,
-                  deadband: float) -> np.ndarray:
+                  control_dt: float) -> np.ndarray:
     """ TODO Write documentation.
     """
     # Integrate command state
     command_state[:] = integrate_zoh(
         command_state, command_state_lower, command_state_upper, control_dt)
-
-    # Dead band to avoid slow drift of target at rest
-    command_state[-1] *= np.abs(command_state[-1]) > deadband
 
     # Extract targets motors positions and velocities from command state
     q_target, v_target = command_state[:2]
@@ -137,7 +134,7 @@ def pd_controller(q_measured: np.ndarray,
     u_command = kp * (q_error + kd * v_error)
 
     # Clip the command motors torques before returning
-    return u_command.clip(-motor_effort_limit, motor_effort_limit, u_command)
+    return np.clip(u_command, -motor_effort_limit, motor_effort_limit)
 
 
 class PDController(
@@ -220,7 +217,7 @@ class PDController(
         # to another, the observation and action spaces are required to stay
         # the same the whole time. This induces that the motors effort limit
         # must not change unlike the mapping from full state to motors.
-        self._motors_effort_limit = env.robot.command_limit[
+        self.motors_effort_limit = env.robot.command_limit[
             env.robot.motors_velocity_idx]
 
         # Compute the lower and upper bounds of the command state
@@ -240,7 +237,7 @@ class PDController(
         for i in range(2, order + 1):
             range_limit = (
                 command_state_upper[-1] - command_state_lower[-1]) / step_dt
-            effort_limit = self._motors_effort_limit / (
+            effort_limit = self.motors_effort_limit / (
                 self.kp * step_dt ** (i - 1) * INV_FACTORIAL_TABLE[i - 1] *
                 np.maximum(step_dt / i, self.kd))
             n_order_limit = np.minimum(range_limit, effort_limit)
@@ -252,11 +249,18 @@ class PDController(
         # Extract measured motor positions and velocities for fast access
         self.q_measured, self.v_measured = env.sensors_data[encoder.type]
 
+        # Whether stored reference to encoder measurements are already in the
+        # same order as the motors, allowing skipping re-ordering entirely.
+        self._is_already_ordered = False
+
         # Allocate memory for the command state
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
 
         # Initialize the controller
         super().__init__(name, env, update_ratio)
+
+        # Reference to highest-order derivative for fast access
+        self._action = self._command_state[-1]
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
@@ -287,8 +291,12 @@ class PDController(
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
 
+        # Convert to slice if possible for efficiency. It is usually the case.
+        self._is_already_ordered = bool((
+            self.encoder_to_motor == np.arange(self.env.robot.nmotors)).all())
+
         # Reset the command state
-        fill(self._command_state, 0)
+        fill(self._command_state, 0.0)
 
     @property
     def fieldnames(self) -> List[str]:
@@ -318,25 +326,34 @@ class PDController(
                         self._command_state_upper[i],
                         out=self._command_state[i])
 
-        # Update the highest order derivative of the target motor positions to
-        # match the provided action.
-        self._command_state[-1] = action
-
         # Skip integrating command and return early if no simulation running.
         # It also checks that the low-level function is already pre-compiled.
         # This is necessary to avoid spurious timeout during first step.
         if not is_simulation_running and pd_controller.signatures:
             return np.zeros_like(action)
 
+        # Update the highest order derivative of the target motor positions to
+        # match the provided action.
+        _array_copyto(self._action, action)
+
+        # Dead band to avoid slow drift of target at rest for evaluation only
+        if not self.env.is_training:
+            self._action[np.abs(self._action) > EVAL_DEADBAND] = 0.0
+
+        # Compute motor positions and velocity from encoder data
+        q_measured, v_measured = self.q_measured, self.v_measured
+        if not self._is_already_ordered:
+            q_measured = q_measured[self.encoder_to_motor]
+            v_measured = v_measured[self.encoder_to_motor]
+
         # Compute the motor efforts using PD control
         return pd_controller(
-            self.q_measured,
-            self.v_measured,
+            q_measured,
+            v_measured,
             self._command_state,
             self._command_state_lower,
             self._command_state_upper,
             self.kp,
             self.kd,
-            self._motors_effort_limit,
-            self.control_dt,
-            0.0 if self.env.is_training else EVAL_DEADBAND)
+            self.motors_effort_limit,
+            self.control_dt)

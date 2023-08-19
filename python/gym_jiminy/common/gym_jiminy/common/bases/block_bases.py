@@ -212,6 +212,10 @@ class BaseControllerBlock(
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the controller interface.
 
+        .. note::
+            No buffer is pre-allocated for the action since it is already done
+            by the parent environment.
+
         :param args: Extra arguments that may be useful for mixing
                      multiple inheritance through multiple inheritance.
         :param kwargs: Extra keyword arguments. See 'args'.
@@ -219,15 +223,9 @@ class BaseControllerBlock(
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
 
-        # Allocate action buffer
-        self.action: ActT = zeros(self.action_space)
-
     def _setup(self) -> None:
         # Compute the update period
         self.control_dt = self.env.control_dt * self.update_ratio
-
-        # Set default action
-        fill(self.action, 0)
 
         # Make sure the controller period is lower than environment timestep
         assert self.control_dt <= self.env.step_dt, (

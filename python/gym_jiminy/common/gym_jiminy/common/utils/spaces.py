@@ -32,7 +32,7 @@ global_rng = np.random.default_rng()
 
 
 @no_type_check
-@nb.jit(nopython=True, nogil=True, inline='always')
+@nb.jit(nopython=True, inline='always')
 def _array_clip(value: np.ndarray,
                 low: Union[np.ndarray, SupportsFloat],
                 high: Union[np.ndarray, SupportsFloat]) -> np.ndarray:
@@ -49,7 +49,7 @@ def _array_clip(value: np.ndarray,
 
 
 @no_type_check
-@nb.jit(nopython=True, nogil=True, inline='always')
+@nb.jit(nopython=True, inline='always')
 def _array_contains(value: np.ndarray,
                     low: Union[np.ndarray, SupportsFloat],
                     high: Union[np.ndarray, SupportsFloat]) -> np.ndarray:

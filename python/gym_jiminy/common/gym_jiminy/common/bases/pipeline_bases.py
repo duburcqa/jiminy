@@ -219,7 +219,11 @@ class BasePipelineWrapper(
         if action is not self.action:
             self._copyto_action(action)
 
-        # Compute the next learning step
+        # Compute the next learning step.
+        # Note that forwarding 'self.env.action' enables skipping action update
+        # since it is only relevant for the most derived block. For the others,
+        # it will be done in 'compute_command' instead because it is unknown at
+        # this point and needs to be updated only if necessary.
         obs, reward, done, truncated, info = self.env.step(self.env.action)
 
         # Compute block's reward and add it to base one as long as it is worth
