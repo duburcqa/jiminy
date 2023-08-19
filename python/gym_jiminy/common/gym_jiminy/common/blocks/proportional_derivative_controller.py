@@ -89,17 +89,16 @@ def integrate_zoh(state_prev: np.ndarray,
     # Propagate derivative bounds to compute highest-order derivative bounds
     deriv_min_stack = (state_min - integ_zero) / integ_drift
     deriv_max_stack = (state_max - integ_zero) / integ_drift
-    deriv_min = np.full((size,), -np.inf)
-    deriv_max = np.full((size,), np.inf)
+    deriv_min, deriv_max = np.full((size,), -np.inf), np.full((size,), np.inf)
     for deriv_min_i, deriv_max_i in zip(deriv_min_stack, deriv_max_stack):
-        deriv_min_i_valid = np.logical_and(
-            deriv_min < deriv_min_i, deriv_min_i < deriv_max)
-        deriv_min[deriv_min_i_valid] = deriv_min_i[deriv_min_i_valid]
-        deriv_max_i_valid = np.logical_and(
-            deriv_min < deriv_max_i, deriv_max_i < deriv_max)
-        deriv_max[deriv_max_i_valid] = deriv_max_i[deriv_max_i_valid]
+        for k, (deriv_min_k, deriv_max_k) in enumerate(zip(
+                deriv_min, deriv_max)):
+            if deriv_min_k < deriv_min_i[k] < deriv_max_k:
+                deriv_min[k] = deriv_min_i[k]
+            if deriv_min_k < deriv_max_i[k] < deriv_max_k:
+                deriv_max[k] = deriv_max_i[k]
 
-    # Clip highest-order derivative to ensure every derivative are withing
+    # Clip highest-order derivative to ensure every derivative are within
     # bounds if possible, lowest orders in priority otherwise.
     deriv = np.clip(state_prev[-1], deriv_min, deriv_max)
 
@@ -137,7 +136,7 @@ def pd_controller(q_measured: np.ndarray,
     u_command = kp * (q_error + kd * v_error)
 
     # Clip the command motors torques before returning
-    return u_command.clip(-motor_effort_limit, motor_effort_limit, u_command)
+    return np.clip(u_command, -motor_effort_limit, motor_effort_limit)
 
 
 class PDController(
@@ -220,7 +219,7 @@ class PDController(
         # to another, the observation and action spaces are required to stay
         # the same the whole time. This induces that the motors effort limit
         # must not change unlike the mapping from full state to motors.
-        self._motors_effort_limit = env.robot.command_limit[
+        self.motors_effort_limit = env.robot.command_limit[
             env.robot.motors_velocity_idx]
 
         # Compute the lower and upper bounds of the command state
@@ -240,7 +239,7 @@ class PDController(
         for i in range(2, order + 1):
             range_limit = (
                 command_state_upper[-1] - command_state_lower[-1]) / step_dt
-            effort_limit = self._motors_effort_limit / (
+            effort_limit = self.motors_effort_limit / (
                 self.kp * step_dt ** (i - 1) * INV_FACTORIAL_TABLE[i - 1] *
                 np.maximum(step_dt / i, self.kd))
             n_order_limit = np.minimum(range_limit, effort_limit)
