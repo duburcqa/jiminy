@@ -88,7 +88,7 @@ def mahony_filter(q: np.ndarray,
     )
 
     # First order quaternion normalization to prevent compounding of errors
-    q *= (3 - np.sum(q * q, axis=0)) / 2
+    q *= (3.0 - np.sum(q * q, axis=0)) / 2
 
     # Update Gyro bias
     bias_hat -= dt * ki * omega_mes
@@ -142,20 +142,16 @@ def remove_twist(q: np.ndarray) -> None:
                 (0.0, 0.0, 1.0))
             ), full_matrices=True)
             w_2 = (1 + max(v_z, -1)) / 2
-            q[:3] = v_h[-1] * np.sqrt(1 - w_2)
-            q[3] = np.sqrt(w_2)
+            q[:3], q[3] = v_h[-1] * np.sqrt(1 - w_2), np.sqrt(w_2)
     else:
         s = np.sqrt(2 * (1 + v_z))
-        q[0] = v_y / s
-        q[1] = -v_x / s
-        q[2] = 0.0
-        q[3] = s / 2
+        q[0], q[1], q[2], q[3] = v_y / s, v_x / s, 0.0, s / 2
 
     # First order quaternion normalization to prevent compounding of errors.
     # If not done, shit may happen with removing twist again and again on the
     # same quaternion, which is typically the case when the IMU is steady, so
     # that the mahony filter updated is actually skipped internally.
-    q *= (3 - np.sum(q * q, axis=0)) / 2
+    q *= (3.0 - np.sum(q * q, axis=0)) / 2
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
