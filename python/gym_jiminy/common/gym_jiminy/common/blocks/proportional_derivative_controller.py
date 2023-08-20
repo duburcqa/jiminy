@@ -303,13 +303,14 @@ class PDController(
             env.robot.motors_velocity_idx]
 
         # Extract the motors target position and velocity bounds from the model
-        motors_position_lower, motors_position_upper = [], []
+        motors_position_lower: List[float] = []
+        motors_position_upper: List[float] = []
         for motor_name in env.robot.motors_names:
             motor = env.robot.get_motor(motor_name)
             joint_type = jiminy.get_joint_type(
                 env.robot.pinocchio_model, motor.joint_idx)
             if joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
-                lower, upper = -np.inf, np.inf
+                lower, upper = float("-inf"), float("inf")
             else:
                 motor_position_idx = motor.joint_position_idx
                 lower = env.robot.position_limit_lower[motor_position_idx]
@@ -319,8 +320,10 @@ class PDController(
         motors_velocity_limit = np.minimum(
             env.robot.velocity_limit[env.robot.motors_velocity_idx],
             target_velocity_limit)
-        command_state_lower = [motors_position_lower, -motors_velocity_limit]
-        command_state_upper = [motors_position_upper, motors_velocity_limit]
+        command_state_lower = [
+            np.array(motors_position_lower), -motors_velocity_limit]
+        command_state_upper = [
+            np.array(motors_position_upper), motors_velocity_limit]
 
         # Try to infers bounds for higher-order derivatives if necessary.
         # They are tuned to allow for bang-bang control without restriction.
