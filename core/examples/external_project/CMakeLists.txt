@@ -1,5 +1,5 @@
 # RPATH is not supported by Windows, thus jiminy DLL directory must be
-# added to the search path manually, or copied alonside this executable.
+# added to the search path manually, or copied alongside this executable.
 
 # Minimum version required
 cmake_minimum_required(VERSION 3.12.4)

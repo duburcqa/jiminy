@@ -6,4 +6,5 @@ venv/
 docs/html
 install
 build
+build_tools/cmake/*cppad*
 **/log

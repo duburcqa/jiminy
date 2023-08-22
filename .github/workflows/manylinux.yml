@@ -25,7 +25,9 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
-      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY"
+      # Enabling AVX would bring about 10% speeds-up but breaks compatibility with
+      # libraries not compiled for AVX as it requires 256 bits memory alignment.
+      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -march=x86-64-v3 -mno-avx -mno-avx2"
 
     #####################################################################################
 
