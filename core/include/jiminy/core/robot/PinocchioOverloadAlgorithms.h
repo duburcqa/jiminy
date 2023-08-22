@@ -23,7 +23,7 @@
 #include "pinocchio/multibody/joint/fwd.hpp"       // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
 #include "pinocchio/algorithm/aba.hpp"             // `pinocchio::aba`
 #include "pinocchio/algorithm/rnea.hpp"            // `pinocchio::rnea`
-#include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crba`
+#include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crbaMinimal`
 #include "pinocchio/algorithm/energy.hpp"          // `pinocchio::computeKineticEnergy`
 #include "pinocchio/algorithm/cholesky.hpp"        // `pinocchio::cholesky::`
 
@@ -90,7 +90,8 @@ namespace pinocchio_overload
          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
          Eigen::MatrixBase<ConfigVectorType>                      const & q)
     {
-        (void) pinocchio::crba(model, data, q);
+        data.Ycrb[0].setZero();  // FIXME: Remove this patch after migration to pinocchio>=2.6.21
+        (void) pinocchio::crbaMinimal(model, data, q);
         data.M.diagonal() += model.rotorInertia;
         return data.M;
     }

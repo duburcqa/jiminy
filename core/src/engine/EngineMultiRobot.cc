@@ -1018,7 +1018,7 @@ namespace jiminy
         data.com[0] = data.liMi[1].act(data.com[1]);
         data.vcom[0].noalias() = data.h[0].linear() / data.mass[0];
 
-        // Compute centrodial dynamics and its derivative
+        // Compute centroidal dynamics and its derivative
         data.hg = data.h[0];
         data.hg.angular() += data.hg.linear().cross(data.com[0]);
         data.dhg = data.f[0];

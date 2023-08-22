@@ -1196,15 +1196,10 @@ namespace jiminy
             return;
         }
 
-       // Compute joint jacobians manually since not done by engine for efficiency
-        pinocchio::computeJointJacobians(pncModel_, pncData_);
-
         /* Compute inertia matrix, taking into account armature.
            Note that `crbaMinimal` is faster than `crba` as it also compute
            the joint jacobians as a by-product without having to call
-           `computeJointJacobians` manually. However, it is less stable
-           numerically, and it messes some variables (Ycrb[0] keeps accumulating
-           and com[0] is "wrongly defined"). So using it must be avoided. */
+           `computeJointJacobians` manually. */
         pinocchio_overload::crba(pncModel_, pncData_, q);
 
         /* Computing forward kinematics without acceleration to get the drift.

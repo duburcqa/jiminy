@@ -779,19 +779,19 @@ namespace jiminy
         }
 
         // Remove inertia of child body from composite body
-        Inertia const childBodyInertiaInv(- childBodyInertia.mass(),
-                                          childBodyInertia.lever(),
-                                          Symmetric3(- childBodyInertia.inertia().data()));
-        if (childBodyInertia.mass() < EPS)
+        if (childBodyInertia.mass() < 0.0)
         {
-            PRINT_ERROR("Child body mass must be larger than 0.");
+            PRINT_ERROR("Child body mass must be positive.");
             return hresult_t::ERROR_GENERIC;
         }
-        if (childBodyInertia.mass() - modelInOut.inertias[parentJointIdx].mass() > 0.0)
+        if (modelInOut.inertias[parentJointIdx].mass() - childBodyInertia.mass() < 0.0)
         {
             PRINT_ERROR("Child body mass too large to be subtracted to joint mass.");
             return hresult_t::ERROR_GENERIC;
         }
+        Inertia const childBodyInertiaInv(- childBodyInertia.mass(),
+                                          childBodyInertia.lever(),
+                                          Symmetric3(- childBodyInertia.inertia().data()));
         modelInOut.inertias[parentJointIdx] += childBodyInertiaInv;
 
         // Create flexible joint
