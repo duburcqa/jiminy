@@ -173,7 +173,8 @@ class PDController(
                  order: int = 1,
                  kp: Union[float, List[float], np.ndarray] = 0.0,
                  kd: Union[float, List[float], np.ndarray] = 0.0,
-                 soft_bounds_margin: float = 0.0,
+                 target_position_margin: float = 0.0,
+                 target_velocity_limit: float = float("inf"),
                  **kwargs: Any) -> None:
         """
         :param name: Name of the block.
@@ -183,6 +184,9 @@ class PDController(
         :param order: Derivative order of the action.
         :param kp: PD controller position-proportional gain in motor order.
         :param kd: PD controller velocity-proportional gain in motor order.
+        :param target_position_margin: Minimum distance of the motor target
+                                       positions from their respective bounds.
+        :param target_velocity_limit: Maximum motor target velocities.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
@@ -220,19 +224,20 @@ class PDController(
         self.motors_effort_limit = env.robot.command_limit[
             env.robot.motors_velocity_idx]
 
-        # Compute the lower and upper bounds of the command state
+        # Extract the motors target position and velocity bounds from the model
         motors_position_idx: List[int] = sum(env.robot.motors_position_idx, [])
-        motors_velocity_idx = env.robot.motors_velocity_idx
-        command_state_lower = [
-            env.robot.position_limit_lower[
-                motors_position_idx] + soft_bounds_margin,
-            -env.robot.velocity_limit[motors_velocity_idx],
-        ]
-        command_state_upper = [
-            env.robot.position_limit_upper[
-                motors_position_idx] - soft_bounds_margin,
-            env.robot.velocity_limit[motors_velocity_idx],
-        ]
+        motors_position_lower = env.robot.position_limit_lower[
+            motors_position_idx] + target_position_margin
+        motors_position_upper = env.robot.position_limit_upper[
+            motors_position_idx] - target_position_margin
+        motors_velocity_limit = np.minimum(
+            env.robot.velocity_limit[env.robot.motors_velocity_idx],
+            target_velocity_limit)
+        command_state_lower = [motors_position_lower, -motors_velocity_limit]
+        command_state_upper = [motors_position_upper, motors_velocity_limit]
+
+        # Try to infers bounds for higher-order derivatives if necessary.
+        # They are tuned to allow for bang-bang control without restriction.
         step_dt = env.step_dt
         for i in range(2, order + 1):
             range_limit = (
@@ -296,7 +301,7 @@ class PDController(
             self.encoder_to_motor == np.arange(self.env.robot.nmotors)).all())
 
         # Reset the command state
-        fill(self._command_state, 0.0)
+        fill(self._command_state, 0)
 
     @property
     def fieldnames(self) -> List[str]:
