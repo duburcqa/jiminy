@@ -947,7 +947,7 @@ namespace python
 
                 .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
                                               &Engine::getIsInitialized,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("system",
                                               &PyEngineVisitor::getSystem,
                                               bp::return_value_policy<result_converter<false> >())

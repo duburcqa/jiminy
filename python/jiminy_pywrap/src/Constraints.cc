@@ -66,10 +66,10 @@ namespace python
             cl
                 .ADD_PROPERTY_GET_WITH_POLICY("type",
                                               &AbstractConstraintBase::getType,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("is_enabled",
                                                   &AbstractConstraintBase::getIsEnabled,
-                                                  bp::return_value_policy<bp::copy_const_reference>(),
+                                                  bp::return_value_policy<bp::return_by_value>(),
                                                   &PyConstraintVisitor::setIsEnable)
                 .ADD_PROPERTY_GET_SET("baumgarte_freq",
                                       &AbstractConstraintBase::getBaumgarteFreq,
@@ -150,17 +150,17 @@ namespace python
                 .def_readonly("type", &JointConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                               &JointConstraint::getJointName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
                                               &JointConstraint::getJointIdx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_configuration",
                                                   &JointConstraint::getReferenceConfiguration,
                                                   bp::return_value_policy<result_converter<false> >(),
                                                   &JointConstraint::setReferenceConfiguration)
-                .ADD_PROPERTY_GET_SET_WITH_POLICY("is_enabled",
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("rotation_dir",
                                                   &JointConstraint::getRotationDir,
-                                                  bp::return_value_policy<bp::copy_const_reference>(),
+                                                  bp::return_value_policy<bp::return_by_value>(),
                                                   &JointConstraint::setRotationDir);
 
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraintBase>,
@@ -172,10 +172,10 @@ namespace python
                 .def_readonly("type", &FixedFrameConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &FixedFrameConstraint::getFrameName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
                                               &FixedFrameConstraint::getFrameIdx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("dofs_fixed",
                                               &FixedFrameConstraint::getDofsFixed,
                                               bp::return_value_policy<bp::return_by_value>())
@@ -202,7 +202,7 @@ namespace python
                                               bp::return_value_policy<result_converter<true> >())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_distance",
                                                   &DistanceConstraint::getReferenceDistance,
-                                                  bp::return_value_policy<bp::copy_const_reference>(),
+                                                  bp::return_value_policy<bp::return_by_value>(),
                                                   &DistanceConstraint::setReferenceDistance);
 
             bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
@@ -213,10 +213,10 @@ namespace python
                 .def_readonly("type", &SphereConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &SphereConstraint::getFrameName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
                                               &SphereConstraint::getFrameIdx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
                                                   &SphereConstraint::getReferenceTransform,
                                                   bp::return_value_policy<result_converter<false> >(),
@@ -230,10 +230,10 @@ namespace python
                 .def_readonly("type", &WheelConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &WheelConstraint::getFrameName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
                                               &WheelConstraint::getFrameIdx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
                                                   &WheelConstraint::getReferenceTransform,
                                                   bp::return_value_policy<result_converter<false> >(),

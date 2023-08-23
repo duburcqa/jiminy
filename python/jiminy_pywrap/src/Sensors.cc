@@ -238,21 +238,21 @@ namespace python
             cl
                 .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
                                               &AbstractSensorBase::getIsInitialized,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
 
                 .ADD_PROPERTY_GET_WITH_POLICY("type",
                                               &AbstractSensorBase::getType,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("fieldnames",
                                               &AbstractSensorBase::getFieldnames,
                                               bp::return_value_policy<result_converter<true> >())
 
                 .ADD_PROPERTY_GET_WITH_POLICY("name",
                                               &AbstractSensorBase::getName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("idx",
                                               &AbstractSensorBase::getIdx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("data",
                                                   static_cast<
                                                       Eigen::Ref<vectorN_t const> (AbstractSensorBase::*)(void) const
@@ -352,10 +352,10 @@ namespace python
                 cl
                     .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                                   &TSensor::getFrameName,
-                                                  bp::return_value_policy<bp::copy_const_reference>())
+                                                  bp::return_value_policy<bp::return_by_value>())
                     .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
                                                   &TSensor::getFrameIdx,
-                                                  bp::return_value_policy<bp::copy_const_reference>())
+                                                  bp::return_value_policy<bp::return_by_value>())
                     ;
             }
 
@@ -368,10 +368,10 @@ namespace python
                 cl
                     .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                                   &ForceSensor::getFrameName,
-                                                  bp::return_value_policy<bp::copy_const_reference>())
+                                                  bp::return_value_policy<bp::return_by_value>())
                     .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
                                                   &ForceSensor::getFrameIdx,
-                                                  bp::return_value_policy<bp::copy_const_reference>())
+                                                  bp::return_value_policy<bp::return_by_value>())
                     .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
                                                   &ForceSensor::getJointIdx,
                                                   bp::return_value_policy<bp::return_by_value>())
@@ -387,13 +387,13 @@ namespace python
                 cl
                     .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                                   &EncoderSensor::getJointName,
-                                                  bp::return_value_policy<bp::copy_const_reference>())
+                                                  bp::return_value_policy<bp::return_by_value>())
                     .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
                                                   &EncoderSensor::getJointIdx,
-                                                  bp::return_value_policy<bp::copy_const_reference>())
+                                                  bp::return_value_policy<bp::return_by_value>())
                     .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
                                                   &EncoderSensor::getJointType,
-                                                  bp::return_value_policy<bp::copy_const_reference>())
+                                                  bp::return_value_policy<bp::return_by_value>())
                     ;
             }
 
@@ -406,10 +406,10 @@ namespace python
                 cl
                     .ADD_PROPERTY_GET_WITH_POLICY("motor_name",
                                                   &EffortSensor::getMotorName,
-                                                  bp::return_value_policy<bp::copy_const_reference>())
+                                                  bp::return_value_policy<bp::return_by_value>())
                     .ADD_PROPERTY_GET_WITH_POLICY("motor_idx",
                                                   &EffortSensor::getMotorIdx,
-                                                  bp::return_value_policy<bp::copy_const_reference>())
+                                                  bp::return_value_policy<bp::return_by_value>())
                     ;
             }
         };

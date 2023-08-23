@@ -88,7 +88,7 @@ namespace python
                               (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
                 .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
                                               &AbstractController::getIsInitialized,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
                                           "@copydoc AbstractController::registerVariable")
