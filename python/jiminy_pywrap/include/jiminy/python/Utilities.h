@@ -522,20 +522,6 @@ namespace python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T>, bp::object>
-    convertToPython(T const & data, bool const & copy = true)
-    {
-        PyObject * vecPyPtr = getNumpyReference(data);
-        if (copy)
-        {
-            PyObject * copyVecPyPtr = PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY);
-            bp::decref(vecPyPtr);
-            vecPyPtr = copyVecPyPtr;
-        }
-        return bp::object(bp::handle<>(vecPyPtr));
-    }
-
-    template<typename T>
     std::enable_if_t<is_vector_v<T>, bp::object>
     convertToPython(T & data, bool const & copy = true)
     {
