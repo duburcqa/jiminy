@@ -150,13 +150,13 @@ namespace python
 
                 .ADD_PROPERTY_GET_WITH_POLICY("position_limit_lower",
                                               &Model::getPositionLimitMin,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("position_limit_upper",
                                               &Model::getPositionLimitMax,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("velocity_limit",
                                               &Model::getVelocityLimit,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
 
                 .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_position",
                                               &Model::getLogFieldnamesPosition,

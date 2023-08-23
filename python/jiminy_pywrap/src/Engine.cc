@@ -30,7 +30,7 @@ namespace python
     {
         bp::object func = bp::make_function(self.forceFct,
                                             bp::return_value_policy<bp::return_by_value>(),
-                                            (bp::args("t", "q", "v")),
+                                            (bp::arg("t"), "q", "v"),
                                             functionToMLP(self.forceFct));
         setFunctionWrapperModule<forceProfile_t>(func);
         return func;
@@ -40,7 +40,7 @@ namespace python
     {
         bp::object func = bp::make_function(self.forceFct,
                                             bp::return_value_policy<bp::return_by_value>(),
-                                            (bp::args("t", "q_1", "v_1", "q_2", "v_2")),
+                                            (bp::arg("t"), "q_1", "v_1", "q_2", "v_2"),
                                             functionToMLP(self.forceFct));
         setFunctionWrapperModule<forceCoupling_t>(func);
         return func;

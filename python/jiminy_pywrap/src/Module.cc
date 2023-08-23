@@ -45,7 +45,7 @@ namespace python
     bp::class_<TimeStateFct<Type>, boost::noncopyable>("TimeStateFunctor"#Name, bp::no_init) \
         .def("__call__", &TimeStateFct<Type>::operator(), \
                          bp::return_value_policy<bp::return_by_value>(), \
-                         (bp::arg("self"), bp::arg("t"), bp::arg("q"), bp::arg("v")));
+                         (bp::arg("self"), "t", "q", "v"));
 
     #define REGISTER_CONVERTER(Type, Copy) \
     { \

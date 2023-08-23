@@ -107,11 +107,11 @@ namespace python
                                           bp::return_value_policy<bp::return_by_value>());
 
         bp::def("random_tile_ground", &randomTileGround,
-                                      bp::args("size", "height_max", "interp_delta", "sparsity", "orientation", "seed"));
-        bp::def("sum_heightmap", &sumHeightmap, bp::args("heightmaps"));
-        bp::def("merge_heightmap", &mergeHeightmap, bp::args("heightmaps"));
+                                      (bp::arg("size"), "height_max", "interp_delta", "sparsity", "orientation", "seed"));
+        bp::def("sum_heightmap", &sumHeightmap, (bp::arg("heightmaps")));
+        bp::def("merge_heightmap", &mergeHeightmap, (bp::arg("heightmaps")));
 
-        bp::def("discretize_heightmap", &discretizeHeightmap, bp::args("heightmap", "grid_size", "grid_unit"));
+        bp::def("discretize_heightmap", &discretizeHeightmap, (bp::arg("heightmap"), "grid_size", "grid_unit"));
     }
 
 }  // End of namespace python.

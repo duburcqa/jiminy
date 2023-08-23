@@ -146,7 +146,8 @@ namespace python
             bp::class_<JointConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<JointConstraint>,
                        boost::noncopyable>("JointConstraint",
-                       bp::init<std::string const &>(bp::args("self", "joint_name")))
+                       bp::init<std::string const &>(
+                       (bp::arg("self"), "joint_name")))
                 .def_readonly("type", &JointConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                               &JointConstraint::getJointName,
@@ -192,7 +193,7 @@ namespace python
                        std::shared_ptr<DistanceConstraint>,
                        boost::noncopyable>("DistanceConstraint",
                        bp::init<std::string const &, std::string const &>(
-                       bp::args("self", "first_frame_name", "second_frame_name")))
+                       (bp::arg("self"), "first_frame_name", "second_frame_name")))
                 .def_readonly("type", &DistanceConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frames_names",
                                               &DistanceConstraint::getFramesNames,
@@ -209,7 +210,7 @@ namespace python
                        std::shared_ptr<SphereConstraint>,
                        boost::noncopyable>("SphereConstraint",
                        bp::init<std::string const &, float64_t const &>(
-                       bp::args("self", "frame_name", "radius")))
+                       (bp::arg("self"), "frame_name", "radius")))
                 .def_readonly("type", &SphereConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &SphereConstraint::getFrameName,
@@ -226,7 +227,7 @@ namespace python
                        std::shared_ptr<WheelConstraint>,
                        boost::noncopyable>("WheelConstraint",
                        bp::init<std::string const &, float64_t const &, vector3_t const &, vector3_t const &>(
-                       bp::args("self", "frame_name", "radius", "ground_normal", "wheel_axis")))
+                       (bp::arg("self"), "frame_name", "radius", "ground_normal", "wheel_axis")))
                 .def_readonly("type", &WheelConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &WheelConstraint::getFrameName,
