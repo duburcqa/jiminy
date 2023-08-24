@@ -679,9 +679,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # re-initialize the existing one by calling `controller.initialize`
         # method BEFORE calling `reset` method because doing otherwise would
         # cause a segfault.
-        mock_controller = jiminy.ControllerFunctor()
-        mock_controller.initialize(self.robot)
-        self.simulator.set_controller(mock_controller)
+        noop_controller = jiminy.ControllerFunctor()
+        noop_controller.initialize(self.robot)
+        self.simulator.set_controller(noop_controller)
 
         # Reset the simulator.
         # Do NOT remove all forces since it has already been done before, and
@@ -894,7 +894,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self.total_reward += reward
 
         # Write log file if simulation has just terminated in debug mode
-        if self._num_steps_beyond_terminate == 0 and self.debug:
+        if self.debug and self._num_steps_beyond_terminate == 0:
             self.simulator.write_log(self.log_path, format="binary")
 
         # Update number of (successful) steps
@@ -1230,10 +1230,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         engine_options["stepper"]["logInternalStepperSteps"] = False
 
         # Set maximum computation time for single internal integration steps
+        engine_options["stepper"]["timeout"] = 2.0
         if self.debug:
             engine_options["stepper"]["timeout"] = 0.0
-        else:
-            engine_options["stepper"]["timeout"] = 2.0
 
         # Enable logging of geometries in debug mode
         if self.debug:
@@ -1439,12 +1438,14 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         the scope of the MDP has been triggered.
 
         By default, it always returns `done=False`, and `truncated=True` iif
-        the observation is out-of-bounds. It can be overloaded to implement
-        custom termination conditions for the environment at hands. No matter
-        what, truncation will happen when reaching the maximum simulation
-        duration, which is specified by 'simulator.simulation_duration_max'
-        unless the attribute 'simulation_duration_max' has been defined
-        explicitly in the derived environment.
+        the observation is out-of-bounds. One can overload this method to
+        implement custom termination conditions for the environment at hands.
+
+        .. warning::
+            No matter what, truncation will happen when reaching the maximum
+            simulation duration, i.e. 'self.simulation_duration_max'. Its
+            default value is extremely large, but it can be overwritten by the
+            user to terminate the simulation earlier.
 
         .. note::
             This method is called after `refresh_observation`, so that the
@@ -1458,7 +1459,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 "No simulation running. Please start one before calling this "
                 "method.")
 
-        # Check if the observation is out-of-bounds
+        # Check if the observation is out-of-bounds in debug mode only
         truncated = not self._contains_observation()
 
         return False, truncated

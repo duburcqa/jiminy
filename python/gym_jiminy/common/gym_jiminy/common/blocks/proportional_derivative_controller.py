@@ -164,7 +164,7 @@ class PDController(
 
     .. warning::
         It must be connected directly to the environment to control without
-        any intermediary controllers.
+        any intermediary controllers altering the action space.
     """
     def __init__(self,
                  name: str,
@@ -192,6 +192,12 @@ class PDController(
         """
         # Make sure that the specified derivative order is valid
         assert (0 < order < 4), "Derivative order of command out-of-bounds"
+
+        # Make sure the action space of the environment has not been altered
+        if env.action_space is not env.unwrapped.action_space:
+            raise RuntimeError(
+                "Impossible to connect this block on an environment whose "
+                "action space has been altered.")
 
         # Backup some user argument(s)
         self.order = order
