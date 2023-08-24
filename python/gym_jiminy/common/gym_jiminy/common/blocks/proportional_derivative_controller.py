@@ -11,6 +11,7 @@ from numpy.lib.stride_tricks import as_strided
 from numpy.core.umath import (  # type: ignore[attr-defined]
     copyto as _array_copyto)
 
+import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder)
 
@@ -137,6 +138,42 @@ def pd_controller(q_measured: np.ndarray,
     return np.clip(u_command, -motor_effort_limit, motor_effort_limit)
 
 
+def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
+    """Get the mapping from encoder sensors to motors.
+
+    .. warning::
+        If reordering is necessary, then a list of indices is returned, which
+        can used to permute encoder sensor data to match the command torque
+        vector. Yet, it relies on so-called "fancy" or "advanced" indexing for
+        doing so, which means that the returned data is a copy of the original
+        data instead of a reference. On the contrary, it reordering is not
+        necessary, a slice is returned instead and no copy happens whatsoever.
+
+    :returns: A slice if possible, a list of indices otherwise.
+    """
+    # Define the mapping from motors to encoders
+    encoder_to_motor = [-1 for _ in range(robot.nmotors)]
+    encoders = [robot.get_sensor(encoder.type, sensor_name)
+                for sensor_name in robot.sensors_names[encoder.type]]
+    for i, motor_name in enumerate(robot.motors_names):
+        motor = robot.get_motor(motor_name)
+        for j, sensor in enumerate(encoders):
+            assert isinstance(sensor, encoder)
+            if motor.joint_idx == sensor.joint_idx:
+                encoder_to_motor[sensor.idx] = i
+                encoders.pop(j)
+                break
+        else:
+            raise RuntimeError(
+                f"No encoder sensor associated with motor '{motor_name}'. "
+                "Every actuated joint must have encoder sensors attached.")
+
+    # Try converting it to slice if possible
+    if (np.array(encoder_to_motor) == np.arange(robot.nmotors)).all():
+        return slice(None)
+    return encoder_to_motor
+
+
 class PDController(
         BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
     """Low-level Proportional-Derivative controller.
@@ -169,10 +206,11 @@ class PDController(
     def __init__(self,
                  name: str,
                  env: JiminyEnvInterface[BaseObsT, np.ndarray],
+                 *,
                  update_ratio: int = 1,
-                 order: int = 1,
-                 kp: Union[float, List[float], np.ndarray] = 0.0,
-                 kd: Union[float, List[float], np.ndarray] = 0.0,
+                 order: int,
+                 kp: Union[float, List[float], np.ndarray],
+                 kd: Union[float, List[float], np.ndarray],
                  target_position_margin: float = 0.0,
                  target_velocity_limit: float = float("inf"),
                  **kwargs: Any) -> None:
@@ -205,22 +243,7 @@ class PDController(
         self.kd = np.asarray(kd)
 
         # Define the mapping from motors to encoders
-        self.encoder_to_motor = np.full(
-            (env.robot.nmotors,), fill_value=-1, dtype=np.int64)
-        encoders = [env.robot.get_sensor(encoder.type, sensor_name)
-                    for sensor_name in env.robot.sensors_names[encoder.type]]
-        for i, motor_name in enumerate(env.robot.motors_names):
-            motor = env.robot.get_motor(motor_name)
-            for j, sensor in enumerate(encoders):
-                assert isinstance(sensor, encoder)
-                if motor.joint_idx == sensor.joint_idx:
-                    self.encoder_to_motor[sensor.idx] = i
-                    encoders.pop(j)
-                    break
-            else:
-                raise RuntimeError(
-                    f"No encoder sensor associated with motor '{motor_name}'. "
-                    "Every actuated joint must have encoder sensors attached.")
+        self.encoder_to_motor = get_encoder_to_motor_map(env.robot)
 
         # Define buffers storing information about the motors for efficiency.
         # Note that even if the robot instance may change from one simulation
@@ -302,9 +325,8 @@ class PDController(
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
 
-        # Convert to slice if possible for efficiency. It is usually the case.
-        self._is_already_ordered = bool((
-            self.encoder_to_motor == np.arange(self.env.robot.nmotors)).all())
+        # Skip reordering if already the case, which should always be true
+        self._is_already_ordered = isinstance(self.encoder_to_motor, slice)
 
         # Reset the command state
         fill(self._command_state, 0)
