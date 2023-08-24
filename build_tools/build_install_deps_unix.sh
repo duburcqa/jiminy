@@ -143,6 +143,24 @@ git fetch --all || true
 git checkout --force "1.0.3"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/urdfdom.patch"
 
+### Checkout CppAD
+if [ ! -d "$RootDir/cppad" ]; then
+  git clone https://github.com/coin-or/CppAD.git "$RootDir/cppad"
+fi
+cd "$RootDir/cppad"
+git reset --hard
+git fetch --all
+git checkout --force "20230000.0"
+
+### Checkout CppADCodeGen
+if [ ! -d "$RootDir/cppadcodegen" ]; then
+  git clone https://github.com/joaoleal/CppADCodeGen.git "$RootDir/cppadcodegen"
+fi
+cd "$RootDir/cppadcodegen"
+git reset --hard
+git fetch --all
+git checkout --force "v2.4.3"
+
 ### Checkout assimp
 if [ ! -d "$RootDir/assimp" ]; then
   git clone https://github.com/assimp/assimp.git "$RootDir/assimp"
@@ -292,8 +310,7 @@ cmake "$RootDir/console_bridge" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
-      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" \
-      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################### Build and install urdfdom_headers ######################################
@@ -311,9 +328,32 @@ cmake "$RootDir/urdfdom" \
       -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
-      -DBUILD_TESTING=OFF -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" \
-      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DBUILD_TESTING=OFF \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
+################################### Build and install CppAD ##########################################
+
+mkdir -p "$RootDir/cppad/build"
+cd "$RootDir/cppad/build"
+cmake "$RootDir/cppad" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
+
+################################### Build and install CppADCodeGen ##########################################
+
+mkdir -p "$RootDir/cppadcodegen/build"
+cd "$RootDir/cppadcodegen/build"
+cmake "$RootDir/cppadcodegen" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DGOOGLETEST_GIT=ON \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ###################################### Build and install assimp ########################################
@@ -328,7 +368,7 @@ cmake "$RootDir/assimp" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
-      -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF \
+      -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DBUILD_TESTING=OFF \
       -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS} -DHAVE_HIDDEN" -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare $(
       ) -Wno-array-compare -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
@@ -381,9 +421,12 @@ cmake "$RootDir/pinocchio" \
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
-      -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF \
+      -DBUILD_WITH_AUTODIFF_SUPPORT=ON -DBUILD_WITH_CODEGEN_SUPPORT=ON -DBUILD_WITH_CASADI_SUPPORT=OFF \
       -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
       ) -Wno-uninitialized -Wno-type-limits -Wno-deprecated-declarations -Wno-unused-local-typedefs $(
       ) -Wno-extra -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
+
+# Copy cmake configuration files for cppad and cppadcodegen
+cp -r $RootDir/pinocchio/cmake/find-external/**/*cppad* $RootDir/build_tools/cmake

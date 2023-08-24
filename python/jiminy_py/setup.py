@@ -1,3 +1,4 @@
+from glob import glob
 from importlib.metadata import version
 from setuptools import setup, dist, find_namespace_packages
 from setuptools.command.install import install
@@ -73,10 +74,7 @@ setup(
     packages=find_namespace_packages("src"),
     package_dir={"": "src"},
     data_files=[
-        ("cmake", [
-            "src/jiminy_py/core/cmake/jiminyConfig.cmake",
-            "src/jiminy_py/core/cmake/jiminyConfigVersion.cmake"
-        ])
+        ("cmake", glob('src/jiminy_py/core/cmake/*'))
     ],
     include_package_data=True,
     entry_points={"console_scripts": [

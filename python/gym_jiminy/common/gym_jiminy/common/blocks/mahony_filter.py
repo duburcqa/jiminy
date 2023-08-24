@@ -99,6 +99,7 @@ class MahonyFilter(
     def __init__(self,
                  name: str,
                  env: JiminyEnvInterface[BaseObsT, BaseActT],
+                 *,
                  update_ratio: int = 1,
                  exact_init: bool = True,
                  kp: Union[np.ndarray, float] = 1.0,

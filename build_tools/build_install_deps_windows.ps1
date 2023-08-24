@@ -127,6 +127,24 @@ git checkout --force "3.0.0"
 dos2unix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
+### Checkout CppAD
+if (-not (Test-Path -PathType Container "$RootDir/cppad")) {
+  git clone https://github.com/coin-or/CppAD.git "$RootDir/cppad"
+}
+Set-Location -Path "$RootDir/cppad"
+git reset --hard
+git fetch --all
+git checkout --force "20230000.0"
+
+### Checkout CppADCodeGen
+if (-not (Test-Path -PathType Container "$RootDir/cppadcodegen")) {
+  git clone https://github.com/joaoleal/CppADCodeGen.git "$RootDir/cppadcodegen"
+}
+Set-Location -Path "$RootDir/cppadcodegen"
+git reset --hard
+git fetch --all
+git checkout --force "v2.4.3"
+
 ### Checkout assimp, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/assimp")) {
   git clone https://github.com/assimp/assimp.git "$RootDir/assimp"
@@ -232,7 +250,6 @@ cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ################################### Build and install eigenpy ##########################################
 
-### Build eigenpy
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/eigenpy/build"
 }
@@ -262,7 +279,6 @@ cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ############################## Build and install console_bridge ########################################
 
-###
 if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/console_bridge/build"
 }
@@ -275,7 +291,6 @@ cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ############################### Build and install urdfdom_headers ######################################
 
-###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom_headers/build"
 }
@@ -286,7 +301,6 @@ cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ################################## Build and install urdfdom ###########################################
 
-###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom/build"
 }
@@ -297,9 +311,32 @@ cmake "$RootDir/urdfdom" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DURDFDOM_STATIC"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
+################################### Build and install CppAD ##########################################
+
+if (-not (Test-Path -PathType Container "$RootDir/cppad/build")) {
+  New-Item -ItemType "directory" -Force -Path "$RootDir/cppad/build"
+}
+Set-Location -Path "$RootDir/cppad/build"
+cmake "$RootDir/cppadcodegen" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+
+################################### Build and install CppADCodeGen ##########################################
+
+if (-not (Test-Path -PathType Container "$RootDir/cppadcodegen/build")) {
+  New-Item -ItemType "directory" -Force -Path "$RootDir/cppadcodegen/build"
+}
+Set-Location -Path "$RootDir/cppadcodegen/build"
+cmake "$RootDir/cppadcodegen" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DGOOGLETEST_GIT=ON -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+
 ###################################### Build and install assimp ########################################
 
-###
 if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/assimp/build"
 }
@@ -363,3 +400,6 @@ cmake "$RootDir/pinocchio" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM
 )     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC $(
 )     -DPINOCCHIO_STATIC"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+
+### Copy cmake configuration files for cppad and cppadcodegen
+Copy-Item -Path "$RootDir/pinocchio/cmake/find-external/**/*cppad*" -Destination "$RootDir/build_tools/cmake"

@@ -430,35 +430,35 @@ namespace python
                        std::shared_ptr<ImuSensor>,
                        boost::noncopyable>("ImuSensor",
                        bp::init<std::string const &>(
-                       bp::args("self", "frame_name")))
+                       (bp::arg("self"), "frame_name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<ContactSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ContactSensor>,
                        boost::noncopyable>("ContactSensor",
                        bp::init<std::string const &>(
-                       bp::args("self", "frame_name")))
+                       (bp::arg("self"), "frame_name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ForceSensor>,
                        boost::noncopyable>("ForceSensor",
                        bp::init<std::string const &>(
-                       bp::args("self", "frame_name")))
+                       (bp::arg("self"), "frame_name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EncoderSensor>,
                        boost::noncopyable>("EncoderSensor",
                        bp::init<std::string const &>(
-                       bp::args("self", "joint_name")))
+                       (bp::arg("self"), "joint_name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<EffortSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EffortSensor>,
                        boost::noncopyable>("EffortSensor",
                        bp::init<std::string const &>(
-                       bp::args("self", "joint_name")))
+                       (bp::arg("self"), "joint_name")))
                 .def(PyBasicSensorsVisitor());
         }
     };

@@ -165,31 +165,31 @@ namespace python
         bp::def("aba",
                 &pinocchio_overload::aba<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t, pinocchio::Force>,
-                bp::args("pinocchio_model", "pinocchio_data", "q", "v", "u", "fext"),
+                (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "u", "fext"),
                 "Compute ABA with external forces, store the result in Data::ddq and return it.",
                 bp::return_value_policy<result_converter<false> >());
         bp::def("rnea",
                 &pinocchio_overload::rnea<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t>,
-                bp::args("pinocchio_model", "pinocchio_data", "q", "v", "a"),
+                (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a"),
                 "Compute the RNEA without external forces, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false> >());
         bp::def("rnea",
                 &pinocchio_overload::rnea<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t, pinocchio::Force>,
-                bp::args("pinocchio_model", "pinocchio_data", "q", "v", "a", "fext"),
+                (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a", "fext"),
                 "Compute the RNEA with external forces, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false> >());
         bp::def("crba",
                 &pinocchio_overload::crba<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t>,
-                bp::args("pinocchio_model", "pinocchio_data", "q"),
+                (bp::arg("pinocchio_model"), "pinocchio_data", "q"),
                 "Computes CRBA, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false> >());
         bp::def("computeKineticEnergy",
                 &pinocchio_overload::computeKineticEnergy<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t>,
-                bp::args("pinocchio_model", "pinocchio_data", "q", "v"),
+                (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v"),
                 "Computes the forward kinematics and the kinematic energy of the model for the "
                 "given joint configuration and velocity given as input. "
                 "The result is accessible through data.kinetic_energy.");

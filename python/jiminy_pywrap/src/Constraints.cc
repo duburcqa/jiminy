@@ -66,10 +66,10 @@ namespace python
             cl
                 .ADD_PROPERTY_GET_WITH_POLICY("type",
                                               &AbstractConstraintBase::getType,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("is_enabled",
                                                   &AbstractConstraintBase::getIsEnabled,
-                                                  bp::return_value_policy<bp::copy_const_reference>(),
+                                                  bp::return_value_policy<bp::return_by_value>(),
                                                   &PyConstraintVisitor::setIsEnable)
                 .ADD_PROPERTY_GET_SET("baumgarte_freq",
                                       &AbstractConstraintBase::getBaumgarteFreq,
@@ -146,21 +146,22 @@ namespace python
             bp::class_<JointConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<JointConstraint>,
                        boost::noncopyable>("JointConstraint",
-                       bp::init<std::string const &>(bp::args("self", "joint_name")))
+                       bp::init<std::string const &>(
+                       (bp::arg("self"), "joint_name")))
                 .def_readonly("type", &JointConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                               &JointConstraint::getJointName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
                                               &JointConstraint::getJointIdx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_configuration",
                                                   &JointConstraint::getReferenceConfiguration,
                                                   bp::return_value_policy<result_converter<false> >(),
                                                   &JointConstraint::setReferenceConfiguration)
-                .ADD_PROPERTY_GET_SET_WITH_POLICY("is_enabled",
+                .ADD_PROPERTY_GET_SET_WITH_POLICY("rotation_dir",
                                                   &JointConstraint::getRotationDir,
-                                                  bp::return_value_policy<bp::copy_const_reference>(),
+                                                  bp::return_value_policy<bp::return_by_value>(),
                                                   &JointConstraint::setRotationDir);
 
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraintBase>,
@@ -172,10 +173,10 @@ namespace python
                 .def_readonly("type", &FixedFrameConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &FixedFrameConstraint::getFrameName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
                                               &FixedFrameConstraint::getFrameIdx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("dofs_fixed",
                                               &FixedFrameConstraint::getDofsFixed,
                                               bp::return_value_policy<bp::return_by_value>())
@@ -192,7 +193,7 @@ namespace python
                        std::shared_ptr<DistanceConstraint>,
                        boost::noncopyable>("DistanceConstraint",
                        bp::init<std::string const &, std::string const &>(
-                       bp::args("self", "first_frame_name", "second_frame_name")))
+                       (bp::arg("self"), "first_frame_name", "second_frame_name")))
                 .def_readonly("type", &DistanceConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frames_names",
                                               &DistanceConstraint::getFramesNames,
@@ -202,21 +203,21 @@ namespace python
                                               bp::return_value_policy<result_converter<true> >())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_distance",
                                                   &DistanceConstraint::getReferenceDistance,
-                                                  bp::return_value_policy<bp::copy_const_reference>(),
+                                                  bp::return_value_policy<bp::return_by_value>(),
                                                   &DistanceConstraint::setReferenceDistance);
 
             bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<SphereConstraint>,
                        boost::noncopyable>("SphereConstraint",
                        bp::init<std::string const &, float64_t const &>(
-                       bp::args("self", "frame_name", "radius")))
+                       (bp::arg("self"), "frame_name", "radius")))
                 .def_readonly("type", &SphereConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &SphereConstraint::getFrameName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
                                               &SphereConstraint::getFrameIdx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
                                                   &SphereConstraint::getReferenceTransform,
                                                   bp::return_value_policy<result_converter<false> >(),
@@ -226,14 +227,14 @@ namespace python
                        std::shared_ptr<WheelConstraint>,
                        boost::noncopyable>("WheelConstraint",
                        bp::init<std::string const &, float64_t const &, vector3_t const &, vector3_t const &>(
-                       bp::args("self", "frame_name", "radius", "ground_normal", "wheel_axis")))
+                       (bp::arg("self"), "frame_name", "radius", "ground_normal", "wheel_axis")))
                 .def_readonly("type", &WheelConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &WheelConstraint::getFrameName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
                                               &WheelConstraint::getFrameIdx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
                                                   &WheelConstraint::getReferenceTransform,
                                                   bp::return_value_policy<result_converter<false> >(),

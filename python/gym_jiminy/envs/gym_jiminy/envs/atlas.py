@@ -233,27 +233,34 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
 
 AtlasPDControlJiminyEnv = build_pipeline(
     env_config=dict(
-        env_class=AtlasJiminyEnv
+        cls=AtlasJiminyEnv
     ),
-    blocks_config=[
+    layers_config=[
         dict(
-            block_class=PDController,
-            block_kwargs=dict(
-                update_ratio=HLC_TO_LLC_RATIO,
-                order=1,
-                kp=PID_FULL_KP,
-                kd=PID_FULL_KD,
-                soft_bounds_margin=0.0
+            block=dict(
+                cls=PDController,
+                kwargs=dict(
+                    update_ratio=HLC_TO_LLC_RATIO,
+                    order=1,
+                    kp=PID_FULL_KP,
+                    kd=PID_FULL_KD,
+                    target_position_margin=0.0,
+                    target_velocity_limit=float("inf")
+                )
             ),
-            wrapper_kwargs=dict(
-                augment_observation=False
+            wrapper=dict(
+                kwargs=dict(
+                    augment_observation=False
+                )
             )
         ), dict(
-            block_class=MahonyFilter,
-            block_kwargs=dict(
-                update_ratio=1,
-                kp=MAHONY_KP,
-                ki=MAHONY_KI
+            block=dict(
+                cls=MahonyFilter,
+                kwargs=dict(
+                    update_ratio=1,
+                    kp=MAHONY_KP,
+                    ki=MAHONY_KI,
+                )
             )
         )
     ]
@@ -261,27 +268,34 @@ AtlasPDControlJiminyEnv = build_pipeline(
 
 AtlasReducedPDControlJiminyEnv = build_pipeline(
     env_config=dict(
-        env_class=AtlasReducedJiminyEnv
+        cls=AtlasReducedJiminyEnv
     ),
-    blocks_config=[
+    layers_config=[
         dict(
-            block_class=PDController,
-            block_kwargs=dict(
-                update_ratio=HLC_TO_LLC_RATIO,
-                order=1,
-                kp=PID_REDUCED_KP,
-                kd=PID_REDUCED_KD,
-                soft_bounds_margin=0.0
+            block=dict(
+                cls=PDController,
+                kwargs=dict(
+                    update_ratio=HLC_TO_LLC_RATIO,
+                    order=1,
+                    kp=PID_REDUCED_KP,
+                    kd=PID_REDUCED_KD,
+                    target_position_margin=0.0,
+                    target_velocity_limit=float("inf")
+                )
             ),
-            wrapper_kwargs=dict(
-                augment_observation=False
+            wrapper=dict(
+                kwargs=dict(
+                    augment_observation=False
+                )
             )
         ), dict(
-            block_class=MahonyFilter,
-            block_kwargs=dict(
-                update_ratio=1,
-                kp=MAHONY_KP,
-                ki=MAHONY_KI
+            block=dict(
+                cls=MahonyFilter,
+                kwargs=dict(
+                    update_ratio=1,
+                    kp=MAHONY_KP,
+                    ki=MAHONY_KI,
+                )
             )
         )
     ]

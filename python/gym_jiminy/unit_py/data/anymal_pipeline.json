@@ -1,43 +1,52 @@
 {
   "env_config": {
-    "env_class": "gym_jiminy.envs.ANYmalJiminyEnv",
-    "env_kwargs": {
+    "cls": "gym_jiminy.envs.ANYmalJiminyEnv",
+    "kwargs": {
       "step_dt": 0.04
     }
   },
-  "blocks_config": [
+  "layers_config": [
     {
-      "block_class": "gym_jiminy.common.blocks.PDController",
-      "block_kwargs": {
-        "update_ratio": 2,
-        "order": 1,
-        "kp": [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
-        "kd": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
-        "soft_bounds_margin": 0.0
+      "block": {
+        "cls": "gym_jiminy.common.blocks.PDController",
+        "kwargs": {
+          "update_ratio": 2,
+          "order": 1,
+          "kp": [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
+          "kd": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+          "target_position_margin": 0.0,
+          "target_velocity_limit": 1000.0
+        }
       },
-      "wrapper_kwargs": {
-        "augment_observation": true
+      "wrapper": {
+        "kwargs": {
+          "augment_observation": true
+        }
       }
     },
     {
-      "block_class": "gym_jiminy.common.blocks.MahonyFilter",
-      "block_kwargs": {
-        "update_ratio": 1,
-        "exact_init": false,
-        "kp": 1.0,
-        "ki": 0.1
+      "block": {
+        "cls": "gym_jiminy.common.blocks.MahonyFilter",
+        "kwargs": {
+          "update_ratio": 1,
+          "exact_init": false,
+          "kp": 1.0,
+          "ki": 0.1
+        }
       }
     },
     {
-      "wrapper_class": "gym_jiminy.common.wrappers.StackedJiminyEnv",
-      "wrapper_kwargs": {
-        "nested_filter_keys": [
-          ["t"],
-          ["measurements", "ImuSensor"],
-          ["actions"]
-        ],
-        "num_stack": 3,
-        "skip_frames_ratio": 2
+      "wrapper": {
+        "cls": "gym_jiminy.common.wrappers.StackedJiminyEnv",
+        "kwargs": {
+          "nested_filter_keys": [
+            ["t"],
+            ["measurements", "ImuSensor"],
+            ["actions"]
+          ],
+          "num_stack": 3,
+          "skip_frames_ratio": 2
+        }
       }
     }
   ]

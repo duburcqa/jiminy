@@ -24,44 +24,52 @@ class PipelineDesign(unittest.TestCase):
 
         self.ANYmalPipelineEnv = build_pipeline(
             env_config=dict(
-                env_class='gym_jiminy.envs.ANYmalJiminyEnv',
-                env_kwargs=dict(
+                cls='gym_jiminy.envs.ANYmalJiminyEnv',
+                kwargs=dict(
                     step_dt=self.step_dt,
                     debug=True
                 )
             ),
-            blocks_config=[
+            layers_config=[
                 dict(
-                    block_class='gym_jiminy.common.blocks.PDController',
-                    block_kwargs=dict(
-                        update_ratio=2,
-                        order=1,
-                        kp=self.pid_kp,
-                        kd=self.pid_kd,
-                        soft_bounds_margin=0.0
+                    block=dict(
+                        cls='gym_jiminy.common.blocks.PDController',
+                        kwargs=dict(
+                            update_ratio=2,
+                            order=1,
+                            kp=self.pid_kp,
+                            kd=self.pid_kd,
+                            target_position_margin=0.0,
+                            target_velocity_limit=float("inf")
+                        )
                     ),
-                    wrapper_kwargs=dict(
-                        augment_observation=True
+                    wrapper=dict(
+                        kwargs=dict(
+                            augment_observation=True
+                        )
                     )
                 ), dict(
-                    block_class='gym_jiminy.common.blocks.MahonyFilter',
-                    block_kwargs=dict(
-                        update_ratio=1,
-                        exact_init=True,
-                        kp=1.0,
-                        ki=0.1
+                    block=dict(
+                        cls='gym_jiminy.common.blocks.MahonyFilter',
+                        kwargs=dict(
+                            update_ratio=1,
+                            exact_init=True,
+                            kp=1.0,
+                            ki=0.1
+                        )
                     )
                 ), dict(
-                    wrapper_class=(
-                        'gym_jiminy.common.wrappers.StackedJiminyEnv'),
-                    wrapper_kwargs=dict(
-                        nested_filter_keys=[
-                            ('t',),
-                            ('measurements', 'ImuSensor'),
-                            ('actions',)
-                        ],
-                        num_stack=self.num_stack,
-                        skip_frames_ratio=self.skip_frames_ratio
+                    wrapper=dict(
+                        cls='gym_jiminy.common.wrappers.StackedJiminyEnv',
+                        kwargs=dict(
+                            nested_filter_keys=[
+                                ('t',),
+                                ('measurements', 'ImuSensor'),
+                                ('actions',)
+                            ],
+                            num_stack=self.num_stack,
+                            skip_frames_ratio=self.skip_frames_ratio
+                        )
                     )
                 )
             ]
