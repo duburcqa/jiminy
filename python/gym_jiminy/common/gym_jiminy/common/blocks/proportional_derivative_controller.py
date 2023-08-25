@@ -117,9 +117,9 @@ def pd_controller(q_measured: np.ndarray,
                   command_state_upper: np.ndarray,
                   kp: np.ndarray,
                   kd: np.ndarray,
-                  motor_effort_limit: np.ndarray,
+                  motors_effort_limit: np.ndarray,
                   control_dt: float) -> np.ndarray:
-    """ TODO Write documentation.
+    """TODO: Write documentation.
     """
     # Integrate command state
     command_state[:] = integrate_zoh(
@@ -135,7 +135,7 @@ def pd_controller(q_measured: np.ndarray,
     u_command = kp * (q_error + kd * v_error)
 
     # Clip the command motors torques before returning
-    return np.clip(u_command, -motor_effort_limit, motor_effort_limit)
+    return np.clip(u_command, -motors_effort_limit, motors_effort_limit)
 
 
 def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
@@ -242,7 +242,7 @@ class PDController(
         self.kp = np.asarray(kp)
         self.kd = np.asarray(kd)
 
-        # Define the mapping from motors to encoders
+        # Mapping from motors to encoders
         self.encoder_to_motor = get_encoder_to_motor_map(env.robot)
 
         # Define buffers storing information about the motors for efficiency.
@@ -373,7 +373,7 @@ class PDController(
         if not self.env.is_training:
             self._action[np.abs(self._action) > EVAL_DEADBAND] = 0.0
 
-        # Compute motor positions and velocity from encoder data
+        # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
         if not self._is_already_ordered:
             q_measured = q_measured[self.encoder_to_motor]

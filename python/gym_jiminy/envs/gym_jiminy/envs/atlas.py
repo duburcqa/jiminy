@@ -11,7 +11,7 @@ from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from pinocchio import neutral, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.blocks import PDController, MahonyFilter
+from gym_jiminy.common.blocks import MotorSafetyLimit, PDController, MahonyFilter
 from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 
@@ -34,19 +34,22 @@ HLC_TO_LLC_RATIO = 1
 # Stepper update period (:float [s])
 STEP_DT = 0.04
 
+MOTOR_SAFETY_KP = 100.0
+MOTOR_SAFETY_KD = 100.0
+
 # PID proportional gains (one per actuated joint)
-PID_REDUCED_KP = np.array([
+PD_REDUCED_KP = np.array([
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0])
-PID_REDUCED_KD = np.array([
+PD_REDUCED_KD = np.array([
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     0.02, 0.01, 0.015, 0.01, 0.015, 0.01,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     0.02, 0.01, 0.015, 0.01, 0.015, 0.01])
 
-PID_FULL_KP = np.array([
+PD_FULL_KP = np.array([
     # Neck: [Y]
     100.0,
     # Back: [Z, Y, X]
@@ -56,8 +59,8 @@ PID_FULL_KP = np.array([
     # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     500.0, 100.0, 200.0, 500.0, 10.0, 100.0, 10.0,
     # Lower body motors
-    *PID_REDUCED_KP])
-PID_FULL_KD = np.array([
+    *PD_REDUCED_KP])
+PD_FULL_KD = np.array([
     # Neck: [Y]
     0.01,
     # Back: [Z, Y, X]
@@ -67,7 +70,7 @@ PID_FULL_KD = np.array([
     # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.02,
     # Lower body motors
-    *PID_REDUCED_KD])
+    *PD_REDUCED_KD])
 
 # Mahony filter proportional and derivative gains
 # See: https://cas.mines-paristech.fr/~petit/papers/ral22/main.pdf
@@ -238,12 +241,22 @@ AtlasPDControlJiminyEnv = build_pipeline(
     layers_config=[
         dict(
             block=dict(
+                cls=MotorSafetyLimit,
+                kwargs=dict(
+                    kp=MOTOR_SAFETY_KP,
+                    kd=MOTOR_SAFETY_KD,
+                    soft_position_margin=0.0
+                )
+            ),
+        ),
+        dict(
+            block=dict(
                 cls=PDController,
                 kwargs=dict(
                     update_ratio=HLC_TO_LLC_RATIO,
                     order=1,
-                    kp=PID_FULL_KP,
-                    kd=PID_FULL_KD,
+                    kp=PD_FULL_KP,
+                    kd=PD_FULL_KD,
                     target_position_margin=0.0,
                     target_velocity_limit=float("inf")
                 )
@@ -273,12 +286,22 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
     layers_config=[
         dict(
             block=dict(
+                cls=MotorSafetyLimit,
+                kwargs=dict(
+                    kp=MOTOR_SAFETY_KP,
+                    kd=MOTOR_SAFETY_KD,
+                    soft_position_margin=0.0
+                )
+            ),
+        ),
+        dict(
+            block=dict(
                 cls=PDController,
                 kwargs=dict(
                     update_ratio=HLC_TO_LLC_RATIO,
                     order=1,
-                    kp=PID_REDUCED_KP,
-                    kd=PID_REDUCED_KD,
+                    kp=PD_REDUCED_KP,
+                    kd=PD_REDUCED_KD,
                     target_position_margin=0.0,
                     target_velocity_limit=float("inf")
                 )
