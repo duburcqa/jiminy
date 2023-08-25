@@ -103,6 +103,7 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
     def _initialize_state_space(self) -> None:
         """Configure the internal state space of the controller.
         """
+        self.state_space = None
 
     def get_state(self) -> BlockStateT:
         """Get the internal state space of the controller.

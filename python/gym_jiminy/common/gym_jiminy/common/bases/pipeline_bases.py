@@ -378,7 +378,13 @@ class ObservedJiminyEnv(
                 self.observer.name] = self.observer.observation
         self.observation = cast(NestedObsT, observation)
 
-        # Register the observer's feature to the telemetry
+        # Register the observer's internal state and feature to the telemetry
+        if state is not None:
+            try:
+                self.env.register_variable(  # type: ignore[attr-defined]
+                    'state', state, None, self.observer.name)
+            except ValueError:
+                pass
         self.env.register_variable('feature',  # type: ignore[attr-defined]
                                    self.observer.observation,
                                    self.observer.fieldnames,
@@ -580,7 +586,13 @@ class ControlledJiminyEnv(
                     self.controller.name] = self.action
         self.observation = cast(NestedObsT, observation)
 
-        # Register the controller's target to the telemetry
+        # Register the controller's internal state and target to the telemetry
+        if state is not None:
+            try:
+                self.env.register_variable(  # type: ignore[attr-defined]
+                    'state', state, None, self.controller.name)
+            except ValueError:
+                pass
         self.env.register_variable('action',  # type: ignore[attr-defined]
                                    self.action,
                                    self.controller.fieldnames,
