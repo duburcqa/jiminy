@@ -56,6 +56,9 @@ SEED = 0
 
 
 if __name__ == '__main__':
+    # Fix weird issue with multiprocessing
+    __spec__ = None
+
     # Enforce seed for most common libraries
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     random.seed(SEED)

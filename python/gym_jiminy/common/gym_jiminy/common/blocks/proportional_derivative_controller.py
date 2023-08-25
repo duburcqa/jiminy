@@ -2,7 +2,7 @@
 with gym_jiminy reinforcement learning pipeline environment design.
 """
 import math
-from typing import Any, List, Union
+from typing import List, Union
 
 import numpy as np
 import numba as nb
@@ -212,8 +212,7 @@ class PDController(
                  kp: Union[float, List[float], np.ndarray],
                  kd: Union[float, List[float], np.ndarray],
                  target_position_margin: float = 0.0,
-                 target_velocity_limit: float = float("inf"),
-                 **kwargs: Any) -> None:
+                 target_velocity_limit: float = float("inf")) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
@@ -225,8 +224,6 @@ class PDController(
         :param target_position_margin: Minimum distance of the motor target
                                        positions from their respective bounds.
         :param target_velocity_limit: Maximum motor target velocities.
-        :param kwargs: Used arguments to allow automatic pipeline wrapper
-                       generation.
         """
         # Make sure that the specified derivative order is valid
         assert (0 < order < 4), "Derivative order of command out-of-bounds"

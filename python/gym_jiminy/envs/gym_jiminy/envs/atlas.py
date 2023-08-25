@@ -11,7 +11,9 @@ from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from pinocchio import neutral, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.blocks import MotorSafetyLimit, PDController, MahonyFilter
+from gym_jiminy.common.blocks import (MotorSafetyLimit,
+                                      PDController,
+                                      MahonyFilter)
 from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 
@@ -34,22 +36,21 @@ HLC_TO_LLC_RATIO = 1
 # Stepper update period (:float [s])
 STEP_DT = 0.04
 
-MOTOR_SAFETY_KP = 100.0
-MOTOR_SAFETY_KD = 100.0
+MOTOR_VELOCITY_MAX = 3.0
 
 # PID proportional gains (one per actuated joint)
-PD_REDUCED_KP = np.array([
+PD_REDUCED_KP = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0])
-PD_REDUCED_KD = np.array([
+    5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0)
+PD_REDUCED_KD = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     0.02, 0.01, 0.015, 0.01, 0.015, 0.01,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.015, 0.01])
+    0.02, 0.01, 0.015, 0.01, 0.015, 0.01)
 
-PD_FULL_KP = np.array([
+PD_FULL_KP = (
     # Neck: [Y]
     100.0,
     # Back: [Z, Y, X]
@@ -59,8 +60,8 @@ PD_FULL_KP = np.array([
     # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     500.0, 100.0, 200.0, 500.0, 10.0, 100.0, 10.0,
     # Lower body motors
-    *PD_REDUCED_KP])
-PD_FULL_KD = np.array([
+    *PD_REDUCED_KP)
+PD_FULL_KD = (
     # Neck: [Y]
     0.01,
     # Back: [Z, Y, X]
@@ -70,7 +71,7 @@ PD_FULL_KD = np.array([
     # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.02,
     # Lower body motors
-    *PD_REDUCED_KD])
+    *PD_REDUCED_KD)
 
 # Mahony filter proportional and derivative gains
 # See: https://cas.mines-paristech.fr/~petit/papers/ral22/main.pdf
@@ -81,7 +82,7 @@ MAHONY_KI = 0.057
 REWARD_MIXTURE = {
     'direction': 0.0,
     'energy': 0.0,
-    'done': 1.0
+    'survival': 1.0
 }
 # Standard deviation ratio of each individual origin of randomness
 STD_RATIO = {
@@ -241,16 +242,6 @@ AtlasPDControlJiminyEnv = build_pipeline(
     layers_config=[
         dict(
             block=dict(
-                cls=MotorSafetyLimit,
-                kwargs=dict(
-                    kp=MOTOR_SAFETY_KP,
-                    kd=MOTOR_SAFETY_KD,
-                    soft_position_margin=0.0
-                )
-            ),
-        ),
-        dict(
-            block=dict(
                 cls=PDController,
                 kwargs=dict(
                     update_ratio=HLC_TO_LLC_RATIO,
@@ -258,7 +249,7 @@ AtlasPDControlJiminyEnv = build_pipeline(
                     kp=PD_FULL_KP,
                     kd=PD_FULL_KD,
                     target_position_margin=0.0,
-                    target_velocity_limit=float("inf")
+                    target_velocity_limit=MOTOR_VELOCITY_MAX,
                 )
             ),
             wrapper=dict(
@@ -286,16 +277,6 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
     layers_config=[
         dict(
             block=dict(
-                cls=MotorSafetyLimit,
-                kwargs=dict(
-                    kp=MOTOR_SAFETY_KP,
-                    kd=MOTOR_SAFETY_KD,
-                    soft_position_margin=0.0
-                )
-            ),
-        ),
-        dict(
-            block=dict(
                 cls=PDController,
                 kwargs=dict(
                     update_ratio=HLC_TO_LLC_RATIO,
@@ -303,7 +284,7 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
                     kp=PD_REDUCED_KP,
                     kd=PD_REDUCED_KD,
                     target_position_margin=0.0,
-                    target_velocity_limit=float("inf")
+                    target_velocity_limit=MOTOR_VELOCITY_MAX,
                 )
             ),
             wrapper=dict(

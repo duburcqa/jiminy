@@ -1,7 +1,7 @@
 """Implementation of basic Proportional-Derivative controller block compatible
 with gym_jiminy reinforcement learning pipeline environment design.
 """
-from typing import Any, List, Optional
+from typing import List
 
 import numpy as np
 import numba as nb
@@ -43,7 +43,6 @@ def apply_safety_limits(command: np.ndarray,
     return np.clip(command, safe_effort_lower, safe_effort_upper)
 
 
-
 class MotorSafetyLimit(
         BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
     """Safety mechanism designed to avoid damaging the hardware.
@@ -74,7 +73,7 @@ class MotorSafetyLimit(
                  kp: float,
                  kd: float,
                  soft_position_margin: float = 0.0,
-                 **kwargs: Any) -> None:
+                 soft_velocity_max: float = float("inf")) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
@@ -84,8 +83,8 @@ class MotorSafetyLimit(
         :param soft_position_margin: Minimum distance of the current motor
                                      positions from their respective bounds
                                      before starting to break.
-        :param kwargs: Used arguments to allow automatic pipeline wrapper
-                       generation.
+        :param soft_velocity_max: Maximum velocity of the motor before
+                                  starting to break.
         """
         # Make sure the action space of the environment has not been altered
         if env.action_space is not env.unwrapped.action_space:
@@ -96,18 +95,19 @@ class MotorSafetyLimit(
         # Backup some user argument(s)
         self.kp = kp
         self.kd = kd
-        self.soft_position_margin = soft_position_margin
 
         # Define buffers storing information about the motors for efficiency
         motors_position_idx: List[int] = sum(env.robot.motors_position_idx, [])
-        self.motors_soft_position_lower = env.robot.position_limit_lower[
-            motors_position_idx] + self.soft_position_margin
-        self.motors_soft_position_upper = env.robot.position_limit_upper[
-            motors_position_idx] - self.soft_position_margin
-        self.motors_velocity_limit = env.robot.velocity_limit[
-            env.robot.motors_velocity_idx]
+        self.motors_position_lower = env.robot.position_limit_lower[
+            motors_position_idx] + soft_position_margin
+        self.motors_position_upper = env.robot.position_limit_upper[
+            motors_position_idx] - soft_position_margin
+        self.motors_velocity_limit = np.minimum(env.robot.velocity_limit[
+            env.robot.motors_velocity_idx], soft_velocity_max)
         self.motors_effort_limit = env.robot.command_limit[
             env.robot.motors_velocity_idx]
+        self.motors_effort_limit[
+            self.motors_position_lower > self.motors_position_upper] = 0.0
 
         # Extract measured motor positions and velocities for fast access
         self.q_measured, self.v_measured = env.sensors_data[encoder.type]
@@ -160,7 +160,7 @@ class MotorSafetyLimit(
                                    v_measured,
                                    self.kp,
                                    self.kd,
-                                   self.motors_soft_position_lower,
-                                   self.motors_soft_position_upper,
+                                   self.motors_position_lower,
+                                   self.motors_position_upper,
                                    self.motors_velocity_limit,
                                    self.motors_effort_limit)
