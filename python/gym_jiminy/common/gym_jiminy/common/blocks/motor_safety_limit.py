@@ -65,7 +65,7 @@ class MotorSafetyLimit(
     .. warning::
         It must be connected directly to the environment to control without
         any intermediary controllers altering the action space.
-    """
+    """  # noqa: E501  # pylint: disable=line-too-long
     def __init__(self,
                  name: str,
                  env: JiminyEnvInterface[BaseObsT, np.ndarray],
@@ -137,8 +137,8 @@ class MotorSafetyLimit(
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
 
         # Convert to slice if possible for efficiency. It is usually the case.
-        self._is_already_ordered = bool((
-            self.encoder_to_motor == np.arange(self.env.robot.nmotors)).all())
+        self._is_already_ordered = bool(np.all(
+            self.encoder_to_motor == np.arange(self.env.robot.nmotors)))
 
     @property
     def fieldnames(self) -> List[str]:

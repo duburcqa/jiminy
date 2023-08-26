@@ -36,6 +36,7 @@ HLC_TO_LLC_RATIO = 1
 # Stepper update period (:float [s])
 STEP_DT = 0.04
 
+MOTOR_POSITION_MARGIN = 0.02
 MOTOR_VELOCITY_MAX = 3.0
 
 # PID proportional gains (one per actuated joint)
@@ -242,6 +243,17 @@ AtlasPDControlJiminyEnv = build_pipeline(
     layers_config=[
         dict(
             block=dict(
+                cls=MotorSafetyLimit,
+                kwargs=dict(
+                    kp=1.0 / MOTOR_POSITION_MARGIN,
+                    kd=1.0 / MOTOR_VELOCITY_MAX,
+                    soft_position_margin=0.0,
+                    soft_velocity_max=MOTOR_VELOCITY_MAX,
+                )
+            ),
+        ),
+        dict(
+            block=dict(
                 cls=PDController,
                 kwargs=dict(
                     update_ratio=HLC_TO_LLC_RATIO,
@@ -275,6 +287,17 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
         cls=AtlasReducedJiminyEnv
     ),
     layers_config=[
+        dict(
+            block=dict(
+                cls=MotorSafetyLimit,
+                kwargs=dict(
+                    kp=1.0 / MOTOR_POSITION_MARGIN,
+                    kd=1.0 / MOTOR_VELOCITY_MAX,
+                    soft_position_margin=0.0,
+                    soft_velocity_max=MOTOR_VELOCITY_MAX,
+                )
+            ),
+        ),
         dict(
             block=dict(
                 cls=PDController,

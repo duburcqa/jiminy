@@ -19,7 +19,7 @@ from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS
 from ray.tune.logger import NoopLogger
 
-from gym_jiminy.common.wrappers import FrameRateLimiter
+from gym_jiminy.toolbox.wrappers import FrameRateLimiter
 from gym_jiminy.rllib.ppo import PPOConfig
 from gym_jiminy.rllib.utilities import (initialize,
                                         train,

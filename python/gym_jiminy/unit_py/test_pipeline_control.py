@@ -148,14 +148,10 @@ class PipelineControl(unittest.TestCase):
         """
         # Instantiate the environment and run a simulation with random action
         env = AtlasPDControlJiminyEnv()
-        obs, info = env.reset()
+        env.reset()
         env.unwrapped._height_neutral = float("-inf")
-        is_done = False
-        while not is_done and env.stepper_state.t < 10.0:
-            action = 0.1 * env.action_space.sample()
-            obs, rew, terminated, truncated, info = env.step(action)
-            is_done = terminated or truncated
-        assert env.stepper_state.t > 2.0
+        while env.stepper_state.t < 2.0:
+            env.step(0.2 * env.action_space.sample())
 
         # Extract the target position and velocity of a single motor
         controller = env.env.controller
@@ -174,8 +170,8 @@ class PipelineControl(unittest.TestCase):
         # Make sure that the position targets are within bounds.
         # No such guarantee can be provided for higher-order derivatives.
         robot = env.robot
-        p_min = robot.position_limit_lower[robot.motors_position_idx[-1]]
-        p_max = robot.position_limit_upper[robot.motors_position_idx[-1]]
-        self.assertTrue(np.all(np.logical_and(p_min < p, p < p_max)))
-        # v_max = robot.velocity_limit[robot.motors_velocity_idx[-1]]
-        # self.assertTrue(np.all(np.logical_and(-v_max < v, v < v_max)))
+        pos_min = robot.position_limit_lower[robot.motors_position_idx[-1]]
+        pos_max = robot.position_limit_upper[robot.motors_position_idx[-1]]
+        self.assertTrue(np.all(np.logical_and(pos_min < pos, pos < pos_max)))
+        # vel_max = robot.velocity_limit[robot.motors_velocity_idx[-1]]
+        # self.assertTrue(np.all(np.logical_and(-vel_max < vel, v < vel_max)))

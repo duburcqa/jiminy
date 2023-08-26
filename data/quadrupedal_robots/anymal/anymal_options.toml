@@ -3,8 +3,8 @@
 [engine.stepper]
 verbose = false
 odeSolver = "euler_explicit"
-sensorsUpdatePeriod = 0.004
-controllerUpdatePeriod = 0.004
+sensorsUpdatePeriod = 0.005
+controllerUpdatePeriod = 0.005
 logInternalStepperSteps = false
 randomSeed = 0
 
@@ -16,7 +16,7 @@ regularization = 2.0e-3
 
 [engine.contacts]
 model = "constraint"
-stabilizationFreq = 30.0
+stabilizationFreq = 25.0
 transitionEps = 5.0e-3
 friction = 1.0
 

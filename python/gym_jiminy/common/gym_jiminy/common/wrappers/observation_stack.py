@@ -26,14 +26,14 @@ from ..bases import (DT_EPS,
 StackedObsType: TypeAlias = ObsT
 
 
-class PartialFrameStack(
+class PartialObservationStack(
         gym.Wrapper,  # [StackedObsType, ActT, ObsT, ActT],
         Generic[ObsT, ActT]):
     """Observation wrapper that partially stacks observations in a rolling
     manner.
 
     This wrapper combines and extends OpenAI Gym wrappers `FrameStack` and
-    `FilterObservation` to support nested filter keys.
+    `FilteredJiminyEnv` to support nested filter keys.
 
     It adds one extra dimension to all the leaves of the original observation
     spaces that must be stacked. If so, the first dimension corresponds to the
@@ -200,7 +200,7 @@ class StackedJiminyEnv(
         self.__n_last_stack = 0
 
         # Instantiate wrapper
-        self.wrapper = PartialFrameStack(env, **kwargs)
+        self.wrapper = PartialObservationStack(env, **kwargs)
 
         # Bind the observation of the wrapper
         self.observation = self.wrapper.observation

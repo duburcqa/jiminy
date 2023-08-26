@@ -22,7 +22,7 @@ from torch import nn
 from tqdm import tqdm
 
 from gym_jiminy.envs import AcrobotJiminyEnv
-from gym_jiminy.common.wrappers import FrameRateLimiter
+from gym_jiminy.toolbox.wrappers import FrameRateLimiter
 from tensordict.nn import TensorDictModule
 
 from torchrl.collectors import MultiSyncDataCollector
