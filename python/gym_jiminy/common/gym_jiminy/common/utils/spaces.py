@@ -52,15 +52,22 @@ def _array_clip(value: np.ndarray,
 @nb.jit(nopython=True, inline='always')
 def _array_contains(value: np.ndarray,
                     low: Union[np.ndarray, SupportsFloat],
-                    high: Union[np.ndarray, SupportsFloat]) -> np.ndarray:
-    """Check that all array elements are withing bounds.
+                    high: Union[np.ndarray, SupportsFloat],
+                    tol_abs: float,
+                    tol_rel: float) -> np.ndarray:
+    """Check that all array elements are withing bounds, up to some tolerance
+    threshold. If both absolute and relative tolerances are provided, then
+    satisfying only one of the two criteria is considered sufficient.
 
     :param value: Array holding values to check.
-    :param low: lower bound.
-    :param high: upper bound.
+    :param low: Lower bound.
+    :param high: Upper bound.
+    :param tol_abs: Absolute tolerance.
+    :param tol_rel: Relative tolerance.
     """
     if value.ndim:
-        return np.logical_and(low <= value, value <= high).all()
+        tol = np.maximum((high - low) * tol_rel, tol_abs)
+        return np.logical_and(low - tol <= value, value <= high + tol).all()
     return low.item() <= value.item() <= high.item()
 
 
@@ -423,14 +430,17 @@ def clip(data: DataNested,
 
 
 def build_contains(data: DataNested,
-                   space: gym.Space[DataNested]) -> Callable[[], bool]:
+                   space: gym.Space[DataNested],
+                   tol_abs: float = 0.0,
+                   tol_rel: float = 0.0) -> Callable[[], bool]:
     """Specialize 'contains' for a given pre-allocated data structure.
 
     :param data: Pre-allocated data structure to check.
     :param space: `gym.Space` on which to operate.
     """
     if not isinstance(space, gym.spaces.Dict):
-        return partial(_array_contains, data, *get_bounds(space))
+        return partial(
+            _array_contains, data, *get_bounds(space), tol_abs, tol_rel)
     assert isinstance(data, dict)
 
     def _all(func1: Callable[[], bool],
@@ -445,29 +455,36 @@ def build_contains(data: DataNested,
     func = None
     for field, subspace in space.spaces.items():
         try:
-            op = build_contains(data[field], subspace)
+            op = build_contains(data[field], subspace, tol_abs, tol_rel)
             func = op if func is None else partial(_all, func, op)
         except NotImplementedError:
             pass
     return func or (lambda: True)
 
 
-def contains(data: DataNested, space: gym.Space[DataNested]) -> bool:
+def contains(data: DataNested,
+             space: gym.Space[DataNested],
+             tol_abs: float = 0.0,
+             tol_rel: float = 0.0) -> bool:
     """Check if all leaves of a nested data structure are within bounds of
-    their respective `gym.Space`.
+    their respective `gym.Space`, up to some tolerance threshold. If both
+    absolute and relative tolerances are provided, then satisfying only one of
+    the two criteria is considered sufficient.
 
     By design, it is always `True` for all spaces but `gym.spaces.Box`,
     `gym.spaces.Discrete` and `gym.spaces.MultiDiscrete`.
 
     :param data: Data structure to check.
     :param space: `gym.Space` on which to operate.
+    :param tol_abs: Absolute tolerance.
+    :param tol_rel: Relative tolerance.
     """
     if not isinstance(space, gym.spaces.Dict):
         try:
-            return _array_contains(data, *get_bounds(space))
+            return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
         except NotImplementedError:
             return True
     assert isinstance(data, dict)
 
-    return all(contains(data[field], subspace)
-               for field, subspace in space.spaces.items())
+    return all(contains(data[field], subspace, tol_abs, tol_rel)
+               for field, subspace in dict.items(space.spaces))

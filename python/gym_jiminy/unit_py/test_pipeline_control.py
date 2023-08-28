@@ -18,9 +18,13 @@ from jiminy_py.viewer import Viewer
 import pinocchio as pin
 
 from gym_jiminy.envs import AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv
+from gym_jiminy.common.blocks import PDController
 
 
 IMAGE_DIFF_THRESHOLD = 5.0
+
+# Small tolerance for numerical equality
+TOLERANCE = 1.0e-6
 
 
 class PipelineControl(unittest.TestCase):
@@ -138,3 +142,36 @@ class PipelineControl(unittest.TestCase):
                 pin.Quaternion(env.observer.observation).matrix())
             self.assertTrue(np.allclose(rpy_true, rpy_est, atol=0.01))
         env.stop()
+
+    def test_pid_controller(self):
+        """TODO: Write documentation.
+        """
+        # Instantiate the environment and run a simulation with random action
+        env = AtlasPDControlJiminyEnv()
+        env.reset()
+        env.unwrapped._height_neutral = float("-inf")
+        while env.stepper_state.t < 2.0:
+            env.step(0.2 * env.action_space.sample())
+
+        # Extract the target position and velocity of a single motor
+        controller = env.env.controller
+        assert isinstance(controller, PDController) and controller.order == 1
+        ctrl_name = controller.name
+        n_motors = len(controller.fieldnames)
+        pos = env.log_data["variables"][".".join((
+            "HighLevelController", ctrl_name, "state", str(n_motors - 1)))]
+        vel = env.log_data["variables"][".".join((
+            "HighLevelController", ctrl_name, controller.fieldnames[-1]))]
+
+        # Make sure that the position and velocity targets are consistent
+        self.assertTrue(np.allclose(
+            np.diff(pos) / controller.control_dt, vel[1:], atol=TOLERANCE))
+
+        # Make sure that the position targets are within bounds.
+        # No such guarantee can be provided for higher-order derivatives.
+        robot = env.robot
+        pos_min = robot.position_limit_lower[robot.motors_position_idx[-1]]
+        pos_max = robot.position_limit_upper[robot.motors_position_idx[-1]]
+        self.assertTrue(np.all(np.logical_and(pos_min < pos, pos < pos_max)))
+        # vel_max = robot.velocity_limit[robot.motors_velocity_idx[-1]]
+        # self.assertTrue(np.all(np.logical_and(-vel_max < vel, v < vel_max)))

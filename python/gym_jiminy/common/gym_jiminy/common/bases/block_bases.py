@@ -8,7 +8,7 @@ It implements:
     - the base observer block
 """
 from abc import abstractmethod, ABC
-from typing import Any, Union, Generic, TypeVar
+from typing import Any, Union, Generic, TypeVar, cast
 
 import gymnasium as gym
 
@@ -100,15 +100,15 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
             block.
         """
 
-    @abstractmethod
     def _initialize_state_space(self) -> None:
         """Configure the internal state space of the controller.
         """
+        self.state_space = cast(gym.Space[BlockStateT], None)
 
-    @abstractmethod
     def get_state(self) -> BlockStateT:
         """Get the internal state space of the controller.
         """
+        return cast(BlockStateT, None)
 
     @property
     @abstractmethod

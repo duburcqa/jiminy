@@ -69,6 +69,8 @@ SENSOR_MOMENT_MAX = 10000.0
 SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
+OBS_CONTAINS_TOL = 0.01
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -235,7 +237,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Define specialized operators for efficiency
         self._copyto_action = build_copyto(self.action)
         self._contains_observation = build_contains(
-            self.observation, self.observation_space)
+            self.observation, self.observation_space, tol_rel=OBS_CONTAINS_TOL)
         self._contains_action = build_contains(self.action, self.action_space)
         self._get_clipped_env_observation: Callable[
             [], DataNested] = OrderedDict

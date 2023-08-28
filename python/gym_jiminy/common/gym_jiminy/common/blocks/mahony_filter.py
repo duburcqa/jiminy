@@ -2,7 +2,7 @@
 reinforcement learning pipeline environment design.
 """
 import logging
-from typing import Any, List, Union
+from typing import List, Union
 
 import numpy as np
 import numba as nb
@@ -103,8 +103,7 @@ class MahonyFilter(
                  update_ratio: int = 1,
                  exact_init: bool = True,
                  kp: Union[np.ndarray, float] = 1.0,
-                 ki: Union[np.ndarray, float] = 0.1,
-                 **kwargs: Any) -> None:
+                 ki: Union[np.ndarray, float] = 0.1) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
@@ -116,8 +115,6 @@ class MahonyFilter(
                            free-falling at init, which is not realistic anyway.
         :param mahony_kp: Proportional gain used for gyro-accel sensor fusion.
         :param mahony_ki: Integral gain used for gyro bias estimate.
-        :param kwargs: Used arguments to allow automatic pipeline wrapper
-                       generation.
         """
         # Handling of default argument(s)
         num_imu_sensors = len(env.robot.sensors_names[imu.type])

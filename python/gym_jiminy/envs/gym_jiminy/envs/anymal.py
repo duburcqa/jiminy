@@ -4,8 +4,6 @@ import os
 import sys
 from typing import Any
 
-import numpy as np
-
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.blocks import PDController, MahonyFilter
 from gym_jiminy.common.pipeline import build_pipeline
@@ -25,11 +23,11 @@ HLC_TO_LLC_RATIO = 1
 STEP_DT = 0.04
 
 # PID proportional gains (one per actuated joint)
-PID_KP = np.array([1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0,
-                   1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0])
+PD_KP = (1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0,
+         1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0)
 # PID derivative gains (one per actuated joint)
-PID_KD = np.array([0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
-                   0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
+PD_KD = (0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
+         0.01, 0.01, 0.01, 0.01, 0.01, 0.01)
 
 # Mahony filter proportional and derivative gains
 MAHONY_KP = 1.0
@@ -39,7 +37,7 @@ MAHONY_KI = 0.1
 REWARD_MIXTURE = {
     'direction': 0.0,
     'energy': 0.0,
-    'done': 1.0
+    'survival': 1.0
 }
 # Standard deviation ratio of each individual origin of randomness
 STD_RATIO = {
@@ -90,8 +88,8 @@ ANYmalPDControlJiminyEnv = build_pipeline(
                 kwargs=dict(
                     update_ratio=HLC_TO_LLC_RATIO,
                     order=1,
-                    kp=PID_KP,
-                    kd=PID_KD,
+                    kp=PD_KP,
+                    kd=PD_KD,
                     target_position_margin=0.0,
                     target_velocity_limit=float("inf")
                 )

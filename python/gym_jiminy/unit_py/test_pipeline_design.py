@@ -10,6 +10,8 @@ from gym_jiminy.common.pipeline import build_pipeline, load_pipeline
 from gym_jiminy.common.bases import JiminyEnvInterface
 
 
+TOLERANCE = 1.0e-6
+
 class PipelineDesign(unittest.TestCase):
     """ TODO: Write documentation
     """
@@ -155,8 +157,10 @@ class PipelineDesign(unittest.TestCase):
 
         # Observation stacking is skipping the required number of frames
         stack_dt = (self.skip_frames_ratio + 1) * env.observe_dt
-        for i in range(3):
-            self.assertEqual(obs['t'][i], i * stack_dt)
+        t_obs_last = env.step_dt - env.step_dt % stack_dt
+        for i in range(self.num_stack):
+            self.assertTrue(np.isclose(
+                obs['t'][::-1][i], t_obs_last - i * stack_dt, TOLERANCE))
 
         # Initial observation is consistent with internal simulator state
         controller_target_obs = obs['actions']['controller_0']
@@ -175,7 +179,7 @@ class PipelineDesign(unittest.TestCase):
             obs, *_ = env.step(action)
         for i, t in enumerate(np.flip(obs['t'])):
             self.assertTrue(np.isclose(
-                t, n_steps_breakpoint * env.step_dt - i * stack_dt, 1.0e-6))
+                t, n_steps_breakpoint * env.step_dt - i * stack_dt, TOLERANCE))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))

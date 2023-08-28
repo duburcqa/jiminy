@@ -56,8 +56,8 @@ SENSOR_BIAS_SCALE = {
     imu.type:  np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.0, 0.0, 0.0])
 }
 
-DEFAULT_SIMULATION_DURATION = 20.0  # (s) Default simulation duration
-DEFAULT_STEP_DT = 0.001             # (s) Stepper update period
+DEFAULT_SIMULATION_DURATION = 30.0  # (s) Default simulation duration
+DEFAULT_STEP_DT = 0.04              # (s) Stepper update period
 
 DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
 
