@@ -18,24 +18,26 @@ import tree
 import gymnasium as gym
 
 
+GLOBAL_RNG = np.random.default_rng()
+
+
 ValueT = TypeVar('ValueT')
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
                      IterableT['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
-
 DataNestedT = TypeVar('DataNestedT', bound=DataNested)
 
-
-global_rng = np.random.default_rng()
+ArrayOrScalar = Union[np.ndarray, SupportsFloat]
+ArrayOrScalarT = TypeVar('ArrayOrScalarT', bound=ArrayOrScalar)
 
 
 @no_type_check
 @nb.jit(nopython=True, inline='always')
 def _array_clip(value: np.ndarray,
-                low: Union[np.ndarray, SupportsFloat],
-                high: Union[np.ndarray, SupportsFloat]) -> np.ndarray:
+                low: Optional[ArrayOrScalar],
+                high: Optional[ArrayOrScalar]) -> np.ndarray:
     """Element-wise out-of-place clipping of array elements.
 
     :param value: Array holding values to clip.
@@ -51,10 +53,10 @@ def _array_clip(value: np.ndarray,
 @no_type_check
 @nb.jit(nopython=True, inline='always')
 def _array_contains(value: np.ndarray,
-                    low: Union[np.ndarray, SupportsFloat],
-                    high: Union[np.ndarray, SupportsFloat],
+                    low: Optional[ArrayOrScalar],
+                    high: Optional[ArrayOrScalar],
                     tol_abs: float,
-                    tol_rel: float) -> np.ndarray:
+                    tol_rel: float) -> bool:
     """Check that all array elements are withing bounds, up to some tolerance
     threshold. If both absolute and relative tolerances are provided, then
     satisfying only one of the two criteria is considered sufficient.
@@ -89,8 +91,7 @@ def _unflatten_as(structure: StructNested[Any],
     return tree._sequence_like(structure, packed)
 
 
-def get_bounds(space: gym.Space) -> Tuple[
-        Union[np.ndarray, SupportsFloat], Union[np.ndarray, SupportsFloat]]:
+def get_bounds(space: gym.Space) -> Tuple[ArrayOrScalar, ArrayOrScalar]:
     """Get the lower and upper bounds of a given 'gym.Space' if applicable,
     raises any exception otherwise.
 
@@ -168,7 +169,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
 
     # Sample from normalized distribution.
     # Note that some distributions are not normalized by default.
-    distrib_fn = getattr(rg or global_rng, dist)
+    distrib_fn = getattr(rg or GLOBAL_RNG, dist)
     if dist == 'uniform':
         value = distrib_fn(low=-1.0, high=1.0, size=shape)
     else:
