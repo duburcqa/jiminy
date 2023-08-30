@@ -5,8 +5,9 @@ from itertools import zip_longest
 from collections import OrderedDict
 from collections.abc import Iterable
 from typing import (
-    Any, Optional, Union, Sequence, TypeVar, Dict, Mapping as MappingT,
-    Iterable as IterableT, Tuple, SupportsFloat, Callable, no_type_check, cast)
+    Any, Dict, Optional, Union, Sequence, TypeVar, Mapping as MappingT, Tuple,
+    Iterable as IterableT, Literal, SupportsFloat, Callable, no_type_check,
+    cast)
 
 import numba as nb
 import numpy as np
@@ -22,6 +23,9 @@ GLOBAL_RNG = np.random.default_rng()
 
 
 ValueT = TypeVar('ValueT')
+ValueInT = TypeVar('ValueInT')
+ValueOutT = TypeVar('ValueOutT')
+
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
                      IterableT['StructNested[ValueT]'],
                      ValueT]
@@ -185,6 +189,651 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     return np.asarray(value)
 
 
+def build_reduce(fn: Callable[..., ValueInT],
+                 op: Optional[Callable[[ValueOutT, ValueInT], ValueOutT]],
+                 data: Optional[Dict[str, DataNested]],
+                 space: Optional[gym.spaces.Dict] = None,
+                 initializer: Optional[Callable[[], ValueOutT]] = None,
+                 arity: Optional[Literal[0, 1]] = None,
+                 forward_bounds: bool = True,
+                 *args: Any) -> Callable[..., ValueOutT]:
+    """Generate specialized callable applying transform and reduction on all
+    leaves of given nested space.
+
+    .. note::
+        Original ordering of the leaves is preserved. More precisely, both
+        transform and reduction will be applied recursively in keys order.
+
+    .. warning::
+        It is assumed without check that all nested data structures are
+        consistent together and with the space if provided. It holds true both
+        data known at generation-time or runtime. Yet, it is only required for
+        data provided at runtime if any to include the original data structure,
+        so it may contain additional branches which will be ignored.
+
+    .. warning::
+        Providing additional data at runtime is supported but impede
+        performance. Arity larger than 1 is not supported because the code path
+        could not be fully specialized, causing dramatic slowdown.
+
+    .. warning::
+        There is no built-in 'short-circuit' mechanism, which means that it
+        will go through all leaves systematically unless the reduction operator
+        itself raises an exception.
+
+    :param fn: Transform applied to every leaves of the nested data structures
+               before performing the actual reduction. This function can do
+               some in-place or out-of-place operations without restriction.
+               `None` is not supported because it would be irrelevant. It is
+               way more efficient to flatten the pre-allocated nested data
+               structure once for all and perform reduction on this flattened
+               view using 'functools.reduce' method instead. Note that flatten
+               at runtime using 'tree.flatten' would still much faster than
+               a specialized nested reduction doing list concatenation.
+    :param op: Optional reduction operator applied cumulatively on all leaves
+               after transform. See 'functools.reduce' documentation for
+               details. `None` to only apply transform on all leaves without
+               reduction. This is useful when apply in-place transform.
+    :param data: Pre-allocated nested data structure. Optional if the space is
+                 provided but hardly relevant.
+    :param space: `gym.spaces.Dict` on which to operate. Optional iif the
+                  nested data structure is provided.
+                  Optional: `None` by default.
+    :param initializer: Function used to compute the initial value before
+                        starting reduction. Optional if the reduction operator
+                        has same input and output types. If `None`, then the
+                        value corresponding to the first leaf after transform
+                        will be used instead.
+                        Optional: `None` by default
+    :param forward_bounds: Whether to forward the lower and upper bounds of the
+                           `gym.Space` associated with each leaf as transform
+                           input. In this case, they will be added after the
+                           data structure provided at runtime but before other
+                           extra arguments if any. It is up to the user to make
+                           sure all leaves have bounds, otherwise it will raise
+                           an exception at generation-time. This argument is
+                           ignored if not space is specified.
+                           Optional: `True` by default.
+    :param arity: Arity of the generated callable. Can be `None` to indicate
+                  that it must be determined at runtime, which is slower.
+                  Optional: `None` by default.
+    :param args: Extra arguments to systematically forward as transform input
+                 for all leaves. Note that, as for Python built-ins methods,
+                 keywords are not supported for the sake of efficiency.
+
+    :returns: Fully-specialized reduction callable.
+    """
+    def _build_reduce(
+            arity: Literal[0, 1],
+            is_initialized: bool,
+            fn_1: Union[Callable[..., ValueInT], Callable[..., ValueOutT]],
+            field_1: Union[str, int],
+            fn_2: Union[Callable[..., ValueInT], Callable[..., ValueOutT]],
+            field_2: Union[str, int],
+            ) -> Callable[..., ValueOutT]:
+        """Internal method generating a specialized callable performing a
+        single reduction operation on either leaf transform and/or already
+        branch reduction.
+
+        :param arity: Arity of the generated callable.
+        :param is_initialized: Whether the output has already been initialized
+                               at this point. The first reduction is the only
+                               one to initialize the output, either by calling
+                               the initializer if provided or passing directly
+                               the output of first transform call otherwise.
+        :param fn_1: Leaf transform or branch reduction to call last.
+        :param field_1: Pass the value corresponding this key as input argument
+                        for nested data structure provided at runtime if any
+                        iif callable 'fn_1' is a leaf transform.
+        :param is_out_1: Whether callable 'fn_1' is already a branch reduction.
+        :param fn_2: Leaf transform or branch reduction to call first.
+        :param field_2: Same as 'field_1' for callable 'fn_2'.
+        :param is_out_2: Same as 'is_out_1' for callable 'fn_2'.
+
+        :returns: Specialized branch reduction callable requiring passing the
+                  current reduction output as input if some reduction operator
+                  has been specified.
+        """
+        # Extract extra arguments from functor if necessary to preserve order
+        is_out_1, is_out_2 = fn_1.func is not fn, fn_2.func is not fn
+        if not is_out_1:
+            fn_1, dataset, args_1 = fn_1.func, fn_1.args[:-1], fn_1.args[-1]
+            has_args = bool(args_1)
+            if arity == 0:
+                fn_1 = partial(fn_1, *dataset, *args_1)
+            elif dataset:
+                fn_1 = partial(fn_1, *dataset)
+        if not is_out_2:
+            fn_2, dataset, args_2 = fn_2.func, fn_2.args[:-1], fn_2.args[-1]
+            has_args = bool(args_2)
+            if arity == 0:
+                fn_2 = partial(fn_2, *dataset, *args_2)
+            elif dataset:
+                fn_2 = partial(fn_2, *dataset)
+
+        # Specialization if no op is specified
+        if op is None:
+            if arity == 0:
+                def _reduce(fn_1, fn_2):
+                    fn_2()
+                    fn_1()
+                return partial(_reduce, fn_1, fn_2)
+            if is_out_1 and is_out_2:
+                def _reduce(fn_1, fn_2, delayed):
+                    fn_2(delayed)
+                    fn_1(delayed)
+                return partial(_reduce, fn_1, fn_2)
+            if is_out_1 and not is_out_2:
+                if has_args:
+                    def _reduce(fn_1, fn_2, field_2, args_2, delayed):
+                        fn_2(delayed[field_2], *args_2)
+                        fn_1(delayed)
+                    return partial(_reduce, fn_1, fn_2, field_2, args_2)
+                def _reduce(fn_1, fn_2, field_2, delayed):
+                    fn_2(delayed[field_2])
+                    fn_1(delayed)
+                return partial(_reduce, fn_1, fn_2, field_2)
+            if not is_out_1 and is_out_2:
+                if has_args:
+                    def _reduce(fn_1, field_1, args_1, fn_2, delayed):
+                        fn_2(delayed)
+                        fn_1(delayed[field_1], *args_1)
+                    return partial(_reduce, fn_1, field_1, args_1, fn_2)
+                def _reduce(fn_1, field_1, fn_2, delayed):
+                    fn_2(delayed)
+                    fn_1(delayed[field_1])
+                return partial(_reduce, fn_1, field_1, fn_2)
+            if has_args:
+                def _reduce(
+                        fn_1, field_1, args_1, fn_2, field_2, args_2, delayed):
+                    fn_2(delayed[field_2], *args_2)
+                    fn_1(delayed[field_1], *args_1)
+                return partial(
+                    _reduce, fn_1, field_1, args_1, fn_2, field_2, args_2)
+            def _reduce(fn_1, field_1, fn_2, field_2, delayed):
+                fn_2(delayed[field_2])
+                fn_1(delayed[field_1])
+            return partial(_reduce, fn_1, field_1, fn_2, field_2)
+
+        # Specialization if op is specified
+        if arity == 0:
+            if is_initialized:
+                if is_out_1 and is_out_2:
+                    def _reduce(fn_1, fn_2, out):
+                        return fn_1(fn_2(out))
+                    return partial(_reduce, fn_1, fn_2)
+                if is_out_1 and not is_out_2:
+                    def _reduce(op, fn_1, fn_2, out):
+                        return fn_1(op(out, fn_2()))
+                elif not is_out_1 and is_out_2:
+                    def _reduce(op, fn_1, fn_2, out):
+                        return op(fn_2(out), fn_1())
+                else:
+                    def _reduce(op, fn_1, fn_2, out):
+                        return op(op(out, fn_2()), fn_1())
+                return partial(_reduce, op, fn_1, fn_2)
+            else:
+                if is_out_1 and not is_out_2:
+                    def _reduce(fn_1, fn_2, out):
+                        return fn_1(fn_2())
+                    return partial(_reduce, fn_1, fn_2)
+                if not is_out_1 and not is_out_2:
+                    def _reduce(op, fn_1, fn_2, out):
+                        return op(fn_2(), fn_1())
+                return partial(_reduce, op, fn_1, fn_2)
+        if is_initialized:
+            if is_out_1 and is_out_2:
+                def _reduce(fn_1, fn_2, out, delayed):
+                    return fn_1(fn_2(out, delayed), delayed)
+                return partial(_reduce, fn_1, fn_2)
+            if is_out_1 and not is_out_2:
+                def _reduce(op, fn_1, fn_2, field_2, args_2, out, delayed):
+                    return fn_1(
+                        op(out, fn_2(delayed[field_2], *args_2)), delayed)
+                return partial(_reduce, op, fn_1, fn_2, field_2, args_2)
+            if not is_out_1 and is_out_2:
+                def _reduce(op, fn_1, field_1, args_1, fn_2, out, delayed):
+                    return op(
+                        fn_2(out, delayed), fn_1(delayed[field_1], *args_1))
+                return partial(_reduce, op, fn_1, field_1, args_1, fn_2)
+            def _reduce(
+                    op, fn_1, field_1, args_1, fn_2, field_2, args_2, out,
+                    delayed):
+                return op(op(out, fn_2(delayed[field_2], *args_2)),
+                          fn_1(delayed[field_1], *args_1))
+            return partial(
+                _reduce, op, fn_1, field_1, args_1, fn_2, field_2, args_2)
+        else:
+            if is_out_1 and not is_out_2:
+                def _reduce(fn_1, fn_2, field_2, args_2, out, delayed):
+                    return fn_1(fn_2(delayed[field_2], *args_2), delayed)
+                return partial(_reduce, fn_1, fn_2, field_2, args_2)
+            if not is_out_1 and not is_out_2:
+                def _reduce(
+                        op, fn_1, field_1, args_1, fn_2, field_2, args_2, out,
+                        delayed):
+                    return op(fn_2(delayed[field_2], *args_2),
+                              fn_1(delayed[field_1], *args_1))
+                return partial(
+                    _reduce, op, fn_1, field_1, args_1, fn_2, field_2, args_2)
+
+    def _build_forward(
+            arity: Literal[0, 1],
+            parent: Optional[Union[str, int]],
+            is_initialized: bool,
+            post_fn: Union[Callable[..., ValueInT], Callable[..., ValueOutT]],
+            field: Optional[Union[str, int]],
+            ) -> Union[Callable[..., ValueInT], Callable[..., ValueOutT]]:
+        """Internal method generating a specialized callable forwarding the
+        value associated with a given key for nested data structure provided at
+        runtime if any as input argument of some leaf transform or branch
+        reduction callable.
+
+        :param arity: Arity of the generated callable.
+        :param is_initialized: Whether the output has already been initialized.
+        :param parent: Parent key to forward.
+        :param post_fn: Leaf transform or branch reduction.
+
+        :returns: Specialized key-forwarding callable.
+        """
+        # The callable is not a reduction at this point, so doing it here
+        # since it is the very last moment before main entry-point returns.
+        is_out = post_fn.func is not fn
+        if parent is None and not is_out:
+            # Extract extra arguments from functor to preserve arguments order
+            dataset, args = post_fn.args[:-1], post_fn.args[-1]
+            post_fn = post_fn.func
+            has_args = bool(args)
+            if arity == 0:
+                post_fn = partial(post_fn, *dataset, *args)
+            elif dataset:
+                post_fn = partial(post_fn, *dataset)
+
+            # Specialization if no op is specified
+            if op is None:
+                if arity == 0:
+                    return post_fn
+                if has_args:
+                    def _reduce(post_fn, field, args, delayed):
+                        post_fn(delayed[field], *args)
+                    return partial(_reduce, post_fn, field, args)
+                def _reduce(post_fn, field, delayed):
+                    post_fn(delayed[field])
+                return partial(_reduce, post_fn, field)
+
+            # Specialization if op is specified
+            if arity == 0:
+                if is_initialized:
+                    def _reduce(op, post_fn, out):
+                        return op(out, post_fn())
+                    return partial(_reduce, op, post_fn)
+                def _reduce(post_fn, out):
+                    return post_fn()
+                return partial(_reduce, post_fn)
+            if is_initialized:
+                def _reduce(op, post_fn, field, args, out, delayed):
+                    return op(out, post_fn(delayed[field], *args))
+                return partial(_reduce, op, post_fn, field, args)
+            def _reduce(post_fn, field, args, out, delayed):
+                return post_fn(delayed[field], *args)
+            return partial(_reduce, post_fn, field, args)
+
+        # No key to forward for main entry-point or zero arity
+        if parent is None or arity == 0:
+            return post_fn
+
+        # Forward key in all other cases
+        if op is None:
+            def _forward(post_fn, field, delayed):
+                return post_fn(delayed[field])
+        else:
+            def _forward(post_fn, field, out, delayed):
+                return post_fn(out, delayed[field])
+        return partial(_forward, post_fn, parent)
+
+    def _build_transform_and_reduce(
+            arity: Literal[0, 1],
+            parent: Optional[Union[str, int]],
+            is_initialized: bool,
+            data: Optional[DataNested],
+            space: Optional[gym.Space[DataNested]]) -> Optional[
+                Union[Callable[..., ValueInT], Callable[..., ValueOutT]]]:
+        """Internal method for generating specialized callable applying
+        transform and reduction on all leaves of a nested space recursively.
+
+        :param arity: Arity of the generated callable.
+        :param parent: Key of parent space mapping to space if any, `None`
+                       otherwise.
+        :param is_initialized: Whether the output has already been initialized
+                               at this point. See `_build_reduce` for details.
+        :param data: Possibly nested pre-allocated data.
+        :param space: Possibly nested space on which to operate.
+
+        :returns: Specialized transform if the space is a actually a leaf,
+                  otherwise a specialized transform and reduction callable
+                  still requiring passing the current reduction output as input
+                  if some reduction operator has been specified. `None` if
+                  nested data structure if empty.
+        """
+        # Determine top-level keys if nested data structure
+        keys: Optional[Union[Sequence[int], Sequence[str]]] = None
+        space_or_data = space or data
+        if isinstance(space_or_data, (gym.spaces.Dict, dict)):
+            keys = space_or_data.keys()
+        elif isinstance(data, (gym.spaces.Tuple, tuple, list)):
+            keys = range(len(space_or_data))
+        else:
+            assert isinstance(space_or_data, (gym.Space, np.ndarray))
+
+        # Return specialized transform if leaf
+        if keys is None:
+            if parent is None:
+                raise TypeError(
+                    "'data' and/or 'space' must be nested data structures.")
+            post_fn = fn if data is None else partial(fn, data)
+            post_args = args
+            if forward_bounds and space is not None:
+                post_args = (*get_bounds(space), *post_args)
+            return partial(post_fn, post_args)
+        if not keys:
+            return None
+
+        # Generate transform and reduce method if branch.
+        field_prev, out_fn = None, None
+        for field in keys:
+            value = None if data is None else data[field]
+            subspace = None if space is None else space[field]
+            post_fn = _build_transform_and_reduce(
+                arity, field, is_initialized or len(keys) > 1, value, subspace)
+            if post_fn is None:
+                continue
+            if out_fn is None:
+                out_fn = post_fn
+            else:
+                out_fn = _build_reduce(
+                    arity, is_initialized, post_fn, field, out_fn, field_prev)
+                is_initialized = True
+            field_prev = field
+        if out_fn is None:
+            return None
+        return _build_forward(arity, parent, is_initialized, out_fn, field)
+
+    def _dispatch(
+            post_fn_0: Callable[[], ValueOutT],
+            post_fn_1: Callable[[Dict[str, DataNested]], ValueOutT],
+            *delayed: Tuple[Dict[str, DataNested]]) -> ValueOutT:
+        """Internal method for handling unknown arity at generation-time.
+
+        :param post_fn_0: Nullary specialized transform and reduce callable.
+        :param post_fn_1: Unary specialized transform and reduce callable.
+        :param delayed: Optional nested data structure any provided at runtime.
+
+        :returns: Specialized transform and reduce callable of dynamic arity.
+        """
+        if not delayed:
+            return post_fn_0()
+        return post_fn_1(delayed[0])
+
+    def _build_init(
+            arity: Literal[0, 1],
+            post_fn: Callable[..., ValueOutT]) -> Callable[..., ValueOutT]:
+        """Internal method generating a specialized callable initializing the
+        output if a reduction operator and a dedicated initializer has been
+        specified.
+
+        :param post_fn: Specialized transform and reduce callable.
+
+        :returns: Specialized transform and reduce callable only taking nested
+                  data structures as input.
+        """
+        if post_fn is None:
+            if initializer is None:
+                return lambda *args, **kwargs: None
+            return initializer
+        if op is None:
+            return post_fn
+        if initializer is None:
+            return partial(post_fn, None)
+        if arity == 0:
+            def _initialize(post_fn, initializer):
+                return post_fn(initializer())
+        else:
+            def _initialize(post_fn, initializer, delayed):
+                return post_fn(initializer(), delayed)
+        return partial(_initialize, post_fn, initializer)
+
+    # Check that the combination of input arguments are valid
+    if space is None and data is None:
+        raise TypeError("At least data or space must be specified.")
+    if arity not in (0, 1, None):
+        raise TypeError("Arity must be either 0, 1 or `None`.")
+
+    # Generate transform and reduce callable of various arity if necessary
+    all_fn = [None, None]
+    for i in (0, 1):
+        if arity is not None and i != arity:
+            continue
+        is_initialized = op is not None and initializer is not None
+        all_fn[i] = _build_init(i, _build_transform_and_reduce(
+            i, None, is_initialized, data, space))
+
+    # Return callable of requested arity if specified, dynamic dispatch if not
+    if arity is None:
+        return partial(_dispatch, *all_fn)
+    return all_fn[arity]
+
+
+def build_map(fn: Callable[..., ValueT],
+              data: Optional[DataNested],
+              space: Optional[gym.Space[DataNested]] = None,
+              arity: Optional[Literal[0, 1]] = None,
+              forward_bounds: bool = True,
+              *args: Any) -> Callable[[], StructNested[ValueT]]:
+    """Generate specialized callable returning applying out-of-place transform
+    to all leaves of given nested space.
+
+    .. warning::
+        This method systematically allocates memory to store the resulting
+        nested data structure, which is costly. If pre-allocation is possible,
+        it would more efficient to use `build_reduce` without operator instead.
+
+    .. warning::
+        Providing additional data at runtime is supported but impede
+        performance. Arity larger than 1 is not supported because the code path
+        could not be fully specialized, causing dramatic slowdown.
+
+    .. warning::
+        It is assumed without check that all nested data structures are
+        consistent together and with the space if provided. It holds true both
+        data known at generation-time or runtime. Yet, it is only required for
+        data provided at runtime if any to include the original data structure,
+        so it may contain additional branches which will be ignored.
+
+    :param fn: Transform applied to every leaves of the nested data structures.
+               This function is supposed to allocate its own memory while
+               performing some out-of-place operations then return the outcome.
+    :param data: Pre-allocated nested data structure. Optional iif the space is
+                 provided. This enables generating specialized random sampling
+                 methods for instance.
+    :param space: `gym.spaces.Dict` on which to operate. Optional iif the
+                  nested data structure is provided.
+                  Optional: `None` by default.
+    :param forward_bounds: Whether to forward the lower and upper bounds of the
+                           `gym.Space` associated with each leaf as transform
+                           input. In this case, they will be added after the
+                           data structure provided at runtime but before other
+                           extra arguments if any. It is up to the user to make
+                           sure all leaves have bounds, otherwise it will raise
+                           an exception at generation-time. This argument is
+                           ignored if not space is specified.
+                           Optional: `True` by default.
+    :param arity: Arity of the generated callable. Can be `None` to indicate
+                  that it must be determined at runtime, which is slower.
+                  Optional: `None` by default.
+    :param args: Extra arguments to systematically forward as transform input
+                 for all leaves. Note that, as for Python built-ins methods,
+                 keywords are not supported for the sake of efficiency.
+
+    :returns: Fully-specialized mapping callable.
+    """
+    def _build_setitem(
+            arity: Literal[0, 1],
+            self_fn: Callable[..., Dict[str, StructNested[ValueT]]],
+            value_fn: Callable[..., StructNested[ValueT]],
+            key: Union[str, int]
+            ) -> Callable[..., Dict[str, StructNested[ValueT]]]:
+        """Internal method generating a specialized item assignment callable
+        responsible for populating a parent transformed nested data structure
+        with either some child branch already transformed or some leaf to be
+        transformed.
+
+        This method aims to be composed with itself for recursively creating
+        the whole transformed nested data structure.
+
+        :param arity: Arity of the generated callable.
+        :param self_fn: Parent branch transform.
+        :param value_fn: Child leaf or branch transform.
+        :param key: Field of the parent transformed nested data structure that
+                    must be populated with the output of the child transform.
+
+        :returns: Specialized item assignment callable.
+        """
+        # Extract extra arguments from functor if necessary to preserve order
+        is_out, has_args = False, False
+        if isinstance(value_fn, partial):
+            is_out = value_fn.func is not fn
+            if not is_out:
+                dataset, args = value_fn.args[:-1], value_fn.args[-1]
+                value_fn = value_fn.func
+                has_args = bool(args)
+                if arity == 0:
+                    value_fn = partial(value_fn, *dataset, *args)
+                elif dataset:
+                    value_fn = partial(value_fn, *dataset)
+
+        is_mapping = isinstance(key, str)
+        if arity == 0:
+            if is_mapping:
+                def _setitem(self_fn, value_fn, key):
+                    self = self_fn()
+                    self[key] = value_fn()
+                    return self
+                return partial(_setitem, self_fn, value_fn, key)
+            def _setitem(self_fn, value_fn):
+                self = self_fn()
+                self.append(value_fn())
+                return self
+            return partial(_setitem, self_fn, value_fn)
+        elif has_args:
+            if is_mapping:
+                def _setitem(self_fn, value_fn, key, args, delayed):
+                    self = self_fn(delayed)
+                    self[key] = value_fn(delayed[key], *args)
+                    return self
+                return partial(_setitem, self_fn, value_fn, key, args)
+            def _setitem(self_fn, value_fn, key, args, delayed):
+                self = self_fn(delayed)
+                self.append(value_fn(delayed[key], *args))
+                return self
+            return partial(_setitem, self_fn, value_fn, key, args)
+        if is_mapping:
+            def _setitem(self_fn, value_fn, key, delayed):
+                self = self_fn(delayed)
+                self[key] = value_fn(delayed[key])
+                return self
+            return partial(_setitem, self_fn, value_fn, key)
+        def _setitem(self_fn, value_fn, key, delayed):
+            self = self_fn(delayed)
+            self.append(value_fn(delayed[key]))
+            return self
+        return partial(_setitem, self_fn, value_fn, key)
+
+    def _build_map(
+            arity: Literal[0, 1],
+            parent: Optional[str],
+            data: Optional[DataNested],
+            space: Optional[gym.Space[DataNested]]
+            ) -> Callable[..., Dict[str, StructNested[ValueT]]]:
+        """Internal method for generating specialized callable applying
+        out-of-place transform to all leaves of given nested space.
+
+        :param arity: Arity of the generated callable.
+        :param parent: Key of parent space mapping to space if any, `None`
+                       otherwise.
+        :param data: Possibly nested pre-allocated data.
+        :param space: Possibly nested space on which to operate.
+
+        :returns: Specialized leaf or branch transform.
+        """
+        # Determine top-level keys if nested data structure
+        keys: Optional[Union[Sequence[int], Sequence[str]]] = None
+        space_or_data = space or data
+        if isinstance(space_or_data, (gym.spaces.Dict, dict)):
+            keys = space_or_data.keys()
+            data_type = OrderedDict
+        elif isinstance(data, (gym.spaces.Tuple, tuple, list)):
+            keys = range(len(space_or_data))
+            data_type = list
+        else:
+            assert isinstance(space_or_data, (gym.Space, np.ndarray))
+
+        # Return specialized transform if leaf
+        if keys is None:
+            if parent is None:
+                raise TypeError(
+                    "'data' and/or 'space' must be nested data structures.")
+            post_fn = fn if data is None else partial(fn, data)
+            post_args = args
+            if forward_bounds and space is not None:
+                post_args = (*get_bounds(space), *post_args)
+            return partial(post_fn, post_args)
+
+        # Apply map recursively while preserving order using monadic operations
+        out_fn = data_type
+        for field in keys:
+            value = None if data is None else data[field]
+            subspace = None if space is None else space[field]
+            post_fn = _build_map(arity, field, value, subspace)
+            out_fn = _build_setitem(arity, out_fn, post_fn, field)
+        return out_fn
+
+    def _dispatch(
+            post_fn_0: Callable[[], Dict[str, StructNested[ValueT]]],
+            post_fn_1: Callable[
+                [Dict[str, DataNested]], Dict[str, StructNested[ValueT]]],
+            *delayed: Tuple[Dict[str, DataNested]]
+            ) -> Dict[str, StructNested[ValueT]]:
+        """Internal method for handling unknown arity at generation-time.
+
+        :param post_fn_0: Nullary specialized map callable.
+        :param post_fn_1: Unary specialized map callable.
+        :param delayed: Optional nested data structure any provided at runtime.
+
+        :returns: Specialized map callable of dynamic arity.
+        """
+        if not delayed:
+            return post_fn_0()
+        return post_fn_1(delayed[0])
+
+    # Check that the combination of input arguments are valid
+    if space is None and data is None:
+        raise TypeError("At least data or space must be specified.")
+    if arity not in (0, 1, None):
+        raise TypeError("Arity must be either 0, 1 or `None`.")
+
+    # Generate transform and reduce callable of various arity if necessary
+    all_fn = [None, None]
+    for i in (0, 1):
+        if arity is not None and i != arity:
+            continue
+        all_fn[i] = _build_map(i, None, data, space)
+
+    # Return callable of requested arity if specified, dynamic dispatch if not
+    if arity is None:
+        return partial(_dispatch, *all_fn)
+    return all_fn[arity]
+
+
 def is_bounded(space_nested: gym.Space) -> bool:
     """Check wether a `gym.Space` has finite bounds.
 
@@ -307,7 +956,7 @@ def build_copyto(dst: DataNested) -> Callable[[DataNested], None]:
         for func, src in zip(funcs, src_nested.values()):
             func(src)
 
-    return partial(_seq_calls, [build_copyto(value) for value in dst.values()])
+    return partial(_seq_calls, tuple(build_copyto(value) for value in dst.values()))
 
 
 def copyto(dst: DataNested, src: DataNested) -> None:
