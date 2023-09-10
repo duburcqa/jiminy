@@ -501,7 +501,7 @@ class Simulator:
 
             # Share the external force buffer of the viewer with the engine
             if self.is_simulation_running:
-                self.viewer.f_external = self.system_state.f_external[1:]
+                self.viewer.f_external = [*self.system_state.f_external][1:]
 
             if self.viewer.backend.startswith('panda3d'):
                 # Enable display of COM, DCM and contact markers by default if

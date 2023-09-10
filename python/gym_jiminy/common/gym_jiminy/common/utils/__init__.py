@@ -17,6 +17,7 @@ from .spaces import (DataNested,
                      build_clip,
                      build_contains)
 from .helpers import (is_breakpoint,
+                      is_nan,
                       get_fieldnames,
                       register_variables)
 
@@ -39,6 +40,7 @@ __all__ = [
     'build_clip',
     'build_contains',
     'is_breakpoint',
+    'is_nan',
     'get_fieldnames',
     'register_variables'
 ]

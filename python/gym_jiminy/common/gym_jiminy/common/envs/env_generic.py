@@ -3,6 +3,7 @@ as backend physics engine, and Jiminy Viewer as 3D visualizer. It implements
 the official OpenAI Gym API and extended it to add more functionalities.
 """
 import os
+import math
 import logging
 import tempfile
 from copy import deepcopy
@@ -40,6 +41,7 @@ from pinocchio import neutral, normalize, framesForwardKinematics
 from ..utils import (FieldNested,
                      DataNested,
                      zeros,
+                     is_nan,
                      build_clip,
                      build_copyto,
                      build_contains,
@@ -180,6 +182,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.stepper_state = self.simulator.stepper_state
         self.is_simulation_running = self.simulator.is_simulation_running
         self.system_state = self.engine.system_state
+        self._system_state_q = self.system_state.q
+        self._system_state_v = self.system_state.v
+        self._system_state_a = self.system_state.a
         self.sensors_data: SensorsDataType = OrderedDict(
             self.robot.sensors_data)
 
@@ -233,8 +238,14 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 "`BaseJiminyEnv.compute_command` must be overloaded in case "
                 "of custom action spaces.")
 
-        # Define specialized operators for efficiency
+        # Define specialized operators for efficiency.
+        # Note that a partial view of observation corresponding to measurement
+        # must be extracted since only this one must be updated during refresh.
         self._copyto_action = build_copyto(self.action)
+        self._copyto_observation = build_copyto(OrderedDict(
+            t=self.observation["t"],
+            states=OrderedDict(agent=self.observation["states"]["agent"]),
+            measurements=self.observation["measurements"]))
         self._contains_observation = build_contains(
             self.observation, self.observation_space, tol_rel=OBS_CONTAINS_TOL)
         self._contains_action = build_contains(self.action, self.action_space)
@@ -747,6 +758,12 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.simulator.start(
             qpos, qvel, None, self.simulator.use_theoretical_model)
 
+        # Refresh system_state proxies. It must be done here because memory is
+        # only allocated by the engine when starting a simulation.
+        self._system_state_q = self.system_state.q
+        self._system_state_v = self.system_state.v
+        self._system_state_a = self.system_state.a
+
         # Initialize shared buffers
         self._initialize_buffers()
 
@@ -756,8 +773,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Initialize the observation
         env._observer_handle(
             self.stepper_state.t,
-            self.system_state.q,
-            self.system_state.v,
+            self._system_state_q,
+            self._system_state_v,
             self.robot.sensors_data)
 
         # Initialize specialized most-derived observation clipping operator
@@ -776,7 +793,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Make sure there is no 'nan' value in observation
         for value in tree.flatten(obs):
-            if np.isnan(value).any():
+            if is_nan(value):
                 raise RuntimeError(
                     f"'nan' value found in observation ({obs}). Something "
                     "went wrong with `refresh_observation` method.")
@@ -822,7 +839,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             # Make sure the action is valid if debug
             if self.debug:
                 for value in tree.flatten(action):
-                    if np.isnan(value).any():
+                    if is_nan(value):
                         raise RuntimeError(
                             f"'nan' value found in action ({action}).")
 
@@ -845,12 +862,12 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # of the every integration steps, during the controller update.
         self._env_derived._observer_handle(
             self.stepper_state.t,
-            self.system_state.q,
-            self.system_state.v,
+            self._system_state_q,
+            self._system_state_v,
             self.robot.sensors_data)
 
         # Make sure there is no 'nan' value in observation
-        if np.isnan(self.system_state.a).any():
+        if is_nan(self._system_state_a):
             raise RuntimeError(
                 "The acceleration of the system is 'nan'. Something went "
                 "wrong with jiminy engine.")
@@ -887,7 +904,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             reward = self.compute_reward(done, truncated, self._info)
 
             # Make sure the reward is not 'nan'
-            if np.isnan(reward):
+            if math.isnan(reward):
                 raise RuntimeError(
                     "The reward is 'nan'. Something went wrong with "
                     "`compute_reward` implementation.")
@@ -1081,7 +1098,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             obs = self.observation
             self.render()
             if not enable_is_done and self.robot.has_freeflyer:
-                return self.system_state.q[2] < 0.0
+                return self._system_state_q[2] < 0.0
             return done or truncated
 
         # Run interactive loop
@@ -1400,14 +1417,15 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             the same but it does the job regarding preserving efficiency.
         """
         observation = self.observation
-        observation["t"][()] = measurement["t"]
-        array_copyto(observation['states']['agent']['q'],
-                      measurement['states']['agent']['q'])
-        array_copyto(observation['states']['agent']['v'],
-                      measurement['states']['agent']['v'])
-        sensors_data = observation['measurements']
-        for key, value in dict.items(measurement['measurements']):
-            array_copyto(sensors_data[key], value)
+        array_copyto(observation["t"], measurement["t"])
+        state_agent_out = observation['states']['agent']
+        state_agent_in = measurement['states']['agent']
+        array_copyto(state_agent_out['q'], state_agent_in['q'])
+        array_copyto(state_agent_out['v'], state_agent_in['v'])
+        sensors_out = observation['measurements']
+        sensors_in = measurement['measurements']
+        for sensor_type in self._sensors_types:
+            array_copyto(sensors_out[sensor_type], sensors_in[sensor_type])
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.

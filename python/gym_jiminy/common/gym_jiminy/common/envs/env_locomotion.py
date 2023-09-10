@@ -368,7 +368,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         done, truncated = super().has_terminated()
 
         # Check if the agent has successfully solved the task
-        if self.system_state.q[2] < self._height_neutral * 0.5:
+        if self._system_state_q[2] < self._height_neutral * 0.5:
             done = True
 
         return done, truncated
