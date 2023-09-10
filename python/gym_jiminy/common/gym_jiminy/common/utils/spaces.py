@@ -1,9 +1,7 @@
 """ TODO: Write documentation.
 """
 from functools import partial
-from itertools import zip_longest
 from collections import OrderedDict
-from collections.abc import Iterable
 from typing import (
     Any, Dict, Optional, Union, Sequence, TypeVar, Mapping as MappingT, Tuple,
     Iterable as IterableT, Literal, SupportsFloat, Callable, no_type_check,
@@ -38,7 +36,7 @@ ArrayOrScalarT = TypeVar('ArrayOrScalarT', bound=ArrayOrScalar)
 
 
 @no_type_check
-@nb.jit(nopython=True, inline='always')
+@nb.jit(nopython=True)
 def _array_clip(value: np.ndarray,
                 low: Optional[ArrayOrScalar],
                 high: Optional[ArrayOrScalar]) -> np.ndarray:
@@ -55,7 +53,7 @@ def _array_clip(value: np.ndarray,
 
 
 @no_type_check
-@nb.jit(nopython=True, inline='always')
+@nb.jit(nopython=True)
 def _array_contains(value: np.ndarray,
                     low: Optional[ArrayOrScalar],
                     high: Optional[ArrayOrScalar],
@@ -74,7 +72,10 @@ def _array_contains(value: np.ndarray,
     if value.ndim:
         tol = np.maximum((high - low) * tol_rel, tol_abs)
         return np.logical_and(low - tol <= value, value <= high + tol).all()
-    return low.item() <= value.item() <= high.item()
+    tol = max((high.item() - low.item()) * tol_rel, tol_abs)
+    return low.item() - tol <= value.item() <= high.item() + tol
+
+
 
 
 def _unflatten_as(structure: StructNested[Any],
@@ -189,14 +190,164 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     return np.asarray(value)
 
 
+def is_bounded(space_nested: gym.Space) -> bool:
+    """Check wether a `gym.Space` has finite bounds.
+
+    :param space: `gym.Space` on which to operate.
+    """
+    for space in tree.flatten(space_nested):
+        is_bounded_fn = getattr(space, "is_bounded", None)
+        if is_bounded_fn is not None and not is_bounded_fn():
+            return False
+    return True
+
+
+@no_type_check
+def zeros(space: gym.Space[DataNestedT],
+          dtype: npt.DTypeLike = None,
+          enforce_bounds: bool = True) -> DataNestedT:
+    """Allocate data structure from `gym.Space` and initialize it to zero.
+
+    :param space: `gym.Space` on which to operate.
+    :param dtype: Can be specified to overwrite original space dtype.
+                  Optional: None by default
+    """
+    # Note that it is not possible to take advantage of dm-tree because the
+    # output type for collections (OrderedDict or Tuple) is not the same as the
+    # input one (gym.Space). This feature request would be too specific.
+    value = None
+    if isinstance(space, gym.spaces.Dict):
+        value = OrderedDict()
+        for field, subspace in space.spaces.items():
+            value[field] = zeros(subspace, dtype=dtype)
+        return value
+    if isinstance(space, gym.spaces.Tuple):
+        value = tuple(zeros(subspace, dtype=dtype)
+                      for subspace in space.spaces.values())
+    elif isinstance(space, gym.spaces.Box):
+        value = np.zeros(space.shape, dtype=dtype or space.dtype)
+    elif isinstance(space, gym.spaces.Discrete):
+        # Note that np.array of 0 dim is returned in order to be mutable
+        value = np.array(0, dtype=dtype or np.int64)
+    elif isinstance(space, gym.spaces.MultiDiscrete):
+        value = np.zeros_like(space.nvec, dtype=dtype or np.int64)
+    elif isinstance(space, gym.spaces.MultiBinary):
+        value = np.zeros(space.n, dtype=dtype or np.int8)
+    if value is not None:
+        if enforce_bounds:
+            value = clip(value, space)
+        return value
+    raise NotImplementedError(
+        f"Space of type {type(space)} is not supported.")
+
+
+def fill(data: DataNested, fill_value: Union[float, int, np.number]) -> None:
+    """Set every element of 'data' from `gym.Space` to scalar 'fill_value'.
+
+    :param data: Data structure to update.
+    :param fill_value: Value used to fill any scalar from the leaves.
+    """
+    for value in tree.flatten(data):
+        try:
+            value.fill(fill_value)
+        except AttributeError as e:
+            raise ValueError(
+                "Leaves of 'data' structure must have type `np.ndarray`."
+                ) from e
+
+
+def copyto(dst: DataNested, src: DataNested) -> None:
+    """Copy arbitrarily nested data structure of 'np.ndarray' to a given
+    pre-allocated destination.
+
+    It avoids memory allocation completely, so that memory pointers of 'data'
+    remains unchanged. As direct consequences, it is necessary to preallocate
+    memory beforehand, and it only supports arrays of fixed shape.
+
+    .. note::
+        Unlike the function returned by 'build_copyto', only the flattened data
+        structure needs to match, not the original one. This means that the
+        source and/or destination can be flattened already when provided.
+        Beware values must be sorted by keys in case of nested dict.
+
+    :param dst: Hierarchical data structure to update, possibly flattened.
+    :param value: Hierarchical data to copy, possibly flattened.
+    """
+    for data, value in zip(*map(tree.flatten, (dst, src))):
+        _array_copyto(data, value)
+
+
+def copy(data: DataNestedT) -> DataNestedT:
+    """Shallow copy recursively 'data' from `gym.Space`, so that only leaves
+    are still references.
+
+    :param data: Hierarchical data structure to copy without allocation.
+    """
+    return cast(DataNestedT, _unflatten_as(data, tree.flatten(data)))
+
+
+def clip(data: DataNested, space: gym.Space[DataNested]) -> DataNested:
+    """Clip data from `gym.Space` to make sure it is within bounds.
+
+    .. note:
+        None of the leaves of the returned data structured is sharing memory
+        with the original one, even if clipping had no effect. This alleviate
+        the need of calling 'deepcopy' afterward.
+
+    :param data: Data to clip.
+    :param space: `gym.Space` on which to operate.
+    """
+    # FIXME: Add support of `gym.spaces.Tuple`
+    if not isinstance(space, gym.spaces.Dict):
+        try:
+            return _array_clip(data, *get_bounds(space))
+        except NotImplementedError:
+            assert isinstance(data, np.ndarray)
+            return data.copy()
+    assert isinstance(data, dict)
+
+    out: Dict[str, DataNested] = OrderedDict()
+    for field, subspace in space.spaces.items():
+        out[field] = clip(data[field], subspace)
+    return out
+
+
+def contains(data: DataNested,
+             space: gym.Space[DataNested],
+             tol_abs: float = 0.0,
+             tol_rel: float = 0.0) -> bool:
+    """Check if all leaves of a nested data structure are within bounds of
+    their respective `gym.Space`, up to some tolerance threshold. If both
+    absolute and relative tolerances are provided, then satisfying only one of
+    the two criteria is considered sufficient.
+
+    By design, it is always `True` for all spaces but `gym.spaces.Box`,
+    `gym.spaces.Discrete` and `gym.spaces.MultiDiscrete`.
+
+    :param data: Data structure to check.
+    :param space: `gym.Space` on which to operate.
+    :param tol_abs: Absolute tolerance.
+    :param tol_rel: Relative tolerance.
+    """
+    if not isinstance(space, gym.spaces.Dict):
+        try:
+            return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
+        except NotImplementedError:
+            return True
+    assert isinstance(data, dict)
+
+    return all(contains(data[field], subspace, tol_abs, tol_rel)
+               for field, subspace in space.spaces.items())
+
+
 def build_reduce(fn: Callable[..., ValueInT],
                  op: Optional[Callable[[ValueOutT, ValueInT], ValueOutT]],
                  data: Optional[Dict[str, DataNested]],
                  space: Optional[gym.spaces.Dict] = None,
                  initializer: Optional[Callable[[], ValueOutT]] = None,
+                 *args: Any,
                  arity: Optional[Literal[0, 1]] = None,
-                 forward_bounds: bool = True,
-                 *args: Any) -> Callable[..., ValueOutT]:
+                 forward_bounds: bool = True) -> Callable[..., ValueOutT]:
     """Generate specialized callable applying transform and reduction on all
     leaves of given nested space.
 
@@ -533,7 +684,11 @@ def build_reduce(fn: Callable[..., ValueInT],
             post_fn = fn if data is None else partial(fn, data)
             post_args = args
             if forward_bounds and space is not None:
-                post_args = (*get_bounds(space), *post_args)
+                try:
+                    low, high = get_bounds(space)
+                except NotImplementedError:
+                    low, high = None, None
+                post_args = (low, high, *post_args)
             return partial(post_fn, post_args)
         if not keys:
             return None
@@ -627,8 +782,8 @@ def build_map(fn: Callable[..., ValueT],
               data: Optional[DataNested],
               space: Optional[gym.Space[DataNested]] = None,
               arity: Optional[Literal[0, 1]] = None,
-              forward_bounds: bool = True,
-              *args: Any) -> Callable[[], StructNested[ValueT]]:
+              *args: Any,
+              forward_bounds: bool = True) -> Callable[[], StructNested[ValueT]]:
     """Generate specialized callable returning applying out-of-place transform
     to all leaves of given nested space.
 
@@ -785,7 +940,11 @@ def build_map(fn: Callable[..., ValueT],
             post_fn = fn if data is None else partial(fn, data)
             post_args = args
             if forward_bounds and space is not None:
-                post_args = (*get_bounds(space), *post_args)
+                try:
+                    low, high = get_bounds(space)
+                except NotImplementedError:
+                    low, high = None, None
+                post_args = (low, high, *post_args)
             return partial(post_fn, post_args)
 
         # Apply map recursively while preserving order using monadic operations
@@ -834,307 +993,105 @@ def build_map(fn: Callable[..., ValueT],
     return all_fn[arity]
 
 
-def is_bounded(space_nested: gym.Space) -> bool:
-    """Check wether a `gym.Space` has finite bounds.
-
-    :param space: `gym.Space` on which to operate.
-    """
-    for space in tree.flatten(space_nested):
-        is_bounded_fn = getattr(space, "is_bounded", None)
-        if is_bounded_fn is not None and not is_bounded_fn():
-            return False
-    return True
-
-
-@no_type_check
-def zeros(space: gym.Space[DataNestedT],
-          dtype: npt.DTypeLike = None,
-          enforce_bounds: bool = True) -> DataNestedT:
-    """Allocate data structure from `gym.Space` and initialize it to zero.
-
-    :param space: `gym.Space` on which to operate.
-    :param dtype: Can be specified to overwrite original space dtype.
-                  Optional: None by default
-    """
-    # Note that it is not possible to take advantage of dm-tree because the
-    # output type for collections (OrderedDict or Tuple) is not the same as the
-    # input one (gym.Space). This feature request would be too specific.
-    value = None
-    if isinstance(space, gym.spaces.Dict):
-        value = OrderedDict()
-        for field, subspace in space.spaces.items():
-            value[field] = zeros(subspace, dtype=dtype)
-        return value
-    if isinstance(space, gym.spaces.Tuple):
-        value = tuple(zeros(subspace, dtype=dtype)
-                      for subspace in space.spaces.values())
-    elif isinstance(space, gym.spaces.Box):
-        value = np.zeros(space.shape, dtype=dtype or space.dtype)
-    elif isinstance(space, gym.spaces.Discrete):
-        # Note that np.array of 0 dim is returned in order to be mutable
-        value = np.array(0, dtype=dtype or np.int64)
-    elif isinstance(space, gym.spaces.MultiDiscrete):
-        value = np.zeros_like(space.nvec, dtype=dtype or np.int64)
-    elif isinstance(space, gym.spaces.MultiBinary):
-        value = np.zeros(space.n, dtype=dtype or np.int8)
-    if value is not None:
-        if enforce_bounds:
-            value = clip(value, space)
-        return value
-    raise NotImplementedError(
-        f"Space of type {type(space)} is not supported.")
-
-
-def fill(data: DataNested, fill_value: Union[float, int, np.number]) -> None:
-    """Set every element of 'data' from `gym.Space` to scalar 'fill_value'.
-
-    :param data: Data structure to update.
-    :param fill_value: Value used to fill any scalar from the leaves.
-    """
-    for value in tree.flatten(data):
-        try:
-            value.fill(fill_value)
-        except AttributeError as e:
-            raise ValueError(
-                "Leaves of 'data' structure must have type `np.ndarray`."
-                ) from e
-
-
-def set_value(data: DataNested, value: DataNested) -> None:
-    """Partially set 'data' from `gym.Space` to 'value'.
-
-    It avoids memory allocation, so that memory pointers of 'data' remains
-    unchanged. As direct consequences, it is necessary to preallocate memory
-    beforehand, and to work with fixed shape buffers.
-
-    .. note::
-        If 'data' is a dictionary, 'value' must be a subtree of 'data', whose
-        leaves must be broadcast-able with the ones of 'data'.
-
-    :param data: Data structure to partially update.
-    :param value: Subtree of data only containing fields to update.
-    """
-    if isinstance(data, np.ndarray):
-        try:
-            data.flat[:] = value
-        except TypeError as e:
-            raise TypeError(f"Cannot broadcast '{value}' to '{data}'.") from e
-    elif isinstance(data, dict):
-        assert isinstance(value, dict)
-        for field, subval in value.items():
-            set_value(data[field], subval)
-    elif isinstance(data, Iterable):
-        assert isinstance(value, Iterable)
-        for subdata, subval in zip_longest(data, value):
-            set_value(subdata, subval)
-    else:
-        raise ValueError(
-            "Leaves of 'data' structure must have type `np.ndarray`."
-            )
-
-
 def build_copyto(dst: DataNested) -> Callable[[DataNested], None]:
-    """Specialize 'copyto' for a given pre-allocated destination.
+    """Generate specialized `copyto` method for a given pre-allocated
+    destination.
 
-    :param dst: Hierarchical data structure to update.
+    :param dst: Nested data structure to be updated.
     """
-    if isinstance(dst, np.ndarray):
-        try:
-            return partial(_array_copyto, dst)
-        except Exception as e:
-            raise ValueError("All leaves must have tpe 'np.ndarray'.") from e
-    assert isinstance(dst, dict)
-
-    def _seq_calls(funcs: Sequence[Callable[[DataNested], None]],
-                   src_nested: Dict[str, DataNested]) -> None:
-        """Copy arbitrarily nested data structure of 'np.ndarray' specialized
-        for some pre-allocated destination.
-
-        :param src_nested: Data with the same hierarchy than the destination.
-        """
-        src: DataNested
-        for func, src in zip(funcs, src_nested.values()):
-            func(src)
-
-    return partial(_seq_calls, tuple(build_copyto(value) for value in dst.values()))
-
-
-def copyto(dst: DataNested, src: DataNested) -> None:
-    """Copy arbitrarily nested data structure of 'np.ndarray' to a given
-    pre-allocated destination.
-
-    It avoids memory allocation completely, so that memory pointers of 'data'
-    remains unchanged. As direct consequences, it is necessary to preallocate
-    memory beforehand, and it only supports arrays of fixed shape.
-
-    .. note::
-        Unlike the function returned by 'build_copyto', only the flattened data
-        structure needs to match, not the original one. This means that the
-        source and/or destination can be flattened already when provided.
-        Beware values must be sorted by keys in case of nested dict.
-
-    :param dst: Hierarchical data structure to update, possibly flattened.
-    :param value: Hierarchical data to copy, possibly flattened.
-    """
-    for data, value in zip(tree.flatten(dst), tree.flatten(src)):
-        _array_copyto(data, value)
-
-
-def copy(data: DataNestedT) -> DataNestedT:
-    """Shallow copy recursively 'data' from `gym.Space`, so that only leaves
-    are still references.
-
-    :param data: Hierarchical data structure to copy without allocation.
-    """
-    return cast(DataNestedT, _unflatten_as(data, tree.flatten(data)))
+    try:
+        return build_reduce(_array_copyto, None, dst, arity=1)
+    except TypeError:
+        # Fall back in case the destination is not a nested data structure
+        assert isinstance(dst, np.ndarray)
+        return partial(_array_copyto, dst)
 
 
 def build_clip(data: DataNested,
                space: gym.Space[DataNested]) -> Callable[[], DataNested]:
-    """Specialize 'clip' for some pre-allocated data.
+    """Generate specialized `clip` method for some pre-allocated nested data
+    structure and corresponding space.
 
-    .. warning::
-        This method is much faster than 'clip' but it requires updating
-        pre-allocated memory instead of allocated new one as it is usually
-        the case without careful memory management.
-
-    :param data: Data to clip.
+    :param data: Nested data structure whose leaves must be clipped.
     :param space: `gym.Space` on which to operate.
     """
-    if not isinstance(space, gym.spaces.Dict):
-        try:
-            return partial(_array_clip, data, *get_bounds(space))
-        except NotImplementedError:
-            assert isinstance(data, np.ndarray)
-            return data.copy
-    assert isinstance(data, dict)
-
-    def _setitem(field: str,
-                 func: Callable[[], DataNested],
-                 out: Dict[str, DataNested]) -> None:
-        """Set a given field of a nested data structure to the value return by
-        a function with no input argument.
-
-        :param field: Field to set.
-        :param func: Function to call.
-        :param out: Nested data structure.
-        """
-        out[field] = func()
-
-    def _seq_calls(func1: Callable[[DataNested], None],
-                   func2: Callable[[DataNested], None],
-                   out: DataNested) -> None:
-        """Call two functions sequentially in order while passing the same
-        input argument to both of them.
-
-        :param func1: First function.
-        :param func2: Second function.
-        :param out: Input argument to forward.
-        """
-        func1(out)
-        func2(out)
-
-    func = None
-    for field, subspace in space.spaces.items():
-        op = partial(_setitem, field, build_clip(data[field], subspace))
-        func = op if func is None else partial(_seq_calls, func, op)
-    if func is None:
-        return OrderedDict
-
-    # Define the chain of functions operating on a given out
-    def _clip_impl(func: Callable[[DataNested], None]) -> DataNested:
-        """Clip arbitrarily nested data structure of 'np.ndarray' specialized
-        for some pre-allocated data.
-        """
-        out: DataNested = OrderedDict()
-        func(out)
-        return out
-
-    return partial(_clip_impl, func)
-
-
-def clip(data: DataNested,
-         space: gym.Space[DataNested]) -> DataNested:
-    """Clip data from `gym.Space` to make sure it is within bounds.
-
-    .. note:
-        None of the leaves of the returned data structured is sharing memory
-        with the original one, even if clipping had no effect. This alleviate
-        the need of calling 'deepcopy' afterward.
-
-    :param data: Data to clip.
-    :param space: `gym.Space` on which to operate.
-    """
-    if not isinstance(space, gym.spaces.Dict):
-        try:
-            return _array_clip(data, *get_bounds(space))
-        except NotImplementedError:
-            assert isinstance(data, np.ndarray)
-            return data.copy()
-    assert isinstance(data, dict)
-
-    out: Dict[str, DataNested] = OrderedDict()
-    for field, subspace in space.spaces.items():
-        out[field] = clip(data[field], subspace)
-    return out
+    try:
+        return build_map(_array_clip, data, space, arity=0)
+    except TypeError:
+        # Fall back in case the destination is not a nested data structure
+        assert isinstance(data, np.ndarray)
+        return partial(_array_clip, *get_bounds(space))
 
 
 def build_contains(data: DataNested,
                    space: gym.Space[DataNested],
                    tol_abs: float = 0.0,
                    tol_rel: float = 0.0) -> Callable[[], bool]:
-    """Specialize 'contains' for a given pre-allocated data structure.
+    """Generate specialized `contains` method for some pre-allocated nested
+    data structure and corresponding space.
 
-    :param data: Pre-allocated data structure to check.
+    :param data: Pre-allocated nested data structure whose leaves must be
+                 within bounds if defined and ignored otherwise.
     :param space: `gym.Space` on which to operate.
     """
-    if not isinstance(space, gym.spaces.Dict):
-        return partial(
-            _array_contains, data, *get_bounds(space), tol_abs, tol_rel)
-    assert isinstance(data, dict)
-
-    def _all(func1: Callable[[], bool],
-             func2: Callable[[], bool]) -> bool:
-        """Check if two functions with no input argument are returning True.
-
-        :param func1: First function.
-        :param func2: Second function.
-        """
-        return func1() and func2()
-
-    func = None
-    for field, subspace in space.spaces.items():
-        try:
-            op = build_contains(data[field], subspace, tol_abs, tol_rel)
-            func = op if func is None else partial(_all, func, op)
-        except NotImplementedError:
+    # Store methods to make it unique. This way, the jitted ones will be
+    # compiled only once and not for every generated specialization as it
+    # would be the case otherwise.
+    try:
+        _contains_or_raises = build_contains._contains_or_raises
+        _exception_handling = build_contains._exception_handling
+    except AttributeError:
+        # Define a special exception involved in short-circuit mechanism
+        class ShortCircuitContains(Exception):
             pass
-    return func or (lambda: True)
 
+        @nb.njit
+        def _contains_or_raises(value: np.ndarray,
+                                low: Optional[ArrayOrScalar],
+                                high: Optional[ArrayOrScalar],
+                                tol_abs: float,
+                                tol_rel: float) -> bool:
+            """Thin wrapper around original `_array_contains` method to raise
+            an exception if the test fails. It enables short-circuit mechanism
+            to abort checking remaining leaves if any.
 
-def contains(data: DataNested,
-             space: gym.Space[DataNested],
-             tol_abs: float = 0.0,
-             tol_rel: float = 0.0) -> bool:
-    """Check if all leaves of a nested data structure are within bounds of
-    their respective `gym.Space`, up to some tolerance threshold. If both
-    absolute and relative tolerances are provided, then satisfying only one of
-    the two criteria is considered sufficient.
-
-    By design, it is always `True` for all spaces but `gym.spaces.Box`,
-    `gym.spaces.Discrete` and `gym.spaces.MultiDiscrete`.
-
-    :param data: Data structure to check.
-    :param space: `gym.Space` on which to operate.
-    :param tol_abs: Absolute tolerance.
-    :param tol_rel: Relative tolerance.
-    """
-    if not isinstance(space, gym.spaces.Dict):
-        try:
-            return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
-        except NotImplementedError:
+            :param value: Array holding values to check.
+            :param low: Lower bound.
+            :param high: Upper bound.
+            :param tol_abs: Absolute tolerance.
+            :param tol_rel: Relative tolerance.
+            """
+            if not _array_contains(value, low, high, tol_abs, tol_rel):
+                raise ShortCircuitContains("Short-circuit exception.")
             return True
-    assert isinstance(data, dict)
 
-    return all(contains(data[field], subspace, tol_abs, tol_rel)
-               for field, subspace in dict.items(space.spaces))
+        def _exception_handling(out_fn: Callable[[], bool]) -> bool:
+            """Internal method for short-circuit exception handling.
+
+            :param out_fn: specialized contain callable raising short-circuit
+                           exception as soon as one leaf fails the test.
+
+            :returns: `True` if all leaves are within bounds of their
+                      respective space, `False` otherwise.
+            """
+            try:
+                out_fn()
+            except ShortCircuitContains:
+                return False
+            return True
+
+        build_contains._contains_or_raises = _contains_or_raises
+        build_contains._exception_handling = _exception_handling
+
+    # Short-circuit mechanism not only speeds-up scenarios where at least one
+    # leaf does not met requirements, and also the other scenarios where all
+    # tests passes. Indeed, it is no longer necessary to specify the reduction
+    # operator 'operator.and' to aggregate all successes and failures.
+    try:
+        return partial(_exception_handling, build_reduce(
+            _contains_or_raises, None, data, space, None, tol_abs, tol_rel,
+            arity=0, forward_bounds=True))
+    except TypeError:
+        # Fall back in case the destination is not a nested data structure
+        assert isinstance(data, np.ndarray)
+        return partial(_array_contains, *get_bounds(space), tol_abs, tol_rel)
