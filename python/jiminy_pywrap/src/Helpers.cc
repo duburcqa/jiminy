@@ -136,37 +136,111 @@ namespace python
         }
     }
 
-    void array_copyto(PyObject * dstPy, PyObject * srcPy)
+    void arrayCopyTo(PyObject * dstPy, PyObject * srcPy)
     {
-        /* Converting arrays to Eigen matrices would enable SIMD-vectorized assignment,
-           which is faster than `memcpy`. Yet, creating the mapping is tricky because of
-           memory alignment issues and dtype handling, so let's keep it simple. The speedup
-           should be limited anyway for fairly small arrays (size < 100). */
+        /* Making sure that 'dst' and 'src' are already compatible with other.
+           Raises an exception if not, instead of performing casting nor broadcasting. */
         if (!PyArray_Check(dstPy) || !PyArray_Check(srcPy))
         {
             throw std::runtime_error("'dst' and 'src' must have type 'np.ndarray'.");
         }
         PyArrayObject * dstPyArray = reinterpret_cast<PyArrayObject *>(dstPy);
         PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
-        if (!PyArray_CHKFLAGS(dstPyArray, NPY_ARRAY_WRITEABLE))
-        {
-            throw std::runtime_error("'dst' must be writable.");
-            return;
-        }
-        int flags = PyArray_FLAGS(dstPyArray) & PyArray_FLAGS(srcPyArray);
-        if (!(flags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)) || !(flags & NPY_ARRAY_ALIGNED))
-        {
-            throw std::runtime_error("'dst' and 'src' must store aligned and F- or C-contiguous data.");
-        }
+
         if (!PyArray_EquivArrTypes(dstPyArray, srcPyArray))
         {
             throw std::runtime_error("'dst' and 'src' must have equivalent dtype.");
         }
-        if (!PyArray_SAMESHAPE(dstPyArray, srcPyArray))
+
+        int const dstNdim = PyArray_NDIM(dstPyArray);
+        int const srcNdim = PyArray_NDIM(dstPyArray);
+        npy_intp const * const dstShape = PyArray_SHAPE(dstPyArray);
+        npy_intp const * const srcShape = PyArray_SHAPE(dstPyArray);
+        if (!(dstNdim == srcNdim) && PyArray_CompareLists(dstShape, srcShape, dstNdim))
         {
             throw std::runtime_error("'dst' and 'src' must have same shape.");
         }
-        memcpy(PyArray_DATA(dstPyArray), PyArray_DATA(srcPyArray), PyArray_NBYTES(dstPyArray));
+
+        int const dstPyFlags = PyArray_FLAGS(dstPyArray);
+        int const srcPyFlags = PyArray_FLAGS(srcPyArray);
+        int const commonPyFlags = dstPyFlags & srcPyFlags;
+        if (!(dstPyFlags & NPY_ARRAY_WRITEABLE))
+        {
+            throw std::runtime_error("'dst' must be writable.");
+            return;
+        }
+        if (!(commonPyFlags & NPY_ARRAY_ALIGNED))
+        {
+            throw std::runtime_error("'dst' and 'src' must store aligned data.");
+        }
+
+        npy_intp const itemsize = PyArray_ITEMSIZE(dstPyArray);
+        char * dstPyData = PyArray_BYTES(dstPyArray);
+        char * srcPyData = PyArray_BYTES(srcPyArray);
+        if (commonPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS))
+        {
+            /* Fast specialization if both dst and src are jointly C- or F-contiguous.
+               Note that converting arrays to Eigen matrices would leverage SIMD-vectorized
+               assignment, which is faster than `memcpy`. Yet, instantiating the mapping is
+               tricky because of memory alignment issues and dtype handling, so let's keep
+               it simple. The slowdown should be marginal for small-size arrays (size < 50). */
+            memcpy(dstPyData, srcPyData, PyArray_NBYTES(dstPyArray));
+        }
+        else if ((dstNdim == 2) && (itemsize == 8)
+         && (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS))
+         && (srcPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
+        {
+            /* Eigen does a much better job than element-wise copy assignment in this scenario.
+               Note that only the width of the scalar type matters here, not the actual type. */
+            using EigenMapType = Eigen::Map<Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic> >;
+            if (dstPyFlags & NPY_ARRAY_C_CONTIGUOUS)
+            {
+                EigenMapType dst(reinterpret_cast<float64_t *>(dstPyData), dstShape[1], dstShape[0]);
+                EigenMapType src(reinterpret_cast<float64_t *>(srcPyData), dstShape[0], dstShape[1]);
+                dst = src.transpose();
+            }
+            else
+            {
+                EigenMapType dst(reinterpret_cast<float64_t *>(dstPyData), dstShape[0], dstShape[1]);
+                EigenMapType src(reinterpret_cast<float64_t *>(srcPyData), dstShape[1], dstShape[0]);
+                dst = src.transpose();
+            }
+        }
+        else
+        {
+            // Falling back to slow element-wise strided ND-array copy assignment
+            int i = 0;
+            npy_intp coord[NPY_MAXDIMS];
+            npy_intp const * const dstStrides = PyArray_STRIDES(dstPyArray);
+            npy_intp const * const srcStrides = PyArray_STRIDES(srcPyArray);
+            memset(coord, 0, dstNdim * sizeof(npy_intp));
+            while (i < dstNdim)
+            {
+                char * _dstPyData = dstPyData;
+                char * _srcPyData = srcPyData;
+                for (int j = 0; j < dstShape[0]; ++j)
+                {
+                    memcpy(_dstPyData, _srcPyData, itemsize);
+                    _dstPyData += dstStrides[0];
+                    _srcPyData += srcStrides[0];
+                }
+                for (i = 1; i < dstNdim; ++i)
+                {
+                    if (++coord[i] == dstShape[i])
+                    {
+                        coord[i] = 0;
+                        dstPyData -= (dstShape[i] - 1) * dstStrides[i];
+                        srcPyData -= (dstShape[i] - 1) * srcStrides[i];
+                    }
+                    else
+                    {
+                        dstPyData += dstStrides[i];
+                        srcPyData += srcStrides[i];
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     void exposeHelpers(void)
@@ -192,7 +266,7 @@ namespace python
         bp::def("is_position_valid", &isPositionValid,
                                      (bp::arg("pinocchio_model"), "position"));
 
-        bp::def("array_copyto", &array_copyto, (bp::arg("dst"), "src"));
+        bp::def("array_copyto", &arrayCopyTo, (bp::arg("dst"), "src"));
 
         bp::def("interpolate", &interpolate,
                                (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"));

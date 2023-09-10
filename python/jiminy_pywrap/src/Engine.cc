@@ -114,19 +114,19 @@ namespace python
                 ;
         }
 
-        static bp::list getQ(stepperState_t const & self)
+        static bp::object getQ(stepperState_t const & self)
         {
-            return bp::extract<bp::list>(convertToPython(self.qSplit, false));
+            return std::move(convertToPython(self.qSplit, false));
         }
 
-        static bp::list getV(stepperState_t const & self)
+        static bp::object getV(stepperState_t const & self)
         {
-            return bp::extract<bp::list>(convertToPython(self.vSplit, false));
+            return std::move(convertToPython(self.vSplit, false));
         }
 
-        static bp::list getA(stepperState_t const & self)
+        static bp::object getA(stepperState_t const & self)
         {
-            return bp::extract<bp::list>(convertToPython(self.aSplit, false));
+            return std::move(convertToPython(self.aSplit, false));
         }
 
         static std::string repr(stepperState_t const & self)

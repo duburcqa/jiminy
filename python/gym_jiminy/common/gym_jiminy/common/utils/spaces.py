@@ -10,8 +10,6 @@ from typing import (
 import numba as nb
 import numpy as np
 from numpy import typing as npt
-from numpy.core.umath import (  # type: ignore[attr-defined]
-    copyto as _array_copyto)
 
 import tree
 import gymnasium as gym
@@ -276,7 +274,7 @@ def copyto(dst: DataNested, src: DataNested) -> None:
     :param value: Hierarchical data to copy, possibly flattened.
     """
     for data, value in zip(*map(tree.flatten, (dst, src))):
-        _array_copyto(data, value)
+        array_copyto(data, value)
 
 
 def copy(data: DataNestedT) -> DataNestedT:
@@ -1002,11 +1000,11 @@ def build_copyto(dst: DataNested) -> Callable[[DataNested], None]:
     :param dst: Nested data structure to be updated.
     """
     try:
-        return build_reduce(_array_copyto, None, dst, arity=1)
+        return build_reduce(array_copyto, None, dst, arity=1)
     except TypeError:
         # Fall back in case the destination is not a nested data structure
         assert isinstance(dst, np.ndarray)
-        return partial(_array_copyto, dst)
+        return partial(array_copyto, dst)
 
 
 def build_clip(data: DataNested,
