@@ -16,7 +16,7 @@ from .spaces import FieldNested, DataNested, zeros
 logger = logging.getLogger(__name__)
 
 
-@nb.jit(nopython=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """Check if 't' is multiple of 'dt' at a given precision 'eps'.
 

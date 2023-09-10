@@ -38,7 +38,7 @@ ArrayOrScalarT = TypeVar('ArrayOrScalarT', bound=ArrayOrScalar)
 
 
 @no_type_check
-@nb.jit(nopython=True)
+@nb.jit(nopython=True, cache=True)
 def _array_clip(value: np.ndarray,
                 low: Optional[ArrayOrScalar],
                 high: Optional[ArrayOrScalar]) -> np.ndarray:
@@ -55,7 +55,7 @@ def _array_clip(value: np.ndarray,
 
 
 @no_type_check
-@nb.jit(nopython=True)
+@nb.jit(nopython=True, cache=True)
 def _array_contains(value: np.ndarray,
                     low: Optional[ArrayOrScalar],
                     high: Optional[ArrayOrScalar],

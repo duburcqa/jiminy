@@ -28,7 +28,7 @@ N_ORDER_DERIVATIVE_NAMES = ("Position", "Velocity", "Acceleration", "Jerk")
 EVAL_DEADBAND = 5.0e-3
 
 
-@nb.jit(nopython=True, nogil=True, inline='always')
+@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
 def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
     """Numba-compatible implementation of `scipy.linalg.toeplitz` method.
 
@@ -52,7 +52,7 @@ def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
                       strides=(-stride, stride))
 
 
-@nb.jit(nopython=True, nogil=True, inline='always')
+@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
 def integrate_zoh(state_prev: np.ndarray,
                   state_min: np.ndarray,
                   state_max: np.ndarray,
@@ -108,7 +108,7 @@ def integrate_zoh(state_prev: np.ndarray,
     return integ_zero + integ_drift * deriv
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, cache=True)
 def pd_controller(q_measured: np.ndarray,
                   v_measured: np.ndarray,
                   command_state: np.ndarray,

@@ -14,7 +14,7 @@ from .proportional_derivative_controller import get_encoder_to_motor_map
 from ..bases import BaseObsT, JiminyEnvInterface, BaseControllerBlock
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, cache=True)
 def apply_safety_limits(command: np.ndarray,
                         q_measured: np.ndarray,
                         v_measured: np.ndarray,
