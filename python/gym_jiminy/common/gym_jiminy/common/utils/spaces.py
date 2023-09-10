@@ -43,13 +43,25 @@ def _array_clip(value: np.ndarray,
     """Element-wise out-of-place clipping of array elements.
 
     :param value: Array holding values to clip.
-    :param low: lower bound.
-    :param high: upper bound.
+    :param low: Optional lower bound.
+    :param high: Optional upper bound.
     """
+    if low is None and high is None:
+        return value.copy()
     if value.ndim:
-        return np.minimum(np.maximum(value, low), high)
+        out_nd = value
+        if low is not None:
+            out_nd = np.maximum(out_nd, low)
+        if high is not None:
+            out_nd = np.minimum(out_nd, high)
+        return out_nd
     # Surprisingly, calling '.item()' on python scalars is supported by numba
-    return np.array(min(max(value.item(), low.item()), high.item()))
+    out_0d = value.item()
+    if low is not None:
+        out_0d = max(out_0d, low.item())
+    if high is not None:
+        out_0d = min(out_0d, high.item())
+    return np.array(out_0d)
 
 
 @no_type_check
@@ -64,18 +76,29 @@ def _array_contains(value: np.ndarray,
     satisfying only one of the two criteria is considered sufficient.
 
     :param value: Array holding values to check.
-    :param low: Lower bound.
-    :param high: Upper bound.
+    :param low: Optional lower bound.
+    :param high: Optional upper bound.
     :param tol_abs: Absolute tolerance.
-    :param tol_rel: Relative tolerance.
+    :param tol_rel: Relative tolerance. It will be ignored if either the lower
+                    or upper is not specified.
     """
     if value.ndim:
-        tol = np.maximum((high - low) * tol_rel, tol_abs)
-        return np.logical_and(low - tol <= value, value <= high + tol).all()
-    tol = max((high.item() - low.item()) * tol_rel, tol_abs)
-    return low.item() - tol <= value.item() <= high.item() + tol
-
-
+        tol_nd = np.full_like(value, tol_abs)
+        if low is not None and high is not None and tol_rel > 0.0:
+            tol_nd = np.maximum((high - low) * tol_rel, tol_nd)
+        if low is not None and (low - tol_nd > value).all():
+            return False
+        if high is not None and (value > high + tol_nd).all():
+            return False
+        return True
+    tol_0d = tol_abs
+    if low is not None and high is not None and tol_rel > 0.0:
+        tol_0d = max((high.item() - low.item()) * tol_rel, tol_0d)
+    if low is not None and (low.item() - tol_0d > value.item()):
+        return False
+    if high is not None and (value.item() > high.item() + tol_0d):
+        return False
+    return True
 
 
 def _unflatten_as(structure: StructNested[Any],
@@ -96,22 +119,21 @@ def _unflatten_as(structure: StructNested[Any],
     return tree._sequence_like(structure, packed)
 
 
-def get_bounds(space: gym.Space) -> Tuple[ArrayOrScalar, ArrayOrScalar]:
-    """Get the lower and upper bounds of a given 'gym.Space' if applicable,
-    raises any exception otherwise.
+def get_bounds(space: gym.Space
+               ) -> Tuple[Optional[ArrayOrScalar], Optional[ArrayOrScalar]]:
+    """Get the lower and upper bounds of a given 'gym.Space' if any.
 
     :param space: `gym.Space` on which to operate.
 
     :returns: Lower and upper bounds as a tuple.
     """
     if isinstance(space, gym.spaces.Box):
-        return (space.low, space.high)
+        return space.low, space.high
     if isinstance(space, gym.spaces.Discrete):
-        return (space.start, space.n)
+        return space.start, space.n
     if isinstance(space, gym.spaces.MultiDiscrete):
-        return (0, space.nvec)
-    raise NotImplementedError(
-        f"Space of type {type(space)} is not supported.")
+        return 0, space.nvec
+    return None, None
 
 
 def sample(low: Union[float, np.ndarray] = -1.0,
@@ -299,11 +321,7 @@ def clip(data: DataNested, space: gym.Space[DataNested]) -> DataNested:
     """
     # FIXME: Add support of `gym.spaces.Tuple`
     if not isinstance(space, gym.spaces.Dict):
-        try:
-            return _array_clip(data, *get_bounds(space))
-        except NotImplementedError:
-            assert isinstance(data, np.ndarray)
-            return data.copy()
+        return _array_clip(data, *get_bounds(space))
     assert isinstance(data, dict)
 
     out: Dict[str, DataNested] = OrderedDict()
@@ -330,10 +348,7 @@ def contains(data: DataNested,
     :param tol_rel: Relative tolerance.
     """
     if not isinstance(space, gym.spaces.Dict):
-        try:
-            return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
-        except NotImplementedError:
-            return True
+        return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
     assert isinstance(data, dict)
 
     return all(contains(data[field], subspace, tol_abs, tol_rel)
@@ -684,11 +699,7 @@ def build_reduce(fn: Callable[..., ValueInT],
             post_fn = fn if data is None else partial(fn, data)
             post_args = args
             if forward_bounds and space is not None:
-                try:
-                    low, high = get_bounds(space)
-                except NotImplementedError:
-                    low, high = None, None
-                post_args = (low, high, *post_args)
+                post_args = (*get_bounds(space), *post_args)
             return partial(post_fn, post_args)
         if not keys:
             return None
@@ -783,7 +794,8 @@ def build_map(fn: Callable[..., ValueT],
               space: Optional[gym.Space[DataNested]] = None,
               arity: Optional[Literal[0, 1]] = None,
               *args: Any,
-              forward_bounds: bool = True) -> Callable[[], StructNested[ValueT]]:
+              forward_bounds: bool = True
+              ) -> Callable[[], StructNested[ValueT]]:
     """Generate specialized callable returning applying out-of-place transform
     to all leaves of given nested space.
 
@@ -940,11 +952,7 @@ def build_map(fn: Callable[..., ValueT],
             post_fn = fn if data is None else partial(fn, data)
             post_args = args
             if forward_bounds and space is not None:
-                try:
-                    low, high = get_bounds(space)
-                except NotImplementedError:
-                    low, high = None, None
-                post_args = (low, high, *post_args)
+                post_args = (*get_bounds(space), *post_args)
             return partial(post_fn, post_args)
 
         # Apply map recursively while preserving order using monadic operations

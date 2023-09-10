@@ -13,8 +13,7 @@ from itertools import chain
 from functools import partial
 from collections import OrderedDict
 from typing import (
-    Optional, Union, Type, Dict, Tuple, Sequence, Iterable, Any, List,
-    Callable)
+    Any, List, Dict, Optional, Union, Type, Sequence, Iterable, Callable)
 
 import toml
 import numpy as np
