@@ -241,6 +241,10 @@ class PDController(
         # Mapping from motors to encoders
         self.encoder_to_motor = get_encoder_to_motor_map(env.robot)
 
+        # Whether stored reference to encoder measurements are already in the
+        # same order as the motors, allowing skipping re-ordering entirely.
+        self._is_same_order = self.encoder_to_motor == slice(None)
+
         # Define buffers storing information about the motors for efficiency.
         # Note that even if the robot instance may change from one simulation
         # to another, the observation and action spaces are required to stay
@@ -279,10 +283,6 @@ class PDController(
         # Extract measured motor positions and velocities for fast access
         self.q_measured, self.v_measured = env.sensors_data[encoder.type]
 
-        # Whether stored reference to encoder measurements are already in the
-        # same order as the motors, allowing skipping re-ordering entirely.
-        self._is_already_ordered = False
-
         # Allocate memory for the command state
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
 
@@ -320,9 +320,6 @@ class PDController(
 
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
-
-        # Skip reordering if already the case, which should always be true
-        self._is_already_ordered = isinstance(self.encoder_to_motor, slice)
 
         # Reset the command state
         fill(self._command_state, 0)
@@ -371,7 +368,7 @@ class PDController(
 
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
-        if not self._is_already_ordered:
+        if not self._is_same_order:
             q_measured = q_measured[self.encoder_to_motor]
             v_measured = v_measured[self.encoder_to_motor]
 

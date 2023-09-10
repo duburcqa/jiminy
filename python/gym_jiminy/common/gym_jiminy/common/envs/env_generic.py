@@ -178,10 +178,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.engine: jiminy.Engine = self.simulator.engine
         self.robot = self.engine.robot
         self.stepper_state = self.simulator.stepper_state
-        self.system_state = self.simulator.system_state
+        self.is_simulation_running = self.simulator.is_simulation_running
+        self.system_state = self.engine.system_state
         self.sensors_data: SensorsDataType = OrderedDict(
             self.robot.sensors_data)
-        self.is_simulation_running = self.simulator.is_simulation_running
 
         # Top-most block of the pipeline to which the environment is part of
         self._env_derived: JiminyEnvInterface = self
@@ -671,6 +671,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Re-initialize some shared memories.
         # It is necessary because the robot may have changed.
+        self.system_state = self.engine.system_state
         self.sensors_data = OrderedDict(self.robot.sensors_data)
 
         # Enforce the low-level controller.

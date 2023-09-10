@@ -253,6 +253,7 @@ class BasePipelineWrapper(
 
         # Refresh some proxies for fast lookup
         self.robot = self.env.robot
+        self.system_state = self.env.system_state
         self.sensors_data = self.env.sensors_data
 
         # Initialize specialized operator(s) for efficiency

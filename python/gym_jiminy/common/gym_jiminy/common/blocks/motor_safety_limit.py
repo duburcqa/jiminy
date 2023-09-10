@@ -117,7 +117,7 @@ class MotorSafetyLimit(
 
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
-        self._is_already_ordered = False
+        self._is_same_order = self.encoder_to_motor == slice(None)
 
         # Initialize the controller
         super().__init__(name, env, 1)
@@ -136,10 +136,6 @@ class MotorSafetyLimit(
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
 
-        # Convert to slice if possible for efficiency. It is usually the case.
-        self._is_already_ordered = bool(np.all(
-            self.encoder_to_motor == np.arange(self.env.robot.nmotors)))
-
     @property
     def fieldnames(self) -> List[str]:
         return [f"currentMotorTorque{name}"
@@ -150,7 +146,7 @@ class MotorSafetyLimit(
         """
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
-        if not self._is_already_ordered:
+        if not self._is_same_order:
             q_measured = q_measured[self.encoder_to_motor]
             v_measured = v_measured[self.encoder_to_motor]
 

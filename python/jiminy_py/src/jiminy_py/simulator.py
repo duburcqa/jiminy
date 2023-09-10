@@ -116,7 +116,6 @@ class Simulator:
 
         # Create shared memories and python-native attribute for fast access
         self.stepper_state = self.engine.stepper_state
-        self.system_state = self.engine.system_state
         self.is_simulation_running = self.engine.is_simulation_running
 
         # Viewer management
@@ -278,21 +277,6 @@ class Simulator:
         if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_data_th
         return self.robot.pinocchio_data
-
-    @property
-    def state(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Getter of the current state of the robot.
-
-        .. warning::
-            Return a reference whenever it is possible, which is
-            computationally efficient but unsafe.
-        """
-        q = self.system_state.q
-        v = self.system_state.v
-        if self.use_theoretical_model and self.robot.is_flexible:
-            q = self.robot.get_rigid_configuration_from_flexible(q)
-            v = self.robot.get_rigid_velocity_from_flexible(v)
-        return q, v
 
     @property
     def is_viewer_available(self) -> bool:
