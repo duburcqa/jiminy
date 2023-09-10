@@ -14,7 +14,7 @@ from numpy import typing as npt
 import tree
 import gymnasium as gym
 
-from jiminy_py.core import array_copyto
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 
 
 GLOBAL_RNG = np.random.default_rng()
@@ -355,13 +355,14 @@ def contains(data: DataNested,
                for field, subspace in space.spaces.items())
 
 
+@no_type_check
 def build_reduce(fn: Callable[..., ValueInT],
                  op: Optional[Callable[[ValueOutT, ValueInT], ValueOutT]],
                  data: Optional[Dict[str, DataNested]],
-                 space: Optional[gym.spaces.Dict] = None,
-                 initializer: Optional[Callable[[], ValueOutT]] = None,
+                 space: Optional[gym.spaces.Dict],
+                 arity: Optional[Literal[0, 1]],
                  *args: Any,
-                 arity: Optional[Literal[0, 1]] = None,
+                 initializer: Optional[Callable[[], ValueOutT]] = None,
                  forward_bounds: bool = True) -> Callable[..., ValueOutT]:
     """Generate specialized callable applying transform and reduction on all
     leaves of given nested space.
@@ -404,13 +405,16 @@ def build_reduce(fn: Callable[..., ValueInT],
                  provided but hardly relevant.
     :param space: `gym.spaces.Dict` on which to operate. Optional iif the
                   nested data structure is provided.
-                  Optional: `None` by default.
+    :param arity: Arity of the generated callable. `None` to indicate that it
+                  must be determined at runtime, which is slower.
+    :param args: Extra arguments to systematically forward as transform input
+                 for all leaves. Note that, as for Python built-ins methods,
+                 keywords are not supported for the sake of efficiency.
     :param initializer: Function used to compute the initial value before
                         starting reduction. Optional if the reduction operator
                         has same input and output types. If `None`, then the
                         value corresponding to the first leaf after transform
                         will be used instead.
-                        Optional: `None` by default
     :param forward_bounds: Whether to forward the lower and upper bounds of the
                            `gym.Space` associated with each leaf as transform
                            input. In this case, they will be added after the
@@ -419,16 +423,11 @@ def build_reduce(fn: Callable[..., ValueInT],
                            sure all leaves have bounds, otherwise it will raise
                            an exception at generation-time. This argument is
                            ignored if not space is specified.
-                           Optional: `True` by default.
-    :param arity: Arity of the generated callable. Can be `None` to indicate
-                  that it must be determined at runtime, which is slower.
-                  Optional: `None` by default.
-    :param args: Extra arguments to systematically forward as transform input
-                 for all leaves. Note that, as for Python built-ins methods,
-                 keywords are not supported for the sake of efficiency.
 
     :returns: Fully-specialized reduction callable.
     """
+    # pylint: disable=unused-argument
+
     def _build_reduce(
             arity: Literal[0, 1],
             is_initialized: bool,
@@ -495,6 +494,7 @@ def build_reduce(fn: Callable[..., ValueInT],
                         fn_2(delayed[field_2], *args_2)
                         fn_1(delayed)
                     return partial(_reduce, fn_1, fn_2, field_2, args_2)
+
                 def _reduce(fn_1, fn_2, field_2, delayed):
                     fn_2(delayed[field_2])
                     fn_1(delayed)
@@ -505,6 +505,7 @@ def build_reduce(fn: Callable[..., ValueInT],
                         fn_2(delayed)
                         fn_1(delayed[field_1], *args_1)
                     return partial(_reduce, fn_1, field_1, args_1, fn_2)
+
                 def _reduce(fn_1, field_1, fn_2, delayed):
                     fn_2(delayed)
                     fn_1(delayed[field_1])
@@ -516,6 +517,7 @@ def build_reduce(fn: Callable[..., ValueInT],
                     fn_1(delayed[field_1], *args_1)
                 return partial(
                     _reduce, fn_1, field_1, args_1, fn_2, field_2, args_2)
+
             def _reduce(fn_1, field_1, fn_2, field_2, delayed):
                 fn_2(delayed[field_2])
                 fn_1(delayed[field_1])
@@ -538,15 +540,14 @@ def build_reduce(fn: Callable[..., ValueInT],
                     def _reduce(op, fn_1, fn_2, out):
                         return op(op(out, fn_2()), fn_1())
                 return partial(_reduce, op, fn_1, fn_2)
-            else:
-                if is_out_1 and not is_out_2:
-                    def _reduce(fn_1, fn_2, out):
-                        return fn_1(fn_2())
-                    return partial(_reduce, fn_1, fn_2)
-                if not is_out_1 and not is_out_2:
-                    def _reduce(op, fn_1, fn_2, out):
-                        return op(fn_2(), fn_1())
-                return partial(_reduce, op, fn_1, fn_2)
+            if is_out_1 and not is_out_2:
+                def _reduce(fn_1, fn_2, out):
+                    return fn_1(fn_2())
+                return partial(_reduce, fn_1, fn_2)
+            if not is_out_1 and not is_out_2:
+                def _reduce(op, fn_1, fn_2, out):
+                    return op(fn_2(), fn_1())
+            return partial(_reduce, op, fn_1, fn_2)
         if is_initialized:
             if is_out_1 and is_out_2:
                 def _reduce(fn_1, fn_2, out, delayed):
@@ -562,6 +563,7 @@ def build_reduce(fn: Callable[..., ValueInT],
                     return op(
                         fn_2(out, delayed), fn_1(delayed[field_1], *args_1))
                 return partial(_reduce, op, fn_1, field_1, args_1, fn_2)
+
             def _reduce(
                     op, fn_1, field_1, args_1, fn_2, field_2, args_2, out,
                     delayed):
@@ -569,19 +571,18 @@ def build_reduce(fn: Callable[..., ValueInT],
                           fn_1(delayed[field_1], *args_1))
             return partial(
                 _reduce, op, fn_1, field_1, args_1, fn_2, field_2, args_2)
-        else:
-            if is_out_1 and not is_out_2:
-                def _reduce(fn_1, fn_2, field_2, args_2, out, delayed):
-                    return fn_1(fn_2(delayed[field_2], *args_2), delayed)
-                return partial(_reduce, fn_1, fn_2, field_2, args_2)
-            if not is_out_1 and not is_out_2:
-                def _reduce(
-                        op, fn_1, field_1, args_1, fn_2, field_2, args_2, out,
-                        delayed):
-                    return op(fn_2(delayed[field_2], *args_2),
-                              fn_1(delayed[field_1], *args_1))
-                return partial(
-                    _reduce, op, fn_1, field_1, args_1, fn_2, field_2, args_2)
+        if is_out_1 and not is_out_2:
+            def _reduce(fn_1, fn_2, field_2, args_2, out, delayed):
+                return fn_1(fn_2(delayed[field_2], *args_2), delayed)
+            return partial(_reduce, fn_1, fn_2, field_2, args_2)
+
+        def _reduce(  # type: ignore[no-redef]
+                op, fn_1, field_1, args_1, fn_2, field_2, args_2, out,
+                delayed):
+            return op(fn_2(delayed[field_2], *args_2),
+                      fn_1(delayed[field_1], *args_1))
+        return partial(
+            _reduce, op, fn_1, field_1, args_1, fn_2, field_2, args_2)
 
     def _build_forward(
             arity: Literal[0, 1],
@@ -623,6 +624,7 @@ def build_reduce(fn: Callable[..., ValueInT],
                     def _reduce(post_fn, field, args, delayed):
                         post_fn(delayed[field], *args)
                     return partial(_reduce, post_fn, field, args)
+
                 def _reduce(post_fn, field, delayed):
                     post_fn(delayed[field])
                 return partial(_reduce, post_fn, field)
@@ -633,6 +635,7 @@ def build_reduce(fn: Callable[..., ValueInT],
                     def _reduce(op, post_fn, out):
                         return op(out, post_fn())
                     return partial(_reduce, op, post_fn)
+
                 def _reduce(post_fn, out):
                     return post_fn()
                 return partial(_reduce, post_fn)
@@ -640,6 +643,7 @@ def build_reduce(fn: Callable[..., ValueInT],
                 def _reduce(op, post_fn, field, args, out, delayed):
                     return op(out, post_fn(delayed[field], *args))
                 return partial(_reduce, op, post_fn, field, args)
+
             def _reduce(post_fn, field, args, out, delayed):
                 return post_fn(delayed[field], *args)
             return partial(_reduce, post_fn, field, args)
@@ -705,7 +709,7 @@ def build_reduce(fn: Callable[..., ValueInT],
             return None
 
         # Generate transform and reduce method if branch.
-        field_prev, out_fn = None, None
+        field_prev, field, out_fn = None, None, None
         for field in keys:
             value = None if data is None else data[field]
             subspace = None if space is None else space[field]
@@ -789,10 +793,11 @@ def build_reduce(fn: Callable[..., ValueInT],
     return all_fn[arity]
 
 
+@no_type_check
 def build_map(fn: Callable[..., ValueT],
               data: Optional[DataNested],
-              space: Optional[gym.Space[DataNested]] = None,
-              arity: Optional[Literal[0, 1]] = None,
+              space: Optional[gym.Space[DataNested]],
+              arity: Optional[Literal[0, 1]],
               *args: Any,
               forward_bounds: bool = True
               ) -> Callable[[], StructNested[ValueT]]:
@@ -824,7 +829,11 @@ def build_map(fn: Callable[..., ValueT],
                  methods for instance.
     :param space: `gym.spaces.Dict` on which to operate. Optional iif the
                   nested data structure is provided.
-                  Optional: `None` by default.
+    :param arity: Arity of the generated callable. `None` to indicate that it
+                  must be determined at runtime, which is slower.
+    :param args: Extra arguments to systematically forward as transform input
+                 for all leaves. Note that, as for Python built-ins methods,
+                 keywords are not supported for the sake of efficiency.
     :param forward_bounds: Whether to forward the lower and upper bounds of the
                            `gym.Space` associated with each leaf as transform
                            input. In this case, they will be added after the
@@ -834,12 +843,6 @@ def build_map(fn: Callable[..., ValueT],
                            an exception at generation-time. This argument is
                            ignored if not space is specified.
                            Optional: `True` by default.
-    :param arity: Arity of the generated callable. Can be `None` to indicate
-                  that it must be determined at runtime, which is slower.
-                  Optional: `None` by default.
-    :param args: Extra arguments to systematically forward as transform input
-                 for all leaves. Note that, as for Python built-ins methods,
-                 keywords are not supported for the sake of efficiency.
 
     :returns: Fully-specialized mapping callable.
     """
@@ -886,18 +889,20 @@ def build_map(fn: Callable[..., ValueT],
                     self[key] = value_fn()
                     return self
                 return partial(_setitem, self_fn, value_fn, key)
+
             def _setitem(self_fn, value_fn):
                 self = self_fn()
                 self.append(value_fn())
                 return self
             return partial(_setitem, self_fn, value_fn)
-        elif has_args:
+        if has_args:
             if is_mapping:
                 def _setitem(self_fn, value_fn, key, args, delayed):
                     self = self_fn(delayed)
                     self[key] = value_fn(delayed[key], *args)
                     return self
                 return partial(_setitem, self_fn, value_fn, key, args)
+
             def _setitem(self_fn, value_fn, key, args, delayed):
                 self = self_fn(delayed)
                 self.append(value_fn(delayed[key], *args))
@@ -909,7 +914,9 @@ def build_map(fn: Callable[..., ValueT],
                 self[key] = value_fn(delayed[key])
                 return self
             return partial(_setitem, self_fn, value_fn, key)
-        def _setitem(self_fn, value_fn, key, delayed):
+
+        def _setitem(  # type: ignore[no-redef]
+                self_fn, value_fn, key, delayed):
             self = self_fn(delayed)
             self.append(value_fn(delayed[key]))
             return self
@@ -1008,7 +1015,7 @@ def build_copyto(dst: DataNested) -> Callable[[DataNested], None]:
     :param dst: Nested data structure to be updated.
     """
     try:
-        return build_reduce(array_copyto, None, dst, arity=1)
+        return build_reduce(array_copyto, None, dst, None, 1)
     except TypeError:
         # Fall back in case the destination is not a nested data structure
         assert isinstance(dst, np.ndarray)
@@ -1024,11 +1031,11 @@ def build_clip(data: DataNested,
     :param space: `gym.Space` on which to operate.
     """
     try:
-        return build_map(_array_clip, data, space, arity=0)
+        return build_map(_array_clip, data, space, 0)
     except TypeError:
         # Fall back in case the destination is not a nested data structure
         assert isinstance(data, np.ndarray)
-        return partial(_array_clip, *get_bounds(space))
+        return partial(_array_clip, data, *get_bounds(space))
 
 
 def build_contains(data: DataNested,
@@ -1046,12 +1053,15 @@ def build_contains(data: DataNested,
     # compiled only once and not for every generated specialization as it
     # would be the case otherwise.
     try:
-        _contains_or_raises = build_contains._contains_or_raises
-        _exception_handling = build_contains._exception_handling
+        _contains_or_raises = (
+            build_contains._contains_or_raises)  # type: ignore[attr-defined]
+        _exception_handling = (
+            build_contains._exception_handling)  # type: ignore[attr-defined]
     except AttributeError:
         # Define a special exception involved in short-circuit mechanism
         class ShortCircuitContains(Exception):
-            pass
+            """Internal exception involved in short-circuit mechanism.
+            """
 
         @nb.njit
         def _contains_or_raises(value: np.ndarray,
@@ -1088,8 +1098,10 @@ def build_contains(data: DataNested,
                 return False
             return True
 
-        build_contains._contains_or_raises = _contains_or_raises
-        build_contains._exception_handling = _exception_handling
+        build_contains._contains_or_raises = (  # type: ignore[attr-defined]
+            _contains_or_raises)
+        build_contains._exception_handling = (  # type: ignore[attr-defined]
+            _exception_handling)
 
     # Short-circuit mechanism not only speeds-up scenarios where at least one
     # leaf does not met requirements, and also the other scenarios where all
@@ -1097,9 +1109,9 @@ def build_contains(data: DataNested,
     # operator 'operator.and' to aggregate all successes and failures.
     try:
         return partial(_exception_handling, build_reduce(
-            _contains_or_raises, None, data, space, None, tol_abs, tol_rel,
-            arity=0, forward_bounds=True))
+            _contains_or_raises, None, data, space, 0, tol_abs, tol_rel))
     except TypeError:
         # Fall back in case the destination is not a nested data structure
         assert isinstance(data, np.ndarray)
-        return partial(_array_contains, *get_bounds(space), tol_abs, tol_rel)
+        return partial(
+            _array_contains, data, *get_bounds(space), tol_abs, tol_rel)

@@ -242,10 +242,6 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Note that a partial view of observation corresponding to measurement
         # must be extracted since only this one must be updated during refresh.
         self._copyto_action = build_copyto(self.action)
-        self._copyto_observation = build_copyto(OrderedDict(
-            t=self.observation["t"],
-            states=OrderedDict(agent=self.observation["states"]["agent"]),
-            measurements=self.observation["measurements"]))
         self._contains_observation = build_contains(
             self.observation, self.observation_space, tol_rel=OBS_CONTAINS_TOL)
         self._contains_action = build_contains(self.action, self.action_space)

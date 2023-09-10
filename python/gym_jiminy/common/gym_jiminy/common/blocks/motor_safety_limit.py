@@ -117,7 +117,7 @@ class MotorSafetyLimit(
 
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
-        self._is_same_order = self.encoder_to_motor == slice(None)
+        self._is_same_order = isinstance(self.encoder_to_motor, slice)
 
         # Initialize the controller
         super().__init__(name, env, 1)
@@ -135,6 +135,8 @@ class MotorSafetyLimit(
 
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
+        self.q_measured, self.v_measured = self.env.sensors_data[
+            encoder.type][:, self.encoder_to_motor]
 
     @property
     def fieldnames(self) -> List[str]:

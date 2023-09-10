@@ -243,7 +243,7 @@ class PDController(
 
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
-        self._is_same_order = self.encoder_to_motor == slice(None)
+        self._is_same_order = isinstance(self.encoder_to_motor, slice)
 
         # Define buffers storing information about the motors for efficiency.
         # Note that even if the robot instance may change from one simulation
@@ -320,6 +320,8 @@ class PDController(
 
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
+        self.q_measured, self.v_measured = self.env.sensors_data[
+            encoder.type][:, self.encoder_to_motor]
 
         # Reset the command state
         fill(self._command_state, 0)

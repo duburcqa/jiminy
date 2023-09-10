@@ -138,44 +138,120 @@ namespace python
 
     void arrayCopyTo(PyObject * dstPy, PyObject * srcPy)
     {
-        /* Making sure that 'dst' and 'src' are already compatible with other.
-           Raises an exception if not, instead of performing casting nor broadcasting. */
-        if (!PyArray_Check(dstPy) || !PyArray_Check(srcPy))
+        // Making sure that 'dst' is a valid array and is writable, raises an exception otherwise
+        if (!PyArray_Check(dstPy))
         {
-            throw std::runtime_error("'dst' and 'src' must have type 'np.ndarray'.");
+            throw std::runtime_error("'dst' must have type 'np.ndarray'.");
         }
         PyArrayObject * dstPyArray = reinterpret_cast<PyArrayObject *>(dstPy);
-        PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
-
-        if (!PyArray_EquivArrTypes(dstPyArray, srcPyArray))
-        {
-            throw std::runtime_error("'dst' and 'src' must have equivalent dtype.");
-        }
-
-        int const dstNdim = PyArray_NDIM(dstPyArray);
-        int const srcNdim = PyArray_NDIM(dstPyArray);
-        npy_intp const * const dstShape = PyArray_SHAPE(dstPyArray);
-        npy_intp const * const srcShape = PyArray_SHAPE(dstPyArray);
-        if (!(dstNdim == srcNdim) && PyArray_CompareLists(dstShape, srcShape, dstNdim))
-        {
-            throw std::runtime_error("'dst' and 'src' must have same shape.");
-        }
-
         int const dstPyFlags = PyArray_FLAGS(dstPyArray);
-        int const srcPyFlags = PyArray_FLAGS(srcPyArray);
-        int const commonPyFlags = dstPyFlags & srcPyFlags;
         if (!(dstPyFlags & NPY_ARRAY_WRITEABLE))
         {
             throw std::runtime_error("'dst' must be writable.");
-            return;
-        }
-        if (!(commonPyFlags & NPY_ARRAY_ALIGNED))
-        {
-            throw std::runtime_error("'dst' and 'src' must store aligned data.");
         }
 
+        // Dedicated path to fill with scalar
         npy_intp const itemsize = PyArray_ITEMSIZE(dstPyArray);
         char * dstPyData = PyArray_BYTES(dstPyArray);
+        if (!PyArray_Check(srcPy) || PyArray_IsScalar(srcPy, Generic)
+         || (PyArray_SIZE(reinterpret_cast<PyArrayObject *>(srcPy)) == 1))
+        {
+            /* Eigen does a much better job than element-wise copy assignment in this scenario.
+               Note that only the width of the scalar type matters here, not the actual type.
+               Ensure copy and casting are both slow as they allocate new array, so avoiding
+               using them entirely if possible and falling back to default routine otherwise. */
+            if ((itemsize == 8) && (dstPyFlags & NPY_ARRAY_ALIGNED)
+             && (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
+            {
+                // Convert src scalar data to raw bytes with dst dtype, casting if necessary
+                bool_t isSuccess = false;
+                float64_t srcPyScalar;
+                if (PyArray_Check(srcPy))
+                {
+                    PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
+                    if (PyArray_EquivArrTypes(dstPyArray, srcPyArray))
+                    {
+                        srcPyScalar = *reinterpret_cast<float64_t *>(PyArray_DATA(srcPyArray));
+                        isSuccess = true;
+                    }
+                    else
+                    {
+                        int dstPyTypeNum = PyArray_TYPE(dstPyArray);
+                        PyArray_Descr * srcPyDtype = PyArray_DESCR(srcPyArray);
+                        if (!PyTypeNum_ISEXTENDED(dstPyTypeNum) && !PyTypeNum_ISEXTENDED(srcPyDtype->type_num))
+                        {
+                            auto srcToDstCastFunc = PyArray_GetCastFunc(srcPyDtype, dstPyTypeNum);
+                            srcToDstCastFunc(PyArray_DATA(srcPyArray), &srcPyScalar, 1, NULL, NULL);
+                            isSuccess = true;
+                        }
+                    }
+                }
+                else if (PyArray_IsScalar(srcPy, Generic))
+                {
+                    PyArray_CastScalarToCtype(srcPy, &srcPyScalar, PyArray_DESCR(dstPyArray));
+                    isSuccess = true;
+                }
+                else if (PyFloat_Check(srcPy) || PyLong_Check(srcPy))
+                {
+                    int dstPyTypeNum = PyArray_TYPE(dstPyArray);
+                    PyArray_Descr * srcPyDtype = PyArray_DescrFromObject(srcPy, NULL);
+                    if (!PyTypeNum_ISEXTENDED(dstPyTypeNum))
+                    {
+                        auto srcToDstCastFunc = PyArray_GetCastFunc(srcPyDtype, dstPyTypeNum);
+                        if (PyFloat_Check(srcPy))
+                        {
+                            srcPyScalar = PyFloat_AsDouble(srcPy);
+                        }
+                        else
+                        {
+                            auto srcPyBuiltin = std::make_unique<long>(PyLong_AsLong(srcPy));
+                            srcPyScalar = *reinterpret_cast<float64_t *>(srcPyBuiltin.get());
+                        }
+                        if (srcToDstCastFunc != NULL)
+                        {
+                            srcToDstCastFunc(&srcPyScalar, &srcPyScalar, 1, NULL, NULL);
+                            isSuccess = true;
+                        }
+                    }
+                    Py_DECREF(srcPyDtype);
+                }
+
+                // Copy scalar bytes to destination if available
+                if (isSuccess)
+                {
+                    Eigen::Map<Eigen::Matrix<float64_t, Eigen::Dynamic, 1> > dst(
+                        reinterpret_cast<float64_t *>(dstPyData), PyArray_SIZE(dstPyArray));
+                    dst.setConstant(srcPyScalar);
+                    return;
+                }
+            }
+            // Too complicated to deal with it manually. Falling back to default routine.
+            if (PyArray_FillWithScalar(dstPyArray, srcPy) < 0)
+            {
+                throw std::runtime_error("Impossible to copy from 'src' to 'dst'.");
+            }
+            return;
+        }
+
+        // Check if too complicated to deal with it manually. Falling back to default routine.
+        PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
+        int const dstNdim = PyArray_NDIM(dstPyArray);
+        int const srcNdim = PyArray_NDIM(srcPyArray);
+        npy_intp const * const dstShape = PyArray_SHAPE(dstPyArray);
+        npy_intp const * const srcShape = PyArray_SHAPE(srcPyArray);
+        int const srcPyFlags = PyArray_FLAGS(srcPyArray);
+        int const commonPyFlags = dstPyFlags & srcPyFlags;
+        if (dstNdim != srcNdim || !PyArray_CompareLists(dstShape, srcShape, dstNdim)
+         || !(commonPyFlags & NPY_ARRAY_ALIGNED) || !PyArray_EquivArrTypes(dstPyArray, srcPyArray))
+        {
+            if (PyArray_CopyInto(dstPyArray, srcPyArray) < 0)
+            {
+                throw std::runtime_error("Impossible to copy from 'src' to 'dst'.");
+            }
+            return;
+        }
+
+        // Multi-dimensional array but no broadcasting nor casting required. Easy enough to handle it.
         char * srcPyData = PyArray_BYTES(srcPyArray);
         if (commonPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS))
         {
@@ -190,9 +266,9 @@ namespace python
          && (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS))
          && (srcPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
         {
-            /* Eigen does a much better job than element-wise copy assignment in this scenario.
-               Note that only the width of the scalar type matters here, not the actual type. */
-            using EigenMapType = Eigen::Map<Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic> >;
+            /* Using Eigen once again to avoid slow element-wise copy assignment.
+               TODO: Extend to support any number of dims by working on flattened view. */
+            using EigenMapType = Eigen::Map<matrixN_t>;
             if (dstPyFlags & NPY_ARRAY_C_CONTIGUOUS)
             {
                 EigenMapType dst(reinterpret_cast<float64_t *>(dstPyData), dstShape[1], dstShape[0]);

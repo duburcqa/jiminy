@@ -116,17 +116,17 @@ namespace python
 
         static bp::object getQ(stepperState_t const & self)
         {
-            return std::move(convertToPython(self.qSplit, false));
+            return convertToPython(self.qSplit, false);
         }
 
         static bp::object getV(stepperState_t const & self)
         {
-            return std::move(convertToPython(self.vSplit, false));
+            return convertToPython(self.vSplit, false);
         }
 
         static bp::object getA(stepperState_t const & self)
         {
-            return std::move(convertToPython(self.aSplit, false));
+            return convertToPython(self.aSplit, false);
         }
 
         static std::string repr(stepperState_t const & self)
