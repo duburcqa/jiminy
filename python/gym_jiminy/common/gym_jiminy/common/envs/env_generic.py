@@ -16,13 +16,12 @@ from typing import (
 
 import tree
 import numpy as np
-from numpy.core.umath import (  # type: ignore[attr-defined]
-    copyto as _array_copyto)
 from gymnasium import spaces
 from gymnasium.core import RenderFrame
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    array_copyto,
     EncoderSensor as encoder,
     EffortSensor as effort,
     ContactSensor as contact,
@@ -1401,13 +1400,13 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         """
         observation = self.observation
         observation["t"][()] = measurement["t"]
-        _array_copyto(observation['states']['agent']['q'],
+        array_copyto(observation['states']['agent']['q'],
                       measurement['states']['agent']['q'])
-        _array_copyto(observation['states']['agent']['v'],
+        array_copyto(observation['states']['agent']['v'],
                       measurement['states']['agent']['v'])
         sensors_data = observation['measurements']
         for key, value in dict.items(measurement['measurements']):
-            _array_copyto(sensors_data[key], value)
+            array_copyto(sensors_data[key], value)
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.

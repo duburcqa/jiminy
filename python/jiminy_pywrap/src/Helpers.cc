@@ -136,6 +136,39 @@ namespace python
         }
     }
 
+    void array_copyto(PyObject * dstPy, PyObject * srcPy)
+    {
+        /* Converting arrays to Eigen matrices would enable SIMD-vectorized assignment,
+           which is faster than `memcpy`. Yet, creating the mapping is tricky because of
+           memory alignment issues and dtype handling, so let's keep it simple. The speedup
+           should be limited anyway for fairly small arrays (size < 100). */
+        if (!PyArray_Check(dstPy) || !PyArray_Check(srcPy))
+        {
+            throw std::runtime_error("'dst' and 'src' must have type 'np.ndarray'.");
+        }
+        PyArrayObject * dstPyArray = reinterpret_cast<PyArrayObject *>(dstPy);
+        PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
+        if (!PyArray_CHKFLAGS(dstPyArray, NPY_ARRAY_WRITEABLE))
+        {
+            throw std::runtime_error("'dst' must be writable.");
+            return;
+        }
+        int flags = PyArray_FLAGS(dstPyArray) & PyArray_FLAGS(srcPyArray);
+        if (!(flags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)) || !(flags & NPY_ARRAY_ALIGNED))
+        {
+            throw std::runtime_error("'dst' and 'src' must store aligned and F- or C-contiguous data.");
+        }
+        if (!PyArray_EquivArrTypes(dstPyArray, srcPyArray))
+        {
+            throw std::runtime_error("'dst' and 'src' must have equivalent dtype.");
+        }
+        if (!PyArray_SAMESHAPE(dstPyArray, srcPyArray))
+        {
+            throw std::runtime_error("'dst' and 'src' must have same shape.");
+        }
+        memcpy(PyArray_DATA(dstPyArray), PyArray_DATA(srcPyArray), PyArray_NBYTES(dstPyArray));
+    }
+
     void exposeHelpers(void)
     {
         bp::def("get_random_seed", bp::make_function(&getRandomSeed,
@@ -158,6 +191,8 @@ namespace python
                                           (bp::arg("pinocchio_model"), "joint_name"));
         bp::def("is_position_valid", &isPositionValid,
                                      (bp::arg("pinocchio_model"), "position"));
+
+        bp::def("array_copyto", &array_copyto, (bp::arg("dst"), "src"));
 
         bp::def("interpolate", &interpolate,
                                (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"));

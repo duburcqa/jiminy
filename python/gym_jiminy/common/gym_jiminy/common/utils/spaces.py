@@ -16,6 +16,8 @@ from numpy.core.umath import (  # type: ignore[attr-defined]
 import tree
 import gymnasium as gym
 
+from jiminy_py.core import array_copyto
+
 
 GLOBAL_RNG = np.random.default_rng()
 

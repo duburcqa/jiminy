@@ -8,11 +8,10 @@ import numpy as np
 import numba as nb
 import gymnasium as gym
 from numpy.lib.stride_tricks import as_strided
-from numpy.core.umath import (  # type: ignore[attr-defined]
-    copyto as _array_copyto)
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    array_copyto,
     EncoderSensor as encoder)
 
 from ..bases import BaseObsT, JiminyEnvInterface, BaseControllerBlock
@@ -364,7 +363,7 @@ class PDController(
 
         # Update the highest order derivative of the target motor positions to
         # match the provided action.
-        _array_copyto(self._action, action)
+        array_copyto(self._action, action)
 
         # Dead band to avoid slow drift of target at rest for evaluation only
         if not self.env.is_training:
