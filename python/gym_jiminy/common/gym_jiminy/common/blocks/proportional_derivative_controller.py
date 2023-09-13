@@ -8,11 +8,10 @@ import numpy as np
 import numba as nb
 import gymnasium as gym
 from numpy.lib.stride_tricks import as_strided
-from numpy.core.umath import (  # type: ignore[attr-defined]
-    copyto as _array_copyto)
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    array_copyto,
     EncoderSensor as encoder)
 
 from ..bases import BaseObsT, JiminyEnvInterface, BaseControllerBlock
@@ -29,7 +28,7 @@ N_ORDER_DERIVATIVE_NAMES = ("Position", "Velocity", "Acceleration", "Jerk")
 EVAL_DEADBAND = 5.0e-3
 
 
-@nb.jit(nopython=True, nogil=True, inline='always')
+@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
 def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
     """Numba-compatible implementation of `scipy.linalg.toeplitz` method.
 
@@ -53,7 +52,7 @@ def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
                       strides=(-stride, stride))
 
 
-@nb.jit(nopython=True, nogil=True, inline='always')
+@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
 def integrate_zoh(state_prev: np.ndarray,
                   state_min: np.ndarray,
                   state_max: np.ndarray,
@@ -109,7 +108,7 @@ def integrate_zoh(state_prev: np.ndarray,
     return integ_zero + integ_drift * deriv
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, cache=True)
 def pd_controller(q_measured: np.ndarray,
                   v_measured: np.ndarray,
                   command_state: np.ndarray,
@@ -242,6 +241,10 @@ class PDController(
         # Mapping from motors to encoders
         self.encoder_to_motor = get_encoder_to_motor_map(env.robot)
 
+        # Whether stored reference to encoder measurements are already in the
+        # same order as the motors, allowing skipping re-ordering entirely.
+        self._is_same_order = isinstance(self.encoder_to_motor, slice)
+
         # Define buffers storing information about the motors for efficiency.
         # Note that even if the robot instance may change from one simulation
         # to another, the observation and action spaces are required to stay
@@ -280,10 +283,6 @@ class PDController(
         # Extract measured motor positions and velocities for fast access
         self.q_measured, self.v_measured = env.sensors_data[encoder.type]
 
-        # Whether stored reference to encoder measurements are already in the
-        # same order as the motors, allowing skipping re-ordering entirely.
-        self._is_already_ordered = False
-
         # Allocate memory for the command state
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
 
@@ -321,9 +320,8 @@ class PDController(
 
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
-
-        # Skip reordering if already the case, which should always be true
-        self._is_already_ordered = isinstance(self.encoder_to_motor, slice)
+        self.q_measured, self.v_measured = self.env.sensors_data[
+            encoder.type][:, self.encoder_to_motor]
 
         # Reset the command state
         fill(self._command_state, 0)
@@ -364,7 +362,7 @@ class PDController(
 
         # Update the highest order derivative of the target motor positions to
         # match the provided action.
-        _array_copyto(self._action, action)
+        array_copyto(self._action, action)
 
         # Dead band to avoid slow drift of target at rest for evaluation only
         if not self.env.is_training:
@@ -372,7 +370,7 @@ class PDController(
 
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
-        if not self._is_already_ordered:
+        if not self._is_same_order:
             q_measured = q_measured[self.encoder_to_motor]
             v_measured = v_measured[self.encoder_to_motor]
 

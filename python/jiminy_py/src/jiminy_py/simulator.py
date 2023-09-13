@@ -13,8 +13,7 @@ from itertools import chain
 from functools import partial
 from collections import OrderedDict
 from typing import (
-    Optional, Union, Type, Dict, Tuple, Sequence, Iterable, Any, List,
-    Callable)
+    Any, List, Dict, Optional, Union, Type, Sequence, Iterable, Callable)
 
 import toml
 import numpy as np
@@ -116,7 +115,6 @@ class Simulator:
 
         # Create shared memories and python-native attribute for fast access
         self.stepper_state = self.engine.stepper_state
-        self.system_state = self.engine.system_state
         self.is_simulation_running = self.engine.is_simulation_running
 
         # Viewer management
@@ -278,21 +276,6 @@ class Simulator:
         if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_data_th
         return self.robot.pinocchio_data
-
-    @property
-    def state(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Getter of the current state of the robot.
-
-        .. warning::
-            Return a reference whenever it is possible, which is
-            computationally efficient but unsafe.
-        """
-        q = self.system_state.q
-        v = self.system_state.v
-        if self.use_theoretical_model and self.robot.is_flexible:
-            q = self.robot.get_rigid_configuration_from_flexible(q)
-            v = self.robot.get_rigid_velocity_from_flexible(v)
-        return q, v
 
     @property
     def is_viewer_available(self) -> bool:
@@ -517,7 +500,7 @@ class Simulator:
 
             # Share the external force buffer of the viewer with the engine
             if self.is_simulation_running:
-                self.viewer.f_external = self.system_state.f_external[1:]
+                self.viewer.f_external = [*self.system_state.f_external][1:]
 
             if self.viewer.backend.startswith('panda3d'):
                 # Enable display of COM, DCM and contact markers by default if

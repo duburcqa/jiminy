@@ -11,7 +11,7 @@ import gymnasium as gym
 ObsT = TypeVar("ObsT")
 
 
-@nb.jit(nopython=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def _normalize(value: np.ndarray,
                mean: np.ndarray,
                scale: np.ndarray) -> np.ndarray:
@@ -24,7 +24,7 @@ def _normalize(value: np.ndarray,
     return (value - mean) / scale
 
 
-@nb.jit(nopython=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def _denormalize(value: np.ndarray,
                  mean: np.ndarray,
                  scale: np.ndarray) -> np.ndarray:

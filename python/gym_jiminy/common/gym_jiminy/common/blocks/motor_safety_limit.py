@@ -14,7 +14,7 @@ from .proportional_derivative_controller import get_encoder_to_motor_map
 from ..bases import BaseObsT, JiminyEnvInterface, BaseControllerBlock
 
 
-@nb.jit(nopython=True, nogil=True)
+@nb.jit(nopython=True, nogil=True, cache=True)
 def apply_safety_limits(command: np.ndarray,
                         q_measured: np.ndarray,
                         v_measured: np.ndarray,
@@ -117,7 +117,7 @@ class MotorSafetyLimit(
 
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
-        self._is_already_ordered = False
+        self._is_same_order = isinstance(self.encoder_to_motor, slice)
 
         # Initialize the controller
         super().__init__(name, env, 1)
@@ -135,10 +135,8 @@ class MotorSafetyLimit(
 
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
-
-        # Convert to slice if possible for efficiency. It is usually the case.
-        self._is_already_ordered = bool(np.all(
-            self.encoder_to_motor == np.arange(self.env.robot.nmotors)))
+        self.q_measured, self.v_measured = self.env.sensors_data[
+            encoder.type][:, self.encoder_to_motor]
 
     @property
     def fieldnames(self) -> List[str]:
@@ -150,7 +148,7 @@ class MotorSafetyLimit(
         """
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
-        if not self._is_already_ordered:
+        if not self._is_same_order:
             q_measured = q_measured[self.encoder_to_motor]
             v_measured = v_measured[self.encoder_to_motor]
 

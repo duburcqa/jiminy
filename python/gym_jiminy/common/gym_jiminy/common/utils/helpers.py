@@ -1,5 +1,6 @@
 """ TODO: Write documentation.
 """
+import math
 import logging
 from typing import Union, ValuesView
 
@@ -16,7 +17,7 @@ from .spaces import FieldNested, DataNested, zeros
 logger = logging.getLogger(__name__)
 
 
-@nb.jit(nopython=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """Check if 't' is multiple of 'dt' at a given precision 'eps'.
 
@@ -28,8 +29,23 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """
     if dt < eps:
         return True
-    dt_next = dt - t % dt
-    return (dt_next <= eps / 2) or ((dt - dt_next) < eps / 2)
+    dt_prev = t % dt
+    return (dt_prev < eps / 2) or (dt - dt_prev <= eps / 2)
+
+
+@nb.jit(nopython=True, cache=True, inline='always')
+def is_nan(value: np.ndarray) -> bool:
+    """Check if any value of a numpy array is nan.
+
+    .. warning::
+        This method does not implement any short-circuit mechanism as it is
+        optimized for arrays that are unlikely to contain nan values.
+
+    :param value: N-dimensional array.
+    """
+    if value.ndim:
+        return np.isnan(value).any()
+    return math.isnan(value.item())
 
 
 def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
