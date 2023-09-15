@@ -30,7 +30,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
     ImuSensor as imu)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
-from jiminy_py.simulator import Simulator
+from jiminy_py.simulator import Simulator, TabbedFigure
 from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      interactive_mode,
                                      get_default_backend,
@@ -941,7 +941,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         return self.simulator.render(  # type: ignore[return-value]
             return_rgb_array=self.render_mode == 'rgb_array')
 
-    def plot(self, **kwargs: Any) -> None:
+    def plot(self, **kwargs: Any) -> TabbedFigure:
         """Display common simulation data and action over time.
 
         .. Note:
@@ -950,7 +950,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         :param kwargs: Extra keyword arguments to forward to `simulator.plot`.
         """
         # Call base implementation
-        self.simulator.plot(**kwargs)
+        figure = self.simulator.plot(**kwargs)
 
         # Extract log data
         log_vars = self.simulator.log_data.get("variables", {})
@@ -969,25 +969,28 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         if action_fieldnames is None:
             # It was impossible to register the action to the telemetry, likely
             # because of incompatible dtype. Early return without adding tab.
-            return
+            return figure
         if isinstance(action_fieldnames, dict):
             for group, fieldnames in action_fieldnames.items():
                 if not isinstance(fieldnames, list):
                     LOGGER.error(
                         "Action space not supported by this method.")
-                    return
+                    return figure
                 tab_data[group] = {
-                    ".".join(key.split(".")[1:]): value
+                    key.split(".", 2)[2]: value
                     for key, value in extract_variables_from_log(
                         log_vars, fieldnames, as_dict=True).items()}
         elif isinstance(action_fieldnames, list):
             tab_data.update({
-                ".".join(key.split(".")[1:]): value
+                key.split(".", 2)[2]: value
                 for key, value in extract_variables_from_log(
                     log_vars, action_fieldnames, as_dict=True).items()})
 
         # Add action tab
-        self.simulator.figure.add_tab("Action", t, tab_data)
+        figure.add_tab(" ".join(("Env", "Action")), t, tab_data)
+
+        # Return figure for convenience and consistency with Matplotlib
+        return figure
 
     def replay(self, **kwargs: Any) -> None:
         """Replay the current episode until now.
