@@ -358,7 +358,7 @@ def contains(data: DataNested,
 @no_type_check
 def build_reduce(fn: Callable[..., ValueInT],
                  op: Optional[Callable[[ValueOutT, ValueInT], ValueOutT]],
-                 dataset: Sequence[Dict[str, DataNested]],
+                 dataset: Sequence[DataNested],
                  space: Optional[gym.spaces.Dict],
                  arity: Optional[Literal[0, 1]],
                  *args: Any,
@@ -596,6 +596,9 @@ def build_reduce(fn: Callable[..., ValueInT],
         runtime if any as input argument of some leaf transform or branch
         reduction callable.
 
+        The callable is not a reduction at this point, so doing it here since
+        it is the very last moment before main entry-point returns.
+
         :param arity: Arity of the generated callable.
         :param is_initialized: Whether the output has already been initialized.
         :param parent: Parent key to forward.
@@ -603,8 +606,6 @@ def build_reduce(fn: Callable[..., ValueInT],
 
         :returns: Specialized key-forwarding callable.
         """
-        # The callable is not a reduction at this point, so doing it here
-        # since it is the very last moment before main entry-point returns.
         is_out = post_fn.func is not fn
         if parent is None and not is_out:
             # Extract extra arguments from functor to preserve arguments order
@@ -619,36 +620,56 @@ def build_reduce(fn: Callable[..., ValueInT],
             # Specialization if no op is specified
             if op is None:
                 if arity == 0:
-                    return post_fn
+                    def _forward(post_fn):
+                        post_fn()
+                    return partial(_forward, post_fn)
                 if has_args:
-                    def _reduce(post_fn, field, args, delayed):
-                        post_fn(delayed[field], *args)
-                    return partial(_reduce, post_fn, field, args)
+                    if field is None:
+                        def _forward(post_fn, args, delayed):
+                            post_fn(delayed, *args)
+                        return partial(_forward, post_fn, args)
 
-                def _reduce(post_fn, field, delayed):
+                    def _forward(post_fn, field, args, delayed):
+                        post_fn(delayed[field], *args)
+                    return partial(_forward, post_fn, field, args)
+                if field is None:
+                    def _forward(post_fn, delayed):
+                        post_fn(delayed)
+                    return partial(_forward, post_fn)
+
+                def _forward(post_fn, field, delayed):
                     post_fn(delayed[field])
-                return partial(_reduce, post_fn, field)
+                return partial(_forward, post_fn, field)
 
             # Specialization if op is specified
             if arity == 0:
                 if is_initialized:
-                    def _reduce(op, post_fn, out):
+                    def _forward(op, post_fn, out):
                         return op(out, post_fn())
-                    return partial(_reduce, op, post_fn)
+                    return partial(_forward, op, post_fn)
 
-                def _reduce(post_fn, out):
+                def _forward(post_fn, out):
                     return post_fn()
-                return partial(_reduce, post_fn)
+                return partial(_forward, post_fn)
             if is_initialized:
-                def _reduce(op, post_fn, field, args, out, delayed):
+                if field is None:
+                    def _forward(op, post_fn, args, out, delayed):
+                        return op(out, post_fn(delayed, *args))
+                    return partial(_forward, op, post_fn, args)
+
+                def _forward(op, post_fn, field, args, out, delayed):
                     return op(out, post_fn(delayed[field], *args))
-                return partial(_reduce, op, post_fn, field, args)
+                return partial(_forward, op, post_fn, field, args)
+            if field is None:
+                def _forward(post_fn, args, out, delayed):
+                    return post_fn(delayed, *args)
+                return partial(_forward, post_fn, args)
 
-            def _reduce(post_fn, field, args, out, delayed):
+            def _forward(post_fn, field, args, out, delayed):
                 return post_fn(delayed[field], *args)
-            return partial(_reduce, post_fn, field, args)
+            return partial(_forward, post_fn, field, args)
 
-        # No key to forward for main entry-point or zero arity
+        # No key to forward for main entry-point of zero arity
         if parent is None or arity == 0:
             return post_fn
 
@@ -699,14 +720,15 @@ def build_reduce(fn: Callable[..., ValueInT],
 
         # Return specialized transform if leaf
         if keys is None:
-            if parent is None:
-                raise TypeError(
-                    "'data' and/or 'space' must be nested data structures.")
             post_fn = fn if not dataset else partial(fn, *dataset)
             post_args = args
             if forward_bounds and space is not None:
                 post_args = (*get_bounds(space), *post_args)
-            return partial(post_fn, post_args)
+            post_fn = partial(post_fn, post_args)
+            if parent is None:
+                post_fn = _build_forward(
+                    arity, parent, is_initialized, post_fn, None)
+            return post_fn
         if not keys:
             return None
 
@@ -732,8 +754,8 @@ def build_reduce(fn: Callable[..., ValueInT],
 
     def _dispatch(
             post_fn_0: Callable[[], ValueOutT],
-            post_fn_1: Callable[[Dict[str, DataNested]], ValueOutT],
-            *delayed: Tuple[Dict[str, DataNested]]) -> ValueOutT:
+            post_fn_1: Callable[[DataNested], ValueOutT],
+            *delayed: Tuple[DataNested]) -> ValueOutT:
         """Internal method for handling unknown arity at generation-time.
 
         :param post_fn_0: Nullary specialized transform and reduce callable.
@@ -852,9 +874,9 @@ def build_map(fn: Callable[..., ValueT],
     """
     def _build_setitem(
             arity: Literal[0, 1],
-            self_fn: Callable[..., Dict[str, StructNested[ValueT]]],
+            self_fn: Optional[Callable[..., Dict[str, StructNested[ValueT]]]],
             value_fn: Callable[..., StructNested[ValueT]],
-            key: Union[str, int]
+            key: Optional[Union[str, int]]
             ) -> Callable[..., Dict[str, StructNested[ValueT]]]:
         """Internal method generating a specialized item assignment callable
         responsible for populating a parent transformed nested data structure
@@ -887,6 +909,8 @@ def build_map(fn: Callable[..., ValueT],
 
         is_mapping = isinstance(key, str)
         if arity == 0:
+            if key is None:
+                return value_fn
             if is_mapping:
                 def _setitem(self_fn, value_fn, key):
                     self = self_fn()
@@ -900,6 +924,10 @@ def build_map(fn: Callable[..., ValueT],
                 return self
             return partial(_setitem, self_fn, value_fn)
         if has_args:
+            if key is None:
+                def _setitem(value_fn, args, delayed):
+                    return value_fn(delayed, *args)
+                return partial(_setitem, value_fn, args)
             if is_mapping:
                 def _setitem(self_fn, value_fn, key, args, delayed):
                     self = self_fn(delayed)
@@ -912,6 +940,8 @@ def build_map(fn: Callable[..., ValueT],
                 self.append(value_fn(delayed[key], *args))
                 return self
             return partial(_setitem, self_fn, value_fn, key, args)
+        if key is None:
+            return value_fn
         if is_mapping:
             def _setitem(self_fn, value_fn, key, delayed):
                 self = self_fn(delayed)
@@ -957,17 +987,17 @@ def build_map(fn: Callable[..., ValueT],
 
         # Return specialized transform if leaf
         if keys is None:
-            if parent is None:
-                raise TypeError(
-                    "'data' and/or 'space' must be nested data structures.")
             post_fn = fn if data is None else partial(fn, data)
             post_args = args
             if forward_bounds and space is not None:
                 post_args = (*get_bounds(space), *post_args)
-            return partial(post_fn, post_args)
+            post_fn = partial(post_fn, post_args)
+            if parent is None:
+                post_fn = _build_setitem(arity, None, post_fn, None)
+            return post_fn
 
         # Apply map recursively while preserving order using monadic operations
-        out_fn = data_type
+        out_fn = lambda *args: data_type()
         for field in keys:
             value = None if data is None else data[field]
             subspace = None if space is None else space[field]
@@ -1020,12 +1050,7 @@ def build_copyto(dst: DataNested) -> Callable[[DataNested], None]:
 
     :param dst: Nested data structure to be updated.
     """
-    try:
-        return build_reduce(array_copyto, None, (dst,), None, 1)
-    except TypeError:
-        # Fall back in case the destination is not a nested data structure
-        assert isinstance(dst, np.ndarray)
-        return partial(array_copyto, dst)
+    return build_reduce(array_copyto, None, (dst,), None, 1)
 
 
 def build_clip(data: DataNested,
@@ -1036,12 +1061,7 @@ def build_clip(data: DataNested,
     :param data: Nested data structure whose leaves must be clipped.
     :param space: `gym.Space` on which to operate.
     """
-    try:
-        return build_map(_array_clip, data, space, 0)
-    except TypeError:
-        # Fall back in case the destination is not a nested data structure
-        assert isinstance(data, np.ndarray)
-        return partial(_array_clip, data, *get_bounds(space))
+    return build_map(_array_clip, data, space, 0)
 
 
 def build_contains(data: DataNested,
@@ -1070,6 +1090,11 @@ def build_contains(data: DataNested,
         an exception if the test fails. It enables short-circuit mechanism
         to abort checking remaining leaves if any.
 
+        Short-circuit mechanism not only speeds-up scenarios where at least one
+        leaf does not met requirements and also the other scenarios where all
+        tests passes since it is no longer necessary to specify the reduction
+        operator 'operator.and' to keep track of the result.
+
         :param value: Array holding values to check.
         :param low: Lower bound.
         :param high: Upper bound.
@@ -1095,18 +1120,8 @@ def build_contains(data: DataNested,
             return False
         return True
 
-    # Short-circuit mechanism not only speeds-up scenarios where at least one
-    # leaf does not met requirements, and also the other scenarios where all
-    # tests passes. Indeed, it is no longer necessary to specify the reduction
-    # operator 'operator.and' to aggregate all successes and failures.
-    try:
-        return partial(_exception_handling, build_reduce(
-            _contains_or_raises, None, (data,), space, 0, tol_abs, tol_rel))
-    except TypeError:
-        # Fall back in case the destination is not a nested data structure
-        assert isinstance(data, np.ndarray)
-        return partial(
-            _array_contains, data, *get_bounds(space), tol_abs, tol_rel)
+    return partial(_exception_handling, build_reduce(
+        _contains_or_raises, None, (data,), space, 0, tol_abs, tol_rel))
 
 
 def build_normalize(dst: DataNested,
@@ -1134,47 +1149,29 @@ def build_normalize(dst: DataNested,
     @nb.jit(nopython=True, cache=True)
     def _array_normalize(dst: np.ndarray,
                          src: np.ndarray,
-                         low: Optional[np.ndarray],
-                         high: Optional[np.ndarray],
+                         low: np.ndarray,
+                         high: np.ndarray,
                          is_reversed: bool) -> None:
         """Element-wise normalization or de-normalization of array.
 
         :param dst: pre-allocated array into which the result must be stored.
         :param src: input array.
-        :param low: Optional lower bound.
-        :param high: Optional upper bound.
+        :param low: lower bound.
+        :param high: upper bound.
         :param is_reversed: True to de-normalize, False to normalize.
         """
-        if (low is None) ^ (high is None):
-            raise RuntimeError("Bounds must be jointly omitted or specified.")
-        if src.ndim:
-            if low is None:
-                dst[:] = src
-            for i, (l, h, e) in enumerate(zip(low.flat, high.flat, src.flat)):
-                if not np.isfinite(l) or not np.isfinite(h):
-                    dst.flat[i] = e
-                elif is_reversed:
-                    dst.flat[i] = (l + h - e * (l - h)) / 2
-                else:
-                    dst.flat[i] = (l + h - 2 * e) / (l - h)
-        else:
-            if low is None or not np.isfinite(low) or not np.isfinite(high):
-                dst[()] = src
+        for i, (l, h, e) in enumerate(zip(low.flat, high.flat, src.flat)):
+            if not np.isfinite(l) or not np.isfinite(h):
+                dst.flat[i] = e
             elif is_reversed:
-                dst[()] = (low + high - src * (low - high)) / 2
+                dst.flat[i] = (l + h - e * (l - h)) / 2
             else:
-                dst[()] = (low + high - 2 * src) / (low - high)
+                dst.flat[i] = (l + h - 2 * e) / (l - h)
 
-    # Make sure that 'dst' dtype can store normalized data without truncation
-    if is_reversed:
-        for value in tree.flatten(dst):
-            assert np.issubdtype(value.dtype, np.floating)
+    # Make sure that all leaves are `gym.space.Box` with `floating` dtype
+    for subspace in tree.flatten(space):
+        assert isinstance(subspace, gym.spaces.Box)
+        assert np.issubdtype(subspace.dtype, np.floating)
 
-    try:
-        return build_reduce(
-            _array_normalize, None, (dst, src), space, 0, is_reversed)
-    except TypeError:
-        # Fall back in case the destination is not a nested data structure
-        assert isinstance(dst, np.ndarray)
-        return partial(
-            _array_normalize, dst, src, *get_bounds(space), is_reversed)
+    return build_reduce(
+        _array_normalize, None, (dst, src), space, 0, is_reversed)
