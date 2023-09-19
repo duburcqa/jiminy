@@ -19,8 +19,7 @@ FilteredObsType: TypeAlias = ObsT
 
 class FilteredJiminyEnv(BasePipelineWrapper[FilteredObsType, ActT, ObsT, ActT],
                         Generic[ObsT, ActT]):
-    """Normalize action space without clipping, contrary to usual
-    implementations.
+    """TODO: Write documentation.
     """
     def __init__(self,
                  env: JiminyEnvInterface[ObsT, ActT],
@@ -44,6 +43,10 @@ class FilteredJiminyEnv(BasePipelineWrapper[FilteredObsType, ActT, ObsT, ActT],
                 elif path == key_nested[:len(path)]:
                     self.nested_filter_keys.pop(i)
                     break
+
+        # Bind action of the base environment
+        assert self.action_space.contains(env.action)
+        self.action = env.action  # type: ignore[assignment]
 
         # Initialize base class
         super().__init__(env)

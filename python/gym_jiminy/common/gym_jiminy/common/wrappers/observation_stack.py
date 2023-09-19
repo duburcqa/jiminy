@@ -202,11 +202,15 @@ class StackedJiminyEnv(
         # Instantiate wrapper
         self.wrapper = PartialObservationStack(env, **kwargs)
 
+        # Initialize base classes
+        super().__init__(env, **kwargs)
+
         # Bind the observation of the wrapper
         self.observation = self.wrapper.observation
 
-        # Initialize base classes
-        super().__init__(env, **kwargs)
+        # Bind the action of the environment
+        assert self.action_space.contains(env.action)
+        self.action = env.action
 
     def _initialize_action_space(self) -> None:
         self.action_space = self.env.action_space

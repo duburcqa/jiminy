@@ -78,12 +78,8 @@ class BasePipelineWrapper(
         # Backup the parent environment
         self.env = env
 
-        # Call base implementation()
+        # Call base implementation
         super().__init__()  # Do not forward any argument
-
-        # By default, bind the action to the one of the base environment
-        assert self.action_space.contains(env.action)
-        self.action = env.action  # type: ignore[assignment]
 
         # Define specialized operator(s) for efficiency.
         # Note that it cannot be done at this point because the action
@@ -352,6 +348,10 @@ class ObservedJiminyEnv(
 
         # Initialize base wrapper
         super().__init__(env, **kwargs)
+
+        # Bind action of the base environment
+        assert self.action_space.contains(env.action)
+        self.action = env.action  # type: ignore[assignment]
 
         # Initialize the observation.
         # One part is bound to the environment while the other is bound to the
