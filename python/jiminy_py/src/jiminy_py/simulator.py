@@ -125,7 +125,7 @@ class Simulator:
         self.__pbar: Optional[tqdm] = None
 
         # Figure holder
-        self.figure: Optional[TabbedFigure] = None
+        self._figure: Optional[TabbedFigure] = None
 
         # Reset the low-level jiminy engine
         self.reset()
@@ -634,14 +634,14 @@ class Simulator:
         if hasattr(self, "viewer") and self.viewer is not None:
             self.viewer.close()
             self.viewer = None
-        if hasattr(self, "figure") and self.figure is not None:
-            self.figure.close()
-            self.figure = None
+        if hasattr(self, "figure") and self._figure is not None:
+            self._figure.close()
+            self._figure = None
 
     def plot(self,
              enable_flexiblity_data: bool = False,
              block: Optional[bool] = None,
-             **kwargs: Any) -> None:
+             **kwargs: Any) -> TabbedFigure:
         """Display common simulation data over time.
 
         The figure features several tabs:
@@ -671,8 +671,10 @@ class Simulator:
                 ) from e
 
         # Create figure, without closing the existing one
-        self.figure = plot_log(
+        self._figure = plot_log(
             self.log_data, self.robot, enable_flexiblity_data, block, **kwargs)
+
+        return self._figure
 
     def get_controller_options(self) -> dict:
         """Getter of the options of Jiminy Controller.

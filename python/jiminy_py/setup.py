@@ -116,7 +116,8 @@ setup(
     extras_require={
         "plot": [
             # Standard library to generate figures.
-            "matplotlib>=3.5.0"
+            # - 3.7.0: introduces 'outside' keyword for legend location
+            "matplotlib>=3.7.0"
         ],
         "meshcat": [
             # Web-based mesh visualizer used as Viewer's backend.

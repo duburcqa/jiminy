@@ -316,4 +316,4 @@ if __name__ == "__main__":
     policy_fn = build_policy_wrapper(
         policy_map, clip_actions=False, explore=False)
     for seed in (1, 1, 2):
-        env.evaluate(policy_fn, seed=seed)
+        env.evaluate(policy_fn, seed=seed, horizon=env._max_episode_steps)
