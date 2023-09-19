@@ -358,7 +358,7 @@ def contains(data: DataNested,
 @no_type_check
 def build_reduce(fn: Callable[..., ValueInT],
                  op: Optional[Callable[[ValueOutT, ValueInT], ValueOutT]],
-                 data: Optional[Dict[str, DataNested]],
+                 dataset: Sequence[Dict[str, DataNested]],
                  space: Optional[gym.spaces.Dict],
                  arity: Optional[Literal[0, 1]],
                  *args: Any,
@@ -665,7 +665,7 @@ def build_reduce(fn: Callable[..., ValueInT],
             arity: Literal[0, 1],
             parent: Optional[Union[str, int]],
             is_initialized: bool,
-            data: Optional[DataNested],
+            dataset: Sequence[DataNested],
             space: Optional[gym.Space[DataNested]]) -> Optional[
                 Union[Callable[..., ValueInT], Callable[..., ValueOutT]]]:
         """Internal method for generating specialized callable applying
@@ -687,10 +687,12 @@ def build_reduce(fn: Callable[..., ValueInT],
         """
         # Determine top-level keys if nested data structure
         keys: Optional[Union[Sequence[int], Sequence[str]]] = None
-        space_or_data = space or data
+        space_or_data = space
+        if space_or_data is None and dataset:
+            space_or_data = dataset[0]
         if isinstance(space_or_data, (gym.spaces.Dict, dict)):
             keys = space_or_data.keys()
-        elif isinstance(data, (gym.spaces.Tuple, tuple, list)):
+        elif isinstance(space_or_data, (gym.spaces.Tuple, tuple, list)):
             keys = range(len(space_or_data))
         else:
             assert isinstance(space_or_data, (gym.Space, np.ndarray))
@@ -700,7 +702,7 @@ def build_reduce(fn: Callable[..., ValueInT],
             if parent is None:
                 raise TypeError(
                     "'data' and/or 'space' must be nested data structures.")
-            post_fn = fn if data is None else partial(fn, data)
+            post_fn = fn if not dataset else partial(fn, *dataset)
             post_args = args
             if forward_bounds and space is not None:
                 post_args = (*get_bounds(space), *post_args)
@@ -708,13 +710,13 @@ def build_reduce(fn: Callable[..., ValueInT],
         if not keys:
             return None
 
-        # Generate transform and reduce method if branch.
+        # Generate transform and reduce method if branch
         field_prev, field, out_fn = None, None, None
         for field in keys:
-            value = None if data is None else data[field]
+            values = [data[field] for data in dataset]
             subspace = None if space is None else space[field]
             post_fn = _build_transform_and_reduce(
-                arity, field, is_initialized or len(keys) > 1, value, subspace)
+                arity, field, is_initialized or len(keys) > 1, values, subspace)
             if post_fn is None:
                 continue
             if out_fn is None:
@@ -773,10 +775,12 @@ def build_reduce(fn: Callable[..., ValueInT],
         return partial(_initialize, post_fn, initializer)
 
     # Check that the combination of input arguments are valid
-    if space is None and data is None:
-        raise TypeError("At least data or space must be specified.")
+    if space is None and not dataset:
+        raise TypeError("At least one dataset or the space must be specified.")
     if arity not in (0, 1, None):
         raise TypeError("Arity must be either 0, 1 or `None`.")
+    if isinstance(fn, partial):
+        raise TypeError("Transform function cannot be 'partial' instance.")
 
     # Generate transform and reduce callable of various arity if necessary
     all_fn = [None, None]
@@ -785,7 +789,7 @@ def build_reduce(fn: Callable[..., ValueInT],
             continue
         is_initialized = op is not None and initializer is not None
         all_fn[i] = _build_init(i, _build_transform_and_reduce(
-            i, None, is_initialized, data, space))
+            i, None, is_initialized, dataset, space))
 
     # Return callable of requested arity if specified, dynamic dispatch if not
     if arity is None:
@@ -945,7 +949,7 @@ def build_map(fn: Callable[..., ValueT],
         if isinstance(space_or_data, (gym.spaces.Dict, dict)):
             keys = space_or_data.keys()
             data_type = OrderedDict
-        elif isinstance(data, (gym.spaces.Tuple, tuple, list)):
+        elif isinstance(space_or_data, (gym.spaces.Tuple, tuple, list)):
             keys = range(len(space_or_data))
             data_type = list
         else:
@@ -994,6 +998,8 @@ def build_map(fn: Callable[..., ValueT],
         raise TypeError("At least data or space must be specified.")
     if arity not in (0, 1, None):
         raise TypeError("Arity must be either 0, 1 or `None`.")
+    if isinstance(fn, partial):
+        raise TypeError("Transform function cannot be 'partial' instance.")
 
     # Generate transform and reduce callable of various arity if necessary
     all_fn = [None, None]
@@ -1015,7 +1021,7 @@ def build_copyto(dst: DataNested) -> Callable[[DataNested], None]:
     :param dst: Nested data structure to be updated.
     """
     try:
-        return build_reduce(array_copyto, None, dst, None, 1)
+        return build_reduce(array_copyto, None, (dst,), None, 1)
     except TypeError:
         # Fall back in case the destination is not a nested data structure
         assert isinstance(dst, np.ndarray)
@@ -1049,59 +1055,45 @@ def build_contains(data: DataNested,
                  within bounds if defined and ignored otherwise.
     :param space: `gym.Space` on which to operate.
     """
-    # Store methods to make it unique. This way, the jitted ones will be
-    # compiled only once and not for every generated specialization as it
-    # would be the case otherwise.
-    try:
-        _contains_or_raises = (
-            build_contains._contains_or_raises)  # type: ignore[attr-defined]
-        _exception_handling = (
-            build_contains._exception_handling)  # type: ignore[attr-defined]
-    except AttributeError:
-        # Define a special exception involved in short-circuit mechanism
-        class ShortCircuitContains(Exception):
-            """Internal exception involved in short-circuit mechanism.
-            """
+    # Define a special exception involved in short-circuit mechanism
+    class ShortCircuitContains(Exception):
+        """Internal exception involved in short-circuit mechanism.
+        """
 
-        @nb.njit
-        def _contains_or_raises(value: np.ndarray,
-                                low: Optional[ArrayOrScalar],
-                                high: Optional[ArrayOrScalar],
-                                tol_abs: float,
-                                tol_rel: float) -> bool:
-            """Thin wrapper around original `_array_contains` method to raise
-            an exception if the test fails. It enables short-circuit mechanism
-            to abort checking remaining leaves if any.
+    @nb.jit(nopython=True, cache=True)
+    def _contains_or_raises(value: np.ndarray,
+                            low: Optional[ArrayOrScalar],
+                            high: Optional[ArrayOrScalar],
+                            tol_abs: float,
+                            tol_rel: float) -> bool:
+        """Thin wrapper around original `_array_contains` method to raise
+        an exception if the test fails. It enables short-circuit mechanism
+        to abort checking remaining leaves if any.
 
-            :param value: Array holding values to check.
-            :param low: Lower bound.
-            :param high: Upper bound.
-            :param tol_abs: Absolute tolerance.
-            :param tol_rel: Relative tolerance.
-            """
-            if not _array_contains(value, low, high, tol_abs, tol_rel):
-                raise ShortCircuitContains("Short-circuit exception.")
-            return True
+        :param value: Array holding values to check.
+        :param low: Lower bound.
+        :param high: Upper bound.
+        :param tol_abs: Absolute tolerance.
+        :param tol_rel: Relative tolerance.
+        """
+        if not _array_contains(value, low, high, tol_abs, tol_rel):
+            raise ShortCircuitContains("Short-circuit exception.")
+        return True
 
-        def _exception_handling(out_fn: Callable[[], bool]) -> bool:
-            """Internal method for short-circuit exception handling.
+    def _exception_handling(out_fn: Callable[[], bool]) -> bool:
+        """Internal method for short-circuit exception handling.
 
-            :param out_fn: specialized contain callable raising short-circuit
-                           exception as soon as one leaf fails the test.
+        :param out_fn: specialized contain callable raising short-circuit
+                        exception as soon as one leaf fails the test.
 
-            :returns: `True` if all leaves are within bounds of their
-                      respective space, `False` otherwise.
-            """
-            try:
-                out_fn()
-            except ShortCircuitContains:
-                return False
-            return True
-
-        build_contains._contains_or_raises = (  # type: ignore[attr-defined]
-            _contains_or_raises)
-        build_contains._exception_handling = (  # type: ignore[attr-defined]
-            _exception_handling)
+        :returns: `True` if all leaves are within bounds of their
+                    respective space, `False` otherwise.
+        """
+        try:
+            out_fn()
+        except ShortCircuitContains:
+            return False
+        return True
 
     # Short-circuit mechanism not only speeds-up scenarios where at least one
     # leaf does not met requirements, and also the other scenarios where all
@@ -1109,9 +1101,80 @@ def build_contains(data: DataNested,
     # operator 'operator.and' to aggregate all successes and failures.
     try:
         return partial(_exception_handling, build_reduce(
-            _contains_or_raises, None, data, space, 0, tol_abs, tol_rel))
+            _contains_or_raises, None, (data,), space, 0, tol_abs, tol_rel))
     except TypeError:
         # Fall back in case the destination is not a nested data structure
         assert isinstance(data, np.ndarray)
         return partial(
             _array_contains, data, *get_bounds(space), tol_abs, tol_rel)
+
+
+def build_normalize(dst: DataNested,
+                    src: DataNested,
+                    space: gym.Space[DataNested],
+                    is_reversed: bool) -> Callable[[DataNested], None]:
+    """Generate a normalization or de-normalization method specialized for a
+    given pre-allocated destination.
+
+    .. note::
+        The generated method only applies normalization (or de-normalization)
+        to leave spaces for which low and high bounds are defined, and only for
+        the elements having finite bounds. In all other cases, it copy the
+        value from 'src' to 'dst' instead of raising an exception.
+
+    .. warning::
+        Normalization requires 'dst' dtype to be 'np.float64'.
+
+    :param dst: Nested data structure to be updated.
+    :param src: Normalized nested data if 'is_reversed' is True, original data
+                (de-normalized) otherwise.
+    :param space: Original (de-normalized) `gym.Space` on which to operate.
+    :param is_reversed: True to de-normalize, False to normalize.
+    """
+    @nb.jit(nopython=True, cache=True)
+    def _array_normalize(dst: np.ndarray,
+                         src: np.ndarray,
+                         low: Optional[np.ndarray],
+                         high: Optional[np.ndarray],
+                         is_reversed: bool) -> None:
+        """Element-wise normalization or de-normalization of array.
+
+        :param dst: pre-allocated array into which the result must be stored.
+        :param src: input array.
+        :param low: Optional lower bound.
+        :param high: Optional upper bound.
+        :param is_reversed: True to de-normalize, False to normalize.
+        """
+        if (low is None) ^ (high is None):
+            raise RuntimeError("Bounds must be jointly omitted or specified.")
+        if src.ndim:
+            if low is None:
+                dst[:] = src
+            for i, (l, h, e) in enumerate(zip(low.flat, high.flat, src.flat)):
+                if not np.isfinite(l) or not np.isfinite(h):
+                    dst.flat[i] = e
+                elif is_reversed:
+                    dst.flat[i] = (l + h - e * (l - h)) / 2
+                else:
+                    dst.flat[i] = (l + h - 2 * e) / (l - h)
+        else:
+            if low is None or not np.isfinite(low) or not np.isfinite(high):
+                dst[()] = src
+            elif is_reversed:
+                dst[()] = (low + high - src * (low - high)) / 2
+            else:
+                dst[()] = (low + high - 2 * src) / (low - high)
+
+    # Make sure that 'dst' dtype can store normalized data without truncation
+    if is_reversed:
+        for value in tree.flatten(dst):
+            assert np.issubdtype(value.dtype, np.floating)
+
+    try:
+        return build_reduce(
+            _array_normalize, None, (dst, src), space, 0, is_reversed)
+    except TypeError:
+        # Fall back in case the destination is not a nested data structure
+        assert isinstance(dst, np.ndarray)
+        return partial(
+            _array_normalize, dst, src, *get_bounds(space), is_reversed)
