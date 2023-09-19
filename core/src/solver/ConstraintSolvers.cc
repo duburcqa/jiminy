@@ -228,7 +228,7 @@ namespace jiminy
     {
         /* For some reason, it is impossible to get a better accuracy than 1e-5
            for the absolute tolerance, even if unconstrained. It seems to be
-           related to compunding of errors, maybe due to the recursive computations. */
+           related to compounding of errors, maybe due to the recursive computations. */
 
         assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
 
