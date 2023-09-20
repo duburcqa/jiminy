@@ -737,8 +737,9 @@ def build_reduce(fn: Callable[..., ValueInT],
         for field in keys:
             values = [data[field] for data in dataset]
             subspace = None if space is None else space[field]
+            must_initialize = not is_initialized and len(keys) == 1
             post_fn = _build_transform_and_reduce(
-                arity, field, is_initialized or len(keys) > 1, values, subspace)
+                arity, field, not must_initialize, values, subspace)
             if post_fn is None:
                 continue
             if out_fn is None:
@@ -997,7 +998,7 @@ def build_map(fn: Callable[..., ValueT],
             return post_fn
 
         # Apply map recursively while preserving order using monadic operations
-        out_fn = lambda *args: data_type()
+        out_fn = lambda *args: data_type()  # noqa: E731
         for field in keys:
             value = None if data is None else data[field]
             subspace = None if space is None else space[field]
@@ -1124,26 +1125,27 @@ def build_contains(data: DataNested,
         _contains_or_raises, None, (data,), space, 0, tol_abs, tol_rel))
 
 
-def build_normalize(dst: DataNested,
-                    src: DataNested,
-                    space: gym.Space[DataNested],
-                    is_reversed: bool) -> Callable[[DataNested], None]:
+def build_normalize(space: gym.Space[DataNested],
+                    dst: DataNested,
+                    src: Optional[DataNested] = None,
+                    is_reversed: bool = False) -> Callable[..., None]:
     """Generate a normalization or de-normalization method specialized for a
     given pre-allocated destination.
 
     .. note::
-        The generated method only applies normalization (or de-normalization)
-        to leave spaces for which low and high bounds are defined, and only for
-        the elements having finite bounds. In all other cases, it copy the
-        value from 'src' to 'dst' instead of raising an exception.
+        The generated method applies element-wise de-normalization to all
+        elements of the leaf spaces having finite bounds. For those that does
+        not, it simply copies the value from 'src' to 'dst'.
 
     .. warning::
-        Normalization requires 'dst' dtype to be 'np.float64'.
+        This method requires all leaf spaces to have type `gym.spaces.Box`
+        with dtype 'np.floating'.
 
-    :param dst: Nested data structure to be updated.
-    :param src: Normalized nested data if 'is_reversed' is True, original data
-                (de-normalized) otherwise.
     :param space: Original (de-normalized) `gym.Space` on which to operate.
+    :param dst: Nested data structure to updated.
+    :param src: Normalized nested data if 'is_reversed' is True, original data
+                (de-normalized) otherwise. `None` to pass it at runtime.
+                Optional: `None` by default.
     :param is_reversed: True to de-normalize, False to normalize.
     """
     @nb.jit(nopython=True, cache=True)
@@ -1154,24 +1156,27 @@ def build_normalize(dst: DataNested,
                          is_reversed: bool) -> None:
         """Element-wise normalization or de-normalization of array.
 
-        :param dst: pre-allocated array into which the result must be stored.
-        :param src: input array.
-        :param low: lower bound.
-        :param high: upper bound.
+        :param dst: Pre-allocated array into which the result must be stored.
+        :param src: Input array.
+        :param low: Lower bound.
+        :param high: Upper bound.
         :param is_reversed: True to de-normalize, False to normalize.
         """
-        for i, (l, h, e) in enumerate(zip(low.flat, high.flat, src.flat)):
-            if not np.isfinite(l) or not np.isfinite(h):
-                dst.flat[i] = e
+        for i, (lo, hi, val) in enumerate(zip(low.flat, high.flat, src.flat)):
+            if not np.isfinite(lo) or not np.isfinite(hi):
+                dst.flat[i] = val
             elif is_reversed:
-                dst.flat[i] = (l + h - e * (l - h)) / 2
+                dst.flat[i] = (lo + hi - val * (lo - hi)) / 2
             else:
-                dst.flat[i] = (l + h - 2 * e) / (l - h)
+                dst.flat[i] = (lo + hi - 2 * val) / (lo - hi)
 
     # Make sure that all leaves are `gym.space.Box` with `floating` dtype
     for subspace in tree.flatten(space):
         assert isinstance(subspace, gym.spaces.Box)
         assert np.issubdtype(subspace.dtype, np.floating)
 
+    dataset = [dst,]
+    if src is not None:
+        dataset.append(src)
     return build_reduce(
-        _array_normalize, None, (dst, src), space, 0, is_reversed)
+        _array_normalize, None, dataset, space, 2 - len(dataset), is_reversed)

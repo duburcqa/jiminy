@@ -51,6 +51,10 @@ class BasePipelineWrapper(
     successively one by one.
 
     .. warning::
+        Hot-plug of additional blocks is supported, but the environment need to
+        be reset after changing the pipeline.
+
+    .. warning::
         This architecture is not designed for trainable blocks, but rather for
         robotic-oriented controllers and observers, such as PID controllers,
         inverse kinematics, Model Predictive Control (MPC), sensor fusion...
@@ -211,9 +215,17 @@ class BasePipelineWrapper(
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information.
         """
-        # Backup the action to perform if relevant
         if action is not self.action:
+            # Backup the action to perform for top-most layer of the pipeline
             self._copyto_action(action)
+
+            # Make sure that the pipeline has not change since last reset
+            env_derived = (
+                self.unwrapped._env_derived)  # type: ignore[attr-defined]
+            if env_derived is not self:
+                raise RuntimeError(
+                    "Pipeline environment has changed. Please call 'reset' "
+                    "before 'step'.")
 
         # Compute the next learning step.
         # Note that forwarding 'self.env.action' enables skipping action update
@@ -228,7 +240,10 @@ class BasePipelineWrapper(
         # user keeps doing more steps nonetheless.
         reward = float(reward)
         if not math.isnan(reward):
-            reward += self.compute_reward(done, truncated, info)
+            try:
+                reward += self.compute_reward(done, truncated, info)
+            except NotImplementedError:
+                pass
 
         return obs, reward, done, truncated, info
 
@@ -351,7 +366,7 @@ class ObservedJiminyEnv(
 
         # Bind action of the base environment
         assert self.action_space.contains(env.action)
-        self.action = env.action  # type: ignore[assignment]
+        self.action = env.action
 
         # Initialize the observation.
         # One part is bound to the environment while the other is bound to the
@@ -538,7 +553,6 @@ class ControlledJiminyEnv(
                        wrapper generation.
         """
         # Make sure that the unwrapped environment matches the observed one
-        assert isinstance(env.unwrapped, JiminyEnvInterface)
         assert controller.env.unwrapped is env.unwrapped
 
         # Backup user arguments

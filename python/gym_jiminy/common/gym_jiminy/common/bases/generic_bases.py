@@ -156,7 +156,7 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
         """
         # pylint: disable=unused-argument
 
-        return 0.0
+        raise NotImplementedError
 
 
 # Note that `JiminyEnvInterface` must inherit from `ObserverInterface`

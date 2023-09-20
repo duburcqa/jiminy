@@ -46,7 +46,7 @@ class FilteredJiminyEnv(BasePipelineWrapper[FilteredObsType, ActT, ObsT, ActT],
 
         # Bind action of the base environment
         assert self.action_space.contains(env.action)
-        self.action = env.action  # type: ignore[assignment]
+        self.action = env.action
 
         # Initialize base class
         super().__init__(env)
@@ -73,7 +73,7 @@ class FilteredJiminyEnv(BasePipelineWrapper[FilteredObsType, ActT, ObsT, ActT],
         # Call base implementation
         super()._setup()
 
-        # Compute the observe and control update periods
+        # Copy observe and control update periods
         self.observe_dt = self.env.observe_dt
         self.control_dt = self.env.control_dt
 
@@ -101,7 +101,7 @@ class FilteredJiminyEnv(BasePipelineWrapper[FilteredObsType, ActT, ObsT, ActT],
         """Compute high-level features based on the current wrapped
         environment's observation.
 
-        It simply forwards the command computed by the wrapped environment
+        It simply forwards the observation computed by the wrapped environment
         without any processing.
         """
         self.env.refresh_observation(measurement)
