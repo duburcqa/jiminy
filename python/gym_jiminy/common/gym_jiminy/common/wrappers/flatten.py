@@ -12,33 +12,16 @@ from ..bases import (ObsT,
                      EngineObsType,
                      BasePipelineWrapper,
                      JiminyEnvInterface)
-from ..utils import zeros, build_map, build_normalize
+from ..utils import zeros, build_reduce, build_flatten
 
 
-NormalizedObsT: TypeAlias = ObsT
-NormalizedActT: TypeAlias = ActT
+FlatObsT: TypeAlias = ObsT
+FlatActT: TypeAlias = ActT
 
 
-def _normalize_space(space: gym.spaces.Box) -> gym.spaces.Box:
-    """TODO: Write documentation.
-    """
-    # Instantiate normalized space
-    dtype = space.dtype
-    assert dtype is not None and issubclass(dtype.type, np.floating)
-    space_ = type(space)(-1.0, 1.0, shape=space.shape, dtype=dtype.type)
-
-    # Preserve instance-specific attributes as is, if any
-    space_attrs = vars(space_).keys()
-    for key, value in vars(space).items():
-        if key not in space_attrs:
-            setattr(space_, key, value)
-
-    return space_
-
-
-class NormalizeAction(BasePipelineWrapper[ObsT, NormalizedActT, ObsT, ActT],
-                      Generic[ObsT, ActT]):
-    """Normalize action without clipping.
+class FlattenAction(BasePipelineWrapper[ObsT, FlatActT, ObsT, ActT],
+                    Generic[ObsT, ActT]):
+    """Flatten action.
 
     .. warning::
         All leaves of the action space must have type `gym.spaces.Box`.
@@ -47,12 +30,12 @@ class NormalizeAction(BasePipelineWrapper[ObsT, NormalizedActT, ObsT, ActT],
         # Initialize base class
         super().__init__(env)
 
-        # Pre-allocated memory for action
-        self.action: NormalizedActT = zeros(self.action_space)
+        # Pre-allocated memory for the action
+        self.action: FlatActT = zeros(self.action_space)
 
         # Define specialized operator(s) for efficiency
-        self._denormalize_to_env_action = build_normalize(
-            self.env.action_space, self.env.action, is_reversed=True)
+        self._unflatten_to_env_action = build_flatten(
+            self.env.action, is_reversed=True)
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -70,8 +53,15 @@ class NormalizeAction(BasePipelineWrapper[ObsT, NormalizedActT, ObsT, ActT],
     def _initialize_action_space(self) -> None:
         """Configure the action space.
         """
-        self.action_space = build_map(
-            _normalize_space, self.env.action_space, None, 0)()
+        # Compute bounds of flattened action space
+        low, high = map(np.concatenate, zip(*build_reduce(
+            lambda *x: map(np.ravel, x), lambda x, y: x.append(y) or x, (),
+            self.env.action_space, 0, initializer=list)()))
+
+        # Initialize the action space with proper dtype
+        dtype = low.dtype
+        assert dtype is not None and issubclass(dtype.type, np.floating)
+        self.action_space = gym.spaces.Box(low, high, dtype=dtype.type)
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
@@ -90,17 +80,16 @@ class NormalizeAction(BasePipelineWrapper[ObsT, NormalizedActT, ObsT, ActT],
     def compute_command(self, action: ActT) -> np.ndarray:
         """TODO: Write documentation.
         """
-        # De-normalization action and store the result in env action directly
-        self._denormalize_to_env_action(action)
+        # Un-flatten action and store the result in env action directly
+        self._unflatten_to_env_action(action)
 
         # Delegate command computation to base environment
         return self.env.compute_command(self.env.action)
 
 
-class NormalizeObservation(
-        BasePipelineWrapper[NormalizedObsT, ActT, ObsT, ActT],
-        Generic[ObsT, ActT]):
-    """Normalize observation without clipping.
+class FlattenObservation(BasePipelineWrapper[FlatObsT, ActT, ObsT, ActT],
+                         Generic[ObsT, ActT]):
+    """Flatten observation.
 
     .. warning::
         All leaves of the observation space must have type `gym.spaces.Box`.
@@ -110,11 +99,11 @@ class NormalizeObservation(
         super().__init__(env)
 
         # Pre-allocated memory for the observation
-        self.observation: NormalizedObsT = zeros(self.observation_space)
+        self.observation: FlatObsT = zeros(self.observation_space)
 
         # Define specialized operator(s) for efficiency
-        self._normalize_observation = build_normalize(
-            self.env.observation_space, self.observation, self.env.observation)
+        self._flatten_observation = build_flatten(
+            self.env.observation, self.observation)
 
     def _initialize_action_space(self) -> None:
         """Configure the action space.
@@ -124,8 +113,15 @@ class NormalizeObservation(
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
         """
-        self.observation_space = build_map(
-            _normalize_space, self.env.observation_space, None, 0)()
+        # Compute bounds of flattened action space
+        low, high = map(np.concatenate, zip(*build_reduce(
+            lambda *x: map(np.ravel, x), lambda x, y: x.append(y) or x, (),
+            self.env.observation_space, 0, initializer=list)()))
+
+        # Initialize the action space with proper dtype
+        dtype = low.dtype
+        assert dtype is not None and issubclass(dtype.type, np.floating)
+        self.observation_space = gym.spaces.Box(low, high, dtype=dtype.type)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """TODO: Write documentation.
@@ -133,8 +129,8 @@ class NormalizeObservation(
         # Refresh observation of the base environment
         self.env.refresh_observation(measurement)
 
-        # Update normalized observation
-        self._normalize_observation()
+        # Update flattened observation
+        self._flatten_observation()
 
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.

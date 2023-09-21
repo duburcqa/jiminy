@@ -1,11 +1,13 @@
 """ TODO: Write documentation.
 """
+import math
 from functools import partial
 from collections import OrderedDict
+from collections.abc import Mapping, MutableMapping, Sequence, MutableSequence
 from typing import (
-    Any, Dict, Optional, Union, Sequence, TypeVar, Mapping as MappingT, Tuple,
-    Iterable as IterableT, Literal, SupportsFloat, Callable, no_type_check,
-    cast)
+    Any, Dict, Optional, Union, Sequence as SequenceT, Mapping as MappingT,
+    Iterable as IterableT, Tuple, TypeVar, Type, Literal, SupportsFloat,
+    Callable, no_type_check, cast)
 
 import numba as nb
 import numpy as np
@@ -102,7 +104,7 @@ def _array_contains(value: np.ndarray,
 
 
 def _unflatten_as(structure: StructNested[Any],
-                  flat_sequence: Sequence[DataNested]) -> DataNested:
+                  flat_sequence: SequenceT[DataNested]) -> DataNested:
     """Unflatten a sequence into a given structure.
 
     .. seealso::
@@ -141,7 +143,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
            dist: str = 'uniform',
            scale: Union[float, np.ndarray] = 1.0,
            enable_log_scale: bool = False,
-           shape: Optional[Sequence[int]] = None,
+           shape: Optional[SequenceT[int]] = None,
            rg: Optional[np.random.Generator] = None
            ) -> np.ndarray:
     """Randomly sample values from a given distribution.
@@ -358,7 +360,7 @@ def contains(data: DataNested,
 @no_type_check
 def build_reduce(fn: Callable[..., ValueInT],
                  op: Optional[Callable[[ValueOutT, ValueInT], ValueOutT]],
-                 dataset: Sequence[DataNested],
+                 dataset: SequenceT[DataNested],
                  space: Optional[gym.spaces.Dict],
                  arity: Optional[Literal[0, 1]],
                  *args: Any,
@@ -686,7 +688,7 @@ def build_reduce(fn: Callable[..., ValueInT],
             arity: Literal[0, 1],
             parent: Optional[Union[str, int]],
             is_initialized: bool,
-            dataset: Sequence[DataNested],
+            dataset: SequenceT[DataNested],
             space: Optional[gym.Space[DataNested]]) -> Optional[
                 Union[Callable[..., ValueInT], Callable[..., ValueOutT]]]:
         """Internal method for generating specialized callable applying
@@ -707,13 +709,13 @@ def build_reduce(fn: Callable[..., ValueInT],
                   nested data structure if empty.
         """
         # Determine top-level keys if nested data structure
-        keys: Optional[Union[Sequence[int], Sequence[str]]] = None
+        keys: Optional[Union[SequenceT[int], SequenceT[str]]] = None
         space_or_data = space
         if space_or_data is None and dataset:
             space_or_data = dataset[0]
-        if isinstance(space_or_data, (gym.spaces.Dict, dict)):
+        if isinstance(space_or_data, Mapping):
             keys = space_or_data.keys()
-        elif isinstance(space_or_data, (gym.spaces.Tuple, tuple, list)):
+        elif isinstance(space_or_data, Sequence):
             keys = range(len(space_or_data))
         else:
             assert isinstance(space_or_data, (gym.Space, np.ndarray))
@@ -975,14 +977,30 @@ def build_map(fn: Callable[..., ValueT],
         :returns: Specialized leaf or branch transform.
         """
         # Determine top-level keys if nested data structure
-        keys: Optional[Union[Sequence[int], Sequence[str]]] = None
-        space_or_data = space or data
-        if isinstance(space_or_data, (gym.spaces.Dict, dict)):
+        keys: Optional[Union[SequenceT[int], SequenceT[str]]] = None
+        space_or_data = data if data is not None else space
+        if isinstance(space_or_data, Mapping):
             keys = space_or_data.keys()
-            data_type = OrderedDict
-        elif isinstance(space_or_data, (gym.spaces.Tuple, tuple, list)):
+            if isinstance(space_or_data, gym.spaces.Dict):
+                if data is None:
+                    container_cls = OrderedDict
+                else:
+                    container_cls = type(space_or_data)
+            elif isinstance(space_or_data, MutableMapping):
+                container_cls = type(space_or_data)
+            else:
+                container_cls = dict
+        elif isinstance(space_or_data, Sequence):
             keys = range(len(space_or_data))
-            data_type = list
+            if isinstance(space_or_data, gym.spaces.Tuple):
+                if data is None:
+                    container_cls = list
+                else:
+                    container_cls = type(space_or_data)
+            elif isinstance(space_or_data, MutableSequence):
+                container_cls = type(space_or_data)
+            else:
+                container_cls = list
         else:
             assert isinstance(space_or_data, (gym.Space, np.ndarray))
 
@@ -997,13 +1015,19 @@ def build_map(fn: Callable[..., ValueT],
                 post_fn = _build_setitem(arity, None, post_fn, None)
             return post_fn
 
+        # Create new empty container to all transformed values.
+        # TODO: The actual container should be created at the end if unmutable.
+        def _create(cls: Type[ValueT], *args: Any) -> ValueT:
+            return cls()
+        out_fn = partial(_create, container_cls)
+
         # Apply map recursively while preserving order using monadic operations
-        out_fn = lambda *args: data_type()  # noqa: E731
         for field in keys:
             value = None if data is None else data[field]
             subspace = None if space is None else space[field]
             post_fn = _build_map(arity, field, value, subspace)
             out_fn = _build_setitem(arity, out_fn, post_fn, field)
+
         return out_fn
 
     def _dispatch(
@@ -1128,7 +1152,7 @@ def build_contains(data: DataNested,
 def build_normalize(space: gym.Space[DataNested],
                     dst: DataNested,
                     src: Optional[DataNested] = None,
-                    is_reversed: bool = False) -> Callable[..., None]:
+                    *, is_reversed: bool = False) -> Callable[..., None]:
     """Generate a normalization or de-normalization method specialized for a
     given pre-allocated destination.
 
@@ -1141,8 +1165,8 @@ def build_normalize(space: gym.Space[DataNested],
         This method requires all leaf spaces to have type `gym.spaces.Box`
         with dtype 'np.floating'.
 
-    :param space: Original (de-normalized) `gym.Space` on which to operate.
     :param dst: Nested data structure to updated.
+    :param space: Original (de-normalized) `gym.Space` on which to operate.
     :param src: Normalized nested data if 'is_reversed' is True, original data
                 (de-normalized) otherwise. `None` to pass it at runtime.
                 Optional: `None` by default.
@@ -1180,3 +1204,72 @@ def build_normalize(space: gym.Space[DataNested],
         dataset.append(src)
     return build_reduce(
         _array_normalize, None, dataset, space, 2 - len(dataset), is_reversed)
+
+
+def build_flatten(data_nested: DataNested,
+                  data_flat: Optional[DataNested] = None,
+                  *, is_reversed: bool = False) -> Callable[..., None]:
+    """Generate a flattening or un-flattening method specialized for a
+    given pre-allocated destination.
+
+    .. note::
+        Multi-dimensional leaf spaces are supported. Values will be flattened
+        in 1D vectors using 'C' order (row-major). It ignores the actual memory
+        layout the leaves of 'data_nested' and they are not required to have
+        the same dtype as 'data_flat'.
+
+    :param data_nested: Nested data structure.
+    :param data_flat: Flat array consistent with the nested data structure.
+                      Optional iif `is_reversed` is `True`.
+                      Optional: `None` by default.
+    :param is_reversed: True to update 'data_flat', 'data_nested' otherwise.
+    """
+    # Make sure that the input arguments are valid
+    assert is_reversed or data_flat is not None
+
+    # Flatten nested data while preserving leaves ordering
+    data_leaves = build_reduce(
+        lambda x: x, lambda x, y: x.append(y) or x, (data_nested,), None, 0,
+        initializer=list)()
+
+    # Compute slices to split destination in accordance with nested data.
+    # It will be passed to `build_reduce` as an input dataset. It is kind of
+    # hacky since only passing `DataNested` instances is officially supported,
+    # but it is currently the easiest way to keep track of some internal state
+    # and specify leaf-specific constants.
+    flat_slices = []
+    idx_start = 0
+    for data in data_leaves:
+        idx_end = idx_start + max(math.prod(data.shape), 1)
+        flat_slices.append((idx_start, idx_end))
+        idx_start = idx_end
+
+    @nb.jit(nopython=True, cache=True)
+    def _flatten(data_nested: np.ndarray,
+                 flat_slice: Tuple[int, int],
+                 data_flat: np.ndarray,
+                 is_reversed: bool) -> None:
+        """TODO: Write documentation.
+        """
+        # For some reason, passing a slice as input argument is much slower
+        # in numba than creating it inside the method.
+        if is_reversed:
+            data_nested.ravel()[:] = data_flat[slice(*flat_slice)]
+        else:
+            data_flat[slice(*flat_slice)] = data_nested.ravel()
+
+    args = (is_reversed,)
+    if data_flat is not None:
+        args = (data_flat, *args)  # type: ignore[assignment]
+    out_fn = build_reduce(
+        _flatten, None, (data_leaves, flat_slices), None, 2 - len(args), *args)
+    if data_flat is None:
+        def _repeat(out_fn: Callable[[DataNested], None],
+                    n_leaves: int,
+                    delayed: DataNested) -> None:
+            """TODO: Write documentation.
+            """
+            out_fn((delayed,) * n_leaves)
+
+        out_fn = partial(_repeat, out_fn, len(data_leaves))
+    return out_fn

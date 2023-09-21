@@ -44,12 +44,12 @@ class FilteredJiminyEnv(BasePipelineWrapper[FilteredObsType, ActT, ObsT, ActT],
                     self.nested_filter_keys.pop(i)
                     break
 
+        # Initialize base class
+        super().__init__(env)
+
         # Bind action of the base environment
         assert self.action_space.contains(env.action)
         self.action = env.action
-
-        # Initialize base class
-        super().__init__(env)
 
         # Bind observation of the environment for all filtered keys
         self.observation = OrderedDict()
