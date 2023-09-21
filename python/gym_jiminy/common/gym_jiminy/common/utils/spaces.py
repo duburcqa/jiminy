@@ -1018,6 +1018,7 @@ def build_map(fn: Callable[..., ValueT],
         # Create new empty container to all transformed values.
         # TODO: The actual container should be created at the end if unmutable.
         def _create(cls: Type[ValueT], *args: Any) -> ValueT:
+            # pylint: disable=unused-argument
             return cls()
         out_fn = partial(_create, container_cls)
 

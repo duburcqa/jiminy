@@ -12,6 +12,7 @@ import numpy.typing as npt
 import gymnasium as gym
 
 import jiminy_py.core as jiminy
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
 
@@ -257,7 +258,7 @@ class JiminyEnvInterface(
             self.refresh_observation(measurement)
 
         # Consider observation has been refreshed iif a simulation is running
-        self.__is_observation_refreshed = bool(self.is_simulation_running)
+        self.__is_observation_refreshed = self.is_simulation_running.item()
 
     def _controller_handle(self,
                            t: float,
@@ -294,7 +295,7 @@ class JiminyEnvInterface(
 
         # No need to check for breakpoints of the controller because it already
         # matches the update period by design.
-        command[:] = self.compute_command(self.action)
+        array_copyto(command, self.compute_command(self.action))
 
         # Always consider that the observation must be refreshed after calling
         # '_controller_handle' as it is never called more often than necessary.

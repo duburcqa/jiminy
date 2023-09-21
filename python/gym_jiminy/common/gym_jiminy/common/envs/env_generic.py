@@ -1377,9 +1377,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         """Refresh internal buffers that must be updated manually.
 
         .. note::
-            This method is called right after every internal `engine.step`, so
-            it is the right place to update shared data between `is_done` and
-            `compute_reward`.
+            This method is called after every internal `engine.step` and before
+            refreshing the observation one last time. As such, it is the right
+            place to update shared data between `is_done` and `compute_reward`.
 
         .. note::
             `_initialize_buffers` method can be used to initialize buffers that
