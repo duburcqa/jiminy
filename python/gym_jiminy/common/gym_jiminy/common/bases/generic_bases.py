@@ -117,7 +117,7 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
             By design, the observation of the environment has been refreshed
             automatically prior to calling this method.
 
-        :param action: High-level target to achieve.
+        :param action: High-level target to achieve by means of the command.
 
         :returns: Command to send to the subsequent block. It corresponds to
                   the target features of another lower-level controller if any,

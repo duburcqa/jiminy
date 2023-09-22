@@ -17,7 +17,12 @@ FilteredObsType: TypeAlias = ObsT
 
 class FilterObservation(BaseTransformObservation[FilteredObsType, ObsT, ActT],
                         Generic[ObsT, ActT]):
-    """TODO: Write documentation.
+    """Filter nested observation space.
+
+    This wrapper does not nothing but providing an observation only exposing
+    a subset of all the branches and leaves of the original observation space.
+    For flattening the observation space after filtering, you should wrap the
+    environment with `FlattenObservation` as yet another layer.
     """
     def __init__(self,
                  env: JiminyEnvInterface[ObsT, ActT],
@@ -60,6 +65,9 @@ class FilterObservation(BaseTransformObservation[FilteredObsType, ObsT, ActT],
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
+
+        It gathers a subset of all the branches and leaves of the original
+        observation space without any further processing.
         """
         self.observation_space = gym.spaces.Dict()
         for key_nested in self.nested_filter_keys:
@@ -77,4 +85,3 @@ class FilterObservation(BaseTransformObservation[FilteredObsType, ObsT, ActT],
         """No-op transform since the transform observation is sharing memory
         with the wrapped one since it is just a partial view.
         """
-        pass

@@ -39,11 +39,11 @@ def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
     .. warning:
         It returns a strided matrix instead of contiguous copy for efficiency.
 
-    :param col: First column of the matrix.
-    :param row: First row of the matrix.
-
     .. seealso::
         https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.toeplitz.html
+
+    :param col: First column of the matrix.
+    :param row: First row of the matrix.
     """  # noqa: E501  # pylint: disable=line-too-long
     vals = np.concatenate((col[::-1], row[1:]))
     stride = vals.strides[0]  # pylint: disable=E1136
@@ -118,7 +118,46 @@ def pd_controller(q_measured: np.ndarray,
                   kd: np.ndarray,
                   motors_effort_limit: np.ndarray,
                   control_dt: float) -> np.ndarray:
-    """TODO: Write documentation.
+    """Compute command under discrete-time proportional-derivative feedback
+    control.
+
+    Internally, it integrates the command state over the controller update
+    period in order to obtain the desired motor positions 'q_desired' and
+    velocities 'v_desired'. By computing them this way, the desired motor
+    positions and velocities can be interpreted as targets should be reached
+    right before updating the command once again. The integration takes into
+    account some lower and upper bounds that ideally should not be exceeded.
+    If not possible, priority is given to consistency of the integration, so
+    no clipping of the command state ever occurs. The lower order bounds will
+    be satisfied first, which means that position limits are the only one to be
+    guaranteed to never be violated.
+
+    The command effort is computed as follows:
+
+        tau = - kp * ((q_measured - q_desired) + kd * (v_measured - v_desired))
+
+    The torque will be held constant until the next controller update.
+
+    .. seealso::
+        See `PDController` documentation to get more information, and
+        `integrate_zoh` documentation for details about the state integration.
+
+    :param q_measured: Current position of the actuators.
+    :param v_measured: Current velocity of the actuators.
+    :param command_state: Current command state, namely, all the derivatives of
+                          the target motors positions up to order N. The order
+                          must be larger than 2 but can be arbitrarily large.
+    :param command_state_lower: Lower bound of the command state that should be
+                                satisfied if possible, prioritizing lower order
+                                derivatives.
+    :param command_state_upper: Upper bound of the command state that should be
+                                satisfied if possible, prioritizing lower order
+                                derivatives.
+    :param kp: PD controller position-proportional gain in motor order.
+    :param kd: PD controller velocity-proportional gain in motor order.
+    :param motors_effort_limit: Maximum effort that the actuators can output.
+    :param control_dt: Controller update period. It will be involved in the
+                       integration of the command state.
     """
     # Integrate command state
     command_state[:] = integrate_zoh(
@@ -147,6 +186,8 @@ def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
         doing so, which means that the returned data is a copy of the original
         data instead of a reference. On the contrary, it reordering is not
         necessary, a slice is returned instead and no copy happens whatsoever.
+
+    :param robot: Jiminy robot for which to compute mapping.
 
     :returns: A slice if possible, a list of indices otherwise.
     """

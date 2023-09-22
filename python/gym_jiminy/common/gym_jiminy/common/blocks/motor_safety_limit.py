@@ -25,7 +25,36 @@ def apply_safety_limits(command: np.ndarray,
                         motors_velocity_limit: np.ndarray,
                         motors_effort_limit: np.ndarray
                         ) -> np.ndarray:
-    """TODO: Write documentation.
+    """Clip the command torque to ensure safe operation.
+
+    It acts on each actuator independently and only activate close to the
+    position or velocity limits. Basically, the idea to the avoid moving faster
+    when some prescribed velocity limit or exceeding soft position bounds by
+    forcing the command torque to act against it. Still, it may not be enough
+    to prevent such issue in practice as the command torque is bounded.
+
+    .. warning::
+        All the input arguments must be in motor order, including the measured
+        position and velocity of the actuators. In practice, those measurements
+        comes from the encoder sensors. If so, then the measurements must be
+        re-ordered if necessary to match motor order instead of sensor order.
+
+    .. seealso::
+        See `MotorSafetyLimit` documentation for details.
+
+    :param command: Desired command to will be updated in-place if necessary.
+    :param q_measured: Current position of the actuators.
+    :param v_measured: Current velocity of the actuators.
+    :param kp: Scale of the velocity bound triggered by position limits.
+    :param kd: Scale of the effort bound triggered by velocity limits.
+    :param motors_soft_position_lower:
+        Soft lower position limit of the actuators.
+    :param motors_soft_position_upper:
+        Soft upper position limit of the actuators.
+    :param motors_velocity_limit: Maximum velocity of the actuators.
+    :param motors_effort_limit: Maximum effort that the actuators can output.
+                                The command torque cannot exceed this limits,
+                                not even if needed to enforce safe operation.
     """
     # Computes velocity bounds based on margin from soft joint limit if any
     safe_velocity_lower = motors_velocity_limit * np.clip(
@@ -57,7 +86,7 @@ class MotorSafetyLimit(
     determines the scale of the bound on velocity, ie v+/- = -kp * (x - x+/-).
     These bounds on velocity are the ones determining the bounds on effort.
 
-    .. seealso:
+    .. seealso::
         See official ROS documentation and implementation for details:
         https://wiki.ros.org/pr2_controller_manager/safety_limits
         https://github.com/PR2/pr2_mechanism/blob/melodic-devel/pr2_mechanism_model/src/joint.cpp

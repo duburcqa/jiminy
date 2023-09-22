@@ -6,6 +6,7 @@ fashion.
 It enables to break down a complex control architectures in many submodules,
 making it easier to maintain and avoiding code duplications between use cases.
 """
+import re
 import json
 import pathlib
 from pydoc import locate
@@ -147,17 +148,22 @@ def build_pipeline(env_config: EnvConfig,
             block_name = block_kwargs.pop("name", None)
             if block_name is None:
                 block_index = 0
-                block_type = block_cls.type
                 env_wrapper: gym.Env = env
                 while isinstance(env_wrapper, BasePipelineWrapper):
                     if isinstance(env_wrapper, ControlledJiminyEnv):
-                        if env_wrapper.controller.type == block_type:
+                        if isinstance(env_wrapper.controller, block_cls):
                             block_index += 1
                     elif isinstance(env_wrapper, ObservedJiminyEnv):
-                        if env_wrapper.observer.type == block_type:
+                        if isinstance(env_wrapper.observer, block_cls):
                             block_index += 1
                     env_wrapper = env_wrapper.env
-                block_name = f"{block_type}_{block_index}"
+                block_name = re.sub(
+                    r"([a-z\d])([A-Z])", r'\1_\2', re.sub(
+                        r"([A-Z]+)([A-Z][a-z])", r'\1_\2', block_cls.__name__)
+                    ).lower()
+                if block_index:
+                    block_name += f"_{block_index}"
+
             block = block_cls(block_name, env, **block_kwargs)
             args.append(block)
 

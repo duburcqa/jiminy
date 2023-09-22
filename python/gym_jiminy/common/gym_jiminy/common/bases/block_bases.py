@@ -142,8 +142,6 @@ class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
     The update period of the observer is the same than the simulation timestep
     of the environment for now.
     """
-    type = "observer"
-
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observer interface.
 
@@ -207,8 +205,6 @@ class BaseControllerBlock(
     The update period of the controller must be higher than the control update
     period of the environment, but both can be infinite, ie time-continuous.
     """
-    type = "controller"
-
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the controller interface.
 
