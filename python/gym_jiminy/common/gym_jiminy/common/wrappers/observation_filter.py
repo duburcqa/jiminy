@@ -4,23 +4,25 @@ from collections import OrderedDict
 from typing import Sequence, Union, Generic
 from typing_extensions import TypeAlias
 
-import numpy as np
 import gymnasium as gym
 
 from ..bases import (ObsT,
                      ActT,
-                     EngineObsType,
-                     BasePipelineWrapper,
-                     JiminyEnvInterface)
+                     JiminyEnvInterface,
+                     BaseTransformObservation)
 
 
 FilteredObsType: TypeAlias = ObsT
 
 
-class FilteredJiminyEnv(BasePipelineWrapper[FilteredObsType, ActT, ObsT, ActT],
+class FilterObservation(BaseTransformObservation[FilteredObsType, ObsT, ActT],
                         Generic[ObsT, ActT]):
-    """Normalize action space without clipping, contrary to usual
-    implementations.
+    """Filter nested observation space.
+
+    This wrapper does not nothing but providing an observation only exposing
+    a subset of all the branches and leaves of the original observation space.
+    For flattening the observation space after filtering, you should wrap the
+    environment with `FlattenObservation` as yet another layer.
     """
     def __init__(self,
                  env: JiminyEnvInterface[ObsT, ActT],
@@ -61,26 +63,11 @@ class FilteredJiminyEnv(BasePipelineWrapper[FilteredObsType, ActT, ObsT, ActT],
             assert isinstance(observation, dict)
             observation_filtered[key_nested[-1]] = observation[key_nested[-1]]
 
-    def _setup(self) -> None:
-        """Configure the wrapper.
-
-        In addition to the base implementation, it configures the controller
-        and registers its target to the telemetry.
-        """
-        # Call base implementation
-        super()._setup()
-
-        # Compute the observe and control update periods
-        self.observe_dt = self.env.observe_dt
-        self.control_dt = self.env.control_dt
-
-    def _initialize_action_space(self) -> None:
-        """Configure the action space.
-        """
-        self.action_space = self.env.action_space
-
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
+
+        It gathers a subset of all the branches and leaves of the original
+        observation space without any further processing.
         """
         self.observation_space = gym.spaces.Dict()
         for key_nested in self.nested_filter_keys:
@@ -94,21 +81,7 @@ class FilteredJiminyEnv(BasePipelineWrapper[FilteredObsType, ActT, ObsT, ActT],
             assert isinstance(space, gym.spaces.Dict)
             space_filtered[key_nested[-1]] = space[key_nested[-1]]
 
-    def refresh_observation(self, measurement: EngineObsType) -> None:
-        """Compute high-level features based on the current wrapped
-        environment's observation.
-
-        It simply forwards the command computed by the wrapped environment
-        without any processing.
+    def transform_observation(self) -> None:
+        """No-op transform since the transform observation is sharing memory
+        with the wrapped one since it is just a partial view.
         """
-        self.env.refresh_observation(measurement)
-
-    def compute_command(self, action: ActT) -> np.ndarray:
-        """Compute the motors efforts to apply on the robot.
-
-        It simply forwards the command computed by the wrapped environment
-        without any processing.
-
-        :param action: High-level target to achieve by means of the command.
-        """
-        return self.env.compute_command(action)

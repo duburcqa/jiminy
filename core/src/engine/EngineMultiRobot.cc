@@ -1240,6 +1240,7 @@ namespace jiminy
                two successive simulations. */
             systemDataIt->state.initialize(*(systemIt->robot));
             systemDataIt->statePrev.initialize(*(systemIt->robot));
+            systemDataIt->successiveSolveFailed = 0U;
         }
 
         // Initialize the ode solver
@@ -1891,6 +1892,7 @@ namespace jiminy
 
         // Monitor iteration failure
         uint32_t successiveIterFailed = 0;
+        std::vector<uint32_t> successiveSolveFailedAll(systems_.size(), 0U);
         bool_t isNan = false;
 
         /* Flag monitoring if the current time step depends of a breakpoint
@@ -2165,6 +2167,24 @@ namespace jiminy
                         break;
                     }
 
+                    /* Backup current number of successive constraint solving failure.
+                       It will be restored in case of integration failure. */
+                    auto systemDataIt = systemsDataHolder_.begin();
+                    auto successiveSolveFailedIt = successiveSolveFailedAll.begin();
+                    for ( ; systemDataIt != systemsDataHolder_.end(); ++systemDataIt, ++successiveSolveFailedIt)
+                    {
+                        *successiveSolveFailedIt = systemDataIt->successiveSolveFailed;
+                    }
+
+                    // Break the loop in case of too many successive constraint solving failures
+                    for (uint32_t const & successiveSolveFailed : successiveSolveFailedAll)
+                    {
+                        if (successiveSolveFailed > engineOptions_->stepper.successiveIterFailedMax)
+                        {
+                            break;
+                        }
+                    }
+
                     /* A breakpoint has been reached dt has been decreased
                        wrt the largest possible dt within integration tol. */
                     isBreakpointReached = (dtLargest > dt);
@@ -2242,6 +2262,14 @@ namespace jiminy
                         // Increment the failed iteration counters
                         ++successiveIterFailed;
                         ++stepperState_.iterFailed;
+
+                        // Restore number of successive constraint solving failure
+                        systemDataIt = systemsDataHolder_.begin();
+                        successiveSolveFailedIt = successiveSolveFailedAll.begin();
+                        for ( ; systemDataIt != systemsDataHolder_.end(); ++systemDataIt, ++successiveSolveFailedIt)
+                        {
+                            systemDataIt->successiveSolveFailed = *successiveSolveFailedIt;
+                        }
                     }
 
                     // Initialize the next dt
@@ -2271,6 +2299,24 @@ namespace jiminy
                     if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
                     {
                         break;
+                    }
+
+                    /* Backup current number of successive constraint solving failure.
+                       It will be restored in case of integration failure. */
+                    auto systemDataIt = systemsDataHolder_.begin();
+                    auto successiveSolveFailedIt = successiveSolveFailedAll.begin();
+                    for ( ; systemDataIt != systemsDataHolder_.end(); ++systemDataIt, ++successiveSolveFailedIt)
+                    {
+                        *successiveSolveFailedIt = systemDataIt->successiveSolveFailed;
+                    }
+
+                    // Break the loop in case of too many successive constraint solving failures
+                    for (uint32_t const & successiveSolveFailed : successiveSolveFailedAll)
+                    {
+                        if (successiveSolveFailed > engineOptions_->stepper.successiveIterFailedMax)
+                        {
+                            break;
+                        }
                     }
 
                     // Try to do a step
@@ -2323,6 +2369,14 @@ namespace jiminy
                         // Increment the failed iteration counter
                         ++successiveIterFailed;
                         ++stepperState_.iterFailed;
+
+                        // Restore number of successive constraint solving failure
+                        systemDataIt = systemsDataHolder_.begin();
+                        successiveSolveFailedIt = successiveSolveFailedAll.begin();
+                        for ( ; systemDataIt != systemsDataHolder_.end(); ++systemDataIt, ++successiveSolveFailedIt)
+                        {
+                            systemDataIt->successiveSolveFailed = *successiveSolveFailedIt;
+                        }
                     }
 
                     // Initialize the next dt
@@ -2342,17 +2396,26 @@ namespace jiminy
                             "going wrong with the physics. Aborting integration.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
+            for (uint32_t const & successiveSolveFailed : successiveSolveFailedAll)
+            {
+                if (successiveSolveFailed > engineOptions_->stepper.successiveIterFailedMax)
+                {
+                    PRINT_ERROR("Too many successive constraint solving failures. Try increasing "
+                                "the regularization factor. Aborting integration.");
+                    return hresult_t::ERROR_GENERIC;
+                }
+            }
             if (dt < STEPPER_MIN_TIMESTEP)
             {
                 PRINT_ERROR("The internal time step is getting too small. Impossible to "
-                            "integrate physics further in time.");
+                            "integrate physics further in time. Aborting integration.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
             timer_->toc();
             if (EPS < engineOptions_->stepper.timeout
                 && engineOptions_->stepper.timeout < timer_->dt)
             {
-                PRINT_ERROR("Step computation timeout.");
+                PRINT_ERROR("Step computation timeout. Aborting integration.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
 
@@ -3936,8 +3999,23 @@ namespace jiminy
             }
 
             // Call forward dynamics
-            systemData.constraintSolver->SolveBoxedForwardDynamics(
+            bool_t isSucess = systemData.constraintSolver->SolveBoxedForwardDynamics(
                 engineOptions_->constraints.regularization, isStateUpToDate, ignoreBounds);
+
+            /* Monitor number of successive constraint solving failure. Exception raising is
+               delegated to the 'step' method since this method is supposed to always succeed. */
+            if (isSucess)
+            {
+                systemData.successiveSolveFailed = 0U;
+            }
+            else
+            {
+                if (engineOptions_->stepper.verbose)
+                {
+                    std::cout << "Constraint solver failure." << std::endl;
+                }
+                ++systemData.successiveSolveFailed;
+            }
 
             // Restore contact frame forces and bounds internal efforts
             systemData.constraintsHolder.foreach(

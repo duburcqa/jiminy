@@ -17,7 +17,9 @@ from .block_bases import (BlockStateT,
                           BaseControllerBlock)
 from .pipeline_bases import (BasePipelineWrapper,
                              ObservedJiminyEnv,
-                             ControlledJiminyEnv)
+                             ControlledJiminyEnv,
+                             BaseTransformObservation,
+                             BaseTransformAction)
 
 
 __all__ = [
@@ -38,5 +40,7 @@ __all__ = [
     'BaseControllerBlock',
     'BasePipelineWrapper',
     'ObservedJiminyEnv',
-    'ControlledJiminyEnv'
+    'ControlledJiminyEnv',
+    'BaseTransformObservation',
+    'BaseTransformAction'
 ]

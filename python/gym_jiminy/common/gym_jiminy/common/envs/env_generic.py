@@ -277,9 +277,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             if action_size > 0 and action_size == self.robot.nmotors:
                 action_fieldnames = [
                     ".".join(('action', e)) for e in self.robot.motors_names]
-                self.register_variable('action',
-                                       self.action,
-                                       action_fieldnames)
+                self.register_variable(
+                    'action', self.action, action_fieldnames)
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -452,14 +451,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 sensor_velocity_limit = velocity_space.high[joint.idx_v]
 
                 # Update the bounds accordingly
-                sensor_space_lower[encoder.type][0, sensor_idx] = \
-                    sensor_position_lower
-                sensor_space_upper[encoder.type][0, sensor_idx] = \
-                    sensor_position_upper
-                sensor_space_lower[encoder.type][1, sensor_idx] = \
-                    - sensor_velocity_limit
-                sensor_space_upper[encoder.type][1, sensor_idx] = \
-                    sensor_velocity_limit
+                sensor_space_lower[encoder.type][:, sensor_idx] = (
+                    sensor_position_lower, -sensor_velocity_limit)
+                sensor_space_upper[encoder.type][:, sensor_idx] = (
+                    sensor_position_upper, sensor_velocity_limit)
 
         # Replace inf bounds of the effort sensor space
         if effort.type in sensors_data.keys():
@@ -469,40 +464,36 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 assert isinstance(sensor, effort)
                 sensor_idx = sensor.idx
                 motor_idx = self.robot.motors_velocity_idx[sensor.motor_idx]
-                sensor_space_lower[effort.type][0, sensor_idx] = \
-                    -command_limit[motor_idx]
-                sensor_space_upper[effort.type][0, sensor_idx] = \
-                    +command_limit[motor_idx]
+                sensor_space_lower[effort.type][0, sensor_idx] = (
+                    -command_limit[motor_idx])
+                sensor_space_upper[effort.type][0, sensor_idx] = (
+                    command_limit[motor_idx])
 
         # Replace inf bounds of the imu sensor space
         if self.enforce_bounded_spaces:
             # Replace inf bounds of the contact sensor space
             if contact.type in sensors_data.keys():
-                sensor_space_lower[contact.type][:, :] = -SENSOR_FORCE_MAX
-                sensor_space_upper[contact.type][:, :] = SENSOR_FORCE_MAX
+                sensor_space_lower[contact.type][:] = -SENSOR_FORCE_MAX
+                sensor_space_upper[contact.type][:] = SENSOR_FORCE_MAX
 
             # Replace inf bounds of the force sensor space
             if force.type in sensors_data.keys():
-                sensor_space_lower[force.type][:3, :] = -SENSOR_FORCE_MAX
-                sensor_space_upper[force.type][:3, :] = SENSOR_FORCE_MAX
-                sensor_space_lower[force.type][3:, :] = -SENSOR_MOMENT_MAX
-                sensor_space_upper[force.type][3:, :] = SENSOR_MOMENT_MAX
+                sensor_space_lower[force.type][:3] = -SENSOR_FORCE_MAX
+                sensor_space_upper[force.type][:3] = SENSOR_FORCE_MAX
+                sensor_space_lower[force.type][3:] = -SENSOR_MOMENT_MAX
+                sensor_space_upper[force.type][3:] = SENSOR_MOMENT_MAX
 
             # Replace inf bounds of the imu sensor space
             if imu.type in sensors_data.keys():
                 gyro_imu_idx = [
                     field.startswith('Gyro') for field in imu.fieldnames]
-                sensor_space_lower[imu.type][gyro_imu_idx, :] = \
-                    -SENSOR_GYRO_MAX
-                sensor_space_upper[imu.type][gyro_imu_idx, :] = \
-                    SENSOR_GYRO_MAX
+                sensor_space_lower[imu.type][gyro_imu_idx] = -SENSOR_GYRO_MAX
+                sensor_space_upper[imu.type][gyro_imu_idx] = SENSOR_GYRO_MAX
 
                 accel_imu_idx = [
                     field.startswith('Accel') for field in imu.fieldnames]
-                sensor_space_lower[imu.type][accel_imu_idx, :] = \
-                    -SENSOR_ACCEL_MAX
-                sensor_space_upper[imu.type][accel_imu_idx, :] = \
-                    SENSOR_ACCEL_MAX
+                sensor_space_lower[imu.type][accel_imu_idx] = -SENSOR_ACCEL_MAX
+                sensor_space_upper[imu.type][accel_imu_idx] = SENSOR_ACCEL_MAX
 
         return spaces.Dict(OrderedDict(
             (key, spaces.Box(low=min_val, high=max_val, dtype=np.float64))
@@ -574,7 +565,31 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                           fieldnames: Optional[
                               Union[str, FieldNested]] = None,
                           namespace: Optional[str] = None) -> None:
-        """ TODO: Write documentation.
+        """Register variable to the telemetry.
+
+        .. warning::
+            Variables are registered by reference. Consequently, the user is
+            responsible to manage the lifetime of the data to prevent it from
+            being garbage collected.
+
+        .. seealso::
+            See `gym_jiminy.common.utils.register_variables` for details.
+
+        :param name: Base name of the variable. It will be used to prepend
+                     fields, using '.' delimiter.
+        :param value: Variable to register. It supports any nested data
+                      structure whose leaves have type `np.ndarray` and either
+                      dtype `np.float64` or `np.int64`.
+        :param fieldnames: Nested fieldnames with the exact same data structure
+                           as the variable to register 'value'. Individual
+                           elements of each leaf array must have its own
+                           fieldname, all gathered in a nested tuple with the
+                           same shape of the array.
+                           Optional: Generic fieldnames will be generated
+                           automatically.
+        :param namespace: Namespace used to prepend the base name 'name', using
+                          '.' delimiter. Empty string to disable.
+                          Optional: Disabled by default.
         """
         # Create default fieldnames if not specified
         if fieldnames is None:
@@ -1252,9 +1267,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         if self.debug:
             engine_options["stepper"]["timeout"] = 0.0
 
-        # Enable logging of geometries in debug mode
-        if self.debug:
-            engine_options["telemetry"]["isPersistent"] = True
+        # Force disabling logging of geometries unless in debug or eval modes
+        if self.is_training and not self.debug:
+            engine_options["telemetry"]["isPersistent"] = False
 
         # Update engine options
         self.simulator.engine.set_options(engine_options)
@@ -1377,9 +1392,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         """Refresh internal buffers that must be updated manually.
 
         .. note::
-            This method is called right after every internal `engine.step`, so
-            it is the right place to update shared data between `is_done` and
-            `compute_reward`.
+            This method is called after every internal `engine.step` and before
+            refreshing the observation one last time. As such, it is the right
+            place to update shared data between `is_done` and `compute_reward`.
 
         .. note::
             `_initialize_buffers` method can be used to initialize buffers that

@@ -11,6 +11,7 @@ It implements:
 import math
 from weakref import ref
 from copy import deepcopy
+from abc import abstractmethod
 from collections import OrderedDict
 from itertools import chain
 from typing import (
@@ -38,6 +39,8 @@ from .block_bases import BaseControllerBlock, BaseObserverBlock
 OtherObsT = TypeVar('OtherObsT', bound=DataNested)
 OtherStateT = TypeVar('OtherStateT', bound=DataNested)
 NestedObsT = TypeVar('NestedObsT', bound=Dict[str, DataNested])
+TransformedObsT = TypeVar('TransformedObsT', bound=DataNested)
+TransformedActT = TypeVar('TransformedActT', bound=DataNested)
 
 
 class BasePipelineWrapper(
@@ -49,6 +52,10 @@ class BasePipelineWrapper(
 
     If several successive blocks must be composed, just wrap each of them
     successively one by one.
+
+    .. warning::
+        Hot-plug of additional blocks is supported, but the environment need to
+        be reset after changing the pipeline.
 
     .. warning::
         This architecture is not designed for trainable blocks, but rather for
@@ -78,12 +85,8 @@ class BasePipelineWrapper(
         # Backup the parent environment
         self.env = env
 
-        # Call base implementation()
+        # Call base implementation
         super().__init__()  # Do not forward any argument
-
-        # By default, bind the action to the one of the base environment
-        assert self.action_space.contains(env.action)
-        self.action = env.action  # type: ignore[assignment]
 
         # Define specialized operator(s) for efficiency.
         # Note that it cannot be done at this point because the action
@@ -215,9 +218,17 @@ class BasePipelineWrapper(
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information.
         """
-        # Backup the action to perform if relevant
         if action is not self.action:
+            # Backup the action to perform for top-most layer of the pipeline
             self._copyto_action(action)
+
+            # Make sure that the pipeline has not change since last reset
+            env_derived = (
+                self.unwrapped._env_derived)  # type: ignore[attr-defined]
+            if env_derived is not self:
+                raise RuntimeError(
+                    "Pipeline environment has changed. Please call 'reset' "
+                    "before 'step'.")
 
         # Compute the next learning step.
         # Note that forwarding 'self.env.action' enables skipping action update
@@ -232,7 +243,10 @@ class BasePipelineWrapper(
         # user keeps doing more steps nonetheless.
         reward = float(reward)
         if not math.isnan(reward):
-            reward += self.compute_reward(done, truncated, info)
+            try:
+                reward += self.compute_reward(done, truncated, info)
+            except NotImplementedError:
+                pass
 
         return obs, reward, done, truncated, info
 
@@ -340,18 +354,30 @@ class ObservedJiminyEnv(
         # Backup user arguments
         self.observer = observer
 
-        # Make sure that the pipeline does not have a block with the same name
+        # Make sure that the environment is either some `ObservedJiminyEnv` or
+        # `ControlledJiminyEnv` block, or the base environment directly.
+        if isinstance(env, BasePipelineWrapper) and not isinstance(
+                env, (ObservedJiminyEnv, ControlledJiminyEnv)):
+            raise TypeError(
+                "Observers can only be added on top of another observer, "
+                "controller, or a base environment itself.")
+
+        # Make sure that there is no other block with the exact same name
         block_name = observer.name
         env_unwrapped: JiminyEnvInterface = env
         while isinstance(env_unwrapped, BasePipelineWrapper):
             if isinstance(env_unwrapped, ObservedJiminyEnv):
                 assert block_name != env_unwrapped.observer.name
-            if isinstance(env_unwrapped, ControlledJiminyEnv):
+            elif isinstance(env_unwrapped, ControlledJiminyEnv):
                 assert block_name != env_unwrapped.controller.name
             env_unwrapped = env_unwrapped.env
 
         # Initialize base wrapper
         super().__init__(env, **kwargs)
+
+        # Bind action of the base environment
+        assert self.action_space.contains(env.action)
+        self.action = env.action
 
         # Initialize the observation.
         # One part is bound to the environment while the other is bound to the
@@ -440,6 +466,9 @@ class ObservedJiminyEnv(
             Internally, it can deal with multiple observers with different
             update periods. Besides, it is safe to call this method multiple
             times successively.
+
+        :param measurement: Low-level measure from the environment to process
+                            to get higher-level observation.
         """
         # Get environment observation
         self.env.refresh_observation(measurement)
@@ -538,12 +567,19 @@ class ControlledJiminyEnv(
                        wrapper generation.
         """
         # Make sure that the unwrapped environment matches the observed one
-        assert isinstance(env.unwrapped, JiminyEnvInterface)
         assert controller.env.unwrapped is env.unwrapped
 
         # Backup user arguments
         self.controller = controller
         self.augment_observation = augment_observation
+
+        # Make sure that the environment is either some `ObservedJiminyEnv` or
+        # `ControlledJiminyEnv` block, or the base environment directly.
+        if isinstance(env, BasePipelineWrapper) and not isinstance(
+                env, (ObservedJiminyEnv, ControlledJiminyEnv)):
+            raise TypeError(
+                "Controllers can only be added on top of another observer, "
+                "controller, or a base environment itself.")
 
         # Make sure that the pipeline does not have a block with the same name
         block_name = controller.name
@@ -551,7 +587,7 @@ class ControlledJiminyEnv(
         while isinstance(env_unwrapped, BasePipelineWrapper):
             if isinstance(env_unwrapped, ObservedJiminyEnv):
                 assert block_name != env_unwrapped.observer.name
-            if isinstance(env_unwrapped, ControlledJiminyEnv):
+            elif isinstance(env_unwrapped, ControlledJiminyEnv):
                 assert block_name != env_unwrapped.controller.name
             env_unwrapped = env_unwrapped.env
 
@@ -657,8 +693,8 @@ class ControlledJiminyEnv(
             for the sake of efficiency. Despite that, it is safe to call this
             method multiple times successively.
 
-        :returns: Original environment observation, eventually including
-                  controllers targets if requested.
+        :param measurement: Low-level measure from the environment to process
+                            to get higher-level observation.
         """
         self.env.refresh_observation(measurement)
 
@@ -693,3 +729,213 @@ class ControlledJiminyEnv(
                        truncated: bool,
                        info: InfoType) -> float:
         return self.controller.compute_reward(done, truncated, info)
+
+
+class BaseTransformObservation(
+        BasePipelineWrapper[TransformedObsT, ActT, ObsT, ActT],
+        Generic[TransformedObsT, ObsT, ActT]):
+    """Apply some transform on the observation of the wrapped environment.
+
+    The observation transform is only applied once per step, as post-processing
+    right before returning. It is meant to change the way a whole pipeline
+    environment is exposed to the outside rather than changing its internal
+    machinery. Incidentally, the transformed observation is not to be involved
+    in the computations of any subsequent pipeline layer.
+
+    .. note::
+        The user is expected to define the observation transform and its
+        corresponding space by overloading both `_initialize_action_space` and
+        `transform_action`. The transform will be applied at the end of every
+        environment step.
+
+    .. note::
+        This wrapper derives from `BasePipelineWrapper`, and such as, it is
+        considered as internal unlike `gym.Wrapper`. This means that it will be
+        taken into account calling `evaluate` or `play_interactive` on the
+        wrapped environment.
+    """
+    def __init__(self, env: JiminyEnvInterface[ObsT, ActT]) -> None:
+        # Initialize base class
+        super().__init__(env)
+
+        # Initialize some proxies for fast lookup
+        self._step_dt = self.env.step_dt
+
+        # Pre-allocated memory for the observation
+        self.observation: TransformedObsT = zeros(self.observation_space)
+
+        # Bind action of the base environment
+        assert self.action_space.contains(self.env.action)
+        self.action = self.env.action
+
+    def _setup(self) -> None:
+        """Configure the wrapper.
+
+        In addition to calling the base implementation, it sets the observe
+        and control update period.
+        """
+        # Call base implementation
+        super()._setup()
+
+        # Refresh some proxies for fast lookup
+        self._step_dt = self.env.step_dt
+
+        # Copy observe and control update periods from wrapped environment
+        self.observe_dt = self.env.observe_dt
+        self.control_dt = self.env.control_dt
+
+    def _initialize_action_space(self) -> None:
+        """Configure the action space.
+
+        It simply copy the action space of the wrapped environment.
+        """
+        self.action_space = self.env.action_space
+
+    def compute_command(self, action: ActT) -> np.ndarray:
+        """Compute the motors efforts to apply on the robot.
+
+        It simply forwards the command computed by the wrapped environment
+        without any processing.
+
+        :param action: High-level target to achieve by means of the command.
+        """
+        return self.env.compute_command(action)
+
+    def refresh_observation(self, measurement: EngineObsType) -> None:
+        """Compute high-level features based on the current wrapped
+        environment's observation.
+
+        It calls `transform_observation` at `step_dt` update period, right
+        after having refreshed the base observation.
+
+        .. warning::
+            The method `transform_observation` must have been overwritten by
+            the user prior to calling this method.
+
+        :param measurement: Low-level measure from the environment to process
+                            to get higher-level observation.
+        """
+        # Refresh observation of the base environment
+        self.env.refresh_observation(measurement)
+
+        # Transform observation at the end of the step only
+        if is_breakpoint(self.stepper_state.t, self._step_dt, DT_EPS):
+            self.transform_observation()
+
+    @abstractmethod
+    def transform_observation(self) -> None:
+        """Compute the transformed observation from the original wrapped
+        environment observation.
+
+        .. note::
+            The environment observation `self.env.observation` has been updated
+            prior to calling this method and therefore can be safely accessed.
+
+        .. note::
+            For the sake of efficiency, this method should directly update
+            in-place the pre-allocated transformed observation buffer
+            `self.observation` instead of returning a temporary.
+        """
+
+
+class BaseTransformAction(
+        BasePipelineWrapper[ObsT, TransformedActT, ObsT, ActT],
+        Generic[TransformedActT, ObsT, ActT]):
+    """Apply some transform on the action of the wrapped environment.
+
+    The action transform is only applied once per step, as pre-processing
+    right at the beginning. It is meant to change the way a whole pipeline
+    environment is exposed to the outside rather than changing its internal
+    machinery.
+
+    .. note::
+        The user is expected to define the observation transform and its
+        corresponding space by overloading both `_initialize_action_space` and
+        `transform_action`. The transform will be applied at the beginning of
+        every environment step.
+
+    .. note::
+        This wrapper derives from `BasePipelineWrapper`, and such as, it is
+        considered as internal unlike `gym.Wrapper`. This means that it will be
+        taken into account calling `evaluate` or `play_interactive` on the
+        wrapped environment.
+    """
+    def __init__(self, env: JiminyEnvInterface[ObsT, ActT]) -> None:
+        # Initialize base class
+        super().__init__(env)
+
+        # Initialize some proxies for fast lookup
+        self._step_dt = self.env.step_dt
+
+        # Pre-allocated memory for the action
+        self.action: TransformedActT = zeros(self.action_space)
+
+        # Bind observation of the base environment
+        assert self.observation_space.contains(self.env.observation)
+        self.observation = self.env.observation
+
+    def _setup(self) -> None:
+        """Configure the wrapper.
+
+        In addition to calling the base implementation, it sets the observe
+        and control update period.
+        """
+        # Call base implementation
+        super()._setup()
+
+        # Refresh some proxies for fast lookup
+        self._step_dt = self.env.step_dt
+
+        # Copy observe and control update periods from wrapped environment
+        self.observe_dt = self.env.observe_dt
+        self.control_dt = self.env.control_dt
+
+    def _initialize_observation_space(self) -> None:
+        """Configure the observation space.
+
+        It simply copy the observation space of the wrapped environment.
+        """
+        self.observation_space = self.env.observation_space
+
+    def refresh_observation(self, measurement: EngineObsType) -> None:
+        """Compute high-level features based on the current wrapped
+        environment's observation.
+
+        It simply forwards the observation computed by the wrapped environment
+        without any processing.
+
+        :param measurement: Low-level measure from the environment to process
+                            to get higher-level observation.
+        """
+        self.env.refresh_observation(measurement)
+
+    def compute_command(self, action: TransformedActT) -> np.ndarray:
+        """Compute the motors efforts to apply on the robot.
+
+        It calls `transform_action` at `step_dt` update period, which will
+        update the environment action. Then, it delegates computation of the
+        command to the base environment.
+
+        .. warning::
+            The method `transform_action` must have been overwritten by the
+            user prior to calling this method.
+
+        :param action: High-level target to achieve by means of the command.
+        """
+        # Transform action at the beginning of the step only
+        if is_breakpoint(self.stepper_state.t, self._step_dt, DT_EPS):
+            self.transform_action(action)
+
+        # Delegate command computation to wrapped environment
+        return self.env.compute_command(self.env.action)
+
+    @abstractmethod
+    def transform_action(self, action: TransformedActT) -> None:
+        """Compute the transformed action from the provided wrapped environment
+        action.
+
+        .. note::
+            For the sake of efficiency, this method should directly update
+            in-place the pre-allocated action buffer of the wrapped environment
+            `self.env.action` instead of returning a temporary.
+        """

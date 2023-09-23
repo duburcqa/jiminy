@@ -117,14 +117,14 @@ class PipelineDesign(unittest.TestCase):
         obs, _ = env.reset()
 
         # Controller target is observed, and has right name
-        self.assertTrue('actions' in obs and 'controller_0' in obs['actions'])
+        self.assertTrue('actions' in obs and 'pd_controller' in obs['actions'])
 
         # Target, time, and Imu data are stacked
         self.assertEqual(obs['t'].ndim, 1)
         self.assertEqual(len(obs['t']), self.num_stack)
         self.assertEqual(obs['measurements']['ImuSensor'].ndim, 3)
         self.assertEqual(len(obs['measurements']['ImuSensor']), self.num_stack)
-        controller_target_obs = obs['actions']['controller_0']
+        controller_target_obs = obs['actions']['pd_controller']
         self.assertEqual(len(controller_target_obs), self.num_stack)
         self.assertEqual(obs['measurements']['EffortSensor'].ndim, 2)
 
@@ -151,7 +151,7 @@ class PipelineDesign(unittest.TestCase):
         # Perform a single step
         env = self.ANYmalPipelineEnv()
         env.reset()
-        action = env.env.observation['actions']['controller_0'].copy()
+        action = env.env.observation['actions']['pd_controller'].copy()
         action += 1.0e-3
         obs, *_ = env.step(action)
 
@@ -163,7 +163,7 @@ class PipelineDesign(unittest.TestCase):
                 obs['t'][::-1][i], t_obs_last - i * stack_dt, TOLERANCE))
 
         # Initial observation is consistent with internal simulator state
-        controller_target_obs = obs['actions']['controller_0']
+        controller_target_obs = obs['actions']['pd_controller']
         self.assertTrue(np.all(controller_target_obs[-1] == action))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]

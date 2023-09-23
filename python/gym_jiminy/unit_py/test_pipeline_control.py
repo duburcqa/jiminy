@@ -144,7 +144,7 @@ class PipelineControl(unittest.TestCase):
         env.stop()
 
     def test_pid_controller(self):
-        """TODO: Write documentation.
+        """ TODO: Write documentation.
         """
         # Instantiate the environment and run a simulation with random action
         env = AtlasPDControlJiminyEnv()

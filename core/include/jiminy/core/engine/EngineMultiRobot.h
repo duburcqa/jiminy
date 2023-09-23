@@ -99,6 +99,7 @@ namespace jiminy
             configHolder_t config;
             config["solver"] = std::string("PGS");   // ["PGS",]
             config["regularization"] = 1.0e-3;       // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
+            config["successiveSolveFailedMax"] = 100U;
 
             return config;
         };
@@ -191,10 +192,12 @@ namespace jiminy
         {
             std::string const solver;
             float64_t const regularization;
+            uint32_t const successiveSolveFailedMax;
 
             constraintOptions_t(configHolder_t const & options) :
             solver(boost::get<std::string>(options.at("solver"))),
-            regularization(boost::get<float64_t>(options.at("regularization")))
+            regularization(boost::get<float64_t>(options.at("regularization"))),
+            successiveSolveFailedMax(boost::get<uint32_t>(options.at("successiveSolveFailedMax")))
             {
                 // Empty on purpose
             }
