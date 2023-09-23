@@ -79,17 +79,16 @@ def mahony_filter(q: np.ndarray,
     bias_hat -= dt * ki * omega_mes
 
 
-def remove_swing(q: np.ndarray) -> None:
+def remove_twist_from_quat(q: np.ndarray) -> None:
     """Remove the twist part of the Swing-Twist decomposition of given
     rotations in quaternion representation.
 
-    .. details::
-        Any rotation R can be decomposed as:
+    Any rotation R can be decomposed as:
 
-            R = R_z R_s
+        R = R_z R_s
 
-        where R_z (the twist) is a rotation around e_z and R_s (the swing) is
-        the "smallest" rotation matrix such that t(R_s) = t(R).
+    where R_z (the twist) is a rotation around e_z and R_s (the swing) is
+    the "smallest" rotation matrix such that t(R_s) = t(R).
 
     .. seealso::
         See "Estimation and control of the deformations of an exoskeleton using
@@ -99,7 +98,7 @@ def remove_swing(q: np.ndarray) -> None:
               and columns are N independent rotations for which to remove the
               swing. It will be updated in-place.
     """
-    # Compute expected Earth's gravity (Euler-Rodrigues Formula): R(q).T @ e_z
+    # Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z
     q_x, q_y, q_z, q_w = q
     v_x = 2 * (q_x * q_z - q_y * q_w)
     v_y = 2 * (q_y * q_z + q_w * q_x)
@@ -133,8 +132,8 @@ class MahonyFilter(
                  env: JiminyEnvInterface[BaseObsT, BaseActT],
                  *,
                  update_ratio: int = 1,
+                 remove_twist: bool = False,
                  exact_init: bool = True,
-                 remove_swing: bool = False,
                  kp: Union[np.ndarray, float] = 1.0,
                  ki: Union[np.ndarray, float] = 0.1) -> None:
         """
@@ -142,12 +141,22 @@ class MahonyFilter(
         :param env: Environment to connect with.
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller.
+                             Optional: `1` by default.
+        :param remove_twist: Whether to remove the twist from the quaternion
+                             estimate. This is recommended because its value is
+                             not observable by the accelerometer, so its value
+                             comes from the sole integration of the gyroscope,
+                             which is drifting and therefore unreliable.
+                             Optional: `False` by default.
         :param exact_init: Whether to initialize orientation estimate using
                            accelerometer measurements or ground truth. `False`
                            is not recommended because the robot is often
                            free-falling at init, which is not realistic anyway.
+                           Optional: `True` by default.
         :param mahony_kp: Proportional gain used for gyro-accel sensor fusion.
+                          Optional: `1.0` by default.
         :param mahony_ki: Integral gain used for gyro bias estimate.
+                          Optional: `0.1` by default.
         """
         # Handling of default argument(s)
         num_imu_sensors = len(env.robot.sensors_names[imu.type])
@@ -158,7 +167,7 @@ class MahonyFilter(
 
         # Backup some of the user arguments
         self.exact_init = exact_init
-        self.remove_swing = remove_swing
+        self.remove_twist = remove_twist
         self.kp = kp
         self.ki = ki
 
@@ -193,6 +202,11 @@ class MahonyFilter(
     def _setup(self) -> None:
         # Call base implementation
         super()._setup()
+
+        # Make sure observe update is discrete-time
+        if self.env.observe_dt <= 0.0:
+            raise ValueError(
+                "This block does not support time-continuous update.")
 
         # Refresh gyroscope and accelerometer proxies
         self.gyro, self.acc = np.split(self.env.sensors_data[imu.type], 2)
@@ -260,5 +274,5 @@ class MahonyFilter(
                       self.ki)
 
         # Remove twist if requested
-        if self.remove_swing:
-            remove_swing(self.observation)
+        if self.remove_twist:
+            remove_twist_from_quat(self.observation)

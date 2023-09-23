@@ -228,7 +228,7 @@ class StackedJiminyEnv(
         # Make sure observe update is discrete-time
         if self.env.observe_dt <= 0.0:
             raise ValueError(
-                "`StackObservation` does not support time-continuous update.")
+                "This wrapper does not support time-continuous update.")
 
         # Copy observe and control update periods from wrapped environment
         self.observe_dt = self.env.observe_dt

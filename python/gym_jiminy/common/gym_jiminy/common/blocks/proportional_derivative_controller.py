@@ -359,6 +359,11 @@ class PDController(
         # Call base implementation
         super()._setup()
 
+        # Make sure control update is discrete-time
+        if self.env.control_dt <= 0.0:
+            raise ValueError(
+                "This block does not support time-continuous update.")
+
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
         self.q_measured, self.v_measured = self.env.sensors_data[

@@ -203,7 +203,7 @@ class BaseControllerBlock(
     the motors efforts to apply on the robot.
 
     The update period of the controller must be higher than the control update
-    period of the environment, but both can be infinite, ie time-continuous.
+    period of the environment, but both can be infinite, i.e. time-continuous.
     """
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the controller interface.

@@ -6,7 +6,7 @@ from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping, Sequence, MutableSequence
 from typing import (
     Any, Dict, Optional, Union, Sequence as SequenceT, Mapping as MappingT,
-    Iterable as IterableT, Tuple, TypeVar, Type, Literal, SupportsFloat,
+    Iterable as IterableT, Tuple, Literal, SupportsFloat, TypeVar, Type,
     Callable, no_type_check, cast)
 
 import numba as nb
@@ -1210,8 +1210,8 @@ def build_normalize(space: gym.Space[DataNested],
 def build_flatten(data_nested: DataNested,
                   data_flat: Optional[DataNested] = None,
                   *, is_reversed: bool = False) -> Callable[..., None]:
-    """Generate a flattening or un-flattening method specialized for a
-    given pre-allocated destination.
+    """Generate a flattening or un-flattening method specialized for some
+    pre-allocated nested data.
 
     .. note::
         Multi-dimensional leaf spaces are supported. Values will be flattened
@@ -1246,18 +1246,32 @@ def build_flatten(data_nested: DataNested,
         idx_start = idx_end
 
     @nb.jit(nopython=True, cache=True)
-    def _flatten(data_nested: np.ndarray,
+    def _flatten(data: np.ndarray,
                  flat_slice: Tuple[int, int],
                  data_flat: np.ndarray,
                  is_reversed: bool) -> None:
-        """TODO: Write documentation.
+        """Synchronize the flatten and un-flatten representation of the data
+        associated with the same leaf space.
+
+        In practice, it assigns the value of a 1D array slice to some multi-
+        dimensional array, or the other way around.
+
+        :param data: Multi-dimensional array that will be either updated or
+                     copied as a whole depending on 'is_reversed'.
+        :param flat_slice: Start and stop indices of the slice of 'data_flat'
+                           to synchronized with 'data'.
+        :param data_flat: 1D array from which to extract that will be either
+                          updated or copied depending on 'is_reversed'.
+        :param is_reversed: True to update the multi-dimensional array 'data'
+                            by copying the value from slice 'flat_slice' of
+                            vector 'data_flat', False for doing the contrary.
         """
         # For some reason, passing a slice as input argument is much slower
         # in numba than creating it inside the method.
         if is_reversed:
-            data_nested.ravel()[:] = data_flat[slice(*flat_slice)]
+            data.ravel()[:] = data_flat[slice(*flat_slice)]
         else:
-            data_flat[slice(*flat_slice)] = data_nested.ravel()
+            data_flat[slice(*flat_slice)] = data.ravel()
 
     args = (is_reversed,)
     if data_flat is not None:
@@ -1268,7 +1282,17 @@ def build_flatten(data_nested: DataNested,
         def _repeat(out_fn: Callable[[DataNested], None],
                     n_leaves: int,
                     delayed: DataNested) -> None:
-            """TODO: Write documentation.
+            """Dispatch flattened data provided at runtime to each transform
+            '_flatten' specialized for all leaves of the original nested space.
+
+            In practice, it simply repeats the flattened data as many times as
+            the number of leaves of the original nested space before passing
+            them altogether in a tuple as input argument of a function.
+
+            :param out_fn: Flattening or un-flattening method already
+                           specialized for a given pre-allocated nested data.
+            :param n_leaves: Total number of leaves in original nested space.
+            :param delayed: Flattened data provided at runtime.
             """
             out_fn((delayed,) * n_leaves)
 

@@ -11,7 +11,11 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 
 from .proportional_derivative_controller import get_encoder_to_motor_map
 
-from ..bases import BaseObsT, JiminyEnvInterface, BaseControllerBlock
+from ..bases import (BaseObsT,
+                     JiminyEnvInterface,
+                     BaseControllerBlock,
+                     BasePipelineWrapper,
+                     ControlledJiminyEnv)
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
@@ -74,7 +78,8 @@ def apply_safety_limits(command: np.ndarray,
 
 class MotorSafetyLimit(
         BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
-    """Safety mechanism designed to avoid damaging the hardware.
+    """Safety mechanism primarily designed to prevent hardware damage and
+    premature wear, but also to temper violent, sporadic and dangerous motions.
 
     A velocity limit v+ is enforced by bounding the commanded effort such that
     no effort can be applied to push the joint beyond the velocity limit, and
@@ -86,14 +91,18 @@ class MotorSafetyLimit(
     determines the scale of the bound on velocity, ie v+/- = -kp * (x - x+/-).
     These bounds on velocity are the ones determining the bounds on effort.
 
+    .. note::
+        The prescribed position and velocity limits may be more respective that
+        the actual hardware specification of the robot.
+
+    .. warning::
+        It must be connected directly to the environment without any other
+        intermediary controller.
+
     .. seealso::
         See official ROS documentation and implementation for details:
         https://wiki.ros.org/pr2_controller_manager/safety_limits
         https://github.com/PR2/pr2_mechanism/blob/melodic-devel/pr2_mechanism_model/src/joint.cpp
-
-    .. warning::
-        It must be connected directly to the environment to control without
-        any intermediary controllers altering the action space.
     """  # noqa: E501  # pylint: disable=line-too-long
     def __init__(self,
                  name: str,
@@ -115,11 +124,13 @@ class MotorSafetyLimit(
         :param soft_velocity_max: Maximum velocity of the motor before
                                   starting to break.
         """
-        # Make sure the action space of the environment has not been altered
-        if env.action_space is not env.unwrapped.action_space:
-            raise RuntimeError(
-                "Impossible to connect this block on an environment whose "
-                "action space has been altered.")
+        # Make sure that no other controller has been added prior to this block
+        env_unwrapped: JiminyEnvInterface = env
+        while isinstance(env_unwrapped, BasePipelineWrapper):
+            if isinstance(env_unwrapped, ControlledJiminyEnv):
+                raise TypeError(
+                    "No other control block must be added prior to this one.")
+            env_unwrapped = env_unwrapped.env
 
         # Backup some user argument(s)
         self.kp = kp
@@ -173,7 +184,11 @@ class MotorSafetyLimit(
                 for name in self.env.robot.motors_names]
 
     def compute_command(self, action: np.ndarray) -> np.ndarray:
-        """TODO: Write documentation.
+        """Apply safety limits to the desired motor torques right before
+        sending it to the robot so as to avoid exceeded prescribed position
+        and velocity limits.
+
+        :param action: Desired motor torques to apply on the robot.
         """
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
