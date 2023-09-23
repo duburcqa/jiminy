@@ -15,11 +15,11 @@ from ..bases import (ObsT,
 from ..utils import build_reduce, build_flatten
 
 
-FlatObsT: TypeAlias = ObsT
-FlatActT: TypeAlias = ActT
+FlattenedObsT: TypeAlias = ObsT
+FlattenedActT: TypeAlias = ActT
 
 
-class FlattenObservation(BaseTransformObservation[FlatObsT, ObsT, ActT],
+class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
                          Generic[ObsT, ActT]):
     """Flatten the observation space of a pipeline environment. It will appear
     as a simple one-dimension floating-point vector.
@@ -55,7 +55,7 @@ class FlattenObservation(BaseTransformObservation[FlatObsT, ObsT, ActT],
         self._flatten_observation()
 
 
-class FlattenAction(BaseTransformAction[FlatActT, ObsT, ActT],
+class FlattenAction(BaseTransformAction[FlattenedActT, ObsT, ActT],
                     Generic[ObsT, ActT]):
     """Flatten the action space of a pipeline environment. It will appear as a
     simple one-dimension floating-point vector.
@@ -84,7 +84,7 @@ class FlattenAction(BaseTransformAction[FlatActT, ObsT, ActT],
         assert dtype is not None and issubclass(dtype.type, np.floating)
         self.action_space = gym.spaces.Box(low, high, dtype=dtype.type)
 
-    def transform_action(self, action: ActT) -> None:
+    def transform_action(self, action: FlattenedActT) -> None:
         """Update in-place the pre-allocated action buffer of the wrapped
         environment with the un-flattened action.
         """

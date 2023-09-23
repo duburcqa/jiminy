@@ -1252,9 +1252,9 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         if self.debug:
             engine_options["stepper"]["timeout"] = 0.0
 
-        # Enable logging of geometries in debug mode
-        if self.debug:
-            engine_options["telemetry"]["isPersistent"] = True
+        # Force disabling logging of geometries unless in debug or eval modes
+        if self.is_training and not self.debug:
+            engine_options["telemetry"]["isPersistent"] = False
 
         # Update engine options
         self.simulator.engine.set_options(engine_options)

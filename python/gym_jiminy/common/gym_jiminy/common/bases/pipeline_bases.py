@@ -930,7 +930,7 @@ class BaseTransformAction(
         return self.env.compute_command(self.env.action)
 
     @abstractmethod
-    def transform_action(self, action: ActT) -> None:
+    def transform_action(self, action: TransformedActT) -> None:
         """Compute the transformed action from the provided wrapped environment
         action.
 

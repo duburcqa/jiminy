@@ -41,7 +41,7 @@ def mahony_filter(q: np.ndarray,
     :param acc: Sample of tri-axial Accelerometer in m/s^2.
     :param dt: Time step, in seconds, between consecutive Quaternions.
     """
-    # Compute expected Earth's gravity: R(q).T @ e_z
+    # Compute expected Earth's gravity (Euler-Rodrigues Formula): R(q).T @ e_z
     q_x, q_y, q_z, q_w = q
     v_a = np.stack((
         2 * (q_x * q_z - q_y * q_w),
@@ -79,6 +79,38 @@ def mahony_filter(q: np.ndarray,
     bias_hat -= dt * ki * omega_mes
 
 
+def remove_swing(q: np.ndarray) -> None:
+    """Remove the twist part of the Swing-Twist decomposition of given
+    rotations in quaternion representation.
+
+    .. details::
+        Any rotation R can be decomposed as:
+
+            R = R_z R_s
+
+        where R_z (the twist) is a rotation around e_z and R_s (the swing) is
+        the "smallest" rotation matrix such that t(R_s) = t(R).
+
+    .. seealso::
+        See "Estimation and control of the deformations of an exoskeleton using
+        inertial sensors", PhD Thesis, M. Vigne, 2021, p. 130.
+
+    :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
+              and columns are N independent rotations for which to remove the
+              swing. It will be updated in-place.
+    """
+    # Compute expected Earth's gravity (Euler-Rodrigues Formula): R(q).T @ e_z
+    q_x, q_y, q_z, q_w = q
+    v_x = 2 * (q_x * q_z - q_y * q_w)
+    v_y = 2 * (q_y * q_z + q_w * q_x)
+    v_z = 1 - 2 * (q_x * q_x + q_y * q_y)
+
+    # Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'.
+    # See `Eigen::Quaternion::FromTwoVectors` implementation for details.
+    s = np.sqrt(2 * (1 + v_z))
+    q[:] = np.stack((v_y / s, -v_x / s, np.zeros_like(v_x), s / 2), axis=0)
+
+
 class MahonyFilter(
         BaseObserverBlock[np.ndarray, np.ndarray, BaseObsT, BaseActT]):
     """Mahony's Nonlinear Complementary Filter on SO(3).
@@ -102,6 +134,7 @@ class MahonyFilter(
                  *,
                  update_ratio: int = 1,
                  exact_init: bool = True,
+                 remove_swing: bool = False,
                  kp: Union[np.ndarray, float] = 1.0,
                  ki: Union[np.ndarray, float] = 0.1) -> None:
         """
@@ -125,6 +158,7 @@ class MahonyFilter(
 
         # Backup some of the user arguments
         self.exact_init = exact_init
+        self.remove_swing = remove_swing
         self.kp = kp
         self.ki = ki
 
@@ -224,3 +258,7 @@ class MahonyFilter(
                       self.observe_dt,
                       self.kp,
                       self.ki)
+
+        # Remove twist if requested
+        if self.remove_swing:
+            remove_swing(self.observation)

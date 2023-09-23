@@ -100,7 +100,7 @@ class NormalizeAction(BaseTransformAction[NormalizedActT, ObsT, ActT],
         self.action_space = build_map(
             _normalize_space, self.env.action_space, None, 0)()
 
-    def transform_action(self, action: ActT) -> None:
+    def transform_action(self, action: NormalizedActT) -> None:
         """Update in-place the pre-allocated action buffer of the wrapped
         environment with the de-normalized action.
         """
