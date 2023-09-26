@@ -333,17 +333,6 @@ class PDController(
         # Reference to highest-order derivative for fast access
         self._action = self._command_state[-1]
 
-    def _initialize_action_space(self) -> None:
-        """Configure the action space of the controller.
-
-        The action spaces corresponds to the N-th order derivative of the
-        target motors positions.
-        """
-        self.action_space = gym.spaces.Box(
-            low=self._command_state_lower[-1],
-            high=self._command_state_upper[-1],
-            dtype=np.float64)
-
     def _initialize_state_space(self) -> None:
         """Configure the state space of the controller.
 
@@ -353,6 +342,17 @@ class PDController(
         self.state_space = gym.spaces.Box(
             low=self._command_state_lower[:-1],
             high=self._command_state_upper[:-1],
+            dtype=np.float64)
+
+    def _initialize_action_space(self) -> None:
+        """Configure the action space of the controller.
+
+        The action spaces corresponds to the N-th order derivative of the
+        target motors positions.
+        """
+        self.action_space = gym.spaces.Box(
+            low=self._command_state_lower[-1],
+            high=self._command_state_upper[-1],
             dtype=np.float64)
 
     def _setup(self) -> None:
