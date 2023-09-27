@@ -150,6 +150,12 @@ def remove_twist(q: np.ndarray) -> None:
         q[2] = 0.0
         q[3] = s / 2
 
+    # First order quaternion normalization to prevent compounding of errors.
+    # If not done, shit may happen with removing twist again and again on the
+    # same quaternion, which is typically the case when the IMU is steady, so
+    # that the mahony filter updated is actually skipped internally.
+    q *= (3 - np.sum(q * q, axis=0)) / 2
+
 
 @nb.jit(nopython=True, nogil=True, cache=True)
 def update_twist(q: np.ndarray,
@@ -188,7 +194,7 @@ def update_twist(q: np.ndarray,
     dtwist = (- q_y * omega[0] + q_x * omega[1]) / q_w + omega[2]
 
     # Update twist angle using Leaky Integrator scheme to avoid long-term drift
-    twist *= (1.0 - time_constant_inv)
+    twist *= 1.0 - time_constant_inv * dt
     twist += dtwist * dt
 
     # Update quaternion to add estimated twist
