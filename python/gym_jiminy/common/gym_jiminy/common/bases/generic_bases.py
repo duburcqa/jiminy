@@ -126,7 +126,7 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
         """
 
     def compute_reward(self,
-                       done: bool,
+                       terminated: bool,
                        truncated: bool,
                        info: InfoType) -> float:
         """Compute the reward related to a specific control block.
@@ -145,9 +145,9 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
             track of individual reward components or any kind of extra info
             that may be helpful for monitoring or debugging purposes.
 
-        :param done: Whether the episode has reached one of terminal states of
-                     the MDP at the current step. This flag can be used to
-                     compute a specific terminal reward.
+        :param terminated: Whether the episode has reached the terminal state
+                           of the MDP at the current step. This flag can be
+                           used to compute a specific terminal reward.
         :param truncated: Whether a truncation condition outside the scope of
                           the MDP has been satisfied at the current step. This
                           flag can be used to adapt the reward.

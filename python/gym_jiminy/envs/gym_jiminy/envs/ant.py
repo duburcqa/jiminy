@@ -183,17 +183,17 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         """ TODO: Write documentation.
         """
         # Call base implementation
-        done, truncated = super().has_terminated()
+        terminated, truncated = super().has_terminated()
 
         # Check if the agent is jumping far too high or stuck on its back
         zpos = self._system_state_q[2]
         if 1.0 < zpos or zpos < 0.2:
             truncated = True
 
-        return done, truncated
+        return terminated, truncated
 
     def compute_reward(self,
-                       done: bool,
+                       terminated: bool,
                        truncated: bool,
                        info: InfoType) -> float:
         """ TODO: Write documentation.
@@ -212,7 +212,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         f_ext = self.observation[f_ext_idx]
         contact_cost = 0.5 * 1e-3 * np.square(f_ext).sum()
 
-        survive_reward = 1.0 if not done else 0.0
+        survive_reward = 1.0 if not terminated else 0.0
 
         reward = forward_reward - ctrl_cost - contact_cost + survive_reward
 

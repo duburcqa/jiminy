@@ -352,29 +352,29 @@ class WalkerJiminyEnv(BaseJiminyEnv):
     def has_terminated(self) -> Tuple[bool, bool]:
         """Determine whether the episode is over.
 
-        It terminates (`done=True`) if one of the following conditions is met:
+        It terminates (`terminated=True`) under the following conditions:
 
             - fall detection: the freeflyer goes lower than 75% of its height
               in neutral configuration.
 
-        It is truncated if one of the following conditions is met:
+        It is truncated under the following conditions:
 
             - observation out-of-bounds
             - maximum simulation duration exceeded
 
-        :returns: done and truncated flags.
+        :returns: terminated and truncated flags.
         """
         # Call base implementation
-        done, truncated = super().has_terminated()
+        terminated, truncated = super().has_terminated()
 
         # Check if the agent has successfully solved the task
         if self._system_state_q[2] < self._height_neutral * 0.5:
-            done = True
+            terminated = True
 
-        return done, truncated
+        return terminated, truncated
 
     def compute_reward(self,
-                       done: bool,
+                       terminated: bool,
                        truncated: bool,
                        info: InfoType) -> float:
         """Compute reward at current episode state.
@@ -404,7 +404,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 power_consumption / self._power_consumption_max
             reward_dict['energy'] = - power_consumption_rel
 
-        if done:
+        if terminated:
             if 'failure' in reward_mixture_keys:
                 reward_dict['failure'] = - 1.0
 

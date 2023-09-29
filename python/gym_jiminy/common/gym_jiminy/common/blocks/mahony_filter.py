@@ -49,8 +49,8 @@ def mahony_filter(q: np.ndarray,
                 classical (as opposed to spatial) acceleration of the IMU in
                 local frame minus gravity.
     :param bias_hat: Current gyroscope bias estimate to update in-place.
-    :param mahony_kp: Proportional gain used for gyro-accel sensor fusion.
-    :param mahony_ki: Integral gain used for gyro bias estimate.
+    :param kp: Proportional gain used for gyro-accel sensor fusion.
+    :param ki: Integral gain used for gyro bias estimate.
     :param dt: Time step, in seconds, between consecutive Quaternions.
 
     """
@@ -108,9 +108,10 @@ def remove_twist(q: np.ndarray) -> None:
 
     .. seealso::
         * See "Estimation and control of the deformations of an exoskeleton
-        using inertial sensors", PhD Thesis, M. Vigne, 2021, p. 130.
+          using inertial sensors", PhD Thesis, M. Vigne, 2021, p. 130.
         * See "Swing-twist decomposition in Clifford algebra", P. Dobrowolski,
-        2015 (https://arxiv.org/abs/1506.05481)
+          2015 (https://arxiv.org/abs/1506.05481)
+
 
     :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
               and columns are N independent orientations from which to remove

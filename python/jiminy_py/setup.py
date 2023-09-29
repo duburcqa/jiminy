@@ -159,7 +159,7 @@ setup(
             # Dependency for documentation generation
             "colorama",
             # Generate Python docs and render '.rst' nicely
-            "sphinx",
+            "sphinx>=4.0.0",
             # 'Read the Docs' Sphinx docs style
             "sphinx-rtd-theme",
             # Render markdown in sphinx docs

@@ -5,8 +5,7 @@ Gym Jiminy API
    :maxdepth: 1
 
    bases/index
+   blocks/index
    envs/index
-   pipeline
-   controllers/index
    wrappers/index
    utils/index
