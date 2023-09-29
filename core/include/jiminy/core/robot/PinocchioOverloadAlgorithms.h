@@ -23,7 +23,7 @@
 #include "pinocchio/multibody/joint/fwd.hpp"       // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
 #include "pinocchio/algorithm/aba.hpp"             // `pinocchio::aba`
 #include "pinocchio/algorithm/rnea.hpp"            // `pinocchio::rnea`
-#include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crba`
+#include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crbaMinimal`
 #include "pinocchio/algorithm/energy.hpp"          // `pinocchio::computeKineticEnergy`
 #include "pinocchio/algorithm/cholesky.hpp"        // `pinocchio::cholesky::`
 
@@ -41,10 +41,15 @@ namespace pinocchio_overload
     computeKineticEnergy(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
                          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
                          Eigen::MatrixBase<ConfigVectorType>                      const & q,
-                         Eigen::MatrixBase<TangentVectorType>                     const & v)
+                         Eigen::MatrixBase<TangentVectorType>                     const & v,
+                         bool_t                                                   const & update_kinematics = true)
     {
-        (void) pinocchio::computeKineticEnergy(model, data, q, v);
-        data.kinetic_energy += 0.5 * (model.rotorInertia.array() * v.array().pow(2)).sum();
+        if (update_kinematics)
+        {
+            pinocchio::forwardKinematics(model, data, q, v);
+        }
+        (void) pinocchio::computeKineticEnergy(model, data);
+        data.kinetic_energy += 0.5 * (model.rotorInertia.array() * v.array().square()).sum();
         return data.kinetic_energy;
     }
 
@@ -85,7 +90,8 @@ namespace pinocchio_overload
          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
          Eigen::MatrixBase<ConfigVectorType>                      const & q)
     {
-        (void) pinocchio::crba(model, data, q);
+        data.Ycrb[0].setZero();  // FIXME: Remove this patch after migration to pinocchio>=2.6.21
+        (void) pinocchio::crbaMinimal(model, data, q);
         data.M.diagonal() += model.rotorInertia;
         return data.M;
     }
@@ -501,7 +507,7 @@ namespace pinocchio_overload
         /* Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T
            - Use row-major for sDUiJt and U to enable vectorization
            - Implement custom cholesky::Uiv to compute all columns at once (faster SIMD)
-           - TODO: take advantage of the sparsity of J when multiplying by sqrt(D)^-1 */
+           - TODO: Leverage sparsity of J when multiplying by sqrt(D)^-1 */
         Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> sDUiJt = J.transpose();
         Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U = data.U;
         std::vector<int> const & nvt = data.nvSubtree_fromRow;
@@ -513,11 +519,11 @@ namespace pinocchio_overload
         sDUiJt.array().colwise() *= data.Dinv.array().sqrt();
 
         /* Compute JMinvJt := sDUiJt.T * sDUiJt
-           - TODO: Take advantage of the sparsity pattern of the jacobian which propagates
-             through sDUiJt. Reference: Exploiting Sparsity in Operational-Space Dynamics
+           - TODO: Leverage sparsity of J which propagates through sDUiJt.
+             Reference: Exploiting Sparsity in Operational-Space Dynamics
              (Figure 10 of http://royfeatherstone.org/papers/sparseOSIM.pdf).
-             Each constraint must provide a std::vector of std::pair<start,dim> that are
-             dependency blocks. */
+             Each constraint should provide a std::vector of slice
+             std::pair<start, dim> corresponding to all dependency blocks. */
         data.JMinvJt.resize(J.rows(), J.rows());
         data.JMinvJt.triangularView<Eigen::Lower>().setZero();
         data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(sDUiJt.transpose());

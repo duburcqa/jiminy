@@ -143,11 +143,12 @@ namespace jiminy
         std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;  ///< Iterator related to the time of the next breakpoint associated with the impulse forces
         std::vector<bool_t> forcesImpulseActive;                       ///< Flag to active the forces. This is used to handle t-, t+ properly. Otherwise, it is impossible to determine at time t if the force is active or not.
 
+        uint32_t successiveSolveFailed;
         std::unique_ptr<AbstractConstraintSolver> constraintSolver;
         constraintsHolder_t constraintsHolder;                         ///< Store copy of constraints register for fast access.
         forceVector_t contactFramesForces;                             ///< Contact forces for each contact frames in local frame
         vector_aligned_t<forceVector_t> collisionBodiesForces;         ///< Contact forces for each geometries of each collision bodies in local frame
-        matrix6N_t jointJacobian;                                      ///< Buffer used for intermediary computation of `data.u`
+        std::vector<matrix6N_t> jointsJacobians;                       ///< Jacobian of the joints in local frame. Used for computing `data.u`.
 
         std::vector<std::string> logFieldnamesPosition;
         std::vector<std::string> logFieldnamesVelocity;

@@ -8,8 +8,8 @@ from gymnasium.core import RenderFrame
 
 from jiminy_py.viewer import sleep
 
-from ..bases import ObsT, ActT, InfoType, JiminyEnvInterface
-from ..envs import BaseJiminyEnv
+from gym_jiminy.common.bases import ObsT, ActT, InfoType, JiminyEnvInterface
+from gym_jiminy.common.envs import BaseJiminyEnv
 
 
 class FrameRateLimiter(gym.Wrapper,  # [ObsT, ActT, ObsT, ActT],

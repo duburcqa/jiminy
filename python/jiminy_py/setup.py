@@ -1,3 +1,4 @@
+from glob import glob
 from importlib.metadata import version
 from setuptools import setup, dist, find_namespace_packages
 from setuptools.command.install import install
@@ -73,10 +74,7 @@ setup(
     packages=find_namespace_packages("src"),
     package_dir={"": "src"},
     data_files=[
-        ("cmake", [
-            "src/jiminy_py/core/cmake/jiminyConfig.cmake",
-            "src/jiminy_py/core/cmake/jiminyConfigVersion.cmake"
-        ])
+        ("cmake", glob('src/jiminy_py/core/cmake/*'))
     ],
     include_package_data=True,
     entry_points={"console_scripts": [
@@ -105,7 +103,7 @@ setup(
         # Panda3d is NOT supported by PyPy even if built from source.
         # - 1.10.12 fixes numerous bugs
         # - 1.10.13 crashes when generating wheels on MacOS
-        "panda3d==1.10.12",
+        "panda3d==1.10.12.*",
         # Provide helpers to make life easier with panda3d for roboticists
         "panda3d-viewer",
         # Photo-realistic shader for Panda3d to improve rendering of meshes.
@@ -118,7 +116,8 @@ setup(
     extras_require={
         "plot": [
             # Standard library to generate figures.
-            "matplotlib>=3.5.0"
+            # - 3.7.0: introduces 'outside' keyword for legend location
+            "matplotlib>=3.7.0"
         ],
         "meshcat": [
             # Web-based mesh visualizer used as Viewer's backend.
@@ -139,7 +138,7 @@ setup(
             # Generate Python type hints files (aka. stubs) for C extensions.
             # Natively, it only supports PyBind11, but it has been patched to
             # partially support of Boost::Python (`build_tools/stub_gen.py`).
-            "pybind11_stubgen",
+            "pybind11_stubgen<1.0",
             # Used in unit tests for checking if viewer screen captures match
             "pillow",
             # Used in unit tests for numerical integration and interpolation

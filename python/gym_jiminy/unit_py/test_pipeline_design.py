@@ -10,6 +10,8 @@ from gym_jiminy.common.pipeline import build_pipeline, load_pipeline
 from gym_jiminy.common.bases import JiminyEnvInterface
 
 
+TOLERANCE = 1.0e-6
+
 class PipelineDesign(unittest.TestCase):
     """ TODO: Write documentation
     """
@@ -24,44 +26,52 @@ class PipelineDesign(unittest.TestCase):
 
         self.ANYmalPipelineEnv = build_pipeline(
             env_config=dict(
-                env_class='gym_jiminy.envs.ANYmalJiminyEnv',
-                env_kwargs=dict(
+                cls='gym_jiminy.envs.ANYmalJiminyEnv',
+                kwargs=dict(
                     step_dt=self.step_dt,
                     debug=True
                 )
             ),
-            blocks_config=[
+            layers_config=[
                 dict(
-                    block_class='gym_jiminy.common.blocks.PDController',
-                    block_kwargs=dict(
-                        update_ratio=2,
-                        order=1,
-                        kp=self.pid_kp,
-                        kd=self.pid_kd,
-                        soft_bounds_margin=0.0
+                    block=dict(
+                        cls='gym_jiminy.common.blocks.PDController',
+                        kwargs=dict(
+                            update_ratio=2,
+                            order=1,
+                            kp=self.pid_kp,
+                            kd=self.pid_kd,
+                            target_position_margin=0.0,
+                            target_velocity_limit=float("inf")
+                        )
                     ),
-                    wrapper_kwargs=dict(
-                        augment_observation=True
+                    wrapper=dict(
+                        kwargs=dict(
+                            augment_observation=True
+                        )
                     )
                 ), dict(
-                    block_class='gym_jiminy.common.blocks.MahonyFilter',
-                    block_kwargs=dict(
-                        update_ratio=1,
-                        exact_init=True,
-                        kp=1.0,
-                        ki=0.1
+                    block=dict(
+                        cls='gym_jiminy.common.blocks.MahonyFilter',
+                        kwargs=dict(
+                            update_ratio=1,
+                            exact_init=True,
+                            kp=1.0,
+                            ki=0.1
+                        )
                     )
                 ), dict(
-                    wrapper_class=(
-                        'gym_jiminy.common.wrappers.StackedJiminyEnv'),
-                    wrapper_kwargs=dict(
-                        nested_filter_keys=[
-                            ('t',),
-                            ('measurements', 'ImuSensor'),
-                            ('actions',)
-                        ],
-                        num_stack=self.num_stack,
-                        skip_frames_ratio=self.skip_frames_ratio
+                    wrapper=dict(
+                        cls='gym_jiminy.common.wrappers.StackedJiminyEnv',
+                        kwargs=dict(
+                            nested_filter_keys=[
+                                ('t',),
+                                ('measurements', 'ImuSensor'),
+                                ('actions',)
+                            ],
+                            num_stack=self.num_stack,
+                            skip_frames_ratio=self.skip_frames_ratio
+                        )
                     )
                 )
             ]
@@ -107,14 +117,14 @@ class PipelineDesign(unittest.TestCase):
         obs, _ = env.reset()
 
         # Controller target is observed, and has right name
-        self.assertTrue('actions' in obs and 'controller_0' in obs['actions'])
+        self.assertTrue('actions' in obs and 'pd_controller' in obs['actions'])
 
         # Target, time, and Imu data are stacked
-        self.assertEqual(obs['t'].ndim, 2)
+        self.assertEqual(obs['t'].ndim, 1)
         self.assertEqual(len(obs['t']), self.num_stack)
         self.assertEqual(obs['measurements']['ImuSensor'].ndim, 3)
         self.assertEqual(len(obs['measurements']['ImuSensor']), self.num_stack)
-        controller_target_obs = obs['actions']['controller_0']
+        controller_target_obs = obs['actions']['pd_controller']
         self.assertEqual(len(controller_target_obs), self.num_stack)
         self.assertEqual(obs['measurements']['EffortSensor'].ndim, 2)
 
@@ -141,17 +151,19 @@ class PipelineDesign(unittest.TestCase):
         # Perform a single step
         env = self.ANYmalPipelineEnv()
         env.reset()
-        action = env.env.observation['actions']['controller_0'].copy()
+        action = env.env.observation['actions']['pd_controller'].copy()
         action += 1.0e-3
         obs, *_ = env.step(action)
 
         # Observation stacking is skipping the required number of frames
         stack_dt = (self.skip_frames_ratio + 1) * env.observe_dt
-        for i in range(3):
-            self.assertEqual(obs['t'][i], i * stack_dt)
+        t_obs_last = env.step_dt - env.step_dt % stack_dt
+        for i in range(self.num_stack):
+            self.assertTrue(np.isclose(
+                obs['t'][::-1][i], t_obs_last - i * stack_dt, TOLERANCE))
 
         # Initial observation is consistent with internal simulator state
-        controller_target_obs = obs['actions']['controller_0']
+        controller_target_obs = obs['actions']['pd_controller']
         self.assertTrue(np.all(controller_target_obs[-1] == action))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
@@ -167,7 +179,7 @@ class PipelineDesign(unittest.TestCase):
             obs, *_ = env.step(action)
         for i, t in enumerate(np.flip(obs['t'])):
             self.assertTrue(np.isclose(
-                t, n_steps_breakpoint * env.step_dt - i * stack_dt, 1.0e-6))
+                t, n_steps_breakpoint * env.step_dt - i * stack_dt, TOLERANCE))
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))

@@ -30,7 +30,7 @@ namespace python
     {
         bp::object func = bp::make_function(self.forceFct,
                                             bp::return_value_policy<bp::return_by_value>(),
-                                            (bp::args("t", "q", "v")),
+                                            (bp::arg("t"), "q", "v"),
                                             functionToMLP(self.forceFct));
         setFunctionWrapperModule<forceProfile_t>(func);
         return func;
@@ -40,7 +40,7 @@ namespace python
     {
         bp::object func = bp::make_function(self.forceFct,
                                             bp::return_value_policy<bp::return_by_value>(),
-                                            (bp::args("t", "q_1", "v_1", "q_2", "v_2")),
+                                            (bp::arg("t"), "q_1", "v_1", "q_2", "v_2"),
                                             functionToMLP(self.forceFct));
         setFunctionWrapperModule<forceCoupling_t>(func);
         return func;
@@ -114,19 +114,19 @@ namespace python
                 ;
         }
 
-        static bp::list getQ(stepperState_t const & self)
+        static bp::object getQ(stepperState_t const & self)
         {
-            return bp::extract<bp::list>(convertToPython(self.qSplit, false));
+            return convertToPython(self.qSplit, false);
         }
 
-        static bp::list getV(stepperState_t const & self)
+        static bp::object getV(stepperState_t const & self)
         {
-            return bp::extract<bp::list>(convertToPython(self.vSplit, false));
+            return convertToPython(self.vSplit, false);
         }
 
-        static bp::list getA(stepperState_t const & self)
+        static bp::object getA(stepperState_t const & self)
         {
-            return bp::extract<bp::list>(convertToPython(self.aSplit, false));
+            return convertToPython(self.aSplit, false);
         }
 
         static std::string repr(stepperState_t const & self)
@@ -947,7 +947,7 @@ namespace python
 
                 .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
                                               &Engine::getIsInitialized,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("system",
                                               &PyEngineVisitor::getSystem,
                                               bp::return_value_policy<result_converter<false> >())

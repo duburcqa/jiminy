@@ -13,8 +13,7 @@ from itertools import chain
 from functools import partial
 from collections import OrderedDict
 from typing import (
-    Optional, Union, Type, Dict, Tuple, Sequence, Iterable, Any, List,
-    Callable)
+    Any, List, Dict, Optional, Union, Type, Sequence, Iterable, Callable)
 
 import toml
 import numpy as np
@@ -116,7 +115,6 @@ class Simulator:
 
         # Create shared memories and python-native attribute for fast access
         self.stepper_state = self.engine.stepper_state
-        self.system_state = self.engine.system_state
         self.is_simulation_running = self.engine.is_simulation_running
 
         # Viewer management
@@ -127,7 +125,7 @@ class Simulator:
         self.__pbar: Optional[tqdm] = None
 
         # Figure holder
-        self.figure: Optional[TabbedFigure] = None
+        self._figure: Optional[TabbedFigure] = None
 
         # Reset the low-level jiminy engine
         self.reset()
@@ -278,21 +276,6 @@ class Simulator:
         if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_data_th
         return self.robot.pinocchio_data
-
-    @property
-    def state(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Getter of the current state of the robot.
-
-        .. warning::
-            Return a reference whenever it is possible, which is
-            computationally efficient but unsafe.
-        """
-        q = self.system_state.q
-        v = self.system_state.v
-        if self.use_theoretical_model and self.robot.is_flexible:
-            q = self.robot.get_rigid_configuration_from_flexible(q)
-            v = self.robot.get_rigid_velocity_from_flexible(v)
-        return q, v
 
     @property
     def is_viewer_available(self) -> bool:
@@ -454,10 +437,9 @@ class Simulator:
             # initialized. It may be the case no matter if a simulation is
             # actually running, since data are cleared at reset not at stop.
             log_suffix = pathlib.Path(log_path).suffix[1:]
-            if log_suffix not in ("data", "csv", "hdf5"):
+            if log_suffix not in ("data", "hdf5"):
                 raise ValueError(
-                    "Log format not recognized. It must be either '.data', "
-                    "'.csv', or '.hdf5'.")
+                    "Log format must be either '.data' or '.hdf5'.")
             log_format = log_suffix if log_suffix != 'data' else 'binary'
             self.engine.write_log(log_path, format=log_format)
 
@@ -518,7 +500,7 @@ class Simulator:
 
             # Share the external force buffer of the viewer with the engine
             if self.is_simulation_running:
-                self.viewer.f_external = self.system_state.f_external[1:]
+                self.viewer.f_external = [*self.system_state.f_external][1:]
 
             if self.viewer.backend.startswith('panda3d'):
                 # Enable display of COM, DCM and contact markers by default if
@@ -652,14 +634,14 @@ class Simulator:
         if hasattr(self, "viewer") and self.viewer is not None:
             self.viewer.close()
             self.viewer = None
-        if hasattr(self, "figure") and self.figure is not None:
-            self.figure.close()
-            self.figure = None
+        if hasattr(self, "figure") and self._figure is not None:
+            self._figure.close()
+            self._figure = None
 
     def plot(self,
              enable_flexiblity_data: bool = False,
              block: Optional[bool] = None,
-             **kwargs: Any) -> None:
+             **kwargs: Any) -> TabbedFigure:
         """Display common simulation data over time.
 
         The figure features several tabs:
@@ -689,8 +671,10 @@ class Simulator:
                 ) from e
 
         # Create figure, without closing the existing one
-        self.figure = plot_log(
+        self._figure = plot_log(
             self.log_data, self.robot, enable_flexiblity_data, block, **kwargs)
+
+        return self._figure
 
     def get_controller_options(self) -> dict:
         """Getter of the options of Jiminy Controller.

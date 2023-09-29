@@ -13,7 +13,7 @@ from auditwheel.main import main
 
 
 WHITE_LIST_DEPS = (
-    "boost_python",) #"boost_numpy", "eigenpy", "hpp-fcl", "pinocchio")
+    "boost_python", "boost_numpy", "eigenpy", "hpp-fcl", "pinocchio")
 
 
 copylib_orig = auditwheel.repair.copylib

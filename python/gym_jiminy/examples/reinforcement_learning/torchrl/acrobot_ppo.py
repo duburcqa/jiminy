@@ -22,7 +22,7 @@ from torch import nn
 from tqdm import tqdm
 
 from gym_jiminy.envs import AcrobotJiminyEnv
-from gym_jiminy.common.wrappers import FrameRateLimiter
+from gym_jiminy.toolbox.wrappers import FrameRateLimiter
 from tensordict.nn import TensorDictModule
 
 from torchrl.collectors import MultiSyncDataCollector
@@ -56,6 +56,9 @@ SEED = 0
 
 
 if __name__ == '__main__':
+    # Fix weird issue with multiprocessing
+    __spec__ = None
+
     # Enforce seed for most common libraries
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     random.seed(SEED)

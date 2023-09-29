@@ -61,7 +61,7 @@ namespace python
                 .def("exist_constraint", &Model::existConstraint,
                                          (bp::arg("self"), "constraint_name"))
                 .ADD_PROPERTY_GET("has_constraints", &Model::hasConstraints)
-                .ADD_PROPERTY_GET("constraints", &Model::getConstraints)
+                .ADD_PROPERTY_GET("constraints", &PyModelVisitor::getConstraints)
                 .def("get_constraints_jacobian_and_drift", &PyModelVisitor::getConstraintsJacobianAndDrift)
                 .def("compute_constraints", &Model::computeConstraints,
                                             (bp::arg("self"), "q", "v"))
@@ -90,29 +90,29 @@ namespace python
 
                 .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
                                               &Model::getIsInitialized,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("mesh_package_dirs",
                                               &Model::getMeshPackageDirs,
                                               bp::return_value_policy<result_converter<true> >())
                 .ADD_PROPERTY_GET_WITH_POLICY("name",
                                               &Model::getName,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("urdf_path",
                                               &Model::getUrdfPath,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("has_freeflyer",
                                               &Model::getHasFreeflyer,
-                                              bp::return_value_policy<bp::copy_const_reference>())
-                .ADD_PROPERTY_GET("is_flexible", &PyModelVisitor::isFlexibleModelEnable)
+                                              bp::return_value_policy<bp::return_by_value>())
+                .ADD_PROPERTY_GET("is_flexible", &PyModelVisitor::isFlexibleModelEnabled)
                 .ADD_PROPERTY_GET_WITH_POLICY("nq",
                                               &Model::nq,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("nv",
                                               &Model::nv,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("nx",
                                               &Model::nx,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
 
                 .ADD_PROPERTY_GET_WITH_POLICY("collision_bodies_names",
                                               &Model::getCollisionBodiesNames,
@@ -150,13 +150,13 @@ namespace python
 
                 .ADD_PROPERTY_GET_WITH_POLICY("position_limit_lower",
                                               &Model::getPositionLimitMin,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("position_limit_upper",
                                               &Model::getPositionLimitMax,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("velocity_limit",
                                               &Model::getVelocityLimit,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
 
                 .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_position",
                                               &Model::getLogFieldnamesPosition,
@@ -208,6 +208,11 @@ namespace python
             std::shared_ptr<AbstractConstraintBase> constraint;
             self.getConstraint(constraintName, constraint);
             return constraint;
+        }
+
+        static std::shared_ptr<constraintsHolder_t> getConstraints(Model & self)
+        {
+            return std::make_shared<constraintsHolder_t>(self.getConstraints());
         }
 
         static bp::tuple getConstraintsJacobianAndDrift(Model & self)
@@ -281,7 +286,7 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static bool_t isFlexibleModelEnable(Model & self)
+        static bool_t isFlexibleModelEnabled(Model & self)
         {
             return self.mdlOptions_->dynamics.enableFlexibleModel;
         }
@@ -325,7 +330,7 @@ namespace python
 
                 .ADD_PROPERTY_GET_WITH_POLICY("is_locked",
                                               &Robot::getIsLocked,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
 
                 .def("dump_options", &Robot::dumpOptions,
                                      (bp::arg("self"), "json_filename"))
@@ -374,7 +379,7 @@ namespace python
 
                 .ADD_PROPERTY_GET_WITH_POLICY("nmotors",
                                               &Robot::nmotors,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("motors_names",
                                               &Robot::getMotorsNames,
                                               bp::return_value_policy<result_converter<true> >())
@@ -384,10 +389,7 @@ namespace python
 
                 .ADD_PROPERTY_GET_WITH_POLICY("command_limit",
                                               &Robot::getCommandLimit,
-                                              bp::return_value_policy<bp::copy_const_reference>())
-                .ADD_PROPERTY_GET_WITH_POLICY("armatures",
-                                              &Robot::getArmatures,
-                                              bp::return_value_policy<bp::copy_const_reference>())
+                                              bp::return_value_policy<bp::return_by_value>())
 
                 .ADD_PROPERTY_GET_WITH_POLICY("log_fieldnames_command",
                                               &Robot::getCommandFieldnames,

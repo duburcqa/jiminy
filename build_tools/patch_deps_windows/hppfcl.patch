@@ -1,7 +1,7 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -94,6 +94,7 @@
+@@ -107,6 +107,7 @@
  #ENDIF(WIN32)
  
  ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED PKG_CONFIG_REQUIRES "eigen3 >= 3.0.0")
@@ -9,13 +9,21 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
  
  if(BUILD_PYTHON_INTERFACE)
    FIND_PACKAGE(eigenpy 2.7.10 REQUIRED)
-@@ -108,26 +109,16 @@
+@@ -121,34 +122,24 @@
    ADD_PROJECT_DEPENDENCY(Boost REQUIRED chrono serialization)
  ENDIF(WIN32)
  if(BUILD_PYTHON_INTERFACE)
 +  ADD_PROJECT_DEPENDENCY(Boost REQUIRED system)
 -  find_package(Boost REQUIRED COMPONENTS system)
  endif(BUILD_PYTHON_INTERFACE)
+  
+ if(Boost_VERSION_STRING VERSION_LESS 1.81)
+   # Default C++ version should be C++11
+   CHECK_MINIMAL_CXX_STANDARD(11 ENFORCE)
+ else()
+   # Boost.Math will be C++14 starting in July 2023 (Boost 1.82 release)
+   CHECK_MINIMAL_CXX_STANDARD(14 ENFORCE)
+ endif()
  
  # Optional dependencies
 -ADD_PROJECT_DEPENDENCY(octomap PKG_CONFIG_REQUIRES "octomap >= 1.6")
@@ -40,7 +48,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
    if(Qhull_FOUND)
      set(HPP_FCL_USE_SYSTEM_QHULL TRUE)
    else()
-@@ -262,7 +253,6 @@
+@@ -283,7 +274,6 @@
    include/hpp/fcl/timings.h
    )
 
@@ -103,20 +111,6 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
      set(Boost_NO_BOOST_CMAKE ON)
    endif("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70"
          OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
-diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
---- a/cmake/deprecated.hh.cmake
-+++ b/cmake/deprecated.hh.cmake
-@@ -26,8 +26,8 @@
- #  define @PACKAGE_CPPNAME@_DEPRECATED [[deprecated]]
- #  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) [[deprecated(#message)]]
- # elif defined(__GNUC__) || defined(__clang__)
--#  define @PACKAGE_CPPNAME@_DEPRECATED __attribute__ ((deprecated))
--#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) __attribute__ (( deprecated(#message) ))
-+#  define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
-+#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message)
- # else
- #  if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
- #   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)
 diff --git a/third-parties/qhull/CMakeLists.txt b/third-parties/qhull/CMakeLists.txt
 index 59dff41..2765817 100644
 --- a/third-parties/qhull/CMakeLists.txt

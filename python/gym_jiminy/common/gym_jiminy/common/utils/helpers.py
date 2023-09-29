@@ -1,7 +1,8 @@
 """ TODO: Write documentation.
 """
+import math
 import logging
-from typing import Union, ValuesView
+from typing import Sequence, Union, ValuesView
 
 import gymnasium as gym
 import tree
@@ -16,7 +17,7 @@ from .spaces import FieldNested, DataNested, zeros
 logger = logging.getLogger(__name__)
 
 
-@nb.jit(nopython=True, nogil=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """Check if 't' is multiple of 'dt' at a given precision 'eps'.
 
@@ -28,19 +29,32 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """
     if dt < eps:
         return True
-    dt_next = dt - t % dt
-    if (dt_next <= eps / 2) or ((dt - dt_next) < eps / 2):
-        return True
-    return False
+    dt_prev = t % dt
+    return (dt_prev < eps / 2) or (dt - dt_prev <= eps / 2)
+
+
+@nb.jit(nopython=True, cache=True, inline='always')
+def is_nan(value: np.ndarray) -> bool:
+    """Check if any value of a numpy array is nan.
+
+    .. warning::
+        This method does not implement any short-circuit mechanism as it is
+        optimized for arrays that are unlikely to contain nan values.
+
+    :param value: N-dimensional array.
+    """
+    if value.ndim:
+        return np.isnan(value).any()
+    return math.isnan(value.item())
 
 
 def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
                    namespace: str = "") -> FieldNested:
-    """Generate generic fieldnames from `gym.Space`, so that it can be used
-    in conjunction with `register_variables`, to register any value from gym
-    Space to the telemetry conveniently.
+    """Generate generic fieldnames for a given nested data structure, so that
+    it can be used in conjunction with `register_variables`, to register any
+    value from gym space to the telemetry conveniently.
 
-    :param space: Gym.Space on which to operate.
+    :param structure: Nested data structure on which to operate.
     :param namespace: Namespace used to prepend fields, using '.' delimiter.
                       Empty string to disable.
                       Optional: Disabled by default.
@@ -50,7 +64,9 @@ def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
         structure = zeros(structure)
 
     fieldnames = []
+    fieldname_path: Sequence[Union[str, int]]
     for fieldname_path, data in tree.flatten_with_path(structure):
+        fieldname_path = (namespace, *fieldname_path)
         assert isinstance(data, np.ndarray), (
             "'structure' ({structure}) must have leaves of type `np.ndarray`.")
         if data.size < 1:
@@ -58,11 +74,11 @@ def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
             fieldname = []
         elif data.size == 1:
             # Scalar: fieldname path is enough
-            fieldname = [".".join(filter(None, (namespace, *fieldname_path)))]
+            fieldname = [".".join(map(str, filter(None, fieldname_path)))]
         else:
             # Tensor: basic numbering
             fieldname = np.array([
-                ".".join(filter(None, (namespace, *fieldname_path, str(i))))
+                ".".join(map(str, filter(None, (*fieldname_path, i))))
                 for i in range(data.size)]).reshape(data.shape).tolist()
         fieldnames.append(fieldname)
 
@@ -76,20 +92,23 @@ def register_variables(controller: jiminy.AbstractController,
     """Register data from `Gym.Space` to the telemetry of a controller.
 
     .. warning::
-        Variables are registered by reference. Consequently, the user is
-        responsible to manage the lifetime of the data to avoid it being
-        garbage collected, and to make sure the variables are updated
-        when necessary, and only when it is.
+        Variables are registered by reference. This is necessary because, under
+        the hood, Jiminy telemetry stores pointers to the underlying memory for
+        efficiency. Consequently, the user is responsible to manage the
+        lifetime of the data to avoid it being garbage collected, and to make
+        sure the variables are updated by reassigning its value instead of
+        re-allocating memory, using either `np.copyto`, `[:]` operator, or
+        `jiminy.array_copyto` (from  slowest to fastest).
+
+    .. warning::
+        The telemetry only supports `np.float64` or `np.int64` dtypes.
 
     :param controller: Robot's controller of the simulator used to register
                        variables to the telemetry.
     :param fieldnames: Nested variable names, as returned by `get_fieldnames`
                        method. It can be a nested list or/and dict. The leaves
                        are str corresponding to the name of each scalar data.
-    :param data: Data from `gym.spaces.Space` to register. Note that the
-                 telemetry stores pointers to the underlying memory, so it
-                 only supports np.float64, and make sure to reassign data
-                 using `np.copyto` or `[:]` operator (faster).
+    :param data: Data from `gym.spaces.Space` to register.
 
     :returns: Whether the registration has been successful.
     """

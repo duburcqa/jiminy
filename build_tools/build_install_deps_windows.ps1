@@ -83,7 +83,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 Set-Location -Path "$RootDir/eigenpy"
 git reset --hard
 git fetch --all
-git checkout --force "v2.9.2"
+git checkout --force "v3.1.1"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
@@ -127,6 +127,24 @@ git checkout --force "3.0.0"
 dos2unix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
+### Checkout CppAD
+if (-not (Test-Path -PathType Container "$RootDir/cppad")) {
+  git clone https://github.com/coin-or/CppAD.git "$RootDir/cppad"
+}
+Set-Location -Path "$RootDir/cppad"
+git reset --hard
+git fetch --all
+git checkout --force "20230000.0"
+
+### Checkout CppADCodeGen
+if (-not (Test-Path -PathType Container "$RootDir/cppadcodegen")) {
+  git clone https://github.com/joaoleal/CppADCodeGen.git "$RootDir/cppadcodegen"
+}
+Set-Location -Path "$RootDir/cppadcodegen"
+git reset --hard
+git fetch --all
+git checkout --force "v2.4.3"
+
 ### Checkout assimp, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/assimp")) {
   git clone https://github.com/assimp/assimp.git "$RootDir/assimp"
@@ -144,7 +162,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
 git fetch --all
-git checkout --force "v2.3.0"
+git checkout --force "v2.3.5"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
@@ -160,7 +178,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 Set-Location -Path "$RootDir/pinocchio"
 git reset --hard
 git fetch --all
-git checkout --force "v2.6.17"
+git checkout --force "v2.6.20"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
@@ -226,20 +244,19 @@ if (-not (Test-Path -PathType Container "$RootDir/eigen3/build")) {
 }
 Set-Location -Path "$RootDir/eigen3/build"
 cmake "$RootDir/eigen3" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ################################### Build and install eigenpy ##########################################
 
-### Build eigenpy
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/eigenpy/build"
 }
 Set-Location -Path "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DGENERATE_PYTHON_STUBS=OFF `
@@ -256,26 +273,24 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
 Set-Location -Path "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DTIXML_USE_STL"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ############################## Build and install console_bridge ########################################
 
-###
 if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/console_bridge/build"
 }
 Set-Location -Path "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ############################### Build and install urdfdom_headers ######################################
 
-###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom_headers/build"
 }
@@ -286,28 +301,50 @@ cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ################################## Build and install urdfdom ###########################################
 
-###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom/build"
 }
 Set-Location -Path "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DBUILD_TESTING=OFF `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DBUILD_TESTING=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DURDFDOM_STATIC"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+
+################################### Build and install CppAD ##########################################
+
+if (-not (Test-Path -PathType Container "$RootDir/cppad/build")) {
+  New-Item -ItemType "directory" -Force -Path "$RootDir/cppad/build"
+}
+Set-Location -Path "$RootDir/cppad/build"
+cmake "$RootDir/cppadcodegen" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+
+################################### Build and install CppADCodeGen ##########################################
+
+if (-not (Test-Path -PathType Container "$RootDir/cppadcodegen/build")) {
+  New-Item -ItemType "directory" -Force -Path "$RootDir/cppadcodegen/build"
+}
+Set-Location -Path "$RootDir/cppadcodegen/build"
+cmake "$RootDir/cppadcodegen" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DGOOGLETEST_GIT=ON -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 
 ###################################### Build and install assimp ########################################
 
-###
 if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/assimp/build"
 }
 Set-Location -Path "$RootDir/assimp/build"
 cmake "$RootDir/assimp" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=OFF -DASSIMP_BUILD_TESTS=OFF `
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DASSIMP_INSTALL_PDB=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4005" `
       -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}"
@@ -321,7 +358,7 @@ cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 #   any existing flag if any.
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
 cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
@@ -333,7 +370,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
 Set-Location -Path "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
@@ -352,7 +389,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
 Set-Location -Path "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
+      -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DGENERATE_PYTHON_STUBS=OFF `
@@ -363,3 +400,6 @@ cmake "$RootDir/pinocchio" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM
 )     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC $(
 )     -DPINOCCHIO_STATIC"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+
+### Copy cmake configuration files for cppad and cppadcodegen
+Copy-Item -Path "$RootDir/pinocchio/cmake/find-external/**/*cppad*" -Destination "$RootDir/build_tools/cmake"

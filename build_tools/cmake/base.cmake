@@ -1,5 +1,10 @@
 # Minimum version required
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
+
+# Set find_package strategy to look for both upper-case and case-preserved variables
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
+    cmake_policy(SET CMP0144 NEW)
+endif()
 
 # Check if network is available before compiling external projects
 if(WIN32)
@@ -65,9 +70,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     # Set the possible values of build type for cmake-gui
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 endif()
-
-# Due to license considerations, we will only use the MPL2 parts of Eigen.
-set(EIGEN_MPL2_ONLY 1)
 
 # Add a helper to link target libraries as system dependencies to avoid generating warnings
 function(target_link_libraries_system target)

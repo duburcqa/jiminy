@@ -10,7 +10,7 @@ option(INSTALL_GYM_JIMINY "Install Gym Jiminy (in editable mode)." ON)
 # Compile and install python bindings
 add_subdirectory(${LIBRARY_NAME}_pywrap)
 
-# Copy Python bindings as Python native 'core' submodule
+# Copy Python bindings as Python 'core' submodule
 install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
                    LIST_DIRECTORIES false
                    \"${CMAKE_CURRENT_BINARY_DIR}/${LIBRARY_NAME}_pywrap/*core*\")
@@ -79,6 +79,9 @@ install(CODE "foreach(target_source \"${CORE_SOURCE_DIR}\" \"${PYWRAP_SOURCE_DIR
                   file(COPY \"\${CORE_OBJ_REAL}/\"
                        DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/lib/\${CORE_OBJ_NAME}\")
               endif()
+              file(GLOB FIND_PACKAGE_EXTERNALS \"${CMAKE_SOURCE_DIR}/build_tools/cmake/Find*.cmake\")
+              file(COPY \${FIND_PACKAGE_EXTERNALS}
+                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/cmake\")
               file(COPY \"${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake\"
                    DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/cmake\")
               include(CMakePackageConfigHelpers)

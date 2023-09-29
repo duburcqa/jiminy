@@ -28,7 +28,7 @@ good-names =
     t, q, v, x, u, s, qx, qy, qz, qw, # Physics: state, action
     I, R, H, T, M, dt,                # Physics: dynamics
     a, b, c, y, z, n, e,              # Maths / Algebra : variables
-    f, rg, lo, hi,                    # Maths / Algebra : operators
+    f, rg, lo, hi, op, fn,            # Maths / Algebra : operators
     kp, kd, ki,                       # Control: Gains
     ax                                # Matplotlib
 
@@ -56,6 +56,7 @@ logging-format-style = old
 [tool.pylint."messages control"]
 # Disable the message, report, category or checker with the given id(s)
 disable =
+    too-many-return-statements,
     too-many-instance-attributes,
     too-many-arguments,
     too-many-locals,

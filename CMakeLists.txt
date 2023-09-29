@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.12.4)
 
 # Set the build version
-set(BUILD_VERSION 1.7.16)
+set(BUILD_VERSION 1.7.17)
 
 # Set compatibility
 set(COMPATIBILITY_VERSION SameMinorVersion)
@@ -33,9 +33,18 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 
 # Set the compilation flags.
 # Not using `add_compile_options` because it does not propagate to external projects.
-set(CMAKE_CXX_FLAGS "$ENV{CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS}")
+if(NOT CMAKE_CXX_FLAGS)
+    set(CMAKE_CXX_FLAGS "$ENV{CMAKE_CXX_FLAGS}")
+endif()
+string(REGEX MATCHALL "(^| )-DEIGEN_[A-Z0-9_]+=?[0-9]*( |$)" EIGEN_DEFINITIONS "${CMAKE_CXX_FLAGS}")
+list(TRANSFORM EIGEN_DEFINITIONS STRIP)
+list(REMOVE_DUPLICATES EIGEN_DEFINITIONS)
+list(TRANSFORM EIGEN_DEFINITIONS REPLACE "^-D" "")
+if(EIGEN_DEFINITIONS)
+    message(STATUS "Eigen preprocessor directives: ${EIGEN_DEFINITIONS}")
+endif()
 if(MSVC)
-    string(REGEX MATCH "/arch:[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
+    string(REGEX MATCH "/arch:[a-zA-Z0-9_-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
     if(CMAKE_CXX_ARCH MATCHES "AVX[0-9]+")
         # Eigen<3.4 relies on __FMA__ definition to detect if FMA is available,
         # which is not set automatically by MSVC.
@@ -52,11 +61,16 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG /O2 /Ob3")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} /DEBUG:FULL /Zi")
 else()
-    string(REGEX MATCH "-march=[A-Za-z_0-9/-]*" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
+    string(REGEX MATCHALL "(^| )-m[a-z0-9\.-]+=?[a-zA-Z0-9_-]*( |$)" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
     set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fno-omit-frame-pointer")
     set(CMAKE_LINKER_FLAGS_DEBUG "-fno-omit-frame-pointer")
     set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -Wfatal-errors -Werror")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g -fno-omit-frame-pointer -fno-sanitize-recover")
+endif()
+list(REMOVE_DUPLICATES CMAKE_CXX_ARCH)
+list(TRANSFORM CMAKE_CXX_ARCH STRIP)
+if(CMAKE_CXX_ARCH)
+    message(STATUS "Instruction sets: ${CMAKE_CXX_ARCH}")
 endif()
 
 # Sub-projects

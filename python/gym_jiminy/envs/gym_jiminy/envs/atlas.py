@@ -11,7 +11,9 @@ from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from pinocchio import neutral, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.blocks import PDController, MahonyFilter
+from gym_jiminy.common.blocks import (MotorSafetyLimit,
+                                      PDController,
+                                      MahonyFilter)
 from gym_jiminy.common.pipeline import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 
@@ -34,19 +36,22 @@ HLC_TO_LLC_RATIO = 1
 # Stepper update period (:float [s])
 STEP_DT = 0.04
 
+MOTOR_POSITION_MARGIN = 0.02
+MOTOR_VELOCITY_MAX = 3.0
+
 # PID proportional gains (one per actuated joint)
-PID_REDUCED_KP = np.array([
+PD_REDUCED_KP = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0])
-PID_REDUCED_KD = np.array([
+    5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0)
+PD_REDUCED_KD = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     0.02, 0.01, 0.015, 0.01, 0.015, 0.01,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.015, 0.01])
+    0.02, 0.01, 0.015, 0.01, 0.015, 0.01)
 
-PID_FULL_KP = np.array([
+PD_FULL_KP = (
     # Neck: [Y]
     100.0,
     # Back: [Z, Y, X]
@@ -56,8 +61,8 @@ PID_FULL_KP = np.array([
     # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     500.0, 100.0, 200.0, 500.0, 10.0, 100.0, 10.0,
     # Lower body motors
-    *PID_REDUCED_KP])
-PID_FULL_KD = np.array([
+    *PD_REDUCED_KP)
+PD_FULL_KD = (
     # Neck: [Y]
     0.01,
     # Back: [Z, Y, X]
@@ -67,7 +72,7 @@ PID_FULL_KD = np.array([
     # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.02,
     # Lower body motors
-    *PID_REDUCED_KD])
+    *PD_REDUCED_KD)
 
 # Mahony filter proportional and derivative gains
 # See: https://cas.mines-paristech.fr/~petit/papers/ral22/main.pdf
@@ -78,7 +83,7 @@ MAHONY_KI = 0.057
 REWARD_MIXTURE = {
     'direction': 0.0,
     'energy': 0.0,
-    'done': 1.0
+    'survival': 1.0
 }
 # Standard deviation ratio of each individual origin of randomness
 STD_RATIO = {
@@ -131,7 +136,7 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(
-                simu_duration_max=SIMULATION_DURATION,
+                simulation_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
                 std_ratio=STD_RATIO),
@@ -221,7 +226,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(
-                simu_duration_max=SIMULATION_DURATION,
+                simulation_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
                 std_ratio=STD_RATIO),
@@ -233,28 +238,45 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
 
 AtlasPDControlJiminyEnv = build_pipeline(
     env_config=dict(
-        env_class=AtlasJiminyEnv
+        cls=AtlasJiminyEnv
     ),
-    blocks_config=[
+    layers_config=[
         dict(
-            block_class=PDController,
-            block_kwargs=dict(
-                update_ratio=HLC_TO_LLC_RATIO,
-                order=1,
-                kp=PID_FULL_KP,
-                kd=PID_FULL_KD,
-                soft_bounds_margin=0.0
+            block=dict(
+                cls=MotorSafetyLimit,
+                kwargs=dict(
+                    kp=1.0 / MOTOR_POSITION_MARGIN,
+                    kd=1.0 / MOTOR_VELOCITY_MAX,
+                    soft_position_margin=0.0,
+                    soft_velocity_max=MOTOR_VELOCITY_MAX,
+                )
             ),
-            wrapper_kwargs=dict(
-                augment_observation=False
+        ),
+        dict(
+            block=dict(
+                cls=PDController,
+                kwargs=dict(
+                    update_ratio=HLC_TO_LLC_RATIO,
+                    order=1,
+                    kp=PD_FULL_KP,
+                    kd=PD_FULL_KD,
+                    target_position_margin=0.0,
+                    target_velocity_limit=MOTOR_VELOCITY_MAX,
+                )
+            ),
+            wrapper=dict(
+                kwargs=dict(
+                    augment_observation=False
+                )
             )
         ), dict(
-            block_class=MahonyFilter,
-            block_kwargs=dict(
-                update_ratio=1,
-                exact_init=False,
-                kp=MAHONY_KP,
-                ki=MAHONY_KI
+            block=dict(
+                cls=MahonyFilter,
+                kwargs=dict(
+                    update_ratio=1,
+                    kp=MAHONY_KP,
+                    ki=MAHONY_KI,
+                )
             )
         )
     ]
@@ -262,28 +284,45 @@ AtlasPDControlJiminyEnv = build_pipeline(
 
 AtlasReducedPDControlJiminyEnv = build_pipeline(
     env_config=dict(
-        env_class=AtlasReducedJiminyEnv
+        cls=AtlasReducedJiminyEnv
     ),
-    blocks_config=[
+    layers_config=[
         dict(
-            block_class=PDController,
-            block_kwargs=dict(
-                update_ratio=HLC_TO_LLC_RATIO,
-                order=1,
-                kp=PID_REDUCED_KP,
-                kd=PID_REDUCED_KD,
-                soft_bounds_margin=0.0
+            block=dict(
+                cls=MotorSafetyLimit,
+                kwargs=dict(
+                    kp=1.0 / MOTOR_POSITION_MARGIN,
+                    kd=1.0 / MOTOR_VELOCITY_MAX,
+                    soft_position_margin=0.0,
+                    soft_velocity_max=MOTOR_VELOCITY_MAX,
+                )
             ),
-            wrapper_kwargs=dict(
-                augment_observation=False
+        ),
+        dict(
+            block=dict(
+                cls=PDController,
+                kwargs=dict(
+                    update_ratio=HLC_TO_LLC_RATIO,
+                    order=1,
+                    kp=PD_REDUCED_KP,
+                    kd=PD_REDUCED_KD,
+                    target_position_margin=0.0,
+                    target_velocity_limit=MOTOR_VELOCITY_MAX,
+                )
+            ),
+            wrapper=dict(
+                kwargs=dict(
+                    augment_observation=False
+                )
             )
         ), dict(
-            block_class=MahonyFilter,
-            block_kwargs=dict(
-                update_ratio=1,
-                exact_init=False,
-                kp=MAHONY_KP,
-                ki=MAHONY_KI
+            block=dict(
+                cls=MahonyFilter,
+                kwargs=dict(
+                    update_ratio=1,
+                    kp=MAHONY_KP,
+                    ki=MAHONY_KI,
+                )
             )
         )
     ]

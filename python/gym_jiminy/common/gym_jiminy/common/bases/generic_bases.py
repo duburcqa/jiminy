@@ -4,7 +4,7 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, Generic
+from typing import Dict, Any, TypeVar, Generic, no_type_check
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -12,6 +12,7 @@ import numpy.typing as npt
 import gymnasium as gym
 
 import jiminy_py.core as jiminy
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
 
@@ -116,7 +117,7 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
             By design, the observation of the environment has been refreshed
             automatically prior to calling this method.
 
-        :param action: High-level target to achieve.
+        :param action: High-level target to achieve by means of the command.
 
         :returns: Command to send to the subsequent block. It corresponds to
                   the target features of another lower-level controller if any,
@@ -156,7 +157,7 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
         """
         # pylint: disable=unused-argument
 
-        return 0.0
+        raise NotImplementedError
 
 
 # Note that `JiminyEnvInterface` must inherit from `ObserverInterface`
@@ -193,6 +194,14 @@ class JiminyEnvInterface(
         # with the updated state of the agent.
         self.__is_observation_refreshed = True
 
+        # Store latest engine measurement for efficiency
+        self.__measurement: EngineObsType = OrderedDict(
+            t=np.array(0.0),
+            states=OrderedDict(
+                agent=OrderedDict(q=np.array([]), v=np.array([]))),
+            measurements=OrderedDict(self.robot.sensors_data))
+        self._sensors_types = tuple(self.robot.sensors_data.keys())
+
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
 
@@ -217,6 +226,7 @@ class JiminyEnvInterface(
         fill(self.observation, 0)
         fill(self.action, 0)
 
+    @no_type_check
     def _observer_handle(self,
                          t: float,
                          q: np.ndarray,
@@ -237,14 +247,18 @@ class JiminyEnvInterface(
         """
         # Refresh the observation if not already done
         if not self.__is_observation_refreshed:
-            measurement: EngineObsType = OrderedDict(
-                t=np.array((t,)),
-                states=OrderedDict(agent=OrderedDict(q=q, v=v)),
-                measurements=OrderedDict(sensors_data))
+            measurement = self.__measurement
+            measurement["t"][()] = t
+            measurement["states"]["agent"]["q"] = q
+            measurement["states"]["agent"]["v"] = v
+            measurement_sensors = measurement["measurements"]
+            sensors_data_it = iter(sensors_data.values())
+            for sensor_type in self._sensors_types:
+                measurement_sensors[sensor_type] = next(sensors_data_it)
             self.refresh_observation(measurement)
 
         # Consider observation has been refreshed iif a simulation is running
-        self.__is_observation_refreshed = bool(self.is_simulation_running)
+        self.__is_observation_refreshed = self.is_simulation_running.item()
 
     def _controller_handle(self,
                            t: float,
@@ -281,7 +295,7 @@ class JiminyEnvInterface(
 
         # No need to check for breakpoints of the controller because it already
         # matches the update period by design.
-        command[:] = self.compute_command(self.action)
+        array_copyto(command, self.compute_command(self.action))
 
         # Always consider that the observation must be refreshed after calling
         # '_controller_handle' as it is never called more often than necessary.

@@ -99,6 +99,7 @@ namespace jiminy
             configHolder_t config;
             config["solver"] = std::string("PGS");   // ["PGS",]
             config["regularization"] = 1.0e-3;       // Relative inverse damping wrt. diagonal of J.Minv.J.t. 0.0 to enforce the minimum absolute regularizer.
+            config["successiveSolveFailedMax"] = 100U;
 
             return config;
         };
@@ -191,10 +192,12 @@ namespace jiminy
         {
             std::string const solver;
             float64_t const regularization;
+            uint32_t const successiveSolveFailedMax;
 
             constraintOptions_t(configHolder_t const & options) :
             solver(boost::get<std::string>(options.at("solver"))),
-            regularization(boost::get<float64_t>(options.at("regularization")))
+            regularization(boost::get<float64_t>(options.at("regularization"))),
+            successiveSolveFailedMax(boost::get<uint32_t>(options.at("successiveSolveFailedMax")))
             {
                 // Empty on purpose
             }
@@ -514,17 +517,18 @@ namespace jiminy
                                              vectorN_t const & q,
                                              vectorN_t const & v,
                                              vectorN_t const & a);
-        hresult_t computeSystemsDynamics(float64_t              const & t,
+        hresult_t computeSystemsDynamics(float64_t const & t,
                                          std::vector<vectorN_t> const & qSplit,
                                          std::vector<vectorN_t> const & vSplit,
-                                         std::vector<vectorN_t>       & aSplit);
+                                         std::vector<vectorN_t> & aSplit,
+                                         bool_t const & isStateUpToDate = false);
 
     protected:
         hresult_t configureTelemetry(void);
         void updateTelemetry(void);
 
         void syncStepperStateWithSystems(void);
-        void syncSystemsStateWithStepper(bool_t const & sync_acceleration_only = false);
+        void syncSystemsStateWithStepper(bool_t const & isStateUpToDate = false);
 
 
         /// \brief Compute the force resulting from ground contact on a given body.
@@ -563,9 +567,10 @@ namespace jiminy
                                      vectorN_t          const & q,
                                      vectorN_t          const & v,
                                      vectorN_t                & uInternal) const;
-        void computeCollisionForces(systemHolder_t     const & system,
-                                    systemDataHolder_t       & systemData,
-                                    forceVector_t            & fext) const;
+        void computeCollisionForces(systemHolder_t const & system,
+                                    systemDataHolder_t & systemData,
+                                    forceVector_t & fext,
+                                    bool_t const & isStateUpToDate = false) const;
         void computeExternalForces(systemHolder_t     const & system,
                                    systemDataHolder_t       & systemData,
                                    float64_t          const & t,
@@ -575,9 +580,10 @@ namespace jiminy
         void computeForcesCoupling(float64_t              const & t,
                                    std::vector<vectorN_t> const & qSplit,
                                    std::vector<vectorN_t> const & vSplit);
-        void computeAllTerms(float64_t              const & t,
+        void computeAllTerms(float64_t const & t,
                              std::vector<vectorN_t> const & qSplit,
-                             std::vector<vectorN_t> const & vSplit);
+                             std::vector<vectorN_t> const & vSplit,
+                             bool_t const & isStateUpToDate = false);
 
         /// \brief Compute system acceleration from current system state.
         ///
@@ -598,6 +604,7 @@ namespace jiminy
                                               vectorN_t const & v,
                                               vectorN_t const & u,
                                               forceVector_t & fext,
+                                              bool_t const & isStateUpToDate = false,
                                               bool_t const & ignoreBounds = false);
 
     public:
@@ -663,6 +670,7 @@ namespace jiminy
         vector_aligned_t<forceVector_t> contactForcesPrev_;
         vector_aligned_t<forceVector_t> fPrev_;
         vector_aligned_t<motionVector_t> aPrev_;
+        std::vector<float64_t> energy_;
         std::shared_ptr<logData_t> logData_;
     };
 }

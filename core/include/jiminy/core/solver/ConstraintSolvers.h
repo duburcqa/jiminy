@@ -49,7 +49,8 @@ namespace jiminy
         ///        s.t. if fIndices[i].size() == 0, lo[i] < x[i] < hi[i]
         ///             else, sqrt(x[i] ** 2 + sum_{j>=1}(x[fIndices[i][j]] ** 2)) < hi[i] * max(0.0, x[fIndices[i][0]])
         ///
-        virtual bool_t SolveBoxedForwardDynamics(float64_t const & inv_damping,
+        virtual bool_t SolveBoxedForwardDynamics(float64_t const & dampingInv,
+                                                 bool_t const & isStateUpToDate,
                                                  bool_t const & ignoreBounds) = 0;
     };
 
@@ -71,7 +72,8 @@ namespace jiminy
                   uint32_t const & maxIter);
         virtual ~PGSSolver(void) = default;
 
-        virtual bool_t SolveBoxedForwardDynamics(float64_t const & inv_damping,
+        virtual bool_t SolveBoxedForwardDynamics(float64_t const & dampingInv,
+                                                 bool_t const & isStateUpToDate = false,
                                                  bool_t const & ignoreBounds = false) override final;
 
     private:
@@ -98,6 +100,8 @@ namespace jiminy
         vectorN_t b_;
         vectorN_t y_;
         vectorN_t yPrev_;
+
+        bool_t isLcpFullyUpToDate_;
     };
 }
 

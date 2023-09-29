@@ -136,11 +136,11 @@ def is_display_available() -> bool:
         return True
     if multiprocessing.current_process().daemon:
         return False
-    if sys.platform.startswith("win"):
+    if not sys.platform.startswith("linux"):
         return True
-    if not os.environ.get("DISPLAY"):
-        return False
-    return True
+    if os.environ.get("DISPLAY"):
+        return True
+    return False
 
 
 def get_default_backend() -> str:
@@ -210,33 +210,44 @@ def get_backend_type(backend_name: str) -> type:
     raise ValueError(f"Unknown backend '{backend_name}'.")
 
 
-def sleep(dt: float) -> None:
-    """Function to provide cross-platform time sleep with maximum accuracy.
+if sys.version_info >= (3, 11):
+    def sleep(dt: float) -> None:
+        """Function to provide cross-platform time sleep with maximum accuracy.
 
-    .. warning::
-        Use this method with cautious since it relies on busy looping principle
-        instead of system scheduler. As a result, it wastes a lot more
-        resources than time.sleep. However, it is the only way to ensure
-        accurate delay on a non-real-time systems such as Windows 10.
+        .. note::
+            It returns immediately instead of raising an exception if the
+            input time is negative.
 
-    :param dt: Sleep duration in seconds.
-    """
-    # A new high-precision cross-platform sleep method is now available
-    if sys.version_info >= (3, 11):
+        .. note::
+            Wrapper around the standard method 'time.sleep' which provides
+            high-precision cross-platform sleep method since Python>=3.11.
+
+        :param dt: Sleep duration in seconds.
+        """
+        # Early return if already too late
+        if dt < 0.0:
+            return
         time.sleep(dt)
-        return
+else:
+    # Timer jitter estimate
+    TIMER_JITTER = 1e-2 if sys.platform.startswith('win') else 1e-3
 
-    # Estimate of timer jitter depending on the operating system
-    if sys.platform.startswith('win'):
-        timer_jitter = 1e-2
-    else:
-        timer_jitter = 1e-3
+    def sleep(dt: float) -> None:
+        """Function to provide cross-platform time sleep with maximum accuracy.
 
-    # Combine busy loop and timer to release the GIL periodically
-    t_end = time.perf_counter() + dt
-    while time.perf_counter() < t_end:
-        if t_end - time.perf_counter() > timer_jitter:
-            time.sleep(1e-3)
+        .. warning::
+            Use this method with cautious since it relies on busy looping
+            principle instead of system scheduler. As a result, it wastes a lot
+            more resources than time.sleep. However, it is the only way to
+            ensure accurate delay on Python<3.11
+
+        :param dt: Sleep duration in seconds.
+        """
+        # Combine busy loop and timer to release the GIL periodically
+        t_end = time.perf_counter() + dt
+        while time.perf_counter() < t_end:
+            if t_end - time.perf_counter() > TIMER_JITTER:
+                time.sleep(1e-3)
 
 
 def get_color_code(
@@ -1351,8 +1362,11 @@ class Viewer:
         assert Viewer._backend_obj is not None
 
         # Make sure number of labels is consistent with number of robots
-        if labels is not None:
-            assert len(labels) == len(Viewer._backend_robot_colors)
+        if labels is not None and (
+                len(labels) != len(Viewer._backend_robot_colors)):
+            raise RuntimeError(
+                f"Inconsistency between robots {Viewer._backend_robot_names}' "
+                f"and labels {labels}")
 
         # Make sure all robots have a specific color
         if any(color is None for color in Viewer._backend_robot_colors):

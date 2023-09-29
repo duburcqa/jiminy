@@ -429,11 +429,22 @@ namespace jiminy
                 pncModelFlexibleOrig_.addFrame(frame);
             }
 
+            /* Backup the current rotor inertias and effort limits to restore them.
+               Note that it is only necessary because 'reset' is not called
+               for efficiency. It is reasonable to assume that no other fields
+               have been overriden by derived classes such as Robot. */
+            vectorN_t rotorInertia = pncModel_.rotorInertia;
+            vectorN_t effortLimit = pncModel_.effortLimit;
+
             /* One must re-generate the model after adding a frame.
                Note that it is unecessary to call 'reset' since the proxies
                are still up-to-date, because the frame is added at the end
                of the vector. */
             generateModelBiased();
+
+            // Restore the current rotor inertias and effort limits
+            pncModel_.rotorInertia.swap(rotorInertia);
+            pncModel_.effortLimit.swap(effortLimit);
         }
 
         return returnCode;
@@ -1088,9 +1099,9 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        // Reset the robot either with the original rigid or flexible model
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Reset the robot either with the original rigid or flexible model
             if (mdlOptions_->dynamics.enableFlexibleModel)
             {
                 pncModel_ = pncModelFlexibleOrig_;
@@ -1099,6 +1110,9 @@ namespace jiminy
             {
                 pncModel_ = pncModelOrig_;
             }
+
+            // Initially set effortLimit to zero systematically
+            pncModel_.effortLimit.setZero();
 
             for (std::string const & jointName : rigidJointsNames_)
             {
@@ -1182,15 +1196,10 @@ namespace jiminy
             return;
         }
 
-       // Compute joint jacobians manually since not done by engine for efficiency
-        pinocchio::computeJointJacobians(pncModel_, pncData_);
-
         /* Compute inertia matrix, taking into account armature.
            Note that `crbaMinimal` is faster than `crba` as it also compute
            the joint jacobians as a by-product without having to call
-           `computeJointJacobians` manually. However, it is less stable
-           numerically, and it messes some variables (Ycrb[0] keeps accumulating
-           and com[0] is "wrongly defined"). So using it must be avoided. */
+           `computeJointJacobians` manually. */
         pinocchio_overload::crba(pncModel_, pncData_, q);
 
         /* Computing forward kinematics without acceleration to get the drift.

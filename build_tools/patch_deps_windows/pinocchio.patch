@@ -1,27 +1,15 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -120,11 +120,6 @@
-   ADD_DEFINITIONS(-DPINOCCHIO_WITH_URDFDOM)
-   LIST(APPEND CFLAGS_DEPENDENCIES "-DPINOCCHIO_WITH_URDFDOM")
- 
--  IF(${urdfdom_VERSION} VERSION_GREATER "0.4.2")
--    SET(CMAKE_CXX_STANDARD 11)
--    SET(CMAKE_CXX_STANDARD_REQUIRED ON)
--    MESSAGE(STATUS "Since urdfdom >= 1.0.0, the default C++ standard is C++11. The project is then compiled with C++11 standard.")
--  ENDIF(${urdfdom_VERSION} VERSION_GREATER "0.4.2")
- ENDIF(BUILD_WITH_URDF_SUPPORT)
- 
- IF(BUILD_WITH_AUTODIFF_SUPPORT)
-@@ -148,7 +143,6 @@
+@@ -144,7 +144,6 @@
  
  SET_BOOST_DEFAULT_OPTIONS()
  EXPORT_BOOST_DEFAULT_OPTIONS()
 -ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
- 
- IF(BUILD_PYTHON_INTERFACE)
-   MESSAGE(STATUS "The Python bindings of Pinocchio will be compiled along the main library. If you want to disable this feature, please set the option BUILD_PYTHON_INTERFACE to OFF.")
-@@ -157,6 +153,9 @@
+
+ IF(Boost_VERSION_STRING VERSION_LESS 1.81)
+     IF(BUILD_WITH_URDF_SUPPORT AND ${urdfdom_VERSION} VERSION_GREATER "0.4.2")
+@@ -163,6 +162,9 @@
    IF(BUILD_WITH_LIBPYTHON)
      set(PYTHON_COMPONENTS ${PYTHON_COMPONENTS} Development)
    ENDIF()
@@ -31,7 +19,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
  
    ADD_PROJECT_DEPENDENCY(eigenpy 2.7.10 REQUIRED)
  
-@@ -176,19 +173,19 @@
+@@ -182,19 +184,19 @@
  ELSE(BUILD_PYTHON_INTERFACE)
    MESSAGE(STATUS "Pinocchio won't be compiled with its Python bindings. If you want to enable this feature, please set the option BUILD_PYTHON_INTERFACE to ON.")
  ENDIF(BUILD_PYTHON_INTERFACE)
@@ -61,7 +49,7 @@ diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -17,7 +17,7 @@
  GET_DIRECTORY_PROPERTY(CURRENT_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
- 
+
  # Create target libpinocchio.so
 -ADD_LIBRARY(${PROJECT_NAME} SHARED ${HEADERS} ${${PROJECT_NAME}_SOURCES})
 +ADD_LIBRARY(${PROJECT_NAME} ${HEADERS} ${${PROJECT_NAME}_SOURCES})
@@ -95,36 +83,3 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
      set(Boost_NO_BOOST_CMAKE ON)
    endif("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70"
          OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
-diff --git a/cmake/python.cmake b/cmake/python.cmake
-index db414f9..49ce016 100644
---- a/cmake/python.cmake
-+++ b/cmake/python.cmake
-@@ -517,6 +517,14 @@
-   # Regex from IsValidTargetName in CMake/Source/cmGeneratorExpression.cxx
-   string(REGEX REPLACE "[^A-Za-z0-9_.+-]" "_" compile_pyc
-                        "compile_pyc_${CMAKE_CURRENT_SOURCE_DIR}")
-+
-+  string(LENGTH ${compile_pyc} compile_pyc_LENGTH)
-+  math(EXPR compile_pyc_START "${compile_pyc_LENGTH}-50")
-+  if(${compile_pyc_START} LESS 3)
-+    set(compile_pyc_START 3)
-+  endif()
-+  string(SUBSTRING ${compile_pyc} ${compile_pyc_START} -1 compile_pyc)
-+
-   if(NOT TARGET ${compile_pyc})
-     add_custom_target(${compile_pyc} ALL)
-   endif()
-diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
---- a/cmake/deprecated.hh.cmake
-+++ b/cmake/deprecated.hh.cmake
-@@ -26,8 +26,8 @@
- #  define @PACKAGE_CPPNAME@_DEPRECATED [[deprecated]]
- #  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) [[deprecated(#message)]]
- # elif defined(__GNUC__) || defined(__clang__)
--#  define @PACKAGE_CPPNAME@_DEPRECATED __attribute__ ((deprecated))
--#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message) __attribute__ (( deprecated(#message) ))
-+#  define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
-+#  define @PACKAGE_CPPNAME@_DEPRECATED_MESSAGE(message)
- # else
- #  if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
- #   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)

@@ -26,14 +26,14 @@ from ..bases import (DT_EPS,
 StackedObsType: TypeAlias = ObsT
 
 
-class PartialFrameStack(
+class PartialObservationStack(
         gym.Wrapper,  # [StackedObsType, ActT, ObsT, ActT],
         Generic[ObsT, ActT]):
     """Observation wrapper that partially stacks observations in a rolling
     manner.
 
     This wrapper combines and extends OpenAI Gym wrappers `FrameStack` and
-    `FilterObservation` to support nested filter keys.
+    `FilteredJiminyEnv` to support nested filter keys.
 
     It adds one extra dimension to all the leaves of the original observation
     spaces that must be stacked. If so, the first dimension corresponds to the
@@ -200,13 +200,17 @@ class StackedJiminyEnv(
         self.__n_last_stack = 0
 
         # Instantiate wrapper
-        self.wrapper = PartialFrameStack(env, **kwargs)
+        self.wrapper = PartialObservationStack(env, **kwargs)
+
+        # Initialize base classes
+        super().__init__(env, **kwargs)
 
         # Bind the observation of the wrapper
         self.observation = self.wrapper.observation
 
-        # Initialize base classes
-        super().__init__(env, **kwargs)
+        # Bind the action of the environment
+        assert self.action_space.contains(env.action)
+        self.action = env.action
 
     def _initialize_action_space(self) -> None:
         self.action_space = self.env.action_space
@@ -221,26 +225,26 @@ class StackedJiminyEnv(
         # Setup wrapper
         self.wrapper._setup()
 
+        # Make sure observe update is discrete-time
+        if self.env.observe_dt <= 0.0:
+            raise ValueError(
+                "This wrapper does not support time-continuous update.")
+
+        # Copy observe and control update periods from wrapped environment
+        self.observe_dt = self.env.observe_dt
+        self.control_dt = self.env.control_dt
+
         # Re-initialize some internal buffer(s).
         # Note that the initial observation is always stored.
         self.__n_last_stack = self.skip_frames_ratio - 1
-
-        # Compute the observe and control update periods
-        self.control_dt = self.env.control_dt
-        self.observe_dt = self.env.observe_dt
-
-        # Make sure observe update is discrete-time
-        if self.observe_dt <= 0.0:
-            raise ValueError(
-                "`StackedJiminyEnv` does not support time-continuous update.")
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         # Get environment observation
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
-        if self.is_simulation_running and \
-                is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
+        if self.is_simulation_running and is_breakpoint(
+                self.stepper_state.t, self.env.observe_dt, DT_EPS):
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1

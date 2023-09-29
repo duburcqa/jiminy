@@ -55,6 +55,7 @@ echo "$InstallDir/lib/python${PYTHON_VERSION}/site-packages" > "${PYTHON_USER_SI
 
 ### Add install library to path. This is necessary to generate stubs.
 LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
+DYLD_LIBRARY_PATH="$LD_LIBRARY_PATH"
 
 ### Remove the preinstalled boost library from search path
 unset Boost_ROOT
@@ -74,6 +75,7 @@ if [ ! -d "$RootDir/boost" ]; then
 fi
 cd "$RootDir/boost"
 git reset --hard
+git fetch --all || true
 git checkout --force "boost-1.76.0"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
@@ -88,6 +90,7 @@ if [ ! -d "$RootDir/eigen3" ]; then
 fi
 cd "$RootDir/eigen3"
 git reset --hard
+git fetch --all || true
 git checkout --force "3.4.0"
 
 ### Checkout eigenpy and its submodules
@@ -96,8 +99,8 @@ if [ ! -d "$RootDir/eigenpy" ]; then
 fi
 cd "$RootDir/eigenpy"
 git reset --hard
-git fetch --all
-git checkout --force "v2.9.2"
+git fetch --all || true
+git checkout --force "v3.1.1"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
@@ -108,7 +111,7 @@ if [ ! -d "$RootDir/tinyxml" ]; then
 fi
 cd "$RootDir/tinyxml"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "master"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/tinyxml.patch"
 
@@ -118,7 +121,7 @@ if [ ! -d "$RootDir/console_bridge" ]; then
 fi
 cd "$RootDir/console_bridge"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "0.3.2"
 
 ### Checkout urdfdom_headers
@@ -127,7 +130,7 @@ if [ ! -d "$RootDir/urdfdom_headers" ]; then
 fi
 cd "$RootDir/urdfdom_headers"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "1.0.4"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
@@ -135,10 +138,28 @@ if [ ! -d "$RootDir/urdfdom" ]; then
   git clone https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 fi
 cd "$RootDir/urdfdom"
+git reset --hard
+git fetch --all || true
 git checkout --force "1.0.3"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/urdfdom.patch"
+
+### Checkout CppAD
+if [ ! -d "$RootDir/cppad" ]; then
+  git clone https://github.com/coin-or/CppAD.git "$RootDir/cppad"
+fi
+cd "$RootDir/cppad"
 git reset --hard
 git fetch --all
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/urdfdom.patch"
+git checkout --force "20230000.0"
+
+### Checkout CppADCodeGen
+if [ ! -d "$RootDir/cppadcodegen" ]; then
+  git clone https://github.com/joaoleal/CppADCodeGen.git "$RootDir/cppadcodegen"
+fi
+cd "$RootDir/cppadcodegen"
+git reset --hard
+git fetch --all
+git checkout --force "v2.4.3"
 
 ### Checkout assimp
 if [ ! -d "$RootDir/assimp" ]; then
@@ -146,7 +167,7 @@ if [ ! -d "$RootDir/assimp" ]; then
 fi
 cd "$RootDir/assimp"
 git reset --hard
-git fetch --all
+git fetch --all || true
 git checkout --force "v5.2.5"
 
 ### Checkout hpp-fcl
@@ -156,8 +177,8 @@ if [ ! -d "$RootDir/hpp-fcl" ]; then
 fi
 cd "$RootDir/hpp-fcl"
 git reset --hard
-git fetch --all
-git checkout --force "v2.3.0"
+git fetch --all || true
+git checkout --force "v2.3.5"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/hppfcl.patch"
@@ -171,8 +192,8 @@ if [ ! -d "$RootDir/pinocchio" ]; then
 fi
 cd "$RootDir/pinocchio"
 git reset --hard
-git fetch --all
-git checkout --force "v2.6.17"
+git fetch --all || true
+git checkout --force "v2.6.20"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"
@@ -244,7 +265,7 @@ mkdir -p "$RootDir/boost/build"
 
 mkdir -p "$RootDir/eigen3/build"
 cd "$RootDir/eigen3/build"
-cmake "$RootDir/eigen3" -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/eigen3" -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON
 make install -j2
 
@@ -253,7 +274,7 @@ make install -j2
 mkdir -p "$RootDir/eigenpy/build"
 cd "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -271,7 +292,7 @@ make install -j2
 mkdir -p "$RootDir/tinyxml/build"
 cd "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
@@ -285,12 +306,11 @@ make install -j2
 mkdir -p "$RootDir/console_bridge/build"
 cd "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
-      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" \
-      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################### Build and install urdfdom_headers ######################################
@@ -305,26 +325,51 @@ make install -j2
 mkdir -p "$RootDir/urdfdom/build"
 cd "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
-      -DBUILD_TESTING=OFF -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" \
-      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DBUILD_TESTING=OFF \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
+################################### Build and install CppAD ##########################################
+
+mkdir -p "$RootDir/cppad/build"
+cd "$RootDir/cppad/build"
+cmake "$RootDir/cppad" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
+
+################################### Build and install CppADCodeGen ##########################################
+
+mkdir -p "$RootDir/cppadcodegen/build"
+cd "$RootDir/cppadcodegen/build"
+cmake "$RootDir/cppadcodegen" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DGOOGLETEST_GIT=ON \
+      -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ###################################### Build and install assimp ########################################
 
+# C flag 'HAVE_HIDDEN' must be specified to hide internal symbols of zlib that may not be exposed at
+# runtime causing undefined symbol error when loading hpp-fcl shared library.
 mkdir -p "$RootDir/assimp/build"
 cd "$RootDir/assimp/build"
 cmake "$RootDir/assimp" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
-      -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF \
-      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
+      -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DBUILD_TESTING=OFF \
+      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS} -DHAVE_HIDDEN" -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare $(
       ) -Wno-array-compare -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
@@ -334,7 +379,7 @@ make install -j2
 mkdir -p "$RootDir/hpp-fcl/third-parties/qhull/build"
 cd "$RootDir/hpp-fcl/third-parties/qhull/build"
 cmake "$RootDir/hpp-fcl/third-parties/qhull" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
@@ -345,7 +390,7 @@ make install -j2
 mkdir -p "$RootDir/hpp-fcl/build"
 cd "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -367,7 +412,7 @@ make install -j2
 mkdir -p "$RootDir/pinocchio/build"
 cd "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" \
-      -Wno-dev -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -Wno-dev -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -376,9 +421,12 @@ cmake "$RootDir/pinocchio" \
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
-      -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF \
-      -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
+      -DBUILD_WITH_AUTODIFF_SUPPORT=ON -DBUILD_WITH_CODEGEN_SUPPORT=ON -DBUILD_WITH_CASADI_SUPPORT=OFF \
+      -DBUILD_WITH_OPENMP_SUPPORT=OFF -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
       ) -Wno-uninitialized -Wno-type-limits -Wno-deprecated-declarations -Wno-unused-local-typedefs $(
       ) -Wno-extra -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
+
+# Copy cmake configuration files for cppad and cppadcodegen
+cp -r $RootDir/pinocchio/cmake/find-external/**/*cppad* $RootDir/build_tools/cmake

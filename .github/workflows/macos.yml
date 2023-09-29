@@ -19,10 +19,11 @@ jobs:
 
     defaults:
       run:
-        shell: bash -ieo pipefail {0}  # Using bash enables automatic sourcing `.bashrc` and fail-fast behavior
+        shell: bash -ieo pipefail {0}
 
     env:
       TORCH_VERSION: "2.0.1"
+      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY"
       BUILD_TYPE: "Release"
       MACOSX_DEPLOYMENT_TARGET: "10.15"
       OSX_ARCHITECTURES: "x86_64;arm64"
@@ -51,17 +52,15 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
-        "${PYTHON_EXECUTABLE}" -m pip install "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "setuptools<66.0" "wheel<0.40" delocate twine
+        "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
         "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21" "numba>=0.54.0"
+        "${PYTHON_EXECUTABLE}" -m pip install delocate twine
     - name: Build project dependencies
       run: |
         MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
           ./build_tools/build_install_deps_unix.sh
-        if [ "${{ matrix.PYTHON_VERSION }}" != '3.11' ] ; then
-          "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
-          "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
-        fi
+        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/cpu
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -75,13 +74,14 @@ jobs:
         export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
-              -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+              -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" \
+              -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.11' && 'OFF') || 'ON' }} \
-              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON \
+              -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_GYM_JIMINY=ON \
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make -j2
 
         # Bundle the boost python dependencies with jiminy
@@ -100,7 +100,8 @@ jobs:
 
     - name: Generate and install Python Pip wheels
       run: |
-        export DYLD_LIBRARY_PATH="$InstallDir/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export DYLD_LIBRARY_PATH="$LD_LIBRARY_PATH"
 
         # Generate stubs.
         # It does not work on MacOS because of panda3d import errors in frozen mode. Disabling for now.
@@ -139,7 +140,7 @@ jobs:
         cd "$RootDir/core/examples/external_project/build"
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
               -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"
@@ -148,22 +149,21 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
+        # Do NOT set LD_LIBRARY_PATH to check the import of bundled dependencies as fallback
+
         cd "$RootDir/build/core/unit"
         ctest --output-on-failure
 
-        # Do NOT set LD_LIBRARY_PATH to check the import of bundled dependencies as fallback
         cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym jiminy
-      if: matrix.PYTHON_VERSION != '3.11'
       run: |
-        # FIXME: 'No registered converter [...] of type unsigned int from [...] of type numpy.uint32
-        #export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
 
-        # FIXME: 'Segmentation fault: 11'
-        #cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
-        #JIMINY_VIEWER_DEFAULT_BACKEND="meshcat" "${PYTHON_EXECUTABLE}" acrobot_ppo.py
+        # FIXME: segfault when enabling viewer for Panda3D 1.10.12
+        cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
+        JIMINY_VIEWER_DISABLE= "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 

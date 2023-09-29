@@ -8,7 +8,7 @@ It implements:
     - the base observer block
 """
 from abc import abstractmethod, ABC
-from typing import Any, Union, Generic, TypeVar
+from typing import Any, Union, Generic, TypeVar, cast
 
 import gymnasium as gym
 
@@ -100,15 +100,15 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
             block.
         """
 
-    @abstractmethod
     def _initialize_state_space(self) -> None:
         """Configure the internal state space of the controller.
         """
+        self.state_space = cast(gym.Space[BlockStateT], None)
 
-    @abstractmethod
     def get_state(self) -> BlockStateT:
         """Get the internal state space of the controller.
         """
+        return cast(BlockStateT, None)
 
     @property
     @abstractmethod
@@ -142,8 +142,6 @@ class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
     The update period of the observer is the same than the simulation timestep
     of the environment for now.
     """
-    type = "observer"
-
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observer interface.
 
@@ -205,12 +203,14 @@ class BaseControllerBlock(
     the motors efforts to apply on the robot.
 
     The update period of the controller must be higher than the control update
-    period of the environment, but both can be infinite, ie time-continuous.
+    period of the environment, but both can be infinite, i.e. time-continuous.
     """
-    type = "controller"
-
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the controller interface.
+
+        .. note::
+            No buffer is pre-allocated for the action since it is already done
+            by the parent environment.
 
         :param args: Extra arguments that may be useful for mixing
                      multiple inheritance through multiple inheritance.
@@ -219,15 +219,9 @@ class BaseControllerBlock(
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
 
-        # Allocate action buffer
-        self.action: ActT = zeros(self.action_space)
-
     def _setup(self) -> None:
         # Compute the update period
         self.control_dt = self.env.control_dt * self.update_ratio
-
-        # Set default action
-        fill(self.action, 0)
 
         # Make sure the controller period is lower than environment timestep
         assert self.control_dt <= self.env.step_dt, (

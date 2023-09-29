@@ -16,8 +16,10 @@ namespace jiminy
                                              float64_t               & dt)
     {
         // Simple explicit Euler: x(t + dt) = x(t) + dt dx(t)
-        stateDerivative = f(t, state);
         state.sumInPlace(stateDerivative, dt);
+
+        // Compute the next state derivative
+        stateDerivative = f(t, state);
 
         /* By default INF is returned in case of fixed time step, so that the
            engine will always try to perform the latest timestep possible,

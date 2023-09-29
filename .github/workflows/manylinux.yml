@@ -25,6 +25,9 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
+      # Enabling AVX would bring about 10% speeds-up but breaks compatibility with
+      # libraries not compiled for AVX as it requires 256 bits memory alignment.
+      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -march=x86-64-v3 -mno-avx -mno-avx2"
 
     #####################################################################################
 
@@ -49,9 +52,9 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
-        "${PYTHON_EXECUTABLE}" -m pip install "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "setuptools<66.0" "wheel<0.40" twine cmake
+        "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
         "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21" "numba>=0.54.0"
+        "${PYTHON_EXECUTABLE}" -m pip install twine cmake
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
@@ -71,7 +74,8 @@ jobs:
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_GYM_JIMINY=ON \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON \
+              -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_GYM_JIMINY=ON \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
@@ -132,7 +136,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-22.04]
 
     defaults:
       run:
@@ -183,8 +187,8 @@ jobs:
         mkdir -p "$RootDir/core/examples/external_project/build"
         cd "$RootDir/core/examples/external_project/build"
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-               -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+               -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_VERBOSE_MAKEFILE=ON \
+               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"

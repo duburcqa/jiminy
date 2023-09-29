@@ -32,7 +32,8 @@ namespace jiminy
     constraintsData_(),
     b_(),
     y_(),
-    yPrev_()
+    yPrev_(),
+    isLcpFullyUpToDate_(false)
     {
         Eigen::Index constraintsRowsMax = 0U;
         constraintsHolder->foreach(
@@ -227,7 +228,7 @@ namespace jiminy
     {
         /* For some reason, it is impossible to get a better accuracy than 1e-5
            for the absolute tolerance, even if unconstrained. It seems to be
-           related to compunding of errors, maybe due to the recursive computations. */
+           related to compounding of errors, maybe due to the recursive computations. */
 
         assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
 
@@ -255,7 +256,8 @@ namespace jiminy
         return false;
     }
 
-    bool_t PGSSolver::SolveBoxedForwardDynamics(float64_t const & inv_damping,
+    bool_t PGSSolver::SolveBoxedForwardDynamics(float64_t const & dampingInv,
+                                                bool_t const & isStateUpToDate,
                                                 bool_t const & ignoreBounds)
     {
         // Update constraints start indices, jacobian, drift and multipliers
@@ -269,9 +271,12 @@ namespace jiminy
                 continue;
             }
             Eigen::Index const constraintDim = constraintData.dim;
-            J_.middleRows(constraintRows, constraintDim) = constraint->getJacobian();
-            gamma_.segment(constraintRows, constraintDim) = constraint->getDrift();
-            lambda_.segment(constraintRows, constraintDim) = constraint->lambda_;
+            if (!isStateUpToDate)
+            {
+                J_.middleRows(constraintRows, constraintDim) = constraint->getJacobian();
+                gamma_.segment(constraintRows, constraintDim) = constraint->getDrift();
+                lambda_.segment(constraintRows, constraintDim) = constraint->lambda_;
+            }
             constraintData.startIdx = constraintRows;
             constraintRows += constraintDim;
         };
@@ -289,33 +294,41 @@ namespace jiminy
                 return constraintData.isInactive || constraintData.nBlocks == 0;
             });
 
-        /* Compute JMinvJt, including cholesky decomposition of inertia matrix.
-           Abort computation if the inertia matrix is not positive definite,
-           which is never supposed to happen in theory but in practice it is
-           not sure because of compunding of errors. */
-        hresult_t returnCode = pinocchio_overload::computeJMinvJt(*model_, *data_, J);
-        if (returnCode != hresult_t::SUCCESS)
-        {
-            data_->ddq.setConstant(qNAN);
-            return false;
-        }
         matrixN_t & A = data_->JMinvJt;
+        if (!isStateUpToDate)
+        {
+            /* Compute JMinvJt, including cholesky decomposition of inertia matrix.
+               Abort computation if the inertia matrix is not positive definite,
+               which is never supposed to happen in theory but in practice it is
+               not sure because of compounding of errors. */
+            hresult_t const returnCode = pinocchio_overload::computeJMinvJt(*model_, *data_, J);
+            if (returnCode != hresult_t::SUCCESS)
+            {
+                data_->ddq.setConstant(qNAN);
+                return false;
+            }
 
-        /* Add regularization term in case A is not invertible.
-           Note that Mujoco defines an impedance function that depends on
-           the distance instead of a constant value to model soft contacts.
-           See: - http://mujoco.org/book/modeling.html#CSolver
-                - http://mujoco.org/book/computation.html#soParameters  */
-        A.diagonal() += clamp(
-            A.diagonal() * inv_damping,
-            PGS_MIN_REGULARIZER,
-            INF);
+            /* Add regularization term in case A is not invertible.
+               Note that Mujoco defines an impedance function that depends on
+               the distance instead of a constant value to model soft contacts.
+               See: - http://mujoco.org/book/modeling.html#CSolver
+                    - http://mujoco.org/book/computation.html#soParameters  */
+            A.diagonal() += clamp(
+                A.diagonal() * dampingInv,
+                PGS_MIN_REGULARIZER,
+                INF);
+
+            /* The LCP is not fully up-to-date since the upper triangular
+               part is still missing. This will only be done if necessary. */
+            isLcpFullyUpToDate_ = false;
+        }
 
         // Compute the dynamic drift (control - nle)
         data_->torque_residual = data_->u - data_->nle;
         pinocchio::cholesky::solve(*model_, *data_, data_->torque_residual);
 
-        // Compute b
+        /* Compute b.
+           - TODO: Leverage sparsity of J to avoid dense matrix multiplication */
         b = - gamma;
         b.noalias() -= J * data_->torque_residual;
 
@@ -338,8 +351,14 @@ namespace jiminy
         }
         else
         {
-            // Full matrix is needed to enable vectorization
-            A.triangularView<Eigen::StrictlyUpper>() = A.transpose();
+            /* Full matrix is needed to enable leveraging vectorization.
+               Note that updating the lower part of the matrix is necessary
+               even if the state is up-to-date because of the 'if' branching. */
+            if (!isLcpFullyUpToDate_)
+            {
+                A.triangularView<Eigen::StrictlyUpper>() = A.transpose();
+                isLcpFullyUpToDate_ = true;
+            }
 
             // Run standard PGS algorithm
             isSuccess = ProjectedGaussSeidelSolver(A, b, lambda);
@@ -359,7 +378,8 @@ namespace jiminy
             constraintRows += constraintDim;
         };
 
-        // Compute resulting acceleration, no matter if computing forces was successful
+        /* Compute resulting acceleration, no matter if computing forces was successful.
+           - TODO: Leverage sparsity of J to avoid dense matrix multiplication */
         data_->ddq.noalias() = J.transpose() * lambda;
         pinocchio::cholesky::solve(*model_, *data_, data_->ddq);
         data_->ddq += data_->torque_residual;

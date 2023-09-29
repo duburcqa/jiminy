@@ -3,10 +3,20 @@ if(TARGET jiminy::core)
     return()
 endif()
 
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL @CMAKE_CXX_COMPILER_ID@ OR
+        CMAKE_CXX_COMPILER_VERSION VERSION_LESS @CMAKE_CXX_COMPILER_VERSION@)
+    message(WARNING
+        "Jiminy was compiled using @CMAKE_CXX_COMPILER_ID@ @CMAKE_CXX_COMPILER_VERSION@.\n"
+        "Expect undefined symbols at link time.")
+endif()
+
 # Set Python find strategy to location by default
-if(CMAKE_VERSION VERSION_GREATER "3.15")
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15.0)
     cmake_policy(SET CMP0094 NEW)
 endif()
+
+# Custom cmake module path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 # Get Python executable
 if(DEFINED PYTHON_EXECUTABLE)
@@ -102,11 +112,12 @@ execute_process(COMMAND "${Python_EXECUTABLE}" -c
 list(GET jiminy_LIBRARIES 0 jiminy_CORE_LIBRARY)
 
 # Define compilation options and definitions
-set(jiminy_DEFINITIONS
-    BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS=ON
-    BOOST_MPL_LIMIT_VECTOR_SIZE=30
-)
-set(jiminy_OPTIONS)
+set(jiminy_DEFINITIONS @CORE_DEFINITIONS@)
+set(jiminy_OPTIONS @CMAKE_CXX_ARCH@)
+if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
+    list(APPEND jiminy_DEFINITIONS __FMA__)
+    list(APPEND jiminy_OPTIONS /fp:contract)
+endif()
 if(WIN32)
     list(APPEND jiminy_DEFINITIONS
         WIN32 _USE_MATH_DEFINES NOMINMAX
@@ -122,13 +133,6 @@ else()
 endif()
 if(MSVC)
     list(APPEND jiminy_OPTIONS /EHsc /bigobj /Zc:preprocessor /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
-endif()
-
-# Set architecture flags
-list(APPEND jiminy_OPTIONS @CMAKE_CXX_ARCH@)
-if("@CMAKE_CXX_ARCH@" MATCHES "AVX[0-9]+")
-    list(APPEND jiminy_OPTIONS /fp:contract)
-    list(APPEND jiminy_DEFINITIONS __FMA__)
 endif()
 
 # Define imported target
