@@ -915,32 +915,40 @@ class Viewer:
                 # the case if the environment is not jupyter-notebook nor
                 # colab but rather jupyterlab or vscode for instance.
                 from IPython import get_ipython
-                kernel = get_ipython().kernel
-                conn_file = kernel.config['IPKernelApp']['connection_file']
-                kernel_id = conn_file.split('-', 1)[1].split('.')[0]
-                server_pid = Process(os.getpid()).parent().pid
-                server_list = []
+                kernel = get_ipython()
+                if interactive_mode() == 3:
+                    kernel_config_app = kernel.config['ColabKernelApp']
+                else:
+                    kernel_config_app = kernel.config['IPKernelApp']
+                conn_file = kernel_config_app['connection_file']
                 try:
-                    from notebook import notebookapp
-                    server_list += list(notebookapp.list_running_servers())
-                except ImportError:
-                    # `notebook>=7.0` has removed this submodule entirely
-                    pass
-                try:
-                    from jupyter_server import serverapp
-                    server_list += list(serverapp.list_running_servers())
-                except ImportError:
-                    pass
-                for server_info in server_list:
-                    if server_info['pid'] != server_pid:
-                        continue
-                    ws_url = (
-                        f"ws{server_info['url'][4:]}api/kernels/{kernel_id}"
-                        f"/channels?token={server_info['token']}")
-                    html_content = html_content.replace(
-                        "var ws_url = undefined;",
-                        f'var ws_url = "{ws_url}";')
-                    break
+                    kernel_id = conn_file.split('-', 1)[1].split('.')[0]
+                except AttributeError:
+                    kernel_id = None
+                if kernel_id is not None:
+                    server_pid = Process(os.getpid()).parent().pid
+                    server_list = []
+                    try:
+                        from notebook import notebookapp
+                        server_list += list(notebookapp.list_running_servers())
+                    except ImportError:
+                        # `notebook>=7.0` has removed this submodule entirely
+                        pass
+                    try:
+                        from jupyter_server import serverapp
+                        server_list += list(serverapp.list_running_servers())
+                    except ImportError:
+                        pass
+                    for server_cfg in server_list:
+                        if server_cfg['pid'] != server_pid:
+                            continue
+                        ws_url = (
+                            f"ws{server_cfg['url'][4:]}api/kernels/{kernel_id}"
+                            f"/channels?token={server_cfg['token']}")
+                        html_content = html_content.replace(
+                            "var ws_url = undefined;",
+                            f'var ws_url = "{ws_url}";')
+                        break
 
                 if interactive_mode() == 2:
                     # Isolate HTML in iframe
@@ -1109,11 +1117,10 @@ class Viewer:
             if Viewer.backend == 'meshcat' and Viewer.is_alive():
                 Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = 200
 
-            # Consider that the robot name is now available, no matter
-            # whether the robot has actually been deleted or not.
+            # Consider that the robot is not available anymore, no matter what
             Viewer._backend_robot_names.discard(self.robot_name)
             Viewer._backend_robot_colors.pop(self.robot_name, None)
-            if self.delete_robot_on_close:
+            if self.delete_robot_on_close and Viewer.is_alive():
                 Viewer._delete_nodes_viewer([
                     self._client.visual_group,
                     self._client.collision_group,
