@@ -92,6 +92,15 @@ namespace Eigen
         }
 
         #define GENERATE_OPERATOR_MULT(OP,NAME) \
+        template<typename OtherDerived> \
+        StateDerivativeBase & (operator EIGEN_CAT(OP,=))(StateDerivativeBase<OtherDerived> const & other) \
+        { \
+            assert(robot() == other.robot()); \
+            v().array() EIGEN_CAT(OP,=) other.v().array(); \
+            a().array() EIGEN_CAT(OP,=) other.a().array(); \
+            return *this; \
+        } \
+         \
         StateDerivativeBase & (operator EIGEN_CAT(OP,=))(Scalar const & scalar) \
         { \
             v().array() EIGEN_CAT(OP,=) scalar; \
@@ -123,8 +132,8 @@ namespace Eigen
         StateDerivativeBase & (operator EIGEN_CAT(OP,=))(StateDerivativeBase<OtherDerived> const & other) \
         { \
             assert(robot() == other.robot()); \
-            v() EIGEN_CAT(OP,=) other.v(); \
-            a() EIGEN_CAT(OP,=) other.a(); \
+            v().array() EIGEN_CAT(OP,=) other.v().array(); \
+            a().array() EIGEN_CAT(OP,=) other.a().array(); \
             return *this; \
         } \
          \
@@ -434,7 +443,7 @@ namespace Eigen
 
         void setZero(void)
         {
-            derived().q().setZero();
+            pinocchio::neutral(robot()->pncModel_, derived().q());
             derived().v().setZero();
         }
 
@@ -465,48 +474,6 @@ namespace Eigen
             return out;
         }
     };
-
-    namespace internal {
-        template<typename Derived, int p>
-        struct StateLpNormImpl
-        {
-            typedef typename StateBase<Derived>::RealScalar RealScalar;
-            static inline RealScalar run(StateBase<Derived> const & velocity)
-            {
-                return std::pow(velocity.q().cwiseAbs().array().pow(p).sum() +
-                                velocity.v().cwiseAbs().array().pow(p).sum(),
-                                RealScalar(1)/p);
-            }
-        };
-
-        template<typename Derived>
-        struct StateLpNormImpl<Derived, 1>
-        {
-            static inline typename StateBase<Derived>::RealScalar
-            run(StateBase<Derived> const & velocity)
-            {
-                return velocity.q().cwiseAbs().sum() + velocity.v().cwiseAbs().sum();
-            }
-        };
-
-        template<typename Derived>
-        struct StateLpNormImpl<Derived, Infinity>
-        {
-            static inline typename StateBase<Derived>::RealScalar
-            run(StateBase<Derived> const & velocity)
-            {
-                return std::max(velocity.q().cwiseAbs().maxCoeff(),
-                                velocity.v().cwiseAbs().maxCoeff());
-            }
-        };
-    }
-
-    template<typename Derived>
-    template<int p>
-    typename StateBase<Derived>::RealScalar StateBase<Derived>::lpNorm(void) const
-    {
-        return internal::StateLpNormImpl<Derived, p>::run(*this);
-    }
 
     namespace internal {
         template<typename _DataType>
@@ -725,7 +692,7 @@ namespace Eigen
             }
         }
 
-        #define GENERATE_OPERATOR_ARITHEMTIC(OP,NAME) \
+        #define GENERATE_OPERATOR_ARITHMETIC(OP,NAME) \
         auto (operator OP)(Scalar const & scalar) const \
         { \
             typedef std::remove_const_t<decltype( \
@@ -772,12 +739,12 @@ namespace Eigen
             return *this; \
         }
 
-        GENERATE_OPERATOR_ARITHEMTIC(*,product)
-        GENERATE_OPERATOR_ARITHEMTIC(/,quotient)
-        GENERATE_OPERATOR_ARITHEMTIC(+,sum)
-        GENERATE_OPERATOR_ARITHEMTIC(-,difference)
+        GENERATE_OPERATOR_ARITHMETIC(*,product)
+        GENERATE_OPERATOR_ARITHMETIC(/,quotient)
+        GENERATE_OPERATOR_ARITHMETIC(+,sum)
+        GENERATE_OPERATOR_ARITHMETIC(-,difference)
 
-        #undef GENERATE_OPERATOR_ARITHEMTIC
+        #undef GENERATE_OPERATOR_ARITHMETIC
 
         #define GENERATE_OPERATOR_COMPOUND(OP,NAME) \
         template<typename OtherDerived> \
@@ -795,6 +762,8 @@ namespace Eigen
             return *this; \
         }
 
+        GENERATE_OPERATOR_COMPOUND(*,product)
+        GENERATE_OPERATOR_COMPOUND(/,quotient)
         GENERATE_OPERATOR_COMPOUND(+,sum)
         GENERATE_OPERATOR_COMPOUND(-,difference)
 

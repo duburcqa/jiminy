@@ -5,10 +5,9 @@ Jiminy Python API
    :maxdepth: 1
 
    core/index
+   dynamics
    robot
    simulator
    viewer
    log
    plot
-   dynamics
-   state

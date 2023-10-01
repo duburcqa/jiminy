@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from jiminy_py.robot import _gcd
-from gym_jiminy.common.pipeline import build_pipeline, load_pipeline
+from gym_jiminy.common.utils import build_pipeline, load_pipeline
 from gym_jiminy.common.bases import JiminyEnvInterface
 
 

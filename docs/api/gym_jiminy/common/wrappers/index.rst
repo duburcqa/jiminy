@@ -4,4 +4,7 @@ Wrappers
 .. toctree::
    :maxdepth: 1
 
-   frame_stack
+   flatten
+   normalize
+   observation_filter
+   observation_stack

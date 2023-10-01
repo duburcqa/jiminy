@@ -6,7 +6,7 @@ from typing import Any
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.blocks import PDController, MahonyFilter
-from gym_jiminy.common.pipeline import build_pipeline
+from gym_jiminy.common.utils import build_pipeline
 
 if sys.version_info < (3, 9):
     from importlib_resources import files

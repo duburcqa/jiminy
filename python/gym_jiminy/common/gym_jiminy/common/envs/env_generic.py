@@ -840,6 +840,33 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
     def step(self,  # type: ignore[override]
              action: ActT
              ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
+        """Integration timestep of the environment's dynamics under prescribed
+        agent's action over a single timestep, i.e. collect one transition step
+        of the underlying Markov Decision Process of the learning problem.
+
+        .. warning::
+            When reaching the end of an episode (``terminated or truncated``),
+            it is necessary to reset the environment for starting a new episode
+            before being able to do steps once again.
+
+        :param action: Action performed by the agent during the ongoing step.
+
+        :returns:
+            * observation (ObsType) - The next observation of the environment's
+              as a result of taking agent's action.
+            * reward (float): the reward associated with the transition step.
+            * terminated (bool): Whether the agent reaches the terminal state,
+              which means success or failure depending of the MDP of the task.
+            * truncated (bool): Whether some truncation condition outside the
+              scope of the MDP is satisfied. This can be used to end an episode
+              prematurely before a terminal state is reached, for instance if
+              the agent's state is going out of bounds.
+            * info (dict): Contains auxiliary information that may be helpful
+              for debugging and monitoring. This might, for instance, contain:
+              metrics that describe the agent's performance state, variables
+              that are hidden from observations, or individual reward terms
+              from which the total reward is derived.
+        """
         # Make sure a simulation is already running
         if not self.is_simulation_running:
             raise RuntimeError(
@@ -889,14 +916,14 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Check if the simulation is over.
         # Note that 'truncated' is forced to True if the integration failed or
         # if the maximum number of steps will be exceeded next step.
-        done, truncated = self.has_terminated()
+        terminated, truncated = self.has_terminated()
         truncated = (
             truncated or not self.is_simulation_running or
             self.num_steps >= self.max_steps)
 
         # Check if stepping after done and if it is an undefined behavior
         if self._num_steps_beyond_terminate is None:
-            if done or truncated:
+            if terminated or truncated:
                 self._num_steps_beyond_terminate = 0
         else:
             if not self.is_training and self._num_steps_beyond_terminate == 0:
@@ -912,7 +939,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             reward = float('nan')
         else:
             # Compute reward and update extra information
-            reward = self.compute_reward(done, truncated, self._info)
+            reward = self.compute_reward(terminated, truncated, self._info)
 
             # Make sure the reward is not 'nan'
             if math.isnan(reward):
@@ -933,7 +960,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         # Clip (and copy) the most derived observation before returning it
         obs = self._get_clipped_env_observation()
 
-        return obs, reward, done, truncated, deepcopy(self._info)
+        return obs, reward, terminated, truncated, deepcopy(self._info)
 
     def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         """Render the agent in its environment.
@@ -1044,9 +1071,10 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                          **kwargs: Any) -> None:
         """Activate interact mode enabling to control the robot using keyboard.
 
-        It stops automatically as soon as 'done' flag is True. One has to press
-        a key to start the interaction. If no key is pressed, the action is
-        not updated and the previous one keeps being sent to the robot.
+        It stops automatically as soon as `terminated or truncated` is True.
+        One has to press a key to start the interaction. If no key is pressed,
+        the action is not updated and the previous one keeps being sent to the
+        robot.
 
         .. warning::
             It ignores any external `gym.Wrapper` that may be used for training
@@ -1108,12 +1136,12 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                     key, obs, reward, **{"verbose": verbose, **kwargs})
             if action is None:
                 action = self.action
-            _, reward, done, truncated, _ = self.step(action)
+            _, reward, terminated, truncated, _ = self.step(action)
             obs = self.observation
             self.render()
             if not enable_is_done and self.robot.has_freeflyer:
                 return self._system_state_q[2] < 0.0
-            return done or truncated
+            return terminated or truncated
 
         # Run interactive loop
         loop_interactive(max_rate=self.step_dt,
@@ -1193,20 +1221,17 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Initialize the simulation
         obs, info = self.reset()
-        reward, done, truncated = None, False, False
+        reward, terminated, truncated = None, False, False
 
         # Run the simulation
         info_episode = [info]
         try:
             env = self._env_derived
-            while not done:
-                action = policy_fn(obs, reward, done or truncated, info)
-                obs, reward, done, truncated, info = env.step(action)
+            while not (terminated or truncated or (
+                    horizon is not None and self.num_steps > horizon)):
+                action = policy_fn(obs, reward, terminated or truncated, info)
+                obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
-                if done or truncated or (
-                        horizon is not None and
-                        self.num_steps > horizon):
-                    break
             self.simulator.stop()
         except KeyboardInterrupt:
             pass
@@ -1471,8 +1496,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         the underlying MDP has been reached or an aborting condition outside
         the scope of the MDP has been triggered.
 
-        By default, it always returns `done=False`, and `truncated=True` iif
-        the observation is out-of-bounds. One can overload this method to
+        By default, it always returns `terminated=False`, and `truncated=True`
+        iif the observation is out-of-bounds. One can overload this method to
         implement custom termination conditions for the environment at hands.
 
         .. warning::
@@ -1485,7 +1510,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             This method is called after `refresh_observation`, so that the
             internal buffer 'observation' is up-to-date.
 
-        :returns: done and truncated flags.
+        :returns: terminated and truncated flags.
         """
         # Make sure that a simulation is running
         if not self.is_simulation_running:

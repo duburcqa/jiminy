@@ -14,7 +14,7 @@ from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.blocks import (MotorSafetyLimit,
                                       PDController,
                                       MahonyFilter)
-from gym_jiminy.common.pipeline import build_pipeline
+from gym_jiminy.common.utils import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
 
 if sys.version_info < (3, 9):

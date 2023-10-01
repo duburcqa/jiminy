@@ -167,9 +167,9 @@ class PartialObservationStack(
     def step(self,
              action: ActT
              ) -> Tuple[StackedObsType, SupportsFloat, bool, bool, InfoType]:
-        observation, reward, done, truncated, info = self.env.step(action)
-        self.refresh_observation(observation)
-        return self.observation, reward, done, truncated, info
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        self.refresh_observation(obs)
+        return self.observation, reward, terminated, truncated, info
 
     def reset(self,
               *,
