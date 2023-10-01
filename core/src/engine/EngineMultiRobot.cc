@@ -2222,9 +2222,9 @@ namespace jiminy
                         ++stepperState_.iter;
 
                         /* Restore the step size dt if it has been significantly
-                           decreased to because of a breakpoint. It is set
-                           equal to the last available largest dt to be known,
-                           namely the second to last successfull step. */
+                           decreased because of a breakpoint. It is set equal to
+                           the last available largest dt to be known, namely the
+                           second to last successful step. */
                         if (isBreakpointReached)
                         {
                             /* Restore the step size if and only if:
@@ -2280,9 +2280,7 @@ namespace jiminy
             {
                 /* Make sure it ends exactly at the tEnd, never exceeds
                    dtMax, and stop to apply impulse forces. */
-                dt = min(dt,
-                         tEnd - t,
-                         tForceImpulseNext - t);
+                dt = min(dt, tEnd - t, tForceImpulseNext - t);
 
                 /* A breakpoint has been reached, because dt has been decreased
                    wrt the largest possible dt within integration tol. */

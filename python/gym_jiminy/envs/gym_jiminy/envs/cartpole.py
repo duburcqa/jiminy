@@ -219,7 +219,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return action
 
     def compute_reward(self,
-                       done: bool,
+                       terminated: bool,
                        truncated: bool,
                        info: InfoType) -> float:
         """ TODO: Write documentation.
@@ -227,7 +227,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         Add a small positive reward as long as a terminal condition has
         never been reached during the current episode.
         """
-        return 1.0 if not done else 0.0
+        return 1.0 if not terminated else 0.0
 
     def _key_to_action(self,
                        key: str,

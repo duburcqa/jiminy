@@ -5,7 +5,6 @@ from . import bases
 from . import envs
 from . import blocks
 from . import wrappers
-from . import pipeline
 
 
 __all__ = [
@@ -13,6 +12,5 @@ __all__ = [
     'bases',
     'envs',
     'blocks',
-    'wrappers',
-    'pipeline'
+    'wrappers'
 ]

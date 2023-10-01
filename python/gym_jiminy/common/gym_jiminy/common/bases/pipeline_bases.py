@@ -2,10 +2,11 @@
 control design.
 
 It implements:
-- the concept of block thats can be connected to a `BaseJiminyEnv` environment
+
+* the concept of block thats can be connected to a `BaseJiminyEnv` environment
   through multiple `JiminyEnvInterface` indirections
-- a base controller block, along with a concrete PD controller
-- a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
+* a base controller block, along with a concrete PD controller
+* a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
   eventually already wrapped, so that it appears as a black-box environment.
 """
 import math
@@ -235,7 +236,8 @@ class BasePipelineWrapper(
         # since it is only relevant for the most derived block. For the others,
         # it will be done in 'compute_command' instead because it is unknown at
         # this point and needs to be updated only if necessary.
-        obs, reward, done, truncated, info = self.env.step(self.env.action)
+        obs, reward, terminated, truncated, info = self.env.step(
+            self.env.action)
 
         # Compute block's reward and add it to base one as long as it is worth
         # doing so, namely it is not 'nan' already.
@@ -244,11 +246,11 @@ class BasePipelineWrapper(
         reward = float(reward)
         if not math.isnan(reward):
             try:
-                reward += self.compute_reward(done, truncated, info)
+                reward += self.compute_reward(terminated, truncated, info)
             except NotImplementedError:
                 pass
 
-        return obs, reward, done, truncated, info
+        return obs, reward, terminated, truncated, info
 
     # methods to override:
     # ----------------------------
@@ -544,7 +546,7 @@ class ControlledJiminyEnv(
             As a reminder, `env.step_dt` refers to the learning step period,
             namely the timestep between two successive frames:
 
-                [obs, reward, done, info]
+                [observation, reward, terminated, truncated, info]
 
             This definition remains true, independently of whether the
             environment is wrapped with a controller using this class. On the
@@ -725,10 +727,10 @@ class ControlledJiminyEnv(
         return self.env.compute_command(self.env.action)
 
     def compute_reward(self,
-                       done: bool,
+                       terminated: bool,
                        truncated: bool,
                        info: InfoType) -> float:
-        return self.controller.compute_reward(done, truncated, info)
+        return self.controller.compute_reward(terminated, truncated, info)
 
 
 class BaseTransformObservation(

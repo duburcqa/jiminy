@@ -71,6 +71,12 @@ namespace python
                                                   &AbstractConstraintBase::getIsEnabled,
                                                   bp::return_value_policy<bp::return_by_value>(),
                                                   &PyConstraintVisitor::setIsEnable)
+                .ADD_PROPERTY_GET_SET("kp",
+                                      &AbstractConstraintBase::getBaumgartePositionGain,
+                                      &AbstractConstraintBase::setBaumgartePositionGain)
+                .ADD_PROPERTY_GET_SET("kd",
+                                      &AbstractConstraintBase::getBaumgarteVelocityGain,
+                                      &AbstractConstraintBase::setBaumgarteVelocityGain)
                 .ADD_PROPERTY_GET_SET("baumgarte_freq",
                                       &AbstractConstraintBase::getBaumgarteFreq,
                                       &AbstractConstraintBase::setBaumgarteFreq)

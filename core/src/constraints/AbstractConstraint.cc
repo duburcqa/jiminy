@@ -63,6 +63,38 @@ namespace jiminy
         return isEnabled_;
     }
 
+    hresult_t AbstractConstraintBase::setBaumgartePositionGain(float64_t const & kp)
+    {
+        if (kp < 0.0)
+        {
+            PRINT_ERROR("The position gain must be positive.");
+            return hresult_t::ERROR_GENERIC;
+        }
+        kp_ = kp;
+        return hresult_t::SUCCESS;
+    }
+
+    float64_t AbstractConstraintBase::getBaumgartePositionGain(void) const
+    {
+        return kp_;
+    }
+
+    hresult_t AbstractConstraintBase::setBaumgarteVelocityGain(float64_t const & kd)
+    {
+        if (kd < 0.0)
+        {
+            PRINT_ERROR("The velocity gain must be positive.");
+            return hresult_t::ERROR_GENERIC;
+        }
+        kd_ = kd;
+        return hresult_t::SUCCESS;
+    }
+
+    float64_t AbstractConstraintBase::getBaumgarteVelocityGain(void) const
+    {
+        return kd_;
+    }
+
     hresult_t AbstractConstraintBase::setBaumgarteFreq(float64_t const & freq)
     {
         if (freq < 0.0)
@@ -81,7 +113,12 @@ namespace jiminy
 
     float64_t AbstractConstraintBase::getBaumgarteFreq(void) const
     {
-        return kd_ / (4.0 * M_PI);
+        float64_t zeta = kd_ / 2.0;
+        if (zeta < std::sqrt(kp_))
+        {
+            zeta = std::max(zeta, std::sqrt(kp_ - std::pow(zeta, 2)));
+        }
+        return zeta / (2.0 * M_PI);
     }
 
     uint64_t AbstractConstraintBase::getDim(void) const

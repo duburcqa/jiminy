@@ -197,22 +197,22 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     def has_terminated(self) -> Tuple[bool, bool]:
         """Determine whether the episode is over.
 
-        It terminates (`done=True`) if the goal has been achieved, namely if
-        the tip of the Acrobot is above 'HEIGHT_REL_DEFAULT_THRESHOLD'. Apart
-        from that, there is no specific truncation condition.
+        It terminates (`terminated=True`) if the goal has been achieved, namely
+        if the tip of the Acrobot is above 'HEIGHT_REL_DEFAULT_THRESHOLD'.
+        Apart from that, there is no specific truncation condition.
 
-        :returns: done and truncated flags.
+        :returns: terminated and truncated flags.
         """
         # Call base implementation
-        done, truncated = super().has_terminated()
+        terminated, truncated = super().has_terminated()
 
         # Check if the agent has successfully solved the task
         tip_transform = self.robot.pinocchio_data.oMf[self._tipIdx]
         tip_position_z = tip_transform.translation[2]
         if tip_position_z > HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax:
-            done = True
+            terminated = True
 
-        return done, truncated
+        return terminated, truncated
 
     def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -229,11 +229,11 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return action
 
     def compute_reward(self,
-                       done: bool,
+                       terminated: bool,
                        truncated: bool,
                        info: InfoType) -> float:
         """Compute reward at current episode state.
 
         Get a small negative reward till success.
         """
-        return 0.0 if done else -1.0
+        return 0.0 if terminated else -1.0

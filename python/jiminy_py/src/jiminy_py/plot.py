@@ -589,6 +589,8 @@ def plot_log(log_data: Dict[str, Any],
     for sensors_class, sensors_fields in SENSORS_FIELDS.items():
         sensors_type = sensors_class.type
         sensors_names = robot.sensors_names.get(sensors_type, [])
+        if not sensors_names:
+            continue
         namespace = sensors_type if sensors_class.has_prefix else None
         if isinstance(sensors_fields, dict):
             for fields_prefix, fieldnames in sensors_fields.items():

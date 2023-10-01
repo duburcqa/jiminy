@@ -22,6 +22,7 @@ from .helpers import (is_breakpoint,
                       is_nan,
                       get_fieldnames,
                       register_variables)
+from .pipeline import build_pipeline, load_pipeline
 
 
 __all__ = [
@@ -46,5 +47,7 @@ __all__ = [
     'is_breakpoint',
     'is_nan',
     'get_fieldnames',
-    'register_variables'
+    'register_variables',
+    'build_pipeline',
+    'load_pipeline'
 ]

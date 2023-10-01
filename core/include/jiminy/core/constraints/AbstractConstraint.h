@@ -55,6 +55,10 @@ namespace jiminy
         void disable(void);
         bool_t const & getIsEnabled(void) const;
 
+        hresult_t setBaumgartePositionGain(float64_t const & kp);
+        float64_t getBaumgartePositionGain(void) const;
+        hresult_t setBaumgarteVelocityGain(float64_t const & kd);
+        float64_t getBaumgarteVelocityGain(void) const;
         hresult_t setBaumgarteFreq(float64_t const & freq);
         /// \brief    Natural frequency of critically damping position/velocity error correction.
         float64_t getBaumgarteFreq(void) const;

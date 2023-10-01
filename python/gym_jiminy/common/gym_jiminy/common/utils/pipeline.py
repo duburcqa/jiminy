@@ -17,14 +17,14 @@ from typing import (
 import toml
 import gymnasium as gym
 
-from .bases import (JiminyEnvInterface,
-                    BlockInterface,
-                    BaseControllerBlock,
-                    BaseObserverBlock,
-                    BasePipelineWrapper,
-                    ObservedJiminyEnv,
-                    ControlledJiminyEnv)
-from .envs import BaseJiminyEnv
+from ..bases import (JiminyEnvInterface,
+                     BlockInterface,
+                     BaseControllerBlock,
+                     BaseObserverBlock,
+                     BasePipelineWrapper,
+                     ObservedJiminyEnv,
+                     ControlledJiminyEnv)
+from ..envs import BaseJiminyEnv
 
 
 class EnvConfig(TypedDict, total=False):
