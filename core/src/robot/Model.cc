@@ -1604,16 +1604,23 @@ namespace jiminy
                     PRINT_ERROR("Wrong vector size for 'positionLimitMin'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                auto jointsPositionLimitMinDiff = jointsPositionLimitMin - mdlOptions_->joints.positionLimitMin;
-                internalBuffersMustBeUpdated |= (jointsPositionLimitMinDiff.array().abs() >= EPS).all();
                 vectorN_t & jointsPositionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
                 if (rigidJointsPositionIdx_.size() != static_cast<uint32_t>(jointsPositionLimitMax.size()))
                 {
                     PRINT_ERROR("Wrong vector size for 'positionLimitMax'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                auto jointsPositionLimitMaxDiff = jointsPositionLimitMax - mdlOptions_->joints.positionLimitMax;
-                internalBuffersMustBeUpdated |= (jointsPositionLimitMaxDiff.array().abs() >= EPS).all();
+                if (rigidJointsPositionIdx_.size() == static_cast<uint32_t>(mdlOptions_->joints.positionLimitMin.size()))
+                {
+                    auto jointsPositionLimitMinDiff = jointsPositionLimitMin - mdlOptions_->joints.positionLimitMin;
+                    internalBuffersMustBeUpdated |= (jointsPositionLimitMinDiff.array().abs() >= EPS).all();
+                    auto jointsPositionLimitMaxDiff = jointsPositionLimitMax - mdlOptions_->joints.positionLimitMax;
+                    internalBuffersMustBeUpdated |= (jointsPositionLimitMaxDiff.array().abs() >= EPS).all();
+                }
+                else
+                {
+                    internalBuffersMustBeUpdated = true;
+                }
             }
             bool_t velocityLimitFromUrdf = boost::get<bool_t>(jointOptionsHolder.at("velocityLimitFromUrdf"));
             if (!velocityLimitFromUrdf)
@@ -1624,8 +1631,15 @@ namespace jiminy
                     PRINT_ERROR("Wrong vector size for 'velocityLimit'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                auto jointsVelocityLimitDiff = jointsVelocityLimit - mdlOptions_->joints.velocityLimit;
-                internalBuffersMustBeUpdated |= (jointsVelocityLimitDiff.array().abs() >= EPS).all();
+                if (rigidJointsVelocityIdx_.size() == static_cast<uint32_t>(mdlOptions_->joints.velocityLimit.size()))
+                {
+                    auto jointsVelocityLimitDiff = jointsVelocityLimit - mdlOptions_->joints.velocityLimit;
+                    internalBuffersMustBeUpdated |= (jointsVelocityLimitDiff.array().abs() >= EPS).all();
+                }
+                else
+                {
+                    internalBuffersMustBeUpdated = true;
+                }
             }
 
             // Check if deformation points are all associated with different joints/frames
