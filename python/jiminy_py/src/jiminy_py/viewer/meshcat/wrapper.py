@@ -36,6 +36,7 @@ if interactive_mode() >= 2:
         from ipykernel.kernelbase import (  # type: ignore[attr-defined]
             SHELL_PRIORITY)
     elif IPYKERNEL_VERSION_MAJOR > 6:
+        SHELL_PRIORITY = None
         logging.warning(
             "ipykernel version 7 detected. The viewer works optimally with "
             " ipykernel 5 or 6. Revert to old version in case of issues.")

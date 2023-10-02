@@ -344,8 +344,10 @@ namespace python
 
         bp::def("array_copyto", &arrayCopyTo, (bp::arg("dst"), "src"));
 
+        // Do not use EigenPy To-Python converter because it considers matrices with 1 column as vectors
         bp::def("interpolate", &interpolate,
-                               (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"));
+                               (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"),
+                               bp::return_value_policy<result_converter<true> >());
 
         bp::def("aba",
                 &pinocchio_overload::aba<
