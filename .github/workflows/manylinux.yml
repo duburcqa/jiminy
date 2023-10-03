@@ -33,7 +33,7 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     #####################################################################################
 
@@ -149,7 +149,7 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Setup minimal build environment
       run: |
         PYTHON_EXECUTABLE="/usr/bin/python3"
@@ -213,7 +213,7 @@ jobs:
         name: wheelhouse
         path: wheelhouse
     - name: Publish the wheels on PyPi
-      uses: pypa/gh-action-pypi-publish@v1.7.1
+      uses: pypa/gh-action-pypi-publish@v1.8.10
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}

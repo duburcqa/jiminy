@@ -96,8 +96,8 @@ class TabbedFigure:
         privilege to install Qt4/5 or Tkinter.
 
     .. warning::
-        It only supports plotting time-dependent data, the later corresponding
-        to the horizontal axis of every subplots.
+        It only supports plotting time series, the time corresponding to the
+        horizontal axis of every subplot.
     """
     def __init__(self,  # pylint: disable=unused-argument
                  sync_tabs: bool = False,
@@ -169,8 +169,9 @@ class TabbedFigure:
                       event: Optional[  # pylint: disable=unused-argument
                           Event] = None, *,
                       refresh_canvas: bool = False) -> None:
-        """Optimize subplot grid and buttons width for best fit, then adjust
-        layout based on window size.
+        """Optimize buttons width and grid subplot arrangement of the active
+        tab for readability based on the current window size. Then, adjust
+        margins to maximize plot sizes.
 
         :param event: Event spent by figure `mpl_connect` 'resize_event'.
         :param refresh_canvas: Force redrawing figure canvas.
@@ -215,6 +216,10 @@ class TabbedFigure:
     def __click(self, event: Event, force_update: bool = False) -> None:
         """Event handler used internally to switch tab when a button is
         pressed.
+
+        .. warning::
+            This method is not supposed to be called manually. Please call
+            `select_active_tab` for selecting tab instead.
         """
         # Assert(s) for type checker
         assert self.tab_active is not None
@@ -289,13 +294,50 @@ class TabbedFigure:
                     Union[Callable[..., Any], str]] = None, *,
                 refresh_canvas: bool = True,
                 **kwargs: Any) -> None:
-        """ TODO: Write documentation.
+        """Create a new tab holding the provided data.
 
+        Each tab holds exactly one grid of subplots. There is one subplot for
+        each time series that has been provided, and all of them having to be
+        associated with the exact same time sequence. The layout is dynamically
+        optimized for readability.
+
+        The added tab will only be selected as the active one automatically if
+        there were no tab beforehand.
+
+        :param tab_name: Name of the tab to be added. It must be a unique
+                         identifier not already used for another tab. It will
+                         be displayed as label for the buttons used to select
+                         the active tab.
+        :param time: Unique time sequence associated with the provided time
+                     series. It does not have to be evenly spaced but must be
+                     monotonically increasing.
+        :param data: Set of time series to plot. If a simple array is provided,
+                     then there will be only one subplot, with one (unlabeled)
+                     line if the array is 1D, one per column otherwise. If a
+                     dictionary of arrays is provided, there is one subplot per
+                     item, the key being used as label and the value is treated
+                     as simple array. Finally, in case of a nested dictionary,
+                     each sub-value must be a 1D array and sub-keys will be
+                     used to label individual lines.
         :param plot_method: Callable method taking axis object, time, and data
                             array in argument, or string instance method of
                             `matplotlib.axes.Axes`.
                             Optional: `step(..., where='post')` by default.
+        :param refresh_canvas: Whether to refresh the figure. This step can be
+                               skipped if other tabs are going to be added or
+                               deleted soon, to avoid useless computation and
+                               figure flickering.
+                               Optional: True by default.
         """
+        # Make sure that the time sequence is valid
+        assert (np.diff(time) > 0.0).all(), (
+            "The time sequence must be monotonically increasing.")
+
+        # Make sure that the provided tab name does not exist already
+        assert tab_name not in self.tabs_data.keys(), (
+            "There is already one tab with the exact same name. Please remove "
+            "it explicitly before replacing it by a another one.")
+
         # Handle default arguments and converters
         if plot_method is None:
             plot_method = partial(Axes.step, where='post')
@@ -339,6 +381,7 @@ class TabbedFigure:
             for (plot_name, plot_data), ax in zip(data.items(), axes):
                 if isinstance(plot_data, dict):
                     for line_name, line_data in plot_data.items():
+                        assert line_data.size == time.size
                         plot_method(ax, time, line_data, label=line_name)
                 else:
                     plot_method(ax, time, plot_data)
@@ -400,9 +443,19 @@ class TabbedFigure:
         if not self.offscreen and interactive_mode() < 2:
             self.figure.show()
 
-    def set_active_tab(self, tab_name: str) -> None:
-        """ TODO: Write documentation.
+    def select_active_tab(self, tab_name: str) -> None:
+        """Select the active tab.
+
+        A single tab is considered active at a time.
+
+        :param tab_name: Name of the tab to select. It must be to one of the
+                         names that has been specified when calling `add_tab`
+                         previously.
         """
+        # Make sure that the provided tab name exists
+        assert tab_name in self.tabs_data.keys(), (
+            "No tab with this exact name has been added.")
+
         event = LocationEvent("click", self.figure.canvas, 0, 0)
         event.inaxes = self.tabs_data[tab_name]["button"].ax
         self.__click(event, force_update=True)
@@ -410,7 +463,19 @@ class TabbedFigure:
     def remove_tab(self,
                    tab_name: str, *,
                    refresh_canvas: bool = True) -> None:
-        """ TODO: Write documentation.
+        """Remove a given tab.
+
+        If the removed tab was the active one, the first tab that has been
+        added while be made active from now on.
+
+        :param tab_name: Name of the tab to remove. It must be to one of the
+                         names that has been specified when calling `add_tab`
+                         previously.
+        :param refresh_canvas: Whether to refresh the figure. This step can be
+                               skipped if other tabs are going to be added or
+                               deleted soon, to avoid useless computation and
+                               figure flickering.
+                               Optional: True by default.
         """
         # Assert(s) for type checker
         assert self.tab_active is not None
@@ -418,7 +483,7 @@ class TabbedFigure:
         # Reset current tab if it is the removed one
         tab = self.tabs_data.pop(tab_name)
         if tab is self.tab_active and self.tabs_data:
-            self.set_active_tab(next(iter(self.tabs_data.keys())))
+            self.select_active_tab(next(iter(self.tabs_data.keys())))
 
         # Change reference axis if to be deleted
         if any(ax is self.ref_ax for ax in tab["axes"]):
@@ -446,7 +511,7 @@ class TabbedFigure:
         self.adjust_layout(refresh_canvas=refresh_canvas)
 
     def clear(self) -> None:
-        """ TODO: Write documentation.
+        """Remove all tabs at once.
         """
         # Remove every figure axes
         for tab_name in list(self.tabs_data.keys()):  # list to make copy
@@ -454,7 +519,8 @@ class TabbedFigure:
         self.refresh()
 
     def save_tab(self, pdf_path: str) -> None:
-        """Export current tab, limiting the bounding box to the subplots.
+        """Export the active tab in a single-page PDF file, excluding tab
+        buttons. Lines are stored as vector instead of being rasterized.
 
         :param pdf_path: Desired location for generated pdf file.
         """
@@ -463,15 +529,18 @@ class TabbedFigure:
             pdf_path, format='pdf', bbox_inches=self.bbox_inches)
 
     def save_all_tabs(self, pdf_path: str) -> None:
-        """Export every tabs in a single pdf, limiting systematically the
-        bounding box to the subplots and legend.
+        """Export the whole figure in a single PDF file containing one page per
+        tab and excluding systematically the tab buttons.
+
+        .. seealso::
+            See `save_tab` documentation for details.
 
         :param pdf_path: Desired location for generated pdf file.
         """
         pdf_path = str(pathlib.Path(pdf_path).with_suffix('.pdf'))
         with PdfPages(pdf_path) as pdf:
             for tab_name in self.tabs_data.keys():
-                self.set_active_tab(tab_name)
+                self.select_active_tab(tab_name)
                 pdf.savefig(bbox_inches=self.bbox_inches)
 
     @classmethod
@@ -481,10 +550,21 @@ class TabbedFigure:
                     Dict[str, np.ndarray], np.ndarray]]]],
              pdf_path: Optional[str] = None,
              **kwargs: Any) -> "TabbedFigure":
-        """ TODO: Write documentation.
+        """Create a new tabbed figure along with multiple tabs holding the
+        provided data, then eventually export it as PDF.
 
-        :param pdf_path: It specified, the figure will be exported to pdf
-                         without rendering on screen.
+        :param time: Unique time sequence associated with the provided time
+                     series. It does not have to be evenly spaced but must be
+                     monotonically increasing.
+        :param tabs_data: Set of time series to plot in multiple tabs, as a
+                          nested dictionary. There will be one tab per item,
+                          the key and value being the name and the data of the
+                          tab, respectively. See `add_tab` documentation about
+                          how the data are displayed based on their structure.
+        :param pdf_path: If specified, the whole figure will be exported in a
+                         PDF file at the desired location without rendering on
+                         screen. See `save_all_tabs` documentation for details.
+                         Optional: `None` by default.
         :param kwargs: Extra keyword arguments to forward to `add_tab` method.
         """
         tabbed_figure = cls(**{
@@ -503,7 +583,7 @@ def plot_log(log_data: Dict[str, Any],
              enable_flexiblity_data: bool = False,
              block: Optional[bool] = None,
              **kwargs: Any) -> TabbedFigure:
-    """Display common simulation data over time.
+    """Display standard simulation data over time.
 
     The figure features several tabs:
 
@@ -633,12 +713,13 @@ def plot_log(log_data: Dict[str, Any],
 
 
 def plot_log_interactive() -> None:
-    """ TODO: Write documentation.
+    """Main CLI entry-point for plotting log data using matplotlib.
     """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
         description=dedent("""\
             Plot data from a jiminy log file using matplotlib.
+
             Specify a list of fields to plot, separated by a colon for
             plotting on the same subplot.
 

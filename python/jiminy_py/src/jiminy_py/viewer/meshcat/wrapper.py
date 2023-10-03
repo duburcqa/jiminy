@@ -30,11 +30,11 @@ from .recorder import MeshcatRecorder
 if interactive_mode() >= 2:
     import ipykernel
     from ipykernel.ipkernel import IPythonKernel
+    SHELL_PRIORITY = 0
     IPYKERNEL_VERSION_MAJOR = int(ipykernel.__version__[0])
     if IPYKERNEL_VERSION_MAJOR < 6:
         # pylint: disable=no-name-in-module
-        from ipykernel.kernelbase import (  # type: ignore[attr-defined]
-            SHELL_PRIORITY)
+        from ipykernel.kernelbase import SHELL_PRIORITY  # type: ignore
     elif IPYKERNEL_VERSION_MAJOR > 6:
         logging.warning(
             "ipykernel version 7 detected. The viewer works optimally with "
