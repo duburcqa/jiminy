@@ -2416,7 +2416,7 @@ class Viewer:
                             Optional: None by default.
         :param wait: Whether to wait for rendering to finish.
         """
-        assert self._client.model.nq == q.shape[0], (
+        assert (self._client.model.nq,) == q.shape[:1], (
             "The configuration vector does not have the right size.")
 
         # Make sure the state is valid
