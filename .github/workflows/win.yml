@@ -34,7 +34,7 @@ jobs:
     - name: Configure Pagefile
       uses: al-cheb/configure-pagefile-action@v1.3
     - name: Checkout jiminy
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     #####################################################################################
 
@@ -200,7 +200,7 @@ jobs:
         name: wheelhouse
         path: wheelhouse
     - name: Publish on PyPi the wheels
-      uses: pypa/gh-action-pypi-publish@v1.7.1
+      uses: pypa/gh-action-pypi-publish@v1.8.10
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}

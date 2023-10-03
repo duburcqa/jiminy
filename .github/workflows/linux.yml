@@ -34,14 +34,14 @@ jobs:
 
     steps:
     - name: Checkout jiminy
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Configure Python
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
         architecture: 'x64'
     - name: Free Disk Space
-      uses: jlumbroso/free-disk-space@v1.2.0
+      uses: jlumbroso/free-disk-space@v1.3.0
       with:
         tool-cache: false
         android: true
