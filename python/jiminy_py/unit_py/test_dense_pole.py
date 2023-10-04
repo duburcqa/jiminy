@@ -42,6 +42,7 @@ class SimulateDensePole(unittest.TestCase):
         model_options['joints']['positionLimitMax'] = [self.joint_limit]
         model_options['joints']['positionLimitFromUrdf'] = False
         model_options['joints']['enablePositionLimit'] = True
+        model_options['joints']['enableVelocityLimit'] = False
         self.robot.set_model_options(model_options)
 
         # Configure the integrator
@@ -74,7 +75,7 @@ class SimulateDensePole(unittest.TestCase):
         pinocchio_model_th = self.robot.pinocchio_model_th
 
         # We set inertia along non-moving axis to 1.0 for numerical stability
-        a_flex_all = []
+        twist_flex_all = []
         q_init, v_init = np.array((0.0,)), np.array((0.0,))
         for is_flex_inertia_virtual in (True, False):
             # Alter flex inertia if non-virtual
@@ -117,16 +118,16 @@ class SimulateDensePole(unittest.TestCase):
                 t_end, q_init, v_init, show_progress_bar=False,
                 is_state_theoretical=True)
 
-            # Extract flex angle
+            # Extract flex twist angle over time
             log_vars = self.simulator.log_data["variables"]
             q_flex = np.stack(extract_variables_from_log(log_vars, [
                 f"currentPosition{self.flex_joint_name}Quat{e}"
                 for e in ('X', 'Y', 'Z', 'W')
                 ], 'HighLevelController'), axis=0)
-            a_flex = 2 * np.arctan2(q_flex[2], q_flex[3])
-            a_flex_all.append(a_flex)
+            twist_flex = 2 * np.arctan2(q_flex[2], q_flex[3])
+            twist_flex_all.append(twist_flex)
 
-        assert np.linalg.norm(np.diff(a_flex_all, axis=0)[0], np.inf) < 1e-7
+        assert np.allclose(*twist_flex_all, atol=1e-7)
 
         # Extract parameters of theoretical dynamics equation
         update_quantities(
@@ -148,51 +149,69 @@ class SimulateDensePole(unittest.TestCase):
             dtheta += ddtheta * step_dt
             theta_all.append(theta + dtheta * step_dt)
 
-        assert np.linalg.norm(a_flex_all[0] - theta_all, np.inf) < 1e-4
+        assert np.allclose(twist_flex_all[0], theta_all, atol=1e-4)
 
     def test_joint_position_limits(self):
-        """Test that joint position limits are active when they are supposed to
-        be.
+        """Test that both spring-damper and constraint models correspond to the
+        exact same dynamical model for joint bounds in the simple case where
+        the apparent inertia is constant. Then, check that joint position
+        limits are active when they are supposed to be.
         """
         # Define some constants
         t_end, step_dt = 0.05, 1e-5
 
-        # Configure the engine
-        engine_options = self.simulator.engine.get_options()
-        engine_options['stepper']['sensorsUpdatePeriod'] = step_dt
-        self.simulator.engine.set_options(engine_options)
+        theta_all = []
+        for contact_model in ('constraint', 'spring_damper'):
+            # Configure the engine
+            engine_options = self.simulator.engine.get_options()
+            engine_options['stepper']['odeSolver'] = 'euler_explicit'
+            engine_options['stepper']['dtMax'] = step_dt
+            engine_options['contacts']['model'] = contact_model
+            self.simulator.engine.set_options(engine_options)
 
-        # Start the simulation
-        self.simulator.start(np.array((0.0,)), np.array((1.0,)))
+            # Start the simulation
+            self.simulator.start(np.array((0.0,)), np.array((1.0,)))
 
-        # Get joint bounds constraint
-        const = next(iter(self.robot.constraints.bounds_joints.values()))
-        const.kp = 1e7
-        const.kd = 2e3
+            # Get joint bounds constraint
+            const = next(iter(self.robot.constraints.bounds_joints.values()))
+            const.kp = engine_options['joints']['boundStiffness']
+            const.kd = engine_options['joints']['boundDamping']
 
-        # Simulate for a while
-        branches = set()
-        is_enabled = const.is_enabled
-        for i in range(int(np.round(t_end / step_dt))):
-            self.simulator.step(step_dt)
-            theta = self.simulator.system_state.q[0]
-            if self.joint_limit - np.abs(theta) <= 0.0:
-                assert const.is_enabled
-                branches.add(0 if is_enabled else 1)
-            elif self.joint_limit - np.abs(theta) < self.transition_eps:
-                if is_enabled:
+            # Simulate for a while
+            branches = set()
+            is_enabled = const.is_enabled
+            for _ in range(int(np.round(t_end / step_dt))):
+                self.simulator.step(step_dt)
+                theta = self.simulator.system_state.q[0]
+                if contact_model != 'constraint':
+                    continue
+                if self.joint_limit - np.abs(theta) <= 0.0:
                     assert const.is_enabled
-                    branches.add(2)
+                    branches.add(0 if is_enabled else 1)
+                elif self.joint_limit - np.abs(theta) < self.transition_eps:
+                    if is_enabled:
+                        assert const.is_enabled
+                        branches.add(2)
+                    else:
+                        assert not const.is_enabled
+                        branches.add(3)
                 else:
                     assert not const.is_enabled
-                    branches.add(3)
-            else:
-                assert not const.is_enabled
-                branches.add(4)
-            is_enabled = const.is_enabled
-        self.simulator.stop()
-        assert branches == set((0, 1, 2, 3, 4))
+                    branches.add(4)
+                is_enabled = const.is_enabled
+            self.simulator.stop()
+            if contact_model == 'constraint':
+                assert branches == set((0, 1, 2, 3, 4))
 
+            # Extract joint angle over time
+            log_vars = self.simulator.log_data["variables"]
+            (theta,) = extract_variables_from_log(
+                log_vars,
+                (f"currentPosition{self.robot.pinocchio_model.names[-1]}",),
+                'HighLevelController')
+            theta_all.append(theta)
+
+        assert np.allclose(*theta_all, atol=1e-4)
 
 if __name__ == '__main__':
     unittest.main()

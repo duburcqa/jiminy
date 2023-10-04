@@ -3360,7 +3360,15 @@ namespace jiminy
     getSubtreeInertiaProj(JointModel<Scalar, Options, axis> const & /* model */,
                           pinocchio::Inertia                const & Isubtree)
     {
-        return Isubtree.inertia()(axis, axis);
+        float64_t inertiaProj = Isubtree.inertia()(axis, axis);
+        for (Eigen::Index i = 0; i < 3; ++i)
+        {
+            if (i != axis)
+            {
+                inertiaProj += Isubtree.mass() * std::pow(Isubtree.lever()[i], 2);
+            }
+        }
+        return inertiaProj;
     }
 
     template<typename JointModel>
@@ -3369,7 +3377,8 @@ namespace jiminy
     getSubtreeInertiaProj(JointModel const & model,
                           pinocchio::Inertia const & Isubtree)
     {
-        return model.axis.dot(Isubtree.inertia() * model.axis);
+        return model.axis.dot(Isubtree.inertia() * model.axis) +
+               Isubtree.mass() * model.axis.cross(Isubtree.lever()).squaredNorm();
     }
 
     template<typename JointModel>
