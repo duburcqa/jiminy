@@ -259,8 +259,8 @@ class PDController(
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller.
         :param order: Derivative order of the action.
-        :param kp: PD controller position-proportional gain in motor order.
-        :param kd: PD controller velocity-proportional gain in motor order.
+        :param kp: PD controller position-proportional gains in motor order.
+        :param kd: PD controller velocity-proportional gains in motor order.
         :param target_position_margin: Minimum distance of the motor target
                                        positions from their respective bounds.
         :param target_velocity_limit: Maximum motor target velocities.
@@ -273,6 +273,10 @@ class PDController(
             raise RuntimeError(
                 "Impossible to connect this block on an environment whose "
                 "action space has been altered.")
+
+        # Make sure that the number of PD gains matches the number of motors
+        if len(kp) != env.robot.nmotors or len(kd) != env.robot.nmotors:
+            raise TypeError("PD gains inconsistent with number of motors.")
 
         # Backup some user argument(s)
         self.order = order
@@ -295,11 +299,19 @@ class PDController(
             env.robot.motors_velocity_idx]
 
         # Extract the motors target position and velocity bounds from the model
-        motors_position_idx: List[int] = sum(env.robot.motors_position_idx, [])
-        motors_position_lower = env.robot.position_limit_lower[
-            motors_position_idx] + target_position_margin
-        motors_position_upper = env.robot.position_limit_upper[
-            motors_position_idx] - target_position_margin
+        motors_position_lower, motors_position_upper = [], []
+        for motor_name in env.robot.motors_names:
+            motor = env.robot.get_motor(motor_name)
+            joint_type = jiminy.get_joint_type(
+                env.robot.pinocchio_model, motor.joint_idx)
+            if joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
+                lower, upper = -np.inf, np.inf
+            else:
+                motor_position_idx = motor.joint_position_idx
+                lower = env.robot.position_limit_lower[motor_position_idx]
+                upper = env.robot.position_limit_upper[motor_position_idx]
+            motors_position_lower.append(lower + target_position_margin)
+            motors_position_upper.append(upper - target_position_margin)
         motors_velocity_limit = np.minimum(
             env.robot.velocity_limit[env.robot.motors_velocity_idx],
             target_velocity_limit)
