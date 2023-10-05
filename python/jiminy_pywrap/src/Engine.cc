@@ -652,7 +652,7 @@ namespace python
                     }
                     catch(const std::exception& e)
                     {
-                        PRINT_ERROR("Failed to load pinocchio model from log.");
+                        PRINT_ERROR("Failed to load pinocchio model from log: ", e.what());
                     }
                 }
                 else if (endsWith(key, ".visual_model") || endsWith(key, ".collision_model"))
@@ -665,7 +665,7 @@ namespace python
                     }
                     catch(const std::exception& e)
                     {
-                        PRINT_ERROR("Failed to load collision and/or visual model from log.");
+                        PRINT_ERROR("Failed to load collision and/or visual model from log: ", e.what());
                     }
                 }
                 else if (endsWith(key, ".mesh_package_dirs"))
