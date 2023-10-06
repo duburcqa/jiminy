@@ -17,7 +17,8 @@ from jiminy_py.viewer import Viewer
 
 import pinocchio as pin
 
-from gym_jiminy.envs import AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv
+from gym_jiminy.envs import (
+    AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
 from gym_jiminy.common.blocks import PDController
 
 
@@ -99,7 +100,9 @@ class PipelineControl(unittest.TestCase):
 
     def test_pid_standing(self):
         for backend in ('panda3d-sync', 'meshcat'):
-            for Env in (AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv):
+            for Env in (AtlasPDControlJiminyEnv,
+                        CassiePDControlJiminyEnv,
+                        DigitPDControlJiminyEnv):
                 self.env = Env(
                     debug=True,
                     render_mode='rgb_array',
@@ -168,10 +171,8 @@ class PipelineControl(unittest.TestCase):
             np.diff(pos) / controller.control_dt, vel[1:], atol=TOLERANCE))
 
         # Make sure that the position targets are within bounds.
-        # No such guarantee can be provided for higher-order derivatives.
+        # No such guarantee exists for higher-order derivatives.
         robot = env.robot
         pos_min = robot.position_limit_lower[robot.motors_position_idx[-1]]
         pos_max = robot.position_limit_upper[robot.motors_position_idx[-1]]
         self.assertTrue(np.all(np.logical_and(pos_min < pos, pos < pos_max)))
-        # vel_max = robot.velocity_limit[robot.motors_velocity_idx[-1]]
-        # self.assertTrue(np.all(np.logical_and(-vel_max < vel, v < vel_max)))

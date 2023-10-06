@@ -24,7 +24,7 @@ namespace boost
         template<class Archive>
         void serialize(Archive & ar,
                        pinocchio::GeometryObject & geom,
-                       const unsigned int version)
+                       const unsigned int /* version */)
         {
             ar & make_nvp("name", geom.name);
             ar & make_nvp("parentFrame", geom.parentFrame);
@@ -44,10 +44,9 @@ namespace boost
             case hpp::fcl::NODE_TYPE::TYPENAME: \
                 if (Archive::is_loading::value) \
                 { \
-                    geom.geometry = std::shared_ptr<CLASS>(static_cast<CLASS *>(new CLASS)); \
-                    load_construct_data(ar, static_cast<CLASS *>(geom.geometry.get()), version); \
+                    geom.geometry = std::shared_ptr<CLASS>(new CLASS); \
                 } \
-                ar & make_nvp("geometry", static_cast<CLASS &>(*geom.geometry.get())); \
+                ar & make_nvp("geometry", static_cast<CLASS &>(*geom.geometry)); \
                 break;
 
             switch (nodeType)

@@ -29,7 +29,8 @@ from .core import (  # pylint: disable=no-name-in-module
 
 
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
-DEFAULT_FRICTION_DRY_SLOPE = 0.0
+DEFAULT_FRICTION_DRY_SLOPE = 20.0
+DEFAULT_ARMATURE = 0.1
 
 EXTENSION_MODULES: Sequence[ModuleType] = ()
 
@@ -198,8 +199,8 @@ def generate_default_hardware_description_file(
             collisionBodiesNames=[],
             contactFramesNames=[]
         ),
-        Motor=OrderedDict(),
-        Sensor=OrderedDict()
+        Motor=defaultdict(OrderedDict),
+        Sensor=defaultdict(OrderedDict)
     )
 
     # Extract the root link. It is the one having no parent at all.
@@ -284,15 +285,14 @@ def generate_default_hardware_description_file(
             # can only be attached to link in Gazebo, not to frame.
             frame_pose_obj = gazebo_sensor_descr.find('./pose')
             if frame_pose_obj is None:
-                sensor_info['frame_pose'] = 6 * [0.0]
+                sensor_info['frame_name'] = sensor_info.pop('body_name')
             else:
                 assert frame_pose_obj.text is not None
                 sensor_info['frame_pose'] = list(
                     map(float, frame_pose_obj.text.split()))
 
             # Add the sensor to the robot's hardware
-            hardware_info['Sensor'].setdefault(sensor_type, {}).update(
-                {sensor_name: sensor_info})
+            hardware_info['Sensor'][sensor_type][sensor_name] = sensor_info
 
         # Extract the collision bodies and ground model, then add force
         # sensors. At this point, every force sensor is associated with a
@@ -300,11 +300,9 @@ def generate_default_hardware_description_file(
         if gazebo_plugin_descr.find('kp') is not None:
             # Add a force sensor, if not already in the collision set
             if body_name not in collision_bodies_names:
-                hardware_info['Sensor'].setdefault(force.type, {}).update({
-                    f"{body_name}Contact": OrderedDict(
-                        body_name=body_name,
-                        frame_pose=6*[0.0])
-                })
+                force_sensor_info = hardware_info['Sensor'][force.type]
+                force_sensor_info[f"{body_name}Contact"] = OrderedDict(
+                    frame_name=body_name)
 
             # Add the related body to the collision set
             collision_bodies_names.add(body_name)
@@ -333,31 +331,23 @@ def generate_default_hardware_description_file(
                 body_name_obj = gazebo_plugin_descr.find('bodyName')
                 assert body_name_obj is not None
                 body_name = body_name_obj.text
-                hardware_info['Sensor'].setdefault(force.type, {}).update({
-                    f"{body_name}Wrench": OrderedDict(
-                        body_name=body_name,
-                        frame_pose=6*[0.0])
-                })
+                force_sensor_info = hardware_info['Sensor'][force.type]
+                force_sensor_info[f"{body_name}Wrench"] = OrderedDict(
+                    frame_name=body_name)
             else:
                 LOGGER.warning("Unsupported Gazebo plugin '%s'", plugin)
 
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
     if link_root and imu.type not in hardware_info['Sensor'].keys():
-        hardware_info['Sensor'].setdefault(imu.type, {}).update({
-            link_root: OrderedDict(
-                body_name=link_root,
-                frame_pose=6*[0.0])
-        })
+        hardware_info['Sensor'][imu.type][link_root] = OrderedDict(
+            frame_name=link_root)
 
     # Add force sensors and collision bodies if no Gazebo plugin is available
     if not gazebo_plugins_found:
         for link_leaf in links_leaf:
             # Add a force sensor
-            hardware_info['Sensor'].setdefault(force.type, {}).update({
-                link_leaf: OrderedDict(
-                    body_name=link_leaf,
-                    frame_pose=6*[0.0])
-            })
+            hardware_info['Sensor'][force.type][link_leaf] = OrderedDict(
+                frame_name=link_leaf)
 
             # Add the related body to the collision set if possible
             if root.find(f"./link[@name='{link_leaf}']/collision") is not None:
@@ -383,12 +373,18 @@ def generate_default_hardware_description_file(
             friction = float(dyn_descr.get('friction', 0.0))
         else:
             damping, friction = 0.0, 0.0
-        joints_options[joint_name] = OrderedDict(
-            frictionViscousPositive=-damping,
-            frictionViscousNegative=-damping,
-            frictionDryPositive=-friction,
-            frictionDryNegative=-friction,
-            frictionDrySlope=-DEFAULT_FRICTION_DRY_SLOPE)
+        joints_options[joint_name] = OrderedDict()
+        if damping > 0.0:
+            joints_options[joint_name].update(
+                frictionViscousPositive=-damping,
+                frictionViscousNegative=-damping
+            )
+        if friction > 0.0:
+            joints_options[joint_name].update(
+                frictionDryPositive=-friction,
+                frictionDryNegative=-friction,
+                frictionDrySlope=DEFAULT_FRICTION_DRY_SLOPE
+            )
 
     # Extract the motors and effort sensors.
     # It is done by reading 'transmission' field, that is part of
@@ -463,10 +459,8 @@ def generate_default_hardware_description_file(
         motor_info.update(joints_options.pop(joint_name))
 
         # Add the motor and sensor to the robot's hardware
-        hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
-            {motor_name: motor_info})
-        hardware_info['Sensor'].setdefault(effort.type, {}).update(
-            {joint_name: sensor_info})
+        hardware_info['Motor']['SimpleMotor'][motor_name] = motor_info
+        hardware_info['Sensor'][effort.type][joint_name] = sensor_info
 
     # Define default encoder sensors, and default effort sensors if no
     # transmission available.
@@ -483,21 +477,21 @@ def generate_default_hardware_description_file(
         encoder_info['joint_name'] = joint_name
 
         # Add the sensor to the robot's hardware
-        hardware_info['Sensor'].setdefault(encoder.type, {}).update(
-            {joint_name: encoder_info})
+        hardware_info['Sensor'][encoder.type][joint_name] = encoder_info
 
         # Add motors to robot hardware by default if no transmission found
         if not transmission_found:
-            hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
-                {joint_name: OrderedDict(
-                    [('joint_name', joint_name),
-                     ('mechanicalReduction', 1.0),
-                     ('armature', 0.0),
-                     *joints_options.pop(joint_name).items()
-                     ])})
-            hardware_info['Sensor'].setdefault(effort.type, {}).update(
-                {joint_name: OrderedDict(
-                    motor_name=joint_name)})
+            joint_limit_descr = joint_descr.find('./limit')
+            assert joint_limit_descr is not None
+            if float(joint_limit_descr.attrib['effort']) == 0.0:
+                continue
+            hardware_info['Motor']['SimpleMotor'][joint_name] = OrderedDict(
+                joint_name=joint_name,
+                armature=DEFAULT_ARMATURE,
+                **joints_options.pop(joint_name)
+            )
+            hardware_info['Sensor'][effort.type][joint_name] = OrderedDict(
+                motor_name=joint_name)
 
     # Warn if friction model has been defined for non-actuated joints
     if joints_options:

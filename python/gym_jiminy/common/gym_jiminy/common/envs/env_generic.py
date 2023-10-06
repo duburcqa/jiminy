@@ -260,7 +260,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 # The first and second frames are respectively "universe" no
                 # matter if the robot has a freeflyer or not, and the second
                 # one is the freeflyer joint "root_joint" if any.
-                root_name = self.robot.pinocchio_model.frames[2].name
+                root_name = self.robot.pinocchio_model.names[1]
 
                 # Relative camera pose wrt the root frame by default
                 self.simulator.viewer_kwargs["camera_pose"] = (

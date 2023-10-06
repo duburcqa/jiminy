@@ -4365,9 +4365,8 @@ namespace jiminy
 
             // Enable compression and shuffling
             H5::DSetCreatPropList plist;
-            hsize_t chunkSize[1];
-            chunkSize[0] = logData->timestamps.size();  // Read the whole vector at once.
-            plist.setChunk(1, chunkSize);
+            hsize_t const chunkSize[1] = {std::max(hsize_t(1), hsize_t(logData->timestamps.size()))};
+            plist.setChunk(1, chunkSize);  // Read the whole vector at once.
             plist.setShuffle();
             plist.setDeflate(4);
 
@@ -4394,9 +4393,8 @@ namespace jiminy
 
             // Enable compression and shuffling
             H5::DSetCreatPropList plist;
-            hsize_t chunkSize[1];
-            chunkSize[0] = logData->timestamps.size();  // Read the whole vector at once.
-            plist.setChunk(1, chunkSize);
+            hsize_t const chunkSize[1] = {std::max(hsize_t(1), hsize_t(logData->timestamps.size()))};
+            plist.setChunk(1, chunkSize);  // Read the whole vector at once.
             plist.setShuffle();
             plist.setDeflate(4);
 
@@ -4427,7 +4425,7 @@ namespace jiminy
         // Make sure there is something to write
         if (!isTelemetryConfigured_)
         {
-            PRINT_ERROR("Telemetry not configured. Please run a simulation before writing log.");
+            PRINT_ERROR("Telemetry not configured. Please start a simulation before writing log.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -4443,16 +4441,6 @@ namespace jiminy
                 // Extract log data
                 std::shared_ptr<logData_t const> logData;
                 returnCode = getLog(logData);
-
-                // Make sure it is not empty
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    if (logData->timestamps.size() == 0)
-                    {
-                        PRINT_ERROR("No data available. Please start a simulation before writing log.");
-                        returnCode = hresult_t::ERROR_BAD_INPUT;
-                    }
-                }
 
                 // Write log data
                 if (returnCode == hresult_t::SUCCESS)
