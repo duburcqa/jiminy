@@ -4,6 +4,7 @@ from .cartpole import CartPoleJiminyEnv
 from .acrobot import AcrobotJiminyEnv
 from .ant import AntEnv
 from .cassie import CassieJiminyEnv, CassiePDControlJiminyEnv
+from .digit import DigitJiminyEnv, DigitPDControlJiminyEnv
 from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
 from .atlas import (AtlasJiminyEnv,
                     AtlasReducedJiminyEnv,
@@ -17,6 +18,8 @@ __all__ = [
     'AntEnv',
     'CassieJiminyEnv',
     'CassiePDControlJiminyEnv',
+    'DigitJiminyEnv',
+    'DigitPDControlJiminyEnv',
     'ANYmalJiminyEnv',
     'ANYmalPDControlJiminyEnv',
     'AtlasJiminyEnv',
@@ -58,6 +61,18 @@ register(
 register(
     id='cassie-pid',
     entry_point='gym_jiminy.envs:CassiePDControlJiminyEnv',
+    order_enforce=False,
+    disable_env_checker=True
+)
+register(
+    id='digit',
+    entry_point='gym_jiminy.envs:DigitJiminyEnv',
+    order_enforce=False,
+    disable_env_checker=True
+)
+register(
+    id='digit-pid',
+    entry_point='gym_jiminy.envs:DigitPDControlJiminyEnv',
     order_enforce=False,
     disable_env_checker=True
 )

@@ -6,53 +6,83 @@ contactFramesNames = []
 
 [Motor.SimpleMotor.hip_abduction_motor_left]
 joint_name = "hip_abduction_left"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 25.0
-armature = 0.2
+armature = 0.2  # 0.038125
 
 [Motor.SimpleMotor.hip_rotation_motor_left]
 joint_name = "hip_rotation_left"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 25.0
-armature = 0.2
+armature = 0.2  # 0.038125
 
 [Motor.SimpleMotor.hip_flexion_motor_left]
 joint_name = "hip_flexion_left"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 16.0
-armature = 0.2
+armature = 0.2  # 0.09344
 
 [Motor.SimpleMotor.knee_joint_motor_left]
 joint_name = "knee_joint_left"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 16.0
-armature = 0.2
+armature = 0.2  # 0.09344
 
 [Motor.SimpleMotor.toe_joint_motor_left]
 joint_name = "toe_joint_left"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 50.0
-armature = 0.2
+armature = 0.2  # 0.01225
 
 [Motor.SimpleMotor.hip_abduction_motor_right]
 joint_name = "hip_abduction_right"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 25.0
-armature = 0.2
+armature = 0.2  # 0.038125
 
 [Motor.SimpleMotor.hip_rotation_motor_right]
 joint_name = "hip_rotation_right"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 25.0
-armature = 0.2
+armature = 0.2  # 0.038125
 
 [Motor.SimpleMotor.hip_flexion_motor_right]
 joint_name = "hip_flexion_right"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 16.0
-armature = 0.2
+armature = 0.2  # 0.09344
 
 [Motor.SimpleMotor.knee_joint_motor_right]
 joint_name = "knee_joint_right"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 16.0
-armature = 0.2
+armature = 0.2  # 0.09344
 
 [Motor.SimpleMotor.toe_joint_motor_right]
 joint_name = "toe_joint_right"
+enableFriction = true
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
 mechanicalReduction = 50.0
-armature = 0.2
+armature = 0.2  # 0.01225
 
 # =============== IMU sensors =================
 

@@ -25,10 +25,10 @@ else:
 
 
 # Parameters of neutral configuration
-NEUTRAL_SAGITTAL_HIP_ANGLE = 25.0 / 180.0 * math.pi
-NEUTRAL_KNEE_ANGLE = -65.0 / 180.0 * math.pi
-NEUTRAL_ANKLE_ANGLE = 80.0 / 180.0 * math.pi
-NEUTRAL_TOE_ANGLE = -90.0 / 180.0 * math.pi
+NEUTRAL_FRONTAL_HIP_ANGLE = 20.0 / 180.0 * math.pi
+NEUTRAL_SAGITTAL_HIP_ANGLE = 5.7 / 180.0 * math.pi
+NEUTRAL_SAGITTAL_SHOULDER_ANGLE = 45.0 / 180.0 * math.pi
+NEUTRAL_SAGITTAL_ELBOW_ANGLE = 68.0 / 180.0 * math.pi
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
@@ -41,11 +41,25 @@ HLC_TO_LLC_RATIO = 1
 STEP_DT = 0.04
 
 # PID proportional gains (one per actuated joint)
-PD_KP = (100.0, 100.0, 100.0, 100.0, 80.0,
-         100.0, 100.0, 100.0, 100.0, 80.0)
+PD_KP = (
+    # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    80.0, 100.0, 100.0, 100.0, 80.0, 80.0,
+    # Left arm: [ShX, ShY, ShZ, ElY]
+    50.0, 50.0, 50.0, 50.0,
+    # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    80.0, 100.0, 100.0, 100.0, 80.0, 80.0,
+    # Right arm: [ShX, ShY, ShZ, ElY]
+    50.0, 50.0, 50.0, 50.0)
 # PID derivative gains (one per actuated joint)
-PD_KD = (0.02, 0.02, 0.02, 0.02, 0.015,
-         0.02, 0.02, 0.02, 0.02, 0.015)
+PD_KD = (
+    # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    0.015, 0.02, 0.02, 0.02, 0.015, 0.015,
+    # Left arm: [ShX, ShY, ShZ, ElY]
+    0.01, 0.01, 0.01, 0.01,
+    # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    0.015, 0.02, 0.02, 0.02, 0.015, 0.015,
+    # Right arm: [ShX, ShY, ShZ, ElY]
+    0.01, 0.01, 0.01, 0.01)
 
 # Mahony filter proportional and derivative gains
 MAHONY_KP = 1.0
@@ -66,7 +80,7 @@ STD_RATIO = {
 }
 
 
-class CassieJiminyEnv(WalkerJiminyEnv):
+class DigitJiminyEnv(WalkerJiminyEnv):
     """ TODO: Write documentation.
     """
     def __init__(self, debug: bool = False, **kwargs: Any) -> None:
@@ -77,8 +91,8 @@ class CassieJiminyEnv(WalkerJiminyEnv):
                        `WalkerJiminyEnv` constructors.
         """
         # Get the urdf and mesh paths
-        data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/cassie")
-        urdf_path = os.path.join(data_dir, "cassie.urdf")
+        data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/digit")
+        urdf_path = os.path.join(data_dir, "digit.urdf")
 
         # Load the full models
         pinocchio_model, collision_model, visual_model = \
@@ -94,7 +108,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         qpos = neutral(pinocchio_model)
         joint_locked_indices = [
             pinocchio_model.getJointId(joint_name)
-            for joint_name in ("knee_to_shin_right", "knee_to_shin_left")]
+            for joint_name in ("shin_to_tarsus_right", "shin_to_tarsus_left")]
         pinocchio_model, (collision_model, visual_model) = buildReducedModel(
             pinocchio_model, [collision_model, visual_model],
             joint_locked_indices, qpos)
@@ -126,9 +140,9 @@ class CassieJiminyEnv(WalkerJiminyEnv):
 
         # Add missing pushrod close kinematic chain constraints
         M_pushrod_tarsus_right = SE3(
-            np.eye(3), np.array([-0.12, 0.03, -0.005]))
+            np.eye(3), np.array([-0.11, 0.0, 0.0]))
         M_pushrod_hip_right = SE3(
-            np.eye(3), np.array([0.0, 0.0, -0.045]))
+            np.eye(3), np.array([0.0, 0.0, 0.046]))
         self.robot.add_frame(
             "right_pushrod_tarsus", "right_tarsus", M_pushrod_tarsus_right)
         self.robot.add_frame(
@@ -138,9 +152,9 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         pushrod_right.baumgarte_freq = 20.0
         self.robot.add_constraint("pushrod_right", pushrod_right)
         M_pushrod_tarsus_left = SE3(
-            np.eye(3), np.array([-0.12, 0.03, 0.005]))
+            np.eye(3), np.array([-0.11, 0.0, 0.0]))
         M_pushrod_hip_left = SE3(
-            np.eye(3), np.array([0.0, 0.0, 0.045]))
+            np.eye(3), np.array([0.0, 0.0, 0.046]))
         self.robot.add_frame(
             "left_pushrod_tarsus", "left_tarsus", M_pushrod_tarsus_left)
         self.robot.add_frame(
@@ -153,7 +167,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         # Remove irrelevant contact points
         self.robot.remove_contact_points([
             name for name in self.robot.contact_frames_names
-            if int(name.split("_")[-1]) in (0, 1, 4, 5)])
+            if int(name.split("_")[-1]) in (2, 3, 6, 7)])
 
     def _neutral(self) -> np.ndarray:
         def set_joint_rotary_position(joint_name: str, theta: float) -> None:
@@ -172,20 +186,21 @@ class CassieJiminyEnv(WalkerJiminyEnv):
 
         qpos = neutral(self.robot.pinocchio_model)
         for s in ('left', 'right'):
-            set_joint_rotary_position(f'hip_flexion_{s}',
-                                      NEUTRAL_SAGITTAL_HIP_ANGLE)
-            set_joint_rotary_position(f'knee_joint_{s}',
-                                      NEUTRAL_KNEE_ANGLE)
-            set_joint_rotary_position(f'ankle_joint_{s}',
-                                      NEUTRAL_ANKLE_ANGLE)
-            set_joint_rotary_position(f'toe_joint_{s}',
-                                      NEUTRAL_TOE_ANGLE)
+            sign = 1.0 if s == 'left' else -1.0
+            set_joint_rotary_position(f"hip_abduction_{s}",
+                                      sign * NEUTRAL_FRONTAL_HIP_ANGLE)
+            set_joint_rotary_position(f"hip_flexion_{s}",
+                                      sign * NEUTRAL_SAGITTAL_HIP_ANGLE)
+            set_joint_rotary_position(f"shoulder_pitch_joint_{s}",
+                                      sign * NEUTRAL_SAGITTAL_SHOULDER_ANGLE)
+            set_joint_rotary_position(f"elbow_joint_{s}",
+                                      sign * NEUTRAL_SAGITTAL_ELBOW_ANGLE)
         return qpos
 
 
-CassiePDControlJiminyEnv = build_pipeline(
+DigitPDControlJiminyEnv = build_pipeline(
     env_config=dict(
-        cls=CassieJiminyEnv
+        cls=DigitJiminyEnv
     ),
     layers_config=[
         dict(

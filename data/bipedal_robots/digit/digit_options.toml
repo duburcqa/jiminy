@@ -8,7 +8,7 @@ controllerUpdatePeriod = 0.005
 logInternalStepperSteps = false
 randomSeed = 0
 
-# ============== Contact dynamics ===============
+# ============== Ground dynamics ===============
 
 [engine.constraints]
 solver = "PGS"
@@ -19,3 +19,9 @@ model = "constraint"
 stabilizationFreq = 25.0
 transitionEps = 2.0e-3
 friction = 0.5
+
+# ======== Joints bounds configuration ========
+
+[system.robot.model.joints]
+enablePositionLimit = true
+enableVelocityLimit = true

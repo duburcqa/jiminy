@@ -173,7 +173,9 @@ setup(
             "breathe",
             # Repair wheels to embed shared libraries.
             # - 5.2.1: Speed up and binary size reduction
-            "auditwheel>=5.2.1"
+            "auditwheel>=5.2.1",
+            # Official package for building wheels
+            "build"
         ]
     },
     zip_safe=False

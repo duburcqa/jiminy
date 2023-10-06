@@ -7,9 +7,13 @@
 	   Email:  rosshart@umich.edu
      Date:   04/24/2016   -->
 <!-- https://github.com/UMich-BipedLab/cassie_description/blob/master/urdf/cassie.urdf -->
+<!-- https://github.com/osudrl/cassie-mujoco-sim/blob/master/model/cassie.xml -->
 <!-- * The meshes have been decimated to greatly reduce their size.
      * The mesh paths have been updated.
-     * 'continuous' joint type has been replaced by 'revolute' when unrealistic lower and upper bounds were specified.
+     * 'continuous' joint type has been replaced by 'revolute' when unrealistic lower and
+       upper bounds were specified.
+     * The dry friction and viscous friction only specified in the Mujoco XML robot description
+       file, which corresponding field names 'frictionloss', and 'damping' respectively.
 -->
 <robot name="cassie" xmlns:xacro="http://ros.org/wiki/xacro">
   <link name="vectorNav">
