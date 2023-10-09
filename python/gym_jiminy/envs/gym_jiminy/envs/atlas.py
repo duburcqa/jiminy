@@ -251,8 +251,7 @@ AtlasPDControlJiminyEnv = build_pipeline(
                     soft_velocity_max=MOTOR_VELOCITY_MAX,
                 )
             ),
-        ),
-        dict(
+        ), dict(
             block=dict(
                 cls=PDController,
                 kwargs=dict(
@@ -297,8 +296,7 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
                     soft_velocity_max=MOTOR_VELOCITY_MAX,
                 )
             ),
-        ),
-        dict(
+        ), dict(
             block=dict(
                 cls=PDController,
                 kwargs=dict(

@@ -714,7 +714,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     """
     if not robot.has_constraints:
         raise NotImplementedError(
-            "Robot without constraints is not supported for now.")
+            "Robot without active constraints is not supported for now.")
 
     # Convert theoretical position, velocity and acceleration if necessary
     if use_theoretical_model and robot.is_flexible:
