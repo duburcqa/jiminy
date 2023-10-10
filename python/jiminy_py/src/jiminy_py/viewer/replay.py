@@ -549,8 +549,8 @@ def play_trajectories(
                         continue
                     q, v, f_ext = pos[i], vel[i], forces[i]
                     if f_ext is not None:
-                        for i, f_ext in enumerate(f_ext):
-                            viewer.f_external[i].vector[:] = f_ext
+                        for f_ref, f_i in zip(viewer.f_external, f_ext):
+                            f_ref.vector[:] = f_i
                     if update_hook is not None:
                         update_hook_t = partial(update_hook, t_cur, q, v)
                     else:

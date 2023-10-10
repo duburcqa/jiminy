@@ -207,7 +207,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         .. note::
             This method is called internally by `reset` method at the very
-            beginning. One must overide it to implement new contributions to
+            beginning. One must override it to implement new contributions to
             the environment stochasticity, or to create custom low-level robot
             if the model must be different for each learning episode.
         """
@@ -235,15 +235,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         robot_options = self.robot.get_options()
         engine_options = self.simulator.engine.get_options()
 
-        # Make sure to log at least required data for reward
-        # computation and log replay
+        # Make sure to log at least the required data for terminal reward
+        # computation and log replay.
         engine_options['telemetry']['enableConfiguration'] = True
         engine_options['telemetry']['enableVelocity'] = True
         engine_options['telemetry']['enableForceExternal'] = \
             'disturbance' in self.std_ratio.keys()
-
-        # Enable the flexible model
-        robot_options["model"]["dynamics"]["enableFlexibleModel"] = True
 
         # ============= Add some stochasticity to the environment =============
 
@@ -279,12 +276,13 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Randomize the flexibility parameters
         if 'model' in self.std_ratio.keys():
-            dynamics_options = robot_options["model"]["dynamics"]
-            for flexibility in dynamics_options["flexibilityConfig"]:
-                flexibility['stiffness'] += FLEX_STIFFNESS_SCALE * sample(
-                    scale=self.std_ratio['model'], rg=self.np_random)
-                flexibility['damping'] += FLEX_DAMPING_SCALE * sample(
-                    scale=self.std_ratio['model'], rg=self.np_random)
+            if self.robot.is_flexible:
+                dynamics_options = robot_options["model"]["dynamics"]
+                for flexibility in dynamics_options["flexibilityConfig"]:
+                    flexibility['stiffness'] += FLEX_STIFFNESS_SCALE * sample(
+                        scale=self.std_ratio['model'], rg=self.np_random)
+                    flexibility['damping'] += FLEX_DAMPING_SCALE * sample(
+                        scale=self.std_ratio['model'], rg=self.np_random)
 
         # Apply the disturbance to the first actual body
         if 'disturbance' in self.std_ratio.keys():

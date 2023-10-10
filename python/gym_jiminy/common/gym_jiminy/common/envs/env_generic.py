@@ -612,7 +612,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         # Check if variable can be registered successfully to the telemetry.
         # Note that a dummy controller must be created to avoid using the
-        # actual one to keep control of when registering will take place.
+        # actual one to keep control of when registration will take place.
         try:
             is_success = register_variables(
                 jiminy.BaseController(), fieldnames, value)

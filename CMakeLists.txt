@@ -7,6 +7,10 @@ set(BUILD_VERSION 1.7.17)
 # Set compatibility
 set(COMPATIBILITY_VERSION SameMinorVersion)
 
+# Enforce generation of `compile_commands.json`.
+# This file is used by various tools such as code or clang-tidy to resolve imports.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+
 # Extract major, minor and patch version
 string(REPLACE "." ";" _VERSION "${BUILD_VERSION}")
 list(GET _VERSION 0 BUILD_VERSION_MAJOR)
