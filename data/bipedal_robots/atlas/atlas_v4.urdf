@@ -14,9 +14,6 @@
       <geometry>
         <mesh filename="package://meshes/head.dae" />
       </geometry>
-      <material name="">
-        <color rgba="1 1 1 1" />
-      </material>
     </visual>
   <collision>
     <origin xyz="-0.0503 0 -0.00195" rpy="0 0 0" />
@@ -150,9 +147,6 @@
       <geometry>
         <sphere radius="0.03"/>
       </geometry>
-      <material name="dark">
-        <color rgba="1 1 1 1" />
-      </material>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 -0.15 0.01"/>
@@ -585,9 +579,6 @@
       <geometry>
         <sphere radius="0.03"/>
       </geometry>
-      <material name="dark">
-        <color rgba="1 1 1 1" />
-      </material>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 -0.15 -0.01"/>

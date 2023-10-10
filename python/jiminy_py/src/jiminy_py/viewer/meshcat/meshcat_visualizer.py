@@ -389,9 +389,8 @@ class MeshcatVisualizer(BaseVisualizer):
                 # Get mesh pose
                 M = self.visual_data.oMg[i]
                 # Manage scaling
-                S = np.diag(np.concatenate(
-                    (visual.meshScale, np.array([1.0]))).flat)
-                T = np.array(M.homogeneous).dot(S)
+                T = M.homogeneous
+                T[:3, :3] *= visual.meshScale
                 # Update viewer configuration
                 node_name = self.getViewerNodeName(
                     visual, pin.GeometryType.VISUAL)
@@ -406,9 +405,8 @@ class MeshcatVisualizer(BaseVisualizer):
                 # Get mesh pose
                 M = self.collision_data.oMg[i]
                 # Manage scaling
-                S = np.diag(np.concatenate(
-                    (collision.meshScale, np.array([1.0]))).flat)
-                T = np.array(M.homogeneous).dot(S)
+                T = M.homogeneous
+                T[:3, :3] *= collision.meshScale
                 # Update viewer configuration
                 node_name = self.getViewerNodeName(
                     collision, pin.GeometryType.collision)

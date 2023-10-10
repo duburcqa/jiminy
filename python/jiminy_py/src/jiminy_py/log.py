@@ -133,7 +133,7 @@ def build_robot_from_log(
         mesh paths (if any) must be valid since they are not bundle in the log
         archive for now.
 
-    :param log_file: Logged data (constants and variables) as a dictionary.
+    :param log_data: Logged data (constants and variables) as a dictionary.
     :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
                           It which may be necessary to read log generated on a
                           different environment.
