@@ -156,7 +156,7 @@ def rpy_to_matrix(rpy: np.ndarray,
     else:
         assert out.shape == (3, 3, *rpy.shape[1:])
         out_ = out
-    cos_roll, cos_pitch, cos_yaw = np.cos(rpy[-3:]),
+    cos_roll, cos_pitch, cos_yaw = np.cos(rpy[-3:])
     sin_roll, sin_pitch, sin_yaw = np.sin(rpy[-3:])
     out_[0][0] = cos_pitch * cos_yaw
     out_[0][1] = - cos_roll * sin_yaw + sin_roll * sin_pitch * cos_yaw
