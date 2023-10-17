@@ -2,12 +2,9 @@
 #define COMPATIBILITY_PYTHON_H
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     void exposeCompatibility(void);
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}
 
 #endif  // COMPATIBILITY_PYTHON_H

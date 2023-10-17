@@ -46,6 +46,6 @@ namespace jiminy
 
         return hresult_t::SUCCESS;
     }
-} // namespace jiminy
+}
 
-#endif // JIMINY_TELEMETRY_DATA_HXX
+#endif  // JIMINY_TELEMETRY_DATA_HXX

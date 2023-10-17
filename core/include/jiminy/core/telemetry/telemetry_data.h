@@ -87,8 +87,8 @@ namespace jiminy
         std::deque<std::pair<std::string, float64_t> > floatsRegistry_;       ///< Memory to handle floats
         bool_t isRegisteringAvailable_;                                       ///< Whether registering is available
     };
-} // namespace jiminy
+}
 
 #include "jiminy/core/telemetry/telemetry_data.hxx"
 
-#endif // JIMINY_TELEMETRY_DATA_H
+#endif  // JIMINY_TELEMETRY_DATA_H

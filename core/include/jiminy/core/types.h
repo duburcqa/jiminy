@@ -28,12 +28,9 @@
 
 
 // `pinocchio::container::aligned_vector`
-namespace pinocchio
+namespace pinocchio::container
 {
-    namespace container
-    {
-        template<typename T> struct aligned_vector;
-    }
+    template<typename T> struct aligned_vector;
 }
 
 

@@ -47,5 +47,6 @@ namespace jiminy
         std::vector<char_t> payload_;
         std::shared_ptr<AbstractIODevice> device_;
     };
-}  // End of namespace jiminy.
+}
+
 #endif  // JIMINY_JSON_LOADER_H

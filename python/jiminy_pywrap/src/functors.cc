@@ -5,9 +5,7 @@
 #include "jiminy/python/functors.h"
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
 
@@ -86,5 +84,4 @@ namespace python
     };
 
     BOOST_PYTHON_VISITOR_EXPOSE(HeightmapFunctor)
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}

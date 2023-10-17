@@ -4,9 +4,7 @@
 #include "jiminy/python/generators.h"
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
 
@@ -113,9 +111,6 @@ namespace python
 
         bp::def("discretize_heightmap", &discretizeHeightmap, (bp::arg("heightmap"), "grid_size", "grid_unit"));
     }
-
-}  // End of namespace python.
-}  // End of namespace jiminy.
-
+}
 
 

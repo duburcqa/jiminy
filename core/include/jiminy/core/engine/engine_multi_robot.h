@@ -675,4 +675,4 @@ namespace jiminy
     };
 }
 
-#endif //end of JIMINY_ENGINE_MULTIROBOT_H
+#endif  // JIMINY_ENGINE_MULTIROBOT_H

@@ -6,9 +6,7 @@
 #include "jiminy/python/motors.h"
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
 
@@ -131,5 +129,4 @@ namespace python
     };
 
     BOOST_PYTHON_VISITOR_EXPOSE(SimpleMotor)
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}

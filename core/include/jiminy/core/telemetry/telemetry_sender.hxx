@@ -38,6 +38,6 @@ namespace jiminy
         }
         return returnCode;
     }
-} // namespace jiminy
+}
 
-#endif // JIMINY_TELEMETRY_SENDER_HXX
+#endif  // JIMINY_TELEMETRY_SENDER_HXX
