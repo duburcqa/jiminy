@@ -1,7 +1,7 @@
 #include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/utilities/random.h"
-#include "jiminy/core/robot/abstract_sensor.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 
 
 namespace jiminy

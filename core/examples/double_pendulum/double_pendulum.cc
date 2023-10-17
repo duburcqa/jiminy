@@ -7,7 +7,7 @@
 #include <filesystem>
 
 #include "jiminy/core/engine/engine.h"
-#include "jiminy/core/robot/basic_motors.h"
+#include "jiminy/core/hardware/basic_motors.h"
 #include "jiminy/core/control/controller_functor.h"
 #include "jiminy/core/io/file_device.h"
 #include "jiminy/core/utilities/helpers.h"

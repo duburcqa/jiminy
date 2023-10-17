@@ -25,7 +25,7 @@
 
 #include "urdf_parser/urdf_parser.h"
 
-#include "jiminy/core/robot/basic_sensors.h"
+#include "jiminy/core/hardware/basic_sensors.h"
 #include "jiminy/core/robot/pinocchio_overload_algorithms.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/constraints/joint_constraint.h"
