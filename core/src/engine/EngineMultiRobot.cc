@@ -1128,14 +1128,21 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            // Note that EPS allows to be very slightly out-of-bounds
-            if ((system.robot->mdlOptions_->joints.enablePositionLimit &&
+            /* Check that the initial configuration is not out-of-bounds if appropriate
+               Note that EPS allows to be very slightly out-of-bounds, which may occurs because of rounding errors. */
+            if ((system.robot->mdlOptions_->joints.enablePositionLimit && (contactModel_ == contactModel_t::CONSTRAINT) &&
                  ((EPS < q.array() - system.robot->getPositionLimitMax().array()).any() ||
-                  (EPS < system.robot->getPositionLimitMin().array() - q.array()).any())) ||
-                (system.robot->mdlOptions_->joints.enableVelocityLimit &&
-                 (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any()))
+                  (EPS < system.robot->getPositionLimitMin().array() - q.array()).any())))
             {
-                PRINT_ERROR("The initial configuration or velocity is out-of-bounds for system '", system.name, "'.");
+                PRINT_ERROR("The initial configuration is out-of-bounds for system '", system.name, "'.");
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+
+            // Check that the initial velocity is not out-of-bounds
+            if ((system.robot->mdlOptions_->joints.enableVelocityLimit &&
+                 (system.robot->getVelocityLimit().array() < v.array().abs()).any()))
+            {
+                PRINT_ERROR("The initial velocity is out-of-bounds for system '", system.name, "'.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
