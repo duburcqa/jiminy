@@ -25,7 +25,7 @@ Checks: >
 # Turn all the warnings from the checks above into errors.
 WarningsAsErrors: "*"
 
-HeaderFileExtensions: ['h','tpp']
+HeaderFileExtensions: ['h','hxx']
 ImplementationFileExtensions: ['cc']
 
 CheckOptions:
