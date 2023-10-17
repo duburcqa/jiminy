@@ -7,7 +7,7 @@
 #define EIGEN_RUNTIME_NO_MALLOC
 
 #include "jiminy/core/engine/engine.h"
-#include "jiminy/core/robot/basic_motors.h"
+#include "jiminy/core/hardware/basic_motors.h"
 #include "jiminy/core/control/controller_functor.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/types.h"

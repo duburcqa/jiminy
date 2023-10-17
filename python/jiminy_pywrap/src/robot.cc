@@ -1,5 +1,5 @@
-#include "jiminy/core/robot/abstract_sensor.h"
-#include "jiminy/core/robot/abstract_motor.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
+#include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/robot/robot.h"
 

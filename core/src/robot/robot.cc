@@ -1,8 +1,8 @@
 #include <fstream>
 #include <exception>
 
-#include "jiminy/core/robot/abstract_motor.h"
-#include "jiminy/core/robot/abstract_sensor.h"
+#include "jiminy/core/hardware/abstract_motor.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/telemetry/telemetry_data.h"
 #include "jiminy/core/io/file_device.h"
 #include "jiminy/core/utilities/helpers.h"

@@ -1,4 +1,4 @@
-#include "jiminy/core/robot/basic_motors.h"
+#include "jiminy/core/hardware/basic_motors.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"
 
