@@ -485,6 +485,6 @@ namespace jiminy
     };
 }
 
-#include "jiminy/core/robot/abstract_sensor.hxx"
+#include "jiminy/core/hardware/abstract_sensor.hxx"
 
 #endif //end of JIMINY_ABSTRACT_SENSOR_H

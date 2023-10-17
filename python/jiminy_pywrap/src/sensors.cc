@@ -1,5 +1,5 @@
-#include "jiminy/core/robot/abstract_sensor.h"
-#include "jiminy/core/robot/basic_sensors.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
+#include "jiminy/core/hardware/basic_sensors.h"
 #include "jiminy/core/types.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"

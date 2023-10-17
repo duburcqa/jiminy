@@ -2,7 +2,7 @@
 #include "jiminy/core/macros.h"
 
 #include "jiminy/core/utilities/pinocchio.h"
-#include "jiminy/core/robot/abstract_motor.h"
+#include "jiminy/core/hardware/abstract_motor.h"
 
 
 namespace jiminy

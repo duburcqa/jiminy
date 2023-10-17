@@ -10,7 +10,7 @@
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 
-#include "jiminy/core/robot/basic_sensors.h"
+#include "jiminy/core/hardware/basic_sensors.h"
 
 
 #define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY() \

@@ -2,7 +2,7 @@
 
 #include "jiminy/core/utilities/helpers.h"
 
-#include "jiminy/core/robot/basic_motors.h"
+#include "jiminy/core/hardware/basic_motors.h"
 
 
 namespace jiminy
