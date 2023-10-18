@@ -9,9 +9,7 @@
 #include "jiminy/python/robot.h"
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
 
@@ -508,5 +506,4 @@ namespace python
     };
 
     BOOST_PYTHON_VISITOR_EXPOSE(Robot)
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}

@@ -1319,4 +1319,4 @@ namespace jiminy
     using stateDerivative_t = Eigen::StateDerivativeVector;
 }
 
-#endif //end of JIMINY_LIE_GROUP_H
+#endif  // JIMINY_LIE_GROUP_H

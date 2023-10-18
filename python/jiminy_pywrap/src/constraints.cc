@@ -23,8 +23,9 @@ namespace jiminy
     // Explicit template specialization must appear in exactly the same namespace than its template declaration
     template<>
     std::string const AbstractConstraintTpl<AbstractConstraintImpl>::type_("UserConstraint");
+}
 
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
 
@@ -329,6 +330,4 @@ namespace python
     };
 
     BOOST_PYTHON_VISITOR_EXPOSE(ConstraintsHolder)
-
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}

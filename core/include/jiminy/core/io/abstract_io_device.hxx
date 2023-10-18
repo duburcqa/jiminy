@@ -41,4 +41,4 @@ namespace jiminy
     template<> hresult_t AbstractIODevice::write<std::vector<uint64_t> >(std::vector<uint64_t> const & v);
 }
 
-#endif // JIMINY_ABSTRACT_IO_DEVICE_HXX
+#endif  // JIMINY_ABSTRACT_IO_DEVICE_HXX

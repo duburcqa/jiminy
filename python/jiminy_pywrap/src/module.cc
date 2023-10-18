@@ -31,9 +31,7 @@
 #include "jiminy/python/sensors.h"
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
     namespace np = boost::python::numpy;
@@ -146,5 +144,4 @@ namespace python
     }
 
     #undef TIME_STATE_FCT_EXPOSE
-}
 }

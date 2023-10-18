@@ -2,13 +2,10 @@
 #define CONTROLLERS_PYTHON_H
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     void exposeAbstractController(void);
     void exposeControllerFunctor(void);
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}
 
 #endif  // CONTROLLERS_PYTHON_H

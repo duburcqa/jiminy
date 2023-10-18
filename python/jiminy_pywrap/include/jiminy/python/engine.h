@@ -2,9 +2,7 @@
 #define SIMULATOR_PYTHON_H
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     void exposeForces(void);
     void exposeStepperState(void);
@@ -12,7 +10,6 @@ namespace python
     void exposeSystem(void);
     void exposeEngineMultiRobot(void);
     void exposeEngine(void);
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}
 
 #endif  // SIMULATOR_PYTHON_H

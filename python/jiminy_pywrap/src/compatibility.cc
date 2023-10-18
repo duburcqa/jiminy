@@ -4,9 +4,7 @@
 #include "jiminy/python/compatibility.h"
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
     namespace np = boost::python::numpy;
@@ -129,5 +127,4 @@ namespace python
         nativeFromPython<std::string, stringFromPython>();
     }
 
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}

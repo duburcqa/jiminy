@@ -133,4 +133,4 @@ namespace jiminy
     {
         return &floatsRegistry_;
     }
-}// end of namespace jiminy
+}

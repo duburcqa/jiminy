@@ -101,6 +101,4 @@ namespace jiminy
     }
 }
 
-#endif // JIMINY_ABSTRACT_CONTROLLER_HXX
-
-
+#endif  // JIMINY_ABSTRACT_CONTROLLER_HXX
