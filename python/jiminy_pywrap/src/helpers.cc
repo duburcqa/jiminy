@@ -15,9 +15,7 @@
 #include "jiminy/python/helpers.h"
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
 
@@ -387,6 +385,4 @@ namespace python
         bp::def("solveJMinvJtv", &solveJMinvJtv,
                 (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true));
     }
-
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}

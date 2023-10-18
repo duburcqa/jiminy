@@ -51,4 +51,4 @@ namespace jiminy
     {
         return rootJson_.get();
     }
-}  // End of namespace jiminy.
+}

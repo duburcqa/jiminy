@@ -31,9 +31,7 @@
 #include "jiminy/core/engine/engine_multi_robot.h"
 
 
-namespace jiminy
-{
-namespace pinocchio_overload
+namespace jiminy::pinocchio_overload
 {
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType, typename TangentVectorType>
@@ -546,6 +544,5 @@ namespace pinocchio_overload
         return data.llt_JMinvJt.solve(v);
     }
 }
-}
 
-#endif //end of JIMINY_ALGORITHMS_MOTOR_INERTIA_H
+#endif  // JIMINY_ALGORITHMS_MOTOR_INERTIA_H

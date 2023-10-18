@@ -8,9 +8,7 @@
 #include "jiminy/python/sensors.h"
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
 
@@ -464,5 +462,4 @@ namespace python
     };
 
     BOOST_PYTHON_VISITOR_EXPOSE(BasicSensors)
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}

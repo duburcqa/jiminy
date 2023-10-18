@@ -8,9 +8,7 @@
 #include "jiminy/python/controllers.h"
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
 
@@ -412,5 +410,4 @@ namespace python
     };
 
     BOOST_PYTHON_VISITOR_EXPOSE(ControllerFunctor)
-}  // End of namespace python.
-}  // End of namespace jiminy.
+}

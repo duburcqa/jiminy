@@ -42,34 +42,31 @@ namespace jiminy
 }
 
 
-namespace boost
+namespace boost::serialization
 {
-  namespace serialization
-  {
-        template<class Archive>
-        void load_construct_data(Archive & /* ar */,
-                                 pinocchio::GeometryObject * geomPtr,
-                                 unsigned int const /* version */)
-        {
-            ::new(geomPtr) pinocchio::GeometryObject(
-                "", 0, 0, {nullptr}, pinocchio::SE3::Identity());
-        }
+    template<class Archive>
+    void load_construct_data(Archive & /* ar */,
+                             pinocchio::GeometryObject * geomPtr,
+                             unsigned int const /* version */)
+    {
+        ::new(geomPtr) pinocchio::GeometryObject(
+            "", 0, 0, {nullptr}, pinocchio::SE3::Identity());
+    }
 
-        template<class Archive>
-        void serialize(Archive & ar,
-                       pinocchio::GeometryObject & geom,
-                       unsigned int const /* version */);
+    template<class Archive>
+    void serialize(Archive & ar,
+                   pinocchio::GeometryObject & geom,
+                   unsigned int const /* version */);
 
-        template <class Archive>
-        void serialize(Archive & ar,
-                       pinocchio::GeometryModel & model,
-                       unsigned int const /* version */)
-        {
-            ar & make_nvp("ngeoms", model.ngeoms);
-            ar & make_nvp("geometryObjects", model.geometryObjects);
-            ar & make_nvp("collisionPairs", model.collisionPairs);
-        }
-  } // namespace serialization
-} // namespace boost
+    template <class Archive>
+    void serialize(Archive & ar,
+                   pinocchio::GeometryModel & model,
+                   unsigned int const /* version */)
+    {
+        ar & make_nvp("ngeoms", model.ngeoms);
+        ar & make_nvp("geometryObjects", model.geometryObjects);
+        ar & make_nvp("collisionPairs", model.collisionPairs);
+    }
+}
 
-#endif // JIMINY_SERIALIZATION_HXX
+#endif  // JIMINY_SERIALIZATION_HXX

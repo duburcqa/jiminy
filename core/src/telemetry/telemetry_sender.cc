@@ -44,4 +44,4 @@ namespace jiminy
     {
         return objectName_;
     }
-} // End of namespace jiminy.
+}

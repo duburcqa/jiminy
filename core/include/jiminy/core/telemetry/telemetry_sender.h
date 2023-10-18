@@ -106,8 +106,8 @@ namespace jiminy
         ///        reserved position in the contiguous storage of telemetry data.
         telemetry_data_registry_t<float64_t, int64_t> bufferPosition_;
     };
-} // End of jiminy namespace
+}
 
 #include "jiminy/core/telemetry/telemetry_sender.hxx"
 
-#endif  //  JIMINY_TELEMETRY_CLIENT_CLASS_H
+#endif  // JIMINY_TELEMETRY_CLIENT_CLASS_H

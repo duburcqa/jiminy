@@ -15,9 +15,7 @@
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 
-namespace boost::python
-{
-namespace converter
+namespace boost::python::converter
 {
     #define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type) \
         template <> \
@@ -31,13 +29,10 @@ namespace converter
     EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray const)
     EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray &)
     EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray const &)
-}  // namespace converter
-}  // namespace boost::python
+}
 
 
-namespace jiminy
-{
-namespace python
+namespace jiminy::python
 {
     namespace bp = boost::python;
     namespace np = boost::python::numpy;
@@ -58,7 +53,8 @@ namespace python
         return {};
     }
 
-    namespace detail {
+    namespace detail
+    {
         static char constexpr py_signature_tag[] = "PY signature :";
         static char constexpr cpp_signature_tag[] = "C++ signature :";
     }
@@ -897,7 +893,6 @@ namespace python
             boost::apply_visitor(visitor, configField.second);
         }
     }
-}  // end of namespace python.
-}  // end of namespace jiminy.
+}
 
 #endif  // UTILITIES_PYTHON_H
