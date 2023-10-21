@@ -4,15 +4,16 @@
 
 namespace jiminy
 {
-    MemoryDevice::MemoryDevice(uint64_t const & size) :
+    MemoryDevice::MemoryDevice(const uint64_t & size) :
     buffer_(static_cast<std::size_t>(size)),
     currentPos_(0)
     {
-        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE | openMode_t::NON_BLOCKING | openMode_t::APPEND;
+        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
+                          openMode_t::NON_BLOCKING | openMode_t::APPEND;
     }
 
 
-    MemoryDevice::MemoryDevice(MemoryDevice const & other) :
+    MemoryDevice::MemoryDevice(const MemoryDevice & other) :
     buffer_(other.buffer_),
     currentPos_(other.currentPos_)
     {
@@ -34,7 +35,8 @@ namespace jiminy
     buffer_(std::move(initBuffer)),
     currentPos_(0)
     {
-        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE | openMode_t::NON_BLOCKING | openMode_t::APPEND;
+        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
+                          openMode_t::NON_BLOCKING | openMode_t::APPEND;
     }
 
     MemoryDevice::~MemoryDevice(void)
@@ -42,7 +44,7 @@ namespace jiminy
         close();
     }
 
-    MemoryDevice & MemoryDevice::operator=(MemoryDevice const & other)
+    MemoryDevice & MemoryDevice::operator=(const MemoryDevice & other)
     {
         buffer_ = other.buffer_;
         currentPos_ = other.currentPos_;
@@ -74,8 +76,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    int64_t MemoryDevice::readData(void    * data,
-                                   int64_t   dataSize)
+    int64_t MemoryDevice::readData(void * data, int64_t dataSize)
     {
         // Read no more than available bytes
         int64_t toRead = std::min(dataSize, bytesAvailable());
@@ -84,8 +85,7 @@ namespace jiminy
         return toRead;
     }
 
-    int64_t MemoryDevice::writeData(void    const * data,
-                                    int64_t         dataSize)
+    int64_t MemoryDevice::writeData(const void * data, int64_t dataSize)
     {
         // Write no more than available bytes
         int64_t toWrite = std::min(dataSize, bytesAvailable());
@@ -101,7 +101,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t MemoryDevice::doOpen(openMode_t const & modes)
+    hresult_t MemoryDevice::doOpen(const openMode_t & modes)
     {
         if (!(modes & openMode_t::APPEND))
         {

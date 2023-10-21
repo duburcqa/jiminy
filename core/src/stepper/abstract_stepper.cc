@@ -3,22 +3,21 @@
 
 namespace jiminy
 {
-    AbstractStepper::AbstractStepper(systemDynamics const & f,
-                                     std::vector<Robot const *> const & robots):
+    AbstractStepper::AbstractStepper(const systemDynamics & f,
+                                     const std::vector<const Robot *> & robots) :
     f_(f),
     robots_(robots),
     state_(robots),
     stateDerivative_(robots),
     fOutput_(robots)
     {
-        // Empty on purpose
     }
 
     bool_t AbstractStepper::tryStep(std::vector<vectorN_t> & qSplit,
                                     std::vector<vectorN_t> & vSplit,
                                     std::vector<vectorN_t> & aSplit,
-                                    float64_t              & t,
-                                    float64_t              & dt)
+                                    float64_t & t,
+                                    float64_t & dt)
     {
         // Update buffers
         float64_t t_next = t + dt;
@@ -33,7 +32,7 @@ namespace jiminy
         // Make sure everything went fine
         if (result)
         {
-            for (vectorN_t const & a : stateDerivative_.a)
+            for (const vectorN_t & a : stateDerivative_.a)
             {
                 if ((a.array() != a.array()).any())
                 {
@@ -54,8 +53,7 @@ namespace jiminy
         return result;
     }
 
-    stateDerivative_t const & AbstractStepper::f(float64_t const & t,
-                                                 state_t   const & state)
+    const stateDerivative_t & AbstractStepper::f(const float64_t & t, const state_t & state)
     {
         f_(t, state.q, state.v, fOutput_.a);
         fOutput_.v = state.v;

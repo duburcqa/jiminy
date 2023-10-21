@@ -7,7 +7,7 @@
 
 namespace jiminy
 {
-    AbstractMotorBase::AbstractMotorBase(std::string const & name) :
+    AbstractMotorBase::AbstractMotorBase(const std::string & name) :
     baseMotorOptions_(nullptr),
     motorOptionsHolder_(),
     isInitialized_(false),
@@ -38,14 +38,16 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractMotorBase::attach(std::weak_ptr<Robot const> robot,
-                                        std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
-                                        MotorSharedDataHolder_t * sharedHolder)
+    hresult_t AbstractMotorBase::attach(
+        std::weak_ptr<const Robot> robot,
+        std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
+        MotorSharedDataHolder_t * sharedHolder)
     {
         // Make sure the motor is not already attached
         if (isAttached_)
         {
-            PRINT_ERROR("Motor already attached to a robot. Please 'detach' method before attaching it.");
+            PRINT_ERROR(
+                "Motor already attached to a robot. Please 'detach' method before attaching it.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -91,9 +93,10 @@ namespace jiminy
         // Remove associated col in the global data buffer
         if (motorIdx_ < sharedHolder_->num_ - 1)
         {
-            Eigen::Index const motorShift = static_cast<Eigen::Index>(sharedHolder_->num_ - motorIdx_ - 1);
+            const Eigen::Index motorShift =
+                static_cast<Eigen::Index>(sharedHolder_->num_ - motorIdx_ - 1);
             sharedHolder_->data_.segment(motorIdx_, motorShift) =
-                sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
+                sharedHolder_->data_.tail(motorIdx_ + 1);
         }
         sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
 
@@ -150,34 +153,39 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractMotorBase::setOptions(configHolder_t const & motorOptions)
+    hresult_t AbstractMotorBase::setOptions(const configHolder_t & motorOptions)
     {
         // Check if the internal buffers must be updated
         bool_t internalBuffersMustBeUpdated = false;
         if (isInitialized_)
         {
             // Check if armature has changed
-            bool_t const & enableArmature = boost::get<bool_t>(motorOptions.at("enableArmature"));
+            const bool_t & enableArmature = boost::get<bool_t>(motorOptions.at("enableArmature"));
             internalBuffersMustBeUpdated |= (baseMotorOptions_->enableArmature != enableArmature);
             if (enableArmature)
             {
-                float64_t const & armature = boost::get<float64_t>(motorOptions.at("armature"));
-                internalBuffersMustBeUpdated |= std::abs(armature - baseMotorOptions_->armature) > EPS;
+                const float64_t & armature = boost::get<float64_t>(motorOptions.at("armature"));
+                internalBuffersMustBeUpdated |=  //
+                    std::abs(armature - baseMotorOptions_->armature) > EPS;
             }
 
             // Check if command limit has changed
-            bool_t const & commandLimitFromUrdf = boost::get<bool_t>(motorOptions.at("commandLimitFromUrdf"));
-            internalBuffersMustBeUpdated |= (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
+            const bool_t & commandLimitFromUrdf =
+                boost::get<bool_t>(motorOptions.at("commandLimitFromUrdf"));
+            internalBuffersMustBeUpdated |=
+                (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
             if (!commandLimitFromUrdf)
             {
-                float64_t const & commandLimit = boost::get<float64_t>(motorOptions.at("commandLimit"));
-                internalBuffersMustBeUpdated |= std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
+                const float64_t & commandLimit =
+                    boost::get<float64_t>(motorOptions.at("commandLimit"));
+                internalBuffersMustBeUpdated |=
+                    std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
         }
 
         // Update the motor's options
         motorOptionsHolder_ = motorOptions;
-        baseMotorOptions_ = std::make_unique<abstractMotorOptions_t const>(motorOptionsHolder_);
+        baseMotorOptions_ = std::make_unique<const abstractMotorOptions_t>(motorOptionsHolder_);
 
         // Refresh the proxies if the robot is initialized if available
         if (auto robot = robot_.lock())
@@ -247,7 +255,8 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Motors are only supported for linear and rotary joints
-            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY && jointType_ != joint_t::ROTARY_UNBOUNDED)
+            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY &&
+                jointType_ != joint_t::ROTARY_UNBOUNDED)
             {
                 PRINT_ERROR("A motor can only be associated with a 1-dof linear or rotary joint.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -263,8 +272,10 @@ namespace jiminy
             if (baseMotorOptions_->commandLimitFromUrdf)
             {
                 int32_t jointVelocityOrigIdx;
-                ::jiminy::getJointVelocityIdx(robot->pncModelOrig_, jointName_, jointVelocityOrigIdx);
-                commandLimit_ = robot->pncModelOrig_.effortLimit[jointVelocityOrigIdx] / baseMotorOptions_->mechanicalReduction;
+                ::jiminy::getJointVelocityIdx(
+                    robot->pncModelOrig_, jointName_, jointVelocityOrigIdx);
+                commandLimit_ = robot->pncModelOrig_.effortLimit[jointVelocityOrigIdx] /
+                                baseMotorOptions_->mechanicalReduction;
             }
             else
             {
@@ -291,7 +302,7 @@ namespace jiminy
         return returnCode;
     }
 
-    float64_t const & AbstractMotorBase::get(void) const
+    const float64_t & AbstractMotorBase::get(void) const
     {
         static float64_t dataEmpty;
         if (isAttached_)
@@ -306,12 +317,12 @@ namespace jiminy
         return sharedHolder_->data_[motorIdx_];
     }
 
-    vectorN_t const & AbstractMotorBase::getAll(void) const
+    const vectorN_t & AbstractMotorBase::getAll(void) const
     {
         return sharedHolder_->data_;
     }
 
-    hresult_t AbstractMotorBase::setOptionsAll(configHolder_t const & motorOptions)
+    hresult_t AbstractMotorBase::setOptionsAll(const configHolder_t & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -333,61 +344,61 @@ namespace jiminy
         return returnCode;
     }
 
-    bool_t const & AbstractMotorBase::getIsInitialized(void) const
+    const bool_t & AbstractMotorBase::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    std::string const & AbstractMotorBase::getName(void) const
+    const std::string & AbstractMotorBase::getName(void) const
     {
         return name_;
     }
 
-    std::size_t const & AbstractMotorBase::getIdx(void) const
+    const std::size_t & AbstractMotorBase::getIdx(void) const
     {
         return motorIdx_;
     }
 
-    std::string const & AbstractMotorBase::getJointName(void) const
+    const std::string & AbstractMotorBase::getJointName(void) const
     {
         return jointName_;
     }
 
-    jointIndex_t const & AbstractMotorBase::getJointModelIdx(void) const
+    const jointIndex_t & AbstractMotorBase::getJointModelIdx(void) const
     {
         return jointModelIdx_;
     }
 
-    joint_t const & AbstractMotorBase::getJointType(void) const
+    const joint_t & AbstractMotorBase::getJointType(void) const
     {
         return jointType_;
     }
 
-    int32_t const & AbstractMotorBase::getJointPositionIdx(void) const
+    const int32_t & AbstractMotorBase::getJointPositionIdx(void) const
     {
         return jointPositionIdx_;
     }
 
-    int32_t const & AbstractMotorBase::getJointVelocityIdx(void) const
+    const int32_t & AbstractMotorBase::getJointVelocityIdx(void) const
     {
         return jointVelocityIdx_;
     }
 
-    float64_t const & AbstractMotorBase::getCommandLimit(void) const
+    const float64_t & AbstractMotorBase::getCommandLimit(void) const
     {
         return commandLimit_;
     }
 
-    float64_t const & AbstractMotorBase::getArmature(void) const
+    const float64_t & AbstractMotorBase::getArmature(void) const
     {
         return armature_;
     }
 
-    hresult_t AbstractMotorBase::computeEffortAll(float64_t const & t,
-                                                  vectorN_t const & q,
-                                                  vectorN_t const & v,
-                                                  vectorN_t const & a,
-                                                  vectorN_t const & command)
+    hresult_t AbstractMotorBase::computeEffortAll(const float64_t & t,
+                                                  const vectorN_t & q,
+                                                  const vectorN_t & v,
+                                                  const vectorN_t & a,
+                                                  const vectorN_t & command)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -412,11 +423,12 @@ namespace jiminy
                 {
                     nq_motor = 1;
                 }
-                returnCode = motor->computeEffort(t,
-                                                  q.segment(motor->getJointPositionIdx(), nq_motor),
-                                                  v[motor->getJointVelocityIdx()],
-                                                  a[motor->getJointVelocityIdx()],
-                                                  command[motor->getIdx()]);
+                returnCode =
+                    motor->computeEffort(t,
+                                         q.segment(motor->getJointPositionIdx(), nq_motor),
+                                         v[motor->getJointVelocityIdx()],
+                                         a[motor->getJointVelocityIdx()],
+                                         command[motor->getIdx()]);
             }
         }
 

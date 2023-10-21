@@ -1,9 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-///
-/// \brief Contains templated function implementation of the AbstractController class.
-///
-///////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_ABSTRACT_CONTROLLER_HXX
 #define JIMINY_ABSTRACT_CONTROLLER_HXX
 
@@ -16,7 +10,7 @@ namespace jiminy
     using std::to_string;
 
     template<typename DerivedType>
-    std::string to_string(Eigen::MatrixBase<DerivedType> const & var)
+    std::string to_string(const Eigen::MatrixBase<DerivedType> & var)
     {
         Eigen::IOFormat HeavyFmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
         std::stringstream matrixStream;
@@ -24,29 +18,24 @@ namespace jiminy
         return matrixStream.str();
     }
 
-    inline std::string to_string(char_t const * var)
+    inline std::string to_string(const char_t * var)
     {
         return {var};
     }
 
-    inline std::string to_string(std::string const & var)
+    inline std::string to_string(const std::string & var)
     {
         return var;
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////
+    /// \brief Register a constant to the telemetry.
     ///
-    /// \brief      Register a constant to the telemetry.
+    /// \param[in] fieldnames Name of the variable.
+    /// \param[in] values Variable to add to the telemetry.
     ///
-    /// \param[in]  fieldnames      Name of the variable.
-    /// \param[in]  values          Variable to add to the telemetry
-    ///
-    /// \return     Return code to determine whether the execution of the method was successful.
-    ///
-    ///////////////////////////////////////////////////////////////////////////////////////////////
+    /// \return Return code to determine whether the execution of the method was successful.
     template<typename T>
-    hresult_t AbstractController::registerConstant(std::string const & fieldname,
-                                                   T           const & value)
+    hresult_t AbstractController::registerConstant(const std::string & fieldname, const T & value)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
@@ -59,10 +48,8 @@ namespace jiminy
         // Check in local cache before.
         auto constantIt = std::find_if(registeredConstants_.begin(),
                                        registeredConstants_.end(),
-                                       [&fieldname](auto const & element)
-                                       {
-                                           return element.first == fieldname;
-                                       });
+                                       [&fieldname](const auto & element)
+                                       { return element.first == fieldname; });
         if (constantIt != registeredConstants_.end())
         {
             PRINT_ERROR("Constant already registered.");
@@ -74,8 +61,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractController::registerVariable(std::string const & fieldname,
-                                                   T           const & value)
+    hresult_t AbstractController::registerVariable(const std::string & fieldname, const T & value)
     {
         if (isTelemetryConfigured_)
         {
@@ -86,10 +72,8 @@ namespace jiminy
         // Check in local cache before.
         auto variableIt = std::find_if(registeredVariables_.begin(),
                                        registeredVariables_.end(),
-                                       [&fieldname](auto const & element)
-                                       {
-                                           return element.first == fieldname;
-                                       });
+                                       [&fieldname](const auto & element)
+                                       { return element.first == fieldname; });
         if (variableIt != registeredVariables_.end())
         {
             PRINT_ERROR("Variable already registered.");

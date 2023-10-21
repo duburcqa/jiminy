@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// \brief      Class constraining a wheel to roll without slipping on a flat plane.
-///
-/// \details    Given a frame to represent the wheel center, this class constrains it to move
-///             like it were rolling without slipping on a flat (not necessarily level) surface.
-///
-///////////////////////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_WHEEL_CONSTRAINT_H
 #define JIMINY_WHEEL_CONSTRAINT_H
 
@@ -20,57 +11,60 @@ namespace jiminy
 {
     class Model;
 
+    /// \brief Class constraining a wheel to roll without slipping on a flat plane.
+    ///
+    /// \details Given a frame to represent the wheel center, this class constrains it to move
+    ///          like it were rolling without slipping on a flat (not necessarily level) surface.
     class WheelConstraint : public AbstractConstraintTpl<WheelConstraint>
     {
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        WheelConstraint(WheelConstraint const & abstractConstraint) = delete;
-        WheelConstraint & operator = (WheelConstraint const & other) = delete;
+        DISABLE_COPY(WheelConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Constructor
-        ///
-        /// \param[in]  frameName   Name of the frame representing the center of the wheel.
-        /// \param[in]  wheelRadius Radius of the wheel (in m).
-        /// \param[in]  groundNormal Unit vector representing the normal to the ground, in the world frame.
-        /// \param[in]  wheelAxis   Axis of the wheel, in the local frame.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        WheelConstraint(std::string const & frameName,
-                        float64_t   const & wheelRadius,
-                        vector3_t   const & groundNormal,
-                        vector3_t   const & wheelAxis);
+    public:
+        /// \param[in] frameName Name of the frame representing the center of the wheel.
+        /// \param[in] wheelRadius Radius of the wheel (in m).
+        /// \param[in] groundNormal Normal to the ground in world frame as a unit vector.
+        /// \param[in] wheelAxis Axis of the wheel, in the local frame.
+        WheelConstraint(const std::string & frameName,
+                        const float64_t & wheelRadius,
+                        const vector3_t & groundNormal,
+                        const vector3_t & wheelAxis);
         virtual ~WheelConstraint(void) = default;
 
-        std::string const & getFrameName(void) const;
-        frameIndex_t const & getFrameIdx(void) const;
+        const std::string & getFrameName(void) const;
+        const frameIndex_t & getFrameIdx(void) const;
 
-        void setReferenceTransform(pinocchio::SE3 const & transformRef);
-        pinocchio::SE3 const & getReferenceTransform(void) const;
+        void setReferenceTransform(const pinocchio::SE3 & transformRef);
+        const pinocchio::SE3 & getReferenceTransform(void) const;
 
-        virtual hresult_t reset(vectorN_t const & /* q */,
-                                vectorN_t const & /* v */) override final;
+        virtual hresult_t reset(const vectorN_t & /* q */,
+                                const vectorN_t & /* v */) override final;
 
-        virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
-                                                  vectorN_t const & v) override final;
+        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q,
+                                                  const vectorN_t & v) override final;
 
     private:
-        std::string frameName_;         ///< Name of the frame on which the constraint operates.
-        frameIndex_t frameIdx_;         ///< Corresponding frame index.
-        float64_t radius_;              ///< Wheel radius.
-        vector3_t normal_;              ///< Ground normal, world frame.
-        vector3_t axis_;                ///< Wheel axis, local frame.
-        matrix3_t skewRadius_;          ///< Skew matrix of wheel axis, in world frame, scaled by radius.
-        matrix3_t dskewRadius_;         ///< Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
-        pinocchio::SE3 transformRef_;   ///< Reference pose of the frame to enforce.
-        matrix6N_t frameJacobian_;      ///< Stores full frame jacobian in world.
+        /// \brief Name of the frame on which the constraint operates.
+        std::string frameName_;
+        /// \brief Corresponding frame index.
+        frameIndex_t frameIdx_;
+        /// \brief Wheel radius.
+        float64_t radius_;
+        /// \brief Ground normal, world frame.
+        vector3_t normal_;
+        /// \brief Wheel axis, local frame.
+        vector3_t axis_;
+        /// \brief Skew matrix of wheel axis, in world frame, scaled by radius.
+        matrix3_t skewRadius_;
+        /// \brief Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
+        matrix3_t dskewRadius_;
+        /// \brief Reference pose of the frame to enforce.
+        pinocchio::SE3 transformRef_;
+        /// \brief Stores full frame jacobian in world.
+        matrix6N_t frameJacobian_;
     };
 }
 
-#endif //end of JIMINY_WHEEL_CONSTRAINT_H
+#endif  // end of JIMINY_WHEEL_CONSTRAINT_H

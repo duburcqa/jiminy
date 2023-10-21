@@ -15,7 +15,7 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractConstraintBase::attach(std::weak_ptr<Model const> model)
+    hresult_t AbstractConstraintBase::attach(std::weak_ptr<const Model> model)
     {
         // Make sure the constraint is not already attached
         if (isAttached_)
@@ -58,12 +58,12 @@ namespace jiminy
         isEnabled_ = false;
     }
 
-    bool_t const & AbstractConstraintBase::getIsEnabled(void) const
+    const bool_t & AbstractConstraintBase::getIsEnabled(void) const
     {
         return isEnabled_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgartePositionGain(float64_t const & kp)
+    hresult_t AbstractConstraintBase::setBaumgartePositionGain(const float64_t & kp)
     {
         if (kp < 0.0)
         {
@@ -79,7 +79,7 @@ namespace jiminy
         return kp_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgarteVelocityGain(float64_t const & kd)
+    hresult_t AbstractConstraintBase::setBaumgarteVelocityGain(const float64_t & kd)
     {
         if (kd < 0.0)
         {
@@ -95,7 +95,7 @@ namespace jiminy
         return kd_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgarteFreq(float64_t const & freq)
+    hresult_t AbstractConstraintBase::setBaumgarteFreq(const float64_t & freq)
     {
         if (freq < 0.0)
         {
@@ -104,7 +104,7 @@ namespace jiminy
         }
 
         // Critically damped position/velocity gains
-        float64_t const omega = 2.0 * M_PI * freq;
+        const float64_t omega = 2.0 * M_PI * freq;
         kp_ = omega * omega;
         kd_ = 2.0 * omega;
 
@@ -126,12 +126,12 @@ namespace jiminy
         return static_cast<uint64_t>(drift_.size());
     }
 
-    matrixN_t const & AbstractConstraintBase::getJacobian(void) const
+    const matrixN_t & AbstractConstraintBase::getJacobian(void) const
     {
         return jacobian_;
     }
 
-    vectorN_t const & AbstractConstraintBase::getDrift(void) const
+    const vectorN_t & AbstractConstraintBase::getDrift(void) const
     {
         return drift_;
     }

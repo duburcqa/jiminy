@@ -3,4 +3,4 @@
 
 #include "jiminy/core/io/serialization.hxx"
 
-#endif // JIMINY_SERIALIZATION_H
+#endif  // JIMINY_SERIALIZATION_H

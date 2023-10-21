@@ -6,7 +6,7 @@
 
 namespace jiminy
 {
-    AbstractSensorBase::AbstractSensorBase(std::string const & name) :
+    AbstractSensorBase::AbstractSensorBase(const std::string & name) :
     baseSensorOptions_(nullptr),
     sensorOptionsHolder_(),
     isInitialized_(false),
@@ -21,7 +21,7 @@ namespace jiminy
     }
 
     hresult_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                                     std::string const & objectPrefixName)
+                                                     const std::string & objectPrefixName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -83,10 +83,10 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractSensorBase::setOptions(configHolder_t const & sensorOptions)
+    hresult_t AbstractSensorBase::setOptions(const configHolder_t & sensorOptions)
     {
         sensorOptionsHolder_ = sensorOptions;
-        baseSensorOptions_ = std::make_unique<abstractSensorOptions_t const>(sensorOptionsHolder_);
+        baseSensorOptions_ = std::make_unique<const abstractSensorOptions_t>(sensorOptionsHolder_);
         return hresult_t::SUCCESS;
     }
 
@@ -95,17 +95,17 @@ namespace jiminy
         return sensorOptionsHolder_;
     }
 
-    bool_t const & AbstractSensorBase::getIsInitialized(void) const
+    const bool_t & AbstractSensorBase::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    bool_t const & AbstractSensorBase::getIsTelemetryConfigured(void) const
+    const bool_t & AbstractSensorBase::getIsTelemetryConfigured(void) const
     {
         return isTelemetryConfigured_;
     }
 
-    std::string const & AbstractSensorBase::getName(void) const
+    const std::string & AbstractSensorBase::getName(void) const
     {
         return name_;
     }

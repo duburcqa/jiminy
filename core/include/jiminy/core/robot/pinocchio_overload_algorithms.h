@@ -1,13 +1,14 @@
-/// Re-implementation of dynamics algorithms from pinocchio, adding support
-/// of armature (aka rotor inertia) for 1DoF (prismatic, revolute) joints.
+/// Patching of dynamics algorithms from pinocchio to add support of armature (aka rotor inertia).
 ///
-/// Based on https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/aba.hxx
-///          https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/rnea.hxx
-///          https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/crba.hxx
+/// Based on
+///   https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/aba.hxx
+///   https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/rnea.hxx
+///   https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/crba.hxx
 ///
 /// Splitting of algorithms in smaller blocks that can be executed separately.
 ///
-/// Based on https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/kinematics.hxx
+/// Based on
+///   https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/kinematics.hxx
 ///
 /// Copyright (c) 2014-2020, CNRS
 /// Copyright (c) 2018-2020, INRIA
@@ -17,15 +18,15 @@
 
 #include <functional>
 
-#include "pinocchio/spatial/fwd.hpp"               // `Pinocchio::Inertia`
-#include "pinocchio/multibody/visitor.hpp"         // `pinocchio::fusion::JointUnaryVisitorBase`
-#include "pinocchio/multibody/fwd.hpp"             // `pinocchio::ModelTpl`, `pinocchio::DataTpl`
-#include "pinocchio/multibody/joint/fwd.hpp"       // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
-#include "pinocchio/algorithm/aba.hpp"             // `pinocchio::aba`
-#include "pinocchio/algorithm/rnea.hpp"            // `pinocchio::rnea`
-#include "pinocchio/algorithm/crba.hpp"            // `pinocchio::crbaMinimal`
-#include "pinocchio/algorithm/energy.hpp"          // `pinocchio::computeKineticEnergy`
-#include "pinocchio/algorithm/cholesky.hpp"        // `pinocchio::cholesky::`
+#include "pinocchio/spatial/fwd.hpp"        // `Pinocchio::Inertia`
+#include "pinocchio/multibody/visitor.hpp"  // `pinocchio::fusion::JointUnaryVisitorBase`
+#include "pinocchio/multibody/fwd.hpp"      // `pinocchio::ModelTpl`, `pinocchio::DataTpl`
+#include "pinocchio/multibody/joint/fwd.hpp"  // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
+#include "pinocchio/algorithm/aba.hpp"       // `pinocchio::aba`
+#include "pinocchio/algorithm/rnea.hpp"      // `pinocchio::rnea`
+#include "pinocchio/algorithm/crba.hpp"      // `pinocchio::crbaMinimal`
+#include "pinocchio/algorithm/energy.hpp"    // `pinocchio::computeKineticEnergy`
+#include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
 
 #include "jiminy/core/macros.h"
 #include "jiminy/core/engine/engine_multi_robot.h"
@@ -33,115 +34,137 @@
 
 namespace jiminy::pinocchio_overload
 {
-    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
-             typename ConfigVectorType, typename TangentVectorType>
+    template<typename Scalar,
+             int Options,
+             template<typename, int>
+             class JointCollectionTpl,
+             typename ConfigVectorType,
+             typename TangentVectorType>
     inline Scalar
-    computeKineticEnergy(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
-                         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
-                         Eigen::MatrixBase<ConfigVectorType>                      const & q,
-                         Eigen::MatrixBase<TangentVectorType>                     const & v,
-                         bool_t                                                   const & update_kinematics = true)
+    computeKineticEnergy(const pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> & model,
+                         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
+                         const Eigen::MatrixBase<ConfigVectorType> & q,
+                         const Eigen::MatrixBase<TangentVectorType> & v,
+                         const bool_t & update_kinematics = true)
     {
         if (update_kinematics)
         {
             pinocchio::forwardKinematics(model, data, q, v);
         }
-        (void) pinocchio::computeKineticEnergy(model, data);
+        pinocchio::computeKineticEnergy(model, data);
         data.kinetic_energy += 0.5 * (model.rotorInertia.array() * v.array().square()).sum();
         return data.kinetic_energy;
     }
 
-    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
-             typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
+    template<typename Scalar,
+             int Options,
+             template<typename, int>
+             class JointCollectionTpl,
+             typename ConfigVectorType,
+             typename TangentVectorType1,
+             typename TangentVectorType2,
              typename ForceDerived>
-    inline typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType const &
-    rnea(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
-         pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
-         Eigen::MatrixBase<ConfigVectorType>                    const & q,
-         Eigen::MatrixBase<TangentVectorType1>                  const & v,
-         Eigen::MatrixBase<TangentVectorType2>                  const & a,
-         vector_aligned_t<ForceDerived>                         const & fext)
+    inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::
+        TangentVectorType &
+        rnea(const pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> & model,
+             pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
+             const Eigen::MatrixBase<ConfigVectorType> & q,
+             const Eigen::MatrixBase<TangentVectorType1> & v,
+             const Eigen::MatrixBase<TangentVectorType2> & a,
+             const vector_aligned_t<ForceDerived> & fext)
     {
-        (void) pinocchio::rnea(model, data, q, v, a, fext);
+        pinocchio::rnea(model, data, q, v, a, fext);
         data.tau.array() += model.rotorInertia.array() * a.array();
         return data.tau;
     }
 
-    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
-             typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2>
-    inline typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType const &
-    rnea(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
-         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
-         Eigen::MatrixBase<ConfigVectorType>                      const & q,
-         Eigen::MatrixBase<TangentVectorType1>                    const & v,
-         Eigen::MatrixBase<TangentVectorType2>                    const & a)
+    template<typename Scalar,
+             int Options,
+             template<typename, int>
+             class JointCollectionTpl,
+             typename ConfigVectorType,
+             typename TangentVectorType1,
+             typename TangentVectorType2>
+    inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::
+        TangentVectorType &
+        rnea(const pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> & model,
+             pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
+             const Eigen::MatrixBase<ConfigVectorType> & q,
+             const Eigen::MatrixBase<TangentVectorType1> & v,
+             const Eigen::MatrixBase<TangentVectorType2> & a)
     {
-        (void) pinocchio::rnea(model, data, q, v, a);
+        pinocchio::rnea(model, data, q, v, a);
         data.tau.array() += model.rotorInertia.array() * a.array();
         return data.tau;
     }
 
-    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
+    template<typename Scalar,
+             int Options,
+             template<typename, int>
+             class JointCollectionTpl,
              typename ConfigVectorType>
-    inline typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs const &
-    crba(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
-         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
-         Eigen::MatrixBase<ConfigVectorType>                      const & q)
+    inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs &
+    crba(const pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> & model,
+         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
+         const Eigen::MatrixBase<ConfigVectorType> & q)
     {
         data.Ycrb[0].setZero();  // FIXME: Remove this patch after migration to pinocchio>=2.6.21
-        (void) pinocchio::crbaMinimal(model, data, q);
+        pinocchio::crbaMinimal(model, data, q);
         data.M.diagonal() += model.rotorInertia;
         return data.M;
     }
 
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>
     struct AbaBackwardStep :
-    public pinocchio::fusion::JointUnaryVisitorBase<AbaBackwardStep<Scalar, Options, JointCollectionTpl> >
+    public pinocchio::fusion::JointUnaryVisitorBase<
+        AbaBackwardStep<Scalar, Options, JointCollectionTpl>>
     {
         typedef pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> Model;
         typedef pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> Data;
 
-        typedef boost::fusion::vector<Model const &, Data &> ArgsType;
+        typedef boost::fusion::vector<const Model &, Data &> ArgsType;
 
         template<typename JointModel>
-        static void algo(pinocchio::JointModelBase<JointModel> const & jmodel,
+        static void algo(const pinocchio::JointModelBase<JointModel> & jmodel,
                          pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
-                         Model const & model,
+                         const Model & model,
                          Data & data)
         {
-            /// @brief  See equation 9.28 of Roy Featherstone Rigid Body Dynamics
+            /// \brief See equation 9.28 of Roy Featherstone Rigid Body Dynamics
 
             typedef typename Model::JointIndex JointIndex;
             typedef typename Data::Inertia Inertia;
             typedef typename Data::Force Force;
 
             const JointIndex & i = jmodel.id();
-            const JointIndex & parent  = model.parents[i];
+            const JointIndex & parent = model.parents[i];
             typename Inertia::Matrix6 & Ia = data.Yaba[i];
 
-            jmodel.jointVelocitySelector(data.u) -= jdata.S().transpose()*data.f[i];
+            jmodel.jointVelocitySelector(data.u) -= jdata.S().transpose() * data.f[i];
 
             // jmodel.calc_aba(jdata.derived(), Ia, parent > 0);
-            auto const Im = model.rotorInertia.segment(jmodel.idx_v(), jmodel.nv());
+            const auto Im = model.rotorInertia.segment(jmodel.idx_v(), jmodel.nv());
             calc_aba(jmodel.derived(), jdata.derived(), Im, Ia, parent > 0);
 
             if (parent > 0)
             {
                 Force & pa = data.f[i];
-                pa.toVector() += Ia * data.a_gf[i].toVector() + jdata.UDinv() * jmodel.jointVelocitySelector(data.u);
+                pa.toVector().noalias() += Ia * data.a_gf[i].toVector();
+                pa.toVector().noalias() += jdata.UDinv() * jmodel.jointVelocitySelector(data.u);
                 data.Yaba[parent] += pinocchio::internal::SE3actOn<Scalar>::run(data.liMi[i], Ia);
                 data.f[parent] += data.liMi[i].act(pa);
             }
         }
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
-        static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_v<JointModel>, void>
-        calc_aba(JointModel const & model,
+        static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel> ||
+                                    is_pinocchio_joint_revolute_unbounded_v<JointModel>,
+                                void>
+        calc_aba(const JointModel & model,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             using Inertia = pinocchio::Inertia;
 
@@ -156,18 +179,20 @@ namespace jiminy::pinocchio_overload
         }
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
-        static std::enable_if_t<is_pinocchio_joint_revolute_unaligned_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, void>
-        calc_aba(JointModel const & model,
+        static std::enable_if_t<is_pinocchio_joint_revolute_unaligned_v<JointModel> ||
+                                    is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>,
+                                void>
+        calc_aba(const JointModel & model,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             using Inertia = pinocchio::Inertia;
 
             data.U.noalias() = Ia.template middleCols<3>(Inertia::ANGULAR) * model.axis;
-            data.Dinv[0] = Scalar(1) / (model.axis.dot(data.U.template segment<3>(Inertia::ANGULAR)) + Im[0]);
+            const Scalar Iproj = model.axis.dot(data.U.template segment<3>(Inertia::ANGULAR));
+            data.Dinv[0] = Scalar(1) / (Iproj + Im[0]);
             data.UDinv.noalias() = data.U * data.Dinv[0];
 
             if (update_I)
@@ -178,11 +203,11 @@ namespace jiminy::pinocchio_overload
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel>, void>
-        calc_aba(JointModel const & model,
+        calc_aba(const JointModel & model,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             using Inertia = pinocchio::Inertia;
 
@@ -198,16 +223,17 @@ namespace jiminy::pinocchio_overload
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_prismatic_unaligned_v<JointModel>, void>
-        calc_aba(JointModel const & model,
+        calc_aba(const JointModel & model,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             using Inertia = pinocchio::Inertia;
 
             data.U.noalias() = Ia.template middleCols<3>(Inertia::LINEAR) * model.axis;
-            data.Dinv[0] = Scalar(1) / (model.axis.dot(data.U.template segment<3>(Inertia::LINEAR)) + Im[0]);
+            const Scalar Iproj = model.axis.dot(data.U.template segment<3>(Inertia::LINEAR));
+            data.Dinv[0] = Scalar(1) / (Iproj + Im[0]);
             data.UDinv.noalias() = data.U * data.Dinv[0];
 
             if (update_I)
@@ -218,11 +244,11 @@ namespace jiminy::pinocchio_overload
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_planar_v<JointModel>, void>
-        calc_aba(JointModel const & /* model */,
+        calc_aba(const JointModel & /* model */,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             static Eigen::Matrix<Scalar, 3, 3> StU;
 
@@ -235,7 +261,7 @@ namespace jiminy::pinocchio_overload
             pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
             data.UDinv.noalias() = data.U * data.Dinv;
 
-            if(update_I)
+            if (update_I)
             {
                 Ia.noalias() -= data.UDinv * data.U.transpose();
             }
@@ -243,11 +269,11 @@ namespace jiminy::pinocchio_overload
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_translation_v<JointModel>, void>
-        calc_aba(JointModel const & /* model */,
+        calc_aba(const JointModel & /* model */,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             static Eigen::Matrix<Scalar, 3, 3> StU;
 
@@ -260,7 +286,7 @@ namespace jiminy::pinocchio_overload
             pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
             data.UDinv.noalias() = data.U * data.Dinv;
 
-            if(update_I)
+            if (update_I)
             {
                 Ia.noalias() -= data.UDinv * data.U.transpose();
             }
@@ -268,17 +294,17 @@ namespace jiminy::pinocchio_overload
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_spherical_v<JointModel>, void>
-        calc_aba(JointModel const & /* model */,
+        calc_aba(const JointModel & /* model */,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             static Eigen::Matrix<Scalar, 3, 3> StU;
 
             using Inertia = pinocchio::Inertia;
 
-            data.U = Ia.template block<6,3>(0, Inertia::ANGULAR);
+            data.U = Ia.template block<6, 3>(0, Inertia::ANGULAR);
             StU = data.U.template middleRows<3>(Inertia::ANGULAR);
             StU.diagonal() += Im;
 
@@ -293,18 +319,20 @@ namespace jiminy::pinocchio_overload
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_spherical_zyx_v<JointModel>, void>
-        calc_aba(JointModel const & /* model */,
+        calc_aba(const JointModel & /* model */,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             static Eigen::Matrix<Scalar, 3, 3> StU;
 
             using Inertia = pinocchio::Inertia;
 
-            data.U.noalias() = Ia.template middleCols<3>(Inertia::ANGULAR) * data.S.angularSubspace();
-            StU.noalias() = data.S.angularSubspace().transpose() * data.U.template middleRows<3>(Inertia::ANGULAR);
+            data.U.noalias() =
+                Ia.template middleCols<3>(Inertia::ANGULAR) * data.S.angularSubspace();
+            StU.noalias() = data.S.angularSubspace().transpose() *
+                            data.U.template middleRows<3>(Inertia::ANGULAR);
             StU.diagonal() += Im;
 
             pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
@@ -318,11 +346,11 @@ namespace jiminy::pinocchio_overload
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_freeflyer_v<JointModel>, void>
-        calc_aba(JointModel const & /* model */,
+        calc_aba(const JointModel & /* model */,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             static Eigen::Matrix<Scalar, 6, 6> StU;
 
@@ -333,7 +361,7 @@ namespace jiminy::pinocchio_overload
             pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
             data.UDinv.noalias() = data.U * data.Dinv;
 
-            if(update_I)
+            if (update_I)
             {
                 Ia.noalias() -= data.UDinv * data.U.transpose();
             }
@@ -341,11 +369,11 @@ namespace jiminy::pinocchio_overload
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
         static std::enable_if_t<is_pinocchio_joint_composite_v<JointModel>, void>
-        calc_aba(JointModel const & /* model */,
+        calc_aba(const JointModel & /* model */,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & Im,
+                 const Eigen::MatrixBase<VectorLike> & Im,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
             static Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> StU;
 
@@ -356,53 +384,62 @@ namespace jiminy::pinocchio_overload
             pinocchio::internal::PerformStYSInversion<Scalar>::run(StU, data.Dinv);
             data.UDinv.noalias() = data.U * data.Dinv;
 
-            if(update_I)
+            if (update_I)
             {
                 Ia.noalias() -= data.UDinv * data.U.transpose();
             }
         }
 
         template<typename JointModel, typename VectorLike, typename Matrix6Like>
-        static std::enable_if_t< is_pinocchio_joint_mimic_v<JointModel>, void>
-        calc_aba(JointModel const & model,
+        static std::enable_if_t<is_pinocchio_joint_mimic_v<JointModel>, void>
+        calc_aba(const JointModel & model,
                  typename JointModel::JointDataDerived & data,
-                 Eigen::MatrixBase<VectorLike> const & /* Im */,
+                 const Eigen::MatrixBase<VectorLike> & /* Im */,
                  Eigen::MatrixBase<Matrix6Like> & Ia,
-                 bool const & update_I)
+                 const bool & update_I)
         {
-            // TODO: Not implemented
+            // TODO: Not implemented. Consider raising an exception.
             model.calc_aba(data.derived(), Ia, update_I);
         }
 
         template<int axis>
-        static int getAxis(pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> const & /* model */)
+        static int
+        getAxis(const pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> & /* model */)
         {
             return axis;
         }
 
         template<int axis>
-        static int getAxis(pinocchio::JointModelRevoluteUnboundedTpl<Scalar, Options, axis> const & /* model */)
+        static int getAxis(
+            const pinocchio::JointModelRevoluteUnboundedTpl<Scalar, Options, axis> & /* model */)
         {
             return axis;
         }
 
         template<int axis>
-        static int getAxis(pinocchio::JointModelPrismaticTpl<Scalar, Options, axis> const & /* model */)
+        static int
+        getAxis(const pinocchio::JointModelPrismaticTpl<Scalar, Options, axis> & /* model */)
         {
             return axis;
         }
     };
 
-    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
-             typename ConfigVectorType, typename TangentVectorType1,
-             typename TangentVectorType2, typename ForceDerived>
-    inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::TangentVectorType &
-    aba(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
-        pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
-        Eigen::MatrixBase<ConfigVectorType>                      const & q,
-        Eigen::MatrixBase<TangentVectorType1>                    const & v,
-        Eigen::MatrixBase<TangentVectorType2>                    const & tau,
-        vector_aligned_t<ForceDerived>                           const & fext)
+    template<typename Scalar,
+             int Options,
+             template<typename, int>
+             class JointCollectionTpl,
+             typename ConfigVectorType,
+             typename TangentVectorType1,
+             typename TangentVectorType2,
+             typename ForceDerived>
+    inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::
+        TangentVectorType &
+        aba(const pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> & model,
+            pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
+            const Eigen::MatrixBase<ConfigVectorType> & q,
+            const Eigen::MatrixBase<TangentVectorType1> & v,
+            const Eigen::MatrixBase<TangentVectorType2> & tau,
+            const vector_aligned_t<ForceDerived> & fext)
     {
         assert(model.check(data) && "data is not consistent with model.");
         assert(q.size() == model.nq && "The joint configuration vector is not of right size");
@@ -413,27 +450,30 @@ namespace jiminy::pinocchio_overload
         data.a_gf[0] = -model.gravity;
         data.u = tau;
 
-        typedef pinocchio::AbaForwardStep1<Scalar, Options, JointCollectionTpl,
-                                           ConfigVectorType, TangentVectorType1> Pass1;
+        typedef pinocchio::AbaForwardStep1<Scalar,
+                                           Options,
+                                           JointCollectionTpl,
+                                           ConfigVectorType,
+                                           TangentVectorType1>
+            Pass1;
         for (int32_t i = 1; i < model.njoints; ++i)
         {
-            Pass1::run(model.joints[i], data.joints[i],
+            Pass1::run(model.joints[i],
+                       data.joints[i],
                        typename Pass1::ArgsType(model, data, q.derived(), v.derived()));
             data.f[i] -= fext[i];
         }
 
-        typedef AbaBackwardStep<Scalar,Options,JointCollectionTpl> Pass2;
+        typedef AbaBackwardStep<Scalar, Options, JointCollectionTpl> Pass2;
         for (int32_t i = model.njoints - 1; i > 0; --i)
         {
-            Pass2::run(model.joints[i], data.joints[i],
-                       typename Pass2::ArgsType(model, data));
+            Pass2::run(model.joints[i], data.joints[i], typename Pass2::ArgsType(model, data));
         }
 
-        typedef pinocchio::AbaForwardStep2<Scalar,Options,JointCollectionTpl> Pass3;
+        typedef pinocchio::AbaForwardStep2<Scalar, Options, JointCollectionTpl> Pass3;
         for (int32_t i = 1; i < model.njoints; ++i)
         {
-            Pass3::run(model.joints[i], data.joints[i],
-                       typename Pass3::ArgsType(model, data));
+            Pass3::run(model.joints[i], data.joints[i], typename Pass3::ArgsType(model, data));
         }
 
         return data.ddq;
@@ -441,23 +481,25 @@ namespace jiminy::pinocchio_overload
 
     template<typename TangentVectorType>
     struct ForwardKinematicsAccelerationStep :
-    public pinocchio::fusion::JointUnaryVisitorBase<ForwardKinematicsAccelerationStep<TangentVectorType> >
+    public pinocchio::fusion::JointUnaryVisitorBase<
+        ForwardKinematicsAccelerationStep<TangentVectorType>>
     {
-        typedef boost::fusion::vector<pinocchio::Model const &,
+        typedef boost::fusion::vector<const pinocchio::Model &,
                                       pinocchio::Data &,
-                                      Eigen::MatrixBase<TangentVectorType> const &
-                                      > ArgsType;
+                                      const Eigen::MatrixBase<TangentVectorType> &>
+            ArgsType;
 
         template<typename JointModel>
-        static void algo(pinocchio::JointModelBase<JointModel> const & jmodel,
+        static void algo(const pinocchio::JointModelBase<JointModel> & jmodel,
                          pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
-                         pinocchio::Model const & model,
+                         const pinocchio::Model & model,
                          pinocchio::Data & data,
-                         Eigen::MatrixBase<TangentVectorType> const & a)
+                         const Eigen::MatrixBase<TangentVectorType> & a)
         {
-            jointIndex_t const & i = jmodel.id();
-            jointIndex_t const & parent = model.parents[i];
-            data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
+            const jointIndex_t & i = jmodel.id();
+            const jointIndex_t & parent = model.parents[i];
+            data.a[i] =
+                jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
             if (parent > 0)
             {
                 data.a[i] += data.liMi[i].actInv(data.a[parent]);
@@ -466,14 +508,14 @@ namespace jiminy::pinocchio_overload
     };
 
     /// \brief Compute only joints spatial accelerations, assuming positions and velocities
-    /// are already up-to-date.
+    ///        are already up-to-date.
     ///
-    /// Note that it does not update the internal buffer `data.ddq`. This buffer is updated
-    /// by `aba` and `forwardDynamics` algorithms only.
+    /// \warning This method does not update the internal buffer `data.ddq`. This buffer is only
+    ///          updated by `aba` and `forwardDynamics` algorithms.
     template<typename TangentVectorType>
-    inline void forwardKinematicsAcceleration(pinocchio::Model const & model,
+    inline void forwardKinematicsAcceleration(const pinocchio::Model & model,
                                               pinocchio::Data & data,
-                                              Eigen::MatrixBase<TangentVectorType> const & a)
+                                              const Eigen::MatrixBase<TangentVectorType> & a)
     {
         typedef ForwardKinematicsAccelerationStep<TangentVectorType> Pass;
         data.a[0].setZero();
@@ -484,10 +526,10 @@ namespace jiminy::pinocchio_overload
     }
 
     template<typename JacobianType>
-    hresult_t computeJMinvJt(pinocchio::Model const & model,
+    hresult_t computeJMinvJt(const pinocchio::Model & model,
                              pinocchio::Data & data,
-                             Eigen::MatrixBase<JacobianType> const & J,
-                             bool_t const & updateDecomposition = true)
+                             const Eigen::MatrixBase<JacobianType> & J,
+                             const bool_t & updateDecomposition = true)
     {
         // Compute the Cholesky decomposition of mass matrix M if requested
         if (updateDecomposition)
@@ -506,13 +548,14 @@ namespace jiminy::pinocchio_overload
            - Use row-major for sDUiJt and U to enable vectorization
            - Implement custom cholesky::Uiv to compute all columns at once (faster SIMD)
            - TODO: Leverage sparsity of J when multiplying by sqrt(D)^-1 */
-        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> sDUiJt = J.transpose();
-        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U = data.U;
-        std::vector<int> const & nvt = data.nvSubtree_fromRow;
-        for(int k = model.nv - 2; k >= 0; --k)
+        using Matrix = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+        Matrix sDUiJt = J.transpose();
+        Matrix U = data.U;
+        for (int k = model.nv - 2; k >= 0; --k)
         {
-            sDUiJt.row(k).noalias() -= U.row(k).segment(k + 1, nvt[static_cast<std::size_t>(k)] - 1) *
-                sDUiJt.middleRows(k + 1, nvt[static_cast<std::size_t>(k)] - 1);
+            const int nvt = data.nvSubtree_fromRow[static_cast<std::size_t>(k)] - 1;
+            sDUiJt.row(k).noalias() -=
+                U.row(k).segment(k + 1, nvt) * sDUiJt.middleRows(k + 1, nvt);
         }
         sDUiJt.array().colwise() *= data.Dinv.array().sqrt();
 
@@ -520,8 +563,8 @@ namespace jiminy::pinocchio_overload
            - TODO: Leverage sparsity of J which propagates through sDUiJt.
              Reference: Exploiting Sparsity in Operational-Space Dynamics
              (Figure 10 of http://royfeatherstone.org/papers/sparseOSIM.pdf).
-             Each constraint should provide a std::vector of slice
-             std::pair<start, dim> corresponding to all dependency blocks. */
+             Each constraint should provide a std::vector of slice std::pair<start, dim>
+             corresponding to all dependency blocks. */
         data.JMinvJt.resize(J.rows(), J.rows());
         data.JMinvJt.triangularView<Eigen::Lower>().setZero();
         data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(sDUiJt.transpose());
@@ -531,8 +574,8 @@ namespace jiminy::pinocchio_overload
 
     template<typename RhsType>
     inline auto solveJMinvJtv(pinocchio::Data & data,
-                              Eigen::MatrixBase<RhsType> const & v,
-                              bool_t const & updateDecomposition = true)
+                              const Eigen::MatrixBase<RhsType> & v,
+                              const bool_t & updateDecomposition = true)
     {
         // Compute Cholesky decomposition of JMinvJt
         if (updateDecomposition)

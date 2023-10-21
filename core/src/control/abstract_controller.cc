@@ -19,14 +19,15 @@ namespace jiminy
     registeredVariables_(),
     registeredConstants_()
     {
-        AbstractController::setOptions(getDefaultControllerOptions());  // Clarify that the base implementation is called
+        // Clarify that the base implementation is called
+        AbstractController::setOptions(getDefaultControllerOptions());
     }
 
-    hresult_t AbstractController::initialize(std::weak_ptr<Robot const> robotIn)
+    hresult_t AbstractController::initialize(std::weak_ptr<const Robot> robotIn)
     {
-        /* Note that it is not possible to reinitialize a controller for a different robot,
-           because otherwise, it would be necessary to check consistency with system at
-           engine level when calling reset. */
+        /* Note that it is not possible to reinitialize a controller for a different robot, because
+           otherwise, it would be necessary to check consistency with system at engine level when
+           calling reset. */
 
         // Make sure the robot is valid
         auto robot = robotIn.lock();
@@ -45,12 +46,12 @@ namespace jiminy
         // Backup robot
         robot_ = robotIn;
 
-        /* Set initialization flag to true temporarily to enable calling
-           'reset', 'computeCommand' and 'internalDynamics' methods. */
+        /* Set initialization flag to true temporarily to enable calling 'reset', 'computeCommand'
+           and 'internalDynamics' methods. */
         isInitialized_ = true;
 
         // Reset the controller completely
-        reset(true);  // It cannot fail at this point
+        reset(true);  // Cannot fail at this point
 
         try
         {
@@ -77,20 +78,21 @@ namespace jiminy
             }
             return returnCode;
         }
-        catch (std::exception const & e)
+        catch (const std::exception & e)
         {
             isInitialized_ = false;
             robot_.reset();
             sensorsData_.clear();
-            PRINT_ERROR("Something is wrong, probably because of 'commandFct'.\n"
-                        "Raised from exception: ", e.what());
+            PRINT_ERROR(
+                "Something is wrong, probably because of 'commandFct'.\nRaised from exception: ",
+                e.what());
             return hresult_t::ERROR_GENERIC;
         }
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractController::reset(bool_t const & resetDynamicTelemetry)
+    hresult_t AbstractController::reset(const bool_t & resetDynamicTelemetry)
     {
         if (!isInitialized_)
         {
@@ -123,7 +125,7 @@ namespace jiminy
     }
 
     hresult_t AbstractController::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                                     std::string const & objectPrefixName)
+                                                     const std::string & objectPrefixName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -143,18 +145,17 @@ namespace jiminy
                     objectName = objectPrefixName + TELEMETRY_FIELDNAME_DELIMITER + objectName;
                 }
                 telemetrySender_.configureObject(telemetryData, objectName);
-                for (auto const & [name, valuePtr] : registeredVariables_)
+                for (const auto & [name, valuePtr] : registeredVariables_)
                 {
                     if (returnCode == hresult_t::SUCCESS)
                     {
                         // TODO Remove explicit `name` capture when moving to C++20
-                        std::visit([&, & name = name](auto && arg)
-                                   {
-                                       telemetrySender_.registerVariable(name, arg);
-                                   }, valuePtr);
+                        std::visit([&, &name = name](auto && arg)
+                                   { telemetrySender_.registerVariable(name, arg); },
+                                   valuePtr);
                     }
                 }
-                for (auto const & [name, value] : registeredConstants_)
+                for (const auto & [name, value] : registeredConstants_)
                 {
                     if (returnCode == hresult_t::SUCCESS)
                     {
@@ -177,10 +178,12 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t registerVariableImpl(static_map_t<std::string, std::variant<float64_t const *, int64_t const *> > & registeredVariables,
-                                   bool_t const & isTelemetryConfigured,
-                                   std::vector<std::string> const & fieldnames,
-                                   Eigen::Ref<Eigen::Matrix<T, -1, 1>, 0, Eigen::InnerStride<> > const & values)
+    hresult_t registerVariableImpl(
+        static_map_t<std::string, std::variant<const float64_t *, const int64_t *>> &
+            registeredVariables,
+        const bool_t & isTelemetryConfigured,
+        const std::vector<std::string> & fieldnames,
+        const Eigen::Ref<Eigen::Matrix<T, -1, 1>, 0, Eigen::InnerStride<>> & values)
     {
         if (isTelemetryConfigured)
         {
@@ -189,15 +192,13 @@ namespace jiminy
         }
 
         std::vector<std::string>::const_iterator fieldIt = fieldnames.begin();
-        for (std::size_t i=0; fieldIt != fieldnames.end(); ++fieldIt, ++i)
+        for (std::size_t i = 0; fieldIt != fieldnames.end(); ++fieldIt, ++i)
         {
             // Check in local cache before.
             auto variableIt = std::find_if(registeredVariables.begin(),
                                            registeredVariables.end(),
-                                           [&fieldIt](auto const & element)
-                                           {
-                                               return element.first == *fieldIt;
-                                           });
+                                           [&fieldIt](const auto & element)
+                                           { return element.first == *fieldIt; });
             if (variableIt != registeredVariables.end())
             {
                 PRINT_ERROR("Variable already registered.");
@@ -209,16 +210,20 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractController::registerVariable(std::vector<std::string> const & fieldnames,
-                                                   Eigen::Ref<Eigen::Matrix<float64_t, -1, 1>, 0, Eigen::InnerStride<> > const & values)
+    hresult_t AbstractController::registerVariable(
+        const std::vector<std::string> & fieldnames,
+        const Eigen::Ref<Eigen::Matrix<float64_t, -1, 1>, 0, Eigen::InnerStride<>> & values)
     {
-        return registerVariableImpl<float64_t>(registeredVariables_, isTelemetryConfigured_, fieldnames, values);
+        return registerVariableImpl<float64_t>(
+            registeredVariables_, isTelemetryConfigured_, fieldnames, values);
     }
 
-    hresult_t AbstractController::registerVariable(std::vector<std::string> const & fieldnames,
-                                                   Eigen::Ref<Eigen::Matrix<int64_t, -1, 1>, 0, Eigen::InnerStride<> > const & values)
+    hresult_t AbstractController::registerVariable(
+        const std::vector<std::string> & fieldnames,
+        const Eigen::Ref<Eigen::Matrix<int64_t, -1, 1>, 0, Eigen::InnerStride<>> & values)
     {
-        return registerVariableImpl<int64_t>(registeredVariables_, isTelemetryConfigured_, fieldnames, values);
+        return registerVariableImpl<int64_t>(
+            registeredVariables_, isTelemetryConfigured_, fieldnames, values);
     }
 
     void AbstractController::removeEntries(void)
@@ -240,19 +245,19 @@ namespace jiminy
         return ctrlOptionsHolder_;
     }
 
-    hresult_t AbstractController::setOptions(configHolder_t const & ctrlOptions)
+    hresult_t AbstractController::setOptions(const configHolder_t & ctrlOptions)
     {
         ctrlOptionsHolder_ = ctrlOptions;
-        baseControllerOptions_ = std::make_unique<controllerOptions_t const>(ctrlOptionsHolder_);
+        baseControllerOptions_ = std::make_unique<const controllerOptions_t>(ctrlOptionsHolder_);
         return hresult_t::SUCCESS;
     }
 
-    bool_t const & AbstractController::getIsInitialized(void) const
+    const bool_t & AbstractController::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    bool_t const & AbstractController::getIsTelemetryConfigured(void) const
+    const bool_t & AbstractController::getIsTelemetryConfigured(void) const
     {
         return isTelemetryConfigured_;
     }

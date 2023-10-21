@@ -1,9 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-///
-/// \brief TelemetryData Implementation.
-///
-//////////////////////////////////////////////////////////////////////////////
-
 #include "jiminy/core/constants.h"
 
 #include "jiminy/core/telemetry/telemetry_data.h"
@@ -28,8 +22,8 @@ namespace jiminy
         isRegisteringAvailable_ = true;
     }
 
-    hresult_t TelemetryData::registerConstant(std::string const & variableNameIn,
-                                              std::string const & constantValueIn)
+    hresult_t TelemetryData::registerConstant(const std::string & variableNameIn,
+                                              const std::string & constantValueIn)
     {
         // Check if registration is possible
         if (!isRegisteringAvailable_)
@@ -42,10 +36,8 @@ namespace jiminy
         auto variableIt = std::find_if(
             constantsRegistry_.begin(),
             constantsRegistry_.end(),
-            [&variableNameIn](std::pair<std::string, std::string> const & element) -> bool_t
-            {
-                return element.first == variableNameIn;
-            });
+            [&variableNameIn](const std::pair<std::string, std::string> & element) -> bool_t
+            { return element.first == variableNameIn; });
         if (variableIt != constantsRegistry_.end())
         {
             PRINT_ERROR("Entry already exists.");
@@ -73,12 +65,17 @@ namespace jiminy
         header[3] = ((TELEMETRY_VERSION & 0xff000000) >> 24);
 
         // Record constants
-        header.insert(header.end(), START_CONSTANTS.data(), START_CONSTANTS.data() + START_CONSTANTS.size());
+        header.insert(
+            header.end(), START_CONSTANTS.data(), START_CONSTANTS.data() + START_CONSTANTS.size());
         header.push_back('\0');
-        for (std::pair<std::string, std::string> const & keyValue : constantsRegistry_)
+        for (const std::pair<std::string, std::string> & keyValue : constantsRegistry_)
         {
-            for (auto strPtr : std::array<std::string const *, 4>{{
-                &START_LINE_TOKEN, &keyValue.first, &TELEMETRY_CONSTANT_DELIMITER, &keyValue.second}})
+            for (auto strPtr : std::array<const std::string *, 4>{
+                     {&START_LINE_TOKEN,
+                      &keyValue.first,
+                      &TELEMETRY_CONSTANT_DELIMITER,
+                      &keyValue.second}
+            })
             {
                 header.insert(header.end(), strPtr->begin(), strPtr->end());
             }
@@ -88,15 +85,18 @@ namespace jiminy
         // Record entries numbers
         std::string entriesNumbers;
         entriesNumbers += START_LINE_TOKEN + NUM_INTS;
-        entriesNumbers += std::to_string(integersRegistry_.size() + 1);  // +1 because we add Global.Time
+        entriesNumbers += std::to_string(integersRegistry_.size() + 1);  // +1 because we add
+                                                                         // Global.Time
         entriesNumbers += '\0';
         entriesNumbers += START_LINE_TOKEN + NUM_FLOATS;
         entriesNumbers += std::to_string(floatsRegistry_.size());
         entriesNumbers += '\0';
-        header.insert(header.end(), entriesNumbers.data(), entriesNumbers.data() + entriesNumbers.size());
+        header.insert(
+            header.end(), entriesNumbers.data(), entriesNumbers.data() + entriesNumbers.size());
 
         // Insert column token
-        header.insert(header.end(), START_COLUMNS.data(), START_COLUMNS.data() + START_COLUMNS.size());
+        header.insert(
+            header.end(), START_COLUMNS.data(), START_COLUMNS.data() + START_COLUMNS.size());
         header.push_back('\0');
 
         // Record Global.Time - integers, floats
@@ -104,14 +104,14 @@ namespace jiminy
         header.push_back('\0');
 
         // Record integers
-        for (std::pair<std::string, int64_t> const & keyValue : integersRegistry_)
+        for (const std::pair<std::string, int64_t> & keyValue : integersRegistry_)
         {
             header.insert(header.end(), keyValue.first.begin(), keyValue.first.end());
             header.push_back('\0');
         }
 
         // Record floats
-        for (std::pair<std::string, float64_t> const & keyValue : floatsRegistry_)
+        for (const std::pair<std::string, float64_t> & keyValue : floatsRegistry_)
         {
             header.insert(header.end(), keyValue.first.begin(), keyValue.first.end());
             header.push_back('\0');
@@ -123,13 +123,13 @@ namespace jiminy
     }
 
     template<>
-    std::deque<std::pair<std::string, int64_t> > * TelemetryData::getRegistry<int64_t>(void)
+    std::deque<std::pair<std::string, int64_t>> * TelemetryData::getRegistry<int64_t>(void)
     {
         return &integersRegistry_;
     }
 
     template<>
-    std::deque<std::pair<std::string, float64_t> > * TelemetryData::getRegistry<float64_t>(void)
+    std::deque<std::pair<std::string, float64_t>> * TelemetryData::getRegistry<float64_t>(void)
     {
         return &floatsRegistry_;
     }

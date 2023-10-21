@@ -1,7 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-/// \brief    Contains types used in Jiminy.
-///////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_TYPES_H
 #define JIMINY_TYPES_H
 
@@ -30,7 +26,8 @@
 // `pinocchio::container::aligned_vector`
 namespace pinocchio::container
 {
-    template<typename T> struct aligned_vector;
+    template<typename T>
+    struct aligned_vector;
 }
 
 
@@ -45,15 +42,15 @@ namespace jiminy
     using float64_t = double;
 
     template<typename K, typename M>
-    using static_map_t = std::vector<std::pair<K, M> >;
+    using static_map_t = std::vector<std::pair<K, M>>;
 
     template<typename K, typename M>
-    using static_map_aligned_t = std::vector<std::pair<K, M>,
-        Eigen::aligned_allocator<std::pair<K, M> > >;
+    using static_map_aligned_t =
+        std::vector<std::pair<K, M>, Eigen::aligned_allocator<std::pair<K, M>>>;
 
     template<typename K, typename M>
-    using map_aligned_t = std::map<K, M, std::less<K>,
-        Eigen::aligned_allocator<std::pair<const K, M> > >;
+    using map_aligned_t =
+        std::map<K, M, std::less<K>, Eigen::aligned_allocator<std::pair<const K, M>>>;
 
     template<typename M>
     using vector_aligned_t = pinocchio::container::aligned_vector<M>;
@@ -82,9 +79,9 @@ namespace jiminy
     // *************** Constant of the universe ******************
 
     // Define some aliases for convenience
-    float64_t const INF = std::numeric_limits<float64_t>::infinity();
-    float64_t const EPS = std::numeric_limits<float64_t>::epsilon();
-    float64_t const qNAN = std::numeric_limits<float64_t>::quiet_NaN();
+    const float64_t INF = std::numeric_limits<float64_t>::infinity();
+    const float64_t EPS = std::numeric_limits<float64_t>::epsilon();
+    const float64_t qNAN = std::numeric_limits<float64_t>::quiet_NaN();
 
     // *************** Jiminy-specific definitions ***************
 
@@ -105,7 +102,9 @@ namespace jiminy
         NONE = 0,
         LINEAR = 1,
         ROTARY = 2,
-        ROTARY_UNBOUNDED = 3,  // Must be treated separately because the position is encoded using [cos(theta), sin(theta)] instead of theta
+        /// \details Must be distinguished from ROTARY because the position is not encoded as theta
+        ///          but rather [cos(theta), sin(theta)] to avoid potential overflow.
+        ROTARY_UNBOUNDED = 3,
         PLANAR = 4,
         TRANSLATION = 5,
         SPHERICAL = 6,
@@ -114,18 +113,17 @@ namespace jiminy
 
     /* Ground profile signature.
        Note that it is impossible to use function pointer since it does not support functors. */
-    using heightmapFunctor_t = std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)>;
+    using heightmapFunctor_t =
+        std::function<std::pair<float64_t, vector3_t>(const vector3_t & /*pos*/)>;
 
     // Flexible joints
     struct flexibleJointData_t
     {
     public:
-        inline bool_t operator==(flexibleJointData_t const & other) const
+        inline bool_t operator==(const flexibleJointData_t & other) const
         {
-            return (this->frameName == other.frameName
-                 && this->stiffness == other.stiffness
-                 && this->damping == other.damping
-                 && this->inertia == other.inertia);
+            return (this->frameName == other.frameName && this->stiffness == other.stiffness &&
+                    this->damping == other.damping && this->inertia == other.inertia);
         };
 
     public:
@@ -139,10 +137,19 @@ namespace jiminy
 
     // Configuration/option holder
     using configField_t = boost::make_recursive_variant<
-        bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, heightmapFunctor_t,
-        std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>,
-        flexibilityConfig_t, std::unordered_map<std::string, boost::recursive_variant_>
-    >::type;
+        bool_t,
+        uint32_t,
+        int32_t,
+        float64_t,
+        std::string,
+        vectorN_t,
+        matrixN_t,
+        heightmapFunctor_t,
+        std::vector<std::string>,
+        std::vector<vectorN_t>,
+        std::vector<matrixN_t>,
+        flexibilityConfig_t,
+        std::unordered_map<std::string, boost::recursive_variant_>>::type;
 
     using configHolder_t = std::unordered_map<std::string, configField_t>;
 
@@ -150,55 +157,53 @@ namespace jiminy
     struct sensorDataTypePair_t
     {
     public:
-        sensorDataTypePair_t(std::string                 const & nameIn,
-                             Eigen::Index                const & idIn,
-                             Eigen::Ref<vectorN_t const> const & valueIn) :
+        sensorDataTypePair_t(const std::string & nameIn,
+                             const Eigen::Index & idIn,
+                             const Eigen::Ref<const vectorN_t> & valueIn) :
         name(nameIn),
         idx(idIn),
         value(valueIn)
         {
-            // Empty on purpose
-        };
+        }
 
     public:
         std::string name;
         Eigen::Index idx;
-        Eigen::Ref<vectorN_t const> value;
+        Eigen::Ref<const vectorN_t> value;
     };
 
     using namespace boost::multi_index;
-    struct IndexByIdx {};
-    struct IndexByName {};
+    struct IndexByIdx
+    {
+    };
+    struct IndexByName
+    {
+    };
     using sensorDataTypeMapImpl_t = multi_index_container<
         sensorDataTypePair_t,
         indexed_by<
-            ordered_unique<
-                tag<IndexByIdx>,
-                member<sensorDataTypePair_t, Eigen::Index, &sensorDataTypePair_t::idx>,
-                std::less<Eigen::Index> // Ordering by ascending order
-            >,
-            hashed_unique<
-                tag<IndexByName>,
-                member<sensorDataTypePair_t, std::string, &sensorDataTypePair_t::name>
-            >
-        >
-    >;
+            ordered_unique<tag<IndexByIdx>,
+                           member<sensorDataTypePair_t, Eigen::Index, &sensorDataTypePair_t::idx>,
+                           std::less<Eigen::Index>  // Ordering by ascending order
+                           >,
+            hashed_unique<tag<IndexByName>,
+                          member<sensorDataTypePair_t, std::string, &sensorDataTypePair_t::name>>>>;
     struct sensorDataTypeMap_t : public sensorDataTypeMapImpl_t
     {
     public:
-        sensorDataTypeMap_t(std::optional<std::reference_wrapper<matrixN_t const> > sharedData = std::nullopt) :
+        sensorDataTypeMap_t(
+            std::optional<std::reference_wrapper<const matrixN_t>> sharedData = std::nullopt) :
         sensorDataTypeMapImpl_t(),
         sharedDataRef_(sharedData)
         {
-            // Empty on purpose
         }
 
-        inline matrixN_t const & getAll(void) const
+        inline const matrixN_t & getAll(void) const
         {
             if (sharedDataRef_)
             {
-                /* Return shared memory directly. It is up to the sure to make sure
-                   that it is actually up-to-date. */
+                /* Return shared memory directly. It is up to the user to make sure that it is
+                   actually up-to-date. */
                 assert(size() == static_cast<std::size_t>(sharedDataRef_->get().cols()) &&
                        "Shared data inconsistent with sensors.");
                 return sharedDataRef_->get();
@@ -216,9 +221,10 @@ namespace jiminy
                 sharedData_.resize(dataSize, static_cast<Eigen::Index>(size()));
 
                 // Set internal buffer by copying sensor data sequentially
-                for (auto const & sensor : *this)
+                for (const auto & sensor : *this)
                 {
-                    assert(sensor.value.size() == dataSize && "Cannot get all data at once for heterogeneous sensors.");
+                    assert(sensor.value.size() == dataSize &&
+                           "Cannot get all data at once for heterogeneous sensors.");
                     sharedData_.col(sensor.idx) = sensor.value;
                 }
 
@@ -227,30 +233,28 @@ namespace jiminy
         }
 
     private:
-        std::optional<std::reference_wrapper<matrixN_t const> > sharedDataRef_;
+        std::optional<std::reference_wrapper<const matrixN_t>> sharedDataRef_;
         /* Internal buffer if no shared memory available.
-           It is useful if the sensors data is not contiguous in the first place,
-           which is likely to be the case when allocated from Python, or when
-           re-generating sensor data from log files. */
-        mutable matrixN_t sharedData_ {};
+           It is useful if the sensors data is not contiguous in the first place, which is likely
+           to be the case when allocated from Python, or when re-generating sensor data from log
+           files. */
+        mutable matrixN_t sharedData_{};
     };
 
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;
 
     // System force functors
-    using forceProfileFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
-                                                                 vectorN_t const & /*q*/,
-                                                                 vectorN_t const & /*v*/)>;
-    using forceCouplingFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
-                                                                  vectorN_t const & /*q_1*/,
-                                                                  vectorN_t const & /*v_1*/,
-                                                                  vectorN_t const & /*q_2*/,
-                                                                  vectorN_t const & /*v_2*/)>;
+    using forceProfileFunctor_t = std::function<pinocchio::Force(
+        const float64_t & /*t*/, const vectorN_t & /*q*/, const vectorN_t & /*v*/)>;
+    using forceCouplingFunctor_t = std::function<pinocchio::Force(const float64_t & /*t*/,
+                                                                  const vectorN_t & /*q_1*/,
+                                                                  const vectorN_t & /*v_1*/,
+                                                                  const vectorN_t & /*q_2*/,
+                                                                  const vectorN_t & /*v_2*/)>;
 
     // System callback functor
-    using callbackFunctor_t = std::function<bool_t(float64_t const & /*t*/,
-                                                   vectorN_t const & /*q*/,
-                                                   vectorN_t const & /*v*/)>;
+    using callbackFunctor_t = std::function<bool_t(
+        const float64_t & /*t*/, const vectorN_t & /*q*/, const vectorN_t & /*v*/)>;
 
     // Log data type
     struct logData_t

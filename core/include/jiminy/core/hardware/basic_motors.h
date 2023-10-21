@@ -9,9 +9,7 @@ namespace jiminy
     class SimpleMotor : public AbstractMotorBase
     {
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Dictionary gathering the configuration options shared between motors
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Dictionary gathering the configuration options shared between motors.
         virtual configHolder_t getDefaultMotorOptions(void) override
         {
             // Add extra options or update default values
@@ -29,14 +27,34 @@ namespace jiminy
 
         struct motorOptions_t : public abstractMotorOptions_t
         {
-            bool_t    const enableFriction;             ///< Flag to enable the joint friction. It is always negative.
-            float64_t const frictionViscousPositive;    ///< Viscous coefficient of the joint friction for positive velocity. It is always negative.
-            float64_t const frictionViscousNegative;    ///< Viscous coefficient of the joint friction for negative velocity. It is always negative.
-            float64_t const frictionDryPositive;        ///< Dry coefficient of the joint friction for positive velocity, which corresponds to the positive dry friction at saturation. It is always negative.
-            float64_t const frictionDryNegative;        ///< Dry coefficient of the joint friction for negative velocity, which corresponds to the negative dry friction at saturation. It is always negative.
-            float64_t const frictionDrySlope;           ///< Slope of the Tanh of the joint velocity that saturate the dry friction at frictionDry. It is always positive (no dry friction when equal to zero).
+            /// \brief Flag to enable the joint friction.
+            ///
+            /// \pre Must be negative.
+            const bool_t enableFriction;
+            /// \brief Viscous coefficient of the joint friction for positive velocity.
+            ///
+            /// \pre Must be negative.
+            const float64_t frictionViscousPositive;
+            /// \brief Viscous coefficient of the joint friction for negative velocity.
+            ///
+            /// \pre Must be negative.
+            const float64_t frictionViscousNegative;
+            /// \brief Dry coefficient of the joint friction for positive velocity, which
+            ///        corresponds to the positive dry friction at saturation.
+            ///
+            /// \pre Must be negative.
+            const float64_t frictionDryPositive;
+            /// \brief Dry coefficient of the joint friction for negative velocity, which
+            ///        corresponds to the negative dry friction at saturation.
+            ///
+            /// \pre Must be negative.
+            const float64_t frictionDryNegative;
+            /// \brief Slope of the Tanh of the joint velocity that saturates the dry friction.
+            ///
+            /// \pre Must be negative.
+            const float64_t frictionDrySlope;
 
-            motorOptions_t(configHolder_t const & options) :
+            motorOptions_t(const configHolder_t & options) :
             abstractMotorOptions_t(options),
             enableFriction(boost::get<bool_t>(options.at("enableFriction"))),
             frictionViscousPositive(boost::get<float64_t>(options.at("frictionViscousPositive"))),
@@ -45,31 +63,30 @@ namespace jiminy
             frictionDryNegative(boost::get<float64_t>(options.at("frictionDryNegative"))),
             frictionDrySlope(boost::get<float64_t>(options.at("frictionDrySlope")))
             {
-                // Empty on purpose
             }
         };
 
     public:
-        SimpleMotor(std::string const & name);
+        SimpleMotor(const std::string & name);
         virtual ~SimpleMotor(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        hresult_t initialize(std::string const & jointName);
+        hresult_t initialize(const std::string & jointName);
 
-        virtual hresult_t setOptions(configHolder_t const & motorOptions) final override;
+        virtual hresult_t setOptions(const configHolder_t & motorOptions) final override;
 
     private:
-        virtual hresult_t computeEffort(float64_t const & t,
-                                        Eigen::VectorBlock<vectorN_t const> const & q,
-                                        float64_t const & v,
-                                        float64_t const & a,
+        virtual hresult_t computeEffort(const float64_t & t,
+                                        const Eigen::VectorBlock<const vectorN_t> & q,
+                                        const float64_t & v,
+                                        const float64_t & a,
                                         float64_t command) final override;
 
     private:
-        std::unique_ptr<motorOptions_t const> motorOptions_;
+        std::unique_ptr<const motorOptions_t> motorOptions_;
     };
 }
 
-#endif //end of JIMINY_BASIC_MOTORS_H
+#endif  // end of JIMINY_BASIC_MOTORS_H

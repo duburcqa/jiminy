@@ -1,10 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-///
-/// \brief       Declaration of the TelemetryRecorder class, responsible of recording data
-///              to files.
-///
-///////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_TELEMETRY_RECORDER_H
 #define JIMINY_TELEMETRY_RECORDER_H
 
@@ -17,83 +10,71 @@ namespace jiminy
 {
     class TelemetryData;
 
-    ////////////////////////////////////////////////////////////////////////
-    /// \class TelemetryRecorder
-    ////////////////////////////////////////////////////////////////////////
+    /// \class This class is responsible of writing recorded data to devices.
     class TelemetryRecorder
     {
-        // Disable the copy of the class
-        TelemetryRecorder(TelemetryRecorder const &) = delete;
-        TelemetryRecorder & operator=(TelemetryRecorder const &) = delete;
+    public:
+        DISABLE_COPY(TelemetryRecorder)
+
     public:
         TelemetryRecorder(void) = default;
         ~TelemetryRecorder(void);
 
-        ////////////////////////////////////////////////////////////////////////
         /// \brief Initialize the recorder.
+        ///
         /// \param[in] telemetryData Data to log.
         /// \param[in] timeUnit Unit with which the time will be logged.
-        ///                     Note that time is logged.
-        ////////////////////////////////////////////////////////////////////////
-        hresult_t initialize(TelemetryData       * telemetryData,
-                             float64_t     const & timeUnit);
+        hresult_t initialize(TelemetryData * telemetryData, const float64_t & timeUnit);
 
-        bool_t const & getIsInitialized(void);
+        const bool_t & getIsInitialized(void);
 
-        /// \brief Get the maximum time that can be logged with the current precision.
-        /// \return Max time, in second.
+        /// \brief Maximum time that can be logged with the current precision.
         float64_t getMaximumLogTime(void) const;
 
-        /// \brief Get the maximum time that can be logged with the given precision.
-        /// \return Max time, in second.
-        static float64_t getMaximumLogTime(float64_t const & timeUnit);
+        /// \brief Maximum time that can be logged with the given precision.
+        static float64_t getMaximumLogTime(const float64_t & timeUnit);
 
-        ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the recorder.
-        ////////////////////////////////////////////////////////////////////////
         void reset(void);
 
-        ////////////////////////////////////////////////////////////////////////
         /// \brief Create a new line in the record with the current telemetry data.
-        ////////////////////////////////////////////////////////////////////////
-        hresult_t flushDataSnapshot(float64_t const & timestamp);
+        hresult_t flushDataSnapshot(const float64_t & timestamp);
 
         hresult_t getLog(logData_t & logData);
-        static hresult_t readLog(std::string const & filename,
-                                 logData_t         & logData);
+        static hresult_t readLog(const std::string & filename, logData_t & logData);
 
-        hresult_t writeLog(std::string const & filename);
+        hresult_t writeLog(const std::string & filename);
 
     private:
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief   Create a new file to continue the recording.
-        /// \details Each chunk shall have a size defined by LARGE_LOG_SIZE_GB and shall
-        ///          be suffixed by an increasing natural number.
+        /// \brief Create a new file to continue the recording.
         ///
-        /// \return  SUCCESS if successful, the corresponding telemetry error otherwise.
-        ////////////////////////////////////////////////////////////////////////
+        /// \return SUCCESS if successful, the corresponding telemetry error otherwise.
         hresult_t createNewChunk();
 
     private:
-        ///////////////////////////////////////////////////////////////////////
-        /// Private attributes
-        ///////////////////////////////////////////////////////////////////////
         std::deque<MemoryDevice> flows_;
 
         bool_t isInitialized_;
 
         int64_t recordedBytesLimits_;
         int64_t recordedBytesDataLine_;
-        int64_t recordedBytes_;             ///< Bytes recorded in the file.
-        int64_t headerSize_;                ///< Size in byte of the header.
+        /// \brief Bytes recorded in the file.
+        int64_t recordedBytes_;
+        /// \brief Size in byte of the header.
+        int64_t headerSize_;
 
-        std::deque<std::pair<std::string, int64_t> > const * integersRegistry_;  ///< Pointer to the integer registry
-        int64_t integerSectionSize_;                                             ///< Size in bytes of the integer data section
-        std::deque<std::pair<std::string, float64_t> > const * floatsRegistry_;  ///< Pointer to the float registry
-        int64_t floatSectionSize_;                                               ///< Size in bytes of the float data section
+        /// \brief Pointer to the integer registry.
+        const std::deque<std::pair<std::string, int64_t>> * integersRegistry_;
+        /// \brief Size in bytes of the integer data section.
+        int64_t integerSectionSize_;
+        /// \brief Pointer to the float registry.
+        const std::deque<std::pair<std::string, float64_t>> * floatsRegistry_;
+        /// \brief Size in bytes of the float data section.
+        int64_t floatSectionSize_;
 
-        float64_t timeUnitInv_;             ///< Precision to use when logging the time.
+        /// \brief Precision to use when logging the time.
+        float64_t timeUnitInv_;
     };
 }
 
-#endif // JIMINY_TELEMETRY_RECORDER_H
+#endif  // JIMINY_TELEMETRY_RECORDER_H

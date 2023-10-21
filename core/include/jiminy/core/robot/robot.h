@@ -18,18 +18,14 @@ namespace jiminy
     class Robot : public Model
     {
     public:
-        using motorsHolder_t = std::vector<std::shared_ptr<AbstractMotorBase> >;
-        using sensorsHolder_t = std::vector<std::shared_ptr<AbstractSensorBase> >;
+        using motorsHolder_t = std::vector<std::shared_ptr<AbstractMotorBase>>;
+        using sensorsHolder_t = std::vector<std::shared_ptr<AbstractSensorBase>>;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
-        using sensorsSharedHolder_t = std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> >;
+        using sensorsSharedHolder_t =
+            std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t>>;
 
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    public:
-        // Disable the copy of the class
-        Robot(Robot const & robot) = delete;
-        Robot & operator = (Robot const & other) = delete;
+        DISABLE_COPY(Robot)
 
     public:
         Robot(void);
@@ -38,104 +34,105 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        hresult_t initialize(pinocchio::Model const & pncModel,
-                             pinocchio::GeometryModel const & collisionModel,
-                             pinocchio::GeometryModel const & visualModel);
-        hresult_t initialize(std::string const & urdfPath,
-                             bool_t const & hasFreeflyer = true,
-                             std::vector<std::string> const & meshPackageDirs = {},
-                             bool_t const & loadVisualMeshes = false);
+        hresult_t initialize(const pinocchio::Model & pncModel,
+                             const pinocchio::GeometryModel & collisionModel,
+                             const pinocchio::GeometryModel & visualModel);
+        hresult_t initialize(const std::string & urdfPath,
+                             const bool_t & hasFreeflyer = true,
+                             const std::vector<std::string> & meshPackageDirs = {},
+                             const bool_t & loadVisualMeshes = false);
 
         hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> motor);
-        hresult_t getMotor(std::string const & motorName,
+        hresult_t getMotor(const std::string & motorName,
                            std::shared_ptr<AbstractMotorBase> & motor);
-        hresult_t getMotor(std::string const & motorName,
-                           std::weak_ptr<AbstractMotorBase const> & motor) const;
-        motorsHolder_t const & getMotors(void) const;
-        hresult_t detachMotor(std::string const & motorName);
-        hresult_t detachMotors(std::vector<std::string> const & motorsNames = {});
+        hresult_t getMotor(const std::string & motorName,
+                           std::weak_ptr<const AbstractMotorBase> & motor) const;
+        const motorsHolder_t & getMotors(void) const;
+        hresult_t detachMotor(const std::string & motorName);
+        hresult_t detachMotors(const std::vector<std::string> & motorsNames = {});
         hresult_t attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
-        hresult_t getSensor(std::string const & sensorType,
-                            std::string const & sensorName,
+        hresult_t getSensor(const std::string & sensorType,
+                            const std::string & sensorName,
                             std::shared_ptr<AbstractSensorBase> & sensor);
-        hresult_t getSensor(std::string const & sensorType,
-                            std::string const & sensorName,
-                            std::weak_ptr<AbstractSensorBase const> & sensor) const;
-        sensorsGroupHolder_t const & getSensors(void) const;
-        hresult_t detachSensor(std::string const & sensorType,
-                              std::string const & sensorName);
-        hresult_t detachSensors(std::string const & sensorType = {});
+        hresult_t getSensor(const std::string & sensorType,
+                            const std::string & sensorName,
+                            std::weak_ptr<const AbstractSensorBase> & sensor) const;
+        const sensorsGroupHolder_t & getSensors(void) const;
+        hresult_t detachSensor(const std::string & sensorType, const std::string & sensorName);
+        hresult_t detachSensors(const std::string & sensorType = {});
 
-        void computeMotorsEfforts(float64_t const & t,
-                                  vectorN_t const & q,
-                                  vectorN_t const & v,
-                                  vectorN_t const & a,
-                                  vectorN_t const & command);
-        vectorN_t const & getMotorsEfforts(void) const;
-        float64_t const & getMotorEffort(std::string const & motorName) const;
-        void setSensorsData(float64_t     const & t,
-                            vectorN_t     const & q,
-                            vectorN_t     const & v,
-                            vectorN_t     const & a,
-                            vectorN_t     const & uMotor,
-                            forceVector_t const & fExternal);
+        void computeMotorsEfforts(const float64_t & t,
+                                  const vectorN_t & q,
+                                  const vectorN_t & v,
+                                  const vectorN_t & a,
+                                  const vectorN_t & command);
+        const vectorN_t & getMotorsEfforts(void) const;
+        const float64_t & getMotorEffort(const std::string & motorName) const;
+        void setSensorsData(const float64_t & t,
+                            const vectorN_t & q,
+                            const vectorN_t & v,
+                            const vectorN_t & a,
+                            const vectorN_t & uMotor,
+                            const forceVector_t & fExternal);
 
         sensorsDataMap_t getSensorsData(void) const;
-        Eigen::Ref<vectorN_t const> getSensorData(std::string const & sensorType,
-                                                  std::string const & sensorName) const;
+        Eigen::Ref<const vectorN_t> getSensorData(const std::string & sensorType,
+                                                  const std::string & sensorName) const;
 
-        hresult_t setOptions(configHolder_t const & robotOptions);
+        hresult_t setOptions(const configHolder_t & robotOptions);
         configHolder_t getOptions(void) const;
-        hresult_t setMotorOptions(std::string    const & motorName,
-                                  configHolder_t const & motorOptions);
-        hresult_t setMotorsOptions(configHolder_t const & motorsOptions);
-        hresult_t getMotorOptions(std::string    const & motorName,
-                                  configHolder_t       & motorOptions) const;
+        hresult_t setMotorOptions(const std::string & motorName,
+                                  const configHolder_t & motorOptions);
+        hresult_t setMotorsOptions(const configHolder_t & motorsOptions);
+        hresult_t getMotorOptions(const std::string & motorName,
+                                  configHolder_t & motorOptions) const;
         configHolder_t getMotorsOptions(void) const;
-        hresult_t setSensorOptions(std::string    const & sensorType,
-                                   std::string    const & sensorName,
-                                   configHolder_t const & sensorOptions);
-        hresult_t setSensorsOptions(std::string    const & sensorType,
-                                    configHolder_t const & sensorsOptions);
-        hresult_t setSensorsOptions(configHolder_t const & sensorsOptions);
-        hresult_t getSensorOptions(std::string    const & sensorType,
-                                   std::string    const & sensorName,
-                                   configHolder_t       & sensorOptions) const;
-        hresult_t getSensorsOptions(std::string    const & sensorType,
-                                    configHolder_t       & sensorsOptions) const;
+        hresult_t setSensorOptions(const std::string & sensorType,
+                                   const std::string & sensorName,
+                                   const configHolder_t & sensorOptions);
+        hresult_t setSensorsOptions(const std::string & sensorType,
+                                    const configHolder_t & sensorsOptions);
+        hresult_t setSensorsOptions(const configHolder_t & sensorsOptions);
+        hresult_t getSensorOptions(const std::string & sensorType,
+                                   const std::string & sensorName,
+                                   configHolder_t & sensorOptions) const;
+        hresult_t getSensorsOptions(const std::string & sensorType,
+                                    configHolder_t & sensorsOptions) const;
         configHolder_t getSensorsOptions(void) const;
-        hresult_t setModelOptions(configHolder_t const & modelOptions);
+        hresult_t setModelOptions(const configHolder_t & modelOptions);
         configHolder_t getModelOptions(void) const;
-        hresult_t setTelemetryOptions(configHolder_t const & telemetryOptions);
+        hresult_t setTelemetryOptions(const configHolder_t & telemetryOptions);
         configHolder_t getTelemetryOptions(void) const;
 
-        hresult_t dumpOptions(std::string const & filepath) const;
-        hresult_t loadOptions(std::string const & filepath);
+        hresult_t dumpOptions(const std::string & filepath) const;
+        hresult_t loadOptions(const std::string & filepath);
 
-        // Those methods are not intended to be called manually. The Engine is taking care of it.
+        /// \remarks Those methods are not intended to be called manually. The Engine is taking
+        ///          care of it.
         virtual void reset(void) override;
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             std::string const & objectPrefixName = "");
+                                             const std::string & objectPrefixName = "");
         void updateTelemetry(void);
-        bool_t const & getIsTelemetryConfigured(void) const;
+        const bool_t & getIsTelemetryConfigured(void) const;
 
-        std::vector<std::string> const & getMotorsNames(void) const;
+        const std::vector<std::string> & getMotorsNames(void) const;
         std::vector<jointIndex_t> getMotorsModelIdx(void) const;
-        std::vector<std::vector<int32_t> > getMotorsPositionIdx(void) const;
+        std::vector<std::vector<int32_t>> getMotorsPositionIdx(void) const;
         std::vector<int32_t> getMotorsVelocityIdx(void) const;
-        std::unordered_map<std::string, std::vector<std::string> > const & getSensorsNames(void) const;
-        std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;
+        const std::unordered_map<std::string, std::vector<std::string>> &
+        getSensorsNames(void) const;
+        const std::vector<std::string> & getSensorsNames(const std::string & sensorType) const;
 
-        vectorN_t const & getCommandLimit(void) const;
+        const vectorN_t & getCommandLimit(void) const;
 
-        std::vector<std::string> const & getCommandFieldnames(void) const;
-        std::vector<std::string> const & getMotorEffortFieldnames(void) const;
+        const std::vector<std::string> & getCommandFieldnames(void) const;
+        const std::vector<std::string> & getMotorEffortFieldnames(void) const;
 
         // Getters without 'get' prefix for consistency with pinocchio C++ API
-        uint64_t const & nmotors(void) const;
+        const uint64_t & nmotors(void) const;
 
         hresult_t getLock(std::unique_ptr<LockGuardLocal> & lock);
-        bool_t const & getIsLocked(void) const;
+        const bool_t & getIsLocked(void) const;
 
     protected:
         hresult_t refreshMotorsProxies(void);
@@ -148,11 +145,16 @@ namespace jiminy
         motorsHolder_t motorsHolder_;
         sensorsGroupHolder_t sensorsGroupHolder_;
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
-        std::vector<std::string> motorsNames_;                                      ///< Name of the motors
-        std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///< Name of the sensors
-        std::vector<std::string> logFieldnamesCommand_;                             ///< Fieldnames of the command
-        std::vector<std::string> logFieldnamesMotorEffort_;                         ///< Fieldnames of the motors effort
-        uint64_t nmotors_;                                                          ///< The number of motors
+        /// \brief Name of the motors.
+        std::vector<std::string> motorsNames_;
+        /// \brief Name of the sensors.
+        std::unordered_map<std::string, std::vector<std::string>> sensorsNames_;
+        /// \brief Fieldnames of the command.
+        std::vector<std::string> logFieldnamesCommand_;
+        /// \brief Fieldnames of the motors effort.
+        std::vector<std::string> logFieldnamesMotorEffort_;
+        /// \brief The number of motors.
+        uint64_t nmotors_;
 
     private:
         std::unique_ptr<MutexLocal> mutexLocal_;
@@ -161,4 +163,4 @@ namespace jiminy
     };
 }
 
-#endif //end of JIMINY_ROBOT_H
+#endif  // end of JIMINY_ROBOT_H

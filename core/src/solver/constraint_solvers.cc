@@ -13,14 +13,14 @@
 
 namespace jiminy
 {
-    PGSSolver::PGSSolver(pinocchio::Model const * model,
+    PGSSolver::PGSSolver(const pinocchio::Model * model,
                          pinocchio::Data * data,
                          constraintsHolder_t * constraintsHolder,
-                         float64_t const & friction,
-                         float64_t const & torsion,
-                         float64_t const & tolAbs,
-                         float64_t const & tolRel,
-                         uint32_t const & maxIter) :
+                         const float64_t & friction,
+                         const float64_t & torsion,
+                         const float64_t & tolAbs,
+                         const float64_t & tolRel,
+                         const uint32_t & maxIter) :
     model_(model),
     data_(data),
     maxIter_(maxIter),
@@ -37,14 +37,13 @@ namespace jiminy
     {
         Eigen::Index constraintsRowsMax = 0U;
         constraintsHolder->foreach(
-            [&](
-                std::shared_ptr<AbstractConstraintBase> const & constraint,
-                constraintsHolderType_t const & holderType)
+            [&](const std::shared_ptr<AbstractConstraintBase> & constraint,
+                const constraintsHolderType_t & holderType)
             {
                 // Define constraint blocks
-                Eigen::Index const constraintDim = static_cast<Eigen::Index>(constraint->getDim());
-                ConstraintBlock block {};
-                ConstraintData constraintData {};
+                const Eigen::Index constraintDim = static_cast<Eigen::Index>(constraint->getDim());
+                ConstraintBlock block{};
+                ConstraintData constraintData{};
                 switch (holderType)
                 {
                 case constraintsHolderType_t::BOUNDS_JOINTS:
@@ -105,12 +104,12 @@ namespace jiminy
         yPrev_.resize(constraintsRowsMax);
     }
 
-    void PGSSolver::ProjectedGaussSeidelIter(matrixN_t const & A,
-                                             vectorN_t::SegmentReturnType const & b,
+    void PGSSolver::ProjectedGaussSeidelIter(const matrixN_t & A,
+                                             const vectorN_t::SegmentReturnType & b,
                                              vectorN_t::SegmentReturnType & x)
     {
         // First, loop over all unbounded constraints
-        for (ConstraintData const & constraintData : constraintsData_)
+        for (const ConstraintData & constraintData : constraintsData_)
         {
             // Bypass inactive and bounded constraints
             if (constraintData.isInactive || constraintData.nBlocks != 0)
@@ -120,8 +119,8 @@ namespace jiminy
 
             // Loop over all coefficients individually
             Eigen::Index i = constraintData.startIdx;
-            Eigen::Index const endIdx = i + constraintData.dim;
-            for (; i < endIdx ; ++i)
+            const Eigen::Index endIdx = i + constraintData.dim;
+            for (; i < endIdx; ++i)
             {
                 y_[i] = b[i] - A.col(i).dot(x);
                 x[i] += y_[i] / A(i, i);
@@ -129,12 +128,11 @@ namespace jiminy
         }
 
         /* Second, loop over all bounds constraints.
-           Update breadth-first to converge faster. The deeper is it the more
-           coefficients at the very end. Note that the maximum number of blocks
-           per constraint is 3. */
-        for (std::size_t i = 0; i < 3 ; ++i)
+           Update breadth-first to converge faster. The deeper is it the more coefficients at the
+           very end. Note that the maximum number of blocks per constraint is 3. */
+        for (std::size_t i = 0; i < 3; ++i)
         {
-            for (ConstraintData const & constraintData : constraintsData_)
+            for (const ConstraintData & constraintData : constraintsData_)
             {
                 // Bypass inactive or unbounded constraints or no block left
                 if (constraintData.isInactive || constraintData.nBlocks <= i)
@@ -143,13 +141,13 @@ namespace jiminy
                 }
 
                 // Extract block data
-                ConstraintBlock const & block = constraintData.blocks[i];
-                Eigen::Index const * fIdx = block.fIdx;
-                std::uint_fast8_t const & fSize = block.fSize;
-                Eigen::Index const & o = constraintData.startIdx;
-                Eigen::Index const i0 = o + fIdx[0];
-                float64_t const & hi = block.hi;
-                float64_t const & lo = block.lo;
+                const ConstraintBlock & block = constraintData.blocks[i];
+                const Eigen::Index * fIdx = block.fIdx;
+                const std::uint_fast8_t & fSize = block.fSize;
+                const Eigen::Index & o = constraintData.startIdx;
+                const Eigen::Index i0 = o + fIdx[0];
+                const float64_t & hi = block.hi;
+                const float64_t & lo = block.lo;
                 float64_t & e = x[i0];
 
                 // Bypass zero-ed coefficients
@@ -169,9 +167,9 @@ namespace jiminy
                 y_[i0] = b[i0] - A.col(i0).dot(x);
                 for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                 {
-                    Eigen::Index const k = o + fIdx[j];
+                    const Eigen::Index k = o + fIdx[j];
                     y_[k] = b[k] - A.col(k).dot(x);
-                    float64_t const & A_kk = A(k, k);
+                    const float64_t & A_kk = A(k, k);
                     if (A_kk > A_max)
                     {
                         A_max = A_kk;
@@ -180,7 +178,7 @@ namespace jiminy
                 e += y_[i0] / A_max;
                 for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                 {
-                    Eigen::Index const k = o + fIdx[j];
+                    const Eigen::Index k = o + fIdx[j];
                     x[k] += y_[k] / A_max;
                 }
 
@@ -192,7 +190,7 @@ namespace jiminy
                 }
                 else
                 {
-                    float64_t const thr = hi * xConst[fIdx[fSize - 1]];
+                    const float64_t thr = hi * xConst[fIdx[fSize - 1]];
                     if (fSize == 2)
                     {
                         // Specialization for speedup and numerical stability
@@ -204,12 +202,12 @@ namespace jiminy
                         float64_t squaredNorm = e * e;
                         for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                         {
-                            float64_t const & f = xConst[fIdx[j]];
+                            const float64_t & f = xConst[fIdx[j]];
                             squaredNorm += f * f;
                         }
                         if (squaredNorm > thr * thr)
                         {
-                            float64_t const scale = thr / std::sqrt(squaredNorm);
+                            const float64_t scale = thr / std::sqrt(squaredNorm);
                             e *= scale;
                             for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                             {
@@ -222,13 +220,13 @@ namespace jiminy
         }
     }
 
-    bool_t PGSSolver::ProjectedGaussSeidelSolver(matrixN_t const & A,
-                                                 vectorN_t::SegmentReturnType const & b,
+    bool_t PGSSolver::ProjectedGaussSeidelSolver(const matrixN_t & A,
+                                                 const vectorN_t::SegmentReturnType & b,
                                                  vectorN_t::SegmentReturnType & x)
     {
-        /* For some reason, it is impossible to get a better accuracy than 1e-5
-           for the absolute tolerance, even if unconstrained. It seems to be
-           related to compounding of errors, maybe due to the recursive computations. */
+        /* For some reason, it is impossible to get a better accuracy than 1e-5 for the absolute
+           tolerance, even if unconstrained. It seems to be related to compounding of errors, maybe
+           due to the recursive computations. */
 
         assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
 
@@ -245,7 +243,7 @@ namespace jiminy
             ProjectedGaussSeidelIter(A, b, x);
 
             // Check if terminate conditions are satisfied
-            float64_t const tol = tolAbs_ + tolRel_ * y_.cwiseAbs().maxCoeff();
+            const float64_t tol = tolAbs_ + tolRel_ * y_.cwiseAbs().maxCoeff();
             if (((y_ - yPrev_).array().abs() < tol).all())
             {
                 return true;
@@ -256,9 +254,8 @@ namespace jiminy
         return false;
     }
 
-    bool_t PGSSolver::SolveBoxedForwardDynamics(float64_t const & dampingInv,
-                                                bool_t const & isStateUpToDate,
-                                                bool_t const & ignoreBounds)
+    bool_t PGSSolver::SolveBoxedForwardDynamics(
+        const float64_t & dampingInv, const bool_t & isStateUpToDate, const bool_t & ignoreBounds)
     {
         // Update constraints start indices, jacobian, drift and multipliers
         Eigen::Index constraintRows = 0U;
@@ -270,7 +267,7 @@ namespace jiminy
             {
                 continue;
             }
-            Eigen::Index const constraintDim = constraintData.dim;
+            const Eigen::Index constraintDim = constraintData.dim;
             if (!isStateUpToDate)
             {
                 J_.middleRows(constraintRows, constraintDim) = constraint->getJacobian();
@@ -288,20 +285,20 @@ namespace jiminy
         auto b = b_.head(constraintRows);
 
         // Check if problem is bounded
-        bool_t isUnbounded = std::all_of(
-            constraintsData_.cbegin(), constraintsData_.cend(),
-            [](ConstraintData const & constraintData){
-                return constraintData.isInactive || constraintData.nBlocks == 0;
-            });
+        bool_t isUnbounded =
+            std::all_of(constraintsData_.cbegin(),
+                        constraintsData_.cend(),
+                        [](const ConstraintData & constraintData)
+                        { return constraintData.isInactive || constraintData.nBlocks == 0; });
 
         matrixN_t & A = data_->JMinvJt;
         if (!isStateUpToDate)
         {
             /* Compute JMinvJt, including cholesky decomposition of inertia matrix.
-               Abort computation if the inertia matrix is not positive definite,
-               which is never supposed to happen in theory but in practice it is
-               not sure because of compounding of errors. */
-            hresult_t const returnCode = pinocchio_overload::computeJMinvJt(*model_, *data_, J);
+               Abort computation if the inertia matrix is not positive definite, which is never
+               supposed to happen in theory but in practice it is not sure because of compounding
+               of errors. */
+            const hresult_t returnCode = pinocchio_overload::computeJMinvJt(*model_, *data_, J);
             if (returnCode != hresult_t::SUCCESS)
             {
                 data_->ddq.setConstant(qNAN);
@@ -309,17 +306,16 @@ namespace jiminy
             }
 
             /* Add regularization term in case A is not invertible.
-               Note that Mujoco defines an impedance function that depends on
-               the distance instead of a constant value to model soft contacts.
+
+               Note that Mujoco defines an impedance function that depends on the distance instead
+               of a constant value to model soft contacts.
+
                See: - http://mujoco.org/book/modeling.html#CSolver
                     - http://mujoco.org/book/computation.html#soParameters  */
-            A.diagonal() += clamp(
-                A.diagonal() * dampingInv,
-                PGS_MIN_REGULARIZER,
-                INF);
+            A.diagonal() += clamp(A.diagonal() * dampingInv, PGS_MIN_REGULARIZER, INF);
 
-            /* The LCP is not fully up-to-date since the upper triangular
-               part is still missing. This will only be done if necessary. */
+            /* The LCP is not fully up-to-date since the upper triangular part is still missing.
+               This will only be done if necessary. */
             isLcpFullyUpToDate_ = false;
         }
 
@@ -329,7 +325,7 @@ namespace jiminy
 
         /* Compute b.
            - TODO: Leverage sparsity of J to avoid dense matrix multiplication */
-        b = - gamma;
+        b = -gamma;
         b.noalias() -= J * data_->torque_residual;
 
         // Compute resulting forces solving forward dynamics
@@ -339,9 +335,10 @@ namespace jiminy
             /* There is no inequality constraint, so the problem can be
                solved exactly and efficiently using cholesky decomposition.
 
-               The implementation of this particular case is based on
-               `pinocchio::forwardDynamics methods` without modification.
-               See https://github.com/stack-of-tasks/pinocchio/blob/master/src/algorithm/contact-dynamics.hxx */
+               The implementation of this particular case is based on `pinocchio::forwardDynamics`
+               methods without modification. See
+               https://github.com/stack-of-tasks/pinocchio/blob/master/src/algorithm/contact-dynamics.hxx
+             */
 
             // Compute the Lagrange Multipliers
             lambda = pinocchio_overload::solveJMinvJtv(*data_, b, true);
@@ -352,8 +349,8 @@ namespace jiminy
         else
         {
             /* Full matrix is needed to enable leveraging vectorization.
-               Note that updating the lower part of the matrix is necessary
-               even if the state is up-to-date because of the 'if' branching. */
+               Note that updating the lower part of the matrix is necessary even if the state is
+               up-to-date because of the 'if' branching. */
             if (!isLcpFullyUpToDate_)
             {
                 A.triangularView<Eigen::StrictlyUpper>() = A.transpose();
@@ -366,14 +363,14 @@ namespace jiminy
 
         // Update lagrangian multipliers associated with the constraint
         constraintRows = 0U;
-        for (auto const & constraintData : constraintsData_)
+        for (const auto & constraintData : constraintsData_)
         {
             AbstractConstraintBase * constraint = constraintData.constraint;
             if (!constraint->getIsEnabled())
             {
                 continue;
             }
-            Eigen::Index const constraintDim = static_cast<Eigen::Index>(constraint->getDim());
+            const Eigen::Index constraintDim = static_cast<Eigen::Index>(constraint->getDim());
             constraint->lambda_ = lambda_.segment(constraintRows, constraintDim);
             constraintRows += constraintDim;
         };
