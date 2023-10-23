@@ -16,11 +16,11 @@ namespace jiminy
         /// \param[in] robots Robots whose dynamics the stepper will work on.
         AbstractRungeKuttaStepper(const systemDynamics & f,
                                   const std::vector<const Robot *> & robots,
-                                  const matrixN_t & RungeKuttaMatrix,
-                                  const vectorN_t & bWeights,
-                                  const vectorN_t & cNodes,
+                                  const Eigen::MatrixXd & RungeKuttaMatrix,
+                                  const Eigen::VectorXd & bWeights,
+                                  const Eigen::VectorXd & cNodes,
                                   const bool_t & isFSAL);
-        virtual ~AbstractRungeKuttaStepper(void) = default;
+        virtual ~AbstractRungeKuttaStepper() = default;
 
     protected:
         /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
@@ -37,16 +37,16 @@ namespace jiminy
         /// \param[in, out] dt Timestep to be scaled.
         ///
         /// \return Whether the step is successful. The timestep dt is updated in place.
-        virtual bool_t
-        adjustStep(const state_t & initialState, const state_t & solution, float64_t & dt);
+        virtual bool_t adjustStep(
+            const state_t & initialState, const state_t & solution, float64_t & dt);
 
     private:
         /// \brief Weight matrix.
-        matrixN_t A_;
+        Eigen::MatrixXd A_;
         /// \brief Solution coefficients.
-        vectorN_t b_;
+        Eigen::VectorXd b_;
         /// \brief Nodes
-        vectorN_t c_;
+        Eigen::VectorXd c_;
         /// \brief Does scheme support first-same-as-last.
         bool_t isFSAL_;
 

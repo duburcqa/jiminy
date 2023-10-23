@@ -10,17 +10,14 @@
 
 namespace jiminy
 {
-    hresult_t getJointNameFromPositionIdx(const pinocchio::Model & model,
-                                          const jointIndex_t & idIn,
-                                          std::string & jointNameOut);
+    hresult_t getJointNameFromPositionIdx(
+        const pinocchio::Model & model, const jointIndex_t & idIn, std::string & jointNameOut);
 
-    hresult_t getJointNameFromVelocityIdx(const pinocchio::Model & model,
-                                          const jointIndex_t & idIn,
-                                          std::string & jointNameOut);
+    hresult_t getJointNameFromVelocityIdx(
+        const pinocchio::Model & model, const jointIndex_t & idIn, std::string & jointNameOut);
 
-    hresult_t getJointTypeFromIdx(const pinocchio::Model & model,
-                                  const jointIndex_t & idIn,
-                                  joint_t & jointTypeOut);
+    hresult_t getJointTypeFromIdx(
+        const pinocchio::Model & model, const jointIndex_t & idIn, joint_t & jointTypeOut);
 
     hresult_t getJointTypePositionSuffixes(const joint_t & jointTypeIn,
                                            std::vector<std::string> & jointTypeSuffixesOut);
@@ -28,9 +25,8 @@ namespace jiminy
     hresult_t getJointTypeVelocitySuffixes(const joint_t & jointTypeIn,
                                            std::vector<std::string> & jointTypeSuffixesOut);
 
-    hresult_t getFrameIdx(const pinocchio::Model & model,
-                          const std::string & frameName,
-                          frameIndex_t & frameIdx);
+    hresult_t getFrameIdx(
+        const pinocchio::Model & model, const std::string & frameName, frameIndex_t & frameIdx);
     hresult_t getFramesIdx(const pinocchio::Model & model,
                            const std::vector<std::string> & framesNames,
                            std::vector<frameIndex_t> & framesIdx);
@@ -65,7 +61,7 @@ namespace jiminy
                                    const bool_t & firstJointIdxOnly = false);
 
     hresult_t isPositionValid(const pinocchio::Model & model,
-                              const vectorN_t & position,
+                              const Eigen::VectorXd & position,
                               bool_t & isValid,
                               const float64_t & tol);
 
@@ -77,10 +73,10 @@ namespace jiminy
                                                    const std::string & frameNameIn);
 
     hresult_t interpolate(const pinocchio::Model & modelIn,
-                          const vectorN_t & timesIn,
-                          const matrixN_t & positionsIn,
-                          const vectorN_t & timesOut,
-                          matrixN_t & positionsOut);
+                          const Eigen::VectorXd & timesIn,
+                          const Eigen::MatrixXd & positionsIn,
+                          const Eigen::VectorXd & timesOut,
+                          Eigen::MatrixXd & positionsOut);
 
     /// \brief Convert a force expressed in the global frame of a specific frame to its parent
     ///        joint frame.

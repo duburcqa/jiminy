@@ -75,7 +75,7 @@ namespace jiminy
     AbstractSensorTpl(name),
     frameName_(),
     frameIdx_(0),
-    sensorRotationBiasInv_(matrix3_t::Identity())
+    sensorRotationBiasInv_(Eigen::Matrix3d::Identity())
     {
     }
 
@@ -101,8 +101,9 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Check that bias / std is of the correct size
-        const vectorN_t & bias = boost::get<vectorN_t>(sensorOptions.at("bias"));
-        const vectorN_t & noiseStd = boost::get<vectorN_t>(sensorOptions.at("noiseStd"));
+        const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
+        const Eigen::VectorXd & noiseStd =
+            boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
         if (bias.size() && bias.size() != 9)
         {
             PRINT_ERROR(
@@ -127,7 +128,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t ImuSensor::refreshProxies(void)
+    hresult_t ImuSensor::refreshProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -147,28 +148,28 @@ namespace jiminy
             }
             else
             {
-                sensorRotationBiasInv_ = matrix3_t::Identity();
+                sensorRotationBiasInv_ = Eigen::Matrix3d::Identity();
             }
         }
 
         return returnCode;
     }
 
-    const std::string & ImuSensor::getFrameName(void) const
+    const std::string & ImuSensor::getFrameName() const
     {
         return frameName_;
     }
 
-    const frameIndex_t & ImuSensor::getFrameIdx(void) const
+    const frameIndex_t & ImuSensor::getFrameIdx() const
     {
         return frameIdx_;
     }
 
     hresult_t ImuSensor::set(const float64_t & /* t */,
-                             const vectorN_t & /* q */,
-                             const vectorN_t & /* v */,
-                             const vectorN_t & /* a */,
-                             const vectorN_t & /* uMotor */,
+                             const Eigen::VectorXd & /* q */,
+                             const Eigen::VectorXd & /* v */,
+                             const Eigen::VectorXd & /* a */,
+                             const Eigen::VectorXd & /* uMotor */,
                              const forceVector_t & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
@@ -183,14 +184,14 @@ namespace jiminy
             robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
 
         // Accelerometer measures the classical (not spatial !) linear acceleration minus gravity
-        const matrix3_t & rot = robot->pncData_.oMf[frameIdx_].rotation();
+        const Eigen::Matrix3d & rot = robot->pncData_.oMf[frameIdx_].rotation();
         data().tail<3>() =
             acceleration.linear() - rot.transpose() * robot->pncModel_.gravity.linear();
 
         return hresult_t::SUCCESS;
     }
 
-    void ImuSensor::measureData(void)
+    void ImuSensor::measureData()
     {
         // Add measurement white noise
         if (baseSensorOptions_->noiseStd.size())
@@ -247,7 +248,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t ContactSensor::refreshProxies(void)
+    hresult_t ContactSensor::refreshProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -274,21 +275,21 @@ namespace jiminy
         return returnCode;
     }
 
-    const std::string & ContactSensor::getFrameName(void) const
+    const std::string & ContactSensor::getFrameName() const
     {
         return frameName_;
     }
 
-    const frameIndex_t & ContactSensor::getFrameIdx(void) const
+    const frameIndex_t & ContactSensor::getFrameIdx() const
     {
         return frameIdx_;
     }
 
     hresult_t ContactSensor::set(const float64_t & /* t */,
-                                 const vectorN_t & /* q */,
-                                 const vectorN_t & /* v */,
-                                 const vectorN_t & /* a */,
-                                 const vectorN_t & /* uMotor */,
+                                 const Eigen::VectorXd & /* q */,
+                                 const Eigen::VectorXd & /* v */,
+                                 const Eigen::VectorXd & /* a */,
+                                 const Eigen::VectorXd & /* uMotor */,
                                  const forceVector_t & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
@@ -336,7 +337,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t ForceSensor::refreshProxies(void)
+    hresult_t ForceSensor::refreshProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -356,26 +357,26 @@ namespace jiminy
         return returnCode;
     }
 
-    const std::string & ForceSensor::getFrameName(void) const
+    const std::string & ForceSensor::getFrameName() const
     {
         return frameName_;
     }
 
-    const frameIndex_t & ForceSensor::getFrameIdx(void) const
+    const frameIndex_t & ForceSensor::getFrameIdx() const
     {
         return frameIdx_;
     }
 
-    jointIndex_t ForceSensor::getJointIdx(void) const
+    jointIndex_t ForceSensor::getJointIdx() const
     {
         return parentJointIdx_;
     }
 
     hresult_t ForceSensor::set(const float64_t & /* t */,
-                               const vectorN_t & /* q */,
-                               const vectorN_t & /* v */,
-                               const vectorN_t & /* a */,
-                               const vectorN_t & /* uMotor */,
+                               const Eigen::VectorXd & /* q */,
+                               const Eigen::VectorXd & /* v */,
+                               const Eigen::VectorXd & /* a */,
+                               const Eigen::VectorXd & /* uMotor */,
                                const forceVector_t & fExternal)
     {
         // Returns the force applied on parent body in frame
@@ -428,7 +429,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EncoderSensor::refreshProxies(void)
+    hresult_t EncoderSensor::refreshProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -461,26 +462,26 @@ namespace jiminy
         return returnCode;
     }
 
-    const std::string & EncoderSensor::getJointName(void) const
+    const std::string & EncoderSensor::getJointName() const
     {
         return jointName_;
     }
 
-    const jointIndex_t & EncoderSensor::getJointIdx(void) const
+    const jointIndex_t & EncoderSensor::getJointIdx() const
     {
         return jointIdx_;
     }
 
-    const joint_t & EncoderSensor::getJointType(void) const
+    const joint_t & EncoderSensor::getJointType() const
     {
         return jointType_;
     }
 
     hresult_t EncoderSensor::set(const float64_t & /* t */,
-                                 const vectorN_t & q,
-                                 const vectorN_t & v,
-                                 const vectorN_t & /* a */,
-                                 const vectorN_t & /* uMotor */,
+                                 const Eigen::VectorXd & q,
+                                 const Eigen::VectorXd & v,
+                                 const Eigen::VectorXd & /* a */,
+                                 const Eigen::VectorXd & /* uMotor */,
                                  const forceVector_t & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
@@ -536,7 +537,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EffortSensor::refreshProxies(void)
+    hresult_t EffortSensor::refreshProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -556,21 +557,21 @@ namespace jiminy
         return returnCode;
     }
 
-    const std::string & EffortSensor::getMotorName(void) const
+    const std::string & EffortSensor::getMotorName() const
     {
         return motorName_;
     }
 
-    const std::size_t & EffortSensor::getMotorIdx(void) const
+    const std::size_t & EffortSensor::getMotorIdx() const
     {
         return motorIdx_;
     }
 
     hresult_t EffortSensor::set(const float64_t & /* t */,
-                                const vectorN_t & /* q */,
-                                const vectorN_t & /* v */,
-                                const vectorN_t & /* a */,
-                                const vectorN_t & uMotor,
+                                const Eigen::VectorXd & /* q */,
+                                const Eigen::VectorXd & /* v */,
+                                const Eigen::VectorXd & /* a */,
+                                const Eigen::VectorXd & uMotor,
                                 const forceVector_t & /* fExternal */)
     {
         if (!isInitialized_)

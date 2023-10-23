@@ -41,7 +41,7 @@ namespace jiminy::python
     // ****************************************************************************
 
 #define BOOST_PYTHON_VISITOR_EXPOSE(class) \
-    void expose##class(void)               \
+    void expose##class()                   \
     {                                      \
         Py##class##Visitor::expose();      \
     }
@@ -202,7 +202,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-// clang-format off
+    // clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \
@@ -302,57 +302,57 @@ namespace jiminy::python
     /// C++ to Python type mapping
 
     template<typename T>
-    int getPyType(void)
+    int getPyType()
     {
         return NPY_OBJECT;
     }
     template<>
-    inline int getPyType<bool_t>(void)
+    inline int getPyType<bool_t>()
     {
         return NPY_BOOL;
     }
     template<>
-    inline int getPyType<float32_t>(void)
+    inline int getPyType<float32_t>()
     {
         return NPY_FLOAT32;
     }
     template<>
-    inline int getPyType<float64_t>(void)
+    inline int getPyType<float64_t>()
     {
         return NPY_FLOAT64;
     }
     template<>
-    inline int getPyType<int32_t>(void)
+    inline int getPyType<int32_t>()
     {
         return NPY_INT32;
     }
     template<>
-    inline int getPyType<uint32_t>(void)
+    inline int getPyType<uint32_t>()
     {
         return NPY_UINT32;
     }
     template<>
-    inline int getPyType<long>(void)
+    inline int getPyType<long>()
     {
         return NPY_LONG;
     }
     template<>
-    inline int getPyType<unsigned long>(void)
+    inline int getPyType<unsigned long>()
     {
         return NPY_ULONG;
     }
     template<>
-    inline int getPyType<long long>(void)
+    inline int getPyType<long long>()
     {
         return NPY_LONGLONG;
     }
     template<>
-    inline int getPyType<unsigned long long>(void)
+    inline int getPyType<unsigned long long>()
     {
         return NPY_ULONGLONG;
     }
     template<>
-    inline int getPyType<std::string>(void)
+    inline int getPyType<std::string>()
     {
         return NPY_UNICODE;
     }
@@ -772,7 +772,7 @@ namespace jiminy::python
                     return bp::incref(convertToPython<value_type>(x, copy).ptr());
                 }
 
-                const PyTypeObject * get_pytype(void) const
+                const PyTypeObject * get_pytype() const
                 {
                     return converterToPython<value_type, copy>::get_pytype();
                 }
@@ -785,9 +785,9 @@ namespace jiminy::python
     // ****************************************************************************
 
     /// \brief Convert a 1D python list into an Eigen vector by value.
-    inline vectorN_t listPyToEigenVector(const bp::list & listPy)
+    inline Eigen::VectorXd listPyToEigenVector(const bp::list & listPy)
     {
-        vectorN_t x(len(listPy));
+        Eigen::VectorXd x(len(listPy));
         for (bp::ssize_t i = 0; i < len(listPy); ++i)
         {
             x[i] = bp::extract<float64_t>(listPy[i]);
@@ -797,7 +797,7 @@ namespace jiminy::python
     }
 
     /// \brief Convert a 2D python list into an Eigen matrix.
-    inline matrixN_t listPyToEigenMatrix(const bp::list & listPy)
+    inline Eigen::MatrixXd listPyToEigenMatrix(const bp::list & listPy)
     {
         const bp::ssize_t nRows = len(listPy);
         assert(nRows > 0 && "empty list");
@@ -805,7 +805,7 @@ namespace jiminy::python
         const bp::ssize_t nCols = len(bp::extract<bp::list>(listPy[0]));
         assert(nCols > 0 && "empty row");
 
-        matrixN_t M(nRows, nCols);
+        Eigen::MatrixXd M(nRows, nCols);
         for (bp::ssize_t i = 0; i < nRows; ++i)
         {
             bp::list row = bp::extract<bp::list>(listPy[i]);  // Beware elements are not copied.
@@ -911,9 +911,9 @@ namespace jiminy::python
         flexibleJointData_t flexData;
         const bp::dict flexDataPy = bp::extract<bp::dict>(dataPy);
         flexData.frameName = convertFromPython<std::string>(flexDataPy["frameName"]);
-        flexData.stiffness = convertFromPython<vectorN_t>(flexDataPy["stiffness"]);
-        flexData.damping = convertFromPython<vectorN_t>(flexDataPy["damping"]);
-        flexData.inertia = convertFromPython<vectorN_t>(flexDataPy["inertia"]);
+        flexData.stiffness = convertFromPython<Eigen::VectorXd>(flexDataPy["stiffness"]);
+        flexData.damping = convertFromPython<Eigen::VectorXd>(flexDataPy["damping"]);
+        flexData.inertia = convertFromPython<Eigen::VectorXd>(flexDataPy["inertia"]);
         return flexData;
     }
 
@@ -950,7 +950,8 @@ namespace jiminy::python
             {
                 std::string sensorName = bp::extract<std::string>(sensorsNamesPy[j]);
                 np::ndarray sensorDataNumpy = bp::extract<np::ndarray>(sensorsValuesPy[j]);
-                auto sensorData = convertFromPython<Eigen::Ref<const vectorN_t>>(sensorDataNumpy);
+                auto sensorData =
+                    convertFromPython<Eigen::Ref<const Eigen::VectorXd>>(sensorDataNumpy);
                 sensorGroupData.emplace(sensorName, j, sensorData);
             }
             data.emplace(sensorGroupName, std::move(sensorGroupData));
@@ -983,8 +984,8 @@ namespace jiminy::python
     class AppendPythonToBoostVariant : public boost::static_visitor<>
     {
     public:
-        AppendPythonToBoostVariant(void) = default;
-        ~AppendPythonToBoostVariant(void) = default;
+        AppendPythonToBoostVariant() = default;
+        ~AppendPythonToBoostVariant() = default;
 
         template<typename T>
         std::enable_if_t<!std::is_same_v<T, configHolder_t>, void> operator()(T & value)

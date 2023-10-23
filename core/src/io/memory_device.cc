@@ -39,7 +39,7 @@ namespace jiminy
                           openMode_t::NON_BLOCKING | openMode_t::APPEND;
     }
 
-    MemoryDevice::~MemoryDevice(void)
+    MemoryDevice::~MemoryDevice()
     {
         close();
     }
@@ -111,7 +111,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t MemoryDevice::doClose(void)
+    hresult_t MemoryDevice::doClose()
     {
         return hresult_t::SUCCESS;
     }

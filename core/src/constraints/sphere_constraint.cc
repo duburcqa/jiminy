@@ -13,7 +13,7 @@ namespace jiminy
 
     SphereConstraint::SphereConstraint(const std::string & frameName,
                                        const float64_t & sphereRadius,
-                                       const vector3_t & groundNormal) :
+                                       const Eigen::Vector3d & groundNormal) :
     AbstractConstraintTpl(),
     frameName_(frameName),
     frameIdx_(0),
@@ -26,12 +26,12 @@ namespace jiminy
         // Empty on purpose
     }
 
-    const std::string & SphereConstraint::getFrameName(void) const
+    const std::string & SphereConstraint::getFrameName() const
     {
         return frameName_;
     }
 
-    const frameIndex_t & SphereConstraint::getFrameIdx(void) const
+    const frameIndex_t & SphereConstraint::getFrameIdx() const
     {
         return frameIdx_;
     }
@@ -41,12 +41,13 @@ namespace jiminy
         transformRef_ = transformRef;
     }
 
-    const pinocchio::SE3 & SphereConstraint::getReferenceTransform(void) const
+    const pinocchio::SE3 & SphereConstraint::getReferenceTransform() const
     {
         return transformRef_;
     }
 
-    hresult_t SphereConstraint::reset(const vectorN_t & /* q */, const vectorN_t & /* v */)
+    hresult_t SphereConstraint::reset(const Eigen::VectorXd & /* q */,
+                                      const Eigen::VectorXd & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -81,8 +82,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SphereConstraint::computeJacobianAndDrift(const vectorN_t & /* q */,
-                                                        const vectorN_t & /* v */)
+    hresult_t SphereConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
+                                                        const Eigen::VectorXd & /* v */)
     {
         if (!isAttached_)
         {
@@ -115,7 +116,7 @@ namespace jiminy
         // Compute velocity error
         const pinocchio::Motion frameVelocity = getFrameVelocity(
             model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
-        vector3_t velocity = frameVelocity.linear();
+        Eigen::Vector3d velocity = frameVelocity.linear();
         velocity.noalias() += skewRadius_ * frameVelocity.angular();
 
         // Compute frame drift in local frame

@@ -22,12 +22,12 @@ namespace jiminy
         DISABLE_COPY(MutexLocal)
 
     public:
-        MutexLocal(void);
+        MutexLocal();
         MutexLocal(MutexLocal && other) = default;
 
-        ~MutexLocal(void);
+        ~MutexLocal();
 
-        const bool_t & isLocked(void) const;
+        const bool_t & isLocked() const;
 
     private:
         std::shared_ptr<bool_t> isLocked_;
@@ -42,7 +42,7 @@ namespace jiminy
         LockGuardLocal(MutexLocal & mutexLocal);
         LockGuardLocal(LockGuardLocal && other) = default;
 
-        ~LockGuardLocal(void);
+        ~LockGuardLocal();
 
     private:
         std::shared_ptr<bool_t> mutexFlag_;
@@ -55,9 +55,9 @@ namespace jiminy
         using Time = std::chrono::high_resolution_clock;
 
     public:
-        Timer(void);
-        void tic(void);
-        void toc(void);
+        Timer();
+        void tic();
+        void toc();
 
     public:
         std::chrono::time_point<Time> t0;
@@ -67,7 +67,7 @@ namespace jiminy
 
     // ************* IO file and Directory utilities ****************
 
-    std::string getUserDirectory(void);
+    std::string getUserDirectory();
 
     // ******************* Telemetry utilities **********************
 
@@ -99,7 +99,7 @@ namespace jiminy
     /// \param[in] fieldName Full name of the variable to get.
     ///
     /// \return Vector of values for a given variable as a contiguous array.
-    vectorN_t getLogVariable(const logData_t & logData, const std::string & fieldname);
+    Eigen::VectorXd getLogVariable(const logData_t & logData, const std::string & fieldname);
 
     // ********************** Math utilities *************************
 

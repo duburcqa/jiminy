@@ -17,14 +17,14 @@ namespace jiminy
 
     float64_t randNormal(const float64_t & mean = 0.0, const float64_t & std = 1.0);
 
-    vectorN_t
-    randVectorNormal(const uint32_t & size, const float64_t & mean, const float64_t & std);
+    Eigen::VectorXd randVectorNormal(
+        const uint32_t & size, const float64_t & mean, const float64_t & std);
 
-    vectorN_t randVectorNormal(const uint32_t & size, const float64_t & std);
+    Eigen::VectorXd randVectorNormal(const uint32_t & size, const float64_t & std);
 
-    vectorN_t randVectorNormal(const vectorN_t & std);
+    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & std);
 
-    vectorN_t randVectorNormal(const vectorN_t & mean, const vectorN_t & std);
+    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & mean, const Eigen::VectorXd & std);
 
     void shuffleIndices(std::vector<uint32_t> & vector);
 
@@ -36,22 +36,21 @@ namespace jiminy
         DISABLE_COPY(PeriodicGaussianProcess)
 
     public:
-        PeriodicGaussianProcess(const float64_t & wavelength,
-                                const float64_t & period,
-                                const float64_t & scale = 1.0);
+        PeriodicGaussianProcess(
+            const float64_t & wavelength, const float64_t & period, const float64_t & scale = 1.0);
 
-        ~PeriodicGaussianProcess(void) = default;
+        ~PeriodicGaussianProcess() = default;
 
-        void reset(void);
+        void reset();
 
         float64_t operator()(const float & t);
 
-        const float64_t & getWavelength(void) const;
-        const float64_t & getPeriod(void) const;
-        const float64_t & getDt(void) const;
+        const float64_t & getWavelength() const;
+        const float64_t & getPeriod() const;
+        const float64_t & getDt() const;
 
     protected:
-        void initialize(void);
+        void initialize();
 
     private:
         const float64_t wavelength_;
@@ -61,8 +60,8 @@ namespace jiminy
         const int32_t numTimes_;
 
         bool_t isInitialized_;
-        vectorN_t values_;
-        matrixN_t covSqrtRoot_;
+        Eigen::VectorXd values_;
+        Eigen::MatrixXd covSqrtRoot_;
     };
 
 
@@ -74,23 +73,22 @@ namespace jiminy
         DISABLE_COPY(PeriodicFourierProcess)
 
     public:
-        PeriodicFourierProcess(const float64_t & wavelength,
-                               const float64_t & period,
-                               const float64_t & scale = 1.0);
+        PeriodicFourierProcess(
+            const float64_t & wavelength, const float64_t & period, const float64_t & scale = 1.0);
 
-        ~PeriodicFourierProcess(void) = default;
+        ~PeriodicFourierProcess() = default;
 
-        void reset(void);
+        void reset();
 
         float64_t operator()(const float & t);
 
-        const float64_t & getWavelength(void) const;
-        const float64_t & getPeriod(void) const;
-        const int32_t & getNumHarmonics(void) const;
-        const float64_t & getDt(void) const;
+        const float64_t & getWavelength() const;
+        const float64_t & getPeriod() const;
+        const int32_t & getNumHarmonics() const;
+        const float64_t & getDt() const;
 
     protected:
-        void initialize(void);
+        void initialize();
 
     private:
         const float64_t wavelength_;
@@ -101,23 +99,23 @@ namespace jiminy
         const int32_t numHarmonics_;
 
         bool_t isInitialized_;
-        vectorN_t values_;
-        matrixN_t cosMat_;
-        matrixN_t sinMat_;
+        Eigen::VectorXd values_;
+        Eigen::MatrixXd cosMat_;
+        Eigen::MatrixXd sinMat_;
     };
 
     class AbstractPerlinNoiseOctave
     {
     public:
         AbstractPerlinNoiseOctave(const float64_t & wavelength, const float64_t & scale);
-        virtual ~AbstractPerlinNoiseOctave(void) = default;
+        virtual ~AbstractPerlinNoiseOctave() = default;
 
-        virtual void reset(void);
+        virtual void reset();
 
         float64_t operator()(const float64_t & t) const;
 
-        const float64_t & getWavelength(void) const;
-        const float64_t & getScale(void) const;
+        const float64_t & getWavelength() const;
+        const float64_t & getScale() const;
 
     protected:
         // Copy on purpose
@@ -125,8 +123,8 @@ namespace jiminy
 
         float64_t fade(const float64_t & delta) const;
 
-        float64_t
-        lerp(const float64_t & ratio, const float64_t & yLeft, const float64_t & yRight) const;
+        float64_t lerp(
+            const float64_t & ratio, const float64_t & yLeft, const float64_t & yRight) const;
 
     protected:
         const float64_t wavelength_;
@@ -140,9 +138,9 @@ namespace jiminy
     public:
         RandomPerlinNoiseOctave(const float64_t & wavelength, const float64_t & scale);
 
-        virtual ~RandomPerlinNoiseOctave(void) = default;
+        virtual ~RandomPerlinNoiseOctave() = default;
 
-        virtual void reset(void) override final;
+        virtual void reset() override final;
 
     protected:
         virtual float64_t grad(int32_t knot, const float64_t & delta) const override final;
@@ -154,13 +152,12 @@ namespace jiminy
     class PeriodicPerlinNoiseOctave : public AbstractPerlinNoiseOctave
     {
     public:
-        PeriodicPerlinNoiseOctave(const float64_t & wavelength,
-                                  const float64_t & period,
-                                  const float64_t & scale);
+        PeriodicPerlinNoiseOctave(
+            const float64_t & wavelength, const float64_t & period, const float64_t & scale);
 
-        virtual ~PeriodicPerlinNoiseOctave(void) = default;
+        virtual ~PeriodicPerlinNoiseOctave() = default;
 
-        virtual void reset(void) override final;
+        virtual void reset() override final;
 
     protected:
         virtual float64_t grad(int32_t knot, const float64_t & delta) const override final;
@@ -200,18 +197,18 @@ namespace jiminy
         AbstractPerlinProcess(const float64_t & wavelength,
                               const float64_t & scale = 1.0,
                               const uint32_t & numOctaves = 8U);
-        virtual ~AbstractPerlinProcess(void) = default;
+        virtual ~AbstractPerlinProcess() = default;
 
-        void reset(void);
+        void reset();
 
         float64_t operator()(const float & t);
 
-        const float64_t & getWavelength(void) const;
-        const uint32_t & getNumOctaves(void) const;
-        const float64_t & getScale(void) const;
+        const float64_t & getWavelength() const;
+        const uint32_t & getNumOctaves() const;
+        const float64_t & getScale() const;
 
     protected:
-        virtual void initialize(void) = 0;
+        virtual void initialize() = 0;
 
     protected:
         const float64_t wavelength_;
@@ -232,10 +229,10 @@ namespace jiminy
                             const float64_t & scale = 1.0,
                             const uint32_t & numOctaves = 6U);
 
-        virtual ~RandomPerlinProcess(void) = default;
+        virtual ~RandomPerlinProcess() = default;
 
     protected:
-        virtual void initialize(void) override final;
+        virtual void initialize() override final;
     };
 
     class PeriodicPerlinProcess : public AbstractPerlinProcess
@@ -246,12 +243,12 @@ namespace jiminy
                               const float64_t & scale = 1.0,
                               const uint32_t & numOctaves = 6U);
 
-        virtual ~PeriodicPerlinProcess(void) = default;
+        virtual ~PeriodicPerlinProcess() = default;
 
-        const float64_t & getPeriod(void) const;
+        const float64_t & getPeriod() const;
 
     protected:
-        virtual void initialize(void) override final;
+        virtual void initialize() override final;
 
     private:
         const float64_t period_;
@@ -259,9 +256,9 @@ namespace jiminy
 
     // ************ Random terrain generators ***************
 
-    heightmapFunctor_t randomTileGround(const vector2_t & size,
+    heightmapFunctor_t randomTileGround(const Eigen::Vector2d & size,
                                         const float64_t & heightMax,
-                                        const vector2_t & interpDelta,
+                                        const Eigen::Vector2d & interpDelta,
                                         const uint32_t & sparsity,
                                         const float64_t & orientation,
                                         const uint32_t & seed);
@@ -269,9 +266,9 @@ namespace jiminy
     heightmapFunctor_t sumHeightmap(const std::vector<heightmapFunctor_t> & heightmaps);
     heightmapFunctor_t mergeHeightmap(const std::vector<heightmapFunctor_t> & heightmaps);
 
-    matrixN_t discretizeHeightmap(const heightmapFunctor_t & heightmap,
-                                  const float64_t & gridSize,
-                                  const float64_t & gridUnit);
+    Eigen::MatrixXd discretizeHeightmap(const heightmapFunctor_t & heightmap,
+                                        const float64_t & gridSize,
+                                        const float64_t & gridUnit);
 }
 
 #endif  // JIMINY_RANDOM_H

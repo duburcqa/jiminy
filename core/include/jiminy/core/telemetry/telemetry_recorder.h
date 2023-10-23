@@ -17,8 +17,8 @@ namespace jiminy
         DISABLE_COPY(TelemetryRecorder)
 
     public:
-        TelemetryRecorder(void) = default;
-        ~TelemetryRecorder(void);
+        TelemetryRecorder() = default;
+        ~TelemetryRecorder();
 
         /// \brief Initialize the recorder.
         ///
@@ -26,16 +26,16 @@ namespace jiminy
         /// \param[in] timeUnit Unit with which the time will be logged.
         hresult_t initialize(TelemetryData * telemetryData, const float64_t & timeUnit);
 
-        const bool_t & getIsInitialized(void);
+        const bool_t & getIsInitialized();
 
         /// \brief Maximum time that can be logged with the current precision.
-        float64_t getMaximumLogTime(void) const;
+        float64_t getMaximumLogTime() const;
 
         /// \brief Maximum time that can be logged with the given precision.
         static float64_t getMaximumLogTime(const float64_t & timeUnit);
 
         /// \brief Reset the recorder.
-        void reset(void);
+        void reset();
 
         /// \brief Create a new line in the record with the current telemetry data.
         hresult_t flushDataSnapshot(const float64_t & timestamp);

@@ -30,7 +30,7 @@ namespace jiminy::python
         ::jiminy::resetRandomGenerators(seed);
     }
 
-    void exposeGenerators(void)
+    void exposeGenerators()
     {
         // clang-format off
         bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed") = bp::object()));

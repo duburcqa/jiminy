@@ -13,9 +13,9 @@ namespace jiminy
     {
     }
 
-    bool_t AbstractStepper::tryStep(std::vector<vectorN_t> & qSplit,
-                                    std::vector<vectorN_t> & vSplit,
-                                    std::vector<vectorN_t> & aSplit,
+    bool_t AbstractStepper::tryStep(std::vector<Eigen::VectorXd> & qSplit,
+                                    std::vector<Eigen::VectorXd> & vSplit,
+                                    std::vector<Eigen::VectorXd> & aSplit,
                                     float64_t & t,
                                     float64_t & dt)
     {
@@ -32,7 +32,7 @@ namespace jiminy
         // Make sure everything went fine
         if (result)
         {
-            for (const vectorN_t & a : stateDerivative_.a)
+            for (const Eigen::VectorXd & a : stateDerivative_.a)
             {
                 if ((a.array() != a.array()).any())
                 {

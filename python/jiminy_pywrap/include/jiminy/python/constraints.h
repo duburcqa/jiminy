@@ -4,8 +4,8 @@
 
 namespace jiminy::python
 {
-    void exposeConstraint(void);
-    void exposeConstraintsHolder(void);
+    void exposeConstraint();
+    void exposeConstraintsHolder();
 }
 
 #endif  // CONSTRAINTS_PYTHON_H

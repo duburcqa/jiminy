@@ -3,7 +3,7 @@
 
 namespace jiminy
 {
-    TelemetrySender::TelemetrySender(void) :
+    TelemetrySender::TelemetrySender() :
     objectName_(DEFAULT_TELEMETRY_NAMESPACE),
     telemetryData_(nullptr),
     bufferPosition_()
@@ -26,7 +26,7 @@ namespace jiminy
         return telemetryData_->registerConstant(fullFieldName, value);
     }
 
-    void TelemetrySender::updateValues(void)
+    void TelemetrySender::updateValues()
     {
         // Write the value directly in the buffer holder using the pointer stored in the map.
         for (const auto & pair : bufferPosition_)
@@ -35,12 +35,12 @@ namespace jiminy
         }
     }
 
-    uint32_t TelemetrySender::getLocalNumEntries(void) const
+    uint32_t TelemetrySender::getLocalNumEntries() const
     {
         return static_cast<uint32_t>(bufferPosition_.size());
     }
 
-    const std::string & TelemetrySender::getObjectName(void) const
+    const std::string & TelemetrySender::getObjectName() const
     {
         return objectName_;
     }

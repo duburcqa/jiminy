@@ -21,7 +21,7 @@ namespace jiminy
     struct forceProfile_t
     {
     public:
-        forceProfile_t(void) = default;
+        forceProfile_t() = default;
         forceProfile_t(const std::string & frameNameIn,
                        const frameIndex_t & frameIdxIn,
                        const float64_t & updatePeriodIn,
@@ -38,7 +38,7 @@ namespace jiminy
     struct forceImpulse_t
     {
     public:
-        forceImpulse_t(void) = default;
+        forceImpulse_t() = default;
         forceImpulse_t(const std::string & frameNameIn,
                        const frameIndex_t & frameIdxIn,
                        const float64_t & tIn,
@@ -56,7 +56,7 @@ namespace jiminy
     struct forceCoupling_t
     {
     public:
-        forceCoupling_t(void) = default;
+        forceCoupling_t() = default;
         forceCoupling_t(const std::string & systemName1In,
                         const int32_t & systemIdx1In,
                         const std::string & systemName2In,
@@ -85,7 +85,7 @@ namespace jiminy
     struct systemHolder_t
     {
     public:
-        systemHolder_t(void);
+        systemHolder_t();
         systemHolder_t(const std::string & systemNameIn,
                        std::shared_ptr<Robot> robotIn,
                        std::shared_ptr<AbstractController> controllerIn,
@@ -94,7 +94,7 @@ namespace jiminy
         systemHolder_t(systemHolder_t && other) = default;
         systemHolder_t & operator=(const systemHolder_t & other) = default;
         systemHolder_t & operator=(systemHolder_t && other) = default;
-        ~systemHolder_t(void) = default;
+        ~systemHolder_t() = default;
 
     public:
         std::string name;
@@ -107,22 +107,22 @@ namespace jiminy
     {
     public:
         // Non-default constructor to be considered initialized even if not
-        systemState_t(void);
+        systemState_t();
 
         hresult_t initialize(const Robot & robot);
-        const bool_t & getIsInitialized(void) const;
+        const bool_t & getIsInitialized() const;
 
-        void clear(void);
+        void clear();
 
     public:
-        vectorN_t q;
-        vectorN_t v;
-        vectorN_t a;
-        vectorN_t command;
-        vectorN_t u;
-        vectorN_t uMotor;
-        vectorN_t uInternal;
-        vectorN_t uCustom;
+        Eigen::VectorXd q;
+        Eigen::VectorXd v;
+        Eigen::VectorXd a;
+        Eigen::VectorXd command;
+        Eigen::VectorXd u;
+        Eigen::VectorXd uMotor;
+        Eigen::VectorXd uInternal;
+        Eigen::VectorXd uCustom;
         forceVector_t fExternal;
 
     private:
@@ -155,7 +155,7 @@ namespace jiminy
         /// \brief Contact forces for each geometries of each collision bodies in local frame.
         vector_aligned_t<forceVector_t> collisionBodiesForces;
         /// \brief Jacobian of the joints in local frame. Used for computing `data.u`.
-        std::vector<matrix6N_t> jointsJacobians;
+        std::vector<Matrix6Xd> jointsJacobians;
 
         std::vector<std::string> logFieldnamesPosition;
         std::vector<std::string> logFieldnamesVelocity;

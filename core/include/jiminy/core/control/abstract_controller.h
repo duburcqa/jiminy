@@ -47,8 +47,8 @@ namespace jiminy
         DISABLE_COPY(AbstractController)
 
     public:
-        AbstractController(void);
-        virtual ~AbstractController(void) = default;
+        AbstractController();
+        virtual ~AbstractController() = default;
 
         /// \brief Set the parameters of the controller.
         ///
@@ -99,7 +99,7 @@ namespace jiminy
         /// \brief Remove all variables dynamically registered to the telemetry.
         ///
         /// \details Note that one must reset Jiminy Engine for this to take effect.
-        void removeEntries(void);
+        void removeEntries();
 
         /// \brief Compute the command.
         ///
@@ -113,9 +113,9 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t computeCommand(const float64_t & t,
-                                         const vectorN_t & q,
-                                         const vectorN_t & v,
-                                         vectorN_t & command) = 0;
+                                         const Eigen::VectorXd & q,
+                                         const Eigen::VectorXd & v,
+                                         Eigen::VectorXd & command) = 0;
 
         /// \brief Emulate custom phenomenon that are part of the internal dynamics of the system
         ///        but not included in the physics engine.
@@ -127,12 +127,12 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t internalDynamics(const float64_t & t,
-                                           const vectorN_t & q,
-                                           const vectorN_t & v,
-                                           vectorN_t & uCustom) = 0;
+                                           const Eigen::VectorXd & q,
+                                           const Eigen::VectorXd & v,
+                                           Eigen::VectorXd & uCustom) = 0;
 
         /// \brief Dictionary with the parameters of the controller.
-        configHolder_t getOptions(void) const;
+        configHolder_t getOptions() const;
 
         /// \brief Set the configuration options of the controller.
         ///
@@ -172,7 +172,7 @@ namespace jiminy
         ///
         /// \remark This method is not intended to be called manually. The Engine is taking care
         ///         of it before flushing the telemetry data at the end of each simulation steps.
-        virtual void updateTelemetry(void);
+        virtual void updateTelemetry();
 
         /// \brief Reset the internal state of the controller.
         ///
@@ -189,10 +189,10 @@ namespace jiminy
         ///
         /// \remark Note that a controller can be considered initialized even if its telemetry is
         ///         not properly configured. If not, it must be done before being ready to use.
-        const bool_t & getIsInitialized(void) const;
+        const bool_t & getIsInitialized() const;
 
         /// \brief Whether the telemetry of the controller has been initialized.
-        const bool_t & getIsTelemetryConfigured(void) const;
+        const bool_t & getIsTelemetryConfigured() const;
 
     public:
         /// \brief Structure with the parameters of the controller.

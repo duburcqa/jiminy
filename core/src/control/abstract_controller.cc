@@ -8,7 +8,7 @@
 
 namespace jiminy
 {
-    AbstractController::AbstractController(void) :
+    AbstractController::AbstractController() :
     baseControllerOptions_(nullptr),
     robot_(),
     sensorsData_(),
@@ -56,10 +56,10 @@ namespace jiminy
         try
         {
             float64_t t = 0.0;
-            vectorN_t q = pinocchio::neutral(robot->pncModel_);
-            vectorN_t v = vectorN_t::Zero(robot->nv());
-            vectorN_t command = vectorN_t::Zero(robot->getMotorsNames().size());
-            vectorN_t uCustom = vectorN_t::Zero(robot->nv());
+            Eigen::VectorXd const q = pinocchio::neutral(robot->pncModel_);
+            Eigen::VectorXd const v = Eigen::VectorXd::Zero(robot->nv());
+            Eigen::VectorXd command = Eigen::VectorXd(robot->getMotorsNames().size());
+            Eigen::VectorXd uCustom = Eigen::VectorXd(robot->nv());
             hresult_t returnCode = computeCommand(t, q, v, command);
             if (returnCode == hresult_t::SUCCESS)
             {
@@ -226,13 +226,13 @@ namespace jiminy
             registeredVariables_, isTelemetryConfigured_, fieldnames, values);
     }
 
-    void AbstractController::removeEntries(void)
+    void AbstractController::removeEntries()
     {
         registeredVariables_.clear();
         registeredConstants_.clear();
     }
 
-    void AbstractController::updateTelemetry(void)
+    void AbstractController::updateTelemetry()
     {
         if (isTelemetryConfigured_)
         {
@@ -240,7 +240,7 @@ namespace jiminy
         }
     }
 
-    configHolder_t AbstractController::getOptions(void) const
+    configHolder_t AbstractController::getOptions() const
     {
         return ctrlOptionsHolder_;
     }
@@ -252,12 +252,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const bool_t & AbstractController::getIsInitialized(void) const
+    const bool_t & AbstractController::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    const bool_t & AbstractController::getIsTelemetryConfigured(void) const
+    const bool_t & AbstractController::getIsTelemetryConfigured() const
     {
         return isTelemetryConfigured_;
     }

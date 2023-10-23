@@ -6,7 +6,7 @@
 
 namespace jiminy
 {
-    AbstractConstraintBase::~AbstractConstraintBase(void)
+    AbstractConstraintBase::~AbstractConstraintBase()
     {
         // Detach the constraint before deleting it if necessary
         if (isAttached_)
@@ -41,24 +41,24 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    void AbstractConstraintBase::detach(void)
+    void AbstractConstraintBase::detach()
     {
         model_.reset();
         isAttached_ = false;
     }
 
-    void AbstractConstraintBase::enable(void)
+    void AbstractConstraintBase::enable()
     {
         isEnabled_ = true;
     }
 
-    void AbstractConstraintBase::disable(void)
+    void AbstractConstraintBase::disable()
     {
         lambda_.setZero();
         isEnabled_ = false;
     }
 
-    const bool_t & AbstractConstraintBase::getIsEnabled(void) const
+    const bool_t & AbstractConstraintBase::getIsEnabled() const
     {
         return isEnabled_;
     }
@@ -74,7 +74,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    float64_t AbstractConstraintBase::getBaumgartePositionGain(void) const
+    float64_t AbstractConstraintBase::getBaumgartePositionGain() const
     {
         return kp_;
     }
@@ -90,7 +90,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    float64_t AbstractConstraintBase::getBaumgarteVelocityGain(void) const
+    float64_t AbstractConstraintBase::getBaumgarteVelocityGain() const
     {
         return kd_;
     }
@@ -111,7 +111,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    float64_t AbstractConstraintBase::getBaumgarteFreq(void) const
+    float64_t AbstractConstraintBase::getBaumgarteFreq() const
     {
         float64_t zeta = kd_ / 2.0;
         if (zeta < std::sqrt(kp_))
@@ -121,17 +121,17 @@ namespace jiminy
         return zeta / (2.0 * M_PI);
     }
 
-    uint64_t AbstractConstraintBase::getDim(void) const
+    uint64_t AbstractConstraintBase::getDim() const
     {
         return static_cast<uint64_t>(drift_.size());
     }
 
-    const matrixN_t & AbstractConstraintBase::getJacobian(void) const
+    const Eigen::MatrixXd & AbstractConstraintBase::getJacobian() const
     {
         return jacobian_;
     }
 
-    const vectorN_t & AbstractConstraintBase::getDrift(void) const
+    const Eigen::VectorXd & AbstractConstraintBase::getDrift() const
     {
         return drift_;
     }

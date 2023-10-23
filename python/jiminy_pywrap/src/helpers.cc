@@ -19,7 +19,7 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    uint32_t getRandomSeed(void)
+    uint32_t getRandomSeed()
     {
         uint32_t seed;
         // Cannot fail since random number generators are initialized at shared lib import
@@ -41,7 +41,7 @@ namespace jiminy::python
         return jointPositionFirstIdx;
     }
 
-    bool_t isPositionValid(const pinocchio::Model & model, const vectorN_t & position)
+    bool_t isPositionValid(const pinocchio::Model & model, const Eigen::VectorXd & position)
     {
         bool_t isValid;
         ::jiminy::isPositionValid(
@@ -49,12 +49,12 @@ namespace jiminy::python
         return isValid;
     }
 
-    matrixN_t interpolate(const pinocchio::Model & modelIn,
-                          const vectorN_t & timesIn,
-                          const matrixN_t & positionsIn,
-                          const vectorN_t & timesOut)
+    Eigen::MatrixXd interpolate(const pinocchio::Model & modelIn,
+                                const Eigen::VectorXd & timesIn,
+                                const Eigen::MatrixXd & positionsIn,
+                                const Eigen::VectorXd & timesOut)
     {
-        matrixN_t positionOut;
+        Eigen::MatrixXd positionOut;
         ::jiminy::interpolate(modelIn, timesIn, positionsIn, timesOut, positionOut);
         return positionOut;
     }
@@ -115,16 +115,16 @@ namespace jiminy::python
         assert(nDims < 3 && "The number of dimensions of 'v' cannot exceed 2.");
         if (nDims == 1)
         {
-            const vectorN_t v = convertFromPython<vectorN_t>(vPy);
-            const vectorN_t x =
-                pinocchio_overload::solveJMinvJtv<vectorN_t>(data, v, updateDecomposition);
+            const Eigen::VectorXd v = convertFromPython<Eigen::VectorXd>(vPy);
+            const Eigen::VectorXd x =
+                pinocchio_overload::solveJMinvJtv<Eigen::VectorXd>(data, v, updateDecomposition);
             return bp::extract<np::ndarray>(convertToPython(x, true));
         }
         else
         {
-            const matrixN_t v = convertFromPython<matrixN_t>(vPy);
-            const matrixN_t x =
-                pinocchio_overload::solveJMinvJtv<matrixN_t>(data, v, updateDecomposition);
+            const Eigen::MatrixXd v = convertFromPython<Eigen::MatrixXd>(vPy);
+            const Eigen::MatrixXd x =
+                pinocchio_overload::solveJMinvJtv<Eigen::MatrixXd>(data, v, updateDecomposition);
             return bp::extract<np::ndarray>(convertToPython(x, true));
         }
     }
@@ -263,7 +263,7 @@ namespace jiminy::python
         {
             /* Using Eigen once again to avoid slow element-wise copy assignment.
                TODO: Extend to support any number of dims by working on flattened view. */
-            using EigenMapType = Eigen::Map<matrixN_t>;
+            using EigenMapType = Eigen::Map<Eigen::MatrixXd>;
             if (dstPyFlags & NPY_ARRAY_C_CONTIGUOUS)
             {
                 EigenMapType dst(
@@ -318,7 +318,7 @@ namespace jiminy::python
         }
     }
 
-    void exposeHelpers(void)
+    void exposeHelpers()
     {
         // clang-format off
         bp::def("get_random_seed", bp::make_function(&getRandomSeed,
@@ -351,38 +351,38 @@ namespace jiminy::python
 
         bp::def("aba",
                 &pinocchio_overload::aba<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t, pinocchio::Force>,
+                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "u", "fext"),
                 "Compute ABA with external forces, store the result in Data::ddq and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("rnea",
                 &pinocchio_overload::rnea<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t>,
+                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a"),
                 "Compute the RNEA without external forces, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("rnea",
                 &pinocchio_overload::rnea<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t, pinocchio::Force>,
+                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a", "fext"),
                 "Compute the RNEA with external forces, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("crba",
                 &pinocchio_overload::crba<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t>,
+                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q"),
                 "Computes CRBA, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("computeKineticEnergy",
                 &pinocchio_overload::computeKineticEnergy<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t>,
+                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v"),
                 "Computes the forward kinematics and the kinematic energy of the model for the "
                 "given joint configuration and velocity given as input. "
                 "The result is accessible through data.kinetic_energy.");
 
         bp::def("computeJMinvJt",
-                &pinocchio_overload::computeJMinvJt<matrixN_t>,
+                &pinocchio_overload::computeJMinvJt<Eigen::MatrixXd>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "J", bp::arg("update_decomposition") = true));
         bp::def("solveJMinvJtv", &solveJMinvJtv,
                 (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true));

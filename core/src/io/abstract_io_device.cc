@@ -70,7 +70,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t AbstractIODevice::close(void)
+    hresult_t AbstractIODevice::close()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -92,37 +92,37 @@ namespace jiminy
         return returnCode;
     }
 
-    const openMode_t & AbstractIODevice::openModes(void) const
+    const openMode_t & AbstractIODevice::openModes() const
     {
         return modes_;
     }
 
-    const openMode_t & AbstractIODevice::supportedModes(void) const
+    const openMode_t & AbstractIODevice::supportedModes() const
     {
         return supportedModes_;
     }
 
-    bool_t AbstractIODevice::isWritable(void) const
+    bool_t AbstractIODevice::isWritable() const
     {
         return (modes_ & openMode_t::WRITE_ONLY) || (modes_ & openMode_t::READ_WRITE);
     }
 
-    bool_t AbstractIODevice::isReadable(void) const
+    bool_t AbstractIODevice::isReadable() const
     {
         return (modes_ & openMode_t::READ_ONLY) || (modes_ & openMode_t::READ_WRITE);
     }
 
-    bool_t AbstractIODevice::isOpen(void) const
+    bool_t AbstractIODevice::isOpen() const
     {
         return (modes_ != openMode_t::NOT_OPEN);
     }
 
-    bool_t AbstractIODevice::isSequential(void) const
+    bool_t AbstractIODevice::isSequential() const
     {
         return false;
     }
 
-    int64_t AbstractIODevice::size(void)
+    int64_t AbstractIODevice::size()
     {
         return bytesAvailable();
     }
@@ -141,17 +141,17 @@ namespace jiminy
         return lastError_;
     }
 
-    int64_t AbstractIODevice::pos(void)
+    int64_t AbstractIODevice::pos()
     {
         return 0;
     }
 
-    int64_t AbstractIODevice::bytesAvailable(void)
+    int64_t AbstractIODevice::bytesAvailable()
     {
         return 0;
     }
 
-    hresult_t AbstractIODevice::getLastError(void) const
+    hresult_t AbstractIODevice::getLastError() const
     {
         return lastError_;
     }
@@ -203,7 +203,7 @@ namespace jiminy
         return lastError_;
     }
 
-    bool_t AbstractIODevice::isBackendValid(void)
+    bool_t AbstractIODevice::isBackendValid()
     {
         return (io_.get() != nullptr);
     }
@@ -214,7 +214,7 @@ namespace jiminy
         supportedModes_ = io_->supportedModes();
     }
 
-    void AbstractIODevice::removeBackend(void)
+    void AbstractIODevice::removeBackend()
     {
         io_.reset();
         supportedModes_ = openMode_t::NOT_OPEN;

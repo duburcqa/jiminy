@@ -60,7 +60,7 @@ namespace jiminy
         return returnCode;
     }
 
-    void AbstractSensorBase::updateTelemetry(void)
+    void AbstractSensorBase::updateTelemetry()
     {
         if (isTelemetryConfigured_)
         {
@@ -68,7 +68,7 @@ namespace jiminy
         }
     }
 
-    void AbstractSensorBase::measureData(void)
+    void AbstractSensorBase::measureData()
     {
         // Add white noise
         if (baseSensorOptions_->noiseStd.size())
@@ -90,22 +90,22 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t AbstractSensorBase::getOptions(void) const
+    configHolder_t AbstractSensorBase::getOptions() const
     {
         return sensorOptionsHolder_;
     }
 
-    const bool_t & AbstractSensorBase::getIsInitialized(void) const
+    const bool_t & AbstractSensorBase::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    const bool_t & AbstractSensorBase::getIsTelemetryConfigured(void) const
+    const bool_t & AbstractSensorBase::getIsTelemetryConfigured() const
     {
         return isTelemetryConfigured_;
     }
 
-    const std::string & AbstractSensorBase::getName(void) const
+    const std::string & AbstractSensorBase::getName() const
     {
         return name_;
     }

@@ -86,13 +86,13 @@ namespace jiminy
     {
     }
 
-    systemHolder_t::systemHolder_t(void) :
+    systemHolder_t::systemHolder_t() :
     systemHolder_t("",
                    nullptr,
                    nullptr,
                    [](const float64_t & /* t */,
-                      const vectorN_t & /* q */,
-                      const vectorN_t & /* v */) -> bool_t { return false; })
+                      const Eigen::VectorXd & /* q */,
+                      const Eigen::VectorXd & /* v */) -> bool_t { return false; })
     {
     }
 
@@ -100,7 +100,7 @@ namespace jiminy
     // ================ systemState_t ================
     // ===============================================
 
-    systemState_t::systemState_t(void) :
+    systemState_t::systemState_t() :
     q(),
     v(),
     a(),
@@ -136,12 +136,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const bool_t & systemState_t::getIsInitialized(void) const
+    const bool_t & systemState_t::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    void systemState_t::clear(void)
+    void systemState_t::clear()
     {
         q.resize(0);
         v.resize(0);

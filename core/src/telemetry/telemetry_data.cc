@@ -123,13 +123,13 @@ namespace jiminy
     }
 
     template<>
-    std::deque<std::pair<std::string, int64_t>> * TelemetryData::getRegistry<int64_t>(void)
+    std::deque<std::pair<std::string, int64_t>> * TelemetryData::getRegistry<int64_t>()
     {
         return &integersRegistry_;
     }
 
     template<>
-    std::deque<std::pair<std::string, float64_t>> * TelemetryData::getRegistry<float64_t>(void)
+    std::deque<std::pair<std::string, float64_t>> * TelemetryData::getRegistry<float64_t>()
     {
         return &floatsRegistry_;
     }

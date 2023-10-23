@@ -4,7 +4,7 @@
 
 namespace jiminy::python
 {
-    void exposeCompatibility(void);
+    void exposeCompatibility();
 }
 
 #endif  // COMPATIBILITY_PYTHON_H

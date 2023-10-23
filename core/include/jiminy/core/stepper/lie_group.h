@@ -66,23 +66,23 @@ namespace Eigen
         typedef typename DataType::Scalar Scalar;
         typedef typename NumTraits<Scalar>::Real RealScalar;
 
-        const Derived & derived(void) const { return *static_cast<const Derived *>(this); }
-        Derived & derived(void) { return *static_cast<Derived *>(this); }
+        const Derived & derived() const { return *static_cast<const Derived *>(this); }
+        Derived & derived() { return *static_cast<Derived *>(this); }
 
-        const Robot * const & robot(void) const { return derived().robot(); }
+        const Robot * const & robot() const { return derived().robot(); }
 
-        const DataType & v(void) const { return derived().v(); }
-        DataType & v(void) { return derived().v(); }
+        const DataType & v() const { return derived().v(); }
+        DataType & v() { return derived().v(); }
 
-        const DataType & a(void) const { return derived().a(); }
-        DataType & a(void) { return derived().a(); }
+        const DataType & a() const { return derived().a(); }
+        DataType & a() { return derived().a(); }
 
         template<int p>
-        RealScalar lpNorm(void) const;
-        RealScalar norm(void) const { return lpNorm<2>(); };
-        RealScalar normInf(void) const { return lpNorm<Infinity>(); };
+        RealScalar lpNorm() const;
+        RealScalar norm() const { return lpNorm<2>(); };
+        RealScalar normInf() const { return lpNorm<Infinity>(); };
 
-        void setZero(void)
+        void setZero()
         {
             derived().v().setZero();
             derived().a().setZero();
@@ -214,8 +214,7 @@ namespace Eigen
 
     template<typename Derived>
     template<int p>
-    typename StateDerivativeBase<Derived>::RealScalar
-    StateDerivativeBase<Derived>::lpNorm(void) const
+    typename StateDerivativeBase<Derived>::RealScalar StateDerivativeBase<Derived>::lpNorm() const
     {
         return internal::StateDerivativeLpNormImpl<Derived, p>::run(*this);
     }
@@ -229,7 +228,7 @@ namespace Eigen
         };
     }
 
-    template<typename _DataType = vectorN_t>
+    template<typename _DataType = Eigen::VectorXd>
     class StateDerivative : public StateDerivativeBase<StateDerivative<_DataType>>
     {
     public:
@@ -238,8 +237,9 @@ namespace Eigen
         typedef const StateDerivative & Nested;
 
     public:
-        explicit StateDerivative(
-            const Robot * const & robotIn, const vectorN_t & vIn, const vectorN_t & aIn) :
+        explicit StateDerivative(const Robot * const & robotIn,
+                                 const Eigen::VectorXd & vIn,
+                                 const Eigen::VectorXd & aIn) :
         robot_(robotIn),
         v_(vIn),
         a_(aIn)
@@ -247,14 +247,14 @@ namespace Eigen
         }
 
         explicit StateDerivative(
-            const Robot * const & robotIn, vectorN_t && vIn, vectorN_t && aIn) :
+            const Robot * const & robotIn, Eigen::VectorXd && vIn, Eigen::VectorXd && aIn) :
         robot_(robotIn),
         v_(std::move(vIn)),
         a_(std::move(aIn))
         {
         }
 
-        explicit StateDerivative(const Robot * const & robotIn, vectorN_t && vIn) :
+        explicit StateDerivative(const Robot * const & robotIn, Eigen::VectorXd && vIn) :
         robot_(robotIn),
         v_(std::move(vIn)),
         a_(robot_->nv())
@@ -290,11 +290,11 @@ namespace Eigen
         {
         }
 
-        const Robot * const & robot(void) const { return robot_; }
-        const DataType & v(void) const { return v_; }
-        DataType & v(void) { return v_; }
-        const DataType & a(void) const { return a_; }
-        DataType & a(void) { return a_; }
+        const Robot * const & robot() const { return robot_; }
+        const DataType & v() const { return v_; }
+        DataType & v() { return v_; }
+        const DataType & a() const { return a_; }
+        DataType & a() { return a_; }
 
         static const StateDerivativeWrapper<const typename DataType::ConstantReturnType> Zero(
             const Robot * const & robotIn);
@@ -368,9 +368,9 @@ namespace Eigen
         {
         }
 
-        const Robot * const & robot(void) const { return robot_; }
-        const DataType & v(void) const { return vRef_; }
-        const DataType & a(void) const { return aRef_; }
+        const Robot * const & robot() const { return robot_; }
+        const DataType & v() const { return vRef_; }
+        const DataType & a() const { return aRef_; }
 
     protected:
         const Robot * robot_;
@@ -415,23 +415,23 @@ namespace Eigen
         typedef typename DataType::Scalar Scalar;
         typedef typename NumTraits<Scalar>::Real RealScalar;
 
-        const Derived & derived(void) const { return *static_cast<const Derived *>(this); }
-        Derived & derived(void) { return *static_cast<Derived *>(this); }
+        const Derived & derived() const { return *static_cast<const Derived *>(this); }
+        Derived & derived() { return *static_cast<Derived *>(this); }
 
-        const Robot * const & robot(void) const { return derived().robot(); }
+        const Robot * const & robot() const { return derived().robot(); }
 
-        const DataType & q(void) const { return derived().q(); }
-        DataType & q(void) { return derived().q(); }
+        const DataType & q() const { return derived().q(); }
+        DataType & q() { return derived().q(); }
 
-        const DataType & v(void) const { return derived().v(); }
-        DataType & v(void) { return derived().v(); }
+        const DataType & v() const { return derived().v(); }
+        DataType & v() { return derived().v(); }
 
         template<int p>
-        RealScalar lpNorm(void) const;
-        RealScalar norm(void) const { return lpNorm<2>(); };
-        RealScalar normInf(void) const { return lpNorm<Infinity>(); };
+        RealScalar lpNorm() const;
+        RealScalar norm() const { return lpNorm<2>(); };
+        RealScalar normInf() const { return lpNorm<Infinity>(); };
 
-        void setZero(void)
+        void setZero()
         {
             pinocchio::neutral(robot()->pncModel_, derived().q());
             derived().v().setZero();
@@ -474,7 +474,7 @@ namespace Eigen
         };
     }
 
-    template<typename _DataType = vectorN_t>
+    template<typename _DataType = Eigen::VectorXd>
     class State : public StateBase<State<_DataType>>
     {
     public:
@@ -483,15 +483,17 @@ namespace Eigen
         typedef const State & Nested;
 
     public:
-        explicit State(
-            const Robot * const & robotIn, const vectorN_t & qIn, const vectorN_t & vIn) :
+        explicit State(const Robot * const & robotIn,
+                       const Eigen::VectorXd & qIn,
+                       const Eigen::VectorXd & vIn) :
         robot_(robotIn),
         q_(qIn),
         v_(vIn)
         {
         }
 
-        explicit State(const Robot * const & robotIn, vectorN_t && qIn, vectorN_t && vIn) :
+        explicit State(
+            const Robot * const & robotIn, Eigen::VectorXd && qIn, Eigen::VectorXd && vIn) :
         robot_(robotIn),
         q_(std::move(qIn)),
         v_(std::move(vIn))
@@ -527,11 +529,11 @@ namespace Eigen
         {
         }
 
-        const Robot * const & robot(void) const { return robot_; }
-        const DataType & q(void) const { return q_; }
-        DataType & q(void) { return q_; }
-        const DataType & v(void) const { return v_; }
-        DataType & v(void) { return v_; }
+        const Robot * const & robot() const { return robot_; }
+        const DataType & q() const { return q_; }
+        DataType & q() { return q_; }
+        const DataType & v() const { return v_; }
+        DataType & v() { return v_; }
 
         static const StateWrapper<const typename DataType::ConstantReturnType> Zero(
             const Robot * const & robotIn);
@@ -603,9 +605,9 @@ namespace Eigen
         {
         }
 
-        const Robot * const & robot(void) const { return robot_; }
-        const DataType & q(void) const { return qRef_; }
-        const DataType & v(void) const { return vRef_; }
+        const Robot * const & robot() const { return robot_; }
+        const DataType & q() const { return qRef_; }
+        const DataType & v() const { return vRef_; }
 
     protected:
         const Robot * robot_;
@@ -651,18 +653,18 @@ namespace Eigen
         typedef typename ValueType::Scalar Scalar;
         typedef typename NumTraits<Scalar>::Real RealScalar;
 
-        const Derived & derived(void) const { return *static_cast<const Derived *>(this); }
-        Derived & derived(void) { return *static_cast<Derived *>(this); }
+        const Derived & derived() const { return *static_cast<const Derived *>(this); }
+        Derived & derived() { return *static_cast<Derived *>(this); }
 
-        const std::vector<ValueType> & vector(void) const { return derived().vector(); }
-        std::vector<ValueType> & vector(void) { return derived().vector(); };
+        const std::vector<ValueType> & vector() const { return derived().vector(); }
+        std::vector<ValueType> & vector() { return derived().vector(); };
 
         template<int p>
-        RealScalar lpNorm(void) const;
-        RealScalar norm(void) const { return lpNorm<2>(); };
-        RealScalar normInf(void) const { return lpNorm<Infinity>(); };
+        RealScalar lpNorm() const;
+        RealScalar norm() const { return lpNorm<2>(); };
+        RealScalar normInf() const { return lpNorm<Infinity>(); };
 
-        void setZero(void)
+        void setZero()
         {
             for (ValueType & element : vector())
             {
@@ -805,8 +807,7 @@ namespace Eigen
 
     template<typename Derived>
     template<int p>
-    typename VectorContainerBase<Derived>::RealScalar
-    VectorContainerBase<Derived>::lpNorm(void) const
+    typename VectorContainerBase<Derived>::RealScalar VectorContainerBase<Derived>::lpNorm() const
     {
         return internal::VectorContainerLpNormImpl<Derived, p>::run(*this);
     }
@@ -828,7 +829,7 @@ namespace Eigen
         typedef typename ValueType::DataType DataType;
         typedef const VectorContainer & Nested;
 
-        VectorContainer(void) :
+        VectorContainer() :
         vector_()
         {
             // Empty on purpose
@@ -906,8 +907,8 @@ namespace Eigen
             std::copy(vectorIn.begin(), vectorIn.end(), std::back_inserter(vector_));
         }
 
-        const std::vector<ValueType> & vector(void) const { return vector_; }
-        std::vector<ValueType> & vector(void) { return vector_; }
+        const std::vector<ValueType> & vector() const { return vector_; }
+        std::vector<ValueType> & vector() { return vector_; }
 
         static auto Zero(const std::vector<const Robot *> & robots);
         static auto Ones(const std::vector<const Robot *> & robots);
@@ -965,7 +966,7 @@ namespace Eigen
         {
         }
 
-        const std::vector<ValueType> & vector(void) const { return vector_; }
+        const std::vector<ValueType> & vector() const { return vector_; }
 
     protected:
         std::vector<ValueType> vector_;
@@ -1013,7 +1014,7 @@ namespace Eigen
         template<>                                                                             \
         struct traits<EIGEN_CAT(BASE, Shared)>                                                 \
         {                                                                                      \
-            typedef Eigen::Ref<vectorN_t> DataType;                                            \
+            typedef Eigen::Ref<Eigen::VectorXd> DataType;                                      \
         };                                                                                     \
     }                                                                                          \
                                                                                                \
@@ -1025,24 +1026,24 @@ namespace Eigen
         typedef EIGEN_CAT(BASE, Shared) Nested;                                                \
                                                                                                \
         explicit EIGEN_CAT(BASE, Shared)(const Robot * const & robot,                          \
-                                         const Eigen::Ref<vectorN_t> & VAR1,                   \
-                                         const Eigen::Ref<vectorN_t> & VAR2) :                 \
+                                         const Eigen::Ref<Eigen::VectorXd> & VAR1,             \
+                                         const Eigen::Ref<Eigen::VectorXd> & VAR2) :           \
         robot_(robot),                                                                         \
         EIGEN_CAT(VAR1, Ref_)(VAR1),                                                           \
         EIGEN_CAT(VAR2, Ref_)(VAR2)                                                            \
         {                                                                                      \
         }                                                                                      \
                                                                                                \
-        const Robot * const & robot(void) const { return robot_; }                             \
-        Eigen::Ref<vectorN_t> & VAR1(void) { return EIGEN_CAT(VAR1, Ref_); }                   \
-        const Eigen::Ref<vectorN_t> & VAR1(void) const { return EIGEN_CAT(VAR1, Ref_); }       \
-        Eigen::Ref<vectorN_t> & VAR2(void) { return EIGEN_CAT(VAR2, Ref_); }                   \
-        const Eigen::Ref<vectorN_t> & VAR2(void) const { return EIGEN_CAT(VAR2, Ref_); }       \
+        const Robot * const & robot() const { return robot_; }                                 \
+        Eigen::Ref<Eigen::VectorXd> & VAR1() { return EIGEN_CAT(VAR1, Ref_); }                 \
+        const Eigen::Ref<Eigen::VectorXd> & VAR1() const { return EIGEN_CAT(VAR1, Ref_); }     \
+        Eigen::Ref<Eigen::VectorXd> & VAR2() { return EIGEN_CAT(VAR2, Ref_); }                 \
+        const Eigen::Ref<Eigen::VectorXd> & VAR2() const { return EIGEN_CAT(VAR2, Ref_); }     \
                                                                                                \
     protected:                                                                                 \
         const Robot * robot_;                                                                  \
-        Eigen::Ref<vectorN_t> EIGEN_CAT(VAR1, Ref_);                                           \
-        Eigen::Ref<vectorN_t> EIGEN_CAT(VAR2, Ref_);                                           \
+        Eigen::Ref<Eigen::VectorXd> EIGEN_CAT(VAR1, Ref_);                                     \
+        Eigen::Ref<Eigen::VectorXd> EIGEN_CAT(VAR2, Ref_);                                     \
     };                                                                                         \
                                                                                                \
     class EIGEN_CAT(BASE, Vector) :                                                            \
@@ -1050,16 +1051,17 @@ namespace Eigen
     {                                                                                          \
     public:                                                                                    \
         EIGEN_CAT(BASE, Vector)                                                                \
-        (void) :                                                                               \
+        () :                                                                                   \
         VectorContainer<EIGEN_CAT(BASE, Shared)>(),                                            \
         VAR1(),                                                                                \
         VAR2()                                                                                 \
         {                                                                                      \
         }                                                                                      \
                                                                                                \
-        explicit EIGEN_CAT(BASE, Vector)(const std::vector<const Robot *> & robots,            \
-                                         const std::vector<vectorN_t> & EIGEN_CAT(VAR1, In),   \
-                                         const std::vector<vectorN_t> & EIGEN_CAT(VAR2, In)) : \
+        explicit EIGEN_CAT(BASE,                                                               \
+                           Vector)(const std::vector<const Robot *> & robots,                  \
+                                   const std::vector<Eigen::VectorXd> & EIGEN_CAT(VAR1, In),   \
+                                   const std::vector<Eigen::VectorXd> & EIGEN_CAT(VAR2, In)) : \
         VectorContainer<EIGEN_CAT(BASE, Shared)>(),                                            \
         VAR1(EIGEN_CAT(VAR1, In)),                                                             \
         VAR2(EIGEN_CAT(VAR2, In))                                                              \
@@ -1209,8 +1211,8 @@ namespace Eigen
         EIGEN_CAT(BASE, _SHARED_ADDON)                                                         \
                                                                                                \
     public:                                                                                    \
-        std::vector<vectorN_t> VAR1;                                                           \
-        std::vector<vectorN_t> VAR2;                                                           \
+        std::vector<Eigen::VectorXd> VAR1;                                                     \
+        std::vector<Eigen::VectorXd> VAR2;                                                     \
     };
 
 #define StateDerivative_SHARED_ADDON                                                        \

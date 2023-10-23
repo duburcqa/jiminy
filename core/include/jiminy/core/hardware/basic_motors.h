@@ -10,7 +10,7 @@ namespace jiminy
     {
     public:
         /// \brief Dictionary gathering the configuration options shared between motors.
-        virtual configHolder_t getDefaultMotorOptions(void) override
+        virtual configHolder_t getDefaultMotorOptions() override
         {
             // Add extra options or update default values
             configHolder_t config = AbstractMotorBase::getDefaultMotorOptions();
@@ -68,7 +68,7 @@ namespace jiminy
 
     public:
         SimpleMotor(const std::string & name);
-        virtual ~SimpleMotor(void) = default;
+        virtual ~SimpleMotor() = default;
 
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
@@ -79,7 +79,7 @@ namespace jiminy
 
     private:
         virtual hresult_t computeEffort(const float64_t & t,
-                                        const Eigen::VectorBlock<const vectorN_t> & q,
+                                        const Eigen::VectorBlock<const Eigen::VectorXd> & q,
                                         const float64_t & v,
                                         const float64_t & a,
                                         float64_t command) final override;

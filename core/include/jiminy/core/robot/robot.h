@@ -28,8 +28,8 @@ namespace jiminy
         DISABLE_COPY(Robot)
 
     public:
-        Robot(void);
-        virtual ~Robot(void);
+        Robot();
+        virtual ~Robot();
 
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
@@ -47,7 +47,7 @@ namespace jiminy
                            std::shared_ptr<AbstractMotorBase> & motor);
         hresult_t getMotor(const std::string & motorName,
                            std::weak_ptr<const AbstractMotorBase> & motor) const;
-        const motorsHolder_t & getMotors(void) const;
+        const motorsHolder_t & getMotors() const;
         hresult_t detachMotor(const std::string & motorName);
         hresult_t detachMotors(const std::vector<std::string> & motorsNames = {});
         hresult_t attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
@@ -57,36 +57,36 @@ namespace jiminy
         hresult_t getSensor(const std::string & sensorType,
                             const std::string & sensorName,
                             std::weak_ptr<const AbstractSensorBase> & sensor) const;
-        const sensorsGroupHolder_t & getSensors(void) const;
+        const sensorsGroupHolder_t & getSensors() const;
         hresult_t detachSensor(const std::string & sensorType, const std::string & sensorName);
         hresult_t detachSensors(const std::string & sensorType = {});
 
         void computeMotorsEfforts(const float64_t & t,
-                                  const vectorN_t & q,
-                                  const vectorN_t & v,
-                                  const vectorN_t & a,
-                                  const vectorN_t & command);
-        const vectorN_t & getMotorsEfforts(void) const;
+                                  const Eigen::VectorXd & q,
+                                  const Eigen::VectorXd & v,
+                                  const Eigen::VectorXd & a,
+                                  const Eigen::VectorXd & command);
+        const Eigen::VectorXd & getMotorsEfforts() const;
         const float64_t & getMotorEffort(const std::string & motorName) const;
         void setSensorsData(const float64_t & t,
-                            const vectorN_t & q,
-                            const vectorN_t & v,
-                            const vectorN_t & a,
-                            const vectorN_t & uMotor,
+                            const Eigen::VectorXd & q,
+                            const Eigen::VectorXd & v,
+                            const Eigen::VectorXd & a,
+                            const Eigen::VectorXd & uMotor,
                             const forceVector_t & fExternal);
 
-        sensorsDataMap_t getSensorsData(void) const;
-        Eigen::Ref<const vectorN_t> getSensorData(const std::string & sensorType,
-                                                  const std::string & sensorName) const;
+        sensorsDataMap_t getSensorsData() const;
+        Eigen::Ref<const Eigen::VectorXd> getSensorData(const std::string & sensorType,
+                                                        const std::string & sensorName) const;
 
         hresult_t setOptions(const configHolder_t & robotOptions);
-        configHolder_t getOptions(void) const;
+        configHolder_t getOptions() const;
         hresult_t setMotorOptions(const std::string & motorName,
                                   const configHolder_t & motorOptions);
         hresult_t setMotorsOptions(const configHolder_t & motorsOptions);
         hresult_t getMotorOptions(const std::string & motorName,
                                   configHolder_t & motorOptions) const;
-        configHolder_t getMotorsOptions(void) const;
+        configHolder_t getMotorsOptions() const;
         hresult_t setSensorOptions(const std::string & sensorType,
                                    const std::string & sensorName,
                                    const configHolder_t & sensorOptions);
@@ -98,46 +98,45 @@ namespace jiminy
                                    configHolder_t & sensorOptions) const;
         hresult_t getSensorsOptions(const std::string & sensorType,
                                     configHolder_t & sensorsOptions) const;
-        configHolder_t getSensorsOptions(void) const;
+        configHolder_t getSensorsOptions() const;
         hresult_t setModelOptions(const configHolder_t & modelOptions);
-        configHolder_t getModelOptions(void) const;
+        configHolder_t getModelOptions() const;
         hresult_t setTelemetryOptions(const configHolder_t & telemetryOptions);
-        configHolder_t getTelemetryOptions(void) const;
+        configHolder_t getTelemetryOptions() const;
 
         hresult_t dumpOptions(const std::string & filepath) const;
         hresult_t loadOptions(const std::string & filepath);
 
         /// \remarks Those methods are not intended to be called manually. The Engine is taking
         ///          care of it.
-        virtual void reset(void) override;
+        virtual void reset() override;
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
                                              const std::string & objectPrefixName = "");
-        void updateTelemetry(void);
-        const bool_t & getIsTelemetryConfigured(void) const;
+        void updateTelemetry();
+        const bool_t & getIsTelemetryConfigured() const;
 
-        const std::vector<std::string> & getMotorsNames(void) const;
-        std::vector<jointIndex_t> getMotorsModelIdx(void) const;
-        std::vector<std::vector<int32_t>> getMotorsPositionIdx(void) const;
-        std::vector<int32_t> getMotorsVelocityIdx(void) const;
-        const std::unordered_map<std::string, std::vector<std::string>> &
-        getSensorsNames(void) const;
+        const std::vector<std::string> & getMotorsNames() const;
+        std::vector<jointIndex_t> getMotorsModelIdx() const;
+        std::vector<std::vector<int32_t>> getMotorsPositionIdx() const;
+        std::vector<int32_t> getMotorsVelocityIdx() const;
+        const std::unordered_map<std::string, std::vector<std::string>> & getSensorsNames() const;
         const std::vector<std::string> & getSensorsNames(const std::string & sensorType) const;
 
-        const vectorN_t & getCommandLimit(void) const;
+        const Eigen::VectorXd & getCommandLimit() const;
 
-        const std::vector<std::string> & getCommandFieldnames(void) const;
-        const std::vector<std::string> & getMotorEffortFieldnames(void) const;
+        const std::vector<std::string> & getCommandFieldnames() const;
+        const std::vector<std::string> & getMotorEffortFieldnames() const;
 
         // Getters without 'get' prefix for consistency with pinocchio C++ API
-        const uint64_t & nmotors(void) const;
+        const uint64_t & nmotors() const;
 
         hresult_t getLock(std::unique_ptr<LockGuardLocal> & lock);
-        const bool_t & getIsLocked(void) const;
+        const bool_t & getIsLocked() const;
 
     protected:
-        hresult_t refreshMotorsProxies(void);
-        hresult_t refreshSensorsProxies(void);
-        virtual hresult_t refreshProxies(void) override;
+        hresult_t refreshMotorsProxies();
+        hresult_t refreshSensorsProxies();
+        virtual hresult_t refreshProxies() override;
 
     protected:
         bool_t isTelemetryConfigured_;

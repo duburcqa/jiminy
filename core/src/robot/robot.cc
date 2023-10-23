@@ -14,7 +14,7 @@
 
 namespace jiminy
 {
-    Robot::Robot(void) :
+    Robot::Robot() :
     Model(),
     isTelemetryConfigured_(false),
     telemetryData_(nullptr),
@@ -33,7 +33,7 @@ namespace jiminy
         // Empty on purpose
     }
 
-    Robot::~Robot(void)
+    Robot::~Robot()
     {
         // Detach all the motors and sensors
         detachSensors({});
@@ -67,7 +67,7 @@ namespace jiminy
         return Model::initialize(pncModel, collisionModel, visualModel);
     }
 
-    void Robot::reset(void)
+    void Robot::reset()
     {
         // Reset the model
         Model::reset();
@@ -472,7 +472,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::refreshProxies(void)
+    hresult_t Robot::refreshProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -500,7 +500,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::refreshMotorsProxies(void)
+    hresult_t Robot::refreshMotorsProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -547,7 +547,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::refreshSensorsProxies(void)
+    hresult_t Robot::refreshSensorsProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -625,7 +625,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const Robot::motorsHolder_t & Robot::getMotors(void) const
+    const Robot::motorsHolder_t & Robot::getMotors() const
     {
         return motorsHolder_;
     }
@@ -694,7 +694,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const Robot::sensorsGroupHolder_t & Robot::getSensors(void) const
+    const Robot::sensorsGroupHolder_t & Robot::getSensors() const
     {
         return sensorsGroupHolder_;
     }
@@ -775,7 +775,7 @@ namespace jiminy
         return returnCode;
     }
 
-    configHolder_t Robot::getOptions(void) const
+    configHolder_t Robot::getOptions() const
     {
         configHolder_t robotOptions;
         robotOptions["model"] = getModelOptions();
@@ -872,7 +872,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t Robot::getMotorsOptions(void) const
+    configHolder_t Robot::getMotorsOptions() const
     {
         configHolder_t motorsOptions;
         for (const motorsHolder_t::value_type & motor : motorsHolder_)
@@ -1070,7 +1070,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t Robot::getSensorsOptions(void) const
+    configHolder_t Robot::getSensorsOptions() const
     {
         configHolder_t sensorsOptions;
         for (const auto & sensorGroup : sensorsGroupHolder_)
@@ -1090,7 +1090,7 @@ namespace jiminy
         return Model::setOptions(modelOptions);
     }
 
-    configHolder_t Robot::getModelOptions(void) const
+    configHolder_t Robot::getModelOptions() const
     {
         return Model::getOptions();
     }
@@ -1120,7 +1120,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t Robot::getTelemetryOptions(void) const
+    configHolder_t Robot::getTelemetryOptions() const
     {
         configHolder_t telemetryOptions;
         for (const auto & sensorGroupTelemetryOption : sensorTelemetryOptions_)
@@ -1153,16 +1153,16 @@ namespace jiminy
         return returnCode;
     }
 
-    const bool_t & Robot::getIsTelemetryConfigured(void) const
+    const bool_t & Robot::getIsTelemetryConfigured() const
     {
         return isTelemetryConfigured_;
     }
 
     void Robot::computeMotorsEfforts(const float64_t & t,
-                                     const vectorN_t & q,
-                                     const vectorN_t & v,
-                                     const vectorN_t & a,
-                                     const vectorN_t & command)
+                                     const Eigen::VectorXd & q,
+                                     const Eigen::VectorXd & v,
+                                     const Eigen::VectorXd & a,
+                                     const Eigen::VectorXd & command)
     {
         if (!motorsHolder_.empty())
         {
@@ -1170,9 +1170,9 @@ namespace jiminy
         }
     }
 
-    const vectorN_t & Robot::getMotorsEfforts(void) const
+    const Eigen::VectorXd & Robot::getMotorsEfforts() const
     {
-        static const vectorN_t motorsEffortsEmpty;
+        static const Eigen::VectorXd motorsEffortsEmpty;
 
         if (!motorsHolder_.empty())
         {
@@ -1199,10 +1199,10 @@ namespace jiminy
     }
 
     void Robot::setSensorsData(const float64_t & t,
-                               const vectorN_t & q,
-                               const vectorN_t & v,
-                               const vectorN_t & a,
-                               const vectorN_t & uMotor,
+                               const Eigen::VectorXd & q,
+                               const Eigen::VectorXd & v,
+                               const Eigen::VectorXd & a,
+                               const Eigen::VectorXd & uMotor,
                                const forceVector_t & fExternal)
     {
         /* Note that it is assumed that the kinematic quantities have been
@@ -1219,7 +1219,7 @@ namespace jiminy
         }
     }
 
-    sensorsDataMap_t Robot::getSensorsData(void) const
+    sensorsDataMap_t Robot::getSensorsData() const
     {
         sensorsDataMap_t data;
         sensorsGroupHolder_t::const_iterator sensorsGroupIt = sensorsGroupHolder_.begin();
@@ -1237,11 +1237,11 @@ namespace jiminy
         return data;
     }
 
-    Eigen::Ref<const vectorN_t> Robot::getSensorData(const std::string & sensorType,
-                                                     const std::string & sensorName) const
+    Eigen::Ref<const Eigen::VectorXd> Robot::getSensorData(const std::string & sensorType,
+                                                           const std::string & sensorName) const
     {
-        static const vectorN_t sensorDataEmpty;
-        static const Eigen::Ref<const vectorN_t> sensorDataRefEmpty(sensorDataEmpty);
+        static const Eigen::VectorXd sensorDataEmpty;
+        static const Eigen::Ref<const Eigen::VectorXd> sensorDataRefEmpty(sensorDataEmpty);
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt != sensorsGroupHolder_.end())
@@ -1259,7 +1259,7 @@ namespace jiminy
         return sensorDataRefEmpty;
     }
 
-    void Robot::updateTelemetry(void)
+    void Robot::updateTelemetry()
     {
         for (const auto & sensorGroup : sensorsGroupHolder_)
         {
@@ -1283,17 +1283,17 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const bool_t & Robot::getIsLocked(void) const
+    const bool_t & Robot::getIsLocked() const
     {
         return mutexLocal_->isLocked();
     }
 
-    const std::vector<std::string> & Robot::getMotorsNames(void) const
+    const std::vector<std::string> & Robot::getMotorsNames() const
     {
         return motorsNames_;
     }
 
-    std::vector<jointIndex_t> Robot::getMotorsModelIdx(void) const
+    std::vector<jointIndex_t> Robot::getMotorsModelIdx() const
     {
         std::vector<jointIndex_t> motorsModelIdx;
         motorsModelIdx.reserve(nmotors_);
@@ -1305,7 +1305,7 @@ namespace jiminy
         return motorsModelIdx;
     }
 
-    std::vector<std::vector<int32_t>> Robot::getMotorsPositionIdx(void) const
+    std::vector<std::vector<int32_t>> Robot::getMotorsPositionIdx() const
     {
         std::vector<std::vector<int32_t>> motorsPositionIdx;
         motorsPositionIdx.reserve(nmotors_);
@@ -1327,7 +1327,7 @@ namespace jiminy
         return motorsPositionIdx;
     }
 
-    std::vector<int32_t> Robot::getMotorsVelocityIdx(void) const
+    std::vector<int32_t> Robot::getMotorsVelocityIdx() const
     {
         std::vector<int32_t> motorsVelocityIdx;
         motorsVelocityIdx.reserve(nmotors_);
@@ -1338,13 +1338,13 @@ namespace jiminy
         return motorsVelocityIdx;
     }
 
-    const vectorN_t & Robot::getCommandLimit(void) const
+    const Eigen::VectorXd & Robot::getCommandLimit() const
     {
         return pncModel_.effortLimit;
     }
 
-    const std::unordered_map<std::string, std::vector<std::string>> & Robot::getSensorsNames(
-        void) const
+    const std::unordered_map<std::string, std::vector<std::string>> &
+    Robot::getSensorsNames() const
     {
         return sensorsNames_;
     }
@@ -1364,17 +1364,17 @@ namespace jiminy
         }
     }
 
-    const std::vector<std::string> & Robot::getCommandFieldnames(void) const
+    const std::vector<std::string> & Robot::getCommandFieldnames() const
     {
         return logFieldnamesCommand_;
     }
 
-    const std::vector<std::string> & Robot::getMotorEffortFieldnames(void) const
+    const std::vector<std::string> & Robot::getMotorEffortFieldnames() const
     {
         return logFieldnamesMotorEffort_;
     }
 
-    const uint64_t & Robot::nmotors(void) const
+    const uint64_t & Robot::nmotors() const
     {
         return nmotors_;
     }

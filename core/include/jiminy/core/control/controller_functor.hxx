@@ -23,9 +23,9 @@ namespace jiminy
 
     template<typename F1, typename F2>
     hresult_t ControllerFunctor<F1, F2>::computeCommand(const float64_t & t,
-                                                        const vectorN_t & q,
-                                                        const vectorN_t & v,
-                                                        vectorN_t & command)
+                                                        const Eigen::VectorXd & q,
+                                                        const Eigen::VectorXd & v,
+                                                        Eigen::VectorXd & command)
     {
         if (!getIsInitialized())
         {
@@ -40,9 +40,9 @@ namespace jiminy
 
     template<typename F1, typename F2>
     hresult_t ControllerFunctor<F1, F2>::internalDynamics(const float64_t & t,
-                                                          const vectorN_t & q,
-                                                          const vectorN_t & v,
-                                                          vectorN_t & uCustom)
+                                                          const Eigen::VectorXd & q,
+                                                          const Eigen::VectorXd & v,
+                                                          Eigen::VectorXd & uCustom)
     {
         if (!getIsInitialized())
         {

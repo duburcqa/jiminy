@@ -104,7 +104,7 @@ namespace jiminy::python
         }
     };
 
-    void exposeCompatibility(void)
+    void exposeCompatibility()
     {
         /* Add some automatic C++ to Python converters for numpy array of scalars, which is
            different from a 0-dimensional numpy array. */

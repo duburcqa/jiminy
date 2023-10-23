@@ -489,7 +489,7 @@ namespace jiminy
     }
 
     hresult_t isPositionValid(const pinocchio::Model & model,
-                              const vectorN_t & position,
+                              const Eigen::VectorXd & position,
                               bool_t & isValid,
                               const float64_t & tol)
     {
@@ -864,10 +864,10 @@ namespace jiminy
     }
 
     hresult_t interpolate(const pinocchio::Model & modelIn,
-                          const vectorN_t & timesIn,
-                          const matrixN_t & positionsIn,
-                          const vectorN_t & timesOut,
-                          matrixN_t & positionsOut)
+                          const Eigen::VectorXd & timesIn,
+                          const Eigen::MatrixXd & positionsIn,
+                          const Eigen::VectorXd & timesOut,
+                          Eigen::MatrixXd & positionsOut)
     {
         // Nothing to do. Return early.
         if (timesIn.size() == 0)
@@ -891,7 +891,7 @@ namespace jiminy
         }
 
         int32_t timesInIdx = -1;
-        vectorN_t qInterp(positionsIn.cols());
+        Eigen::VectorXd qInterp(positionsIn.cols());
         positionsOut.resize(timesOut.size(), positionsIn.cols());
         for (Eigen::Index i = 0; i < timesOut.size(); ++i)
         {
@@ -902,10 +902,11 @@ namespace jiminy
             }
             if (0 <= timesInIdx && timesInIdx < timesIn.size() - 1)
             {
-                // Must use Eigen::Ref/vectorN_t buffers instead of Transpose Eigen::RowXpr,
+                // Must use Eigen::Ref/Eigen::VectorXd buffers instead of Transpose Eigen::RowXpr,
                 // otherwise `interpolate` result will be wrong for SE3
-                const Eigen::Ref<const vectorN_t> qRight = positionsIn.row(timesInIdx).transpose();
-                const Eigen::Ref<const vectorN_t> qLeft =
+                const Eigen::Ref<const Eigen::VectorXd> qRight =
+                    positionsIn.row(timesInIdx).transpose();
+                const Eigen::Ref<const Eigen::VectorXd> qLeft =
                     positionsIn.row(timesInIdx + 1).transpose();
                 const float64_t ratio =
                     (t - timesIn[timesInIdx]) / (timesIn[timesInIdx + 1] - timesIn[timesInIdx]);
@@ -945,7 +946,7 @@ namespace jiminy
     public:
         virtual ~DummyMeshLoader() {}
 
-        DummyMeshLoader(void) :
+        DummyMeshLoader() :
         MeshLoader(hpp::fcl::BV_OBBRSS)
         {
         }

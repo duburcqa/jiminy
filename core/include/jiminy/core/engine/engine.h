@@ -12,8 +12,8 @@ namespace jiminy
         DISABLE_COPY(Engine)
 
     public:
-        Engine(void) = default;
-        virtual ~Engine(void) = default;
+        Engine() = default;
+        virtual ~Engine() = default;
 
         hresult_t initialize(std::shared_ptr<Robot> robot,
                              std::shared_ptr<AbstractController> controller,
@@ -40,9 +40,9 @@ namespace jiminy
         ///                  Optional: Zero by default.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the
         ///                               current or theoretical model.
-        hresult_t start(const vectorN_t & qInit,
-                        const vectorN_t & vInit,
-                        const std::optional<vectorN_t> & aInit = std::nullopt,
+        hresult_t start(const Eigen::VectorXd & qInit,
+                        const Eigen::VectorXd & vInit,
+                        const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
                         const bool_t & isStateTheoretical = false);
 
         /// \brief Run a simulation of duration tEnd, starting at xInit.
@@ -54,9 +54,9 @@ namespace jiminy
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the
         ///                               current or theoretical model.
         hresult_t simulate(const float64_t & tEnd,
-                           const vectorN_t & qInit,
-                           const vectorN_t & vInit,
-                           const std::optional<vectorN_t> & aInit = std::nullopt,
+                           const Eigen::VectorXd & qInit,
+                           const Eigen::VectorXd & vInit,
+                           const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
                            const bool_t & isStateTheoretical = false);
 
         hresult_t registerForceImpulse(const std::string & frameName,
@@ -68,19 +68,19 @@ namespace jiminy
                                        const float64_t & updatePeriod = 0.0);
 
         // Redefined to leverage C++ name hiding of overloaded base methods in derived class
-        hresult_t removeForcesImpulse(void);
-        hresult_t removeForcesProfile(void);
+        hresult_t removeForcesImpulse();
+        hresult_t removeForcesProfile();
 
-        const forceImpulseRegister_t & getForcesImpulse(void) const;
-        const forceProfileRegister_t & getForcesProfile(void) const;
+        const forceImpulseRegister_t & getForcesImpulse() const;
+        const forceProfileRegister_t & getForcesProfile() const;
 
         hresult_t registerForceCoupling(const std::string & frameName1,
                                         const std::string & frameName2,
                                         forceProfileFunctor_t forceFct);
         hresult_t registerViscoelasticForceCoupling(const std::string & frameName1,
                                                     const std::string & frameName2,
-                                                    const vector6_t & stiffness,
-                                                    const vector6_t & damping,
+                                                    const Vector6d & stiffness,
+                                                    const Vector6d & damping,
                                                     const float64_t & alpha = 0.5);
         hresult_t registerViscoelasticDirectionalForceCoupling(const std::string & frameName1,
                                                                const std::string & frameName2,
@@ -88,11 +88,11 @@ namespace jiminy
                                                                const float64_t & damping,
                                                                const float64_t & restLength = 0.0);
 
-        hresult_t removeForcesCoupling(void);
+        hresult_t removeForcesCoupling();
 
-        hresult_t removeAllForces(void);
+        hresult_t removeAllForces();
 
-        const bool_t & getIsInitialized(void) const;
+        const bool_t & getIsInitialized() const;
         hresult_t getSystem(systemHolder_t *& system);
         hresult_t getRobot(std::shared_ptr<Robot> & robot);
         hresult_t getController(std::shared_ptr<AbstractController> & controller);

@@ -42,7 +42,7 @@ namespace jiminy
     }
 
     template<typename T>
-    AbstractSensorTpl<T>::~AbstractSensorTpl(void)
+    AbstractSensorTpl<T>::~AbstractSensorTpl()
     {
         // Detach the sensor before deleting it if necessary
         if (isAttached_)
@@ -85,7 +85,7 @@ namespace jiminy
         }
 
         // Add a column for the sensor to the shared data buffers
-        for (matrixN_t & data : sharedHolder_->data_)
+        for (Eigen::MatrixXd & data : sharedHolder_->data_)
         {
             data.conservativeResize(getSize(), sharedHolder_->num_ + 1);
             data.rightCols<1>().setZero();
@@ -104,7 +104,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::detach(void)
+    hresult_t AbstractSensorTpl<T>::detach()
     {
         // Delete the part of the shared memory associated with the sensor
 
@@ -118,7 +118,7 @@ namespace jiminy
         if (sensorIdx_ < sharedHolder_->num_ - 1)
         {
             const std::size_t sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
-            for (matrixN_t & data : sharedHolder_->data_)
+            for (Eigen::MatrixXd & data : sharedHolder_->data_)
             {
                 /* Aliasing is NOT an issue when shifting left/up the columns/rows of matrices.
                    This holds true regardless if the matrix is row- and column-major. Yet, it is
@@ -128,7 +128,7 @@ namespace jiminy
             sharedHolder_->dataMeasured_.middleCols(sensorIdx_, sensorShift) =
                 sharedHolder_->dataMeasured_.rightCols(sensorIdx_ + 1);
         }
-        for (matrixN_t & data : sharedHolder_->data_)
+        for (Eigen::MatrixXd & data : sharedHolder_->data_)
         {
             data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
         }
@@ -160,7 +160,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::resetAll(void)
+    hresult_t AbstractSensorTpl<T>::resetAll()
     {
         // Make sure all the sensors are attached to a robot
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
@@ -237,30 +237,30 @@ namespace jiminy
     }
 
     template<typename T>
-    const std::size_t & AbstractSensorTpl<T>::getIdx(void) const
+    const std::size_t & AbstractSensorTpl<T>::getIdx() const
     {
         return sensorIdx_;
     }
 
     template<typename T>
-    const std::string & AbstractSensorTpl<T>::getType(void) const
+    const std::string & AbstractSensorTpl<T>::getType() const
     {
         return type_;
     }
 
     template<typename T>
-    const std::vector<std::string> & AbstractSensorTpl<T>::getFieldnames(void) const
+    const std::vector<std::string> & AbstractSensorTpl<T>::getFieldnames() const
     {
         return fieldnames_;
     }
 
     template<typename T>
-    uint64_t AbstractSensorTpl<T>::getSize(void) const
+    uint64_t AbstractSensorTpl<T>::getSize() const
     {
         return fieldnames_.size();
     }
     template<typename T>
-    std::string AbstractSensorTpl<T>::getTelemetryName(void) const
+    std::string AbstractSensorTpl<T>::getTelemetryName() const
     {
         if (areFieldnamesGrouped_)
         {
@@ -273,9 +273,9 @@ namespace jiminy
     }
 
     template<typename T>
-    Eigen::Ref<const vectorN_t> AbstractSensorTpl<T>::get(void) const
+    Eigen::Ref<const Eigen::VectorXd> AbstractSensorTpl<T>::get() const
     {
-        static vectorN_t dataDummy = vectorN_t::Zero(fieldnames_.size());
+        static Eigen::VectorXd dataDummy = Eigen::VectorXd::Zero(fieldnames_.size());
         if (isAttached_)
         {
             return sharedHolder_->dataMeasured_.col(sensorIdx_);
@@ -284,21 +284,21 @@ namespace jiminy
     }
 
     template<typename T>
-    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::get(void)
+    inline Eigen::Ref<Eigen::VectorXd> AbstractSensorTpl<T>::get()
     {
         // No guard, since this method is not public
         return sharedHolder_->dataMeasured_.col(sensorIdx_);
     }
 
     template<typename T>
-    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data(void)
+    inline Eigen::Ref<Eigen::VectorXd> AbstractSensorTpl<T>::data()
     {
         // No guard, since this method is not public
         return sharedHolder_->data_.back().col(sensorIdx_);
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::interpolateData(void)
+    hresult_t AbstractSensorTpl<T>::interpolateData()
     {
         assert(sharedHolder_->time_.size() > 0 && "Do data to interpolate.");
 
@@ -311,7 +311,7 @@ namespace jiminy
 
         /* Determine the position of the closest right element.
            Bisection method can be used since times are sorted. */
-        auto bisectLeft = [&](void) -> std::ptrdiff_t
+        auto bisectLeft = [&]() -> std::ptrdiff_t
         {
             std::ptrdiff_t left = 0;
             std::ptrdiff_t right = sharedHolder_->time_.size() - 1;
@@ -411,7 +411,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::measureDataAll(void)
+    hresult_t AbstractSensorTpl<T>::measureDataAll()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -435,10 +435,10 @@ namespace jiminy
 
     template<typename T>
     hresult_t AbstractSensorTpl<T>::setAll(const float64_t & t,
-                                           const vectorN_t & q,
-                                           const vectorN_t & v,
-                                           const vectorN_t & a,
-                                           const vectorN_t & uMotor,
+                                           const Eigen::VectorXd & q,
+                                           const Eigen::VectorXd & v,
+                                           const Eigen::VectorXd & a,
+                                           const Eigen::VectorXd & uMotor,
                                            const forceVector_t & fExternal)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -525,7 +525,7 @@ namespace jiminy
     }
 
     template<typename T>
-    void AbstractSensorTpl<T>::updateTelemetryAll(void)
+    void AbstractSensorTpl<T>::updateTelemetryAll()
     {
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {

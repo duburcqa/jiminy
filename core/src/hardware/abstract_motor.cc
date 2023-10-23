@@ -29,7 +29,7 @@ namespace jiminy
         setOptions(getDefaultMotorOptions());
     }
 
-    AbstractMotorBase::~AbstractMotorBase(void)
+    AbstractMotorBase::~AbstractMotorBase()
     {
         // Detach the sensor before deleting it if necessary
         if (isAttached_)
@@ -80,7 +80,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractMotorBase::detach(void)
+    hresult_t AbstractMotorBase::detach()
     {
         // Delete the part of the shared memory associated with the motor
 
@@ -124,7 +124,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractMotorBase::resetAll(void)
+    hresult_t AbstractMotorBase::resetAll()
     {
         // Make sure the motor is attached to a robot
         if (!isAttached_)
@@ -199,12 +199,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t AbstractMotorBase::getOptions(void) const
+    configHolder_t AbstractMotorBase::getOptions() const
     {
         return motorOptionsHolder_;
     }
 
-    hresult_t AbstractMotorBase::refreshProxies(void)
+    hresult_t AbstractMotorBase::refreshProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -302,7 +302,7 @@ namespace jiminy
         return returnCode;
     }
 
-    const float64_t & AbstractMotorBase::get(void) const
+    const float64_t & AbstractMotorBase::get() const
     {
         static float64_t dataEmpty;
         if (isAttached_)
@@ -312,12 +312,12 @@ namespace jiminy
         return dataEmpty;
     }
 
-    float64_t & AbstractMotorBase::data(void)
+    float64_t & AbstractMotorBase::data()
     {
         return sharedHolder_->data_[motorIdx_];
     }
 
-    const vectorN_t & AbstractMotorBase::getAll(void) const
+    const Eigen::VectorXd & AbstractMotorBase::getAll() const
     {
         return sharedHolder_->data_;
     }
@@ -344,61 +344,61 @@ namespace jiminy
         return returnCode;
     }
 
-    const bool_t & AbstractMotorBase::getIsInitialized(void) const
+    const bool_t & AbstractMotorBase::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    const std::string & AbstractMotorBase::getName(void) const
+    const std::string & AbstractMotorBase::getName() const
     {
         return name_;
     }
 
-    const std::size_t & AbstractMotorBase::getIdx(void) const
+    const std::size_t & AbstractMotorBase::getIdx() const
     {
         return motorIdx_;
     }
 
-    const std::string & AbstractMotorBase::getJointName(void) const
+    const std::string & AbstractMotorBase::getJointName() const
     {
         return jointName_;
     }
 
-    const jointIndex_t & AbstractMotorBase::getJointModelIdx(void) const
+    const jointIndex_t & AbstractMotorBase::getJointModelIdx() const
     {
         return jointModelIdx_;
     }
 
-    const joint_t & AbstractMotorBase::getJointType(void) const
+    const joint_t & AbstractMotorBase::getJointType() const
     {
         return jointType_;
     }
 
-    const int32_t & AbstractMotorBase::getJointPositionIdx(void) const
+    const int32_t & AbstractMotorBase::getJointPositionIdx() const
     {
         return jointPositionIdx_;
     }
 
-    const int32_t & AbstractMotorBase::getJointVelocityIdx(void) const
+    const int32_t & AbstractMotorBase::getJointVelocityIdx() const
     {
         return jointVelocityIdx_;
     }
 
-    const float64_t & AbstractMotorBase::getCommandLimit(void) const
+    const float64_t & AbstractMotorBase::getCommandLimit() const
     {
         return commandLimit_;
     }
 
-    const float64_t & AbstractMotorBase::getArmature(void) const
+    const float64_t & AbstractMotorBase::getArmature() const
     {
         return armature_;
     }
 
     hresult_t AbstractMotorBase::computeEffortAll(const float64_t & t,
-                                                  const vectorN_t & q,
-                                                  const vectorN_t & v,
-                                                  const vectorN_t & a,
-                                                  const vectorN_t & command)
+                                                  const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v,
+                                                  const Eigen::VectorXd & a,
+                                                  const Eigen::VectorXd & command)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

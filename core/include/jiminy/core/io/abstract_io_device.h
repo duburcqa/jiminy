@@ -52,8 +52,8 @@ namespace jiminy
     class AbstractIODevice
     {
     public:
-        AbstractIODevice(void);
-        virtual ~AbstractIODevice(void) = default;
+        AbstractIODevice();
+        virtual ~AbstractIODevice() = default;
 
         /// \brief Open the device.
         ///
@@ -70,32 +70,32 @@ namespace jiminy
         /// \param Value to write into the device.
         ///
         /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        hresult_t close(void);
+        hresult_t close();
 
         /// \brief Current opening modes.
-        const openMode_t & openModes(void) const;
+        const openMode_t & openModes() const;
 
         /// \brief Supported opening modes.
-        const openMode_t & supportedModes(void) const;
+        const openMode_t & supportedModes() const;
 
         /// \brief Whether the device is writable.
-        bool_t isWritable(void) const;
+        bool_t isWritable() const;
 
         /// \brief Whether the device is readable.
-        bool_t isReadable(void) const;
+        bool_t isReadable() const;
 
         /// \brief Whether the device is opened.
-        bool_t isOpen(void) const;
+        bool_t isOpen() const;
 
         /// \brief Whether the device is sequential (i.e socket), false if the device support
         ///        random-access (i.e regular file).
-        virtual bool_t isSequential(void) const;
+        virtual bool_t isSequential() const;
 
         /// \brief The size of the device.
         ///
         /// \details For random-access devices, this function returns the size of the device.
         ///          For sequential devices, bytesAvailable() is returned.
-        virtual int64_t size(void);
+        virtual int64_t size();
 
         /// \brief Move the current position cursor to pos if possible.
         ///
@@ -105,14 +105,14 @@ namespace jiminy
         virtual hresult_t seek(int64_t pos);
 
         /// \brief The current cursor position (0 if there is not concept of position cursor).
-        virtual int64_t pos(void);
+        virtual int64_t pos();
 
         /// \brief Resize the device to provided size.
         virtual hresult_t resize(int64_t size);
 
         /// \brief Returns the number of bytes that are available for reading. Commonly used with
         ///        sequential device.
-        virtual int64_t bytesAvailable(void);
+        virtual int64_t bytesAvailable();
 
         /// \brief Write data in the device.
         ///
@@ -170,7 +170,7 @@ namespace jiminy
 
         /// \brief Retrieve the latest error. Useful for calls that do not return an error code
         ///        directly.
-        hresult_t getLastError(void) const;
+        hresult_t getLastError() const;
 
         /// \brief Set the device blocking fashion.
         ///
@@ -184,11 +184,11 @@ namespace jiminy
         virtual void setBackend(std::unique_ptr<AbstractIODevice> io);
 
         /// \brief Reset the device backend.
-        virtual void removeBackend(void);
+        virtual void removeBackend();
 
     protected:
         virtual hresult_t doOpen(const openMode_t & mode) = 0;
-        virtual hresult_t doClose(void) = 0;
+        virtual hresult_t doClose() = 0;
 
         /// \brief Current opening mode.
         openMode_t modes_;

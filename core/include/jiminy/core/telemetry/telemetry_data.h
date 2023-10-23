@@ -35,11 +35,11 @@ namespace jiminy
         DISABLE_COPY(TelemetryData)
 
     public:
-        TelemetryData(void);
-        ~TelemetryData(void) = default;
+        TelemetryData();
+        ~TelemetryData() = default;
 
         /// \brief Reset the telemetry before starting to use the telemetry.
-        void reset(void);
+        void reset();
 
         /// \brief Register a new variable in for telemetry.
         ///
@@ -69,7 +69,7 @@ namespace jiminy
         void formatHeader(std::vector<char_t> & header);
 
         template<typename T>
-        std::deque<std::pair<std::string, T>> * getRegistry(void);
+        std::deque<std::pair<std::string, T>> * getRegistry();
 
     private:
         // Must use dequeue to preserve pointer addresses after resize

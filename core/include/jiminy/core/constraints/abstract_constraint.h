@@ -21,26 +21,26 @@ namespace jiminy
         DISABLE_COPY(AbstractConstraintBase)
 
     public:
-        AbstractConstraintBase(void) = default;
-        virtual ~AbstractConstraintBase(void);
+        AbstractConstraintBase() = default;
+        virtual ~AbstractConstraintBase();
 
         /// \brief Refresh the internal buffers and proxies.
         ///
         /// \remark This method is not intended to be called manually. The Robot to which the
         ///         constraint is added is taking care of it when its own `reset` method is called.
-        virtual hresult_t reset(const vectorN_t & q, const vectorN_t & v) = 0;
+        virtual hresult_t reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v) = 0;
 
-        void enable(void);
-        void disable(void);
-        const bool_t & getIsEnabled(void) const;
+        void enable();
+        void disable();
+        const bool_t & getIsEnabled() const;
 
         hresult_t setBaumgartePositionGain(const float64_t & kp);
-        float64_t getBaumgartePositionGain(void) const;
+        float64_t getBaumgartePositionGain() const;
         hresult_t setBaumgarteVelocityGain(const float64_t & kd);
-        float64_t getBaumgarteVelocityGain(void) const;
+        float64_t getBaumgarteVelocityGain() const;
         hresult_t setBaumgarteFreq(const float64_t & freq);
         /// \brief Natural frequency of critically damping position/velocity error correction.
-        float64_t getBaumgarteFreq(void) const;
+        float64_t getBaumgarteFreq() const;
 
         /// \brief Compute the jacobian and drift of the constraint.
         ///
@@ -49,18 +49,19 @@ namespace jiminy
         ///
         /// \param[in] q Current joint position.
         /// \param[in] v Current joint velocity.
-        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q, const vectorN_t & v) = 0;
+        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v) = 0;
 
-        virtual const std::string & getType(void) const = 0;
+        virtual const std::string & getType() const = 0;
 
         /// \brief Dimension of the constraint.
-        uint64_t getDim(void) const;
+        uint64_t getDim() const;
 
         /// \brief Jacobian of the constraint.
-        const matrixN_t & getJacobian(void) const;
+        const Eigen::MatrixXd & getJacobian() const;
 
         /// \brief Drift of the constraint.
-        const vectorN_t & getDrift(void) const;
+        const Eigen::VectorXd & getDrift() const;
 
     private:
         /// \brief Link the constraint on the given model, and initialize it.
@@ -71,11 +72,11 @@ namespace jiminy
         hresult_t attach(std::weak_ptr<const Model> model);
 
         /// \brief Detach the constraint from its model.
-        void detach(void);
+        void detach();
 
     public:
         /// \brief Lambda multipliers.
-        vectorN_t lambda_;
+        Eigen::VectorXd lambda_;
 
     protected:
         /// \brief Model on which the constraint operates.
@@ -91,9 +92,9 @@ namespace jiminy
         /// \brief Velocity-related baumgarte stabilization gain.
         float64_t kd_;
         /// \brief Jacobian of the constraint.
-        matrixN_t jacobian_;
+        Eigen::MatrixXd jacobian_;
         /// \brief Drift of the constraint.
-        vectorN_t drift_;
+        Eigen::VectorXd drift_;
     };
 
     template<class T>
@@ -103,7 +104,7 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        const std::string & getType(void) const { return type_; }
+        const std::string & getType() const { return type_; }
 
     public:
         static const std::string type_;

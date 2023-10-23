@@ -16,17 +16,17 @@ namespace jiminy
 {
     // *************** Local Mutex/Lock mechanism ******************
 
-    MutexLocal::MutexLocal(void) :
+    MutexLocal::MutexLocal() :
     isLocked_(new bool_t{false})
     {
     }
 
-    MutexLocal::~MutexLocal(void)
+    MutexLocal::~MutexLocal()
     {
         *isLocked_ = false;
     }
 
-    const bool_t & MutexLocal::isLocked(void) const
+    const bool_t & MutexLocal::isLocked() const
     {
         return *isLocked_;
     }
@@ -37,14 +37,14 @@ namespace jiminy
         *mutexFlag_ = true;
     }
 
-    LockGuardLocal::~LockGuardLocal(void)
+    LockGuardLocal::~LockGuardLocal()
     {
         *mutexFlag_ = false;
     }
 
     // ************************* Timer **************************
 
-    Timer::Timer(void) :
+    Timer::Timer() :
     t0(),
     tf(),
     dt(0.0)
@@ -52,13 +52,13 @@ namespace jiminy
         tic();
     }
 
-    void Timer::tic(void)
+    void Timer::tic()
     {
         t0 = Time::now();
         dt = 0.0;
     }
 
-    void Timer::toc(void)
+    void Timer::toc()
     {
         tf = Time::now();
         std::chrono::duration<float64_t> timeDiff = tf - t0;
@@ -68,13 +68,13 @@ namespace jiminy
     // ************ IO file and Directory utilities **************
 
 #ifndef _WIN32
-    std::string getUserDirectory(void)
+    std::string getUserDirectory()
     {
         struct passwd * pw = getpwuid(getuid());
         return pw->pw_dir;
     }
 #else
-    std::string getUserDirectory(void)
+    std::string getUserDirectory()
     {
         return {getenv("USERPROFILE")};
     }
@@ -160,7 +160,7 @@ namespace jiminy
         return fieldnames;
     }
 
-    vectorN_t getLogVariable(const logData_t & logData, const std::string & fieldname)
+    Eigen::VectorXd getLogVariable(const logData_t & logData, const std::string & fieldname)
     {
         if (fieldname == GLOBAL_TIME)
         {

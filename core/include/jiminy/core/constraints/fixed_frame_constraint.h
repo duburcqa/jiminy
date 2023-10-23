@@ -24,23 +24,24 @@ namespace jiminy
         FixedFrameConstraint(const std::string & frameName,
                              const Eigen::Matrix<bool_t, 6, 1> & maskFixed =
                                  Eigen::Matrix<bool_t, 6, 1>::Constant(true));
-        virtual ~FixedFrameConstraint(void) = default;
+        virtual ~FixedFrameConstraint() = default;
 
-        const std::string & getFrameName(void) const;
-        const frameIndex_t & getFrameIdx(void) const;
+        const std::string & getFrameName() const;
+        const frameIndex_t & getFrameIdx() const;
 
-        const std::vector<uint32_t> & getDofsFixed(void) const;
+        const std::vector<uint32_t> & getDofsFixed() const;
 
         void setReferenceTransform(const pinocchio::SE3 & transformRef);
-        const pinocchio::SE3 & getReferenceTransform(void) const;
+        const pinocchio::SE3 & getReferenceTransform() const;
 
-        void setNormal(const vector3_t & normal);
-        const matrix3_t & getLocalFrame(void) const;
+        void setNormal(const Eigen::Vector3d & normal);
+        const Eigen::Matrix3d & getLocalFrame() const;
 
-        virtual hresult_t reset(const vectorN_t & q, const vectorN_t & v) override final;
+        virtual hresult_t reset(const Eigen::VectorXd & q,
+                                const Eigen::VectorXd & v) override final;
 
-        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q,
-                                                  const vectorN_t & v) override final;
+        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v) override final;
 
     private:
         /// \brief Name of the frame on which the constraint operates.
@@ -52,11 +53,11 @@ namespace jiminy
         /// \brief Reference pose of the frame to enforce.
         pinocchio::SE3 transformRef_;
         /// \brief Normal direction locally at the interface.
-        vector3_t normal_;
+        Eigen::Vector3d normal_;
         /// \brief Rotation matrix of the local frame in which to apply masking
-        matrix3_t rotationLocal_;
+        Eigen::Matrix3d rotationLocal_;
         /// \brief Stores full frame jacobian in reference frame.
-        matrix6N_t frameJacobian_;
+        Matrix6Xd frameJacobian_;
         /// \brief Stores full frame drift in reference frame.
         pinocchio::Motion frameDrift_;
     };

@@ -40,7 +40,7 @@ namespace jiminy
             // Empty on purpose
         }
 
-        ~AppendBoostVariantToJson(void) = default;
+        ~AppendBoostVariantToJson() = default;
 
         template<typename T>
         void operator()(const T & value)
@@ -123,9 +123,9 @@ namespace jiminy
     }
 
     template<>
-    vectorN_t convertFromJson<vectorN_t>(const Json::Value & value)
+    Eigen::VectorXd convertFromJson<Eigen::VectorXd>(const Json::Value & value)
     {
-        vectorN_t vec;
+        Eigen::VectorXd vec;
         if (value.size() > 0)
         {
             vec.resize(value.size());
@@ -138,9 +138,9 @@ namespace jiminy
     }
 
     template<>
-    matrixN_t convertFromJson<matrixN_t>(const Json::Value & value)
+    Eigen::MatrixXd convertFromJson<Eigen::MatrixXd>(const Json::Value & value)
     {
-        matrixN_t mat;
+        Eigen::MatrixXd mat;
         if (value.size() > 0)
         {
             auto it = value.begin();
@@ -149,7 +149,7 @@ namespace jiminy
                 mat.resize(value.size(), it->size());
                 for (; it != value.end(); ++it)
                 {
-                    mat.row(it.index()) = convertFromJson<vectorN_t>(*it);
+                    mat.row(it.index()) = convertFromJson<Eigen::VectorXd>(*it);
                 }
             }
         }
@@ -160,17 +160,17 @@ namespace jiminy
     flexibleJointData_t convertFromJson<flexibleJointData_t>(const Json::Value & value)
     {
         return {convertFromJson<std::string>(value["frameName"]),
-                convertFromJson<vectorN_t>(value["stiffness"]),
-                convertFromJson<vectorN_t>(value["damping"]),
-                convertFromJson<vectorN_t>(value["inertia"])};
+                convertFromJson<Eigen::VectorXd>(value["stiffness"]),
+                convertFromJson<Eigen::VectorXd>(value["damping"]),
+                convertFromJson<Eigen::VectorXd>(value["inertia"])};
     }
 
     template<>
     heightmapFunctor_t convertFromJson<heightmapFunctor_t>(const Json::Value & /* value */)
     {
         return {heightmapFunctor_t(
-            [](const vector3_t & /* pos */) -> std::pair<float64_t, vector3_t> {
-                return {0.0, vector3_t::UnitZ()};
+            [](const Eigen::Vector3d & /* pos */) -> std::pair<float64_t, Eigen::Vector3d> {
+                return {0.0, Eigen::Vector3d::UnitZ()};
             })};
     }
 
@@ -199,11 +199,11 @@ namespace jiminy
                         if (data.begin()->size() == 0 ||
                             data.begin()->begin()->type() == Json::realValue)
                         {
-                            field = convertFromJson<std::vector<vectorN_t>>(data);
+                            field = convertFromJson<std::vector<Eigen::VectorXd>>(data);
                         }
                         else
                         {
-                            field = convertFromJson<std::vector<matrixN_t>>(data);
+                            field = convertFromJson<std::vector<Eigen::MatrixXd>>(data);
                         }
                     }
                     else if (type == "list(flexibility)")
@@ -251,11 +251,11 @@ namespace jiminy
                     auto it = root->begin();
                     if (it->type() == Json::realValue)
                     {
-                        field = convertFromJson<vectorN_t>(*root);
+                        field = convertFromJson<Eigen::VectorXd>(*root);
                     }
                     else if (it->type() == Json::arrayValue)
                     {
-                        field = convertFromJson<matrixN_t>(*root);
+                        field = convertFromJson<Eigen::MatrixXd>(*root);
                     }
                     else
                     {
@@ -265,7 +265,7 @@ namespace jiminy
                 }
                 else
                 {
-                    field = vectorN_t();
+                    field = Eigen::VectorXd();
                 }
             }
             else

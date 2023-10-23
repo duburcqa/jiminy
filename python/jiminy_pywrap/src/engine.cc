@@ -44,7 +44,7 @@ namespace jiminy::python
         return func;
     }
 
-    void exposeForces(void)
+    void exposeForces()
     {
         // clang-format off
         bp::class_<forceProfile_t,
@@ -322,7 +322,7 @@ namespace jiminy::python
                     (bp::arg("self"), "system_name"))
                 .def("remove_forces_impulse",
                     static_cast<
-                        hresult_t (EngineMultiRobot::*)(void)
+                        hresult_t (EngineMultiRobot::*)()
                     >(&EngineMultiRobot::removeForcesImpulse),
                     (bp::arg("self")))
                 .ADD_PROPERTY_GET("forces_impulse", &PyEngineMultiRobotVisitor::getForcesImpulse)
@@ -355,8 +355,8 @@ namespace jiminy::python
                             const std::string &,
                             const std::string &,
                             const std::string &,
-                            const vector6_t &,
-                            const vector6_t &,
+                            const Vector6d &,
+                            const Vector6d &,
                             const float64_t &)
                     >(&EngineMultiRobot::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2",
@@ -367,8 +367,8 @@ namespace jiminy::python
                             const std::string &,
                             const std::string &,
                             const std::string &,
-                            const vector6_t &,
-                            const vector6_t &,
+                            const Vector6d &,
+                            const Vector6d &,
                             const float64_t &)
                     >(&EngineMultiRobot::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
@@ -449,8 +449,8 @@ namespace jiminy::python
             if (callbackPy.is_none())
             {
                 callbackFct = [](const float64_t & /* t */,
-                                 const vectorN_t & /* q */,
-                                 const vectorN_t & /* v */) -> bool_t
+                                 const Eigen::VectorXd & /* q */,
+                                 const Eigen::VectorXd & /* v */) -> bool_t
                 {
                     return true;
                 };
@@ -531,13 +531,13 @@ namespace jiminy::python
                                const bp::dict & vInitPy,
                                const bp::object & aInitPy)
         {
-            std::optional<std::map<std::string, vectorN_t>> aInit = std::nullopt;
+            std::optional<std::map<std::string, Eigen::VectorXd>> aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
-                aInit.emplace(convertFromPython<std::map<std::string, vectorN_t>>(aInitPy));
+                aInit.emplace(convertFromPython<std::map<std::string, Eigen::VectorXd>>(aInitPy));
             }
-            return self.start(convertFromPython<std::map<std::string, vectorN_t>>(qInitPy),
-                              convertFromPython<std::map<std::string, vectorN_t>>(vInitPy),
+            return self.start(convertFromPython<std::map<std::string, Eigen::VectorXd>>(qInitPy),
+                              convertFromPython<std::map<std::string, Eigen::VectorXd>>(vInitPy),
                               aInit);
         }
 
@@ -553,26 +553,27 @@ namespace jiminy::python
                                   const bp::dict & vInitPy,
                                   const bp::object & aInitPy)
         {
-            std::optional<std::map<std::string, vectorN_t>> aInit = std::nullopt;
+            std::optional<std::map<std::string, Eigen::VectorXd>> aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
-                aInit.emplace(convertFromPython<std::map<std::string, vectorN_t>>(aInitPy));
+                aInit.emplace(convertFromPython<std::map<std::string, Eigen::VectorXd>>(aInitPy));
             }
-            return self.simulate(endTime,
-                                 convertFromPython<std::map<std::string, vectorN_t>>(qInitPy),
-                                 convertFromPython<std::map<std::string, vectorN_t>>(vInitPy),
-                                 aInit);
+            return self.simulate(
+                endTime,
+                convertFromPython<std::map<std::string, Eigen::VectorXd>>(qInitPy),
+                convertFromPython<std::map<std::string, Eigen::VectorXd>>(vInitPy),
+                aInit);
         }
 
-        static std::vector<vectorN_t> computeSystemsDynamics(EngineMultiRobot & self,
-                                                             const float64_t & endTime,
-                                                             const bp::list & qSplitPy,
-                                                             const bp::list & vSplitPy)
+        static std::vector<Eigen::VectorXd> computeSystemsDynamics(EngineMultiRobot & self,
+                                                                   const float64_t & endTime,
+                                                                   const bp::list & qSplitPy,
+                                                                   const bp::list & vSplitPy)
         {
-            std::vector<vectorN_t> aSplit;
+            std::vector<Eigen::VectorXd> aSplit;
             self.computeSystemsDynamics(endTime,
-                                        convertFromPython<std::vector<vectorN_t>>(qSplitPy),
-                                        convertFromPython<std::vector<vectorN_t>>(vSplitPy),
+                                        convertFromPython<std::vector<Eigen::VectorXd>>(qSplitPy),
+                                        convertFromPython<std::vector<Eigen::VectorXd>>(vSplitPy),
                                         aSplit);
             return aSplit;
         }
@@ -582,7 +583,7 @@ namespace jiminy::python
                                               const std::string & frameName,
                                               const float64_t & t,
                                               const float64_t & dt,
-                                              const vector6_t & F)
+                                              const Vector6d & F)
         {
             return self.registerForceImpulse(systemName, frameName, t, dt, pinocchio::Force(F));
         }
@@ -686,7 +687,7 @@ namespace jiminy::python
             bp::object timePy;
             if (logData.timestamps.size() > 0)
             {
-                const vectorN_t timeBuffer =
+                const Eigen::VectorXd timeBuffer =
                     logData.timestamps.cast<float64_t>() * logData.timeUnit;
                 timePy = convertToPython(timeBuffer, true);
                 PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(timePy.ptr()),
@@ -915,8 +916,8 @@ namespace jiminy::python
                         hresult_t (Engine::*)(
                             const std::string &,
                             const std::string &,
-                            const vector6_t &,
-                            const vector6_t &,
+                            const Vector6d &,
+                            const Vector6d &,
                             const float64_t &)
                     >(&Engine::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping", bp::arg("alpha") = 0.5))
@@ -965,8 +966,8 @@ namespace jiminy::python
             if (callbackPy.is_none())
             {
                 callbackFunctor_t callbackFct = [](const float64_t & /* t */,
-                                                   const vectorN_t & /* q */,
-                                                   const vectorN_t & /* v */) -> bool_t
+                                                   const Eigen::VectorXd & /* q */,
+                                                   const Eigen::VectorXd & /* v */) -> bool_t
                 {
                     return true;
                 };
@@ -991,7 +992,7 @@ namespace jiminy::python
                                               const std::string & frameName,
                                               const float64_t & t,
                                               const float64_t & dt,
-                                              const vector6_t & F)
+                                              const Vector6d & F)
         {
             return self.registerForceImpulse(frameName, t, dt, pinocchio::Force(F));
         }
@@ -1044,30 +1045,30 @@ namespace jiminy::python
         }
 
         static hresult_t start(Engine & self,
-                               const vectorN_t & qInit,
-                               const vectorN_t & vInit,
+                               const Eigen::VectorXd & qInit,
+                               const Eigen::VectorXd & vInit,
                                const bp::object & aInitPy,
                                const bool_t & isStateTheoretical)
         {
-            std::optional<vectorN_t> aInit = std::nullopt;
+            std::optional<Eigen::VectorXd> aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
-                aInit.emplace(convertFromPython<vectorN_t>(aInitPy));
+                aInit.emplace(convertFromPython<Eigen::VectorXd>(aInitPy));
             }
             return self.start(qInit, vInit, aInit, isStateTheoretical);
         }
 
         static hresult_t simulate(Engine & self,
                                   const float64_t & endTime,
-                                  const vectorN_t & qInit,
-                                  const vectorN_t & vInit,
+                                  const Eigen::VectorXd & qInit,
+                                  const Eigen::VectorXd & vInit,
                                   const bp::object & aInitPy,
                                   const bool_t & isStateTheoretical)
         {
-            std::optional<vectorN_t> aInit = std::nullopt;
+            std::optional<Eigen::VectorXd> aInit = std::nullopt;
             if (!aInitPy.is_none())
             {
-                aInit.emplace(convertFromPython<vectorN_t>(aInitPy));
+                aInit.emplace(convertFromPython<Eigen::VectorXd>(aInitPy));
             }
             return self.simulate(endTime, qInit, vInit, aInit, isStateTheoretical);
         }

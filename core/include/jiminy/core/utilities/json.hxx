@@ -55,16 +55,14 @@ namespace jiminy
     Json::Value convertToJson<heightmapFunctor_t>(const heightmapFunctor_t & value);
 
     template<typename T, typename A>
-    constexpr std::enable_if_t<!std::is_same_v<T, vectorN_t> && !std::is_same_v<T, matrixN_t>,
-                               const char *>
+    constexpr std::enable_if_t<!is_eigen_v<T>, const char *>
     getJsonVectorType(const std::vector<T, A> & /* value */)
     {
         return "unknown";
     }
 
     template<typename T, typename A>
-    constexpr std::enable_if_t<std::is_same_v<T, vectorN_t> || std::is_same_v<T, matrixN_t>,
-                               const char *>
+    constexpr std::enable_if_t<is_eigen_v<T>, const char *>
     getJsonVectorType(const std::vector<T, A> & /* value */)
     {
         return "list(array)";
@@ -125,10 +123,10 @@ namespace jiminy
     float64_t convertFromJson<float64_t>(const Json::Value & value);
 
     template<>
-    vectorN_t convertFromJson<vectorN_t>(const Json::Value & value);
+    Eigen::VectorXd convertFromJson<Eigen::VectorXd>(const Json::Value & value);
 
     template<>
-    matrixN_t convertFromJson<matrixN_t>(const Json::Value & value);
+    Eigen::MatrixXd convertFromJson<Eigen::MatrixXd>(const Json::Value & value);
 
     template<>
     flexibleJointData_t convertFromJson<flexibleJointData_t>(const Json::Value & value);

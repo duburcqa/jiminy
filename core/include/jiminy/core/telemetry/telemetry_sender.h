@@ -23,8 +23,8 @@ namespace jiminy
         template<typename... T>
         using telemetry_data_registry_t = std::vector<std::variant<telemetry_data_pair_t<T>...>>;
 
-        explicit TelemetrySender(void);
-        ~TelemetrySender(void) = default;
+        explicit TelemetrySender();
+        ~TelemetrySender() = default;
 
         /// \brief Configure the object.
         ///
@@ -58,13 +58,13 @@ namespace jiminy
         hresult_t registerConstant(const std::string & invariantName, const std::string & value);
 
         /// \brief Update all registered variables in the telemetry buffer.
-        void updateValues(void);
+        void updateValues();
 
         /// \brief The number of registered entries.
-        uint32_t getLocalNumEntries(void) const;
+        uint32_t getLocalNumEntries() const;
 
         /// \brief The object name.
-        const std::string & getObjectName(void) const;
+        const std::string & getObjectName() const;
 
     protected:
         /// \brief Name of the logged object.

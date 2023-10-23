@@ -8,12 +8,18 @@ namespace jiminy
     namespace RK4
     {
         // clang-format off
-        const matrixN_t A((matrixN_t(4, 4) << 0.0, 0.0,  0.0,  0.0,
-                                              0.5, 0.0,  0.0,  0.0,
-                                              0.0, 0.5,  0.0,  0.0,
-                                              0.0, 0.0,  1.0,  0.0).finished());
-        const vectorN_t c((vectorN_t(4) << 0.0, 0.5, 0.5, 1.0).finished());
-        const vectorN_t b((vectorN_t(4) << 1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0).finished());
+        const Eigen::MatrixXd A((Eigen::MatrixXd(4, 4) <<
+            0.0, 0.0,  0.0,  0.0,
+            0.5, 0.0,  0.0,  0.0,
+            0.0, 0.5,  0.0,  0.0,
+            0.0, 0.0,  1.0,  0.0
+        ).finished());
+        const Eigen::VectorXd c((Eigen::VectorXd(4) <<
+            0.0, 0.5, 0.5, 1.0
+        ).finished());
+        const Eigen::VectorXd b((Eigen::VectorXd(4) <<
+            1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0
+        ).finished());
         // clang-format on
     }
 

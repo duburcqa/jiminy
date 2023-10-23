@@ -31,8 +31,8 @@ namespace jiminy::python
     namespace np = boost::python::numpy;
 
     template<typename T>
-    using TimeStateFct =
-        typename std::function<T(const float64_t &, const vectorN_t &, const vectorN_t &)>;
+    using TimeStateFct = typename std::function<T(
+        const float64_t &, const Eigen::VectorXd &, const Eigen::VectorXd &)>;
 
 #define TIME_STATE_FCT_EXPOSE(Name, Type)                                                     \
     bp::class_<TimeStateFct<Type>, boost::noncopyable>("TimeStateFunctor" #Name, bp::no_init) \
@@ -101,8 +101,8 @@ namespace jiminy::python
         REGISTER_CONVERTER(std::vector<std::vector<int32_t>>, true);
         REGISTER_CONVERTER(std::vector<uint32_t>, true);
         REGISTER_CONVERTER(std::vector<int32_t>, true);
-        REGISTER_CONVERTER(std::vector<vectorN_t>, true);
-        REGISTER_CONVERTER(std::vector<matrixN_t>, true);
+        REGISTER_CONVERTER(std::vector<Eigen::VectorXd>, true);
+        REGISTER_CONVERTER(std::vector<Eigen::MatrixXd>, true);
         REGISTER_CONVERTER(configHolder_t, true);
 
         // Expose functors

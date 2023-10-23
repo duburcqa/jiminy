@@ -4,7 +4,7 @@
 
 namespace jiminy::python
 {
-    void exposeGenerators(void);
+    void exposeGenerators();
 }
 
 #endif  // GENERATORS_PYTHON_H

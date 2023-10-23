@@ -41,7 +41,7 @@
 
 namespace jiminy
 {
-    void constraintsHolder_t::clear(void)
+    void constraintsHolder_t::clear()
     {
         boundJoints.clear();
         contactFrames.clear();
@@ -173,7 +173,7 @@ namespace jiminy
         return constraintsMapPtr->end();
     }
 
-    Model::Model(void) :
+    Model::Model() :
     pncModelOrig_(),
     pncModel_(),
     collisionModelOrig_(),
@@ -265,7 +265,7 @@ namespace jiminy
                 // Its parent frame and parent joint are the universe. It is aligned with world
                 // frame, and the top face is the actual ground surface.
                 pinocchio::SE3 groundPose = pinocchio::SE3::Identity();
-                groundPose.translation() = -vector3_t::UnitZ();
+                groundPose.translation() = -Eigen::Vector3d::UnitZ();
                 pinocchio::GeometryObject groundPlane("ground", 0, 0, groudBox, groundPose);
 
                 // Add the ground plane pinocchio to the robot model
@@ -280,7 +280,7 @@ namespace jiminy
             pinocchio::forwardKinematics(pncModelOrig_,
                                          pncDataOrig_,
                                          pinocchio::neutral(pncModelOrig_),
-                                         vectorN_t::Zero(pncModelOrig_.nv));
+                                         Eigen::VectorXd::Zero(pncModelOrig_.nv));
             pinocchio::updateFramePlacements(pncModelOrig_, pncDataOrig_);
             pinocchio::centerOfMass(
                 pncModelOrig_, pncDataOrig_, pinocchio::neutral(pncModelOrig_));
@@ -369,7 +369,7 @@ namespace jiminy
         return returnCode;
     }
 
-    void Model::reset(void)
+    void Model::reset()
     {
         /* Do NOT reset the constraints, since it will be handled by the engine.
            It is necessary, since the current model state is required to initialize the
@@ -446,8 +446,8 @@ namespace jiminy
                Note that it is only necessary because 'reset' is not called for efficiency. It is
                reasonable to assume that no other fields have been overriden by derived classes
                such as Robot. */
-            vectorN_t rotorInertia = pncModel_.rotorInertia;
-            vectorN_t effortLimit = pncModel_.effortLimit;
+            Eigen::VectorXd rotorInertia = pncModel_.rotorInertia;
+            Eigen::VectorXd effortLimit = pncModel_.effortLimit;
 
             /* One must re-generate the model after adding a frame.
                Note that, since the added frame being the "last" of the model, the proxies are
@@ -996,7 +996,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    constraintsHolder_t Model::getConstraints(void)
+    constraintsHolder_t Model::getConstraints()
     {
         return constraintsHolder_;
     }
@@ -1006,7 +1006,7 @@ namespace jiminy
         return constraintsHolder_.exist(constraintName);
     }
 
-    hresult_t Model::resetConstraints(const vectorN_t & q, const vectorN_t & v)
+    hresult_t Model::resetConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1035,7 +1035,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::generateModelFlexible(void)
+    hresult_t Model::generateModelFlexible()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1123,7 +1123,7 @@ namespace jiminy
                     pncModelFlexibleOrig_.inertias[flexibleJointModelIdx];
                 const pinocchio::JointModel & jmodel =
                     pncModelFlexibleOrig_.joints[flexibleJointModelIdx];
-                const vector3_t inertiaDiag =
+                const Eigen::Vector3d inertiaDiag =
                     jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia) +
                     flexibleInertia.inertia().matrix().diagonal();
                 if ((inertiaDiag.array() < 1e-5).any())
@@ -1141,7 +1141,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::generateModelBiased(void)
+    hresult_t Model::generateModelBiased()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1176,7 +1176,8 @@ namespace jiminy
                     mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
                 if (comBiasStd > EPS)
                 {
-                    vector3_t & comRelativePositionBody = pncModel_.inertias[jointIdx].lever();
+                    Eigen::Vector3d & comRelativePositionBody =
+                        pncModel_.inertias[jointIdx].lever();
                     comRelativePositionBody.array() *=
                         1.0 + randVectorNormal(3U, comBiasStd).array();
                 }
@@ -1202,10 +1203,10 @@ namespace jiminy
                 if (inertiaBiasStd > EPS)
                 {
                     pinocchio::Symmetric3 & inertiaBody = pncModel_.inertias[jointIdx].inertia();
-                    Eigen::SelfAdjointEigenSolver<matrix3_t> solver(inertiaBody.matrix());
-                    vector3_t inertiaBodyMoments = solver.eigenvalues();
-                    matrix3_t inertiaBodyAxes = solver.eigenvectors();
-                    const vector3_t randAxis = randVectorNormal(3U, inertiaBiasStd);
+                    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(inertiaBody.matrix());
+                    Eigen::Vector3d inertiaBodyMoments = solver.eigenvalues();
+                    Eigen::Matrix3d inertiaBodyAxes = solver.eigenvectors();
+                    const Eigen::Vector3d randAxis = randVectorNormal(3U, inertiaBiasStd);
                     inertiaBodyAxes = inertiaBodyAxes * quaternion_t(pinocchio::exp3(randAxis));
                     inertiaBodyMoments.array() *=
                         1.0 + randVectorNormal(3U, inertiaBiasStd).array();
@@ -1220,7 +1221,7 @@ namespace jiminy
                     mdlOptions_->dynamics.relativePositionBodiesBiasStd;
                 if (relativeBodyPosBiasStd > EPS)
                 {
-                    vector3_t & relativePositionBody =
+                    Eigen::Vector3d & relativePositionBody =
                         pncModel_.jointPlacements[jointIdx].translation();
                     relativePositionBody.array() *=
                         1.0 + randVectorNormal(3U, relativeBodyPosBiasStd).array();
@@ -1229,8 +1230,10 @@ namespace jiminy
 
             // Initialize Pinocchio Data internal state
             pncData_ = pinocchio::Data(pncModel_);
-            pinocchio::forwardKinematics(
-                pncModel_, pncData_, pinocchio::neutral(pncModel_), vectorN_t::Zero(pncModel_.nv));
+            pinocchio::forwardKinematics(pncModel_,
+                                         pncData_,
+                                         pinocchio::neutral(pncModel_),
+                                         Eigen::VectorXd::Zero(pncModel_.nv));
             pinocchio::updateFramePlacements(pncModel_, pncData_);
             pinocchio::centerOfMass(pncModel_, pncData_, pinocchio::neutral(pncModel_));
 
@@ -1241,7 +1244,7 @@ namespace jiminy
         return returnCode;
     }
 
-    void Model::computeConstraints(const vectorN_t & q, const vectorN_t & v)
+    void Model::computeConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
     {
         /* Note that it is assumed that all kinematic quantities are consistent with (q, v, a, u).
            If not, one must call `pinocchio::forwardKinematics` before calling this method. */
@@ -1262,7 +1265,7 @@ namespace jiminy
            do a backup first to restore it later on. */
         jointsAcceleration_.swap(pncData_.a);
         pinocchio_overload::forwardKinematicsAcceleration(
-            pncModel_, pncData_, vectorN_t::Zero(pncModel_.nv));
+            pncModel_, pncData_, Eigen::VectorXd::Zero(pncModel_.nv));
 
         // Compute sequentially the jacobian and drift of each enabled constraint
         constraintsHolder_.foreach(
@@ -1283,7 +1286,7 @@ namespace jiminy
         jointsAcceleration_.swap(pncData_.a);
     }
 
-    hresult_t Model::refreshProxies(void)
+    hresult_t Model::refreshProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1498,7 +1501,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::refreshGeometryProxies(void)
+    hresult_t Model::refreshGeometryProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1592,7 +1595,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::refreshContactsProxies(void)
+    hresult_t Model::refreshContactsProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1614,7 +1617,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::refreshConstraintsProxies(void)
+    hresult_t Model::refreshConstraintsProxies()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1628,8 +1631,8 @@ namespace jiminy
                 if (returnCode == hresult_t::SUCCESS)
                 {
                     // Reset constraint using neutral configuration and zero velocity
-                    returnCode =
-                        constraint->reset(pinocchio::neutral(pncModel_), vectorN_t::Zero(nv_));
+                    returnCode = constraint->reset(pinocchio::neutral(pncModel_),
+                                                   Eigen::VectorXd::Zero(nv_));
                 }
 
                 if (returnCode == hresult_t::SUCCESS)
@@ -1665,16 +1668,16 @@ namespace jiminy
                 boost::get<bool_t>(jointOptionsHolder.at("positionLimitFromUrdf"));
             if (!positionLimitFromUrdf)
             {
-                vectorN_t & jointsPositionLimitMin =
-                    boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
+                Eigen::VectorXd & jointsPositionLimitMin =
+                    boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitMin"));
                 if (rigidJointsPositionIdx_.size() !=
                     static_cast<uint32_t>(jointsPositionLimitMin.size()))
                 {
                     PRINT_ERROR("Wrong vector size for 'positionLimitMin'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                vectorN_t & jointsPositionLimitMax =
-                    boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
+                Eigen::VectorXd & jointsPositionLimitMax =
+                    boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitMax"));
                 if (rigidJointsPositionIdx_.size() !=
                     static_cast<uint32_t>(jointsPositionLimitMax.size()))
                 {
@@ -1702,8 +1705,8 @@ namespace jiminy
                 boost::get<bool_t>(jointOptionsHolder.at("velocityLimitFromUrdf"));
             if (!velocityLimitFromUrdf)
             {
-                vectorN_t & jointsVelocityLimit =
-                    boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
+                Eigen::VectorXd & jointsVelocityLimit =
+                    boost::get<Eigen::VectorXd>(jointOptionsHolder.at("velocityLimit"));
                 if (rigidJointsVelocityIdx_.size() !=
                     static_cast<uint32_t>(jointsVelocityLimit.size()))
                 {
@@ -1857,43 +1860,43 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t Model::getOptions(void) const
+    configHolder_t Model::getOptions() const
     {
         return mdlOptionsHolder_;
     }
 
-    const bool_t & Model::getIsInitialized(void) const
+    const bool_t & Model::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    const std::string & Model::getName(void) const
+    const std::string & Model::getName() const
     {
         return pncModelOrig_.name;
     }
 
-    const std::string & Model::getUrdfPath(void) const
+    const std::string & Model::getUrdfPath() const
     {
         return urdfPath_;
     }
 
-    const std::string & Model::getUrdfAsString(void) const
+    const std::string & Model::getUrdfAsString() const
     {
         return urdfData_;
     }
 
-    const std::vector<std::string> & Model::getMeshPackageDirs(void) const
+    const std::vector<std::string> & Model::getMeshPackageDirs() const
     {
         return meshPackageDirs_;
     }
 
-    const bool_t & Model::getHasFreeflyer(void) const
+    const bool_t & Model::getHasFreeflyer() const
     {
         return hasFreeflyer_;
     }
 
-    hresult_t Model::getFlexibleConfigurationFromRigid(const vectorN_t & qRigid,
-                                                       vectorN_t & qFlex) const
+    hresult_t Model::getFlexibleConfigurationFromRigid(const Eigen::VectorXd & qRigid,
+                                                       Eigen::VectorXd & qFlex) const
     {
         // Define some proxies
         const uint32_t & nqRigid = pncModelOrig_.nq;
@@ -1931,8 +1934,8 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getRigidConfigurationFromFlexible(const vectorN_t & qFlex,
-                                                       vectorN_t & qRigid) const
+    hresult_t Model::getRigidConfigurationFromFlexible(const Eigen::VectorXd & qFlex,
+                                                       Eigen::VectorXd & qRigid) const
     {
         // Define some proxies
         const uint32_t & nqFlex = pncModelFlexibleOrig_.nq;
@@ -1970,8 +1973,8 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getFlexibleVelocityFromRigid(const vectorN_t & vRigid,
-                                                  vectorN_t & vFlex) const
+    hresult_t Model::getFlexibleVelocityFromRigid(const Eigen::VectorXd & vRigid,
+                                                  Eigen::VectorXd & vFlex) const
     {
         // Define some proxies
         const uint32_t & nvRigid = pncModelOrig_.nv;
@@ -2010,8 +2013,8 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getRigidVelocityFromFlexible(const vectorN_t & vFlex,
-                                                  vectorN_t & vRigid) const
+    hresult_t Model::getRigidVelocityFromFlexible(const Eigen::VectorXd & vFlex,
+                                                  Eigen::VectorXd & vRigid) const
     {
         // Define some proxies
         const uint32_t & nvRigid = pncModelOrig_.nv;
@@ -2053,87 +2056,87 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const std::vector<std::string> & Model::getCollisionBodiesNames(void) const
+    const std::vector<std::string> & Model::getCollisionBodiesNames() const
     {
         return collisionBodiesNames_;
     }
 
-    const std::vector<std::string> & Model::getContactFramesNames(void) const
+    const std::vector<std::string> & Model::getContactFramesNames() const
     {
         return contactFramesNames_;
     }
 
-    const std::vector<frameIndex_t> & Model::getCollisionBodiesIdx(void) const
+    const std::vector<frameIndex_t> & Model::getCollisionBodiesIdx() const
     {
         return collisionBodiesIdx_;
     }
 
-    const std::vector<std::vector<pairIndex_t>> & Model::getCollisionPairsIdx(void) const
+    const std::vector<std::vector<pairIndex_t>> & Model::getCollisionPairsIdx() const
     {
         return collisionPairsIdx_;
     }
 
-    const std::vector<frameIndex_t> & Model::getContactFramesIdx(void) const
+    const std::vector<frameIndex_t> & Model::getContactFramesIdx() const
     {
         return contactFramesIdx_;
     }
 
-    const std::vector<std::string> & Model::getLogFieldnamesPosition(void) const
+    const std::vector<std::string> & Model::getLogFieldnamesPosition() const
     {
         return logFieldnamesPosition_;
     }
 
-    const vectorN_t & Model::getPositionLimitMin(void) const
+    const Eigen::VectorXd & Model::getPositionLimitMin() const
     {
         return positionLimitMin_;
     }
 
-    const vectorN_t & Model::getPositionLimitMax(void) const
+    const Eigen::VectorXd & Model::getPositionLimitMax() const
     {
         return positionLimitMax_;
     }
 
-    const std::vector<std::string> & Model::getLogFieldnamesVelocity(void) const
+    const std::vector<std::string> & Model::getLogFieldnamesVelocity() const
     {
         return logFieldnamesVelocity_;
     }
 
-    const vectorN_t & Model::getVelocityLimit(void) const
+    const Eigen::VectorXd & Model::getVelocityLimit() const
     {
         return velocityLimit_;
     }
 
-    const std::vector<std::string> & Model::getLogFieldnamesAcceleration(void) const
+    const std::vector<std::string> & Model::getLogFieldnamesAcceleration() const
     {
         return logFieldnamesAcceleration_;
     }
 
-    const std::vector<std::string> & Model::getLogFieldnamesForceExternal(void) const
+    const std::vector<std::string> & Model::getLogFieldnamesForceExternal() const
     {
         return logFieldnamesForceExternal_;
     }
 
-    const std::vector<std::string> & Model::getRigidJointsNames(void) const
+    const std::vector<std::string> & Model::getRigidJointsNames() const
     {
         return rigidJointsNames_;
     }
 
-    const std::vector<jointIndex_t> & Model::getRigidJointsModelIdx(void) const
+    const std::vector<jointIndex_t> & Model::getRigidJointsModelIdx() const
     {
         return rigidJointsModelIdx_;
     }
 
-    const std::vector<int32_t> & Model::getRigidJointsPositionIdx(void) const
+    const std::vector<int32_t> & Model::getRigidJointsPositionIdx() const
     {
         return rigidJointsPositionIdx_;
     }
 
-    const std::vector<int32_t> & Model::getRigidJointsVelocityIdx(void) const
+    const std::vector<int32_t> & Model::getRigidJointsVelocityIdx() const
     {
         return rigidJointsVelocityIdx_;
     }
 
-    const std::vector<std::string> & Model::getFlexibleJointsNames(void) const
+    const std::vector<std::string> & Model::getFlexibleJointsNames() const
     {
         static const std::vector<std::string> flexibleJointsNamesEmpty{};
         if (mdlOptions_->dynamics.enableFlexibleModel)
@@ -2146,7 +2149,7 @@ namespace jiminy
         }
     }
 
-    const std::vector<jointIndex_t> & Model::getFlexibleJointsModelIdx(void) const
+    const std::vector<jointIndex_t> & Model::getFlexibleJointsModelIdx() const
     {
         static const std::vector<jointIndex_t> flexibleJointsModelIdxEmpty{};
         if (mdlOptions_->dynamics.enableFlexibleModel)
@@ -2160,7 +2163,7 @@ namespace jiminy
     }
 
     /// \brief Returns true if at least one constraint is active on the robot.
-    bool_t Model::hasConstraints(void) const
+    bool_t Model::hasConstraints() const
     {
         bool_t hasConstraintsEnabled = false;
         const_cast<constraintsHolder_t &>(constraintsHolder_)
@@ -2177,17 +2180,17 @@ namespace jiminy
         return hasConstraintsEnabled;
     }
 
-    const int32_t & Model::nq(void) const
+    const int32_t & Model::nq() const
     {
         return nq_;
     }
 
-    const int32_t & Model::nv(void) const
+    const int32_t & Model::nv() const
     {
         return nv_;
     }
 
-    const int32_t & Model::nx(void) const
+    const int32_t & Model::nx() const
     {
         return nx_;
     }

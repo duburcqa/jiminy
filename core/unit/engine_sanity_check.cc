@@ -20,23 +20,24 @@ const float64_t TOLERANCE = 1e-9;
 
 /// \brief Controller sending zero torque to the motors.
 void controllerZeroTorque(const float64_t & /* t */,
-                          const vectorN_t & /* q */,
-                          const vectorN_t & /* v */,
+                          const Eigen::VectorXd & /* q */,
+                          const Eigen::VectorXd & /* v */,
                           const sensorsDataMap_t & /* sensorData */,
-                          vectorN_t & /* command */)
+                          Eigen::VectorXd & /* command */)
 {
 }
 
 /// \brief Internal dynamics of the system (friction, ...)
 void internalDynamics(const float64_t & /* t */,
-                      const vectorN_t & /* q */,
-                      const vectorN_t & /* v */,
+                      const Eigen::VectorXd & /* q */,
+                      const Eigen::VectorXd & /* v */,
                       const sensorsDataMap_t & /* sensorData */,
-                      vectorN_t & /* uCustom */)
+                      Eigen::VectorXd & /* uCustom */)
 {
 }
 
-bool_t callback(const float64_t & /* t */, const vectorN_t & /* q */, const vectorN_t & /* v */)
+bool_t callback(
+    const float64_t & /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
 {
     return true;
 }
@@ -97,9 +98,9 @@ TEST(EngineSanity, EnergyConservation)
     engine->setOptions(simuOptions);
 
     // Run simulation
-    vectorN_t q0 = vectorN_t::Zero(2);
+    Eigen::VectorXd q0 = Eigen::VectorXd::Zero(2);
     q0(0) = 1.0;
-    vectorN_t v0 = vectorN_t::Zero(2);
+    Eigen::VectorXd v0 = Eigen::VectorXd::Zero(2);
     float64_t tf = 10.0;
 
     // Run simulation
@@ -113,9 +114,9 @@ TEST(EngineSanity, EnergyConservation)
     // Get system energy
     std::shared_ptr<const logData_t> logDataPtr;
     engine->getLog(logDataPtr);
-    const vectorN_t timesCont = getLogVariable(*logDataPtr, "Global.Time");
+    const Eigen::VectorXd timesCont = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesCont[timesCont.size() - 1], tf);
-    const vectorN_t energyCont = getLogVariable(*logDataPtr, "HighLevelController.energy");
+    const Eigen::VectorXd energyCont = getLogVariable(*logDataPtr, "HighLevelController.energy");
     ASSERT_GT(energyCont.size(), 0);
 
     // Check that energy is constant
@@ -141,9 +142,9 @@ TEST(EngineSanity, EnergyConservation)
 
     // Get system energy
     engine->getLog(logDataPtr);
-    const vectorN_t timesDisc = getLogVariable(*logDataPtr, "Global.Time");
+    const Eigen::VectorXd timesDisc = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesDisc[timesDisc.size() - 1], tf);
-    const vectorN_t energyDisc = getLogVariable(*logDataPtr, "HighLevelController.energy");
+    const Eigen::VectorXd energyDisc = getLogVariable(*logDataPtr, "HighLevelController.energy");
     ASSERT_GT(energyDisc.size(), 0);
 
     // Check that energy is constant

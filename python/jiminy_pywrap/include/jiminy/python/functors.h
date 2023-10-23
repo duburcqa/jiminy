@@ -23,7 +23,7 @@ namespace jiminy::python
     template<>
     struct DataInternalBufferType<pinocchio::Force>
     {
-        using type = typename Eigen::Ref<vector6_t>;
+        using type = typename Eigen::Ref<Vector6d>;
     };
 
     template<typename T>
@@ -37,13 +37,13 @@ namespace jiminy::python
     setDataInternalBuffer<pinocchio::Force>(pinocchio::Force * arg);
 
     template<typename T>
-    T * createInternalBuffer(void)
+    T * createInternalBuffer()
     {
         return (new T());
     }
 
     template<>
-    pinocchio::Force * createInternalBuffer<pinocchio::Force>(void);
+    pinocchio::Force * createInternalBuffer<pinocchio::Force>();
 
     template<typename T>
     std::enable_if_t<std::is_arithmetic_v<T>, T> FctPyWrapperArgToPython(const T & arg)
@@ -155,16 +155,18 @@ namespace jiminy::python
     };
 
     template<typename T>
-    using TimeStateFctPyWrapper =
-        FctPyWrapper<T /* OutputType */, float64_t /* t */, vectorN_t /* q */, vectorN_t /* v */>;
+    using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                               float64_t /* t */,
+                                               Eigen::VectorXd /* q */,
+                                               Eigen::VectorXd /* v */>;
 
     template<typename T>
     using TimeBistateFctPyWrapper = FctPyWrapper<T /* OutputType */,
                                                  float64_t /* t */,
-                                                 vectorN_t /* q1 */,
-                                                 vectorN_t /* v1 */,
-                                                 vectorN_t /* q2 */,
-                                                 vectorN_t /* v2 */>;
+                                                 Eigen::VectorXd /* q1 */,
+                                                 Eigen::VectorXd /* v1 */,
+                                                 Eigen::VectorXd /* q2 */,
+                                                 Eigen::VectorXd /* v2 */>;
 
     // **************************** FctInOutPyWrapper *******************************
 
@@ -176,7 +178,7 @@ namespace jiminy::python
         funcPyPtr_(objPy)
         {
         }
-        void operator()(const InputArgs &... argsIn, vectorN_t & argOut)
+        void operator()(const InputArgs &... argsIn, Eigen::VectorXd & argOut)
         {
             funcPyPtr_(FctPyWrapperArgToPython(argsIn)..., FctPyWrapperArgToPython(argOut));
         }
@@ -185,17 +187,17 @@ namespace jiminy::python
         bp::object funcPyPtr_;
     };
 
-    using ControllerFctWrapper = FctInOutPyWrapper<vectorN_t /* OutputType */,
+    using ControllerFctWrapper = FctInOutPyWrapper<Eigen::VectorXd /* OutputType */,
                                                    float64_t /* t */,
-                                                   vectorN_t /* q */,
-                                                   vectorN_t /* v */,
+                                                   Eigen::VectorXd /* q */,
+                                                   Eigen::VectorXd /* v */,
                                                    sensorsDataMap_t /* sensorsData*/>;
 
     using ControllerFct = std::function<void(const float64_t & /* t */,
-                                             const vectorN_t & /* q */,
-                                             const vectorN_t & /* v */,
+                                             const Eigen::VectorXd & /* q */,
+                                             const Eigen::VectorXd & /* v */,
                                              const sensorsDataMap_t & /* sensorsData */,
-                                             vectorN_t & /* command */)>;
+                                             Eigen::VectorXd & /* command */)>;
 
     // ************************** HeightmapFunctorPyWrapper ******************************
 
@@ -217,19 +219,19 @@ namespace jiminy::python
         heightmapType_(objType),
         handlePyPtr_(objPy),
         out1Ptr_(new float64_t),
-        out2Ptr_(new vector3_t),
+        out2Ptr_(new Eigen::Vector3d),
         out1PyPtr_(),
         out2PyPtr_()
         {
             if (heightmapType_ == heightmapType_t::CONSTANT)
             {
                 *out1Ptr_ = bp::extract<float64_t>(handlePyPtr_);
-                *out2Ptr_ = vector3_t::UnitZ();
+                *out2Ptr_ = Eigen::Vector3d::UnitZ();
             }
             else if (heightmapType_ == heightmapType_t::STAIRS)
             {
                 out1PyPtr_ = getNumpyReference(*out1Ptr_);
-                *out2Ptr_ = vector3_t::UnitZ();
+                *out2Ptr_ = Eigen::Vector3d::UnitZ();
             }
             else if (heightmapType_ == heightmapType_t::GENERIC)
             {
@@ -243,7 +245,7 @@ namespace jiminy::python
         heightmapType_(other.heightmapType_),
         handlePyPtr_(other.handlePyPtr_),
         out1Ptr_(new float64_t),
-        out2Ptr_(new vector3_t),
+        out2Ptr_(new Eigen::Vector3d),
         out1PyPtr_(),
         out2PyPtr_()
         {
@@ -299,7 +301,7 @@ namespace jiminy::python
             return *this;
         }
 
-        std::pair<float64_t, vector3_t> operator()(const vector3_t & posFrame)
+        std::pair<float64_t, Eigen::Vector3d> operator()(const Eigen::Vector3d & posFrame)
         {
             if (heightmapType_ == heightmapType_t::STAIRS)
             {
@@ -332,14 +334,14 @@ namespace jiminy::python
 
     private:
         float64_t * out1Ptr_;
-        vector3_t * out2Ptr_;
+        Eigen::Vector3d * out2Ptr_;
         PyObject * out1PyPtr_;
         PyObject * out2PyPtr_;
     };
 
     // **************************** HeightmapFunctorVisitor *****************************
 
-    void exposeHeightmapFunctor(void);
+    void exposeHeightmapFunctor();
 }
 
 #endif  // FUNCTORS_PYTHON_H

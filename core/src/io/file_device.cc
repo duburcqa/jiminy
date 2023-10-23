@@ -48,7 +48,7 @@ namespace jiminy
 #endif
     }
 
-    FileDevice::~FileDevice(void)
+    FileDevice::~FileDevice()
     {
 #if defined(close)
 #    pragma push_macro("close")
@@ -119,7 +119,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t FileDevice::doClose(void)
+    hresult_t FileDevice::doClose()
     {
         const int32_t rc = ::close(fileDescriptor_);
         if (rc < 0)
@@ -148,7 +148,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    int64_t FileDevice::pos(void)
+    int64_t FileDevice::pos()
     {
         const ssize_t pos_cur = ::lseek(fileDescriptor_, 0, SEEK_CUR);
         if (pos_cur < 0)
@@ -160,7 +160,7 @@ namespace jiminy
         return pos_cur;
     }
 
-    int64_t FileDevice::size(void)
+    int64_t FileDevice::size()
     {
         struct stat st;
         int32_t rc = ::fstat(fileDescriptor_, &st);
@@ -172,7 +172,7 @@ namespace jiminy
         return st.st_size;
     }
 
-    int64_t FileDevice::bytesAvailable(void)
+    int64_t FileDevice::bytesAvailable()
     {
         if (!isReadable())
         {
@@ -205,7 +205,7 @@ namespace jiminy
         return writtenBytes;
     }
 
-    const std::string & FileDevice::name(void) const
+    const std::string & FileDevice::name() const
     {
         return filename_;
     }

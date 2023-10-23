@@ -6,9 +6,9 @@ namespace jiminy
 {
     AbstractRungeKuttaStepper::AbstractRungeKuttaStepper(const systemDynamics & f,
                                                          const std::vector<const Robot *> & robots,
-                                                         const matrixN_t & RungeKuttaMatrix,
-                                                         const vectorN_t & bWeights,
-                                                         const vectorN_t & cNodes,
+                                                         const Eigen::MatrixXd & RungeKuttaMatrix,
+                                                         const Eigen::VectorXd & bWeights,
+                                                         const Eigen::VectorXd & cNodes,
                                                          const bool_t & isFSAL) :
     AbstractStepper(f, robots),
     A_(RungeKuttaMatrix),
@@ -26,10 +26,8 @@ namespace jiminy
         assert(b_.size() == b_.rows());
     }
 
-    bool_t AbstractRungeKuttaStepper::tryStepImpl(state_t & state,
-                                                  stateDerivative_t & stateDerivative,
-                                                  const float64_t & t,
-                                                  float64_t & dt)
+    bool_t AbstractRungeKuttaStepper::tryStepImpl(
+        state_t & state, stateDerivative_t & stateDerivative, const float64_t & t, float64_t & dt)
     {
         // First ki is simply the provided stateDerivative
         ki_[0] = stateDerivative;
@@ -77,9 +75,8 @@ namespace jiminy
         return hasSucceeded;
     }
 
-    bool_t AbstractRungeKuttaStepper::adjustStep(const state_t & /* initialState */,
-                                                 const state_t & /* solution */,
-                                                 float64_t & dt)
+    bool_t AbstractRungeKuttaStepper::adjustStep(
+        const state_t & /* initialState */, const state_t & /* solution */, float64_t & dt)
     {
         // Fixed-step by default, which never fails
         dt = INF;

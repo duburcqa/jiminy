@@ -35,7 +35,7 @@ namespace jiminy
         return data.array().max(minThr).min(maxThr);
     }
 
-    inline float64_t minClipped(void)
+    inline float64_t minClipped()
     {
         return INF;
     }

@@ -4,12 +4,12 @@
 
 namespace jiminy::python
 {
-    void exposeForces(void);
-    void exposeStepperState(void);
-    void exposeSystemState(void);
-    void exposeSystem(void);
-    void exposeEngineMultiRobot(void);
-    void exposeEngine(void);
+    void exposeForces();
+    void exposeStepperState();
+    void exposeSystemState();
+    void exposeSystem();
+    void exposeEngineMultiRobot();
+    void exposeEngine();
 }
 
 #endif  // SIMULATOR_PYTHON_H

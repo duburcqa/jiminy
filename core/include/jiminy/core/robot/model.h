@@ -37,7 +37,7 @@ namespace jiminy
     struct constraintsHolder_t
     {
     public:
-        void clear(void);
+        void clear();
 
         std::pair<constraintsMap_t *, constraintsMap_t::iterator> find(
             const std::string & key, const constraintsHolderType_t & holderType);
@@ -126,11 +126,11 @@ namespace jiminy
             configHolder_t config;
             config["enablePositionLimit"] = true;
             config["positionLimitFromUrdf"] = true;
-            config["positionLimitMin"] = vectorN_t();
-            config["positionLimitMax"] = vectorN_t();
+            config["positionLimitMin"] = Eigen::VectorXd();
+            config["positionLimitMax"] = Eigen::VectorXd();
             config["enableVelocityLimit"] = true;
             config["velocityLimitFromUrdf"] = true;
-            config["velocityLimit"] = vectorN_t();
+            config["velocityLimit"] = Eigen::VectorXd();
 
             return config;
         };
@@ -175,20 +175,20 @@ namespace jiminy
             const bool_t positionLimitFromUrdf;
             /// \brief Min position limit of all the rigid joints, ie without freeflyer and
             ///        flexibility joints if any.
-            const vectorN_t positionLimitMin;
-            const vectorN_t positionLimitMax;
+            const Eigen::VectorXd positionLimitMin;
+            const Eigen::VectorXd positionLimitMax;
             const bool_t enableVelocityLimit;
             const bool_t velocityLimitFromUrdf;
-            const vectorN_t velocityLimit;
+            const Eigen::VectorXd velocityLimit;
 
             jointOptions_t(const configHolder_t & options) :
             enablePositionLimit(boost::get<bool_t>(options.at("enablePositionLimit"))),
             positionLimitFromUrdf(boost::get<bool_t>(options.at("positionLimitFromUrdf"))),
-            positionLimitMin(boost::get<vectorN_t>(options.at("positionLimitMin"))),
-            positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
+            positionLimitMin(boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))),
+            positionLimitMax(boost::get<Eigen::VectorXd>(options.at("positionLimitMax"))),
             enableVelocityLimit(boost::get<bool_t>(options.at("enableVelocityLimit"))),
             velocityLimitFromUrdf(boost::get<bool_t>(options.at("velocityLimitFromUrdf"))),
-            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
+            velocityLimit(boost::get<Eigen::VectorXd>(options.at("velocityLimit")))
             {
             }
         };
@@ -243,8 +243,8 @@ namespace jiminy
         DISABLE_COPY(Model)
 
     public:
-        Model(void);
-        virtual ~Model(void) = default;
+        Model();
+        virtual ~Model() = default;
 
         hresult_t initialize(const pinocchio::Model & pncModel,
                              const pinocchio::GeometryModel & collisionModel,
@@ -294,11 +294,11 @@ namespace jiminy
                                 std::weak_ptr<const AbstractConstraintBase> & constraint) const;
 
         // Copy on purpose
-        constraintsHolder_t getConstraints(void);
+        constraintsHolder_t getConstraints();
 
         bool_t existConstraint(const std::string & constraintName) const;
 
-        hresult_t resetConstraints(const vectorN_t & q, const vectorN_t & v);
+        hresult_t resetConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
         /// \brief Compute jacobian and drift associated to all the constraints.
         ///
@@ -308,61 +308,63 @@ namespace jiminy
         ///
         /// \param[in] q Joint position.
         /// \param[in] v Joint velocity.
-        void computeConstraints(const vectorN_t & q, const vectorN_t & v);
+        void computeConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
         /// \brief Returns true if at least one constraint is active on the robot.
-        bool_t hasConstraints(void) const;
+        bool_t hasConstraints() const;
 
         // Copy on purpose
         hresult_t setOptions(configHolder_t modelOptions);
-        configHolder_t getOptions(void) const;
+        configHolder_t getOptions() const;
 
         /// \remark This method are not intended to be called manually. The Engine is taking care
         ///         of it.
-        virtual void reset(void);
+        virtual void reset();
 
-        const bool_t & getIsInitialized(void) const;
-        const std::string & getName(void) const;
-        const std::string & getUrdfPath(void) const;
-        const std::string & getUrdfAsString(void) const;
-        const std::vector<std::string> & getMeshPackageDirs(void) const;
-        const bool_t & getHasFreeflyer(void) const;
+        const bool_t & getIsInitialized() const;
+        const std::string & getName() const;
+        const std::string & getUrdfPath() const;
+        const std::string & getUrdfAsString() const;
+        const std::vector<std::string> & getMeshPackageDirs() const;
+        const bool_t & getHasFreeflyer() const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
-        const int32_t & nq(void) const;
-        const int32_t & nv(void) const;
-        const int32_t & nx(void) const;
+        const int32_t & nq() const;
+        const int32_t & nv() const;
+        const int32_t & nx() const;
 
-        const std::vector<std::string> & getCollisionBodiesNames(void) const;
-        const std::vector<std::string> & getContactFramesNames(void) const;
-        const std::vector<frameIndex_t> & getCollisionBodiesIdx(void) const;
-        const std::vector<std::vector<pairIndex_t>> & getCollisionPairsIdx(void) const;
-        const std::vector<frameIndex_t> & getContactFramesIdx(void) const;
-        const std::vector<std::string> & getRigidJointsNames(void) const;
-        const std::vector<jointIndex_t> & getRigidJointsModelIdx(void) const;
-        const std::vector<int32_t> & getRigidJointsPositionIdx(void) const;
-        const std::vector<int32_t> & getRigidJointsVelocityIdx(void) const;
-        const std::vector<std::string> & getFlexibleJointsNames(void) const;
-        const std::vector<jointIndex_t> & getFlexibleJointsModelIdx(void) const;
+        const std::vector<std::string> & getCollisionBodiesNames() const;
+        const std::vector<std::string> & getContactFramesNames() const;
+        const std::vector<frameIndex_t> & getCollisionBodiesIdx() const;
+        const std::vector<std::vector<pairIndex_t>> & getCollisionPairsIdx() const;
+        const std::vector<frameIndex_t> & getContactFramesIdx() const;
+        const std::vector<std::string> & getRigidJointsNames() const;
+        const std::vector<jointIndex_t> & getRigidJointsModelIdx() const;
+        const std::vector<int32_t> & getRigidJointsPositionIdx() const;
+        const std::vector<int32_t> & getRigidJointsVelocityIdx() const;
+        const std::vector<std::string> & getFlexibleJointsNames() const;
+        const std::vector<jointIndex_t> & getFlexibleJointsModelIdx() const;
 
-        const vectorN_t & getPositionLimitMin(void) const;
-        const vectorN_t & getPositionLimitMax(void) const;
-        const vectorN_t & getVelocityLimit(void) const;
+        const Eigen::VectorXd & getPositionLimitMin() const;
+        const Eigen::VectorXd & getPositionLimitMax() const;
+        const Eigen::VectorXd & getVelocityLimit() const;
 
-        const std::vector<std::string> & getLogFieldnamesPosition(void) const;
-        const std::vector<std::string> & getLogFieldnamesVelocity(void) const;
-        const std::vector<std::string> & getLogFieldnamesAcceleration(void) const;
-        const std::vector<std::string> & getLogFieldnamesForceExternal(void) const;
+        const std::vector<std::string> & getLogFieldnamesPosition() const;
+        const std::vector<std::string> & getLogFieldnamesVelocity() const;
+        const std::vector<std::string> & getLogFieldnamesAcceleration() const;
+        const std::vector<std::string> & getLogFieldnamesForceExternal() const;
 
-        hresult_t getFlexibleConfigurationFromRigid(const vectorN_t & qRigid,
-                                                    vectorN_t & qFlex) const;
-        hresult_t getRigidConfigurationFromFlexible(const vectorN_t & qFlex,
-                                                    vectorN_t & qRigid) const;
-        hresult_t getFlexibleVelocityFromRigid(const vectorN_t & vRigid, vectorN_t & vFlex) const;
-        hresult_t getRigidVelocityFromFlexible(const vectorN_t & vFlex, vectorN_t & vRigid) const;
+        hresult_t getFlexibleConfigurationFromRigid(const Eigen::VectorXd & qRigid,
+                                                    Eigen::VectorXd & qFlex) const;
+        hresult_t getRigidConfigurationFromFlexible(const Eigen::VectorXd & qFlex,
+                                                    Eigen::VectorXd & qRigid) const;
+        hresult_t getFlexibleVelocityFromRigid(const Eigen::VectorXd & vRigid,
+                                               Eigen::VectorXd & vFlex) const;
+        hresult_t getRigidVelocityFromFlexible(const Eigen::VectorXd & vFlex,
+                                               Eigen::VectorXd & vRigid) const;
 
     protected:
-        hresult_t generateModelFlexible(void);
-        hresult_t generateModelBiased(void);
+        hresult_t generateModelFlexible();
+        hresult_t generateModelBiased();
 
         hresult_t addFrame(const std::string & frameName,
                            const std::string & parentBodyName,
@@ -380,11 +382,11 @@ namespace jiminy
         hresult_t removeConstraints(const std::vector<std::string> & constraintsNames,
                                     const constraintsHolderType_t & holderType);
 
-        hresult_t refreshGeometryProxies(void);
-        hresult_t refreshContactsProxies(void);
+        hresult_t refreshGeometryProxies();
+        hresult_t refreshContactsProxies();
         /// \brief Refresh the proxies of the kinematics constraints.
-        hresult_t refreshConstraintsProxies(void);
-        virtual hresult_t refreshProxies(void);
+        hresult_t refreshConstraintsProxies();
+        virtual hresult_t refreshProxies();
 
     public:
         pinocchio::Model pncModelOrig_;
@@ -440,11 +442,11 @@ namespace jiminy
 
         /// \brief Upper position limit of the whole configuration vector (INF for non-physical
         ///        joints, ie flexibility joints and freeflyer, if any).
-        vectorN_t positionLimitMin_;
+        Eigen::VectorXd positionLimitMin_;
         /// \brief Lower position limit of the whole configuration vector.
-        vectorN_t positionLimitMax_;
+        Eigen::VectorXd positionLimitMax_;
         /// \brief Maximum absolute velocity of the whole velocity vector.
-        vectorN_t velocityLimit_;
+        Eigen::VectorXd velocityLimit_;
 
         /// \brief Fieldnames of the elements in the configuration vector of the model.
         std::vector<std::string> logFieldnamesPosition_;

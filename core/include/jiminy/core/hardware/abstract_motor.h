@@ -27,7 +27,7 @@ namespace jiminy
     struct MotorSharedDataHolder_t
     {
         /// \brief Buffer storing the current true motor efforts.
-        vectorN_t data_;
+        Eigen::VectorXd data_;
         /// \brief Vector of pointers to the motors.
         std::vector<AbstractMotorBase *> motors_;
         /// \brief Number of motors
@@ -41,7 +41,7 @@ namespace jiminy
 
     public:
         /// \brief Dictionary gathering the configuration options shared between motors.
-        virtual configHolder_t getDefaultMotorOptions(void)
+        virtual configHolder_t getDefaultMotorOptions()
         {
             configHolder_t config;
             config["mechanicalReduction"] = 1.0;
@@ -82,13 +82,13 @@ namespace jiminy
         /// \param[in] robot Robot.
         /// \param[in] name Name of the motor.
         AbstractMotorBase(const std::string & name);
-        virtual ~AbstractMotorBase(void);
+        virtual ~AbstractMotorBase();
 
         /// \brief Refresh the proxies.
         ///
         /// \remark This method is not intended to be called manually. The Robot to which the motor
         ///         is added is taking care of it when its own `refresh` method is called.
-        virtual hresult_t refreshProxies(void);
+        virtual hresult_t refreshProxies();
 
         /// \brief Reset the internal state of the motors.
         ///
@@ -96,16 +96,16 @@ namespace jiminy
         ///
         /// \remark  This method is not intended to be called manually. The Robot to which the
         ///          motor is added is taking care of it when its own `reset` method is called.
-        virtual hresult_t resetAll(void);
+        virtual hresult_t resetAll();
 
         /// \brief Configuration options of the motor.
-        configHolder_t getOptions(void) const;
+        configHolder_t getOptions() const;
 
         /// \brief Actual effort of the motor at the current time.
-        const float64_t & get(void) const;
+        const float64_t & get() const;
 
         /// \brief Actual effort of all the motors at the current time.
-        const vectorN_t & getAll(void) const;
+        const Eigen::VectorXd & getAll() const;
 
         /// \brief Set the configuration options of the motor.
         ///
@@ -118,34 +118,34 @@ namespace jiminy
         hresult_t setOptionsAll(const configHolder_t & motorOptions);
 
         /// \brief Whether the motor has been initialized.
-        const bool_t & getIsInitialized(void) const;
+        const bool_t & getIsInitialized() const;
 
         /// \brief Name of the motor.
-        const std::string & getName(void) const;
+        const std::string & getName() const;
 
         /// \brief Index of the motor.
-        const std::size_t & getIdx(void) const;
+        const std::size_t & getIdx() const;
 
         /// \brief Name of the joint associated with the motor.
-        const std::string & getJointName(void) const;
+        const std::string & getJointName() const;
 
         /// \brief Index of the joint associated with the motor in the kinematic tree.
-        const jointIndex_t & getJointModelIdx(void) const;
+        const jointIndex_t & getJointModelIdx() const;
 
         /// \brief Type of joint associated with the motor.
-        const joint_t & getJointType(void) const;
+        const joint_t & getJointType() const;
 
         /// \brief Index of the joint associated with the motor in configuration vector.
-        const int32_t & getJointPositionIdx(void) const;
+        const int32_t & getJointPositionIdx() const;
 
         /// \brief Index of the joint associated with the motor in the velocity vector.
-        const int32_t & getJointVelocityIdx(void) const;
+        const int32_t & getJointVelocityIdx() const;
 
         /// \brief Maximum effort of the motor.
-        const float64_t & getCommandLimit(void) const;
+        const float64_t & getCommandLimit() const;
 
         /// \brief Rotor inertia of the motor.
-        const float64_t & getArmature(void) const;
+        const float64_t & getArmature() const;
 
         /// \brief Request the motor to update its actual effort based of the input data.
         ///
@@ -158,7 +158,7 @@ namespace jiminy
         /// \param[in] a Current acceleration of the motor.
         /// \param[in] command Current command effort of the motor.
         virtual hresult_t computeEffort(const float64_t & t,
-                                        const Eigen::VectorBlock<const vectorN_t> & q,
+                                        const Eigen::VectorBlock<const Eigen::VectorXd> & q,
                                         const float64_t & v,
                                         const float64_t & a,
                                         float64_t command) = 0; /* copy on purpose */
@@ -179,14 +179,14 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         hresult_t computeEffortAll(const float64_t & t,
-                                   const vectorN_t & q,
-                                   const vectorN_t & v,
-                                   const vectorN_t & a,
-                                   const vectorN_t & command);
+                                   const Eigen::VectorXd & q,
+                                   const Eigen::VectorXd & v,
+                                   const Eigen::VectorXd & a,
+                                   const Eigen::VectorXd & command);
 
     protected:
         /// \brief Reference to the last data buffer corresponding to the true effort of the motor.
-        float64_t & data(void);
+        float64_t & data();
 
     private:
         /// \brief Attach the sensor to a robot
@@ -197,7 +197,7 @@ namespace jiminy
                          MotorSharedDataHolder_t * sharedHolder);
 
         /// \brief Detach the sensor from the robot.
-        hresult_t detach(void);
+        hresult_t detach();
 
     public:
         /// \brief Structure with the parameters of the motor.

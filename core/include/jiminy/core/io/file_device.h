@@ -13,22 +13,22 @@ namespace jiminy
     {
     public:
         FileDevice(const std::string & filename);
-        virtual ~FileDevice(void);
+        virtual ~FileDevice();
 
-        int64_t size(void) override;
+        int64_t size() override;
         hresult_t resize(int64_t sizeIn) override;
         hresult_t seek(int64_t pos) override;
-        int64_t pos(void) override;
-        int64_t bytesAvailable(void) override;
+        int64_t pos() override;
+        int64_t bytesAvailable() override;
 
         int64_t readData(void * data, int64_t dataSize) override;
         int64_t writeData(const void * data, int64_t dataSize) override;
 
-        const std::string & name(void) const;
+        const std::string & name() const;
 
     protected:
         hresult_t doOpen(const openMode_t & mode) override;
-        hresult_t doClose(void) override;
+        hresult_t doClose() override;
 
         std::string filename_;
         /// \brief File descriptor.

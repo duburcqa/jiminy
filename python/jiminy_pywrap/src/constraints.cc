@@ -38,7 +38,7 @@ namespace jiminy::python
         public bp::wrapper<AbstractConstraintImpl>
     {
     public:
-        hresult_t reset(const vectorN_t & q, const vectorN_t & v)
+        hresult_t reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
         {
             bp::override func = this->get_override("reset");
             if (func)
@@ -48,7 +48,7 @@ namespace jiminy::python
             return hresult_t::SUCCESS;
         }
 
-        hresult_t computeJacobianAndDrift(const vectorN_t & q, const vectorN_t & v)
+        hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
         {
             bp::override func = this->get_override("compute_jacobian_and_drift");
             if (func)
@@ -234,7 +234,7 @@ namespace jiminy::python
             bp::class_<WheelConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<WheelConstraint>,
                        boost::noncopyable>("WheelConstraint",
-                       bp::init<const std::string &, const float64_t &, const vector3_t &, const vector3_t &>(
+                       bp::init<const std::string &, const float64_t &, const Eigen::Vector3d &, const Eigen::Vector3d &>(
                        (bp::arg("self"), "frame_name", "radius", "ground_normal", "wheel_axis")))
                 .def_readonly("type", &WheelConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",

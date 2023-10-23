@@ -16,18 +16,18 @@ namespace jiminy
 
         MemoryDevice(std::vector<uint8_t> && initBuffer);
 
-        virtual ~MemoryDevice(void);
+        virtual ~MemoryDevice();
 
         MemoryDevice & operator=(const MemoryDevice & other);
         MemoryDevice & operator=(MemoryDevice && other);
 
-        int64_t size(void) override { return static_cast<int64_t>(buffer_.size()); }
+        int64_t size() override { return static_cast<int64_t>(buffer_.size()); }
 
-        bool_t isSequential(void) const override { return false; }
+        bool_t isSequential() const override { return false; }
 
-        int64_t pos(void) override { return currentPos_; }
+        int64_t pos() override { return currentPos_; }
 
-        int64_t bytesAvailable(void) override { return size() - currentPos_; }
+        int64_t bytesAvailable() override { return size() - currentPos_; }
 
         hresult_t seek(int64_t pos) override;
 
@@ -40,7 +40,7 @@ namespace jiminy
 
     protected:
         hresult_t doOpen(const openMode_t & modes) override;
-        hresult_t doClose(void) override;
+        hresult_t doClose() override;
 
     private:
         std::vector<uint8_t> buffer_;

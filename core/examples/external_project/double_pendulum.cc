@@ -18,23 +18,23 @@ using namespace jiminy;
 
 
 void computeCommand(const float64_t & t,
-                    const vectorN_t & q,
-                    const vectorN_t & v,
+                    const Eigen::VectorXd & q,
+                    const Eigen::VectorXd & v,
                     const sensorsDataMap_t & sensorsData,
-                    vectorN_t & command)
+                    Eigen::VectorXd & command)
 {
     // No controller: energy should be preserved
 }
 
 void internalDynamics(const float64_t & t,
-                      const vectorN_t & q,
-                      const vectorN_t & v,
+                      const Eigen::VectorXd & q,
+                      const Eigen::VectorXd & v,
                       const sensorsDataMap_t & sensorsData,
-                      vectorN_t & uCustom)
+                      Eigen::VectorXd & uCustom)
 {
 }
 
-bool_t callback(const float64_t & t, const vectorN_t & q, const vectorN_t & v)
+bool_t callback(const float64_t & t, const Eigen::VectorXd & q, const Eigen::VectorXd & v)
 {
     return true;
 }

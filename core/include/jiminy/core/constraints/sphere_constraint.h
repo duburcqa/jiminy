@@ -28,20 +28,20 @@ namespace jiminy
         /// \param[in] groundNormal Normal to the ground in the world as a unit vector.
         SphereConstraint(const std::string & frameName,
                          const float64_t & sphereRadius,
-                         const vector3_t & groundNormal = vector3_t::UnitZ());
-        virtual ~SphereConstraint(void) = default;
+                         const Eigen::Vector3d & groundNormal = Eigen::Vector3d::UnitZ());
+        virtual ~SphereConstraint() = default;
 
-        const std::string & getFrameName(void) const;
-        const frameIndex_t & getFrameIdx(void) const;
+        const std::string & getFrameName() const;
+        const frameIndex_t & getFrameIdx() const;
 
         void setReferenceTransform(const pinocchio::SE3 & transformRef);
-        const pinocchio::SE3 & getReferenceTransform(void) const;
+        const pinocchio::SE3 & getReferenceTransform() const;
 
-        virtual hresult_t reset(const vectorN_t & /* q */,
-                                const vectorN_t & /* v */) override final;
+        virtual hresult_t reset(const Eigen::VectorXd & /* q */,
+                                const Eigen::VectorXd & /* v */) override final;
 
-        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q,
-                                                  const vectorN_t & v) override final;
+        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v) override final;
 
     private:
         /// \brief Name of the frame on which the constraint operates.
@@ -51,13 +51,13 @@ namespace jiminy
         /// \brief Sphere radius.
         float64_t radius_;
         /// \brief Ground normal, world frame.
-        vector3_t normal_;
+        Eigen::Vector3d normal_;
         /// \brief Skew of ground normal, in world frame, scaled by radius.
-        matrix3_t skewRadius_;
+        Eigen::Matrix3d skewRadius_;
         /// \brief Reference pose of the frame to enforce.
         pinocchio::SE3 transformRef_;
         /// \brief Stores full frame jacobian in world.
-        matrix6N_t frameJacobian_;
+        Matrix6Xd frameJacobian_;
     };
 }
 

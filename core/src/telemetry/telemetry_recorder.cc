@@ -13,7 +13,7 @@
 
 namespace jiminy
 {
-    TelemetryRecorder::~TelemetryRecorder(void)
+    TelemetryRecorder::~TelemetryRecorder()
     {
         if (!flows_.empty())
         {
@@ -82,17 +82,17 @@ namespace jiminy
         return static_cast<float64_t>(std::numeric_limits<int64_t>::max()) * timeUnit;
     }
 
-    float64_t TelemetryRecorder::getMaximumLogTime(void) const
+    float64_t TelemetryRecorder::getMaximumLogTime() const
     {
         return getMaximumLogTime(1.0 / timeUnitInv_);
     }
 
-    const bool_t & TelemetryRecorder::getIsInitialized(void)
+    const bool_t & TelemetryRecorder::getIsInitialized()
     {
         return isInitialized_;
     }
 
-    void TelemetryRecorder::reset(void)
+    void TelemetryRecorder::reset()
     {
         // Close the current MemoryDevice, if any and if it was opened
         if (!flows_.empty())
