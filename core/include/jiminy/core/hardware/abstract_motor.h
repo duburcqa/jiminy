@@ -1,13 +1,9 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
+/// \brief Generic interface for any motor.
 ///
-/// \brief      Generic interface for any motor.
+/// \details Any motor must inherit from this base class and implement its virtual methods.
 ///
-/// \details    Any motor must inherit from this base class and implement its virtual methods.
-///
-/// \remark     Each motor added to a Jiminy Robot is downcasted as an instance of
-///             AbstractMotorBase and polymorphism is used to call the actual implementations.
-///
-///////////////////////////////////////////////////////////////////////////////////////////////
+/// \remark Each motor added to a Jiminy Robot is downcasted as an instance of AbstractMotorBase
+///         and polymorphism is used to call the actual implementations.
 
 #ifndef JIMINY_ABSTRACT_MOTOR_H
 #define JIMINY_ABSTRACT_MOTOR_H
@@ -24,17 +20,18 @@ namespace jiminy
 
     class AbstractMotorBase;
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    /// \brief      Structure holding the data for every motor.
+    /// \brief Structure holding the data for every motor.
     ///
-    /// \details    This structure enables to optimize the efficiency of data storage by gathering
-    ///             the state of every motor.
-    ///////////////////////////////////////////////////////////////////////////////////////////////
+    /// \details This structure enables to optimize the efficiency of data storage by gathering the
+    ///          state of every motor.
     struct MotorSharedDataHolder_t
     {
-        vectorN_t data_;                           ///< Buffer with current actual motor effort
-        std::vector<AbstractMotorBase *> motors_;  ///< Vector of pointers to the motors.
-        std::size_t num_;                          ///< Number of motors
+        /// \brief Buffer storing the current true motor efforts.
+        vectorN_t data_;
+        /// \brief Vector of pointers to the motors.
+        std::vector<AbstractMotorBase *> motors_;
+        /// \brief Number of motors
+        std::size_t num_;
     };
 
     class AbstractMotorBase : public std::enable_shared_from_this<AbstractMotorBase>
@@ -43,9 +40,7 @@ namespace jiminy
         friend Robot;
 
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Dictionary gathering the configuration options shared between motors
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Dictionary gathering the configuration options shared between motors.
         virtual configHolder_t getDefaultMotorOptions(void)
         {
             configHolder_t config;
@@ -61,14 +56,15 @@ namespace jiminy
 
         struct abstractMotorOptions_t
         {
-            float64_t const mechanicalReduction;        ///< Mechanical reduction ratio of the transmission (joint / motor, usually >= 1.0
-            bool_t    const enableCommandLimit;
-            bool_t    const commandLimitFromUrdf;
-            float64_t const commandLimit;
-            bool_t    const enableArmature;
-            float64_t const armature;
+            /// \brief Mechanical reduction ratio of transmission (joint/motor), usually >= 1.0.
+            const float64_t mechanicalReduction;
+            const bool_t enableCommandLimit;
+            const bool_t commandLimitFromUrdf;
+            const float64_t commandLimit;
+            const bool_t enableArmature;
+            const float64_t armature;
 
-            abstractMotorOptions_t(configHolder_t const & options) :
+            abstractMotorOptions_t(const configHolder_t & options) :
             mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction"))),
             enableCommandLimit(boost::get<bool_t>(options.at("enableCommandLimit"))),
             commandLimitFromUrdf(boost::get<bool_t>(options.at("commandLimitFromUrdf"))),
@@ -76,220 +72,152 @@ namespace jiminy
             enableArmature(boost::get<bool_t>(options.at("enableArmature"))),
             armature(boost::get<float64_t>(options.at("armature")))
             {
-                // Empty on purpose
             }
         };
 
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractMotorBase(AbstractMotorBase const & abstractMotor) = delete;
-        AbstractMotorBase & operator = (AbstractMotorBase const & other) = delete;
+        DISABLE_COPY(AbstractMotorBase)
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Constructor
-        ///
-        /// \param[in]  robot   Robot
-        /// \param[in]  name    Name of the motor
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractMotorBase(std::string const & name);
+    public:
+        /// \param[in] robot Robot.
+        /// \param[in] name Name of the motor.
+        AbstractMotorBase(const std::string & name);
         virtual ~AbstractMotorBase(void);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Refresh the proxies.
+        /// \brief Refresh the proxies.
         ///
-        /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           motor is added is taking care of it when its own `refresh` method is called.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \remark This method is not intended to be called manually. The Robot to which the motor
+        ///         is added is taking care of it when its own `refresh` method is called.
         virtual hresult_t refreshProxies(void);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Reset the internal state of the motors.
+        /// \brief Reset the internal state of the motors.
         ///
-        /// \details  This method resets the internal state of the motor.
+        /// \details This method resets the internal state of the motor.
         ///
-        /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           motor is added is taking care of it when its own `reset` method is called.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \remark  This method is not intended to be called manually. The Robot to which the
+        ///          motor is added is taking care of it when its own `reset` method is called.
         virtual hresult_t resetAll(void);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get the configuration options of the motor.
-        ///
-        /// \return     Dictionary with the parameters of the motor
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Configuration options of the motor.
         configHolder_t getOptions(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get the actual effort of the motor at the current time.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & get(void) const;
+        /// \brief Actual effort of the motor at the current time.
+        const float64_t & get(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get the actual effort of all the motors at the current time.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        vectorN_t const & getAll(void) const;
+        /// \brief Actual effort of all the motors at the current time.
+        const vectorN_t & getAll(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Set the configuration options of the motor.
+        /// \brief Set the configuration options of the motor.
         ///
-        /// \param[in]  motorOptions   Dictionary with the parameters of the motor
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t setOptions(configHolder_t const & motorOptions);
+        /// \param[in] motorOptions Dictionary with the parameters of the motor.
+        virtual hresult_t setOptions(const configHolder_t & motorOptions);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Set the same configuration options for every motors.
+        /// \brief Set the same configuration options for all motors of same type as current one.
         ///
-        /// \param[in]  motorOptions   Dictionary with the parameters used for any motor
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t setOptionsAll(configHolder_t const & motorOptions);
+        /// \param[in] motorOptions Dictionary with the parameters used for any motor.
+        hresult_t setOptionsAll(const configHolder_t & motorOptions);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get isInitialized_.
-        ///
-        /// \details    It is a flag used to determine if the motor has been initialized.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool_t const & getIsInitialized(void) const;
+        /// \brief Whether the motor has been initialized.
+        const bool_t & getIsInitialized(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get name_.
-        ///
-        /// \details    It is the name of the motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::string const & getName(void) const;
+        /// \brief Name of the motor.
+        const std::string & getName(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get motorIdx_.
-        ///
-        /// \details    It is the index of the motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::size_t const & getIdx(void) const;
+        /// \brief Index of the motor.
+        const std::size_t & getIdx(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get jointName_.
-        ///
-        /// \details    It is the name of the joint associated with the motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::string const & getJointName(void) const;
+        /// \brief Name of the joint associated with the motor.
+        const std::string & getJointName(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get jointModelIdx_.
-        ///
-        /// \details    It is the index of the joint associated with the motor in the kinematic tree.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        jointIndex_t const & getJointModelIdx(void) const;
+        /// \brief Index of the joint associated with the motor in the kinematic tree.
+        const jointIndex_t & getJointModelIdx(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get jointType_.
-        ///
-        /// \details    It is the type of joint associated with the motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        joint_t const & getJointType(void) const;
+        /// \brief Type of joint associated with the motor.
+        const joint_t & getJointType(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get jointPositionIdx_.
-        ///
-        /// \details    It is the index of the joint associated with the motor in the configuration vector.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        int32_t const & getJointPositionIdx(void) const;
+        /// \brief Index of the joint associated with the motor in configuration vector.
+        const int32_t & getJointPositionIdx(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get jointVelocityIdx_.
-        ///
-        /// \details    It is the index of the joint associated with the motor in the velocity vector.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        int32_t const & getJointVelocityIdx(void) const;
+        /// \brief Index of the joint associated with the motor in the velocity vector.
+        const int32_t & getJointVelocityIdx(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get commandLimit_.
-        ///
-        /// \details    It is the maximum effort of the motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & getCommandLimit(void) const;
+        /// \brief Maximum effort of the motor.
+        const float64_t & getCommandLimit(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get armature_.
-        ///
-        /// \details    It is the rotor inertia of the motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & getArmature(void) const;
+        /// \brief Rotor inertia of the motor.
+        const float64_t & getArmature(void) const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Request the motor to update its actual effort based of the input data.
+        /// \brief Request the motor to update its actual effort based of the input data.
         ///
-        /// \details    It assumes that the internal state of the robot is consistent with the
-        ///             input arguments.
+        /// \details It assumes that the internal state of the robot is consistent with the input
+        ///          arguments.
         ///
-        /// \param[in]  t        Current time.
-        /// \param[in]  q        Current configuration of the motor.
-        /// \param[in]  v        Current velocity of the motor.
-        /// \param[in]  a        Current acceleration of the motor.
-        /// \param[in]  command  Current command effort of the motor.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t computeEffort(float64_t const & t,
-                                        Eigen::VectorBlock<vectorN_t const> const & q,
-                                        float64_t const & v,
-                                        float64_t const & a,
-                                        float64_t command) = 0;  /* copy on purpose */
+        /// \param[in] t Current time.
+        /// \param[in] q Current configuration of the motor.
+        /// \param[in] v Current velocity of the motor.
+        /// \param[in] a Current acceleration of the motor.
+        /// \param[in] command Current command effort of the motor.
+        virtual hresult_t computeEffort(const float64_t & t,
+                                        const Eigen::VectorBlock<const vectorN_t> & q,
+                                        const float64_t & v,
+                                        const float64_t & a,
+                                        float64_t command) = 0; /* copy on purpose */
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Request every motors to update their actual effort based of the input data.
+        /// \brief Request every motors to update their actual effort based of the input data.
         ///
-        /// \details    It assumes that the internal state of the robot is consistent with the
-        ///             input arguments.
+        /// \details It assumes that the internal state of the robot is consistent with the input
+        ///          arguments.
         ///
-        /// \remark     This method is not intended to be called manually. The Robot to which the
-        ///             motor is added is taking care of it while updating the state of the motors.
+        /// \remark This method is not intended to be called manually. The Robot to which the motor
+        ///         is added is taking care of it while updating the state of the motors.
         ///
-        /// \param[in]  t        Current time.
-        /// \param[in]  q        Current configuration vector of the robot.
-        /// \param[in]  v        Current velocity vector of the robot.
-        /// \param[in]  a        Current acceleration vector of the robot.
-        /// \param[in]  command  Current command effort vector of the robot.
+        /// \param[in] t Current time.
+        /// \param[in] q Current configuration vector of the robot.
+        /// \param[in] v Current velocity vector of the robot.
+        /// \param[in] a Current acceleration vector of the robot.
+        /// \param[in] command Current command effort vector of the robot.
         ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t computeEffortAll(float64_t const & t,
-                                   vectorN_t const & q,
-                                   vectorN_t const & v,
-                                   vectorN_t const & a,
-                                   vectorN_t const & command);
+        /// \return Return code to determine whether the execution of the method was successful.
+        hresult_t computeEffortAll(const float64_t & t,
+                                   const vectorN_t & q,
+                                   const vectorN_t & v,
+                                   const vectorN_t & a,
+                                   const vectorN_t & command);
 
     protected:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get a reference to the last data buffer corresponding to the actual effort
-        ///             of the motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Reference to the last data buffer corresponding to the true effort of the motor.
         float64_t & data(void);
 
     private:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Attach the sensor to a robot
+        /// \brief Attach the sensor to a robot
         ///
-        /// \details  This method must be called before initializing the sensor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t attach(std::weak_ptr<Robot const> robot,
+        /// \details This method must be called before initializing the sensor.
+        hresult_t attach(std::weak_ptr<const Robot> robot,
                          std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
                          MotorSharedDataHolder_t * sharedHolder);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Detach the sensor from the robot
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Detach the sensor from the robot.
         hresult_t detach(void);
 
     public:
-        std::unique_ptr<abstractMotorOptions_t const> baseMotorOptions_;  ///< Structure with the parameters of the motor
+        /// \brief Structure with the parameters of the motor.
+        std::unique_ptr<const abstractMotorOptions_t> baseMotorOptions_;
 
     protected:
-        configHolder_t motorOptionsHolder_;                          ///< Dictionary with the parameters of the motor
-        bool_t isInitialized_;                                       ///< Flag to determine whether the controller has been initialized or not
-        bool_t isAttached_;                                          ///< Flag to determine whether the motor is attached to a robot
-        std::weak_ptr<Robot const> robot_;                           ///< Robot for which the command and internal dynamics
-        std::function<hresult_t(AbstractMotorBase &)> notifyRobot_;  ///< Notify the robot that the configuration of the sensors have changed
-        std::string name_;                                           ///< Name of the motor
-        std::size_t motorIdx_;                                       ///< Index of the motor in the measurement buffer
+        /// \brief Dictionary with the parameters of the motor.
+        configHolder_t motorOptionsHolder_;
+        /// \brief Flag to determine whether the controller has been initialized or not.
+        bool_t isInitialized_;
+        /// \brief Flag to determine whether the motor is attached to a robot.
+        bool_t isAttached_;
+        /// \brief Robot for which the command and internal dynamics.
+        std::weak_ptr<const Robot> robot_;
+        /// \brief Notify the robot that the configuration of the sensors have changed.
+        std::function<hresult_t(AbstractMotorBase &)> notifyRobot_;
+        /// \brief Name of the motor.
+        std::string name_;
+        /// \brief Index of the motor in the measurement buffer.
+        std::size_t motorIdx_;
         std::string jointName_;
         jointIndex_t jointModelIdx_;
         joint_t jointType_;
@@ -299,8 +227,9 @@ namespace jiminy
         float64_t armature_;
 
     private:
-        MotorSharedDataHolder_t * sharedHolder_;  ///< Shared data between every motors associated with the robot
+        /// \brief Shared data between every motors associated with the robot.
+        MotorSharedDataHolder_t * sharedHolder_;
     };
 }
 
-#endif //end of JIMINY_ABSTRACT_MOTOR_H
+#endif  // JIMINY_ABSTRACT_MOTOR_H

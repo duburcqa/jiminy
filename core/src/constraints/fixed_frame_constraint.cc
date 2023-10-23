@@ -1,4 +1,4 @@
-#include "pinocchio/algorithm/frames.hpp"    // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
+#include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
 #include "jiminy/core/robot/model.h"
 #include "jiminy/core/utilities/pinocchio.h"
@@ -9,10 +9,10 @@
 namespace jiminy
 {
     template<>
-    std::string const AbstractConstraintTpl<FixedFrameConstraint>::type_("FixedFrameConstraint");
+    const std::string AbstractConstraintTpl<FixedFrameConstraint>::type_("FixedFrameConstraint");
 
-    FixedFrameConstraint::FixedFrameConstraint(std::string const & frameName,
-                                               Eigen::Matrix<bool_t, 6, 1> const & maskFixed) :
+    FixedFrameConstraint::FixedFrameConstraint(const std::string & frameName,
+                                               const Eigen::Matrix<bool_t, 6, 1> & maskFixed) :
     AbstractConstraintTpl(),
     frameName_(frameName),
     frameIdx_(0),
@@ -33,32 +33,32 @@ namespace jiminy
         }
     }
 
-    std::string const & FixedFrameConstraint::getFrameName(void) const
+    const std::string & FixedFrameConstraint::getFrameName(void) const
     {
         return frameName_;
     }
 
-    frameIndex_t const & FixedFrameConstraint::getFrameIdx(void) const
+    const frameIndex_t & FixedFrameConstraint::getFrameIdx(void) const
     {
         return frameIdx_;
     }
 
-    std::vector<uint32_t> const & FixedFrameConstraint::getDofsFixed(void) const
+    const std::vector<uint32_t> & FixedFrameConstraint::getDofsFixed(void) const
     {
         return dofsFixed_;
     }
 
-    void FixedFrameConstraint::setReferenceTransform(pinocchio::SE3 const & transformRef)
+    void FixedFrameConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef)
     {
         transformRef_ = transformRef;
     }
 
-    pinocchio::SE3 const & FixedFrameConstraint::getReferenceTransform(void) const
+    const pinocchio::SE3 & FixedFrameConstraint::getReferenceTransform(void) const
     {
         return transformRef_;
     }
 
-    void FixedFrameConstraint::setNormal(vector3_t const & normal)
+    void FixedFrameConstraint::setNormal(const vector3_t & normal)
     {
         normal_ = normal;
         rotationLocal_.col(2) = normal_;
@@ -66,13 +66,12 @@ namespace jiminy
         rotationLocal_.col(0) = rotationLocal_.col(1).cross(rotationLocal_.col(2));
     }
 
-    matrix3_t const & FixedFrameConstraint::getLocalFrame(void) const
+    const matrix3_t & FixedFrameConstraint::getLocalFrame(void) const
     {
         return rotationLocal_;
     }
 
-    hresult_t FixedFrameConstraint::reset(vectorN_t const & /* q */,
-                                          vectorN_t const & /* v */)
+    hresult_t FixedFrameConstraint::reset(const vectorN_t & /* q */, const vectorN_t & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -96,7 +95,7 @@ namespace jiminy
             frameJacobian_.setZero(6, model->pncModel_.nv);
 
             // Initialize constraint jacobian, drift and multipliers
-            Eigen::Index const dim = static_cast<Eigen::Index>(dofsFixed_.size());
+            const Eigen::Index dim = static_cast<Eigen::Index>(dofsFixed_.size());
             jacobian_.setZero(dim, model->pncModel_.nv);
             drift_.setZero(dim);
             lambda_.setZero(dim);
@@ -111,8 +110,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t FixedFrameConstraint::computeJacobianAndDrift(vectorN_t const & /* q */,
-                                                            vectorN_t const & /* v */)
+    hresult_t FixedFrameConstraint::computeJacobianAndDrift(const vectorN_t & /* q */,
+                                                            const vectorN_t & /* v */)
     {
         if (!isAttached_)
         {
@@ -124,35 +123,32 @@ namespace jiminy
         auto model = model_.lock();
 
         // Get jacobian in local frame
-        pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
-        pinocchio::SE3 const transformLocal(rotationLocal_, framePose.translation());
-        pinocchio::Frame const & frame = model->pncModel_.frames[frameIdx_];
-        pinocchio::JointModel const & joint = model->pncModel_.joints[frame.parent];
-        int32_t const colRef = joint.nv() + joint.idx_v() - 1;
-        for (Eigen::DenseIndex j=colRef; j>=0; j=model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
+        const pinocchio::SE3 & framePose = model->pncData_.oMf[frameIdx_];
+        const pinocchio::SE3 transformLocal(rotationLocal_, framePose.translation());
+        const pinocchio::Frame & frame = model->pncModel_.frames[frameIdx_];
+        const pinocchio::JointModel & joint = model->pncModel_.joints[frame.parent];
+        const int32_t colRef = joint.nv() + joint.idx_v() - 1;
+        for (Eigen::DenseIndex j = colRef; j >= 0;
+             j = model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
         {
-            pinocchio::MotionRef<matrix6N_t::ColXpr> const vIn(model->pncData_.J.col(j));
+            const pinocchio::MotionRef<matrix6N_t::ColXpr> vIn(model->pncData_.J.col(j));
             pinocchio::MotionRef<matrix6N_t::ColXpr> vOut(frameJacobian_.col(j));
             vOut = transformLocal.actInv(vIn);
         }
 
         // Compute pose error
         auto deltaPosition = framePose.translation() - transformRef_.translation();
-        vector3_t const deltaRotation = pinocchio::log3(
-            framePose.rotation() * transformRef_.rotation().transpose());
+        const vector3_t deltaRotation =
+            pinocchio::log3(framePose.rotation() * transformRef_.rotation().transpose());
 
         // Compute frame velocity in local frame
-        pinocchio::Motion const velocity = getFrameVelocity(model->pncModel_,
-                                                            model->pncData_,
-                                                            frameIdx_,
-                                                            pinocchio::LOCAL_WORLD_ALIGNED);
+        const pinocchio::Motion velocity = getFrameVelocity(
+            model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
 
         /* Get drift in world frame.
            We are actually looking for the classical acceleration here ! */
-        frameDrift_ = getFrameAcceleration(model->pncModel_,
-                                           model->pncData_,
-                                           frameIdx_,
-                                           pinocchio::LOCAL_WORLD_ALIGNED);
+        frameDrift_ = getFrameAcceleration(
+            model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
         frameDrift_.linear() += velocity.angular().cross(velocity.linear());
 
         // Add Baumgarte stabilization to drift in world frame
@@ -167,7 +163,7 @@ namespace jiminy
         // Extract masked jacobian and drift, only containing fixed dofs
         for (uint32_t i = 0; i < dofsFixed_.size(); ++i)
         {
-            uint32_t const & dofIndex = dofsFixed_[i];
+            const uint32_t & dofIndex = dofsFixed_[i];
             jacobian_.row(i) = frameJacobian_.row(dofIndex);
             drift_[i] = frameDrift_.toVector()[dofIndex];
         }

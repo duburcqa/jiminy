@@ -6,30 +6,26 @@
 namespace jiminy
 {
     template<typename F1, typename F2>
-    ControllerFunctor<F1, F2>::ControllerFunctor(F1 & commandFct,
-                                                 F2 & internalDynamicsFct) :
+    ControllerFunctor<F1, F2>::ControllerFunctor(F1 & commandFct, F2 & internalDynamicsFct) :
     AbstractController(),
     commandFct_(commandFct),
     internalDynamicsFct_(internalDynamicsFct)
     {
-        // Empty on purpose
     }
 
     template<typename F1, typename F2>
-    ControllerFunctor<F1, F2>::ControllerFunctor(F1 && commandFct,
-                                                 F2 && internalDynamicsFct) :
+    ControllerFunctor<F1, F2>::ControllerFunctor(F1 && commandFct, F2 && internalDynamicsFct) :
     AbstractController(),
     commandFct_(std::move(commandFct)),
     internalDynamicsFct_(std::move(internalDynamicsFct))
     {
-        // Empty on purpose
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::computeCommand(float64_t const & t,
-                                                        vectorN_t const & q,
-                                                        vectorN_t const & v,
-                                                        vectorN_t       & command)
+    hresult_t ControllerFunctor<F1, F2>::computeCommand(const float64_t & t,
+                                                        const vectorN_t & q,
+                                                        const vectorN_t & v,
+                                                        vectorN_t & command)
     {
         if (!getIsInitialized())
         {
@@ -43,10 +39,10 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::internalDynamics(float64_t const & t,
-                                                          vectorN_t const & q,
-                                                          vectorN_t const & v,
-                                                          vectorN_t       & uCustom)
+    hresult_t ControllerFunctor<F1, F2>::internalDynamics(const float64_t & t,
+                                                          const vectorN_t & q,
+                                                          const vectorN_t & v,
+                                                          vectorN_t & uCustom)
     {
         if (!getIsInitialized())
         {
@@ -54,7 +50,8 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        internalDynamicsFct_(t, q, v, sensorsData_, uCustom);  // The sensor data are already up-to-date
+        // Sensor data are already up-to-date
+        internalDynamicsFct_(t, q, v, sensorsData_, uCustom);
 
         return hresult_t::SUCCESS;
     }

@@ -1,9 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-///
-/// \brief TelemetryRecorder Implementation.
-///
-//////////////////////////////////////////////////////////////////////////////
-
 #include <math.h>
 #include <cmath>
 #include <iomanip>
@@ -27,8 +21,8 @@ namespace jiminy
         }
     }
 
-    hresult_t TelemetryRecorder::initialize(TelemetryData       * telemetryData,
-                                            float64_t     const & timeUnit)
+    hresult_t TelemetryRecorder::initialize(TelemetryData * telemetryData,
+                                            const float64_t & timeUnit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -40,7 +34,7 @@ namespace jiminy
         // Log the time unit as constant
         timeUnitInv_ = 1.0 / timeUnit;
         std::ostringstream timeUnitStr;
-        int precision = - static_cast<int>(std::ceil(std::log10(STEPPER_MIN_TIMESTEP)));
+        int precision = -static_cast<int>(std::ceil(std::log10(STEPPER_MIN_TIMESTEP)));
         timeUnitStr << std::scientific << std::setprecision(precision) << timeUnit;
         telemetryData->registerConstant(TIME_UNIT, timeUnitStr.str());
 
@@ -55,8 +49,10 @@ namespace jiminy
             integerSectionSize_ = sizeof(int64_t) * integersRegistry_->size();
             floatsRegistry_ = telemetryData->getRegistry<float64_t>();
             floatSectionSize_ = sizeof(float64_t) * floatsRegistry_->size();
-            recordedBytesDataLine_ = integerSectionSize_ + floatSectionSize_
-                                   + static_cast<int64_t>(START_LINE_TOKEN.size() + sizeof(int64_t));  // int64_t for Global.Time
+            recordedBytesDataLine_ =
+                integerSectionSize_ + floatSectionSize_ +
+                static_cast<int64_t>(START_LINE_TOKEN.size() +
+                                     sizeof(int64_t));  // int64_t for Global.Time
 
             // Get the header
             telemetryData->formatHeader(header);
@@ -81,7 +77,7 @@ namespace jiminy
         return returnCode;
     }
 
-    float64_t TelemetryRecorder::getMaximumLogTime(float64_t const & timeUnit)
+    float64_t TelemetryRecorder::getMaximumLogTime(const float64_t & timeUnit)
     {
         return static_cast<float64_t>(std::numeric_limits<int64_t>::max()) * timeUnit;
     }
@@ -91,7 +87,7 @@ namespace jiminy
         return getMaximumLogTime(1.0 / timeUnitInv_);
     }
 
-    bool_t const & TelemetryRecorder::getIsInitialized(void)
+    const bool_t & TelemetryRecorder::getIsInitialized(void)
     {
         return isInitialized_;
     }
@@ -118,15 +114,15 @@ namespace jiminy
         }
 
         /* Create a new chunk.
-           The size of the first chunk is chosen to be large enough
-           to contain the whole header (with constants). Doing this
-           does not really affect the performances since it is written
-           only once, at init of the simulation. The optimized buffer
-           size is used for the log data. */
+           The size of the first chunk is chosen to be large enough to contain the whole header,
+           including constants. This does not really affect the performances since it is written
+           only once per simulation. The optimized buffer size is used for the log data. */
         int64_t isHeaderThere = flows_.empty();
         int64_t maxBufferSize = std::max(TELEMETRY_MIN_BUFFER_SIZE, isHeaderThere * headerSize_);
-        int64_t maxRecordedDataLines = (maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_;
-        recordedBytesLimits_ = isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
+        int64_t maxRecordedDataLines =
+            (maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_;
+        recordedBytesLimits_ =
+            isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
         returnCode = flows_.back().open(openMode_t::READ_WRITE);
 
@@ -138,7 +134,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t TelemetryRecorder::flushDataSnapshot(float64_t const & timestamp)
+    hresult_t TelemetryRecorder::flushDataSnapshot(const float64_t & timestamp)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -156,13 +152,13 @@ namespace jiminy
             flows_.back().write(static_cast<int64_t>(std::round(timestamp * timeUnitInv_)));
 
             // Write data, integers first
-            for (std::pair<std::string, int64_t> const & keyValue : *integersRegistry_)
+            for (const std::pair<std::string, int64_t> & keyValue : *integersRegistry_)
             {
                 flows_.back().write(keyValue.second);
             }
 
             // Write data, floats last
-            for (std::pair<std::string, float64_t> const & keyValue : *floatsRegistry_)
+            for (const std::pair<std::string, float64_t> & keyValue : *floatsRegistry_)
             {
                 flows_.back().write(keyValue.second);
             }
@@ -174,7 +170,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t TelemetryRecorder::writeLog(std::string const & filename)
+    hresult_t TelemetryRecorder::writeLog(const std::string & filename)
     {
         FileDevice myFile(filename);
         myFile.open(openMode_t::WRITE_ONLY | openMode_t::TRUNCATE);
@@ -182,7 +178,7 @@ namespace jiminy
         {
             for (auto & flow : flows_)
             {
-                int64_t const pos_old = flow.pos();
+                const int64_t pos_old = flow.pos();
                 flow.seek(0);
 
                 std::vector<uint8_t> bufferChunk;
@@ -197,25 +193,26 @@ namespace jiminy
         }
         else
         {
-            PRINT_ERROR("Impossible to create the log file. Check if root folder exists and if you have writing permissions.");
+            PRINT_ERROR("Impossible to create the log file. Check if root folder exists and if "
+                        "you have writing permissions.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         return hresult_t::SUCCESS;
     }
 
     hresult_t parseLogDataRaw(std::vector<AbstractIODevice *> & flows,
-                              int64_t const & integerSectionSize,
-                              int64_t const & floatSectionSize,
-                              int64_t const & headerSize,
+                              const int64_t & integerSectionSize,
+                              const int64_t & floatSectionSize,
+                              const int64_t & headerSize,
                               logData_t & logData)
     {
         // Clear everything that may be stored
         logData = {};
 
         // Set data structure
-        Eigen::Index const numInt =
+        const Eigen::Index numInt =
             static_cast<Eigen::Index>(integerSectionSize / sizeof(int64_t));
-        Eigen::Index const numFloat =
+        const Eigen::Index numFloat =
             static_cast<Eigen::Index>(floatSectionSize / sizeof(float64_t));
         logData.intData.resize(numInt, 0);
         logData.floatData.resize(numFloat, 0);
@@ -228,7 +225,7 @@ namespace jiminy
             for (auto & flow : flows)
             {
                 // Save the cursor position and move it to the beginning
-                int64_t const pos_old = flow->pos();
+                const int64_t pos_old = flow->pos();
                 flow->seek(0);
 
                 // Dealing with version flag, constants, and variable names
@@ -239,7 +236,8 @@ namespace jiminy
                     flow->readData(&version, sizeof(int32_t));
                     if (version != TELEMETRY_VERSION)
                     {
-                        PRINT_ERROR("Log telemetry version not supported. Impossible to read log.");
+                        PRINT_ERROR(
+                            "Log telemetry version not supported. Impossible to read log.");
                         return hresult_t::ERROR_BAD_INPUT;
                     }
                     logData.version = version;
@@ -252,53 +250,52 @@ namespace jiminy
                     // Parse constants
                     bool_t isLastConstant = false;
                     auto posHeaderIt = headerCharBuffer.begin();
-                    posHeaderIt += START_CONSTANTS.size() + 1 + START_LINE_TOKEN.size();  // Skip tokens
+                    posHeaderIt +=
+                        START_CONSTANTS.size() + 1 + START_LINE_TOKEN.size();  // Skip tokens
                     while (true)
                     {
                         // Find position of the next constant
-                        auto posHeaderNextIt = std::search(
-                            posHeaderIt,
-                            headerCharBuffer.end(),
-                            START_LINE_TOKEN.begin(),
-                            START_LINE_TOKEN.end());
+                        auto posHeaderNextIt = std::search(posHeaderIt,
+                                                           headerCharBuffer.end(),
+                                                           START_LINE_TOKEN.begin(),
+                                                           START_LINE_TOKEN.end());
                         isLastConstant = posHeaderNextIt == headerCharBuffer.end();
                         if (isLastConstant)
                         {
-                            posHeaderNextIt = std::search(
-                                posHeaderIt,
-                                headerCharBuffer.end(),
-                                START_COLUMNS.begin(),
-                                START_COLUMNS.end());
+                            posHeaderNextIt = std::search(posHeaderIt,
+                                                          headerCharBuffer.end(),
+                                                          START_COLUMNS.begin(),
+                                                          START_COLUMNS.end());
                         }
 
                         // Split key and value
-                        auto posDelimiterIt = std::search(
-                            posHeaderIt,
-                            posHeaderNextIt,
-                            TELEMETRY_CONSTANT_DELIMITER.begin(),
-                            TELEMETRY_CONSTANT_DELIMITER.end());
-                        std::string const key(posHeaderIt, posDelimiterIt);
-                        std::string const value(
-                            posDelimiterIt + TELEMETRY_CONSTANT_DELIMITER.size(),
-                            posHeaderNextIt - 1);  // Last char is '\0'
+                        auto posDelimiterIt = std::search(posHeaderIt,
+                                                          posHeaderNextIt,
+                                                          TELEMETRY_CONSTANT_DELIMITER.begin(),
+                                                          TELEMETRY_CONSTANT_DELIMITER.end());
+                        const std::string key(posHeaderIt, posDelimiterIt);
+                        const std::string value(posDelimiterIt +
+                                                    TELEMETRY_CONSTANT_DELIMITER.size(),
+                                                posHeaderNextIt - 1);  // Last char is '\0'
                         logData.constants.emplace_back(key, value);
 
                         // Stop if it was the last one
                         if (isLastConstant)
                         {
-                            posHeaderIt = posHeaderNextIt + START_COLUMNS.size() + 1;  // Skip last '\0'
+                            posHeaderIt =
+                                posHeaderNextIt + START_COLUMNS.size() + 1;  // Skip last '\0'
                             break;
                         }
                         posHeaderIt = posHeaderNextIt + START_LINE_TOKEN.size();
                     }
 
                     // Parse variable names
-                    char_t const * pHeader = &(*posHeaderIt);
+                    const char_t * pHeader = &(*posHeaderIt);
                     std::size_t posHeader = 0;
                     while (true)
                     {
                         // std::string constructor automatically reads till next '\0'
-                        std::string const fieldname = std::string(pHeader + posHeader);
+                        const std::string fieldname = std::string(pHeader + posHeader);
                         if (fieldname == START_DATA)
                         {
                             break;
@@ -312,7 +309,7 @@ namespace jiminy
 
                 // Look for timeUnit constant - if not found, use default time unit
                 float64_t timeUnit = STEPPER_MIN_TIMESTEP;
-                for (auto const & [key, value] : logData.constants)
+                for (const auto & [key, value] : logData.constants)
                 {
                     if (key == TIME_UNIT)
                     {
@@ -324,10 +321,11 @@ namespace jiminy
                 logData.timeUnit = timeUnit;
 
                 // Allocate memory
-                int64_t const startLineTokenSize = static_cast<int64_t>(START_LINE_TOKEN.size());
-                int64_t const recordedBytesDataLine =
+                const int64_t startLineTokenSize = static_cast<int64_t>(START_LINE_TOKEN.size());
+                const int64_t recordedBytesDataLine =
                     startLineTokenSize + sizeof(uint64_t) + integerSectionSize + floatSectionSize;
-                Eigen::Index const numData = timeIdx + flow->bytesAvailable() / recordedBytesDataLine;
+                const Eigen::Index numData =
+                    timeIdx + flow->bytesAvailable() / recordedBytesDataLine;
                 logData.timestamps.conservativeResize(numData);
                 logData.intData.conservativeResize(Eigen::NoChange, numData);
                 logData.floatData.conservativeResize(Eigen::NoChange, numData);
@@ -336,8 +334,8 @@ namespace jiminy
                 char_t startLineTokenBuffer;
                 while (flow->bytesAvailable() > 0)
                 {
-                    // Check if actual data are still available.
-                    // It is necessary because a pre-allocated memory may not be full.
+                    /* Check if actual data are still available.
+                       It is necessary because a pre-allocated memory may not be full. */
                     flow->readData(&startLineTokenBuffer, 1);
                     if (startLineTokenBuffer != START_LINE_TOKEN[0])
                     {
@@ -359,8 +357,7 @@ namespace jiminy
             }
         }
 
-        /* Remove initialized data if any, which would occur if a
-           pre-allocated memory buffer was not full. */
+        // Remove uninitialized data if any. It occurs whenever the last memory buffer is not full.
         logData.timestamps.conservativeResize(timeIdx);
         logData.intData.conservativeResize(Eigen::NoChange, timeIdx);
         logData.floatData.conservativeResize(Eigen::NoChange, timeIdx);
@@ -371,7 +368,7 @@ namespace jiminy
     hresult_t TelemetryRecorder::getLog(logData_t & logData)
     {
         std::vector<AbstractIODevice *> abstractFlows_;
-        for (MemoryDevice & device: flows_)
+        for (MemoryDevice & device : flows_)
         {
             abstractFlows_.push_back(&device);
         }
@@ -380,15 +377,13 @@ namespace jiminy
             abstractFlows_, integerSectionSize_, floatSectionSize_, headerSize_, logData);
     }
 
-    hresult_t TelemetryRecorder::readLog(std::string const & filename,
-                                         logData_t         & logData)
+    hresult_t TelemetryRecorder::readLog(const std::string & filename, logData_t & logData)
     {
         int64_t integerSectionSize;
         int64_t floatSectionSize;
         int64_t headerSize;
 
-        std::ifstream file = std::ifstream(
-            filename, std::ios::in | std::ifstream::binary);
+        std::ifstream file = std::ifstream(filename, std::ios::in | std::ifstream::binary);
 
         if (file.is_open())
         {
@@ -428,12 +423,12 @@ namespace jiminy
             }
 
             // Extract the number of integers and floats from the list of logged constants
-            std::string const & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
+            const std::string & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
             int64_t delimiter = headerNumIntEntries.find(TELEMETRY_CONSTANT_DELIMITER);
-            int32_t const NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
-            std::string const & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
+            const int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
+            const std::string & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
             delimiter = headerNumFloatEntries.find(TELEMETRY_CONSTANT_DELIMITER);
-            int32_t const NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
+            const int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
 
             // Deduce the parameters required to parse the whole binary log file
             integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
@@ -445,8 +440,8 @@ namespace jiminy
         }
         else
         {
-            PRINT_ERROR("Impossible to open the log file. Check that the file exists and "
-                        "that you have reading permissions.");
+            PRINT_ERROR("Impossible to open the log file. Check that the file exists and that you "
+                        "have reading permissions.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -454,7 +449,6 @@ namespace jiminy
         device.open(openMode_t::READ_ONLY);
         std::vector<AbstractIODevice *> flows;
         flows.push_back(&device);
-        return parseLogDataRaw(
-            flows, integerSectionSize, floatSectionSize, headerSize, logData);
+        return parseLogDataRaw(flows, integerSectionSize, floatSectionSize, headerSize, logData);
     }
 }

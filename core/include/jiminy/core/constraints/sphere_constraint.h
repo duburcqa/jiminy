@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// \brief      Class constraining a sphere to roll without slipping on a flat plane.
-///
-/// \details    Given a frame to represent the sphere center, this class constrains it to move
-///             like it were rolling without slipping on a flat (not necessarily level) surface.
-///
-///////////////////////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_SPHERE_CONSTRAINT_H
 #define JIMINY_SPHERE_CONSTRAINT_H
 
@@ -20,53 +11,54 @@ namespace jiminy
 {
     class Model;
 
+    /// \brief Class constraining a sphere to roll without slipping on a flat plane.
+    ///
+    /// \details Given a frame to represent the sphere center, this class constrains it to move
+    ///          like it were rolling without slipping on a flat (not necessarily level) surface.
     class SphereConstraint : public AbstractConstraintTpl<SphereConstraint>
     {
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        SphereConstraint(SphereConstraint const & abstractConstraint) = delete;
-        SphereConstraint & operator = (SphereConstraint const & other) = delete;
+        DISABLE_COPY(SphereConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Constructor
-        ///
-        /// \param[in]  frameName     Name of the frame representing the center of the sphere.
-        /// \param[in]  sphereRadius  Radius of the sphere (in m).
-        /// \param[in]  groundNormal  Unit vector representing the normal to the ground, in the world frame.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        SphereConstraint(std::string const & frameName,
-                         float64_t   const & sphereRadius,
-                         vector3_t   const & groundNormal = vector3_t::UnitZ());
+    public:
+        /// \param[in] frameName Name of the frame representing the center of the sphere.
+        /// \param[in] sphereRadius Radius of the sphere (in m).
+        /// \param[in] groundNormal Normal to the ground in the world as a unit vector.
+        SphereConstraint(const std::string & frameName,
+                         const float64_t & sphereRadius,
+                         const vector3_t & groundNormal = vector3_t::UnitZ());
         virtual ~SphereConstraint(void) = default;
 
-        std::string const & getFrameName(void) const;
-        frameIndex_t const & getFrameIdx(void) const;
+        const std::string & getFrameName(void) const;
+        const frameIndex_t & getFrameIdx(void) const;
 
-        void setReferenceTransform(pinocchio::SE3 const & transformRef);
-        pinocchio::SE3 const & getReferenceTransform(void) const;
+        void setReferenceTransform(const pinocchio::SE3 & transformRef);
+        const pinocchio::SE3 & getReferenceTransform(void) const;
 
-        virtual hresult_t reset(vectorN_t const & /* q */,
-                                vectorN_t const & /* v */) override final;
+        virtual hresult_t reset(const vectorN_t & /* q */,
+                                const vectorN_t & /* v */) override final;
 
-        virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
-                                                  vectorN_t const & v) override final;
+        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q,
+                                                  const vectorN_t & v) override final;
 
     private:
-        std::string frameName_;        ///< Name of the frame on which the constraint operates.
-        frameIndex_t frameIdx_;        ///< Corresponding frame index.
-        float64_t radius_;             ///< Sphere radius.
-        vector3_t normal_;             ///< Ground normal, world frame.
-        matrix3_t skewRadius_;         ///< Skew of ground normal, in world frame, scaled by radius.
-        pinocchio::SE3 transformRef_;  ///< Reference pose of the frame to enforce.
-        matrix6N_t frameJacobian_;     ///< Stores full frame jacobian in world.
+        /// \brief Name of the frame on which the constraint operates.
+        std::string frameName_;
+        /// \brief Corresponding frame index.
+        frameIndex_t frameIdx_;
+        /// \brief Sphere radius.
+        float64_t radius_;
+        /// \brief Ground normal, world frame.
+        vector3_t normal_;
+        /// \brief Skew of ground normal, in world frame, scaled by radius.
+        matrix3_t skewRadius_;
+        /// \brief Reference pose of the frame to enforce.
+        pinocchio::SE3 transformRef_;
+        /// \brief Stores full frame jacobian in world.
+        matrix6N_t frameJacobian_;
     };
 }
 
-#endif //end of JIMINY_SPHERE_CONSTRAINT_H
+#endif  // end of JIMINY_SPHERE_CONSTRAINT_H

@@ -11,10 +11,9 @@ namespace jiminy
     JsonWriter::JsonWriter(std::shared_ptr<AbstractIODevice> device) :
     device_(std::move(device))
     {
-        // Empty on purpose
     }
 
-    hresult_t JsonWriter::dump(Json::Value const & input)
+    hresult_t JsonWriter::dump(const Json::Value & input)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

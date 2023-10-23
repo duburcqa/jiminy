@@ -2,10 +2,10 @@
 
 namespace jiminy
 {
-    RungeKuttaDOPRIStepper::RungeKuttaDOPRIStepper(systemDynamics const & f,
-                                                   std::vector<Robot const *> const & robots,
-                                                   float64_t const & tolRel,
-                                                   float64_t const & tolAbs):
+    RungeKuttaDOPRIStepper::RungeKuttaDOPRIStepper(const systemDynamics & f,
+                                                   const std::vector<const Robot *> & robots,
+                                                   const float64_t & tolRel,
+                                                   const float64_t & tolAbs) :
     AbstractRungeKuttaStepper(f, robots, DOPRI::A, DOPRI::b, DOPRI::c, true),
     tolRel_(tolRel),
     tolAbs_(tolAbs),
@@ -13,20 +13,19 @@ namespace jiminy
     otherSolution_(robots),
     error_(robots)
     {
-        // Empty on purpose
     }
 
-    bool_t RungeKuttaDOPRIStepper::adjustStep(state_t   const & initialState,
-                                              state_t   const & solution,
-                                              float64_t       & dt)
+    bool_t RungeKuttaDOPRIStepper::adjustStep(const state_t & initialState,
+                                              const state_t & solution,
+                                              float64_t & dt)
     {
-        float64_t const error = computeError(initialState, solution, dt);
+        const float64_t error = computeError(initialState, solution, dt);
         return adjustStepImpl(error, dt);
     }
 
-    float64_t RungeKuttaDOPRIStepper::computeError(state_t const & initialState,
-                                                   state_t const & solution,
-                                                   float64_t const & dt)
+    float64_t RungeKuttaDOPRIStepper::computeError(const state_t & initialState,
+                                                   const state_t & solution,
+                                                   const float64_t & dt)
     {
         // Compute alternative solution
         stateIncrement_.setZero();
@@ -58,8 +57,7 @@ namespace jiminy
         return std::min(errorAbsNorm, errorRelNorm);
     }
 
-    bool_t RungeKuttaDOPRIStepper::adjustStepImpl(float64_t const & error,
-                                                  float64_t       & dt)
+    bool_t RungeKuttaDOPRIStepper::adjustStepImpl(const float64_t & error, float64_t & dt)
     {
         // Make sure the error is defined, otherwise rely on a simple heuristic
         if (std::isnan(error))
@@ -75,7 +73,7 @@ namespace jiminy
             if (error < std::pow(DOPRI::SAFETY, DOPRI::STEPPER_ORDER))
             {
                 // Prevent numeric rounding error when close to zero
-                float64_t const newError = std::max(
+                const float64_t newError = std::max(
                     error, std::pow(DOPRI::MAX_FACTOR / DOPRI::SAFETY, -DOPRI::STEPPER_ORDER));
                 dt *= DOPRI::SAFETY * std::pow(newError, -1.0 / DOPRI::STEPPER_ORDER);
             }

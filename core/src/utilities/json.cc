@@ -14,7 +14,7 @@ namespace jiminy
     // *************** Convertion to JSON utilities *****************
 
     template<>
-    Json::Value convertToJson<flexibleJointData_t>(flexibleJointData_t const & value)
+    Json::Value convertToJson<flexibleJointData_t>(const flexibleJointData_t & value)
     {
         Json::Value flex;
         flex["frameName"] = convertToJson(value.frameName);
@@ -25,7 +25,7 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<heightmapFunctor_t>(heightmapFunctor_t const & /* value */)
+    Json::Value convertToJson<heightmapFunctor_t>(const heightmapFunctor_t & /* value */)
     {
         return {"not supported"};
     }
@@ -43,7 +43,7 @@ namespace jiminy
         ~AppendBoostVariantToJson(void) = default;
 
         template<typename T>
-        void operator()(T const & value)
+        void operator()(const T & value)
         {
             root_[field_] = convertToJson(value);
         }
@@ -54,11 +54,11 @@ namespace jiminy
     };
 
     template<>
-    Json::Value convertToJson<configHolder_t>(configHolder_t const & value)
+    Json::Value convertToJson<configHolder_t>(const configHolder_t & value)
     {
         Json::Value root{Json::objectValue};
         AppendBoostVariantToJson visitor(root);
-        for (auto const & option : value)
+        for (const auto & option : value)
         {
             visitor.field_ = option.first;
             boost::apply_visitor(visitor, option.second);
@@ -66,13 +66,12 @@ namespace jiminy
         return root;
     }
 
-    Json::Value convertToJson(configHolder_t const & value)
+    Json::Value convertToJson(const configHolder_t & value)
     {
         return convertToJson<configHolder_t>(value);
     }
 
-    hresult_t jsonDump(configHolder_t                    const & config,
-                       std::shared_ptr<AbstractIODevice>       & device)
+    hresult_t jsonDump(const configHolder_t & config, std::shared_ptr<AbstractIODevice> & device)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -94,43 +93,43 @@ namespace jiminy
     // ************* Convertion from JSON utilities *****************
 
     template<>
-    std::string convertFromJson<std::string>(Json::Value const & value)
+    std::string convertFromJson<std::string>(const Json::Value & value)
     {
         return value.asString();
     }
 
     template<>
-    bool_t convertFromJson<bool_t>(Json::Value const & value)
+    bool_t convertFromJson<bool_t>(const Json::Value & value)
     {
         return value.asBool();
     }
 
     template<>
-    int32_t convertFromJson<int32_t>(Json::Value const & value)
+    int32_t convertFromJson<int32_t>(const Json::Value & value)
     {
         return value.asInt();
     }
 
     template<>
-    uint32_t convertFromJson<uint32_t>(Json::Value const & value)
+    uint32_t convertFromJson<uint32_t>(const Json::Value & value)
     {
         return value.asUInt();
     }
 
     template<>
-    float64_t convertFromJson<float64_t>(Json::Value const & value)
+    float64_t convertFromJson<float64_t>(const Json::Value & value)
     {
         return value.asDouble();
     }
 
     template<>
-    vectorN_t convertFromJson<vectorN_t>(Json::Value const & value)
+    vectorN_t convertFromJson<vectorN_t>(const Json::Value & value)
     {
         vectorN_t vec;
         if (value.size() > 0)
         {
             vec.resize(value.size());
-            for (auto it = value.begin() ; it != value.end() ; ++it)
+            for (auto it = value.begin(); it != value.end(); ++it)
             {
                 vec[it.index()] = convertFromJson<float64_t>(*it);
             }
@@ -139,16 +138,16 @@ namespace jiminy
     }
 
     template<>
-    matrixN_t convertFromJson<matrixN_t>(Json::Value const & value)
+    matrixN_t convertFromJson<matrixN_t>(const Json::Value & value)
     {
         matrixN_t mat;
         if (value.size() > 0)
         {
-            auto it = value.begin() ;
+            auto it = value.begin();
             if (it->size() > 0)
             {
                 mat.resize(value.size(), it->size());
-                for (; it != value.end() ; ++it)
+                for (; it != value.end(); ++it)
                 {
                     mat.row(it.index()) = convertFromJson<vectorN_t>(*it);
                 }
@@ -158,61 +157,53 @@ namespace jiminy
     }
 
     template<>
-    flexibleJointData_t convertFromJson<flexibleJointData_t>(Json::Value const & value)
+    flexibleJointData_t convertFromJson<flexibleJointData_t>(const Json::Value & value)
     {
-        return {
-            convertFromJson<std::string>(value["frameName"]),
-            convertFromJson<vectorN_t>(value["stiffness"]),
-            convertFromJson<vectorN_t>(value["damping"]),
-            convertFromJson<vectorN_t>(value["inertia"])
-        };
+        return {convertFromJson<std::string>(value["frameName"]),
+                convertFromJson<vectorN_t>(value["stiffness"]),
+                convertFromJson<vectorN_t>(value["damping"]),
+                convertFromJson<vectorN_t>(value["inertia"])};
     }
 
     template<>
-    heightmapFunctor_t convertFromJson<heightmapFunctor_t>(Json::Value const & /* value */)
+    heightmapFunctor_t convertFromJson<heightmapFunctor_t>(const Json::Value & /* value */)
     {
-        return {
-            heightmapFunctor_t(
-                [](vector3_t const & /* pos */) -> std::pair<float64_t, vector3_t>
-                {
-                    return {0.0, vector3_t::UnitZ()};
-                })
-        };
+        return {heightmapFunctor_t(
+            [](const vector3_t & /* pos */) -> std::pair<float64_t, vector3_t> {
+                return {0.0, vector3_t::UnitZ()};
+            })};
     }
 
     template<>
-    configHolder_t convertFromJson<configHolder_t>(Json::Value const & value)
+    configHolder_t convertFromJson<configHolder_t>(const Json::Value & value)
     {
         configHolder_t config;
-        for (auto root = value.begin() ; root != value.end() ; ++root)
+        for (auto root = value.begin(); root != value.end(); ++root)
         {
             configField_t field;
 
             if (root->type() == Json::objectValue)
             {
                 std::vector<std::string> keys = root->getMemberNames();
-                std::vector<std::string> const stdVectorAttrib{
-                    "type",
-                    "value"
-                };
+                const std::vector<std::string> stdVectorAttrib{"type", "value"};
                 if (keys == stdVectorAttrib)
                 {
                     std::string type = (*root)["type"].asString();
                     Json::Value data = (*root)["value"];
                     if (type == "list(string)")
                     {
-                        field = convertFromJson<std::vector<std::string> >(data);
+                        field = convertFromJson<std::vector<std::string>>(data);
                     }
                     else if (type == "list(array)")
                     {
-                        if (data.begin()->size() == 0
-                         || data.begin()->begin()->type() == Json::realValue)
+                        if (data.begin()->size() == 0 ||
+                            data.begin()->begin()->type() == Json::realValue)
                         {
-                            field = convertFromJson<std::vector<vectorN_t> >(data);
+                            field = convertFromJson<std::vector<vectorN_t>>(data);
                         }
                         else
                         {
-                            field = convertFromJson<std::vector<matrixN_t> >(data);
+                            field = convertFromJson<std::vector<matrixN_t>>(data);
                         }
                     }
                     else if (type == "list(flexibility)")
@@ -244,9 +235,9 @@ namespace jiminy
             }
             else if (root->isConvertibleTo(Json::uintValue))
             {
-                /* One must use `Json::isConvertibleTo` instead of checking type since JSON
-                   format as no way to distinguish between both, so that (u)int32_t are
-                   always parsed as int64_t. */
+                /* One must use `Json::isConvertibleTo` instead of checking type since JSON format
+                   as no way to distinguish between both, so that (u)int32_t are always parsed as
+                   int64_t. */
                 field = convertFromJson<uint32_t>(*root);
             }
             else if (root->isConvertibleTo(Json::intValue))
@@ -288,15 +279,13 @@ namespace jiminy
         return config;
     }
 
-    configHolder_t convertFromJson(Json::Value const & value)
+    configHolder_t convertFromJson(const Json::Value & value)
     {
         return convertFromJson<configHolder_t>(value);
     }
 
-    hresult_t jsonLoad(configHolder_t                    & config,
-                       std::shared_ptr<AbstractIODevice> & device)
+    hresult_t jsonLoad(configHolder_t & config, std::shared_ptr<AbstractIODevice> & device)
     {
-
         hresult_t returnCode = hresult_t::SUCCESS;
 
         JsonLoader ioRead(device);

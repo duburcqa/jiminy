@@ -20,7 +20,7 @@
 namespace jiminy
 {
     template<typename T>
-    std::string saveToBinary(T const & obj)
+    std::string saveToBinary(const T & obj)
     {
         std::ostringstream os;
         {
@@ -31,7 +31,7 @@ namespace jiminy
     }
 
     template<typename T>
-    void loadFromBinary(T & obj, std::string const & str)
+    void loadFromBinary(T & obj, const std::string & str)
     {
         std::istringstream is(str);
         {
@@ -45,23 +45,19 @@ namespace jiminy
 namespace boost::serialization
 {
     template<class Archive>
-    void load_construct_data(Archive & /* ar */,
-                             pinocchio::GeometryObject * geomPtr,
-                             unsigned int const /* version */)
+    void load_construct_data(
+        Archive & /* ar */, pinocchio::GeometryObject * geomPtr, const unsigned int /* version */)
     {
-        ::new(geomPtr) pinocchio::GeometryObject(
-            "", 0, 0, {nullptr}, pinocchio::SE3::Identity());
+        ::new (geomPtr) pinocchio::GeometryObject("", 0, 0, {nullptr}, pinocchio::SE3::Identity());
     }
 
     template<class Archive>
-    void serialize(Archive & ar,
-                   pinocchio::GeometryObject & geom,
-                   unsigned int const /* version */);
+    void
+    serialize(Archive & ar, pinocchio::GeometryObject & geom, const unsigned int /* version */);
 
-    template <class Archive>
-    void serialize(Archive & ar,
-                   pinocchio::GeometryModel & model,
-                   unsigned int const /* version */)
+    template<class Archive>
+    void
+    serialize(Archive & ar, pinocchio::GeometryModel & model, const unsigned int /* version */)
     {
         ar & make_nvp("ngeoms", model.ngeoms);
         ar & make_nvp("geometryObjects", model.geometryObjects);

@@ -12,15 +12,20 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    // ***************************** PyAbstractControllerVisitor ***********************************
+    // ***************************** PyAbstractControllerVisitor **********************************
 
-    // Using an intermediary class is a trick to enable defining bp::base<...> in conjunction with bp::wrapper<...>
-    class AbstractControllerImpl: public AbstractController {};
+    /* Using an intermediary class is a trick to enable defining `bp::base<...>` in conjunction
+       with `bp::wrapper<...>`. */
+    class AbstractControllerImpl : public AbstractController
+    {
+    };
 
-    class AbstractControllerWrapper: public AbstractControllerImpl, public bp::wrapper<AbstractControllerImpl>
+    class AbstractControllerWrapper :
+    public AbstractControllerImpl,
+        public bp::wrapper<AbstractControllerImpl>
     {
     public:
-        hresult_t reset(bool_t const & resetDynamicTelemetry)
+        hresult_t reset(const bool_t & resetDynamicTelemetry)
         {
             bp::override func = this->get_override("reset");
             if (func)
@@ -31,15 +36,13 @@ namespace jiminy::python
             return AbstractController::reset(resetDynamicTelemetry);
         }
 
-        hresult_t default_reset(bool_t const & resetDynamicTelemetry)
+        hresult_t default_reset(const bool_t & resetDynamicTelemetry)
         {
             return this->AbstractController::reset(resetDynamicTelemetry);
         }
 
-        hresult_t computeCommand(float64_t const & t,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t       & command)
+        hresult_t computeCommand(
+            const float64_t & t, const vectorN_t & q, const vectorN_t & v, vectorN_t & command)
         {
             bp::override func = this->get_override("compute_command");
             if (func)
@@ -52,10 +55,8 @@ namespace jiminy::python
             return hresult_t::SUCCESS;
         }
 
-        hresult_t internalDynamics(float64_t const & t,
-                                   vectorN_t const & q,
-                                   vectorN_t const & v,
-                                   vectorN_t       & uCustom)
+        hresult_t internalDynamics(
+            const float64_t & t, const vectorN_t & q, const vectorN_t & v, vectorN_t & uCustom)
         {
             bp::override func = this->get_override("internal_dynamics");
             if (func)
@@ -69,16 +70,13 @@ namespace jiminy::python
         }
     };
 
-    struct PyAbstractControllerVisitor
-        : public bp::def_visitor<PyAbstractControllerVisitor>
+    struct PyAbstractControllerVisitor : public bp::def_visitor<PyAbstractControllerVisitor>
     {
     public:
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief Expose C++ API through the visitor.
-        ///////////////////////////////////////////////////////////////////////////////
         template<class PyClass>
         void visit(PyClass & cl) const
         {
+            // clang-format off
             cl
                 .def("initialize", &PyAbstractControllerVisitor::initialize,
                                    (bp::arg("self"), "robot"))
@@ -100,20 +98,21 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET("robot", &PyAbstractControllerVisitor::getRobot)
                 .DEF_READONLY("sensors_data", &AbstractController::sensorsData_)
                 ;
+            // clang-format on
         }
 
-        static hresult_t initialize(AbstractController           & self,
-                                    std::shared_ptr<Robot> const & robot)
+        static hresult_t initialize(AbstractController & self,
+                                    const std::shared_ptr<Robot> & robot)
         {
-            /* Cannot use input shared pointer because its reference counter is corrupted for some reason,
-               making it impossible to use it in conjunction with weak_ptr. The only known workaround is
-               using `enable_shared_from_this` trick: https://github.com/boostorg/python/issues/189 */
+            /* Cannot use input shared pointer because its reference counter is corrupted for some
+               reason, making it impossible to use it in conjunction with weak_ptr. The only known
+               workaround is using `enable_shared_from_this` trick:
+               https://github.com/boostorg/python/issues/189 */
             return self.initialize(robot->shared_from_this());
         }
 
-        static hresult_t registerVariable(AbstractController       & self,
-                                          std::string        const & fieldname,
-                                          PyObject                 * dataPy)
+        static hresult_t registerVariable(
+            AbstractController & self, const std::string & fieldname, PyObject * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
@@ -134,7 +133,8 @@ namespace jiminy::python
                     }
                     else
                     {
-                        PRINT_ERROR("'value' input array must have dtype 'np.float64' or 'np.int64'.");
+                        PRINT_ERROR(
+                            "'value' input array must have dtype 'np.float64' or 'np.int64'.");
                         return hresult_t::ERROR_BAD_INPUT;
                     }
                 }
@@ -152,9 +152,11 @@ namespace jiminy::python
         }
 
         template<typename T>
-        static hresult_t registerVariableArrayImpl(AbstractController       & self,
-                                                   bp::list           const & fieldnamesPy,
-                                                   Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> > & data)
+        static hresult_t registerVariableArrayImpl(
+            AbstractController & self,
+            const bp::list & fieldnamesPy,
+            Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
+                data)
         {
             hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -162,7 +164,7 @@ namespace jiminy::python
             if (bp::len(fieldnamesPy) > 0 && bp::extract<std::string>(fieldnamesPy[0]).check())
             {
                 // Extract fieldnames
-                auto fieldnames = convertFromPython<std::vector<std::string> >(fieldnamesPy);
+                auto fieldnames = convertFromPython<std::vector<std::string>>(fieldnamesPy);
 
                 // Check fieldnames and array have same length
                 if (static_cast<std::size_t>(data.size()) != fieldnames.size())
@@ -180,11 +182,13 @@ namespace jiminy::python
             else
             {
                 // Extract fieldnames
-                auto fieldnames = convertFromPython<std::vector<std::vector<std::string> > >(fieldnamesPy);
+                auto fieldnames =
+                    convertFromPython<std::vector<std::vector<std::string>>>(fieldnamesPy);
 
                 // Check fieldnames and array have same shape
-                bool_t are_fieldnames_valid = (static_cast<std::size_t>(data.rows()) == fieldnames.size());
-                for (std::vector<std::string> const & subfieldnames : fieldnames)
+                bool_t are_fieldnames_valid = static_cast<std::size_t>(data.rows()) ==
+                                              fieldnames.size();
+                for (const std::vector<std::string> & subfieldnames : fieldnames)
                 {
                     if (static_cast<std::size_t>(data.cols()) != subfieldnames.size())
                     {
@@ -211,25 +215,21 @@ namespace jiminy::python
             return returnCode;
         }
 
-        static hresult_t registerVariableArray(AbstractController       & self,
-                                               bp::list           const & fieldnamesPy,
-                                               PyObject                 * dataPy)
+        static hresult_t registerVariableArray(
+            AbstractController & self, const bp::list & fieldnamesPy, PyObject * dataPy)
         {
             auto data = getEigenReference(dataPy);
             if (!data)
             {
                 return hresult_t::ERROR_BAD_INPUT;
             }
-            return std::visit(
-                [&](auto && arg)
-                {
-                    return registerVariableArrayImpl(self, fieldnamesPy, arg);
-                }, data.value());
+            return std::visit([&](auto && arg)
+                              { return registerVariableArrayImpl(self, fieldnamesPy, arg); },
+                              data.value());
         }
 
-        static hresult_t registerConstant(AbstractController       & self,
-                                          std::string        const & fieldname,
-                                          PyObject                 * dataPy)
+        static hresult_t registerConstant(
+            AbstractController & self, const std::string & fieldname, PyObject * dataPy)
         {
             if (PyArray_Check(dataPy))
             {
@@ -238,11 +238,9 @@ namespace jiminy::python
                 {
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                return std::visit(
-                    [&](auto && arg)
-                    { 
-                        return self.registerConstant(fieldname, arg);
-                    }, data.value());
+                return std::visit([&](auto && arg)
+                                  { return self.registerConstant(fieldname, arg); },
+                                  data.value());
             }
             else if (PyFloat_Check(dataPy))
             {
@@ -267,8 +265,7 @@ namespace jiminy::python
             }
         }
 
-        static hresult_t setOptions(AbstractController       & self,
-                                    bp::dict           const & configPy)
+        static hresult_t setOptions(AbstractController & self, const bp::dict & configPy)
         {
             configHolder_t config = self.getOptions();
             convertFromPython(configPy, config);
@@ -277,14 +274,13 @@ namespace jiminy::python
 
         static std::shared_ptr<Robot> getRobot(AbstractController & self)
         {
-            return std::const_pointer_cast<Robot>(self.robot_.lock());  // It is not possible to keep constness
+            // It is not possible to keep constness
+            return std::const_pointer_cast<Robot>(self.robot_.lock());
         }
 
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief Expose.
-        ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
+            // clang-format off
             bp::class_<AbstractController,
                        std::shared_ptr<AbstractController>,
                        boost::noncopyable>("AbstractController", bp::no_init)
@@ -299,6 +295,7 @@ namespace jiminy::python
                                         (bp::arg("self"), "t", "q", "v", "command"))
                 .def("internal_dynamics", bp::pure_virtual(&AbstractController::internalDynamics),
                                           (bp::arg("self"), "t", "q", "v", "u_custom"));
+            // clang-format on
         }
     };
 
@@ -306,20 +303,21 @@ namespace jiminy::python
 
     // ***************************** PyControllerFunctorVisitor ***********************************
 
-    /* Take advantage of type erasure of std::function to support both
-       lambda functions and python handle wrapper depending whether or not
-       'compute_command' and 'internal_dynamics' has been specified.
-       It is likely to cause a small overhead because the compiler will
-       probably not be able to inline ControllerFctWrapper, as it would have
-       been the case otherwise, but it is the price to pay for versatility. */
+    /* Take advantage of type erasure of std::function to support both lambda functions and python
+      handle wrapper depending whether or not 'compute_command' and 'internal_dynamics' has been
+      specified. It is likely to cause a small overhead because the compiler will probably not be
+      able to inline ControllerFctWrapper, as it would have been the case otherwise, but it is the
+      price to pay for versatility. */
     using CtrlFunctor = ControllerFunctor<ControllerFct, ControllerFct>;
 
-    class CtrlFunctorImpl: public CtrlFunctor {};
+    class CtrlFunctorImpl : public CtrlFunctor
+    {
+    };
 
-    class CtrlFunctorWrapper: public CtrlFunctorImpl, public bp::wrapper<CtrlFunctorImpl>
+    class CtrlFunctorWrapper : public CtrlFunctorImpl, public bp::wrapper<CtrlFunctorImpl>
     {
     public:
-        hresult_t reset(bool_t const & resetDynamicTelemetry)
+        hresult_t reset(const bool_t & resetDynamicTelemetry)
         {
             bp::override func = this->get_override("reset");
             if (func)
@@ -330,28 +328,27 @@ namespace jiminy::python
             return CtrlFunctor::reset(resetDynamicTelemetry);
         }
 
-        hresult_t default_reset(bool_t const & resetDynamicTelemetry)
+        hresult_t default_reset(const bool_t & resetDynamicTelemetry)
         {
             return this->CtrlFunctor::reset(resetDynamicTelemetry);
         }
     };
 
-    struct PyControllerFunctorVisitor
-        : public bp::def_visitor<PyControllerFunctorVisitor>
+    struct PyControllerFunctorVisitor : public bp::def_visitor<PyControllerFunctorVisitor>
     {
     public:
-        ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose C++ API through the visitor.
-        ///////////////////////////////////////////////////////////////////////////////
         template<class PyClass>
         void visit(PyClass & cl) const
         {
+            // clang-format off
             cl
                 .def("compute_command", &AbstractController::computeCommand,
                                         (bp::arg("self"), "t", "q", "v", "command"))
                 .def("internal_dynamics", &AbstractController::internalDynamics,
                                           (bp::arg("self"), "t", "q", "v", "u_custom"));
                 ;
+            // clang-format on
         }
 
         static std::shared_ptr<CtrlFunctor> factory(bp::object & commandPy,
@@ -364,11 +361,12 @@ namespace jiminy::python
             }
             else
             {
-                commandFct = [](float64_t        const & /* t */,
-                                vectorN_t        const & /* q */,
-                                vectorN_t        const & /* v */,
-                                sensorsDataMap_t const & /* sensorsData */,
-                                vectorN_t              & /* command */) {};
+                commandFct = [](const float64_t & /* t */,
+                                const vectorN_t & /* q */,
+                                const vectorN_t & /* v */,
+                                const sensorsDataMap_t & /* sensorsData */,
+                                vectorN_t & /* command */) {
+                };
             }
             ControllerFct internalDynamicsFct;
             if (!internalDynamicsPy.is_none())
@@ -377,21 +375,20 @@ namespace jiminy::python
             }
             else
             {
-                internalDynamicsFct = [](float64_t        const & /* t */,
-                                         vectorN_t        const & /* q */,
-                                         vectorN_t        const & /* v */,
-                                         sensorsDataMap_t const & /* sensorsData */,
-                                         vectorN_t              & /* command */) {};
+                internalDynamicsFct = [](const float64_t & /* t */,
+                                         const vectorN_t & /* q */,
+                                         const vectorN_t & /* v */,
+                                         const sensorsDataMap_t & /* sensorsData */,
+                                         vectorN_t & /* command */) {
+                };
             }
             return std::make_shared<CtrlFunctor>(std::move(commandFct),
                                                  std::move(internalDynamicsFct));
         }
 
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief Expose.
-        ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
+            // clang-format off
             bp::class_<CtrlFunctor, bp::bases<AbstractController>,
                        std::shared_ptr<CtrlFunctor>,
                        boost::noncopyable>("AbstractControllerFunctor", bp::no_init)
@@ -406,6 +403,7 @@ namespace jiminy::python
                                  bp::arg("internal_dynamics") = bp::object())))
                 .def("reset", &CtrlFunctor::reset, &CtrlFunctorWrapper::default_reset,
                               (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false));
+            // clang-format on
         }
     };
 

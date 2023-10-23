@@ -6,9 +6,9 @@
 
 namespace jiminy
 {
-    hresult_t Engine::initializeImpl(std::shared_ptr<Robot>              robot,
+    hresult_t Engine::initializeImpl(std::shared_ptr<Robot> robot,
                                      std::shared_ptr<AbstractController> controller,
-                                     callbackFunctor_t                   callbackFct)
+                                     callbackFunctor_t callbackFct)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -21,23 +21,21 @@ namespace jiminy
         // Remove the existing system if already initialized
         if (isInitialized_)
         {
-            EngineMultiRobot::removeSystem("");  // It cannot fail at this point
+            EngineMultiRobot::removeSystem("");  // Cannot fail at this point
             robot_ = nullptr;
             controller_ = nullptr;
             isInitialized_ = false;
         }
 
-        /* Add the system without associated name, since
-           it is irrelevant for a single robot engine. */
+        // Add the system with empty name since it is irrelevant for a single robot engine
         if (controller)
         {
-            returnCode = EngineMultiRobot::addSystem(
-                "", robot, controller, std::move(callbackFct));
+            returnCode =
+                EngineMultiRobot::addSystem("", robot, controller, std::move(callbackFct));
         }
         else
         {
-            returnCode = EngineMultiRobot::addSystem(
-                "", robot, std::move(callbackFct));
+            returnCode = EngineMultiRobot::addSystem("", robot, std::move(callbackFct));
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -53,15 +51,14 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::initialize(std::shared_ptr<Robot>              robot,
+    hresult_t Engine::initialize(std::shared_ptr<Robot> robot,
                                  std::shared_ptr<AbstractController> controller,
-                                 callbackFunctor_t                   callbackFct)
+                                 callbackFunctor_t callbackFct)
     {
         return initializeImpl(robot, controller, callbackFct);
     }
 
-    hresult_t Engine::initialize(std::shared_ptr<Robot> robot,
-                                 callbackFunctor_t      callbackFct)
+    hresult_t Engine::initialize(std::shared_ptr<Robot> robot, callbackFunctor_t callbackFct)
     {
         return initializeImpl(robot, std::shared_ptr<AbstractController>(), callbackFct);
     }
@@ -71,7 +68,7 @@ namespace jiminy
         return EngineMultiRobot::setController("", controller);
     }
 
-    hresult_t Engine::addSystem(std::string const & /* systemName */,
+    hresult_t Engine::addSystem(const std::string & /* systemName */,
                                 std::shared_ptr<Robot> /* robot */,
                                 std::shared_ptr<AbstractController> /* controller */)
     {
@@ -81,7 +78,7 @@ namespace jiminy
         return hresult_t::ERROR_GENERIC;
     }
 
-    hresult_t Engine::removeSystem(std::string const & /* systemName */)
+    hresult_t Engine::removeSystem(const std::string & /* systemName */)
     {
         PRINT_ERROR("This method is not supported by this class. Please call "
                     "`initialize` instead to set the model, or use `EngineMultiRobot` "
@@ -89,14 +86,15 @@ namespace jiminy
         return hresult_t::ERROR_GENERIC;
     }
 
-    hresult_t singleToMultipleSystemsInitialData(Robot const & robot,
-                                                 bool_t const & isStateTheoretical,
-                                                 vectorN_t const & qInit,
-                                                 vectorN_t const & vInit,
-                                                 std::optional<vectorN_t> const & aInit,
-                                                 std::map<std::string, vectorN_t> & qInitList,
-                                                 std::map<std::string, vectorN_t> & vInitList,
-                                                 std::optional<std::map<std::string, vectorN_t> > & aInitList)
+    hresult_t singleToMultipleSystemsInitialData(
+        const Robot & robot,
+        const bool_t & isStateTheoretical,
+        const vectorN_t & qInit,
+        const vectorN_t & vInit,
+        const std::optional<vectorN_t> & aInit,
+        std::map<std::string, vectorN_t> & qInitList,
+        std::map<std::string, vectorN_t> & vInitList,
+        std::optional<std::map<std::string, vectorN_t>> & aInitList)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -145,10 +143,10 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::start(vectorN_t const & qInit,
-                            vectorN_t const & vInit,
-                            std::optional<vectorN_t> const & aInit,
-                            bool_t    const & isStateTheoretical)
+    hresult_t Engine::start(const vectorN_t & qInit,
+                            const vectorN_t & vInit,
+                            const std::optional<vectorN_t> & aInit,
+                            const bool_t & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -160,7 +158,7 @@ namespace jiminy
 
         std::map<std::string, vectorN_t> qInitList;
         std::map<std::string, vectorN_t> vInitList;
-        std::optional<std::map<std::string, vectorN_t> > aInitList = std::nullopt;
+        std::optional<std::map<std::string, vectorN_t>> aInitList = std::nullopt;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = singleToMultipleSystemsInitialData(
@@ -175,11 +173,11 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::simulate(float64_t const & tEnd,
-                               vectorN_t const & qInit,
-                               vectorN_t const & vInit,
-                               std::optional<vectorN_t> const & aInit,
-                               bool_t    const & isStateTheoretical)
+    hresult_t Engine::simulate(const float64_t & tEnd,
+                               const vectorN_t & qInit,
+                               const vectorN_t & vInit,
+                               const std::optional<vectorN_t> & aInit,
+                               const bool_t & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -191,7 +189,7 @@ namespace jiminy
 
         std::map<std::string, vectorN_t> qInitList;
         std::map<std::string, vectorN_t> vInitList;
-        std::optional<std::map<std::string, vectorN_t> > aInitList = std::nullopt;
+        std::optional<std::map<std::string, vectorN_t>> aInitList = std::nullopt;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = singleToMultipleSystemsInitialData(
@@ -206,17 +204,17 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::registerForceImpulse(std::string      const & frameName,
-                                           float64_t        const & t,
-                                           float64_t        const & dt,
-                                           pinocchio::Force const & F)
+    hresult_t Engine::registerForceImpulse(const std::string & frameName,
+                                           const float64_t & t,
+                                           const float64_t & dt,
+                                           const pinocchio::Force & F)
     {
         return EngineMultiRobot::registerForceImpulse("", frameName, t, dt, F);
     }
 
-    hresult_t Engine::registerForceProfile(std::string const & frameName,
-                                           forceProfileFunctor_t const & forceFct,
-                                           float64_t const & updatePeriod)
+    hresult_t Engine::registerForceProfile(const std::string & frameName,
+                                           const forceProfileFunctor_t & forceFct,
+                                           const float64_t & updatePeriod)
     {
         return EngineMultiRobot::registerForceProfile("", frameName, forceFct, updatePeriod);
     }
@@ -231,51 +229,51 @@ namespace jiminy
         return EngineMultiRobot::removeForcesProfile("");
     }
 
-    forceImpulseRegister_t const & Engine::getForcesImpulse(void) const
+    const forceImpulseRegister_t & Engine::getForcesImpulse(void) const
     {
-        forceImpulseRegister_t const * forcesImpulse;
+        const forceImpulseRegister_t * forcesImpulse;
         EngineMultiRobot::getForcesImpulse("", forcesImpulse);
         return *forcesImpulse;
     }
 
-    forceProfileRegister_t const & Engine::getForcesProfile(void) const
+    const forceProfileRegister_t & Engine::getForcesProfile(void) const
     {
-        forceProfileRegister_t const * forcesProfile;
+        const forceProfileRegister_t * forcesProfile;
         EngineMultiRobot::getForcesProfile("", forcesProfile);
         return *forcesProfile;
     }
 
-    hresult_t Engine::registerForceCoupling(std::string const & frameName1,
-                                            std::string const & frameName2,
+    hresult_t Engine::registerForceCoupling(const std::string & frameName1,
+                                            const std::string & frameName2,
                                             forceProfileFunctor_t forceFct)
     {
-        auto forceCouplingFct = [forceFct](float64_t const & t,
-                                           vectorN_t const & q1,
-                                           vectorN_t const & v1,
-                                           vectorN_t const & /* q2 */,
-                                           vectorN_t const & /* v2 */)
-                                {
-                                    return forceFct(t, q1, v1);
-                                };
+        auto forceCouplingFct = [forceFct](const float64_t & t,
+                                           const vectorN_t & q1,
+                                           const vectorN_t & v1,
+                                           const vectorN_t & /* q2 */,
+                                           const vectorN_t & /* v2 */)
+        {
+            return forceFct(t, q1, v1);
+        };
         return EngineMultiRobot::registerForceCoupling(
             "", "", frameName1, frameName2, forceCouplingFct);
     }
 
-    hresult_t Engine::registerViscoelasticForceCoupling(std::string const & frameName1,
-                                                        std::string const & frameName2,
-                                                        vector6_t   const & stiffness,
-                                                        vector6_t   const & damping,
-                                                        float64_t   const & alpha)
+    hresult_t Engine::registerViscoelasticForceCoupling(const std::string & frameName1,
+                                                        const std::string & frameName2,
+                                                        const vector6_t & stiffness,
+                                                        const vector6_t & damping,
+                                                        const float64_t & alpha)
     {
         return EngineMultiRobot::registerViscoelasticForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping, alpha);
     }
 
-    hresult_t Engine::registerViscoelasticDirectionalForceCoupling(std::string const & frameName1,
-                                                                   std::string const & frameName2,
-                                                                   float64_t   const & stiffness,
-                                                                   float64_t   const & damping,
-                                                                   float64_t   const & restLength)
+    hresult_t Engine::registerViscoelasticDirectionalForceCoupling(const std::string & frameName1,
+                                                                   const std::string & frameName2,
+                                                                   const float64_t & stiffness,
+                                                                   const float64_t & damping,
+                                                                   const float64_t & restLength)
     {
         return EngineMultiRobot::registerViscoelasticDirectionalForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping, restLength);
@@ -286,12 +284,12 @@ namespace jiminy
         return EngineMultiRobot::removeForcesCoupling("");
     }
 
-    bool_t const & Engine::getIsInitialized(void) const
+    const bool_t & Engine::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    hresult_t Engine::getSystem(systemHolder_t * & system)
+    hresult_t Engine::getSystem(systemHolder_t *& system)
     {
         static systemHolder_t systemEmpty;
 
@@ -337,9 +335,9 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::getSystemState(systemState_t const * & systemState) const
+    hresult_t Engine::getSystemState(const systemState_t *& systemState) const
     {
-        static systemState_t const systemStateEmpty;
+        static const systemState_t systemStateEmpty;
 
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -351,7 +349,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            EngineMultiRobot::getSystemState("", systemState);  // It cannot fail at this point
+            EngineMultiRobot::getSystemState("", systemState);  // Cannot fail at this point
             return returnCode;
         }
 

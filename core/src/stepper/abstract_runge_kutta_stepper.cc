@@ -4,12 +4,12 @@
 
 namespace jiminy
 {
-    AbstractRungeKuttaStepper::AbstractRungeKuttaStepper(systemDynamics const & f,
-                                                         std::vector<Robot const *> const & robots,
-                                                         matrixN_t const & RungeKuttaMatrix,
-                                                         vectorN_t const & bWeights,
-                                                         vectorN_t const & cNodes,
-                                                         bool_t    const & isFSAL):
+    AbstractRungeKuttaStepper::AbstractRungeKuttaStepper(const systemDynamics & f,
+                                                         const std::vector<const Robot *> & robots,
+                                                         const matrixN_t & RungeKuttaMatrix,
+                                                         const vectorN_t & bWeights,
+                                                         const vectorN_t & cNodes,
+                                                         const bool_t & isFSAL) :
     AbstractStepper(f, robots),
     A_(RungeKuttaMatrix),
     b_(bWeights),
@@ -26,10 +26,10 @@ namespace jiminy
         assert(b_.size() == b_.rows());
     }
 
-    bool_t AbstractRungeKuttaStepper::tryStepImpl(state_t                 & state,
-                                                  stateDerivative_t       & stateDerivative,
-                                                  float64_t         const & t,
-                                                  float64_t               & dt)
+    bool_t AbstractRungeKuttaStepper::tryStepImpl(state_t & state,
+                                                  stateDerivative_t & stateDerivative,
+                                                  const float64_t & t,
+                                                  float64_t & dt)
     {
         // First ki is simply the provided stateDerivative
         ki_[0] = stateDerivative;
@@ -58,7 +58,7 @@ namespace jiminy
         state.sum(stateIncrement_, candidateSolution_);
 
         // Evaluate the solution's error for step adjustment
-        bool_t const hasSucceeded = adjustStep(state, candidateSolution_, dt);
+        const bool_t hasSucceeded = adjustStep(state, candidateSolution_, dt);
 
         // Update state and compute derivative if success
         if (hasSucceeded)
@@ -77,13 +77,12 @@ namespace jiminy
         return hasSucceeded;
     }
 
-    bool_t AbstractRungeKuttaStepper::adjustStep(state_t   const & /* initialState */,
-                                                 state_t   const & /* solution */,
-                                                 float64_t       & dt)
+    bool_t AbstractRungeKuttaStepper::adjustStep(const state_t & /* initialState */,
+                                                 const state_t & /* solution */,
+                                                 float64_t & dt)
     {
         // Fixed-step by default, which never fails
         dt = INF;
         return true;
     }
 }
-

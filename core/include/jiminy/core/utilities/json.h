@@ -15,17 +15,15 @@ namespace jiminy
 
     // *************** Conversion to JSON utilities *****************
 
-    Json::Value convertToJson(configHolder_t const & value);
+    Json::Value convertToJson(const configHolder_t & value);
 
-    hresult_t jsonDump(configHolder_t                    const & config,
-                       std::shared_ptr<AbstractIODevice>       & device);
+    hresult_t jsonDump(const configHolder_t & config, std::shared_ptr<AbstractIODevice> & device);
 
     // ************* Conversion from JSON utilities *****************
 
-    configHolder_t convertFromJson(Json::Value const & value);
+    configHolder_t convertFromJson(const Json::Value & value);
 
-    hresult_t jsonLoad(configHolder_t                    & config,
-                       std::shared_ptr<AbstractIODevice> & device);
+    hresult_t jsonLoad(configHolder_t & config, std::shared_ptr<AbstractIODevice> & device);
 }
 
 #endif  // JIMINY_JSON_H

@@ -12,17 +12,14 @@ namespace jiminy::python
 
     // ***************************** PyAbstractMotorVisitor ***********************************
 
-    struct PyAbstractMotorVisitor
-        : public bp::def_visitor<PyAbstractMotorVisitor>
+    struct PyAbstractMotorVisitor : public bp::def_visitor<PyAbstractMotorVisitor>
     {
     public:
-        ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose C++ API through the visitor.
-        ///////////////////////////////////////////////////////////////////////////////
-
         template<class PyClass>
         void visit(PyClass & cl) const
         {
+            // clang-format off
             cl
                 .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
                                               &AbstractMotorBase::getIsInitialized,
@@ -58,26 +55,25 @@ namespace jiminy::python
                 .def("set_options", &PyAbstractMotorVisitor::setOptions)
                 .def("get_options", &AbstractMotorBase::getOptions)
                 ;
+            // clang-format on
         }
 
     public:
-        static hresult_t setOptions(AbstractMotorBase       & self,
-                               bp::dict          const & configPy)
+        static hresult_t setOptions(AbstractMotorBase & self, const bp::dict & configPy)
         {
             configHolder_t config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }
 
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief Expose.
-        ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
+            // clang-format off
             bp::class_<AbstractMotorBase,
                        std::shared_ptr<AbstractMotorBase>,
                        boost::noncopyable>("AbstractMotor", bp::no_init)
                 .def(PyAbstractMotorVisitor());
+            // clang-format on
         }
     };
 
@@ -85,46 +81,31 @@ namespace jiminy::python
 
     // ***************************** PySimpleMotorVisitor ***********************************
 
-    struct PySimpleMotorVisitor
-        : public bp::def_visitor<PySimpleMotorVisitor>
+    struct PySimpleMotorVisitor : public bp::def_visitor<PySimpleMotorVisitor>
     {
-    public:
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief Expose C++ API through the visitor.
-        ///////////////////////////////////////////////////////////////////////////////
-
-        template<class PyClass>
-        class PyMotorVisitorImpl
-        {
-        public:
-            using TMotor = typename PyClass::wrapped_type;
-
-            static void visit(PyClass & cl)
-            {
-                cl
-                    .def("initialize", &TMotor::initialize)
-                    ;
-            }
-        };
-
     public:
         template<class PyClass>
         void visit(PyClass & cl) const
         {
-            PyMotorVisitorImpl<PyClass>::visit(cl);
+            using TMotor = typename PyClass::wrapped_type;
+
+            // clang-format off
+            cl
+                .def("initialize", &TMotor::initialize)
+                ;
+            // clang-format on
         }
 
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief Expose.
-        ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
+            // clang-format off
             bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
                        std::shared_ptr<SimpleMotor>,
                        boost::noncopyable>("SimpleMotor",
-                       bp::init<std::string const &>(
+                       bp::init<const std::string &>(
                        (bp::arg("self"), "motor_name")))
                 .def(PySimpleMotorVisitor());
+            // clang-format on
         }
     };
 

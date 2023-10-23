@@ -13,39 +13,39 @@ namespace jiminy
 
     class DistanceConstraint : public AbstractConstraintTpl<DistanceConstraint>
     {
-
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        DistanceConstraint(DistanceConstraint const & abstractConstraint) = delete;
-        DistanceConstraint & operator = (DistanceConstraint const & other) = delete;
+        DISABLE_COPY(DistanceConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 
-        DistanceConstraint(std::string const & firstFrameName,
-                           std::string const & secondFrameName);
+    public:
+        DistanceConstraint(const std::string & firstFrameName,
+                           const std::string & secondFrameName);
         virtual ~DistanceConstraint(void) = default;
 
-        std::vector<std::string> const & getFramesNames(void) const;
-        std::vector<frameIndex_t> const & getFramesIdx(void) const;
+        const std::vector<std::string> & getFramesNames(void) const;
+        const std::vector<frameIndex_t> & getFramesIdx(void) const;
 
-        hresult_t setReferenceDistance(float64_t const & distanceRef);
-        float64_t const & getReferenceDistance(void) const;
+        hresult_t setReferenceDistance(const float64_t & distanceRef);
+        const float64_t & getReferenceDistance(void) const;
 
-        virtual hresult_t reset(vectorN_t const & q,
-                                vectorN_t const & v) override final;
+        virtual hresult_t reset(const vectorN_t & q, const vectorN_t & v) override final;
 
-        virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
-                                                  vectorN_t const & v) override final;
+        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q,
+                                                  const vectorN_t & v) override final;
 
     private:
-        std::vector<std::string> framesNames_;    ///< Names of the frames on which the constraint operates.
-        std::vector<frameIndex_t> framesIdx_;     ///< Corresponding frames indices.
-        float64_t distanceRef_;                   ///< Reference Distance between the frames
-        matrix6N_t firstFrameJacobian_;            ///< Stores first frame jacobian in world.
-        matrix6N_t secondFrameJacobian_;           ///< Stores second frame jacobian in world.
+        /// \brief Names of the frames on which the constraint operates.
+        std::vector<std::string> framesNames_;
+        /// \brief Corresponding frames indices.
+        std::vector<frameIndex_t> framesIdx_;
+        /// \brief Reference Distance between the frames
+        float64_t distanceRef_;
+        /// \brief Stores first frame jacobian in world.
+        matrix6N_t firstFrameJacobian_;
+        /// \brief Stores second frame jacobian in world.
+        matrix6N_t secondFrameJacobian_;
     };
 }
 
-#endif //end of JIMINY_TRANSMISSION_CONSTRAINT_H
+#endif  // end of JIMINY_TRANSMISSION_CONSTRAINT_H

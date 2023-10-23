@@ -8,28 +8,28 @@ namespace jiminy
     telemetryData_(nullptr),
     bufferPosition_()
     {
-        // Empty on purpose
     }
 
     void TelemetrySender::configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
-                                          std::string const & objectName)
+                                          const std::string & objectName)
     {
         objectName_ = objectName;
         telemetryData_ = telemetryDataInstance;
         bufferPosition_.clear();
     }
 
-    hresult_t TelemetrySender::registerConstant(std::string const & variableName,
-                                                std::string const & value)
+    hresult_t TelemetrySender::registerConstant(const std::string & variableName,
+                                                const std::string & value)
     {
-        std::string const fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + variableName;
+        const std::string fullFieldName =
+            objectName_ + TELEMETRY_FIELDNAME_DELIMITER + variableName;
         return telemetryData_->registerConstant(fullFieldName, value);
     }
 
     void TelemetrySender::updateValues(void)
     {
         // Write the value directly in the buffer holder using the pointer stored in the map.
-        for (auto const & pair : bufferPosition_)
+        for (const auto & pair : bufferPosition_)
         {
             std::visit([](auto && arg) { *arg.second = *arg.first; }, pair);
         }
@@ -40,7 +40,7 @@ namespace jiminy
         return static_cast<uint32_t>(bufferPosition_.size());
     }
 
-    std::string const & TelemetrySender::getObjectName(void) const
+    const std::string & TelemetrySender::getObjectName(void) const
     {
         return objectName_;
     }

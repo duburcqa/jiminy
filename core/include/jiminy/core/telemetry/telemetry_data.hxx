@@ -1,9 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-///
-/// \brief   Manage the data structures of the telemetry.
-///
-///////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_TELEMETRY_DATA_HXX
 #define JIMINY_TELEMETRY_DATA_HXX
 
@@ -13,20 +7,18 @@
 namespace jiminy
 {
     template<typename T>
-    hresult_t TelemetryData::registerVariable(std::string const & variableName,
-                                              T * & positionInBufferOut)
+    hresult_t TelemetryData::registerVariable(const std::string & variableName,
+                                              T *& positionInBufferOut)
     {
         // Get the right registry
-        std::deque<std::pair<std::string, T> > * registry = getRegistry<T>();
+        std::deque<std::pair<std::string, T>> * registry = getRegistry<T>();
 
         // Check if already in memory
         auto variableIt = std::find_if(
             registry->begin(),
             registry->end(),
-            [&variableName](std::pair<std::string, T> const & element) -> bool_t
-            {
-                return element.first == variableName;
-            });
+            [&variableName](const std::pair<std::string, T> & element) -> bool_t
+            { return element.first == variableName; });
         if (variableIt != registry->end())
         {
             positionInBufferOut = &(variableIt->second);
