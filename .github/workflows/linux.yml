@@ -33,8 +33,6 @@ jobs:
     #####################################################################################
 
     steps:
-    - name: Checkout jiminy
-      uses: actions/checkout@v4
     - name: Configure Python
       uses: actions/setup-python@v4
       with:
@@ -49,6 +47,8 @@ jobs:
         haskell: true
         large-packages: false
         swap-storage: false
+    - name: Checkout jiminy
+      uses: actions/checkout@v4
 
     #####################################################################################
 
@@ -57,9 +57,6 @@ jobs:
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python3"
 
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
-        echo "PYTHON_EXECUTABLE=$(which python3)" >> $GITHUB_ENV
-        echo "PYTHON_INCLUDE_DIRS=$(${PYTHON_EXECUTABLE} -c \
-          'import sysconfig as sysconfig; print(sysconfig.get_path("include"))')" >> $GITHUB_ENV
 
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
@@ -91,7 +88,7 @@ jobs:
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
-              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_GYM_JIMINY=ON \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j2
@@ -107,8 +104,7 @@ jobs:
         mkdir -p "$RootDir/core/examples/external_project/build"
         cd "$RootDir/core/examples/external_project/build"
         cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DCMAKE_PREFIX_PATH="$InstallDir" \
-              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
+              -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 

@@ -10,8 +10,8 @@ on:
 jobs:
   build-and-test-win10:
     name: >-
-      (Windows) (${{ matrix.PYTHON_VERSION }}) Build the dependencies.
-      Build the project and run the unit tests.
+      (Windows) (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
+      Build the dependencies. Build the project and run the unit tests.
     runs-on: windows-2022
 
     defaults:
@@ -20,29 +20,40 @@ jobs:
 
     env:
       TORCH_VERSION: "2.0.1+cpu"
-      BUILD_TYPE: "Release"
       GENERATOR: "Visual Studio 17 2022"
-      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY /d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"
+      CMAKE_CXX_FLAGS: "/DEIGEN_MPL2_ONLY /d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"
 
     strategy:
       matrix:
         PYTHON_VERSION: ['3.8', '3.9', '3.10', '3.11']
+        BUILD_TYPE: ['Release']
+        #include:
+        #  - PYTHON_VERSION: '3.11'
+        #    BUILD_TYPE: 'Debug'
 
     #####################################################################################
 
     steps:
     - name: Configure Pagefile
       uses: al-cheb/configure-pagefile-action@v1.3
-    - name: Checkout jiminy
-      uses: actions/checkout@v4
-
-    #####################################################################################
-
+      with:
+        disk-root: "C:"
+    - name: Create workspace on secondary drive that has more space
+      run: |
+        New-Item -ItemType Directory -Force -Path C:\workspace
+        New-Item -ItemType Junction -Force -Value C:\workspace -Path "${env:GITHUB_WORKSPACE}/workspace"
     - name: Configure Python
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
         architecture: 'x64'
+    - name: Checkout jiminy
+      uses: actions/checkout@v4
+      with:
+        path: 'workspace'
+
+    #####################################################################################
+
     - name: Setup minimal build environment
       run: |
         git config --global advice.detachedHead false
@@ -55,7 +66,8 @@ jobs:
           python -m pip install "torch==${env:TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
           python -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
         }
-        & "./build_tools/build_install_deps_windows.ps1"
+        ${env:BUILD_TYPE} = "${{ matrix.BUILD_TYPE }}"
+        & "./workspace/build_tools/build_install_deps_windows.ps1"
 
     #####################################################################################
 
@@ -64,7 +76,7 @@ jobs:
         $ErrorActionPreference = "Stop"
         Set-PSDebug -Trace 1
 
-        $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
+        $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
         $InstallDir = "$RootDir/install"
 
         if (Test-Path env:Boost_ROOT) {
@@ -78,7 +90,7 @@ jobs:
         cmake "$RootDir" -G "${env:GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_VERBOSE_MAKEFILE=ON `
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}" `
@@ -87,7 +99,7 @@ jobs:
               -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
               ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
               ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
-        cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
+        cmake --build . --target ALL_BUILD --config "${{ matrix.BUILD_TYPE }}" --parallel 2
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
           New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
@@ -96,13 +108,13 @@ jobs:
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
 
         ${env:Path} += ";$InstallDir/lib"
-        cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"
+        cmake --build . --target INSTALL --config "${{ matrix.BUILD_TYPE }}"
 
     #####################################################################################
 
     - name: Generating the Python Pip wheels
       run: |
-        $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
+        $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
         $InstallDir = "$RootDir/install"
         ${env:Path} += ";$InstallDir/lib"
 
@@ -130,6 +142,7 @@ jobs:
             python -m pip install --force-reinstall --no-deps $wheel_path
         }
     - name: Upload the wheel for Windows of jiminy_py
+      if: matrix.BUILD_TYPE == 'Release'
       uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
@@ -142,7 +155,7 @@ jobs:
         $ErrorActionPreference = "Stop"
         Set-PSDebug -Trace 1
 
-        $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
+        $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
         $InstallDir = "$RootDir/install"
 
         & "$InstallDir/bin/jiminy_double_pendulum.exe"
@@ -151,19 +164,20 @@ jobs:
         cd "$RootDir/core/examples/external_project/build"
 
         $JIMINY_LIB_DIR = (python -c "import os, jiminy_py ; print(os.path.dirname(jiminy_py.get_libraries()))")
+        echo $JIMINY_LIB_DIR
         ${env:Path} += ";$JIMINY_LIB_DIR"
 
         cmake "$RootDir/core/examples/external_project/" -G "${env:GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
               -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}" `
               -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS}"
-        cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"
+        cmake --build . --target INSTALL --config "${{ matrix.BUILD_TYPE }}"
 
         & "$InstallDir/bin/pip_double_pendulum.exe"
 
     - name: Running unit tests for jiminy
       run: |
-        $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
+        $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
 
         Set-Location -Path "$RootDir/build/core/unit"
         ctest --output-on-failure
@@ -171,10 +185,16 @@ jobs:
         Set-Location -Path "$RootDir/python/jiminy_py/unit_py"
         python -m unittest discover -v
 
-    - name: Running unit tests for gym_jiminy
-      if: matrix.PYTHON_VERSION != '3.11'
+    - name: Run unit tests for gym_jiminy
+      if: matrix.BUILD_TYPE != 'Release'
       run: |
-        $RootDir = "${env:GITHUB_WORKSPACE}" -replace '\\', '/'
+        Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
+        python -m unittest test_pipeline_control.py test_pipeline_design.py -v
+
+    - name: Running unit tests for gym_jiminy
+      if: matrix.BUILD_TYPE == 'Release' && matrix.PYTHON_VERSION != '3.11'
+      run: |
+        $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
 
         Set-Location -Path "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         $JIMINY_VIEWER_DEFAULT_BACKEND = "panda3d-sync"
